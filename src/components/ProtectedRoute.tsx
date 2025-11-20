@@ -1,0 +1,33 @@
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+/**
+ * 路由守卫组件 - 保护需要登录的页面
+ */
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { isAuthenticated, loading } = useAuth();
+
+  // 加载中显示加载状态
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center animate-fade-in">
+        <div className="text-center" role="status" aria-live="polite">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证身份...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 未登录则重定向到登录页
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 已登录则显示子组件
+  return <>{children}</>;
+}

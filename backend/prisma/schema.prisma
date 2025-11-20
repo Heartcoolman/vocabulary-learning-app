@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  username     String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  words        Word[]
+  records      AnswerRecord[]
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Word {
+  id        String         @id @default(uuid())
+  userId    String
+  spelling  String
+  phonetic  String
+  meanings  String[] // JSON array stored as text
+  examples  String[] // JSON array stored as text
+  audioUrl  String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records   AnswerRecord[]
+
+  @@index([userId])
+  @@map("words")
+}
+
+model AnswerRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  wordId         String
+  selectedAnswer String
+  correctAnswer  String
+  isCorrect      Boolean
+  timestamp      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word           Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([wordId])
+  @@map("answer_records")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
