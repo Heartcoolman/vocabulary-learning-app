@@ -1,5 +1,12 @@
 node_modules
 dist
 .env
+.env.local
 *.log
 .DS_Store
+
+# AI Assistant files
+.shrimp/
+
+# Test and diagnostic scripts
+scripts/
