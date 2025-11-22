@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  role: 'USER' | 'ADMIN';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,4 +65,90 @@ export interface UserStatistics {
   totalRecords: number;
   correctCount: number;
   accuracy: number;
+}
+
+// =============== 词书相关类型 ===============
+
+export interface CreateWordBookDto {
+  name: string;
+  description?: string;
+  coverImage?: string;
+}
+
+export interface UpdateWordBookDto {
+  name?: string;
+  description?: string;
+  coverImage?: string;
+}
+
+export interface WordBookResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  type: 'SYSTEM' | 'USER';
+  wordCount: number;
+  coverImage: string | null;
+  userId: string | null;
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// =============== 学习配置相关类型 ===============
+
+export interface StudyConfigDto {
+  selectedWordBookIds: string[];
+  dailyWordCount: number;
+  studyMode?: string;
+}
+
+export interface StudyConfigResponse {
+  id: string;
+  userId: string;
+  selectedWordBookIds: string[];
+  dailyWordCount: number;
+  studyMode: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// =============== 管理员相关类型 ===============
+
+export interface UserListResponse {
+  id: string;
+  email: string;
+  username: string;
+  role: 'USER' | 'ADMIN';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SystemStatsResponse {
+  totalUsers: number;
+  activeUsers: number;
+  totalWordBooks: number;
+  totalWords: number;
+  totalRecords: number;
+}
+
+export interface UserLearningDataResponse {
+  userId: string;
+  totalWordsLearned: number;
+  totalStudyTime: number;
+  averageAccuracy: number;
+  recentRecords: AnswerRecordResponse[];
+}
+
+export interface AnswerRecordResponse {
+  id: string;
+  wordId: string;
+  selectedAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  timestamp: Date;
+  word: {
+    spelling: string;
+    phonetic: string;
+    meanings: string[];
+  };
 }

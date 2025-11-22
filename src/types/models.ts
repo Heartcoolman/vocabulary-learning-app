@@ -53,3 +53,67 @@ export interface StudyStatistics {
   correctRate: number;           // 总体正确率
   wordStats: Map<string, WordStatistics>; // 每个单词的统计
 }
+
+/**
+ * 词书类型
+ */
+export type WordBookType = 'SYSTEM' | 'USER';
+
+/**
+ * 词书数据模型
+ */
+export interface WordBook {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: WordBookType;
+  userId?: string | null;
+  isPublic: boolean;
+  wordCount: number;
+  coverImage?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * 学习配置数据模型
+ */
+export interface StudyConfig {
+  id: string;
+  userId: string;
+  selectedWordBookIds: string[];
+  dailyWordCount: number;
+  studyMode: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * 用户角色
+ */
+export type UserRole = 'USER' | 'ADMIN';
+
+/**
+ * 用户信息（包含角色）
+ */
+export interface UserInfo {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * 系统统计数据
+ */
+export interface SystemStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalWordBooks: number;
+  systemWordBooks: number;
+  userWordBooks: number;
+  totalWords: number;
+  totalRecords: number;
+}

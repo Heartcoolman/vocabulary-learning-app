@@ -36,7 +36,7 @@ export default function SyncIndicator() {
             setShowErrorIcon(false);
           }, 3000);
         } else {
-          // 同步成功，显示绿色对号
+          // 同步成功，显示绿色对劲
           setShowSuccessIcon(true);
           setShowErrorIcon(false);
           
@@ -103,17 +103,17 @@ export default function SyncIndicator() {
             </>
           ) : showSuccessIcon ? (
             <>
-              <div className="text-green-500 text-2xl animate-fade-in" aria-hidden="true">✓</div>
+              <div className="text-green-500 text-2xl animate-fade-in" aria-hidden="true">?</div>
               <span className="text-sm font-medium text-green-600 animate-fade-in">同步成功</span>
             </>
           ) : showErrorIcon ? (
             <>
-              <div className="text-red-500 text-2xl animate-fade-in" aria-hidden="true">✗</div>
+              <div className="text-red-500 text-2xl animate-fade-in" aria-hidden="true">?</div>
               <span className="text-sm font-medium text-red-600 animate-fade-in">同步失败</span>
             </>
           ) : syncStatus.error ? (
             <>
-              <div className="text-red-500 text-xl" aria-hidden="true">⚠️</div>
+              <div className="text-red-500 text-xl" aria-hidden="true">??</div>
               <span className="text-sm font-medium text-red-600">同步失败</span>
             </>
           ) : syncStatus.pendingChanges > 0 ? (
@@ -125,7 +125,7 @@ export default function SyncIndicator() {
             </>
           ) : (
             <>
-              <div className="text-green-500 text-xl" aria-hidden="true">✓</div>
+              <div className="text-green-500 text-xl" aria-hidden="true">?</div>
               <span className="text-sm font-medium text-green-600">已同步</span>
             </>
           )}
@@ -156,13 +156,13 @@ export default function SyncIndicator() {
             
             <div className="text-xs text-gray-600">
               <div className="flex justify-between">
-                <span>最后同步:</span>
+                <span>最后同步</span>
                 <span className="font-medium">{formatTime(syncStatus.lastSyncTime)}</span>
               </div>
               
               {syncStatus.pendingChanges > 0 && (
                 <div className="flex justify-between mt-1">
-                  <span>待同步:</span>
+                  <span>待同步</span>
                   <span className="font-medium">{syncStatus.pendingChanges} 项</span>
                 </div>
               )}

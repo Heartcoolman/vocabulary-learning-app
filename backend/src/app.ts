@@ -8,6 +8,9 @@ import { errorHandler } from './middleware/error.middleware';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import wordRoutes from './routes/word.routes';
+import wordBookRoutes from './routes/wordbook.routes';
+import studyConfigRoutes from './routes/study-config.routes';
+import adminRoutes from './routes/admin.routes';
 import recordRoutes from './routes/record.routes';
 
 const app = express();
@@ -53,6 +56,9 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/words', wordRoutes);
+app.use('/api/wordbooks', wordBookRoutes);
+app.use('/api/study-config', studyConfigRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/records', recordRoutes);
 
 // 404处理

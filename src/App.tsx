@@ -5,19 +5,24 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import SyncIndicator from './components/SyncIndicator';
-import MigrationPrompt from './components/MigrationPrompt';
 import LearningPage from './pages/LearningPage';
 import VocabularyPage from './pages/VocabularyPage';
+import WordBookDetailPage from './pages/WordBookDetailPage';
+import StudySettingsPage from './pages/StudySettingsPage';
 import HistoryPage from './pages/HistoryPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminWordBooks from './pages/admin/AdminWordBooks';
 
 /**
  * AppContent - 应用主内容（需要在AuthProvider内部）
  */
 function AppContent() {
-  const { isAuthenticated, showMigrationPrompt, dismissMigrationPrompt } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
@@ -28,7 +33,7 @@ function AppContent() {
             {/* 公开路由 */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            
+
             {/* 受保护的路由 */}
             <Route
               path="/"
@@ -43,6 +48,22 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <VocabularyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wordbooks/:id"
+              element={
+                <ProtectedRoute>
+                  <WordBookDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/study-settings"
+              element={
+                <ProtectedRoute>
+                  <StudySettingsPage />
                 </ProtectedRoute>
               }
             />
@@ -62,7 +83,21 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            
+
+            {/* 管理员后台路由 */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="wordbooks" element={<AdminWordBooks />} />
+            </Route>
+
             {/* 404重定向 */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -71,14 +106,6 @@ function AppContent() {
 
       {/* 同步状态指示器（仅登录时显示） */}
       {isAuthenticated && <SyncIndicator />}
-
-      {/* 数据迁移提示 */}
-      {showMigrationPrompt && (
-        <MigrationPrompt
-          onComplete={dismissMigrationPrompt}
-          onSkip={dismissMigrationPrompt}
-        />
-      )}
     </>
   );
 }
@@ -88,7 +115,7 @@ function App() {
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 初始化数据库
+    // 初始化缓存服务
     const init = async () => {
       try {
         await StorageService.init();

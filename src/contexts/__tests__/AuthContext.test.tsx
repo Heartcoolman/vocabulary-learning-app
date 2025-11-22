@@ -41,6 +41,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       username: 'Test User',
+      role: 'USER' as const,
       createdAt: new Date().toISOString(),
     };
 

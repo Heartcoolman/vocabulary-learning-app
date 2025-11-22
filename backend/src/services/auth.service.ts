@@ -6,6 +6,27 @@ import { RegisterDto, LoginDto } from '../types';
 
 const SALT_ROUNDS = 10;
 
+/**
+ * 解析 JWT 过期时间字符串（如 '24h', '7d', '30m'）为毫秒数
+ */
+function parseExpiresIn(expiresIn: string): number {
+  const match = expiresIn.match(/^(\d+)([smhd])$/);
+  if (!match) {
+    throw new Error(`无效的过期时间格式: ${expiresIn}`);
+  }
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+
+  switch (unit) {
+    case 's': return value * 1000;
+    case 'm': return value * 60 * 1000;
+    case 'h': return value * 60 * 60 * 1000;
+    case 'd': return value * 24 * 60 * 60 * 1000;
+    default: throw new Error(`不支持的时间单位: ${unit}`);
+  }
+}
+
 export class AuthService {
   async register(data: RegisterDto) {
     // 检查邮箱是否已存在
@@ -31,6 +52,7 @@ export class AuthService {
         id: true,
         email: true,
         username: true,
+        role: true,
         createdAt: true,
       },
     });
@@ -72,6 +94,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         username: user.username,
+        role: user.role,
         createdAt: user.createdAt,
       },
       token,
@@ -106,6 +129,7 @@ export class AuthService {
           id: true,
           email: true,
           username: true,
+          role: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -130,8 +154,9 @@ export class AuthService {
   }
 
   private async createSession(userId: string, token: string) {
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24小时后过期
+    // 使用与 JWT 相同的过期时间配置，确保会话和令牌过期时间一致
+    const expiresInMs = parseExpiresIn(env.JWT_EXPIRES_IN);
+    const expiresAt = new Date(Date.now() + expiresInMs);
 
     await prisma.session.create({
       data: {

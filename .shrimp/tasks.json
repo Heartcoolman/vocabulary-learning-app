@@ -1,0 +1,214 @@
+{
+  "tasks": [
+    {
+      "id": "93145075-ca88-48e7-b812-cc2703ad1bce",
+      "name": "数据库模型设计与迁移",
+      "description": "修改Prisma schema，新增WordBook和WordBookWord模型，修改User和Word模型，创建数据库迁移文件和数据迁移脚本",
+      "status": "pending",
+      "dependencies": [],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 修改backend/prisma/schema.prisma：\\n   - 新增WordBook模型（id, name, description, isSystem, creatorId, words, createdAt, updatedAt）\\n   - 新增WordBookWord中间表（id, wordBookId, wordId, order, createdAt）\\n   - 修改User模型：添加role字段（默认user）和wordBooks关联\\n   - 修改Word模型：添加wordBooks关联，userId改为可选\\n   - 添加索引：@@index([creatorId]), @@index([isSystem]), @@index([wordBookId]), @@index([wordId])\\n\\n2. 创建数据库迁移：\\n   - 运行 prisma migrate dev --name add_wordbook_models\\n   - 检查生成的迁移文件\\n\\n3. 编写数据迁移脚本（backend/prisma/migrations/data-migration.ts）：\\n   - 为每个用户创建默认词书我的词库\\n   - 将现有单词关联到默认词书\\n   - 使用Prisma事务确保原子性\\n\\n4. 在测试环境验证迁移：\\n   - 备份数据库\\n   - 运行迁移\\n   - 验证数据完整性\\n   - 编写回滚脚本\\n\\n复用组件：Prisma迁移机制\\n技术要点：M:N关系、级联删除、向后兼容",
+      "verificationCriteria": "1. Prisma schema语法正确，无错误\\n2. 数据库迁移成功执行\\n3. 现有单词数据成功迁移到默认词书\\n4. 所有关联关系正确建立\\n5. 索引创建成功\\n6. 回滚脚本可以正常工作",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "b52f4a1d-91dc-4fe8-9823-17f2b309151a",
+      "name": "后端权限中间件开发",
+      "description": "扩展auth.middleware.ts，新增requireAdmin和requireWordBookOwner中间件，用于权限验证",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "93145075-ca88-48e7-b812-cc2703ad1bce"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 修改backend/src/middleware/auth.middleware.ts：\\n   - 保留现有authMiddleware（已验证JWT）\\n   - 新增requireAdmin中间件：\\n     * 检查req.user.role === 'admin'\\n     * 返回403错误如果不是管理员\\n   - 新增requireWordBookOwner中间件：\\n     * 从req.params.id获取词书ID\\n     * 查询词书的creatorId\\n     * 检查creatorId === req.user.id 或 req.user.role === 'admin'\\n     * 返回403错误如果无权限\\n\\n2. 遵循现有模式：\\n   - 使用AuthRequest类型\\n   - 使用统一的错误响应格式\\n   - 添加简体中文注释\\n\\n复用组件：authMiddleware、AuthRequest类型、错误响应格式\\n技术要点：中间件链式调用、权限验证逻辑",
+      "verificationCriteria": "1. requireAdmin正确验证管理员权限\\n2. requireWordBookOwner正确验证词书所有权\\n3. 管理员可以访问所有词书\\n4. 非所有者无法访问他人词书\\n5. 错误响应格式统一\\n6. 中间件可以正常链式调用",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "e3a8196a-0cef-472c-9946-f42d4820340f",
+      "name": "后端WordBookService开发",
+      "description": "创建WordBookService，实现词书的CRUD操作、单词关联管理和文件上传解析功能",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "93145075-ca88-48e7-b812-cc2703ad1bce"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建backend/src/services/wordbook.service.ts：\\n   - 参考word.service.ts的结构（单例导出）\\n   - 实现getWordBooks(userId, type?)：查询词书列表，支持筛选系统/用户词库\\n   - 实现getWordBookById(id, userId)：获取词书详情，包含单词列表\\n   - 实现createWordBook(userId, data)：创建词书\\n   - 实现updateWordBook(id, userId, data)：更新词书\\n   - 实现deleteWordBook(id, userId)：删除词书（级联删除关联）\\n   - 实现addWordsToWordBook(wordBookId, wordIds[])：批量添加单词\\n   - 实现removeWordFromWordBook(wordBookId, wordId)：移除单词\\n   - 实现parseCSV(file)：解析CSV文件（格式：拼写,音标,释义1;释义2,例句1;例句2）\\n   - 实现parseJSON(file)：解析JSON文件\\n   - 实现uploadWordBook(userId, file, isSystem)：上传词书文件\\n\\n2. 使用Prisma事务处理批量操作\\n3. 添加权限验证（通过userId）\\n4. 添加错误处理\\n\\n复用组件：Prisma操作模式、批量操作模式（$transaction）\\n技术要点：事务处理、文件解析、权限验证",
+      "verificationCriteria": "1. 所有CRUD操作正常工作\\n2. 权限验证正确（用户只能操作自己的词书）\\n3. 批量操作使用事务，保证原子性\\n4. CSV和JSON文件解析正确\\n5. 文件上传功能正常\\n6. 错误处理完善\\n7. 单元测试覆盖率>80%",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "696cee07-4749-4c90-b1c3-138a86ed60f1",
+      "name": "后端词书路由和验证器开发",
+      "description": "创建wordbook.routes.ts和wordbook.validator.ts，实现RESTful API和数据验证",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b52f4a1d-91dc-4fe8-9823-17f2b309151a"
+        },
+        {
+          "taskId": "e3a8196a-0cef-472c-9946-f42d4820340f"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建backend/src/validators/wordbook.validator.ts：\\n   - 使用Zod定义createWordBookSchema（name, description）\\n   - 定义updateWordBookSchema\\n   - 定义addWordsSchema（wordIds数组）\\n\\n2. 创建backend/src/routes/wordbook.routes.ts：\\n   - 参考word.routes.ts的结构\\n   - 所有路由使用authMiddleware\\n   - GET /wordbooks：获取词书列表（支持?type=system|user）\\n   - GET /wordbooks/:id：获取词书详情\\n   - POST /wordbooks：创建词书\\n   - PUT /wordbooks/:id：更新词书（requireWordBookOwner）\\n   - DELETE /wordbooks/:id：删除词书（requireWordBookOwner）\\n   - POST /wordbooks/:id/words：添加单词到词书\\n   - DELETE /wordbooks/:id/words/:wordId：从词书移除单词\\n   - POST /wordbooks/upload：上传词书文件（multer中间件）\\n\\n3. 配置multer：\\n   - 文件大小限制：10MB\\n   - 文件类型限制：text/csv, application/json\\n\\n4. 在backend/src/index.ts中注册路由\\n\\n复用组件：路由结构、响应格式、错误处理模式\\n技术要点：RESTful设计、Zod验证、multer文件上传",
+      "verificationCriteria": "1. 所有API端点正常工作\\n2. 权限验证正确（authMiddleware, requireAdmin, requireWordBookOwner）\\n3. 数据验证正确（Zod schema）\\n4. 文件上传限制生效\\n5. 响应格式统一\\n6. 错误处理完善\\n7. 集成测试通过",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "2737eb40-508d-448b-8253-58d371c7050c",
+      "name": "前端类型定义更新",
+      "description": "更新src/types/models.ts，新增WordBook和WordBookWord类型定义",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "93145075-ca88-48e7-b812-cc2703ad1bce"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 修改src/types/models.ts：\\n   - 新增WordBook接口：\\n     * id: string\\n     * name: string\\n     * description?: string\\n     * isSystem: boolean\\n     * creatorId: string\\n     * wordCount?: number（可选，用于列表展示）\\n     * createdAt: number\\n     * updatedAt: number\\n   - 新增WordBookWord接口：\\n     * id: string\\n     * wordBookId: string\\n     * wordId: string\\n     * order: number\\n     * createdAt: number\\n   - 新增WordBookWithWords接口（用于详情页）：\\n     * extends WordBook\\n     * words: Word[]\\n\\n2. 添加简体中文注释\\n\\n复用组件：现有类型定义模式\\n技术要点：TypeScript接口定义",
+      "verificationCriteria": "1. 类型定义完整，无遗漏字段\\n2. 类型定义与后端数据模型一致\\n3. TypeScript编译无错误\\n4. 注释清晰，使用简体中文",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "b0d1deab-2410-469d-a10f-6c7c968273bf",
+      "name": "前端ApiClient扩展",
+      "description": "扩展src/services/ApiClient.ts，新增词书相关的API调用方法",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "2737eb40-508d-448b-8253-58d371c7050c"
+        },
+        {
+          "taskId": "696cee07-4749-4c90-b1c3-138a86ed60f1"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 修改src/services/ApiClient.ts：\\n   - 新增getWordBooks(type?: 'system' | 'user')：获取词书列表\\n   - 新增getWordBook(id: string)：获取词书详情\\n   - 新增createWordBook(data: {name, description})：创建词书\\n   - 新增updateWordBook(id: string, data)：更新词书\\n   - 新增deleteWordBook(id: string)：删除词书\\n   - 新增addWordsToWordBook(wordBookId: string, wordIds: string[])：添加单词\\n   - 新增removeWordFromWordBook(wordBookId: string, wordId: string)：移除单词\\n   - 新增uploadWordBook(file: File, isSystem: boolean)：上传词书文件\\n\\n2. 遵循现有模式：\\n   - 使用fetch API\\n   - 添加Authorization header\\n   - 统一错误处理\\n   - 返回类型化数据\\n\\n复用组件：ApiClient现有方法、错误处理逻辑\\n技术要点：RESTful API调用、文件上传（FormData）",
+      "verificationCriteria": "1. 所有API方法正常工作\\n2. 请求头正确（Authorization）\\n3. 错误处理完善\\n4. 返回数据类型正确\\n5. 文件上传功能正常",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "3b9cc1f6-7684-4cd2-a9b7-2fde3531e7b5",
+      "name": "前端StorageService重构",
+      "description": "重构src/services/StorageService.ts，移除离线功能，简化为缓存层",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b0d1deab-2410-469d-a10f-6c7c968273bf"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 重构src/services/StorageService.ts：\\n   - 移除代码（约60%）：\\n     * 删除local和hybrid模式\\n     * 删除syncQueue相关代码（addToSyncQueue, uploadLocalChanges等）\\n     * 删除autoSyncInterval自动同步\\n     * 删除migrateToCloud数据迁移\\n     * 删除LocalStorage降级逻辑\\n   - 保留代码：\\n     * IndexedDB初始化（init, ensureDB）\\n     * 基本缓存操作\\n   - 新增词书缓存方法：\\n     * getWordBooks(type?)：API调用 + 缓存\\n     * getWordBook(id)：API调用 + 缓存\\n     * createWordBook(data)：直接API调用\\n     * updateWordBook(id, data)：直接API调用\\n     * deleteWordBook(id)：直接API调用\\n     * cacheWordBook(wordBook)：写入IndexedDB\\n     * getCachedWordBook(id)：从IndexedDB读取\\n     * clearCache()：清空缓存\\n\\n2. 网络错误处理：\\n   - 尝试从缓存读取（只读模式）\\n   - 显示网络错误提示\\n\\n复用组件：IndexedDB初始化模式、缓存读写模式\\n技术要点：IndexedDB操作、错误降级策略",
+      "verificationCriteria": "1. 离线相关代码完全移除\\n2. 缓存功能正常工作\\n3. 网络错误时可以读取缓存\\n4. 网络错误时写操作被禁用\\n5. 代码量减少约60%\\n6. 无TypeScript错误",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "099f4de5-1048-43f6-8ea0-7ed51378732b",
+      "name": "前端词书列表页开发",
+      "description": "重构src/pages/VocabularyPage.tsx为WordBooksPage.tsx，实现词书列表展示和管理功能",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "3b9cc1f6-7684-4cd2-a9b7-2fde3531e7b5"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建src/pages/WordBooksPage.tsx：\\n   - 参考VocabularyPage.tsx的结构\\n   - 状态管理：\\n     * wordBooks: WordBook[]\\n     * activeTab: 'system' | 'user'\\n     * isLoading, error, searchQuery\\n   - 实现两个标签页：系统词库 | 我的词库\\n   - 词书卡片展示：\\n     * 名称、描述、单词数量、创建时间\\n     * 系统词库：只读，显示开始学习按钮\\n     * 用户词库：显示编辑、删除按钮\\n   - 顶部操作栏：\\n     * 搜索框（防抖）\\n     * 创建词书按钮\\n     * 上传词书按钮\\n   - 使用StorageService.getWordBooks()加载数据\\n   - 实现搜索过滤（useMemo）\\n   - 实现删除确认对话框\\n\\n2. 复用组件和模式：\\n   - 防抖搜索（debounce + useMemo）\\n   - 加载状态（isLoading + 骨架屏）\\n   - 错误处理（handleError）\\n   - Tailwind CSS样式\\n\\n复用组件：debounce、handleError、加载动画、卡片布局\\n技术要点：React Hooks、状态管理、标签页切换",
+      "verificationCriteria": "1. 词书列表正常展示\\n2. 系统词库和用户词库正确分类\\n3. 搜索功能正常工作\\n4. 删除功能正常工作（带确认）\\n5. 加载状态和错误处理完善\\n6. UI样式与现有页面一致\\n7. 组件测试通过",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "ae28adad-aa86-43e2-a731-7d898b9717b2",
+      "name": "前端词书详情页开发",
+      "description": "创建src/pages/WordBookDetailPage.tsx，实现词书详情展示和单词管理功能",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "099f4de5-1048-43f6-8ea0-7ed51378732b"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建src/pages/WordBookDetailPage.tsx：\\n   - 使用useParams获取词书ID\\n   - 状态管理：\\n     * wordBook: WordBookWithWords | null\\n     * isLoading, error\\n     * showAddWordForm: boolean\\n   - 词书信息展示：\\n     * 名称、描述、单词数量、创建时间\\n     * 用户词书：显示编辑、添加单词按钮\\n     * 系统词书：只读模式\\n   - 单词列表展示：\\n     * 复用WordCard组件\\n     * 用户词书：每个单词显示删除按钮\\n     * 系统词库：只读\\n   - 添加单词功能：\\n     * 手动输入单词信息\\n     * 使用validateWord验证\\n     * 调用StorageService.addWordToWordBook()\\n   - 删除单词功能：\\n     * 确认对话框\\n     * 调用StorageService.removeWordFromWordBook()\\n\\n2. 复用组件：\\n   - WordCard（显示单词）\\n   - validateWord（验证）\\n   - handleError（错误处理）\\n\\n复用组件：WordCard、validateWord、handleError、表单模式\\n技术要点：React Router、动态路由、条件渲染",
+      "verificationCriteria": "1. 词书详情正确展示\\n2. 单词列表正确展示\\n3. 添加单词功能正常工作\\n4. 删除单词功能正常工作\\n5. 系统词库为只读模式\\n6. 用户词库可编辑\\n7. 加载状态和错误处理完善\\n8. 组件测试通过",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "ea86d049-5107-4e3f-a819-4873340bb462",
+      "name": "前端词书创建编辑页开发",
+      "description": "创建src/pages/WordBookFormPage.tsx，实现词书的创建和编辑功能",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "ae28adad-aa86-43e2-a731-7d898b9717b2"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建src/pages/WordBookFormPage.tsx：\\n   - 使用useParams判断是创建还是编辑模式\\n   - 状态管理：\\n     * formData: {name, description}\\n     * formErrors: string[]\\n     * isLoading, isSubmitting\\n   - 表单字段：\\n     * 词书名称（必填）\\n     * 词书描述（可选）\\n   - 表单验证：\\n     * 名称不能为空\\n     * 名称长度限制（1-50字符）\\n   - 提交处理：\\n     * 创建模式：调用StorageService.createWordBook()\\n     * 编辑模式：调用StorageService.updateWordBook()\\n     * 成功后跳转到词书详情页\\n   - 取消按钮：返回上一页\\n\\n2. 复用模式：\\n   - 表单状态管理（useState + formData）\\n   - 错误处理（handleError）\\n   - Tailwind CSS样式\\n\\n复用组件：表单状态管理模式、错误处理、按钮样式\\n技术要点：表单处理、路由导航、条件渲染",
+      "verificationCriteria": "1. 创建词书功能正常工作\\n2. 编辑词书功能正常工作\\n3. 表单验证正确\\n4. 提交成功后正确跳转\\n5. 取消按钮正常工作\\n6. 加载状态和错误处理完善\\n7. 组件测试通过",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "d8e60509-0dca-43db-8b53-253a077176db",
+      "name": "前端词书上传页开发",
+      "description": "创建src/pages/WordBookUploadPage.tsx，实现词书文件上传功能",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "ea86d049-5107-4e3f-a819-4873340bb462"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 创建src/pages/WordBookUploadPage.tsx：\\n   - 状态管理：\\n     * selectedFile: File | null\\n     * previewWords: Word[]\\n     * isUploading, error\\n   - 文件上传组件：\\n     * 拖拽上传或点击上传\\n     * 文件类型限制（.csv, .json）\\n     * 文件大小限制（10MB）\\n   - 格式说明：\\n     * CSV格式：拼写,音标,释义1;释义2,例句1;例句2\\n     * JSON格式：[{spelling, phonetic, meanings[], examples[]}]\\n     * 提供示例文件下载\\n   - 预览功能：\\n     * 解析文件后显示前10个单词\\n     * 使用WordCard组件展示\\n   - 确认上传按钮：\\n     * 调用StorageService.uploadWordBook()\\n     * 显示上传进度\\n     * 成功后跳转到词书列表\\n\\n2. 文件处理：\\n   - 使用FileReader读取文件\\n   - CSV解析（可使用papaparse库）\\n   - JSON解析（JSON.parse）\\n\\n复用组件：WordCard、handleError、加载状态\\n技术要点：文件上传、文件解析、拖拽功能",
+      "verificationCriteria": "1. 文件上传功能正常工作\\n2. 文件类型和大小限制生效\\n3. CSV和JSON文件解析正确\\n4. 预览功能正常工作\\n5. 上传成功后正确跳转\\n6. 错误处理完善\\n7. 组件测试通过",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "04214acb-e1bc-4043-aba2-d38fc62dc861",
+      "name": "前端路由配置和导航更新",
+      "description": "更新src/App.tsx和src/components/Navigation.tsx，配置新路由和更新导航菜单",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "d8e60509-0dca-43db-8b53-253a077176db"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 修改src/App.tsx：\\n   - 添加新路由：\\n     * /wordbooks → WordBooksPage\\n     * /wordbooks/:id → WordBookDetailPage\\n     * /wordbooks/new → WordBookFormPage\\n     * /wordbooks/:id/edit → WordBookFormPage\\n     * /wordbooks/upload → WordBookUploadPage\\n   - 移除或重定向旧路由：\\n     * /vocabulary → 重定向到 /wordbooks\\n\\n2. 修改src/components/Navigation.tsx：\\n   - 更新导航链接：\\n     * 词库管理 → /wordbooks\\n   - 保持其他导航项不变\\n\\n3. 使用React.lazy懒加载页面组件\\n\\n复用组件：React Router配置模式、Navigation组件结构\\n技术要点：React Router、懒加载、路由重定向",
+      "verificationCriteria": "1. 所有新路由正常工作\\n2. 旧路由正确重定向\\n3. 导航菜单更新正确\\n4. 懒加载正常工作\\n5. 路由参数正确传递\\n6. 无TypeScript错误",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    },
+    {
+      "id": "05928a01-5091-4007-aaa5-f52329d386a7",
+      "name": "集成测试和bug修复",
+      "description": "进行完整的集成测试，修复发现的bug，确保所有功能正常工作",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "04214acb-e1bc-4043-aba2-d38fc62dc861"
+        }
+      ],
+      "createdAt": "2025-11-21T15:48:05.330Z",
+      "updatedAt": "2025-11-21T15:48:05.330Z",
+      "implementationGuide": "1. 后端集成测试：\\n   - 测试完整的API流程\\n   - 测试权限验证\\n   - 测试文件上传\\n   - 测试数据迁移\\n\\n2. 前端集成测试：\\n   - 测试完整的用户流程\\n   - 测试系统词库和用户词库\\n   - 测试词书CRUD操作\\n   - 测试文件上传\\n   - 测试网络错误处理\\n\\n3. 手动测试场景：\\n   - 用户注册登录\\n   - 浏览系统词库\\n   - 创建用户词库\\n   - 上传词书文件\\n   - 编辑删除词库\\n   - 添加删除单词\\n   - 网络断开场景\\n\\n4. Bug修复：\\n   - 记录所有发现的bug\\n   - 按优先级修复\\n   - 回归测试\\n\\n5. 性能测试：\\n   - 词书列表加载时间\\n   - 词书详情加载时间\\n   - 文件上传时间\\n\\n技术要点：集成测试、手动测试、性能测试",
+      "verificationCriteria": "1. 所有API端点正常工作\\n2. 所有前端页面正常工作\\n3. 权限验证正确\\n4. 文件上传功能正常\\n5. 数据迁移成功\\n6. 网络错误处理正确\\n7. 性能指标达标（列表<1s，详情<2s）\\n8. 无严重bug",
+      "analysisResult": "词库升级项目：将单词列表管理改造为词书管理系统。核心目标包括数据模型重构、权限系统、后端API、前端UI、存储策略调整和数据迁移。技术栈：Express + TypeScript + Prisma + PostgreSQL + React 18 + Tailwind CSS。架构原则：遵循现有三层架构，最大化复用现有代码，保持向后兼容，分阶段实施。"
+    }
+  ]
+}

@@ -1,0 +1,310 @@
+import { Router, Response } from 'express';
+import wordBookService from '../services/wordbook.service';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { AuthRequest } from '../types';
+
+const router = Router();
+
+// 所有词书路由都需要认证
+router.use(authMiddleware);
+
+// 获取用户词库列表
+router.get('/user', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const wordBooks = await wordBookService.getUserWordBooks(req.user!.id);
+
+        res.json({
+            success: true,
+            data: wordBooks,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 获取系统词库列表
+router.get('/system', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const wordBooks = await wordBookService.getSystemWordBooks();
+
+        res.json({
+            success: true,
+            data: wordBooks,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 获取所有可用词书（系统 + 用户自己的）
+router.get('/available', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const wordBooks = await wordBookService.getAllAvailableWordBooks(
+            req.user!.id
+        );
+
+        res.json({
+            success: true,
+            data: wordBooks,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 创建用户词书
+router.post('/', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const { name, description, coverImage } = req.body;
+
+        // 验证名称
+        if (!name || typeof name !== 'string' || name.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                error: '词书名称不能为空',
+            });
+        }
+
+        if (name.length > 100) {
+            return res.status(400).json({
+                success: false,
+                error: '词书名称不能超过100个字符',
+            });
+        }
+
+        // 验证描述（可选）
+        if (description !== undefined && description !== null) {
+            if (typeof description !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书描述必须是字符串',
+                });
+            }
+            if (description.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书描述不能超过500个字符',
+                });
+            }
+        }
+
+        // 验证封面图片URL（可选）
+        if (coverImage !== undefined && coverImage !== null) {
+            if (typeof coverImage !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL必须是字符串',
+                });
+            }
+            if (coverImage.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL不能超过500个字符',
+                });
+            }
+            // 简单的URL格式验证
+            if (coverImage && !coverImage.match(/^https?:\/\/.+/)) {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL格式不正确',
+                });
+            }
+        }
+
+        const wordBook = await wordBookService.createWordBook(req.user!.id, {
+            name: name.trim(),
+            description: description?.trim(),
+            coverImage: coverImage?.trim(),
+        });
+
+        res.status(201).json({
+            success: true,
+            data: wordBook,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 获取词书详情
+router.get('/:id', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const wordBook = await wordBookService.getWordBookById(
+            req.params.id,
+            req.user!.id
+        );
+
+        res.json({
+            success: true,
+            data: wordBook,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 更新词书信息
+router.put('/:id', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const { name, description, coverImage } = req.body;
+
+        // 验证名称（如果提供）
+        if (name !== undefined && name !== null) {
+            if (typeof name !== 'string' || name.trim() === '') {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书名称不能为空',
+                });
+            }
+            if (name.length > 100) {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书名称不能超过100个字符',
+                });
+            }
+        }
+
+        // 验证描述（如果提供）
+        if (description !== undefined && description !== null) {
+            if (typeof description !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书描述必须是字符串',
+                });
+            }
+            if (description.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    error: '词书描述不能超过500个字符',
+                });
+            }
+        }
+
+        // 验证封面图片URL（如果提供）
+        if (coverImage !== undefined && coverImage !== null) {
+            if (typeof coverImage !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL必须是字符串',
+                });
+            }
+            if (coverImage.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL不能超过500个字符',
+                });
+            }
+            // 简单的URL格式验证
+            if (coverImage && !coverImage.match(/^https?:\/\/.+/)) {
+                return res.status(400).json({
+                    success: false,
+                    error: '封面图片URL格式不正确',
+                });
+            }
+        }
+
+        const wordBook = await wordBookService.updateWordBook(
+            req.params.id,
+            req.user!.id,
+            {
+                name: name?.trim(),
+                description: description?.trim(),
+                coverImage: coverImage?.trim(),
+            }
+        );
+
+        res.json({
+            success: true,
+            data: wordBook,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 删除词书
+router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
+    try {
+        await wordBookService.deleteWordBook(req.params.id, req.user!.id);
+
+        res.json({
+            success: true,
+            message: '词书删除成功',
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 获取词书中的单词
+router.get('/:id/words', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const words = await wordBookService.getWordBookWords(
+            req.params.id,
+            req.user!.id
+        );
+
+        res.json({
+            success: true,
+            data: words,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 向词书添加单词
+router.post('/:id/words', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const { spelling, phonetic, meanings, examples, audioUrl } = req.body;
+
+        if (!spelling || !phonetic || !meanings || !examples) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少必要字段',
+            });
+        }
+
+        const word = await wordBookService.addWordToWordBook(
+            req.params.id,
+            req.user!.id,
+            {
+                spelling,
+                phonetic,
+                meanings,
+                examples,
+                audioUrl,
+            }
+        );
+
+        res.status(201).json({
+            success: true,
+            data: word,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 从词书删除单词
+router.delete(
+    '/:wordBookId/words/:wordId',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            await wordBookService.removeWordFromWordBook(
+                req.params.wordBookId,
+                req.params.wordId,
+                req.user!.id
+            );
+
+            res.json({
+                success: true,
+                message: '单词删除成功',
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export default router;

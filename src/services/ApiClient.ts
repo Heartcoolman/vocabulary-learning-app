@@ -1,4 +1,91 @@
-import { Word, AnswerRecord } from '../types/models';
+import { Word, AnswerRecord, WordBook, StudyConfig } from '../types/models';
+
+/**
+ * JWT解码后的payload结构
+ */
+interface JwtPayload {
+  userId: string;
+  exp: number;
+  iat: number;
+}
+
+/**
+ * API 响应中的 WordBook 类型（日期字段为字符串）
+ */
+interface ApiWordBook {
+  id: string;
+  name: string;
+  description?: string;
+  coverImage?: string;
+  type: 'SYSTEM' | 'USER';
+  userId?: string;
+  isPublic: boolean;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * API 响应中的 StudyConfig 类型（日期字段为字符串）
+ */
+interface ApiStudyConfig {
+  id: string;
+  userId: string;
+  selectedWordBookIds: string[];
+  dailyWordCount: number;
+  studyMode?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 将 API 返回的 WordBook 转换为前端模型
+ */
+function convertApiWordBook(apiWordBook: ApiWordBook): WordBook {
+  return {
+    ...apiWordBook,
+    createdAt: new Date(apiWordBook.createdAt).getTime(),
+    updatedAt: new Date(apiWordBook.updatedAt).getTime(),
+  };
+}
+
+/**
+ * 将 API 返回的 StudyConfig 转换为前端模型
+ */
+function convertApiStudyConfig(apiStudyConfig: ApiStudyConfig): StudyConfig {
+  return {
+    ...apiStudyConfig,
+    studyMode: apiStudyConfig.studyMode || '',
+    createdAt: new Date(apiStudyConfig.createdAt).getTime(),
+    updatedAt: new Date(apiStudyConfig.updatedAt).getTime(),
+  };
+}
+
+/**
+ * 解码JWT token（不验证签名，仅用于读取payload）
+ */
+function decodeJwt(token: string): JwtPayload | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const payload = JSON.parse(atob(parts[1]));
+    return payload as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 检查JWT token是否已过期
+ */
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwt(token);
+  if (!payload || !payload.exp) return true;
+
+  // exp是秒级时间戳，需要转换为毫秒
+  return payload.exp * 1000 < Date.now();
+}
 
 /**
  * API响应格式
@@ -17,6 +104,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  role: 'USER' | 'ADMIN';
   createdAt: string;
 }
 
@@ -37,6 +125,64 @@ interface Statistics {
   correctRate: number;
 }
 
+
+/**
+ * 学习进度
+ */
+export interface StudyProgress {
+  todayStudied: number;
+  todayTarget: number;
+  totalStudied: number;
+  correctRate: number;
+}
+
+/**
+ * 今日学习单词响应
+ */
+export interface TodayWordsResponse {
+  words: Word[];
+  progress: StudyProgress;
+}
+
+/**
+ * 用户列表响应（管理员）
+ */
+export interface AdminUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pagination: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * 用户学习数据（管理员）
+ */
+export interface UserLearningData {
+  user: User;
+  statistics: Statistics;
+  recentRecords: AnswerRecord[];
+  wordBooks: WordBook[];
+}
+
+/**
+ * 系统统计数据（管理员）
+ */
+export interface AdminStatistics {
+  totalUsers: number;
+  totalWords: number;
+  totalRecords: number;
+  totalWordBooks: number;
+  activeUsers: number;
+  systemWordBooks: number;
+  userWordBooks: number;
+}
+
 /**
  * API客户端 - 封装所有HTTP请求
  */
@@ -46,7 +192,21 @@ class ApiClient {
 
   constructor(baseUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:3000') {
     this.baseUrl = baseUrl;
-    this.token = localStorage.getItem('auth_token');
+
+    // 从localStorage读取token并验证有效性
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedToken) {
+      // 检查token是否已过期
+      if (isTokenExpired(storedToken)) {
+        console.warn('存储的token已过期，已自动清除');
+        localStorage.removeItem('auth_token');
+        this.token = null;
+      } else {
+        this.token = storedToken;
+      }
+    } else {
+      this.token = null;
+    }
   }
 
   /**
@@ -76,9 +236,9 @@ class ApiClient {
    * 通用请求方法
    */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> | undefined),
     };
 
     if (this.token) {
@@ -91,13 +251,32 @@ class ApiClient {
         headers,
       });
 
+      // 处理 401 错误，清除令牌
+      if (response.status === 401) {
+        this.clearToken();
+        throw new Error('认证失败，请重新登录');
+      }
+
+      // 处理空响应（204 No Content 或其他无内容响应）
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        if (!response.ok) {
+          throw new Error(`请求失败: ${response.status}`);
+        }
+        return undefined as T;
+      }
+
+      // 检查响应类型是否为 JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        if (!response.ok) {
+          throw new Error(`请求失败: ${response.status}`);
+        }
+        return undefined as T;
+      }
+
       const data: ApiResponse<T> = await response.json();
 
       if (!response.ok) {
-        // 如果是401错误，清除令牌
-        if (response.status === 401) {
-          this.clearToken();
-        }
         throw new Error(data.error || `请求失败: ${response.status}`);
       }
 
@@ -254,6 +433,241 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ records }),
     });
+  }
+
+  // ==================== 词书管理相关 ====================
+
+  /**
+   * 获取用户词库列表
+   */
+  async getUserWordBooks(): Promise<WordBook[]> {
+    const apiWordBooks = await this.request<ApiWordBook[]>('/api/wordbooks/user');
+    return apiWordBooks.map(convertApiWordBook);
+  }
+
+  /**
+   * 获取系统词库列表
+   */
+  async getSystemWordBooks(): Promise<WordBook[]> {
+    const apiWordBooks = await this.request<ApiWordBook[]>('/api/wordbooks/system');
+    return apiWordBooks.map(convertApiWordBook);
+  }
+
+  /**
+   * 获取所有可用词库（系统 + 用户）
+   */
+  async getAllAvailableWordBooks(): Promise<WordBook[]> {
+    const apiWordBooks = await this.request<ApiWordBook[]>('/api/wordbooks/available');
+    return apiWordBooks.map(convertApiWordBook);
+  }
+
+  /**
+   * 获取词书详情
+   */
+  async getWordBookById(id: string): Promise<WordBook> {
+    const apiWordBook = await this.request<ApiWordBook>(`/api/wordbooks/${id}`);
+    return convertApiWordBook(apiWordBook);
+  }
+
+  /**
+   * 创建用户词书
+   */
+  async createWordBook(data: { name: string; description?: string; coverImage?: string }): Promise<WordBook> {
+    const apiWordBook = await this.request<ApiWordBook>('/api/wordbooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return convertApiWordBook(apiWordBook);
+  }
+
+  /**
+   * 更新词书
+   */
+  async updateWordBook(id: string, data: { name?: string; description?: string; coverImage?: string }): Promise<WordBook> {
+    const apiWordBook = await this.request<ApiWordBook>(`/api/wordbooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return convertApiWordBook(apiWordBook);
+  }
+
+  /**
+   * 删除词书
+   */
+  async deleteWordBook(id: string): Promise<void> {
+    return this.request<void>(`/api/wordbooks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * 获取词书中的单词列表
+   */
+  async getWordBookWords(wordBookId: string): Promise<Word[]> {
+    return this.request<Word[]>(`/api/wordbooks/${wordBookId}/words`);
+  }
+
+  /**
+   * 向词书添加单词
+   */
+  async addWordToWordBook(wordBookId: string, wordData: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<Word> {
+    return this.request<Word>(`/api/wordbooks/${wordBookId}/words`, {
+      method: 'POST',
+      body: JSON.stringify(wordData),
+    });
+  }
+
+  /**
+   * 从词书删除单词
+   */
+  async removeWordFromWordBook(wordBookId: string, wordId: string): Promise<void> {
+    return this.request<void>(`/api/wordbooks/${wordBookId}/words/${wordId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ==================== 学习配置相关 ====================
+
+  /**
+   * 获取用户学习配置
+   */
+  async getStudyConfig(): Promise<StudyConfig> {
+    const apiStudyConfig = await this.request<ApiStudyConfig>('/api/study-config');
+    return convertApiStudyConfig(apiStudyConfig);
+  }
+
+  /**
+   * 更新学习配置
+   */
+  async updateStudyConfig(data: {
+    selectedWordBookIds: string[];
+    dailyWordCount: number;
+    studyMode?: string;
+  }): Promise<StudyConfig> {
+    const apiStudyConfig = await this.request<ApiStudyConfig>('/api/study-config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return convertApiStudyConfig(apiStudyConfig);
+  }
+
+  /**
+   * 获取今日学习单词
+   */
+  async getTodayWords(): Promise<TodayWordsResponse> {
+    return this.request<TodayWordsResponse>('/api/study-config/today-words');
+  }
+
+  /**
+   * 获取学习进度
+   */
+  async getStudyProgress(): Promise<StudyProgress> {
+    return this.request<StudyProgress>('/api/study-config/progress');
+  }
+
+  // ==================== 管理员相关 ====================
+
+  /**
+   * 获取用户列表（管理员）
+   */
+  async adminGetUsers(params?: { page?: number; pageSize?: number; search?: string }): Promise<AdminUsersResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const query = queryParams.toString();
+    return this.request<AdminUsersResponse>(`/api/admin/users${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * 获取用户详情（管理员）
+   */
+  async adminGetUserById(userId: string): Promise<User> {
+    return this.request<User>(`/api/admin/users/${userId}`);
+  }
+
+  /**
+   * 获取用户学习数据（管理员）
+   */
+  async adminGetUserLearningData(userId: string, limit?: number): Promise<UserLearningData> {
+    const query = limit ? `?limit=${limit}` : '';
+    return this.request<UserLearningData>(`/api/admin/users/${userId}/learning-data${query}`);
+  }
+
+  /**
+   * 修改用户角色（管理员）
+   */
+  async adminUpdateUserRole(userId: string, role: 'USER' | 'ADMIN'): Promise<User> {
+    return this.request<User>(`/api/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  /**
+   * 删除用户（管理员）
+   */
+  async adminDeleteUser(userId: string): Promise<void> {
+    return this.request<void>(`/api/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * 创建系统词库（管理员）
+   */
+  async adminCreateSystemWordBook(data: {
+    name: string;
+    description?: string;
+    coverImage?: string;
+  }): Promise<WordBook> {
+    const apiWordBook = await this.request<ApiWordBook>('/api/admin/wordbooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return convertApiWordBook(apiWordBook);
+  }
+
+  /**
+   * 更新系统词库（管理员）
+   */
+  async adminUpdateSystemWordBook(id: string, data: {
+    name?: string;
+    description?: string;
+    coverImage?: string;
+  }): Promise<WordBook> {
+    const apiWordBook = await this.request<ApiWordBook>(`/api/admin/wordbooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return convertApiWordBook(apiWordBook);
+  }
+
+  /**
+   * 删除系统词库（管理员）
+   */
+  async adminDeleteSystemWordBook(id: string): Promise<void> {
+    return this.request<void>(`/api/admin/wordbooks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * 批量添加单词到系统词库（管理员）
+   */
+  async adminBatchAddWordsToSystemWordBook(wordBookId: string, words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {
+    return this.request<Word[]>(`/api/admin/wordbooks/${wordBookId}/words/batch`, {
+      method: 'POST',
+      body: JSON.stringify({ words }),
+    });
+  }
+
+  /**
+   * 获取系统统计数据（管理员）
+   */
+  async adminGetStatistics(): Promise<AdminStatistics> {
+    return this.request<AdminStatistics>('/api/admin/statistics');
   }
 }
 

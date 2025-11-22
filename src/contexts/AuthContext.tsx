@@ -9,12 +9,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  showMigrationPrompt: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  dismissMigrationPrompt: () => void;
 }
 
 /**
@@ -28,36 +26,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showMigrationPrompt, setShowMigrationPrompt] = useState(false);
 
   /**
    * 加载用户信息
    */
-  const loadUser = async () => {
+  const loadUser = async (isMounted: () => boolean) => {
     try {
       const token = apiClient.getToken();
       if (!token) {
-        setLoading(false);
+        if (isMounted()) setLoading(false);
         return;
       }
 
       const userData = await apiClient.getCurrentUser();
+      if (!isMounted()) return; // 组件已卸载，停止后续操作
+
       setUser(userData);
+
+      // 将当前用户写入缓存服务，便于隔离缓存
+      await StorageService.setCurrentUser(userData.id);
+      await StorageService.syncToCloud();
     } catch (error) {
       console.error('加载用户信息失败:', error);
-      // 如果令牌无效，清除它
+      if (!isMounted()) return; // 组件已卸载，停止后续操作
+
       apiClient.clearToken();
       setUser(null);
+      await StorageService.setCurrentUser(null);
     } finally {
-      setLoading(false);
+      if (isMounted()) setLoading(false);
     }
   };
 
-  /**
-   * 初始化时检查本地存储的token
-   */
   useEffect(() => {
-    loadUser();
+    // 使用标志位防止组件卸载后的状态更新
+    let mounted = true;
+    const isMounted = () => mounted;
+
+    loadUser(isMounted);
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   /**
@@ -68,9 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: userData, token } = await apiClient.login(email, password);
       apiClient.setToken(token);
       setUser(userData);
-
-      // 登录后检查是否需要迁移数据
-      await checkMigrationNeeded();
+      await StorageService.setCurrentUser(userData.id);
+      await StorageService.syncToCloud();
     } catch (error) {
       console.error('登录失败:', error);
       throw error;
@@ -85,9 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: userData, token } = await apiClient.register(email, password, username);
       apiClient.setToken(token);
       setUser(userData);
-
-      // 注册后切换到混合模式
-      StorageService.setMode('hybrid');
+      await StorageService.setCurrentUser(userData.id);
+      await StorageService.syncToCloud();
     } catch (error) {
       console.error('注册失败:', error);
       throw error;
@@ -105,74 +113,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       apiClient.clearToken();
       setUser(null);
-      
-      // 退出后切换回本地模式
-      StorageService.setMode('local');
+      await StorageService.setCurrentUser(null);
+      await StorageService.clearLocalData();
     }
-  };
-
-  /**
-   * 检查是否需要迁移数据
-   */
-  const checkMigrationNeeded = async () => {
-    try {
-      // 检查是否已经迁移过
-      const migrated = await StorageService.isMigrated();
-      if (migrated) {
-        // 已迁移，直接切换到混合模式并同步
-        StorageService.setMode('hybrid');
-        StorageService.syncToCloud().catch(err => {
-          console.error('同步失败:', err);
-        });
-        return;
-      }
-
-      // 检查是否有本地数据
-      const localWords = await StorageService.getWords();
-      if (localWords.length > 0) {
-        // 有本地数据，显示迁移提示
-        setShowMigrationPrompt(true);
-      } else {
-        // 没有本地数据，直接切换到混合模式并同步
-        StorageService.setMode('hybrid');
-        StorageService.syncToCloud().catch(err => {
-          console.error('同步失败:', err);
-        });
-      }
-    } catch (error) {
-      console.error('检查迁移状态失败:', error);
-      // 出错时默认切换到混合模式并同步
-      StorageService.setMode('hybrid');
-      StorageService.syncToCloud().catch(err => {
-        console.error('同步失败:', err);
-      });
-    }
-  };
-
-  /**
-   * 关闭迁移提示
-   */
-  const dismissMigrationPrompt = () => {
-    setShowMigrationPrompt(false);
   };
 
   /**
    * 刷新用户信息
    */
   const refreshUser = async () => {
-    await loadUser();
+    // refreshUser 是主动调用，组件必然已挂载，直接传入返回 true 的函数
+    await loadUser(() => true);
   };
 
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     loading,
-    showMigrationPrompt,
     login,
     register,
     logout,
     refreshUser,
-    dismissMigrationPrompt,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
