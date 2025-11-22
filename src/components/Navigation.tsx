@@ -21,51 +21,69 @@ export default function Navigation() {
   };
 
   return (
-    <header 
+    <header
       className="bg-white border-b border-gray-200 shadow-sm"
       role="banner"
     >
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center space-x-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
             aria-label="返回首页"
           >
             <h1 className="text-2xl font-bold text-gray-900">词汇学习</h1>
           </Link>
 
-          <nav 
+          <nav
             className="flex items-center space-x-2"
             role="navigation"
             aria-label="主导航"
           >
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className={linkClass('/')}
               aria-current={isActive('/') ? 'page' : undefined}
             >
               学习
             </Link>
-            <Link 
-              to="/vocabulary" 
+            <Link
+              to="/vocabulary"
               className={linkClass('/vocabulary')}
               aria-current={isActive('/vocabulary') ? 'page' : undefined}
             >
               词库管理
             </Link>
-            <Link 
-              to="/history" 
+            <Link
+              to="/study-settings"
+              className={linkClass('/study-settings')}
+              aria-current={isActive('/study-settings') ? 'page' : undefined}
+            >
+              学习设置
+            </Link>
+            <Link
+              to="/history"
               className={linkClass('/history')}
               aria-current={isActive('/history') ? 'page' : undefined}
             >
               学习历史
             </Link>
-            
+
+            {/* 管理后台入口 - 仅管理员可见 */}
+            {isAuthenticated && user?.role === 'ADMIN' && (
+              <Link
+                to="/admin"
+                className={linkClass('/admin')}
+                aria-current={isActive('/admin') ? 'page' : undefined}
+              >
+                管理后台
+              </Link>
+            )}
+
             {/* 认证相关导航 */}
             {isAuthenticated ? (
-              <Link 
-                to="/profile" 
+              <Link
+                to="/profile"
                 className={linkClass('/profile')}
                 aria-current={isActive('/profile') ? 'page' : undefined}
                 aria-label={`个人资料 - ${user?.username}`}
@@ -73,8 +91,8 @@ export default function Navigation() {
                 {user?.username || '个人资料'}
               </Link>
             ) : (
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className={linkClass('/login')}
                 aria-current={isActive('/login') ? 'page' : undefined}
               >

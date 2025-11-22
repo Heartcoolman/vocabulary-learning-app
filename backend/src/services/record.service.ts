@@ -19,13 +19,26 @@ export class RecordService {
   }
 
   async createRecord(userId: string, data: CreateRecordDto) {
-    // 验证单词存在且属于该用户
-    const word = await prisma.word.findFirst({
-      where: { id: data.wordId, userId },
+    // 验证单词存在且属于用户可访问的词书
+    const word = await prisma.word.findUnique({
+      where: { id: data.wordId },
+      include: {
+        wordBook: {
+          select: {
+            type: true,
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!word) {
-      throw new Error('单词不存在或无权访问');
+      throw new Error('单词不存在');
+    }
+
+    // 权限校验：单词必须属于系统词书或用户自己的词书
+    if (word.wordBook.type === 'USER' && word.wordBook.userId !== userId) {
+      throw new Error('无权访问该单词');
     }
 
     const createData: Parameters<typeof prisma.answerRecord.create>[0]['data'] = {
@@ -47,70 +60,75 @@ export class RecordService {
   }
 
   async batchCreateRecords(userId: string, records: CreateRecordDto[]) {
-    // 验证所有单词都属于该用户
+    // 验证所有记录都包含时间戳（幂等性要求）
+    const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
+    if (recordsWithoutTimestamp.length > 0) {
+      throw new Error(`${recordsWithoutTimestamp.length} 条记录缺少时间戳，无法保证幂等性。请确保客户端提供时间戳。`);
+    }
+
+    // 验证所有单词都存在且用户有权限访问
     const wordIds = records.map(r => r.wordId);
     const words = await prisma.word.findMany({
-      where: { id: { in: wordIds }, userId },
-      select: { id: true, spelling: true },
-    });
-
-    // 获取存在的单词ID集合
-    const existingWordIds = new Set(words.map(w => w.id));
-    
-    // 只保留引用存在单词的记录
-    const validRecords = records.filter(record => existingWordIds.has(record.wordId));
-    
-    if (validRecords.length === 0) {
-      throw new Error('所有单词都不存在或无权访问');
-    }
-
-    // 如果有部分记录被跳过，记录警告
-    if (validRecords.length < records.length) {
-      console.warn(`跳过了 ${records.length - validRecords.length} 条引用不存在单词的学习记录`);
-    }
-
-    // 获取已存在的记录（通过单词拼写+timestamp匹配）
-    const existingRecords = await prisma.answerRecord.findMany({
-      where: {
-        userId,
-      },
-      select: {
-        timestamp: true,
-        word: {
+      where: { id: { in: wordIds } },
+      select: { 
+        id: true, 
+        spelling: true,
+        wordBook: {
           select: {
-            spelling: true,
+            type: true,
+            userId: true,
           },
         },
       },
     });
 
-    // 创建已存在记录的标识集合（单词拼写-时间戳）
+    // 获取用户有权限访问的单词ID集合（系统词书或用户自己的词书）
+    const accessibleWordIds = new Set(
+      words
+        .filter(w => w.wordBook.type === 'SYSTEM' || w.wordBook.userId === userId)
+        .map(w => w.id)
+    );
+
+    // 只保留用户有权限访问的单词记录
+    const validRecords = records.filter(record => accessibleWordIds.has(record.wordId));
+
+    if (validRecords.length === 0) {
+      throw new Error('所有单词都不存在或无权访问');
+    }
+
+    // 如果有部分记录因权限被跳过，记录警告
+    const skippedCount = records.length - validRecords.length;
+    if (skippedCount > 0) {
+      console.warn(`跳过了 ${skippedCount} 条无权访问的学习记录`);
+    }
+
+    // 获取已存在的记录（通过单词ID+timestamp匹配）
+    const existingRecords = await prisma.answerRecord.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        wordId: true,
+        timestamp: true,
+      },
+    });
+
+    // 创建已存在记录的标识集合（单词ID-时间戳）
     const existingRecordKeys = new Set(
-      existingRecords.map(r => `${r.word.spelling.toLowerCase()}-${r.timestamp.getTime()}`)
+      existingRecords.map(r => `${r.wordId}-${r.timestamp.getTime()}`)
     );
 
     console.log(`云端已有 ${existingRecords.length} 条记录`);
     console.log(`本地上传 ${validRecords.length} 条记录`);
-    
+
     // 输出前5个云端记录key
     const sampleKeys = Array.from(existingRecordKeys).slice(0, 5);
     console.log(`云端记录示例:`, sampleKeys);
-    
-    // 需要获取本地记录对应的单词拼写
-    const localWordMap = new Map(
-      words.map(w => [w.id, w])
-    );
-    
-    // 过滤出未存在的记录
+
+    // 过滤出未存在的记录（使用 wordId-timestamp 作为唯一标识）
     const newRecords = validRecords.filter(record => {
-      const word = localWordMap.get(record.wordId);
-      if (!word) {
-        console.log(`找不到单词: ${record.wordId}`);
-        return false;
-      }
-      
-      const timestamp = record.timestamp || Date.now();
-      const key = `${word.spelling.toLowerCase()}-${timestamp}`;
+      // 此时 record.timestamp 已确保存在
+      const key = `${record.wordId}-${record.timestamp}`;
       console.log(`检查记录: ${key}`);
       const exists = existingRecordKeys.has(key);
       if (exists) {
@@ -135,14 +153,33 @@ export class RecordService {
         selectedAnswer: record.selectedAnswer ?? '',
         correctAnswer: record.correctAnswer ?? '',
         isCorrect: record.isCorrect,
-        timestamp: record.timestamp ? new Date(record.timestamp) : new Date(),
+        timestamp: new Date(record.timestamp!), // 使用非空断言，因为已验证
       })),
     });
   }
 
   async getStatistics(userId: string) {
+    // 获取用户可访问的所有词书（系统词库 + 用户自己的词库）
+    const userWordBooks = await prisma.wordBook.findMany({
+      where: {
+        OR: [
+          { type: 'SYSTEM' },
+          { type: 'USER', userId: userId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const wordBookIds = userWordBooks.map((wb) => wb.id);
+
     const [totalWords, totalRecords, correctRecords, recentRecords] = await Promise.all([
-      prisma.word.count({ where: { userId } }),
+      prisma.word.count({
+        where: {
+          wordBookId: {
+            in: wordBookIds,
+          },
+        },
+      }),
       prisma.answerRecord.count({ where: { userId } }),
       prisma.answerRecord.count({ where: { userId, isCorrect: true } }),
       prisma.answerRecord.findMany({

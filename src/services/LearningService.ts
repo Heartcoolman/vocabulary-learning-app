@@ -31,7 +31,7 @@ class LearningService {
       id: this.generateId(),
       wordIds,
       currentIndex: 0,
-      startTime: Date.now()
+      startTime: Date.now(),
     };
 
     return this.currentSession;
@@ -89,10 +89,16 @@ class LearningService {
       selectedAnswer: answer,
       correctAnswer: word.meanings[0], // 使用第一个释义作为正确答案
       isCorrect,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
-    await StorageService.saveAnswerRecord(record);
+    // 统一通过 StorageService 持久化，避免重复上传
+    try {
+      await StorageService.saveAnswerRecord(record);
+    } catch (error) {
+      console.error('保存学习记录失败:', error);
+      // 记录失败不阻断学习流程
+    }
   }
 
   /**
@@ -103,9 +109,12 @@ class LearningService {
       return { current: 0, total: 0 };
     }
 
+    // 确保 current 不会超过 total，避免显示 "6/5" 等异常进度
+    const current = Math.min(this.currentSession.currentIndex + 1, this.words.length);
+
     return {
-      current: this.currentSession.currentIndex + 1,
-      total: this.words.length
+      current,
+      total: this.words.length,
     };
   }
 
@@ -131,27 +140,59 @@ class LearningService {
    * 生成测试选项
    * @param correctWord 正确的单词
    * @param allWords 所有可用单词
-   * @param optionCount 选项数量（2-4）
+   * @param optionCount 选项数量2-4
+   * @returns { options: string[], correctAnswer: string } 选项数组和正确答案
    */
-  generateTestOptions(correctWord: Word, allWords: Word[], optionCount: number = 4): string[] {
-    // 确保选项数量在2-4之间
+  generateTestOptions(correctWord: Word, allWords: Word[], optionCount: number = 4): { options: string[], correctAnswer: string } {
     const count = Math.max(2, Math.min(4, optionCount));
-    
-    // 正确答案
+
+    // 固定使用第一个释义作为正确答案，确保与判分逻辑一致
     const correctAnswer = correctWord.meanings[0];
-    
-    // 获取其他单词的释义作为干扰项
-    const otherMeanings = allWords
-      .filter(w => w.id !== correctWord.id)
-      .flatMap(w => w.meanings)
-      .filter(m => m !== correctAnswer);
 
-    // 随机选择干扰项
-    const distractors = this.shuffleArray(otherMeanings).slice(0, count - 1);
+    // 收集其他单词的释义作为干扰项，并去重
+    const otherMeanings = Array.from(new Set(
+      allWords
+        .filter(w => w.id !== correctWord.id)
+        .flatMap(w => w.meanings)
+        .filter(m => m !== correctAnswer)
+    ));
 
-    // 组合所有选项并随机排序
+    // 如果干扰项不足，使用当前单词的其他释义补充
+    let distractors = this.shuffleArray(otherMeanings).slice(0, count - 1);
+
+    if (distractors.length < count - 1) {
+      // 干扰项不足时，添加当前单词的其他释义作为补充
+      const additionalMeanings = correctWord.meanings
+        .filter(m => m !== correctAnswer)
+        .slice(0, count - 1 - distractors.length);
+      distractors = [...distractors, ...additionalMeanings];
+    }
+
+    // 如果仍然不足，循环使用已有的干扰项（但避免连续重复）
+    const originalDistractorsLength = distractors.length;
+    let cycleIndex = 0;
+    while (distractors.length < count - 1 && originalDistractorsLength > 0) {
+      const sourceIndex = cycleIndex % originalDistractorsLength;
+      distractors.push(distractors[sourceIndex]);
+      cycleIndex++;
+    }
+
+    // 兜底：如果干扰项为空（极端情况：只有一个单词且只有一个释义）
+    // 生成通用的占位选项，确保至少有指定数量的选项
+    if (distractors.length === 0) {
+      const fallbackOptions = [
+        '（其他释义）',
+        '（待补充）',
+        '（暂无）',
+      ];
+      distractors = fallbackOptions.slice(0, count - 1);
+    }
+
     const options = [correctAnswer, ...distractors];
-    return this.shuffleArray(options);
+    return {
+      options: this.shuffleArray(options),
+      correctAnswer,
+    };
   }
 
   /**

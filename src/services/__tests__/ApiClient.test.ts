@@ -45,7 +45,8 @@ describe('ApiClient', () => {
       apiClient.setToken(testToken);
 
       // Mock fetch返回401
-      global.fetch = vi.fn().mockResolvedValue({
+      const globalAny = globalThis as any;
+      globalAny.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
         json: async () => ({ success: false, error: 'Unauthorized' }),

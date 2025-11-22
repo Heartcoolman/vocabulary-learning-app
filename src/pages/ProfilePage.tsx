@@ -26,23 +26,19 @@ export default function ProfilePage() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // 数据迁移状态
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [migrationError, setMigrationError] = useState('');
-  const [migrationSuccess, setMigrationSuccess] = useState('');
-  const [isMigrated, setIsMigrated] = useState(false);
+  // 缓存/同步状态
+  const [cacheError, setCacheError] = useState('');
+  const [cacheSuccess, setCacheSuccess] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   /**
-   * 加载统计信息和迁移状态
+   * 加载统计信息
    */
   useEffect(() => {
     const loadData = async () => {
       try {
         const stats = await apiClient.getUserStatistics();
         setStatistics(stats);
-        
-        const migrated = await StorageService.isMigrated();
-        setIsMigrated(migrated);
       } catch (err) {
         console.error('加载数据失败:', err);
       } finally {
@@ -67,13 +63,11 @@ export default function ProfilePage() {
       return;
     }
 
-    // 验证新密码长度
     if (newPassword.length < 8) {
       setError('新密码长度至少为8个字符');
       return;
     }
 
-    // 验证密码匹配
     if (newPassword !== confirmPassword) {
       setError('两次输入的新密码不一致');
       return;
@@ -105,59 +99,37 @@ export default function ProfilePage() {
   };
 
   /**
-   * 处理数据迁移
-   */
-  const handleMigration = async () => {
-    if (!window.confirm('确定要将本地数据迁移到云端吗？')) {
-      return;
-    }
-
-    setIsMigrating(true);
-    setMigrationError('');
-    setMigrationSuccess('');
-
-    try {
-      const result = await StorageService.migrateToCloud();
-      setMigrationSuccess(`成功迁移 ${result.words} 个单词和 ${result.records} 条学习记录`);
-      setIsMigrated(true);
-      
-      // 刷新统计信息
-      const stats = await apiClient.getUserStatistics();
-      setStatistics(stats);
-    } catch (err) {
-      setMigrationError(err instanceof Error ? err.message : '迁移失败');
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
-  /**
-   * 手动触发同步
+   * 手动刷新缓存
    */
   const handleSync = async () => {
+    setCacheError('');
+    setCacheSuccess('');
+    setIsSyncing(true);
     try {
       await StorageService.syncToCloud();
-      // 同步成功，状态会通过 SyncIndicator 显示
+      setCacheSuccess('已刷新缓存并同步最新数据');
     } catch (err) {
-      // 同步失败，错误会通过 SyncIndicator 显示
-      console.error('手动同步失败:', err);
+      setCacheError(err instanceof Error ? err.message : '同步失败');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   /**
-   * 清除本地数据库
+   * 清除本地缓存数据
    */
-  const handleClearDatabase = async () => {
-    if (!window.confirm('⚠️ 警告：这将删除所有本地数据（IndexedDB）！\n\n如果你已经同步到云端，可以重新登录恢复数据。\n\n确定要继续吗？')) {
+  const handleClearCache = async () => {
+    if (!window.confirm('⚠️ 将清除本地缓存数据（不影响云端），确定继续吗？')) {
       return;
     }
 
     try {
       await StorageService.deleteDatabase();
-      alert('✅ 本地数据库已清除！\n\n页面将刷新以重新初始化。');
-      window.location.reload();
+      setCacheSuccess('本地缓存已清除');
+      setCacheError('');
     } catch (err) {
-      alert('❌ 清除失败: ' + (err instanceof Error ? err.message : '未知错误'));
+      setCacheError(err instanceof Error ? err.message : '清除缓存失败');
+      setCacheSuccess('');
     }
   };
 
@@ -314,7 +286,7 @@ export default function ProfilePage() {
               aria-describedby="new-password-hint"
             />
             <p id="new-password-hint" className="mt-1 text-xs text-gray-500">
-              密码长度至少为8个字符
+              密码长度至少8个字符
             </p>
           </div>
 
@@ -349,85 +321,51 @@ export default function ProfilePage() {
         </form>
       </div>
 
-      {/* 数据同步管理 */}
+      {/* 数据缓存管理 */}
       <div className="mt-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">数据同步</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">数据缓存</h2>
 
-        {/* 迁移错误提示 */}
-        {migrationError && (
+        {cacheError && (
           <div
             className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
             role="alert"
             aria-live="assertive"
           >
-            {migrationError}
+            {cacheError}
           </div>
         )}
 
-        {/* 迁移成功提示 */}
-        {migrationSuccess && (
+        {cacheSuccess && (
           <div
             className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"
             role="status"
             aria-live="polite"
           >
-            {migrationSuccess}
+            {cacheSuccess}
           </div>
         )}
 
-        <div className="space-y-4">
-          {!isMigrated ? (
-            <div>
-              <p className="text-gray-600 mb-4">
-                将你的本地数据（单词和学习记录）迁移到云端，实现多设备同步。
-              </p>
-              <button
-                onClick={handleMigration}
-                disabled={isMigrating}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {isMigrating ? (
-                  <span className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    正在迁移...
-                  </span>
-                ) : (
-                  '迁移本地数据到云端'
-                )}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p className="text-green-600 mb-4 flex items-center gap-2">
-                <span className="text-xl">✓</span>
-                数据已迁移到云端，正在自动同步
-              </p>
-              <button
-                onClick={handleSync}
-                className="px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                手动同步
-              </button>
-            </div>
-          )}
+        <div className="space-y-3">
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSyncing ? '同步中...' : '刷新缓存'}
+          </button>
+
+          <button
+            onClick={handleClearCache}
+            disabled={isSyncing}
+            className="px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            清除本地缓存
+          </button>
         </div>
 
-        {/* 清除本地数据库 */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">开发者工具</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            清除本地IndexedDB数据库（用于解决数据格式不兼容问题）
-          </p>
-          <button
-            onClick={handleClearDatabase}
-            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-          >
-            🗑️ 清除本地数据库
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            ⚠️ 警告：这将删除所有本地数据。如已同步到云端，可重新登录恢复。
-          </p>
-        </div>
+        <p className="mt-4 text-xs text-gray-500">
+          说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
+        </p>
       </div>
 
       {/* 退出登录按钮 */}

@@ -34,9 +34,17 @@ dist-ssr
 # Kiro IDE
 .kiro/
 
+# AI Assistant files
+.claude/
+.shrimp/
+
 # OS files
 Thumbs.db
 .DS_Store
+
+# Temporary files
+bug-report.md
+WARP.md
 
 # Test files (optional - uncomment if needed)
 # *.test.ts
