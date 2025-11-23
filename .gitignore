@@ -37,6 +37,8 @@ dist-ssr
 # AI Assistant files
 .claude/
 .shrimp/
+.agent/
+.windsurf/
 
 # OS files
 Thumbs.db
