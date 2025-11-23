@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
+import { Books } from '../components/Icon';
 
 /**
  * VocabularyPage - 词库管理页面（重构为词书列表）
@@ -80,7 +81,7 @@ export default function VocabularyPage() {
   const renderWordBookCard = (book: WordBook, isUserBook: boolean) => (
     <div
       key={book.id}
-      className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer animate-fade-in"
+      className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer animate-fade-in"
     >
       {/* 词书信息 */}
       <div onClick={() => navigate(`/wordbooks/${book.id}`)}>
@@ -100,7 +101,10 @@ export default function VocabularyPage() {
         )}
 
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-          <span>📚 {book.wordCount} 个单词</span>
+          <span className="flex items-center gap-1">
+            <Books size={16} weight="bold" />
+            {book.wordCount} 个单词
+          </span>
         </div>
       </div>
 
@@ -183,7 +187,7 @@ export default function VocabularyPage() {
       {/* 词书列表 */}
       {displayBooks.length === 0 ? (
         <div className="text-center py-16">
-          <div className="text-gray-400 text-5xl mb-4">📚</div>
+          <Books size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
           <p className="text-gray-500 mb-4">
             {activeTab === 'system' ? '暂无系统词库' : '还没有创建任何词书'}
           </p>

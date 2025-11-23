@@ -57,8 +57,27 @@ export class UserService {
   }
 
   async getUserStatistics(userId: string): Promise<UserStatistics> {
+    // 获取用户可访问的所有词书（系统词库 + 用户自己的词库）
+    const userWordBooks = await prisma.wordBook.findMany({
+      where: {
+        OR: [
+          { type: 'SYSTEM' },
+          { type: 'USER', userId: userId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const wordBookIds = userWordBooks.map((wb) => wb.id);
+
     const [totalWords, totalRecords, correctRecords] = await Promise.all([
-      prisma.word.count({ where: { userId } }),
+      prisma.word.count({
+        where: {
+          wordBookId: {
+            in: wordBookIds,
+          },
+        },
+      }),
       prisma.answerRecord.count({ where: { userId } }),
       prisma.answerRecord.count({ where: { userId, isCorrect: true } }),
     ]);

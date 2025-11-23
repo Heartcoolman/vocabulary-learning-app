@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../../services/ApiClient';
+import { Books } from '../../components/Icon';
 
 export default function AdminWordBooks() {
     const [wordBooks, setWordBooks] = useState<any[]>([]);
@@ -82,7 +83,7 @@ export default function AdminWordBooks() {
                 <div className="text-center py-8 text-gray-500">加载中...</div>
             ) : wordBooks.length === 0 ? (
                 <div className="text-center py-16">
-                    <div className="text-gray-400 text-5xl mb-4">📚</div>
+                    <Books size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">还没有创建系统词库</p>
                     <button
                         onClick={() => setShowCreateDialog(true)}
@@ -111,8 +112,9 @@ export default function AdminWordBooks() {
                                 </p>
                             )}
 
-                            <div className="text-gray-500 text-sm mb-4">
-                                📚 {book.wordCount} 个单词
+                            <div className="text-gray-500 text-sm mb-4 flex items-center gap-1">
+                                <Books size={16} weight="bold" />
+                                {book.wordCount} 个单词
                             </div>
 
                             <div className="flex gap-2">

@@ -26,9 +26,9 @@ function AppContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <main role="main">
+        <main role="main" className="pt-[72px]">
           <Routes>
             {/* 公开路由 */}
             <Route path="/login" element={<LoginPage />} />

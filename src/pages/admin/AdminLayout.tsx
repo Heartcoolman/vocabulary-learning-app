@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/ApiClient';
+import { ChartBar, UsersThree, Books, ArrowLeft } from '../../components/Icon';
 
 export default function AdminLayout() {
     const location = useLocation();
@@ -40,9 +41,9 @@ export default function AdminLayout() {
     }
 
     const menuItems = [
-        { path: '/admin', label: '📊 仪表盘', exact: true },
-        { path: '/admin/users', label: '👥 用户管理' },
-        { path: '/admin/wordbooks', label: '📚 系统词库' },
+        { path: '/admin', label: '仪表盘', icon: ChartBar, exact: true },
+        { path: '/admin/users', label: '用户管理', icon: UsersThree },
+        { path: '/admin/wordbooks', label: '系统词库', icon: Books },
     ];
 
     return (
@@ -62,12 +63,13 @@ export default function AdminLayout() {
                             ? location.pathname === item.path
                             : location.pathname.startsWith(item.path);
 
+                        const IconComponent = item.icon;
                         return (
                             <Link
                                 key={item.path}
                                 to={item.path}
                                 className={`
-                  block px-4 py-2 rounded-lg
+                  flex items-center gap-2 px-4 py-2 rounded-lg
                   transition-all duration-200
                   ${isActive
                                         ? 'bg-blue-50 text-blue-600 font-medium'
@@ -75,6 +77,7 @@ export default function AdminLayout() {
                                     }
                 `}
                             >
+                                <IconComponent size={20} weight="bold" />
                                 {item.label}
                             </Link>
                         );
@@ -84,9 +87,10 @@ export default function AdminLayout() {
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 w-64">
                     <Link
                         to="/"
-                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
                     >
-                        ← 返回主页
+                        <ArrowLeft size={16} weight="bold" />
+                        返回主页
                     </Link>
                 </div>
             </aside>

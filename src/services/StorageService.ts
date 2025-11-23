@@ -5,6 +5,8 @@ export interface SyncStatus {
   isSyncing: boolean;
   lastSyncTime: number | null;
   error: string | null;
+  // 注意：当前架构是“云优先”，所有数据操作直接调用API同步，不存在本地待同步队列
+  // 此字段仅用于未来扩展，当前始终为0
   pendingChanges: number;
 }
 
@@ -21,15 +23,15 @@ class StorageService {
   private syncListeners: Array<(status: SyncStatus) => void> = [];
 
   /**
-   * 初始化服务，加载缓存数据
+   * 初始化服务，从云端加载缓存数据
    */
   async init(): Promise<void> {
     try {
-      // 尝试从云端加载数据并初始化缓存
+      // 从云端加载数据并初始化缓存
       await this.refreshCacheFromCloud();
       this.updateSyncStatus({
         lastSyncTime: Date.now(),
-        pendingChanges: 0,
+        pendingChanges: 0, // 云优先架构，无本地待同步数据
       });
     } catch (error) {
       console.error('初始化失败:', error);
@@ -79,6 +81,12 @@ class StorageService {
     };
   }
 
+  /**
+   * 从云端刷新缓存数据
+   * 注意：当前架构是“云优先”，所有数据操作（addWord/updateWord/deleteWord/saveAnswerRecord）
+   * 都直接调用API同步到云端，不存在本地待上传的变更队列。
+   * 此方法仅用于从云端拉取最新数据刷新本地缓存。
+   */
   async syncToCloud(): Promise<void> {
     if (this.syncStatus.isSyncing) return;
     this.updateSyncStatus({ isSyncing: true, error: null });
@@ -87,13 +95,13 @@ class StorageService {
       this.updateSyncStatus({
         isSyncing: false,
         lastSyncTime: Date.now(),
-        pendingChanges: 0,
+        pendingChanges: 0, // 云优先架构，无本地待同步数据
       });
       return;
     } catch (error) {
       this.updateSyncStatus({
         isSyncing: false,
-        error: error instanceof Error ? error.message : '????',
+        error: error instanceof Error ? error.message : '同步失败',
       });
       throw error;
     }
@@ -122,6 +130,9 @@ class StorageService {
     }
   }
 
+  /**
+   * 添加单词（直接同步到云端）
+   */
   async addWord(word: Word): Promise<void> {
     const payload = {
       spelling: word.spelling,
@@ -130,11 +141,17 @@ class StorageService {
       examples: word.examples,
       audioUrl: word.audioUrl,
     };
+    // 直接同步到云端
     await ApiClient.createWord(payload);
+    // 刷新本地缓存
     await this.refreshCacheFromCloud();
   }
 
+  /**
+   * 更新单词（直接同步到云端）
+   */
   async updateWord(word: Word): Promise<void> {
+    // 直接同步到云端
     await ApiClient.updateWord(word.id, {
       spelling: word.spelling,
       phonetic: word.phonetic,
@@ -142,17 +159,27 @@ class StorageService {
       examples: word.examples,
       audioUrl: word.audioUrl,
     });
+    // 刷新本地缓存
     await this.refreshCacheFromCloud();
   }
 
+  /**
+   * 删除单词（直接同步到云端）
+   */
   async deleteWord(wordId: string): Promise<void> {
+    // 直接同步到云端
     await ApiClient.deleteWord(wordId);
+    // 更新本地缓存
     this.wordCache = this.wordCache.filter((w) => w.id !== wordId);
     // 重置缓存时间戳，确保下次 getWords 时重新从云端加载
     this.cacheTimestamp = null;
   }
 
+  /**
+   * 保存答题记录（直接同步到云端）
+   */
   async saveAnswerRecord(record: AnswerRecord): Promise<void> {
+    // 直接同步到云端，无需本地缓存
     await ApiClient.createRecord({
       wordId: record.wordId,
       selectedAnswer: record.selectedAnswer,

@@ -13,7 +13,7 @@ export default function ProgressBar({ current, total }: ProgressBarProps) {
 
   return (
     <div 
-      className="w-full max-w-2xl mx-auto px-4 py-6"
+      className="w-full max-w-5xl mx-auto px-4 pt-6 pb-4"
       role="region"
       aria-label="学习进度"
     >

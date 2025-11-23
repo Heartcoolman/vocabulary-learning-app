@@ -46,6 +46,11 @@ Thumbs.db
 bug-report.md
 WARP.md
 
+# Local icon files (replaced by npm dependency)
+phosphor-icons/
+phosphor-icons.zip
+public/phosphor-icons/
+
 # Test files (optional - uncomment if needed)
 # *.test.ts
 # *.spec.ts

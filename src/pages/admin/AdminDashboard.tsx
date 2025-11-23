@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../../services/ApiClient';
+import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar } from '../../components/Icon';
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<any>(null);
@@ -44,43 +45,43 @@ export default function AdminDashboard() {
         {
             label: '总用户数',
             value: stats.totalUsers,
-            icon: '👥',
+            icon: UsersThree,
             color: 'blue',
         },
         {
             label: '活跃用户',
             value: stats.activeUsers,
-            icon: '✨',
+            icon: Sparkle,
             color: 'green',
         },
         {
             label: '总词库数',
             value: stats.totalWordBooks,
-            icon: '📚',
+            icon: Books,
             color: 'purple',
         },
         {
             label: '系统词库',
             value: stats.systemWordBooks,
-            icon: '📖',
+            icon: BookOpen,
             color: 'indigo',
         },
         {
             label: '用户词库',
             value: stats.userWordBooks,
-            icon: '📝',
+            icon: Note,
             color: 'pink',
         },
         {
             label: '总单词数',
             value: stats.totalWords,
-            icon: '📄',
+            icon: FileText,
             color: 'yellow',
         },
         {
             label: '学习记录',
             value: stats.totalRecords,
-            icon: '📊',
+            icon: ChartBar,
             color: 'red',
         },
     ];
@@ -103,22 +104,25 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-gray-900 mb-8">系统概览</h1>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                {statCards.map((card) => (
-                    <div
-                        key={card.label}
-                        className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
-                    >
+                {statCards.map((card) => {
+                    const IconComponent = card.icon;
+                    return (
                         <div
-                            className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${getColorClasses(
-                                card.color
-                            )}`}
+                            key={card.label}
+                            className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
                         >
-                            <span className="text-2xl">{card.icon}</span>
+                            <div
+                                className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${getColorClasses(
+                                    card.color
+                                )}`}
+                            >
+                                <IconComponent size={28} weight="duotone" />
+                            </div>
+                            <div className="text-gray-600 text-sm mb-1">{card.label}</div>
+                            <div className="text-3xl font-bold text-gray-900">{card.value}</div>
                         </div>
-                        <div className="text-gray-600 text-sm mb-1">{card.label}</div>
-                        <div className="text-3xl font-bold text-gray-900">{card.value}</div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* 额外信息 */}

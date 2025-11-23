@@ -138,14 +138,18 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
-      {/* 页面标题 */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+        {/* 页面标题 */}
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* 用户信息卡片 */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">基本信息</h2>
+        {/* 左右分栏布局 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 左侧 - 用户信息与统计 */}
+          <div className="space-y-6">
+            {/* 用户信息卡片 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">基本信息</h2>
           
           <div className="space-y-4">
             <div>
@@ -174,12 +178,12 @@ export default function ProfilePage() {
                 })}
               </p>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
 
-        {/* 学习统计卡片 */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">学习统计</h2>
+            {/* 学习统计卡片 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">学习统计</h2>
           
           {statsLoading ? (
             <div className="text-center py-8" role="status" aria-live="polite">
@@ -213,17 +217,19 @@ export default function ProfilePage() {
                 <p className="text-2xl font-bold text-green-500">
                   {(statistics.correctRate * 100).toFixed(1)}%
                 </p>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* 修改密码表单 */}
-      <div className="mt-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">修改密码</h2>
+          {/* 右侧 - 密码修改与数据管理 */}
+          <div className="space-y-6">
+            {/* 修改密码表单 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">修改密码</h2>
 
-        <form onSubmit={handleChangePassword} className="max-w-md">
+              <form onSubmit={handleChangePassword}>
           {/* 错误提示 */}
           {error && (
             <div
@@ -310,72 +316,76 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* 提交按钮 */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            {loading ? '修改中...' : '修改密码'}
-          </button>
-        </form>
-      </div>
+                {/* 提交按钮 */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {loading ? '修改中...' : '修改密码'}
+                </button>
+              </form>
+            </div>
 
-      {/* 数据缓存管理 */}
-      <div className="mt-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">数据缓存</h2>
+            {/* 数据缓存管理 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">数据缓存</h2>
 
-        {cacheError && (
-          <div
-            className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
-            role="alert"
-            aria-live="assertive"
-          >
-            {cacheError}
+              {cacheError && (
+                <div
+                  className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  {cacheError}
+                </div>
+              )}
+
+              {cacheSuccess && (
+                <div
+                  className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {cacheSuccess}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSyncing ? '同步中...' : '刷新缓存'}
+                </button>
+
+                <button
+                  onClick={handleClearCache}
+                  disabled={isSyncing}
+                  className="w-full px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  清除本地缓存
+                </button>
+              </div>
+
+              <p className="mt-4 text-xs text-gray-500">
+                说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
+              </p>
+            </div>
+
+            {/* 退出登录按钮 */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">账号管理</h2>
+              <button
+                onClick={handleLogout}
+                className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 border border-red-200"
+              >
+                退出登录
+              </button>
+            </div>
           </div>
-        )}
-
-        {cacheSuccess && (
-          <div
-            className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"
-            role="status"
-            aria-live="polite"
-          >
-            {cacheSuccess}
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSyncing ? '同步中...' : '刷新缓存'}
-          </button>
-
-          <button
-            onClick={handleClearCache}
-            disabled={isSyncing}
-            className="px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            清除本地缓存
-          </button>
         </div>
-
-        <p className="mt-4 text-xs text-gray-500">
-          说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
-        </p>
-      </div>
-
-      {/* 退出登录按钮 */}
-      <div className="mt-6 text-center">
-        <button
-          onClick={handleLogout}
-          className="px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-        >
-          退出登录
-        </button>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import LearningService from '../services/LearningService';
 import AudioService from '../services/AudioService';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
+import { Confetti, Books } from '../components/Icon';
 
 export default function LearningPage() {
   const [currentWord, setCurrentWord] = useState<Word | null>(null);
@@ -155,8 +156,8 @@ export default function LearningPage() {
     return (
       <div className="min-h-screen flex items-center justify-center animate-fade-in">
         <div className="text-center max-w-md px-4" role="alert" aria-live="assertive">
-          <div className="text-yellow-500 text-5xl mb-4" aria-hidden="true">
-            📚
+          <div className="mb-4" aria-hidden="true">
+            <Books size={80} weight="thin" color="#eab308" className="mx-auto" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{errorTitle}</h2>
           <p className="text-gray-600 mb-6">{error}</p>
@@ -189,8 +190,8 @@ export default function LearningPage() {
     return (
       <div className="min-h-screen flex items-center justify-center animate-fade-in">
         <div className="text-center max-w-md px-4" role="status" aria-live="polite">
-          <div className="text-green-500 text-6xl mb-4 animate-bounce" aria-hidden="true">
-            🎉
+          <div className="mb-4 animate-bounce" aria-hidden="true">
+            <Confetti size={96} weight="duotone" color="#22c55e" className="mx-auto" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">学习完成！</h2>
           <p className="text-gray-600 mb-2">你已经完成了本次学习会话</p>
@@ -222,7 +223,7 @@ export default function LearningPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="pt-6">
+      <div>
         <ProgressBar current={progress.current} total={progress.total} />
       </div>
 

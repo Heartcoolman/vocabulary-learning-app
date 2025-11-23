@@ -62,6 +62,31 @@ function convertApiStudyConfig(apiStudyConfig: ApiStudyConfig): StudyConfig {
 }
 
 /**
+ * API 响应中的 Word 类型（日期字段为字符串）
+ */
+interface ApiWord {
+  id: string;
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+  examples: string[];
+  audioUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 将 API 返回的 Word 转换为前端模型
+ */
+function convertApiWord(apiWord: ApiWord): Word {
+  return {
+    ...apiWord,
+    createdAt: new Date(apiWord.createdAt).getTime(),
+    updatedAt: new Date(apiWord.updatedAt).getTime(),
+  };
+}
+
+/**
  * 解码JWT token（不验证签名，仅用于读取payload）
  */
 function decodeJwt(token: string): JwtPayload | null {
@@ -189,6 +214,7 @@ export interface AdminStatistics {
 class ApiClient {
   private baseUrl: string;
   private token: string | null;
+  private onUnauthorizedCallback: (() => void) | null = null;
 
   constructor(baseUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:3000') {
     this.baseUrl = baseUrl;
@@ -233,6 +259,14 @@ class ApiClient {
   }
 
   /**
+   * 设置401未授权回调
+   * 当请求返回401时，会调用此回调通知外部（如AuthContext）更新登录状态
+   */
+  setOnUnauthorized(callback: (() => void) | null): void {
+    this.onUnauthorizedCallback = callback;
+  }
+
+  /**
    * 通用请求方法
    */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -251,9 +285,13 @@ class ApiClient {
         headers,
       });
 
-      // 处理 401 错误，清除令牌
+      // 处理 401 错误，清除令牌并触发回调
       if (response.status === 401) {
         this.clearToken();
+        // 触发401回调，通知外部（如AuthContext）更新登录状态
+        if (this.onUnauthorizedCallback) {
+          this.onUnauthorizedCallback();
+        }
         throw new Error('认证失败，请重新登录');
       }
 
@@ -356,27 +394,30 @@ class ApiClient {
    * 获取用户的所有单词
    */
   async getWords(): Promise<Word[]> {
-    return this.request<Word[]>('/api/words');
+    const apiWords = await this.request<ApiWord[]>('/api/words');
+    return apiWords.map(convertApiWord);
   }
 
   /**
    * 添加新单词
    */
   async createWord(wordData: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<Word> {
-    return this.request<Word>('/api/words', {
+    const apiWord = await this.request<ApiWord>('/api/words', {
       method: 'POST',
       body: JSON.stringify(wordData),
     });
+    return convertApiWord(apiWord);
   }
 
   /**
    * 更新单词
    */
   async updateWord(wordId: string, wordData: Partial<Omit<Word, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Word> {
-    return this.request<Word>(`/api/words/${wordId}`, {
+    const apiWord = await this.request<ApiWord>(`/api/words/${wordId}`, {
       method: 'PUT',
       body: JSON.stringify(wordData),
     });
+    return convertApiWord(apiWord);
   }
 
   /**
@@ -392,10 +433,11 @@ class ApiClient {
    * 批量创建单词
    */
   async batchCreateWords(words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {
-    return this.request<Word[]>('/api/words/batch', {
+    const apiWords = await this.request<ApiWord[]>('/api/words/batch', {
       method: 'POST',
       body: JSON.stringify({ words }),
     });
+    return apiWords.map(convertApiWord);
   }
 
   // ==================== 学习记录相关 ====================
@@ -504,17 +546,19 @@ class ApiClient {
    * 获取词书中的单词列表
    */
   async getWordBookWords(wordBookId: string): Promise<Word[]> {
-    return this.request<Word[]>(`/api/wordbooks/${wordBookId}/words`);
+    const apiWords = await this.request<ApiWord[]>(`/api/wordbooks/${wordBookId}/words`);
+    return apiWords.map(convertApiWord);
   }
 
   /**
    * 向词书添加单词
    */
   async addWordToWordBook(wordBookId: string, wordData: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<Word> {
-    return this.request<Word>(`/api/wordbooks/${wordBookId}/words`, {
+    const apiWord = await this.request<ApiWord>(`/api/wordbooks/${wordBookId}/words`, {
       method: 'POST',
       body: JSON.stringify(wordData),
     });
+    return convertApiWord(apiWord);
   }
 
   /**
@@ -555,7 +599,11 @@ class ApiClient {
    * 获取今日学习单词
    */
   async getTodayWords(): Promise<TodayWordsResponse> {
-    return this.request<TodayWordsResponse>('/api/study-config/today-words');
+    const response = await this.request<{ words: ApiWord[]; progress: StudyProgress }>('/api/study-config/today-words');
+    return {
+      words: response.words.map(convertApiWord),
+      progress: response.progress,
+    };
   }
 
   /**
@@ -657,10 +705,11 @@ class ApiClient {
    * 批量添加单词到系统词库（管理员）
    */
   async adminBatchAddWordsToSystemWordBook(wordBookId: string, words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {
-    return this.request<Word[]>(`/api/admin/wordbooks/${wordBookId}/words/batch`, {
+    const apiWords = await this.request<ApiWord[]>(`/api/admin/wordbooks/${wordBookId}/words/batch`, {
       method: 'POST',
       body: JSON.stringify({ words }),
     });
+    return apiWords.map(convertApiWord);
   }
 
   /**

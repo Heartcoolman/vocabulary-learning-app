@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import StorageService, { SyncStatus } from '../services/StorageService';
+import { Check, X } from './Icon';
 
 /**
  * SyncIndicator - 同步状态指示器
@@ -90,7 +91,7 @@ export default function SyncIndicator() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 max-w-sm animate-fade-in">
+      <div className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-lg shadow-lg p-4 max-w-sm animate-fade-in">
         {/* 主状态 */}
         <div 
           className="flex items-center gap-3 cursor-pointer"
@@ -103,17 +104,17 @@ export default function SyncIndicator() {
             </>
           ) : showSuccessIcon ? (
             <>
-              <div className="text-green-500 text-2xl animate-fade-in" aria-hidden="true">?</div>
+              <Check size={24} weight="bold" className="text-green-500 animate-fade-in" />
               <span className="text-sm font-medium text-green-600 animate-fade-in">同步成功</span>
             </>
           ) : showErrorIcon ? (
             <>
-              <div className="text-red-500 text-2xl animate-fade-in" aria-hidden="true">?</div>
+              <X size={24} weight="bold" className="text-red-500 animate-fade-in" />
               <span className="text-sm font-medium text-red-600 animate-fade-in">同步失败</span>
             </>
           ) : syncStatus.error ? (
             <>
-              <div className="text-red-500 text-xl" aria-hidden="true">??</div>
+              <X size={20} weight="bold" className="text-red-500" />
               <span className="text-sm font-medium text-red-600">同步失败</span>
             </>
           ) : syncStatus.pendingChanges > 0 ? (
@@ -125,7 +126,7 @@ export default function SyncIndicator() {
             </>
           ) : (
             <>
-              <div className="text-green-500 text-xl" aria-hidden="true">?</div>
+              <Check size={20} weight="bold" className="text-green-500" />
               <span className="text-sm font-medium text-green-600">已同步</span>
             </>
           )}

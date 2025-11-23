@@ -80,6 +80,7 @@ model AnswerRecord {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   word           Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, wordId, timestamp], name: "unique_user_word_timestamp")
   @@index([userId])
   @@index([wordId])
   @@map("answer_records")

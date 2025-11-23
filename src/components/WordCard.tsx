@@ -100,7 +100,7 @@ export default function WordCard({ word, onPronounce, isPronouncing }: WordCardP
 
       {/* 例句 */}
       <p 
-        className="text-lg md:text-xl text-gray-700 text-center max-w-2xl mt-8 animate-fade-in"
+        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8 animate-fade-in"
         role="region"
         aria-label="例句"
       >

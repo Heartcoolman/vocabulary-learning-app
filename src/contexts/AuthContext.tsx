@@ -58,15 +58,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 初始化和 401 处理
   useEffect(() => {
     // 使用标志位防止组件卸载后的状态更新
     let mounted = true;
     const isMounted = () => mounted;
 
-    loadUser(isMounted);
+    // 注册全局 401 回调：当 token 失效时自动清空状态
+    apiClient.setOnUnauthorized(() => {
+      if (mounted) {
+        setUser(null);
+        setLoading(false);
+        void StorageService.setCurrentUser(null);
+      }
+    });
 
+    // 加载用户信息
+    void loadUser(isMounted);
+
+    // 清理函数：恢复回调并标记组件已卸载
     return () => {
       mounted = false;
+      apiClient.setOnUnauthorized(null);
     };
   }, []);
 

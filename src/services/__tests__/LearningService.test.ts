@@ -58,29 +58,29 @@ describe('LearningService', () => {
 
   describe('generateTestOptions', () => {
     it('should generate options with correct count', () => {
-      const options = LearningService.generateTestOptions(mockWords[0], mockWords, 3);
-      expect(options.length).toBe(3);
+      const result = LearningService.generateTestOptions(mockWords[0], mockWords, 3);
+      expect(result.options.length).toBe(3);
     });
 
     it('should include the correct answer', () => {
       const correctWord = mockWords[0];
-      const options = LearningService.generateTestOptions(correctWord, mockWords, 3);
-      expect(options).toContain(correctWord.meanings[0]);
+      const result = LearningService.generateTestOptions(correctWord, mockWords, 3);
+      expect(result.options).toContain(correctWord.meanings[0]);
     });
 
     it('should have only one correct answer', () => {
       const correctWord = mockWords[0];
-      const options = LearningService.generateTestOptions(correctWord, mockWords, 3);
-      const correctCount = options.filter(opt => opt === correctWord.meanings[0]).length;
+      const result = LearningService.generateTestOptions(correctWord, mockWords, 3);
+      const correctCount = result.options.filter((opt: string) => opt === correctWord.meanings[0]).length;
       expect(correctCount).toBe(1);
     });
 
     it('should respect min and max option count', () => {
-      const options1 = LearningService.generateTestOptions(mockWords[0], mockWords, 1);
-      expect(options1.length).toBeGreaterThanOrEqual(2);
+      const result1 = LearningService.generateTestOptions(mockWords[0], mockWords, 1);
+      expect(result1.options.length).toBeGreaterThanOrEqual(2);
 
-      const options2 = LearningService.generateTestOptions(mockWords[0], mockWords, 5);
-      expect(options2.length).toBeLessThanOrEqual(4);
+      const result2 = LearningService.generateTestOptions(mockWords[0], mockWords, 5);
+      expect(result2.options.length).toBeLessThanOrEqual(4);
     });
   });
 

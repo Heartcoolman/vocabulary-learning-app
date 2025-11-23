@@ -84,7 +84,7 @@ export default function TestOptions({
 
   return (
     <div 
-      className="flex flex-wrap justify-center gap-4 px-4 py-8"
+      className="flex flex-wrap justify-center gap-4 px-4 py-8 max-w-5xl mx-auto w-full"
       role="group"
       aria-label="测试选项"
     >
@@ -101,7 +101,7 @@ export default function TestOptions({
           }}
           disabled={showResult}
           className={`
-            min-w-[120px] px-6 py-3 rounded-lg text-base md:text-lg font-medium
+            min-w-[160px] px-8 py-3 rounded-lg text-base md:text-lg font-medium
             transition-all duration-200 animate-fade-in
             ${getButtonStyle(option)}
             ${!showResult ? 'hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}

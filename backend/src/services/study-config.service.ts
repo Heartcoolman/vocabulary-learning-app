@@ -76,8 +76,12 @@ export class StudyConfigService {
         if (config.selectedWordBookIds.length === 0) {
             return {
                 words: [],
-                config,
-                message: '请先选择学习词书',
+                progress: {
+                    todayStudied: 0,
+                    todayTarget: config.dailyWordCount,
+                    totalStudied: 0,
+                    correctRate: 0,
+                },
             };
         }
 
@@ -113,16 +117,57 @@ export class StudyConfigService {
                     : { createdAt: 'asc' },
         });
 
+        // 计算学习进度
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // 今日已学习的单词数
+        const todayRecords = await prisma.answerRecord.groupBy({
+            by: ['wordId'],
+            where: {
+                userId,
+                timestamp: { gte: today },
+                word: {
+                    wordBookId: { in: accessibleIds },
+                },
+            },
+        });
+
+        // 总学习单词数
+        const totalStudiedRecords = await prisma.answerRecord.groupBy({
+            by: ['wordId'],
+            where: {
+                userId,
+                word: {
+                    wordBookId: { in: accessibleIds },
+                },
+            },
+        });
+
+        // 总答题记录统计（计算正确率）
+        const allRecords = await prisma.answerRecord.findMany({
+            where: {
+                userId,
+                word: {
+                    wordBookId: { in: accessibleIds },
+                },
+            },
+            select: {
+                isCorrect: true,
+            },
+        });
+
+        const correctCount = allRecords.filter(r => r.isCorrect).length;
+        const correctRate = allRecords.length > 0 ? Math.round((correctCount / allRecords.length) * 100) : 0;
+
         return {
             words,
-            config,
-            totalAvailable: await prisma.word.count({
-                where: {
-                    wordBookId: {
-                        in: accessibleIds,
-                    },
-                },
-            }),
+            progress: {
+                todayStudied: todayRecords.length,
+                todayTarget: config.dailyWordCount,
+                totalStudied: totalStudiedRecords.length,
+                correctRate,
+            },
         };
     }
 
@@ -134,40 +179,83 @@ export class StudyConfigService {
 
         if (config.selectedWordBookIds.length === 0) {
             return {
-                totalWords: 0,
-                learnedWords: 0,
-                progress: 0,
+                todayStudied: 0,
+                todayTarget: config.dailyWordCount,
+                totalStudied: 0,
+                correctRate: 0,
             };
         }
 
-        // 总单词数
-        const totalWords = await prisma.word.count({
+        // 安全校验：验证词书权限
+        const accessibleWordBooks = await prisma.wordBook.findMany({
             where: {
-                wordBookId: {
-                    in: config.selectedWordBookIds,
+                id: { in: config.selectedWordBookIds },
+                OR: [
+                    { type: 'SYSTEM' },
+                    { type: 'USER', userId: userId },
+                ],
+            },
+            select: { id: true },
+        });
+
+        const accessibleIds = accessibleWordBooks.map(wb => wb.id);
+
+        if (accessibleIds.length === 0) {
+            return {
+                todayStudied: 0,
+                todayTarget: config.dailyWordCount,
+                totalStudied: 0,
+                correctRate: 0,
+            };
+        }
+
+        // 计算今日学习进度
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayRecords = await prisma.answerRecord.groupBy({
+            by: ['wordId'],
+            where: {
+                userId,
+                timestamp: { gte: today },
+                word: {
+                    wordBookId: { in: accessibleIds },
                 },
             },
         });
 
-        // 已学习的单词数（有答题记录的）
-        const learnedWordsCount = await prisma.answerRecord.groupBy({
+        // 总学习单词数
+        const totalStudiedRecords = await prisma.answerRecord.groupBy({
             by: ['wordId'],
             where: {
                 userId,
                 word: {
-                    wordBookId: {
-                        in: config.selectedWordBookIds,
-                    },
+                    wordBookId: { in: accessibleIds },
                 },
             },
         });
 
-        const learnedWords = learnedWordsCount.length;
+        // 总答题记录统计（计算正确率）
+        const allRecords = await prisma.answerRecord.findMany({
+            where: {
+                userId,
+                word: {
+                    wordBookId: { in: accessibleIds },
+                },
+            },
+            select: {
+                isCorrect: true,
+            },
+        });
+
+        const correctCount = allRecords.filter(r => r.isCorrect).length;
+        const correctRate = allRecords.length > 0 ? Math.round((correctCount / allRecords.length) * 100) : 0;
 
         return {
-            totalWords,
-            learnedWords,
-            progress: totalWords > 0 ? Math.round((learnedWords / totalWords) * 100) : 0,
+            todayStudied: todayRecords.length,
+            todayTarget: config.dailyWordCount,
+            totalStudied: totalStudiedRecords.length,
+            correctRate,
         };
     }
 }

@@ -168,6 +168,26 @@ line-height: 1.5;  /* 默认行高 */
 
 **使用场景**：主要操作（提交、确认、开始学习）
 
+#### 1b. 主要按钮（对话框中）
+
+```tsx
+<button className="
+  px-6 py-3 
+  bg-blue-500 text-white 
+  rounded-xl 
+  font-medium
+  hover:bg-blue-600 
+  transition-all duration-200 
+  hover:scale-105 active:scale-95
+  focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+  shadow-lg hover:shadow-xl
+">
+  按钮文字
+</button>
+```
+
+**使用场景**：对话框中的主要按钮（添加单词、创建词书）
+
 #### 2. 次要按钮（Secondary Button）
 
 ```tsx
@@ -386,6 +406,8 @@ className="hover:bg-gray-100"
 
 ### 卡片（Card）
 
+#### 1. 标准卡片
+
 ```tsx
 <div className="
   p-4 md:p-6
@@ -399,6 +421,70 @@ className="hover:bg-gray-100"
   {/* 卡片内容 */}
 </div>
 ```
+
+#### 2. 毛玻璃效果卡片（推荐）
+
+```tsx
+<div className="
+  p-6 
+  bg-white/80 backdrop-blur-sm 
+  border border-gray-200/60 
+  rounded-xl 
+  shadow-sm 
+  hover:shadow-lg hover:scale-[1.02]
+  transition-all duration-200
+  cursor-pointer
+">
+  {/* 卡片内容 */}
+</div>
+```
+
+**使用场景**：词书卡片、一般列表卡片
+
+#### 3. 单词卡片（特殊设计）
+
+```tsx
+<div className="
+  group p-8 
+  bg-white/80 backdrop-blur-sm 
+  border border-gray-200/60 
+  rounded-2xl 
+  shadow-sm 
+  hover:shadow-xl hover:scale-[1.03]
+  cursor-pointer 
+  transition-all duration-300
+  flex flex-col justify-between min-h-[200px]
+  hover:border-blue-400 hover:bg-white/95
+  focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
+  animate-fade-in
+">
+  {/* 单词信息 */}
+  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+    word
+  </h3>
+  
+  {/* 音标 - 圆形背景 */}
+  <span className="text-base text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full">
+    /fəˈnetɪk/
+  </span>
+  
+  {/* 释义 - 圆形编号徽章 */}
+  <div className="flex items-start gap-2">
+    <span className="flex-shrink-0 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+      1
+    </span>
+    <span className="flex-1">释义内容</span>
+  </div>
+</div>
+```
+
+**关键特点**：
+- 更大的圆角：`rounded-2xl`
+- 更强的 hover 效果：`hover:shadow-xl hover:scale-[1.03]`
+- hover 时边框颜色变化：`hover:border-blue-400`
+- 文字颜色过渡：`group-hover:text-blue-600`
+- 圆形音标背景：`rounded-full`
+- 圆形编号徽章：`w-5 h-5 rounded-full`
 
 ### 输入框（Input）
 
@@ -583,8 +669,393 @@ className="flex flex-col sm:flex-row items-start sm:items-center"
 | 大小 | 值 | Tailwind类 | 使用场景 |
 |------|-----|-----------|---------|
 | 小 | 4px | `rounded` | 小元素 |
-| 标准 | 8px | `rounded-lg` | 按钮、卡片、输入框 |
-| 圆形 | 50% | `rounded-full` | 图标按钮、头像 |
+| 标准 | 8px | `rounded-lg` | 一般按钮、输入框 |
+| 大 | 12px | `rounded-xl` | 大卡片、对话框按钮 |
+| 超大 | 16px | `rounded-2xl` | 单词卡片、对话框 |
+| 特大 | 24px | `rounded-3xl` | 单词详情对话框 |
+| 圆形 | 50% | `rounded-full` | 图标按钮、头像、音标背景、徽章 |
+
+### 使用示例
+
+```tsx
+// 单词卡片 - 使用 rounded-2xl
+<div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+  {/* 卡片内容 */}
+</div>
+
+// 单词详情对话框 - 使用 rounded-3xl
+<div className="bg-white rounded-3xl shadow-xl p-12">
+  {/* 对话框内容 */}
+</div>
+
+// 音标背景 - 使用 rounded-full
+<span className="bg-gray-100 px-4 py-1.5 rounded-full">
+  /həˈloʊ/
+</span>
+
+// 编号徽章 - 使用 rounded-full
+<span className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center">
+  1
+</span>
+```
+
+---
+
+## 🌫️ 毛玻璃效果（Backdrop Blur）
+
+毛玻璃效果为界面增添现代感和层次感，用于导航栏、卡片等元素。
+
+### 效果级别
+
+| 级别 | Tailwind类 | 使用场景 |
+|------|-----------|----------|
+| 小 | `backdrop-blur-sm` | 卡片、分页组件 |
+| 中 | `backdrop-blur-md` | 导航栏 |
+| 大 | `backdrop-blur-lg` | 重要覆盖层 |
+
+### 使用规范
+
+#### 1. 导航栏
+
+```tsx
+<header className="
+  fixed top-0 left-0 right-0 z-50 
+  bg-white/80 backdrop-blur-md 
+  border-b border-gray-200/50 
+  shadow-sm
+">
+  {/* 导航内容 */}
+</header>
+```
+
+**关键点**：
+- 背景色使用透明度：`bg-white/80`（80% 不透明度）
+- 添加模糊效果：`backdrop-blur-md`
+- 边框也使用透明度：`border-gray-200/50`
+
+#### 2. 卡片
+
+```tsx
+<div className="
+  p-6 
+  bg-white/80 backdrop-blur-sm 
+  border border-gray-200/60 
+  rounded-2xl 
+  shadow-sm hover:shadow-lg
+  transition-all duration-200
+">
+  {/* 卡片内容 */}
+</div>
+```
+
+#### 3. 分页组件
+
+```tsx
+<nav className="
+  p-6 
+  bg-white/80 backdrop-blur-sm 
+  rounded-xl 
+  shadow-sm 
+  border border-gray-200/60
+">
+  {/* 分页内容 */}
+</nav>
+```
+
+### 最佳实践
+
+1. **配合透明度使用**：毛玻璃效果必须与背景透明度配合 (`bg-white/80`)
+2. **边框透明度**：边框也应使用透明度以保持一致性 (`border-gray-200/60`)
+3. **性能考虑**：不要过度使用，主要用于导航栏和顶层卡片
+4. **浏览器兼容**：确保在不支持的浏览器中有降级方案
+
+---
+
+## 🎯 图标设计规范
+
+本项目使用 [Phosphor Icons](https://phosphoricons.com/) 图标库，提供一致、现代的图标系统。
+
+### 图标库
+
+**Phosphor Icons** 是一个灵活的开源图标库，具有以下特点：
+- 多种样式权重（thin, light, regular, bold, fill, duotone）
+- 统一的设计语言
+- React 组件支持
+- 可自定义尺寸和颜色
+
+### 图标尺寸
+
+| 尺寸 | 像素值 | 使用场景 | 示例 |
+|------|--------|---------|------|
+| 超小 | 12px | 徽章内图标 | 掌握度徽章 |
+| 小 | 14-16px | 按钮内图标、导航箭头 | 返回箭头、删除图标 |
+| 标准 | 18-20px | 列表项图标、按钮主图标 | 添加按钮、书籍图标 |
+| 大 | 28-32px | 统计卡片图标、发音按钮 | 统计图标、发音图标 |
+| 超大 | 48-64px | 加载状态、错误提示 | 加载图标、警告图标 |
+| 特大 | 80-96px | 空状态图标、完成庆祝 | 空列表、完成图标 |
+
+### 图标样式权重
+
+Phosphor Icons 提供 6 种样式权重：
+
+| 权重 | `weight` 属性 | 使用场景 | 视觉特点 |
+|------|--------------|---------|---------|
+| Thin | `"thin"` | 空状态图标、装饰图标 | 最细线条，轻盈感 |
+| Light | `"light"` | - | 细线条 |
+| Regular | `"regular"` | 默认图标（可省略） | 标准线条 |
+| Bold | `"bold"` | 按钮图标、强调图标 | 粗线条，醒目 |
+| Fill | `"fill"` | 激活状态、发音按钮 | 填充实心 |
+| Duotone | `"duotone"` | 统计卡片、装饰图标 | 双色调，有层次感 |
+
+### 使用示例
+
+#### 1. 基础使用
+
+```tsx
+import { Books, ArrowLeft, Plus } from '../components/Icon';
+
+// 标准图标 - 18px, bold
+<Books size={18} weight="bold" />
+
+// 导航箭头 - 16px, bold
+<ArrowLeft size={16} weight="bold" />
+
+// 添加按钮 - 20px, bold
+<Plus size={20} weight="bold" />
+```
+
+#### 2. 带颜色的图标
+
+```tsx
+// 使用十六进制颜色
+<Books size={18} weight="duotone" color="#6b7280" />
+
+// 使用 Tailwind 类名
+<Books size={18} weight="duotone" className="text-gray-500" />
+```
+
+#### 3. 空状态图标
+
+```tsx
+// 超大、thin 权重、灰色
+<BookOpen size={96} weight="thin" color="#9ca3af" className="mx-auto mb-6 animate-pulse" />
+```
+
+#### 4. 统计卡片图标
+
+```tsx
+// 32px, duotone，彩色
+<ChartBar size={32} weight="duotone" color="#3b82f6" />
+<Target size={32} weight="duotone" color="#a855f7" />
+<CheckCircle size={32} weight="duotone" color="#16a34a" />
+```
+
+#### 5. 发音按钮图标
+
+```tsx
+// 28px, fill 权重，白色
+<SpeakerHigh size={28} weight="fill" className="text-white" />
+```
+
+#### 6. 加载状态图标
+
+```tsx
+// 48px, bold，带旋转动画
+<CircleNotch 
+  size={48} 
+  weight="bold" 
+  color="#3b82f6" 
+  className="animate-spin mx-auto mb-4" 
+/>
+```
+
+### 图标颜色规范
+
+| 用途 | 颜色值 | Tailwind类 |
+|------|--------|-----------|
+| 主要图标 | `#111827` | `text-gray-900` / `color="#111827"` |
+| 次要图标 | `#6b7280` | `text-gray-500` / `color="#6b7280"` |
+| 禁用图标 | `#9ca3af` | `text-gray-400` / `color="#9ca3af"` |
+| 品牌色图标 | `#3b82f6` | `text-blue-500` / `color="#3b82f6"` |
+| 成功图标 | `#16a34a` | `text-green-600` / `color="#16a34a"` |
+| 警告图标 | `#eab308` | `text-yellow-500` / `color="#eab308"` |
+| 错误图标 | `#dc2626` | `text-red-600` / `color="#dc2626"` |
+| 白色图标 | `#ffffff` | `text-white` / `color="#ffffff"` |
+
+### 图标与文字组合
+
+```tsx
+// 按钮中的图标（左侧）
+<button className="flex items-center gap-2">
+  <Plus size={18} weight="bold" />
+  添加单词
+</button>
+
+// 按钮中的图标（右侧）
+<button className="flex items-center gap-2">
+  下一页
+  <ArrowRight size={16} weight="bold" />
+</button>
+
+// 列表项中的图标
+<div className="flex items-center gap-2">
+  <Books size={16} weight="bold" />
+  <span>共 100 个单词</span>
+</div>
+```
+
+### 常用图标清单
+
+| 图标名称 | 用途 | 常用尺寸 | 常用权重 |
+|---------|------|---------|---------|
+| `Books` | 词书、词库 | 16-18px | bold, duotone |
+| `BookOpen` | 空状态、学习 | 80-96px | thin |
+| `Plus` | 添加按钮 | 16-20px | bold |
+| `Trash` | 删除按钮 | 16px | bold |
+| `ArrowLeft` | 返回、上一页 | 14-16px | bold |
+| `ArrowRight` | 下一页 | 14-16px | bold |
+| `SpeakerHigh` | 发音按钮 | 28px | fill |
+| `ListNumbers` | 列表、序号 | 18px | duotone |
+| `Confetti` | 完成庆祝 | 96px | duotone |
+| `ChartBar` | 统计图表 | 32px | duotone |
+| `Target` | 目标、准确率 | 32px | duotone |
+| `CheckCircle` | 正确、成功 | 16-32px | bold, duotone |
+| `XCircle` | 错误、失败 | 16-32px | bold |
+| `Warning` | 警告 | 16-64px | bold, fill, duotone |
+| `Clock` | 时间 | 16px | bold |
+| `CircleNotch` | 加载中 | 48px | bold |
+| `MagnifyingGlass` | 搜索、空结果 | 80px | thin |
+
+### 图标动画
+
+```tsx
+// 旋转动画（加载中）
+<CircleNotch className="animate-spin" size={48} weight="bold" />
+
+// 脉冲动画（空状态）
+<BookOpen className="animate-pulse" size={96} weight="thin" />
+
+// Hover 脉冲（发音按钮）
+<SpeakerHigh className="group-hover:animate-pulse" size={28} weight="fill" />
+```
+
+### 最佳实践
+
+1. **统一权重**：同一场景下使用相同权重
+2. **尺寸一致**：同一组图标保持相同尺寸  
+3. **颜色协调**：图标颜色应与设计系统颜色一致
+4. **语义化选择**：选择与功能相符的图标
+5. **按需导入**：只导入实际使用的图标，优化打包体积
+6. **无障碍**：为图标添加适当的 `aria-label` 或使用 `aria-hidden="true"`
+
+### 导入优化
+
+项目使用按需导入优化打包体积，所有使用的图标都在 [`src/components/Icon.tsx`](file:///e:/danci/src/components/Icon.tsx) 中统一管理。
+
+---
+
+## 🎨 单词详情对话框设计
+
+单词详情对话框是极简主义设计的典范，强调内容的呈现。
+
+### 设计规范
+
+```tsx
+<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
+  <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up">
+    {/* 单词和发音 */}
+    <div className="text-center mb-12">
+      <div className="flex items-center justify-center mb-4">
+        <h3 className="text-8xl font-bold text-gray-900">
+          hello
+        </h3>
+        <button className="
+          ml-6 w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 
+          shadow-lg hover:shadow-xl flex items-center justify-center
+          transition-all hover:scale-110 active:scale-95
+        ">
+          {/* 发音图标 */}
+        </button>
+      </div>
+      <p className="text-3xl text-gray-400">/həˈloʊ/</p>
+    </div>
+
+    {/* 渐变分隔线 */}
+    <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-8"></div>
+
+    {/* 释义和例句 - 左右布局 */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* 释义 */}
+      <div>
+        <h4 className="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4">
+          释义
+        </h4>
+        <div className="space-y-3">
+          <div className="flex items-baseline">
+            <span className="text-blue-500 font-bold text-lg mr-4">1.</span>
+            <span className="text-gray-900 text-xl">你好；喂</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 例句 */}
+      <div>
+        <h4 className="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4">
+          例句
+        </h4>
+        <blockquote className="border-l-4 border-blue-500 pl-6 py-2 italic text-gray-700">
+          Hello, how are you?
+        </blockquote>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+### 关键设计元素
+
+| 元素 | 样式 | 说明 |
+|------|------|------|
+| 对话框容器 | `rounded-3xl` (24px) | 最大圆角，营造柔和感 |
+| 单词拼写 | `text-8xl font-bold` | 超大字体突出单词 |
+| 音标 | `text-3xl text-gray-400` | 大号灰色音标 |
+| 发音按钮 | `w-14 h-14 rounded-full bg-blue-500` | 大号圆形蓝色按钮 |
+| 分隔线 | 渐变效果 | 从透明到灰色再到透明 |
+| 标题 | 大写 + 字母间距 | `uppercase tracking-wider` |
+| 释义编号 | `text-blue-500 font-bold text-lg` | 蓝色加粗 |
+| 例句 | 左蓝色边框 + 斜体 | `border-l-4 border-blue-500 italic` |
+
+---
+
+## 🌈 渐变效果
+
+### 渐变分隔线
+
+用于对话框、卡片等处，提供优雅的视觉分隔。
+
+```tsx
+{/* 水平渐变分隔线 */}
+<div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+
+{/* 垂直渐变分隔线 */}
+<div className="w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent"></div>
+```
+
+**使用场景**：
+- 单词详情对话框中的内容分隔
+- 大卡片中的区块分隔
+- 替代传统实线边框
+
+### 渐变背景（可选）
+
+```tsx
+{/* 微妙的渐变背景 */}
+<div className="bg-gradient-to-br from-blue-50 to-white">
+  {/* 内容 */}
+</div>
+```
+
+**注意**：渐变背景应谨慎使用，避免过度装饰。
 
 ---
 
@@ -696,6 +1167,75 @@ const handleSelectAnswer = () => {};
 // ❌ 避免
 const flag = true;
 const handle = () => {};
+```
+
+### 6. 毛玻璃效果的使用
+
+毛玻璃效果必须与背景透明度配合：
+
+```tsx
+// ✅ 好 - 毛玻璃 + 透明度
+className="bg-white/80 backdrop-blur-sm"
+
+// ❌ 避免 - 只有模糊没有透明度
+className="bg-white backdrop-blur-sm"
+```
+
+### 7. 透明度的一致性
+
+背景、边框应使用一致的透明度策略：
+
+```tsx
+// ✅ 好 - 一致的透明度
+className="bg-white/80 backdrop-blur-sm border border-gray-200/60"
+
+// ❌ 避免 - 不一致
+className="bg-white/80 backdrop-blur-sm border border-gray-200"
+```
+
+### 8. 卡片 Hover 效果的精确控制
+
+不同场景使用不同的缩放比例：
+
+```tsx
+// 一般卡片
+className="hover:scale-[1.02]"
+
+// 单词卡片（更明显）
+className="hover:scale-[1.03]"
+
+// 按钮
+className="hover:scale-105" // 等伞于 1.05
+```
+
+### 9. 圆角大小选择
+
+根据元素大小和重要性选择圆角：
+
+```tsx
+// 小元素：按钮、训章
+className="rounded-lg" // 8px
+
+// 中等元素：卡片
+className="rounded-xl" // 12px
+
+// 大元素：单词卡片
+className="rounded-2xl" // 16px
+
+// 特别重要：对话框
+className="rounded-3xl" // 24px
+```
+
+### 10. 渐变分隔线使用
+
+在需要优雅分隔的场景使用渐变线：
+
+```tsx
+// ✅ 好 - 用于对话框、大卡片
+className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"
+
+// 一般场景 - 使用普通边框
+className="border-b border-gray-200"
 ```
 
 ---
@@ -816,23 +1356,58 @@ export default function MyComponent({ }: MyComponentProps) {
 // 主要按钮
 "px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 
+// 对话框主要按钮
+"px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+
 // 次要按钮
 "px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
 
-// 卡片
-"p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 animate-fade-in"
+// 毛玻璃效果卡片
+"p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+
+// 单词卡片
+"group p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm hover:shadow-xl hover:scale-[1.03] transition-all duration-300 hover:border-blue-400"
 
 // 输入框
 "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
 
+// 导航栏
+"fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
+
 // 页面容器
 "max-w-6xl mx-auto px-4 py-8 animate-fade-in"
+
+// 圆形音标背景
+"text-base text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full"
+
+// 圆形编号徽章
+"w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold"
+
+// 渐变分隔线
+"h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"
 ```
+
 
 ---
 
-**版本**: 1.0.0  
-**最后更新**: 2024年  
+**版本**: 2.0.0  
+**最后更新**: 2025年11月  
 **维护者**: 开发团队
+
+## 更新日志
+
+### v2.0.0 (2025年11月)
+- ✨ 新增毛玻璃效果（Backdrop Blur）章节
+- ✨ 新增单词详情对话框设计规范
+- ✨ 新增渐变效果章节
+- ✨ 新增图标设计规范（Phosphor Icons）
+- 🔄 扩展圆角系统，增加 `rounded-xl`、`rounded-2xl`、`rounded-3xl`
+- 🔄 更新卡片组件规范，增加毛玻璃效果卡片和单词卡片
+- 🔄 更新按钮规范，增加对话框按钮样式
+- 🔄 更新最佳实践，增加毛玻璃效果和透明度使用指南
+- 🔄 更新常用类名组合，增加更多实用组合
+
+### v1.0.0 (2024年)
+- 🎉 初版发布
 
 遵循此规范，确保应用的UI/UX保持一致、专业和易用。

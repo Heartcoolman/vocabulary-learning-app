@@ -60,10 +60,10 @@ export class RecordService {
   }
 
   async batchCreateRecords(userId: string, records: CreateRecordDto[]) {
-    // 验证所有记录都包含时间戳（幂等性要求）
+    // 检查是否有记录缺少时间戳，如果有则警告但不阻止
     const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
     if (recordsWithoutTimestamp.length > 0) {
-      throw new Error(`${recordsWithoutTimestamp.length} 条记录缺少时间戳，无法保证幂等性。请确保客户端提供时间戳。`);
+      console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
     }
 
     // 验证所有单词都存在且用户有权限访问
@@ -102,59 +102,21 @@ export class RecordService {
       console.warn(`跳过了 ${skippedCount} 条无权访问的学习记录`);
     }
 
-    // 获取已存在的记录（通过单词ID+timestamp匹配）
-    const existingRecords = await prisma.answerRecord.findMany({
-      where: {
-        userId,
-      },
-      select: {
-        wordId: true,
-        timestamp: true,
-      },
-    });
+    console.log(`准备创建 ${validRecords.length} 条学习记录（数据库自动跳过重复）`);
 
-    // 创建已存在记录的标识集合（单词ID-时间戳）
-    const existingRecordKeys = new Set(
-      existingRecords.map(r => `${r.wordId}-${r.timestamp.getTime()}`)
-    );
-
-    console.log(`云端已有 ${existingRecords.length} 条记录`);
-    console.log(`本地上传 ${validRecords.length} 条记录`);
-
-    // 输出前5个云端记录key
-    const sampleKeys = Array.from(existingRecordKeys).slice(0, 5);
-    console.log(`云端记录示例:`, sampleKeys);
-
-    // 过滤出未存在的记录（使用 wordId-timestamp 作为唯一标识）
-    const newRecords = validRecords.filter(record => {
-      // 此时 record.timestamp 已确保存在
-      const key = `${record.wordId}-${record.timestamp}`;
-      console.log(`检查记录: ${key}`);
-      const exists = existingRecordKeys.has(key);
-      if (exists) {
-        console.log(`  → 跳过重复`);
-      } else {
-        console.log(`  → 新记录`);
-      }
-      return !exists;
-    });
-
-    if (newRecords.length === 0) {
-      console.log('所有记录已存在，跳过创建');
-      return { count: 0 };
-    }
-
-    console.log(`创建 ${newRecords.length} 条新记录，跳过 ${validRecords.length - newRecords.length} 条重复记录`);
-
+    // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
+    // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
     return await prisma.answerRecord.createMany({
-      data: newRecords.map(record => ({
+      data: validRecords.map(record => ({
         userId,
         wordId: record.wordId,
         selectedAnswer: record.selectedAnswer ?? '',
         correctAnswer: record.correctAnswer ?? '',
         isCorrect: record.isCorrect,
-        timestamp: new Date(record.timestamp!), // 使用非空断言，因为已验证
+        // 如果有客户端时间戳则使用，否则使用服务端当前时间
+        timestamp: record.timestamp ? new Date(record.timestamp) : new Date(),
       })),
+      skipDuplicates: true, // 数据库层面跳过重复记录，基于 unique_user_word_timestamp 唯一约束
     });
   }
 

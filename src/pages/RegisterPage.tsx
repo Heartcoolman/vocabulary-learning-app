@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft } from '../components/Icon';
 
 /**
  * 注册页面组件
@@ -231,9 +232,10 @@ export default function RegisterPage() {
         <div className="mt-4 text-center">
           <Link
             to="/"
-            className="text-gray-600 hover:text-gray-900 text-sm transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
           >
-            ← 返回首页
+            <ArrowLeft size={14} weight="bold" />
+            返回首页
           </Link>
         </div>
       </div>
