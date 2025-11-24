@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/ApiClient';
-import { ChartBar, UsersThree, Books, ArrowLeft } from '../../components/Icon';
+import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock } from '../../components/Icon';
 
 export default function AdminLayout() {
     const location = useLocation();
@@ -44,6 +44,8 @@ export default function AdminLayout() {
         { path: '/admin', label: '仪表盘', icon: ChartBar, exact: true },
         { path: '/admin/users', label: '用户管理', icon: UsersThree },
         { path: '/admin/wordbooks', label: '系统词库', icon: Books },
+        { path: '/admin/algorithm-config', label: '算法配置', icon: Gear },
+        { path: '/admin/config-history', label: '配置历史', icon: Clock },
     ];
 
     return (

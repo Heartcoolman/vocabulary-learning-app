@@ -587,3 +587,649 @@ API实施速率限制以防止滥用：
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
+
+## 单词得分相关
+
+### 按得分范围获取单词
+
+**GET** `/api/word-scores/range`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `minScore` (number, required): 最小得分
+- `maxScore` (number, required): 最大得分
+
+**示例请求**:
+```
+GET /api/word-scores/range?minScore=0&maxScore=50
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "wordId": "uuid",
+      "totalScore": 45.5,
+      "accuracyScore": 50.0,
+      "speedScore": 40.0,
+      "stabilityScore": 45.0,
+      "proficiencyScore": 48.0,
+      "lastCalculated": "2024-01-01T00:00:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## 算法配置相关
+
+### 获取当前算法配置
+
+**GET** `/api/algorithm-config`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "默认配置",
+    "config": {
+      "initialEaseFactor": 2.5,
+      "minEaseFactor": 1.3,
+      "maxEaseFactor": 3.0,
+      "easeFactorIncrement": 0.15,
+      "easeFactorDecrement": 0.2,
+      "intervalMultiplier": 2.0
+    },
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 更新算法配置
+
+**PUT** `/api/algorithm-config`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "config": {
+    "initialEaseFactor": 2.5,
+    "minEaseFactor": 1.3,
+    "maxEaseFactor": 3.0,
+    "easeFactorIncrement": 0.15,
+    "easeFactorDecrement": 0.2,
+    "intervalMultiplier": 2.0
+  },
+  "changedBy": "user@example.com",
+  "changeReason": "调整算法参数以提高学习效率"
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "默认配置",
+    "config": {
+      "initialEaseFactor": 2.5,
+      "minEaseFactor": 1.3,
+      "maxEaseFactor": 3.0,
+      "easeFactorIncrement": 0.15,
+      "easeFactorDecrement": 0.2,
+      "intervalMultiplier": 2.0
+    },
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 重置算法配置为默认值
+
+**POST** `/api/algorithm-config/reset`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "changedBy": "user@example.com"
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "默认配置",
+    "config": {
+      "initialEaseFactor": 2.5,
+      "minEaseFactor": 1.3,
+      "maxEaseFactor": 3.0,
+      "easeFactorIncrement": 0.15,
+      "easeFactorDecrement": 0.2,
+      "intervalMultiplier": 2.0
+    },
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 获取算法配置历史记录
+
+**GET** `/api/algorithm-config/history`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `limit` (number, optional): 返回记录数量限制，默认为 10
+
+**示例请求**:
+```
+GET /api/algorithm-config/history?limit=5
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "configId": "uuid",
+      "changedBy": "user@example.com",
+      "changeReason": "调整算法参数",
+      "configBefore": {
+        "initialEaseFactor": 2.5,
+        "minEaseFactor": 1.3
+      },
+      "configAfter": {
+        "initialEaseFactor": 2.6,
+        "minEaseFactor": 1.4
+      },
+      "changedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## 单词学习状态相关
+
+### 删除单词学习状态
+
+**DELETE** `/api/word-states/:wordId`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "message": "单词学习状态删除成功"
+}
+```
+
+---
+
+## 管理员相关
+
+### 获取用户详细统计数据
+
+**GET** `/api/admin/users/:id/statistics/detailed`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "username": "张三",
+      "role": "USER",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    "masteryDistribution": {
+      "level0": 10,
+      "level1": 15,
+      "level2": 20,
+      "level3": 25,
+      "level4": 20,
+      "level5": 10
+    },
+    "studyDays": 30,
+    "consecutiveDays": 5,
+    "totalStudyTime": 1200,
+    "totalWordsLearned": 100,
+    "averageScore": 75.5,
+    "accuracy": 0.85
+  }
+}
+```
+
+---
+
+### 导出用户单词数据
+
+**GET** `/api/admin/users/:id/words/export`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**查询参数**:
+- `format` (string, required): 导出格式，可选值：`csv` 或 `excel`
+
+**示例请求**:
+```
+GET /api/admin/users/:id/words/export?format=csv
+```
+
+**响应** (200):
+- Content-Type: `text/csv` 或 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- Content-Disposition: `attachment; filename="用户单词数据_<userId>_<date>.csv"`
+
+返回文件包含以下字段：
+- 单词拼写 (Spelling)
+- 音标 (Phonetic)
+- 释义 (Meanings)
+- 例句 (Examples)
+- 掌握程度 (Mastery Level)
+- 得分 (Score)
+- 准确率 (Accuracy)
+- 复习次数 (Review Count)
+- 上次复习时间 (Last Review Date)
+- 下次复习时间 (Next Review Date)
+- 学习状态 (State)
+
+---
+
+### 获取用户单词列表
+
+**GET** `/api/admin/users/:id/words`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**查询参数**:
+- `page` (number, optional): 页码，默认为 1
+- `pageSize` (number, optional): 每页数量，默认为 20
+- `scoreRange` (string, optional): 得分范围，可选值：`low`、`medium`、`high`
+- `masteryLevel` (number, optional): 掌握程度，0-5
+- `minAccuracy` (number, optional): 最小准确率，0-100
+- `state` (string, optional): 学习状态，可选值：`new`、`learning`、`reviewing`、`mastered`
+- `sortBy` (string, optional): 排序字段，可选值：`score`、`accuracy`、`reviewCount`、`lastReview`
+- `sortOrder` (string, optional): 排序顺序，可选值：`asc`、`desc`
+
+**示例请求**:
+```
+GET /api/admin/users/:id/words?page=1&pageSize=20&scoreRange=low&sortBy=score&sortOrder=asc
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "words": [
+      {
+        "word": {
+          "id": "uuid",
+          "spelling": "hello",
+          "phonetic": "həˈloʊ",
+          "meanings": ["你好"],
+          "examples": ["Hello!"]
+        },
+        "score": 45.5,
+        "masteryLevel": 2,
+        "accuracy": 0.75,
+        "reviewCount": 10,
+        "lastReviewDate": "2024-01-01T00:00:00.000Z",
+        "nextReviewDate": "2024-01-02T00:00:00.000Z",
+        "state": "learning"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 20,
+      "total": 100,
+      "totalPages": 5
+    }
+  }
+}
+```
+
+---
+
+### 获取单词完整学习历史
+
+**GET** `/api/admin/users/:userId/words/:wordId/learning-history`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**查询参数**:
+- `limit` (number, optional): 返回记录数量限制
+
+**示例请求**:
+```
+GET /api/admin/users/:userId/words/:wordId/learning-history?limit=50
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "word": {
+      "id": "uuid",
+      "spelling": "hello",
+      "phonetic": "həˈloʊ",
+      "meanings": ["你好"],
+      "examples": ["Hello!"]
+    },
+    "wordState": {
+      "masteryLevel": 3,
+      "easeFactor": 2.5,
+      "reviewCount": 15,
+      "lastReviewDate": "2024-01-01T00:00:00.000Z",
+      "nextReviewDate": "2024-01-05T00:00:00.000Z",
+      "state": "reviewing"
+    },
+    "wordScore": {
+      "totalScore": 75.5,
+      "accuracyScore": 80.0,
+      "speedScore": 70.0,
+      "stabilityScore": 75.0,
+      "proficiencyScore": 78.0,
+      "lastCalculated": "2024-01-01T00:00:00.000Z"
+    },
+    "records": [
+      {
+        "id": "uuid",
+        "timestamp": "2024-01-01T00:00:00.000Z",
+        "selectedAnswer": "你好",
+        "correctAnswer": "你好",
+        "isCorrect": true,
+        "responseTime": 2500,
+        "dwellTime": 5000,
+        "masteryLevelBefore": 2,
+        "masteryLevelAfter": 3
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 获取单词得分历史
+
+**GET** `/api/admin/users/:userId/words/:wordId/score-history`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "currentScore": 75.5,
+    "scoreHistory": [
+      {
+        "timestamp": "2024-01-01T00:00:00.000Z",
+        "score": 75.5,
+        "masteryLevel": 3,
+        "isCorrect": true
+      },
+      {
+        "timestamp": "2023-12-31T00:00:00.000Z",
+        "score": 70.0,
+        "masteryLevel": 2,
+        "isCorrect": true
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 获取用户学习热力图数据
+
+**GET** `/api/admin/users/:userId/heatmap`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**查询参数**:
+- `days` (number, optional): 天数，默认为 90
+
+**示例请求**:
+```
+GET /api/admin/users/:userId/heatmap?days=30
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "date": "2024-01-01",
+      "activityLevel": 15,
+      "accuracy": 0.85,
+      "averageScore": 75.5,
+      "uniqueWords": 10
+    },
+    {
+      "date": "2024-01-02",
+      "activityLevel": 20,
+      "accuracy": 0.90,
+      "averageScore": 80.0,
+      "uniqueWords": 12
+    }
+  ]
+}
+```
+
+---
+
+### 标记异常学习记录
+
+**POST** `/api/admin/anomaly-flags`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**请求体**:
+```json
+{
+  "userId": "uuid",
+  "wordId": "uuid",
+  "recordId": "uuid",
+  "reason": "响应时间异常短",
+  "notes": "可能存在作弊行为"
+}
+```
+
+**响应** (201):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "wordId": "uuid",
+    "recordId": "uuid",
+    "reason": "响应时间异常短",
+    "notes": "可能存在作弊行为",
+    "flaggedBy": "admin@example.com",
+    "flaggedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 获取异常标记列表
+
+**GET** `/api/admin/users/:userId/words/:wordId/anomaly-flags`
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "wordId": "uuid",
+      "recordId": "uuid",
+      "reason": "响应时间异常短",
+      "notes": "可能存在作弊行为",
+      "flaggedBy": "admin@example.com",
+      "flaggedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## 权限说明
+
+### 用户权限
+- 普通用户 (`USER`): 可以访问自己的数据和学习功能
+- 管理员 (`ADMIN`): 可以访问所有用户数据和管理功能
+
+### 管理员端点
+以下端点需要管理员权限：
+- `/api/admin/*` - 所有管理员相关端点
+
+如果非管理员用户尝试访问管理员端点，将返回 403 Forbidden 错误。
+
+---
+
+## 数据导出格式
+
+### CSV 格式
+- 编码: UTF-8 with BOM
+- 分隔符: 逗号 (,)
+- 引号: 双引号 (")
+- 换行符: CRLF (\r\n)
+
+### Excel 格式
+- 格式: XLSX (Office Open XML)
+- 工作表名称: "用户单词数据"
+- 包含表头行
+- 自动列宽调整
+
+---
+
+## 版本历史
+
+### v1.1.0 (2024-11-24)
+- 新增单词得分范围查询端点
+- 新增算法配置管理端点
+- 新增单词学习状态删除端点
+- 新增管理员用户详细统计端点
+- 新增管理员数据导出功能（CSV/Excel）
+- 新增管理员用户单词列表查询端点
+- 新增管理员单词学习历史查询端点
+- 新增管理员单词得分历史查询端点
+- 新增管理员学习热力图数据端点
+- 新增管理员异常标记功能
+
+### v1.0.0 (2024-01-01)
+- 初始版本发布
+- 基础认证功能
+- 单词管理功能
+- 学习记录功能

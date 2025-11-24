@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Word } from '../types/models';
 import WordCard from '../components/WordCard';
@@ -8,9 +8,11 @@ import LearningService from '../services/LearningService';
 import AudioService from '../services/AudioService';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
-import { Confetti, Books } from '../components/Icon';
+import { Confetti, Books, TrendUp, TrendDown, Clock, Star } from '../components/Icon';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LearningPage() {
+  const { user } = useAuth();
   const [currentWord, setCurrentWord] = useState<Word | null>(null);
   const [allWords, setAllWords] = useState<Word[]>([]);
   const [testOptions, setTestOptions] = useState<string[]>([]);
@@ -21,13 +23,65 @@ export default function LearningPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  
+  // 计时器相关状态
+  const [responseTime, setResponseTime] = useState<number>(0);
+  const [dwellTime, setDwellTime] = useState<number>(0);
+  const wordDisplayTimeRef = useRef<number>(0);
+  const dwellTimerRef = useRef<number | null>(null);
+
+  // 🚀 预计算结果缓存：存储答对和答错的结果
+  const precomputedResultsRef = useRef<{
+    correct: {
+      masteryLevelBefore: number;
+      masteryLevelAfter: number;
+      score: number;
+      nextReviewDate: string;
+    } | null;
+    wrong: {
+      masteryLevelBefore: number;
+      masteryLevelAfter: number;
+      score: number;
+      nextReviewDate: string;
+    } | null;
+  }>({ correct: null, wrong: null });
+
+  // 答题反馈信息
+  const [answerFeedback, setAnswerFeedback] = useState<{
+    masteryLevelBefore: number;
+    masteryLevelAfter: number;
+    score: number;
+    nextReviewDate: string;
+  } | null>(null);
+  
+  // 当前单词的学习状态
+  const [wordState, setWordState] = useState<{
+    masteryLevel: number;
+    score: number;
+    nextReviewDate: string;
+  } | null>(null);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
-    initializeSession();
-  }, []);
+    // 等待用户信息加载完成后再初始化
+    if (user) {
+      initializeSession();
+    } else {
+      // 用户未登录，显示错误提示
+      setIsLoading(false);
+      setError('请先登录后再开始学习');
+    }
+  }, [user]);
 
   const initializeSession = async () => {
+    // 确保用户已登录
+    if (!user) {
+      setError('请先登录后再开始学习');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -44,7 +98,7 @@ export default function LearningPage() {
       setAllWords(words);
 
       const wordIds = words.map((w) => w.id);
-      await LearningService.startSession(wordIds);
+      await LearningService.startSession(wordIds, user.id);
 
       loadCurrentWord(words);
       setIsLoading(false);
@@ -55,7 +109,7 @@ export default function LearningPage() {
     }
   };
 
-  const loadCurrentWord = (words: Word[]) => {
+  const loadCurrentWord = async (words: Word[]) => {
     const word = LearningService.getCurrentWord();
 
     if (!word) {
@@ -66,6 +120,80 @@ export default function LearningPage() {
     setCurrentWord(word);
     setSelectedAnswer(undefined);
     setShowResult(false);
+    setAnswerFeedback(null);
+
+    // 重置计时器
+    setResponseTime(0);
+    setDwellTime(0);
+    wordDisplayTimeRef.current = Date.now();
+    
+    // 清除旧的停留时长计时器
+    if (dwellTimerRef.current) {
+      clearInterval(dwellTimerRef.current);
+    }
+    
+    // 启动停留时长计时器（每100ms更新一次）
+    dwellTimerRef.current = setInterval(() => {
+      setDwellTime(Date.now() - wordDisplayTimeRef.current);
+    }, 100);
+
+    // 如果有用户ID，尝试获取单词的学习状态
+    if (user?.id) {
+      try {
+        const state = await LearningService.getWordState(user.id, word.id);
+        if (state) {
+          const currentState = {
+            masteryLevel: state.masteryLevel,
+            score: state.score || 0,
+            nextReviewDate: state.nextReviewDate
+              ? new Date(state.nextReviewDate).toLocaleDateString('zh-CN')
+              : '未知'
+          };
+          setWordState(currentState);
+
+          // 🚀 预计算答对和答错的结果
+          const masteryLevel = state.masteryLevel;
+          precomputedResultsRef.current = {
+            correct: {
+              masteryLevelBefore: masteryLevel,
+              masteryLevelAfter: Math.min(5, masteryLevel + 1),
+              score: state.score || 0,
+              nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
+            },
+            wrong: {
+              masteryLevelBefore: masteryLevel,
+              masteryLevelAfter: Math.max(0, masteryLevel - 1),
+              score: state.score || 0,
+              nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
+            }
+          };
+        } else {
+          setWordState(null);
+          // 新单词的预计算结果
+          precomputedResultsRef.current = {
+            correct: {
+              masteryLevelBefore: 0,
+              masteryLevelAfter: 1,
+              score: 0,
+              nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
+            },
+            wrong: {
+              masteryLevelBefore: 0,
+              masteryLevelAfter: 0,
+              score: 0,
+              nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
+            }
+          };
+        }
+      } catch (error) {
+        console.error('获取单词状态失败:', error);
+        setWordState(null);
+        precomputedResultsRef.current = { correct: null, wrong: null };
+      }
+    } else {
+      setWordState(null);
+      precomputedResultsRef.current = { correct: null, wrong: null };
+    }
 
     // generateTestOptions 现在返回 { options, correctAnswer }
     const { options } = LearningService.generateTestOptions(word, words, 4);
@@ -90,6 +218,15 @@ export default function LearningPage() {
       }
     }
   };
+  
+  // 清理计时器
+  useEffect(() => {
+    return () => {
+      if (dwellTimerRef.current) {
+        clearInterval(dwellTimerRef.current);
+      }
+    };
+  }, []);
 
   const handlePronounce = async () => {
     if (!currentWord || isPronouncing) return;
@@ -107,16 +244,62 @@ export default function LearningPage() {
   const handleSelectAnswer = async (answer: string) => {
     if (!currentWord || showResult) return;
 
+    // 停止停留时长计时器
+    if (dwellTimerRef.current) {
+      clearInterval(dwellTimerRef.current);
+      dwellTimerRef.current = null;
+    }
+
+    // 计算响应时间（从显示单词到选择答案）
+    const finalResponseTime = Date.now() - wordDisplayTimeRef.current;
+    setResponseTime(finalResponseTime);
+
     setSelectedAnswer(answer);
     setShowResult(true);
 
     const isCorrect = answer === currentWord.meanings[0];
 
-    try {
-      await LearningService.submitAnswer(currentWord.id, answer, isCorrect);
-    } catch (err) {
-      console.error('保存答题记录失败:', err);
+    // 🚀 使用预计算的结果（0延迟）
+    const precomputedResult = isCorrect
+      ? precomputedResultsRef.current.correct
+      : precomputedResultsRef.current.wrong;
+
+    if (precomputedResult) {
+      setAnswerFeedback(precomputedResult);
+    } else {
+      // 降级方案：简单计算
+      const currentMasteryLevel = wordState?.masteryLevel || 0;
+      setAnswerFeedback({
+        masteryLevelBefore: currentMasteryLevel,
+        masteryLevelAfter: isCorrect ? Math.min(5, currentMasteryLevel + 1) : Math.max(0, currentMasteryLevel - 1),
+        score: wordState?.score || 0,
+        nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN')
+      });
     }
+
+    // 后台提交答题（不阻塞UI）
+    LearningService.submitAnswer(
+      currentWord.id,
+      answer,
+      isCorrect,
+      finalResponseTime,
+      dwellTime,
+      user?.id
+    ).then(result => {
+      // 收到真实结果后更新（通常用户已经点击下一题了）
+      if (result) {
+        setAnswerFeedback({
+          masteryLevelBefore: result.masteryLevelBefore || 0,
+          masteryLevelAfter: result.masteryLevelAfter || 0,
+          score: result.score || 0,
+          nextReviewDate: result.nextReviewDate
+            ? new Date(result.nextReviewDate).toLocaleDateString('zh-CN')
+            : '未知'
+        });
+      }
+    }).catch(err => {
+      console.error('保存答题记录失败:', err);
+    });
   };
 
   const handleNext = () => {
@@ -228,7 +411,14 @@ export default function LearningPage() {
       </div>
 
       <div className="flex-1 flex flex-col justify-center">
-        <WordCard word={currentWord} onPronounce={handlePronounce} isPronouncing={isPronouncing} />
+        <WordCard 
+          word={currentWord} 
+          onPronounce={handlePronounce} 
+          isPronouncing={isPronouncing}
+          masteryLevel={wordState?.masteryLevel}
+          wordScore={wordState?.score}
+          nextReviewDate={wordState?.nextReviewDate}
+        />
 
         <TestOptions
           options={testOptions}
@@ -239,7 +429,68 @@ export default function LearningPage() {
         />
 
         {showResult && (
-          <div className="flex justify-center pb-8 animate-fade-in">
+          <div className="flex flex-col items-center pb-8 animate-fade-in">
+            {/* 答题反馈信息 */}
+            {answerFeedback && (
+              <div className="mb-6 p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm max-w-2xl w-full">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* 掌握程度变化 */}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star size={20} weight="duotone" color="#3b82f6" />
+                      <span className="text-sm text-gray-600">掌握程度</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold text-gray-900">
+                        {answerFeedback.masteryLevelBefore}
+                      </span>
+                      {answerFeedback.masteryLevelAfter > answerFeedback.masteryLevelBefore ? (
+                        <TrendUp size={20} weight="bold" color="#22c55e" />
+                      ) : answerFeedback.masteryLevelAfter < answerFeedback.masteryLevelBefore ? (
+                        <TrendDown size={20} weight="bold" color="#ef4444" />
+                      ) : null}
+                      <span className="text-2xl font-bold text-gray-900">
+                        {answerFeedback.masteryLevelAfter}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 单词得分 */}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star size={20} weight="fill" color="#f59e0b" />
+                      <span className="text-sm text-gray-600">单词得分</span>
+                    </div>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {Math.round(answerFeedback.score)}
+                    </span>
+                  </div>
+
+                  {/* 响应时间 */}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock size={20} weight="bold" color="#8b5cf6" />
+                      <span className="text-sm text-gray-600">响应时间</span>
+                    </div>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {(responseTime / 1000).toFixed(1)}s
+                    </span>
+                  </div>
+
+                  {/* 下次复习 */}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock size={20} weight="duotone" color="#06b6d4" />
+                      <span className="text-sm text-gray-600">下次复习</span>
+                    </div>
+                    <span className="text-base font-medium text-gray-900">
+                      {answerFeedback.nextReviewDate}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={handleNext}
               onKeyDown={(e) => {

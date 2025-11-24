@@ -45,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 将当前用户写入缓存服务，便于隔离缓存
       await StorageService.setCurrentUser(userData.id);
+      // 初始化存储服务（登录后才加载数据）
+      await StorageService.init();
       await StorageService.syncToCloud();
     } catch (error) {
       console.error('加载用户信息失败:', error);
@@ -92,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.setToken(token);
       setUser(userData);
       await StorageService.setCurrentUser(userData.id);
+      await StorageService.init();
       await StorageService.syncToCloud();
     } catch (error) {
       console.error('登录失败:', error);
@@ -108,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.setToken(token);
       setUser(userData);
       await StorageService.setCurrentUser(userData.id);
+      await StorageService.init();
       await StorageService.syncToCloud();
     } catch (error) {
       console.error('注册失败:', error);

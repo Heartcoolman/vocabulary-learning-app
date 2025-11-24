@@ -12,6 +12,10 @@ import wordBookRoutes from './routes/wordbook.routes';
 import studyConfigRoutes from './routes/study-config.routes';
 import adminRoutes from './routes/admin.routes';
 import recordRoutes from './routes/record.routes';
+import wordStateRoutes from './routes/word-state.routes';
+import wordScoreRoutes from './routes/word-score.routes';
+import algorithmConfigRoutes from './routes/algorithm-config.routes';
+
 
 const app = express();
 
@@ -60,6 +64,10 @@ app.use('/api/wordbooks', wordBookRoutes);
 app.use('/api/study-config', studyConfigRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/records', recordRoutes);
+app.use('/api/word-states', wordStateRoutes);
+app.use('/api/word-scores', wordScoreRoutes);
+app.use('/api/algorithm-config', algorithmConfigRoutes);
+
 
 // 404处理
 app.use((req, res) => {
