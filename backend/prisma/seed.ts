@@ -7,6 +7,7 @@ async function main() {
   console.log('🌱 开始数据库种子...');
 
   // 创建管理员用户
+  // 注意：以下账号密码仅用于开发环境测试，生产环境请修改
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
@@ -168,6 +169,337 @@ async function main() {
   });
   console.log(`✅ 添加 ${dailyWords.length} 个单词到日常英语词库`);
 
+  // 创建系统词库 - 小学词汇
+  const primaryWordBook = await prisma.wordBook.create({
+    data: {
+      name: '小学词汇',
+      description: '小学阶段必备英语单词，适合小学生学习使用',
+      type: WordBookType.SYSTEM,
+      userId: null,
+      isPublic: true,
+      coverImage: null,
+    },
+  });
+  console.log('✅ 创建系统词库:', primaryWordBook.name);
+
+  const primaryWords = [
+    {
+      spelling: 'apple',
+      phonetic: 'ˈæpl',
+      meanings: ['苹果'],
+      examples: ['I like to eat apples.', 'An apple a day keeps the doctor away.'],
+    },
+    {
+      spelling: 'book',
+      phonetic: 'bʊk',
+      meanings: ['书', '书本'],
+      examples: ['This is my favorite book.', 'I read a book every week.'],
+    },
+    {
+      spelling: 'cat',
+      phonetic: 'kæt',
+      meanings: ['猫'],
+      examples: ['I have a cute cat.', 'The cat is sleeping.'],
+    },
+    {
+      spelling: 'dog',
+      phonetic: 'dɔːɡ',
+      meanings: ['狗'],
+      examples: ['My dog is very friendly.', 'Dogs are loyal animals.'],
+    },
+    {
+      spelling: 'egg',
+      phonetic: 'eɡ',
+      meanings: ['鸡蛋', '蛋'],
+      examples: ['I eat an egg for breakfast.', 'The hen laid an egg.'],
+    },
+    {
+      spelling: 'fish',
+      phonetic: 'fɪʃ',
+      meanings: ['鱼'],
+      examples: ['I like to eat fish.', 'There are many fish in the sea.'],
+    },
+    {
+      spelling: 'girl',
+      phonetic: 'ɡɜːrl',
+      meanings: ['女孩'],
+      examples: ['She is a smart girl.', 'The girl is playing.'],
+    },
+    {
+      spelling: 'hand',
+      phonetic: 'hænd',
+      meanings: ['手'],
+      examples: ['Wash your hands before eating.', 'Raise your hand if you know the answer.'],
+    },
+    {
+      spelling: 'ice',
+      phonetic: 'aɪs',
+      meanings: ['冰'],
+      examples: ['The ice is very cold.', 'I like ice cream.'],
+    },
+    {
+      spelling: 'juice',
+      phonetic: 'dʒuːs',
+      meanings: ['果汁'],
+      examples: ['I drink orange juice every morning.', 'This juice is delicious.'],
+    },
+    {
+      spelling: 'kite',
+      phonetic: 'kaɪt',
+      meanings: ['风筝'],
+      examples: ['Let\'s fly a kite.', 'The kite is flying high.'],
+    },
+    {
+      spelling: 'lion',
+      phonetic: 'ˈlaɪən',
+      meanings: ['狮子'],
+      examples: ['The lion is the king of animals.', 'I saw a lion at the zoo.'],
+    },
+    {
+      spelling: 'milk',
+      phonetic: 'mɪlk',
+      meanings: ['牛奶'],
+      examples: ['I drink milk every day.', 'Milk is good for your health.'],
+    },
+    {
+      spelling: 'nose',
+      phonetic: 'noʊz',
+      meanings: ['鼻子'],
+      examples: ['My nose is small.', 'The dog has a wet nose.'],
+    },
+    {
+      spelling: 'orange',
+      phonetic: 'ˈɔːrɪndʒ',
+      meanings: ['橙子', '橙色'],
+      examples: ['I like oranges.', 'Orange is my favorite color.'],
+    },
+    {
+      spelling: 'pen',
+      phonetic: 'pen',
+      meanings: ['钢笔', '笔'],
+      examples: ['I write with a pen.', 'This is a blue pen.'],
+    },
+    {
+      spelling: 'queen',
+      phonetic: 'kwiːn',
+      meanings: ['女王', '王后'],
+      examples: ['The queen is very kind.', 'She looks like a queen.'],
+    },
+    {
+      spelling: 'rabbit',
+      phonetic: 'ˈræbɪt',
+      meanings: ['兔子'],
+      examples: ['The rabbit is eating carrots.', 'I have a white rabbit.'],
+    },
+    {
+      spelling: 'sun',
+      phonetic: 'sʌn',
+      meanings: ['太阳'],
+      examples: ['The sun is shining.', 'The sun rises in the east.'],
+    },
+    {
+      spelling: 'tree',
+      phonetic: 'triː',
+      meanings: ['树'],
+      examples: ['There is a big tree in the garden.', 'Birds live in trees.'],
+    },
+    {
+      spelling: 'umbrella',
+      phonetic: 'ʌmˈbrelə',
+      meanings: ['雨伞'],
+      examples: ['Take an umbrella, it\'s raining.', 'My umbrella is red.'],
+    },
+    {
+      spelling: 'van',
+      phonetic: 'væn',
+      meanings: ['货车', '面包车'],
+      examples: ['The van is very big.', 'We travel in a van.'],
+    },
+    {
+      spelling: 'water',
+      phonetic: 'ˈwɔːtər',
+      meanings: ['水'],
+      examples: ['I drink water every day.', 'Water is important for life.'],
+    },
+    {
+      spelling: 'box',
+      phonetic: 'bɑːks',
+      meanings: ['盒子', '箱子'],
+      examples: ['Put the toys in the box.', 'This is a big box.'],
+    },
+    {
+      spelling: 'yellow',
+      phonetic: 'ˈjeloʊ',
+      meanings: ['黄色'],
+      examples: ['The banana is yellow.', 'Yellow is a bright color.'],
+    },
+    {
+      spelling: 'zoo',
+      phonetic: 'zuː',
+      meanings: ['动物园'],
+      examples: ['We went to the zoo yesterday.', 'There are many animals in the zoo.'],
+    },
+    {
+      spelling: 'ball',
+      phonetic: 'bɔːl',
+      meanings: ['球'],
+      examples: ['Let\'s play with the ball.', 'The ball is round.'],
+    },
+    {
+      spelling: 'car',
+      phonetic: 'kɑːr',
+      meanings: ['汽车', '小汽车'],
+      examples: ['My father has a new car.', 'The car is fast.'],
+    },
+    {
+      spelling: 'desk',
+      phonetic: 'desk',
+      meanings: ['书桌', '课桌'],
+      examples: ['My desk is clean.', 'Put the book on the desk.'],
+    },
+    {
+      spelling: 'eye',
+      phonetic: 'aɪ',
+      meanings: ['眼睛'],
+      examples: ['I have two eyes.', 'Her eyes are beautiful.'],
+    },
+    {
+      spelling: 'face',
+      phonetic: 'feɪs',
+      meanings: ['脸', '面孔'],
+      examples: ['Wash your face.', 'She has a round face.'],
+    },
+    {
+      spelling: 'green',
+      phonetic: 'ɡriːn',
+      meanings: ['绿色'],
+      examples: ['The grass is green.', 'I like green apples.'],
+    },
+    {
+      spelling: 'house',
+      phonetic: 'haʊs',
+      meanings: ['房子', '住宅'],
+      examples: ['This is my house.', 'The house is big.'],
+    },
+    {
+      spelling: 'ink',
+      phonetic: 'ɪŋk',
+      meanings: ['墨水'],
+      examples: ['The pen has blue ink.', 'I need some ink.'],
+    },
+    {
+      spelling: 'jam',
+      phonetic: 'dʒæm',
+      meanings: ['果酱'],
+      examples: ['I like strawberry jam.', 'Put jam on the bread.'],
+    },
+    {
+      spelling: 'key',
+      phonetic: 'kiː',
+      meanings: ['钥匙'],
+      examples: ['Where is my key?', 'Use the key to open the door.'],
+    },
+    {
+      spelling: 'leg',
+      phonetic: 'leɡ',
+      meanings: ['腿'],
+      examples: ['I have two legs.', 'My leg hurts.'],
+    },
+    {
+      spelling: 'map',
+      phonetic: 'mæp',
+      meanings: ['地图'],
+      examples: ['Look at the map.', 'I need a map of the city.'],
+    },
+    {
+      spelling: 'name',
+      phonetic: 'neɪm',
+      meanings: ['名字', '姓名'],
+      examples: ['What is your name?', 'My name is Tom.'],
+    },
+    {
+      spelling: 'one',
+      phonetic: 'wʌn',
+      meanings: ['一', '一个'],
+      examples: ['I have one brother.', 'One plus one equals two.'],
+    },
+    {
+      spelling: 'pig',
+      phonetic: 'pɪɡ',
+      meanings: ['猪'],
+      examples: ['The pig is pink.', 'Pigs like to eat.'],
+    },
+    {
+      spelling: 'red',
+      phonetic: 'red',
+      meanings: ['红色'],
+      examples: ['The apple is red.', 'I like red roses.'],
+    },
+    {
+      spelling: 'star',
+      phonetic: 'stɑːr',
+      meanings: ['星星'],
+      examples: ['I can see many stars at night.', 'The star is shining.'],
+    },
+    {
+      spelling: 'table',
+      phonetic: 'ˈteɪbl',
+      meanings: ['桌子'],
+      examples: ['Put the cup on the table.', 'We eat at the table.'],
+    },
+    {
+      spelling: 'up',
+      phonetic: 'ʌp',
+      meanings: ['向上', '在上面'],
+      examples: ['Look up at the sky.', 'The bird flew up.'],
+    },
+    {
+      spelling: 'vest',
+      phonetic: 'vest',
+      meanings: ['背心', '马甲'],
+      examples: ['I wear a vest in winter.', 'The vest is warm.'],
+    },
+    {
+      spelling: 'window',
+      phonetic: 'ˈwɪndoʊ',
+      meanings: ['窗户'],
+      examples: ['Open the window, please.', 'I can see the garden through the window.'],
+    },
+    {
+      spelling: 'yes',
+      phonetic: 'jes',
+      meanings: ['是的', '对'],
+      examples: ['Yes, I agree.', 'Yes, that is correct.'],
+    },
+    {
+      spelling: 'zero',
+      phonetic: 'ˈzɪroʊ',
+      meanings: ['零'],
+      examples: ['Zero is a number.', 'The temperature is zero degrees.'],
+    },
+    {
+      spelling: 'blue',
+      phonetic: 'bluː',
+      meanings: ['蓝色'],
+      examples: ['The sky is blue.', 'I have a blue shirt.'],
+    },
+  ];
+
+  for (const wordData of primaryWords) {
+    await prisma.word.create({
+      data: {
+        wordBookId: primaryWordBook.id,
+        ...wordData,
+      },
+    });
+  }
+
+  await prisma.wordBook.update({
+    where: { id: primaryWordBook.id },
+    data: { wordCount: primaryWords.length },
+  });
+  console.log(`✅ 添加 ${primaryWords.length} 个单词到小学词汇词库`);
+
   // 为测试用户创建默认词书
   const userWordBook = await prisma.wordBook.create({
     data: {
@@ -218,7 +550,7 @@ async function main() {
   console.log(`✅ 添加 ${userWords.length} 个单词到用户词库`);
 
   // 为测试用户创建学习配置
-  const studyConfig = await prisma.userStudyConfig.create({
+  await prisma.userStudyConfig.create({
     data: {
       userId: user.id,
       selectedWordBookIds: [cet4WordBook.id, userWordBook.id],
