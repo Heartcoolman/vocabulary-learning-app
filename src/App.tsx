@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import StorageService from './services/StorageService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -10,13 +8,19 @@ import VocabularyPage from './pages/VocabularyPage';
 import WordBookDetailPage from './pages/WordBookDetailPage';
 import StudySettingsPage from './pages/StudySettingsPage';
 import HistoryPage from './pages/HistoryPage';
+import StatisticsPage from './pages/StatisticsPage';
+import WordListPage from './pages/WordListPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
+import UserManagementPage from './pages/admin/UserManagementPage';
+import UserDetailPage from './pages/admin/UserDetailPage';
+import WordDetailPage from './pages/admin/WordDetailPage';
 import AdminWordBooks from './pages/admin/AdminWordBooks';
+import AlgorithmConfigPage from './pages/admin/AlgorithmConfigPage';
+import ConfigHistoryPage from './pages/admin/ConfigHistoryPage';
 
 /**
  * AppContent - 应用主内容（需要在AuthProvider内部）
@@ -76,6 +80,22 @@ function AppContent() {
               }
             />
             <Route
+              path="/statistics"
+              element={
+                <ProtectedRoute>
+                  <StatisticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/word-list"
+              element={
+                <ProtectedRoute>
+                  <WordListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/profile"
               element={
                 <ProtectedRoute>
@@ -94,8 +114,12 @@ function AppContent() {
               }
             >
               <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
+              <Route path="users" element={<UserManagementPage />} />
+              <Route path="users/:userId" element={<UserDetailPage />} />
+              <Route path="users/:userId/words" element={<WordDetailPage />} />
               <Route path="wordbooks" element={<AdminWordBooks />} />
+              <Route path="algorithm-config" element={<AlgorithmConfigPage />} />
+              <Route path="config-history" element={<ConfigHistoryPage />} />
             </Route>
 
             {/* 404重定向 */}
@@ -111,52 +135,6 @@ function AppContent() {
 }
 
 function App() {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 初始化缓存服务
-    const init = async () => {
-      try {
-        await StorageService.init();
-        console.log('应用初始化完成');
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('应用初始化失败:', error);
-        setInitError(error instanceof Error ? error.message : '初始化失败');
-      }
-    };
-
-    init();
-  }, []);
-
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center animate-fade-in">
-        <div className="text-center">
-          {initError ? (
-            <div role="alert" aria-live="assertive">
-              <div className="text-red-500 text-5xl mb-4" aria-hidden="true">⚠️</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">初始化失败</h2>
-              <p className="text-gray-600 mb-6">{initError}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                刷新页面
-              </button>
-            </div>
-          ) : (
-            <div role="status" aria-live="polite">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">应用正在初始化...</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <BrowserRouter>
       <AuthProvider>

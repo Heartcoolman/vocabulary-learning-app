@@ -100,22 +100,85 @@ export class StudyConfigService {
         const accessibleIds = accessibleWordBooks.map(wb => wb.id);
 
         if (accessibleIds.length === 0) {
-            throw new Error('配置的词书已不可访问，请重新配置学习计划');
+            return {
+                words: [],
+                progress: {
+                    todayStudied: 0,
+                    todayTarget: config.dailyWordCount,
+                    totalStudied: 0,
+                    correctRate: 0,
+                },
+            };
         }
 
-        // 只从有权限的词书中获取单词
-        const words = await prisma.word.findMany({
+        // 获取用户所有已有学习状态的单词ID（用于排除）
+        const allLearnedStates = await prisma.wordLearningState.findMany({
             where: {
-                wordBookId: {
-                    in: accessibleIds,
-                },
+                userId,
+                word: { wordBookId: { in: accessibleIds } }
             },
-            take: config.dailyWordCount,
-            orderBy:
-                config.studyMode === 'random'
-                    ? { createdAt: 'desc' } // TODO: 实现真正的随机
-                    : { createdAt: 'asc' },
+            include: { word: true },
         });
+        const learnedWordIds = allLearnedStates.map(s => s.wordId);
+
+        // 获取所有单词的得分信息
+        const wordScores = await prisma.wordScore.findMany({
+            where: {
+                userId,
+                wordId: { in: learnedWordIds }
+            },
+        });
+        const scoreMap = new Map(wordScores.map(s => [s.wordId, s]));
+
+        // 1. 获取到期需要复习的单词（带优先级计算）
+        const now = new Date();
+        const dueStates = allLearnedStates
+            .filter(s =>
+                s.nextReviewDate &&
+                s.nextReviewDate <= now &&
+                ['LEARNING', 'REVIEWING'].includes(s.state)
+            )
+            .map(state => {
+                const score = scoreMap.get(state.wordId);
+                const overdueDays = (now.getTime() - state.nextReviewDate!.getTime()) / (24 * 60 * 60 * 1000);
+                const errorRate = score && score.totalAttempts > 0
+                    ? 1 - (score.correctAttempts / score.totalAttempts)
+                    : 0;
+
+                // 计算优先级：逾期时间 + 错误率 + 低分
+                let priority = 0;
+                priority += Math.min(40, overdueDays * 5); // 逾期越久优先级越高
+                priority += errorRate > 0.5 ? 30 : errorRate * 60; // 错误率高优先
+                priority += score ? (100 - score.totalScore) * 0.3 : 30; // 得分低优先
+
+                return { state, word: state.word, priority };
+            })
+            .sort((a, b) => b.priority - a.priority); // 优先级高的排前面
+
+        // 2. 补充新词（排除已有学习状态的单词）
+        let newWords: any[] = [];
+        const dueCount = Math.min(dueStates.length, config.dailyWordCount);
+        const needNewCount = config.dailyWordCount - dueCount;
+
+        if (needNewCount > 0) {
+            newWords = await prisma.word.findMany({
+                where: {
+                    wordBookId: { in: accessibleIds },
+                    id: { notIn: learnedWordIds }
+                },
+                orderBy:
+                    config.studyMode === 'random'
+                        ? { createdAt: 'desc' }
+                        : { createdAt: 'asc' },
+                take: needNewCount,
+            });
+        }
+
+        // 3. 合并：到期复习词 + 新词
+        const words = [
+            ...dueStates.slice(0, dueCount).map(d => d.word),
+            ...newWords
+        ];
 
         // 计算学习进度
         const today = new Date();

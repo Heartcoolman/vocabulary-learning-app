@@ -58,7 +58,13 @@ export interface CreateRecordDto {
   correctAnswer: string | null;
   isCorrect: boolean;
   timestamp?: number;
+  responseTime?: number;
+  dwellTime?: number;
+  sessionId?: string;
+  masteryLevelBefore?: number;
+  masteryLevelAfter?: number;
 }
+
 
 export interface UserStatistics {
   totalWords: number;

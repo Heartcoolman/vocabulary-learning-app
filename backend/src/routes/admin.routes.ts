@@ -74,6 +74,96 @@ router.get(
     }
 );
 
+// 获取用户详细统计数据
+router.get(
+    '/users/:id/statistics',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const data = await adminService.getUserDetailedStatistics(req.params.id);
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 导出用户单词数据
+router.get(
+    '/users/:id/words/export',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const format = (req.query.format as 'csv' | 'excel') || 'csv';
+
+            const result = await adminService.exportUserWords(req.params.id, format);
+
+            res.setHeader('Content-Type', result.contentType);
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="${encodeURIComponent(result.filename)}"`
+            );
+            res.send(result.data);
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 获取用户单词列表
+router.get(
+    '/users/:id/words',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const page = req.query.page ? parseInt(req.query.page as string) : 1;
+            const pageSize = req.query.pageSize
+                ? parseInt(req.query.pageSize as string)
+                : 20;
+            const scoreRange = req.query.scoreRange as
+                | 'low'
+                | 'medium'
+                | 'high'
+                | undefined;
+            const masteryLevel = req.query.masteryLevel
+                ? parseInt(req.query.masteryLevel as string)
+                : undefined;
+            const minAccuracy = req.query.minAccuracy
+                ? parseFloat(req.query.minAccuracy as string)
+                : undefined;
+            const state = req.query.state as
+                | 'new'
+                | 'learning'
+                | 'reviewing'
+                | 'mastered'
+                | undefined;
+            const sortBy = req.query.sortBy as
+                | 'score'
+                | 'accuracy'
+                | 'reviewCount'
+                | 'lastReview'
+                | undefined;
+            const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
+
+            const data = await adminService.getUserWords(req.params.id, {
+                page,
+                pageSize,
+                state,
+                sortBy,
+                sortOrder,
+            });
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
 // 修改用户角色
 router.put(
     '/users/:id/role',
@@ -226,6 +316,124 @@ router.post(
                     count: createdWords.length,
                     words: createdWords,
                 },
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// =============== 单词详情（管理员视角） ===============
+
+// 获取单词的完整学习历史
+router.get(
+    '/users/:userId/words/:wordId/history',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { userId, wordId } = req.params;
+            const limit = req.query.limit
+                ? parseInt(req.query.limit as string)
+                : 100;
+
+            const data = await adminService.getWordLearningHistory(
+                userId,
+                wordId,
+                { limit }
+            );
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 获取单词得分历史（用于绘制曲线图）
+router.get(
+    '/users/:userId/words/:wordId/score-history',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { userId, wordId } = req.params;
+
+            const data = await adminService.getWordScoreHistory(userId, wordId);
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 获取用户学习热力图数据
+router.get(
+    '/users/:userId/heatmap',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { userId } = req.params;
+            const days = req.query.days ? parseInt(req.query.days as string) : 90;
+
+            const data = await adminService.getUserLearningHeatmap(userId, { days });
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 标记异常单词或学习记录
+router.post(
+    '/users/:userId/words/:wordId/flag',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { userId, wordId } = req.params;
+            const { recordId, reason, notes } = req.body;
+
+            if (!reason || reason.trim() === '') {
+                return res.status(400).json({
+                    success: false,
+                    error: '标记原因不能为空',
+                });
+            }
+
+            const data = await adminService.flagAnomalyRecord({
+                userId,
+                wordId,
+                reason,
+                flaggedBy: req.user!.id,
+            });
+
+            res.json({
+                success: true,
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// 获取异常标记列表
+router.get(
+    '/users/:userId/words/:wordId/flags',
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { userId, wordId } = req.params;
+
+            const data = await adminService.getAnomalyFlags(userId, wordId);
+
+            res.json({
+                success: true,
+                data,
             });
         } catch (error) {
             next(error);

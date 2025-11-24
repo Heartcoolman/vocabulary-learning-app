@@ -1,4 +1,14 @@
-import { Word, AnswerRecord, StudyStatistics, WordStatistics } from '../types/models';
+import {
+  Word,
+  AnswerRecord,
+  StudyStatistics,
+  WordStatistics,
+  WordLearningState,
+  WordScore,
+  AlgorithmConfig,
+  ConfigHistory,
+  WordState
+} from '../types/models';
 import ApiClient from './ApiClient';
 
 export interface SyncStatus {
@@ -32,6 +42,7 @@ class StorageService {
       this.updateSyncStatus({
         lastSyncTime: Date.now(),
         pendingChanges: 0, // 云优先架构，无本地待同步数据
+        error: null,
       });
     } catch (error) {
       console.error('初始化失败:', error);
@@ -41,6 +52,7 @@ class StorageService {
       this.updateSyncStatus({
         error: error instanceof Error ? error.message : '初始化失败',
       });
+      // 不再抛出异常，允许应用继续运行
     }
   }
 
@@ -125,8 +137,9 @@ class StorageService {
     try {
       return await this.refreshCacheFromCloud();
     } catch (error) {
-      console.error('????????:', error);
-      return this.wordCache;
+      console.error('获取单词失败:', error);
+      // 返回缓存数据或空数组，不抛出异常
+      return this.wordCache || [];
     }
   }
 
@@ -194,7 +207,7 @@ class StorageService {
       const records = await ApiClient.getRecords();
       return records.filter((r) => r.wordId === wordId);
     } catch (error) {
-      console.error('????????:', error);
+      console.error('获取答题记录失败:', error);
       return [];
     }
   }
@@ -230,7 +243,7 @@ class StorageService {
         wordStats,
       };
     } catch (error) {
-      console.error('????????:', error);
+      console.error('获取学习统计失败:', error);
       return {
         totalWords: 0,
         studiedWords: 0,
@@ -247,6 +260,211 @@ class StorageService {
 
   async deleteDatabase(): Promise<void> {
     await this.clearLocalData();
+  }
+
+  // ==================== 单词学习状态管理 ====================
+
+  /**
+   * 获取单词学习状态
+   */
+  async getWordLearningState(_userId: string, _wordId: string): Promise<WordLearningState | null> {
+    try {
+      const state = await ApiClient.getWordLearningState(_wordId);
+      return state;
+    } catch (error) {
+      console.error('获取单词学习状态失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 创建或更新单词学习状态
+   */
+  async saveWordLearningState(_state: WordLearningState): Promise<void> {
+    try {
+      await ApiClient.saveWordLearningState(_state);
+    } catch (error) {
+      console.error('保存单词学习状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取单词学习状态
+   */
+  async getWordLearningStates(_userId: string, _wordIds: string[]): Promise<WordLearningState[]> {
+    try {
+      const states = await ApiClient.getWordLearningStates(_wordIds);
+      return states;
+    } catch (error) {
+      console.error('批量获取单词学习状态失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 按状态获取单词
+   */
+  async getWordsByState(_userId: string, _state: WordState): Promise<WordLearningState[]> {
+    try {
+      const states = await ApiClient.getWordsByState(_state);
+      return states;
+    } catch (error) {
+      console.error('按状态获取单词失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 获取到期需要复习的单词
+   */
+  async getDueWords(_userId: string): Promise<WordLearningState[]> {
+    try {
+      const states = await ApiClient.getDueWords();
+      return states;
+    } catch (error) {
+      console.error('获取到期单词失败:', error);
+      return [];
+    }
+  }
+
+  // ==================== 单词得分管理 ====================
+
+  /**
+   * 获取单词得分
+   */
+  async getWordScore(_userId: string, _wordId: string): Promise<WordScore | null> {
+    try {
+      const score = await ApiClient.getWordScore(_wordId);
+      return score;
+    } catch (error) {
+      console.error('获取单词得分失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 保存单词得分
+   */
+  async saveWordScore(_score: WordScore): Promise<void> {
+    try {
+      await ApiClient.saveWordScore(_score);
+    } catch (error) {
+      console.error('保存单词得分失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取单词得分
+   */
+  async getWordScores(_userId: string, _wordIds: string[]): Promise<WordScore[]> {
+    try {
+      const scores = await ApiClient.getWordScores(_wordIds);
+      return scores;
+    } catch (error) {
+      console.error('批量获取单词得分失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 按得分范围获取单词
+   */
+  async getWordsByScoreRange(
+    _userId: string,
+    _minScore: number,
+    _maxScore: number
+  ): Promise<WordScore[]> {
+    try {
+      const scores = await ApiClient.getWordsByScoreRange(_minScore, _maxScore);
+      return scores;
+    } catch (error) {
+      console.error('按得分范围获取单词失败:', error);
+      return [];
+    }
+  }
+
+  // ==================== 算法配置管理 ====================
+
+  /**
+   * 获取当前算法配置
+   */
+  async getAlgorithmConfig(): Promise<AlgorithmConfig | null> {
+    try {
+      const config = await ApiClient.getAlgorithmConfig();
+      return config;
+    } catch (error) {
+      console.error('获取算法配置失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 更新算法配置（仅管理员）
+   */
+  async updateAlgorithmConfig(
+    _configId: string,
+    _config: Partial<AlgorithmConfig>,
+    _changeReason?: string
+  ): Promise<void> {
+    try {
+      await ApiClient.updateAlgorithmConfig(_configId, _config, _changeReason);
+    } catch (error) {
+      console.error('更新算法配置失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重置算法配置为默认值（仅管理员）
+   */
+  async resetAlgorithmConfig(_configId: string): Promise<void> {
+    try {
+      await ApiClient.resetAlgorithmConfig(_configId);
+    } catch (error) {
+      console.error('重置算法配置失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取配置历史记录
+   */
+  async getConfigHistory(_limit?: number): Promise<ConfigHistory[]> {
+    try {
+      const history = await ApiClient.getConfigHistory(_limit);
+      return history;
+    } catch (error) {
+      console.error('获取配置历史失败:', error);
+      return [];
+    }
+  }
+
+  // ==================== 扩展答题记录保存 ====================
+
+  /**
+   * 保存答题记录（扩展版本，包含新字段）
+   */
+  async saveAnswerRecordExtended(_record: AnswerRecord): Promise<void> {
+    try {
+      // 使用现有的createRecord方法，因为它已经支持扩展字段
+      await ApiClient.createRecord({
+        wordId: _record.wordId,
+        selectedAnswer: _record.selectedAnswer,
+        correctAnswer: _record.correctAnswer,
+        isCorrect: _record.isCorrect,
+        timestamp: _record.timestamp,
+        responseTime: _record.responseTime,
+        dwellTime: _record.dwellTime,
+        sessionId: _record.sessionId,
+        masteryLevelBefore: _record.masteryLevelBefore,
+        masteryLevelAfter: _record.masteryLevelAfter,
+      });
+    } catch (error) {
+      console.error('保存扩展答题记录失败:', error);
+      throw error;
+    }
   }
 }
 

@@ -47,7 +47,13 @@ export class RecordService {
       selectedAnswer: data.selectedAnswer ?? '',
       correctAnswer: data.correctAnswer ?? '',
       isCorrect: data.isCorrect,
+      responseTime: data.responseTime,
+      dwellTime: data.dwellTime,
+      sessionId: data.sessionId,
+      masteryLevelBefore: data.masteryLevelBefore,
+      masteryLevelAfter: data.masteryLevelAfter,
     };
+
 
     // 使用客户端时间戳以保证与本地记录一致，从而实现可靠去重
     if (typeof data.timestamp === 'number') {
@@ -70,8 +76,8 @@ export class RecordService {
     const wordIds = records.map(r => r.wordId);
     const words = await prisma.word.findMany({
       where: { id: { in: wordIds } },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         spelling: true,
         wordBook: {
           select: {
@@ -115,7 +121,13 @@ export class RecordService {
         isCorrect: record.isCorrect,
         // 如果有客户端时间戳则使用，否则使用服务端当前时间
         timestamp: record.timestamp ? new Date(record.timestamp) : new Date(),
+        responseTime: record.responseTime,
+        dwellTime: record.dwellTime,
+        sessionId: record.sessionId,
+        masteryLevelBefore: record.masteryLevelBefore,
+        masteryLevelAfter: record.masteryLevelAfter,
       })),
+
       skipDuplicates: true, // 数据库层面跳过重复记录，基于 unique_user_word_timestamp 唯一约束
     });
   }

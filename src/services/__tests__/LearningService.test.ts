@@ -8,6 +8,7 @@ vi.mock('../StorageService', () => ({
   default: {
     getWords: vi.fn(),
     saveAnswerRecord: vi.fn(),
+    saveAnswerRecordExtended: vi.fn(),
   },
 }));
 
@@ -88,15 +89,16 @@ describe('LearningService', () => {
     const storageMock = StorageService as unknown as {
       getWords: ReturnType<typeof vi.fn>;
       saveAnswerRecord: ReturnType<typeof vi.fn>;
+      saveAnswerRecordExtended: ReturnType<typeof vi.fn>;
     };
 
     it('should persist a single record per answer', async () => {
       storageMock.getWords.mockResolvedValue(mockWords);
 
       await LearningService.startSession([mockWords[0].id]);
-      await LearningService.submitAnswer(mockWords[0].id, mockWords[0].meanings[0], true);
+      await LearningService.submitAnswer(mockWords[0].id, mockWords[0].meanings[0], true, 1000, 2000);
 
-      expect(storageMock.saveAnswerRecord).toHaveBeenCalledTimes(1);
+      expect(storageMock.saveAnswerRecordExtended).toHaveBeenCalledTimes(1);
     });
   });
 });

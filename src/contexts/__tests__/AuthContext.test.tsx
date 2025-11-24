@@ -13,6 +13,16 @@ vi.mock('../../services/ApiClient', () => ({
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
+    setOnUnauthorized: vi.fn(),
+  },
+}));
+
+// Mock StorageService
+vi.mock('../../services/StorageService', () => ({
+  default: {
+    setCurrentUser: vi.fn().mockResolvedValue(undefined),
+    init: vi.fn().mockResolvedValue(undefined),
+    syncToCloud: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
