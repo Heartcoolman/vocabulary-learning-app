@@ -62,10 +62,6 @@ class LearningService {
   private currentSession: LearningSession | null = null;
   private words: Word[] = [];
   private srService: SpacedRepetitionService | null = null;
-  // @ts-ignore - 这些属性在代码中被使用，但 TypeScript 检测不到
-  private sessionStartTime: number = 0;
-  // @ts-ignore - 这些属性在代码中被使用，但 TypeScript 检测不到
-  private wordStartTime: number = 0;
   private wordDwellTime: number = 0;
 
   /**
@@ -185,8 +181,6 @@ class LearningService {
       startTime: Date.now(),
     };
 
-    this.sessionStartTime = Date.now();
-    this.wordStartTime = Date.now();
     this.wordDwellTime = 0;
 
     return this.currentSession;
@@ -232,8 +226,7 @@ class LearningService {
       return null;
     }
 
-    // 重置单词计时器
-    this.wordStartTime = Date.now();
+    // 重置停留时长
     this.wordDwellTime = 0;
 
     return this.getCurrentWord();
@@ -333,8 +326,7 @@ class LearningService {
       // 记录失败不阻断学习流程
     }
 
-    // 重置单词计时器
-    this.wordStartTime = now;
+    // 重置停留时长
     this.wordDwellTime = 0;
 
     return feedbackInfo;
@@ -472,6 +464,11 @@ class LearningService {
 
     // 固定使用第一个释义作为正确答案，确保与判分逻辑一致
     const correctAnswer = correctWord.meanings[0];
+    
+    // 边界情况：单词缺少释义
+    if (!correctAnswer) {
+      throw new Error(`单词 ${correctWord.spelling} 缺少释义，无法生成测验选项`);
+    }
 
     // 收集其他单词的释义作为干扰项，并去重
     const otherMeanings = Array.from(new Set(
@@ -501,15 +498,20 @@ class LearningService {
       cycleIndex++;
     }
 
-    // 兜底：如果干扰项为空（极端情况：只有一个单词且只有一个释义）
+    // 兜底：如果干扰项不足（极端情况：只有一个单词且只有一个释义）
     // 生成通用的占位选项，确保至少有指定数量的选项
-    if (distractors.length === 0) {
+    if (distractors.length < count - 1) {
       const fallbackOptions = [
-        '（其他释义）',
+        '（暂无释义）',
         '（待补充）',
-        '（暂无）',
+        '（其他释义）',
       ];
-      distractors = fallbackOptions.slice(0, count - 1);
+      for (const placeholder of fallbackOptions) {
+        if (distractors.length >= count - 1) break;
+        if (!distractors.includes(placeholder)) {
+          distractors.push(placeholder);
+        }
+      }
     }
 
     const options = [correctAnswer, ...distractors];

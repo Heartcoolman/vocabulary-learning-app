@@ -4,3 +4,5 @@ export { default as ProgressBar } from './ProgressBar';
 export { default as Navigation } from './Navigation';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as SyncIndicator } from './SyncIndicator';
+export { default as AmasStatus } from './AmasStatus';
+export { default as AmasSuggestion } from './AmasSuggestion';

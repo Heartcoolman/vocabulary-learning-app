@@ -55,11 +55,11 @@ export default function StatisticsPage() {
 
       // 获取真实的学习统计数据
       const studyStats = await StorageService.getStudyStatistics();
-      const records = await ApiClient.getRecords();
+      const recordsResult = await ApiClient.getRecords({ pageSize: 100 });
 
       // 计算学习天数和连续学习天数
       const studyDates = new Set(
-        records.map((r: any) => new Date(r.timestamp).toDateString())
+        recordsResult.records.map((r: any) => new Date(r.timestamp).toDateString())
       );
       const studyDays = studyDates.size;
 

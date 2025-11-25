@@ -48,4 +48,10 @@ export {
   SortAscending,
   SortDescending,
   Flag,
+  // AMAS 相关图标
+  Coffee,
+  Lightbulb,
+  PushPin,
+  Question,
+  Compass,
 } from '@phosphor-icons/react';

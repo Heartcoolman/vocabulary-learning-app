@@ -20,11 +20,10 @@ export const adminMiddleware = async (
             });
         }
 
-        // 检查用户角色
-        // Note: AuthUser 接口需要添加 role 字段
-        const userRole = (req.user as any).role;
+        // 检查用户角色（类型安全）
+        const userRole = req.user.role;
 
-        if (userRole !== UserRole.ADMIN && userRole !== 'ADMIN') {
+        if (userRole !== UserRole.ADMIN) {
             return res.status(403).json({
                 success: false,
                 error: '权限不足，需要管理员权限',

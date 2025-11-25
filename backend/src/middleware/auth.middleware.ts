@@ -25,9 +25,13 @@ export async function authMiddleware(
 
     next();
   } catch (error) {
+    // 仅记录内部错误，不向客户端泄露详细信息
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Auth error:', error instanceof Error ? error.message : error);
+    }
     return res.status(401).json({
       success: false,
-      error: error instanceof Error ? error.message : '无效的认证令牌',
+      error: '认证失败，请重新登录',
       code: 'UNAUTHORIZED',
     });
   }

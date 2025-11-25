@@ -66,6 +66,7 @@ function convertApiStudyConfig(apiStudyConfig: ApiStudyConfig): StudyConfig {
  */
 interface ApiWord {
   id: string;
+  wordBookId?: string;
   spelling: string;
   phonetic: string;
   meanings: string[];
@@ -81,9 +82,22 @@ interface ApiWord {
 function convertApiWord(apiWord: ApiWord): Word {
   return {
     ...apiWord,
+    wordBookId: apiWord.wordBookId,
     createdAt: new Date(apiWord.createdAt).getTime(),
     updatedAt: new Date(apiWord.updatedAt).getTime(),
   };
+}
+
+/**
+ * base64url 解码（JWT 使用 base64url 编码，与标准 base64 不同）
+ * base64url 使用 - 和 _ 替代 + 和 /，且不使用填充符 =
+ */
+function base64UrlDecode(input: string): string {
+  // 将 base64url 转换为标准 base64
+  const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  // 添加填充符
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+  return atob(padded);
 }
 
 /**
@@ -94,7 +108,7 @@ function decodeJwt(token: string): JwtPayload | null {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const payload = JSON.parse(atob(parts[1]));
+    const payload = JSON.parse(base64UrlDecode(parts[1]));
     return payload as JwtPayload;
   } catch {
     return null;
@@ -365,10 +379,10 @@ function convertLearningStateDates(state: any): any {
     ...state,
     lastReviewDate: state.lastReviewDate
       ? new Date(state.lastReviewDate).getTime()
-      : 0,
+      : null,
     nextReviewDate: state.nextReviewDate
       ? new Date(state.nextReviewDate).getTime()
-      : 0,
+      : null,
     createdAt: new Date(state.createdAt).getTime(),
     updatedAt: new Date(state.updatedAt).getTime(),
   };
@@ -389,10 +403,14 @@ function convertWordScoreDates(score: any): any {
 /**
  * API客户端 - 封装所有HTTP请求
  */
+/** 默认请求超时时间（毫秒） */
+const DEFAULT_TIMEOUT = 30000;
+
 class ApiClient {
   private baseUrl: string;
   private token: string | null;
   private onUnauthorizedCallback: (() => void) | null = null;
+  private defaultTimeout: number = DEFAULT_TIMEOUT;
 
   constructor(baseUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:3000') {
     this.baseUrl = baseUrl;
@@ -446,8 +464,15 @@ class ApiClient {
 
   /**
    * 通用请求方法
+   * @param endpoint API 端点
+   * @param options 请求选项
+   * @param timeout 超时时间（毫秒），默认 30 秒
    */
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    timeout: number = this.defaultTimeout
+  ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined),
@@ -457,10 +482,15 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
+        signal: options.signal || controller.signal,
       });
 
       // 处理 401 错误，清除令牌并触发回调
@@ -503,9 +533,75 @@ class ApiClient {
       return data.data as T;
     } catch (error) {
       if (error instanceof Error) {
+        // 处理超时错误
+        if (error.name === 'AbortError') {
+          throw new Error('请求超时，请检查网络连接');
+        }
         throw error;
       }
       throw new Error('网络请求失败');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * 通用请求方法 - 返回完整响应体（包含 data 和其他字段如 pagination）
+   * 用于需要访问响应体中除 data 外其他字段的场景
+   */
+  private async requestFull<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    timeout: number = this.defaultTimeout
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> | undefined),
+    };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: options.signal || controller.signal,
+      });
+
+      if (response.status === 401) {
+        this.clearToken();
+        if (this.onUnauthorizedCallback) {
+          this.onUnauthorizedCallback();
+        }
+        throw new Error('认证失败，请重新登录');
+      }
+
+      if (!response.ok) {
+        throw new Error(`请求失败: ${response.status}`);
+      }
+
+      const body = await response.json();
+
+      if (!body.success) {
+        throw new Error(body.error || '请求失败');
+      }
+
+      return body as T;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('请求超时，请检查网络连接');
+        }
+        throw error;
+      }
+      throw new Error('网络请求失败');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -621,18 +717,68 @@ class ApiClient {
   // ==================== 学习记录相关 ====================
 
   /**
-   * 获取学习记录
+   * 分页结果类型
    */
-  async getRecords(): Promise<AnswerRecord[]> {
-    const records = await this.request<any[]>('/api/records');
+  
+
+  /**
+   * 获取学习记录（支持分页）
+   * @param options 分页选项
+   */
+  async getRecords(options?: { page?: number; pageSize?: number }): Promise<{
+    records: AnswerRecord[];
+    pagination: { page: number; pageSize: number; total: number; totalPages: number };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (options?.page) queryParams.append('page', options.page.toString());
+    if (options?.pageSize) queryParams.append('pageSize', options.pageSize.toString());
+
+    const query = queryParams.toString();
+    const endpoint = `/api/records${query ? `?${query}` : ''}`;
+
+    // 使用 requestFull 获取完整响应体
+    const body = await this.requestFull<{
+      data?: Array<{
+        id: string;
+        wordId: string;
+        timestamp: string | number;
+        selectedAnswer: string;
+        correctAnswer: string;
+        isCorrect: boolean;
+        responseTime?: number;
+        dwellTime?: number;
+      }>;
+      pagination?: { page: number; pageSize: number; total: number; totalPages: number };
+    }>(endpoint);
 
     // 后端返回的是 Date 字符串，这里统一转换为时间戳（毫秒）以与本地模型对齐
-    return records.map(record => ({
+    const records = (body.data || []).map((record) => ({
       ...record,
       timestamp: typeof record.timestamp === 'string'
         ? new Date(record.timestamp).getTime()
         : record.timestamp,
     })) as AnswerRecord[];
+
+    const defaultPagination = {
+      page: options?.page ?? 1,
+      pageSize: options?.pageSize ?? records.length,
+      total: records.length,
+      totalPages: 1,
+    };
+
+    return {
+      records,
+      pagination: body.pagination || defaultPagination,
+    };
+  }
+
+  /**
+   * 获取所有学习记录（兼容旧代码，不推荐使用）
+   * @deprecated 请使用 getRecords 并处理分页
+   */
+  async getAllRecords(): Promise<AnswerRecord[]> {
+    const result = await this.getRecords({ pageSize: 100 });
+    return result.records;
   }
 
   /**
@@ -1372,6 +1518,100 @@ class ApiClient {
       });
     } catch (error) {
       console.error('删除单词学习状态失败:', error);
+      throw error;
+    }
+  }
+
+  // ==================== AMAS API ====================
+
+  /**
+   * 处理学习事件，获取自适应学习策略
+   */
+  async processLearningEvent(
+    eventData: import('../types/amas').LearningEventInput
+  ): Promise<import('../types/amas').AmasProcessResult> {
+    try {
+      return await this.request<import('../types/amas').AmasProcessResult>('/api/amas/process', {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+      });
+    } catch (error) {
+      console.error('处理学习事件失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户当前AMAS状态
+   */
+  async getAmasState(): Promise<import('../types/amas').UserState | null> {
+    try {
+      return await this.request<import('../types/amas').UserState>('/api/amas/state');
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        // 状态未初始化，返回null
+        return null;
+      }
+      console.error('获取AMAS状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户当前学习策略
+   */
+  async getAmasStrategy(): Promise<import('../types/amas').LearningStrategy | null> {
+    try {
+      return await this.request<import('../types/amas').LearningStrategy>('/api/amas/strategy');
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        // 策略未初始化，返回null
+        return null;
+      }
+      console.error('获取AMAS策略失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重置用户AMAS状态
+   */
+  async resetAmasState(): Promise<void> {
+    try {
+      await this.request<void>('/api/amas/reset', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('重置AMAS状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户冷启动阶段
+   */
+  async getAmasColdStartPhase(): Promise<import('../types/amas').ColdStartPhaseInfo> {
+    try {
+      return await this.request<import('../types/amas').ColdStartPhaseInfo>('/api/amas/phase');
+    } catch (error) {
+      console.error('获取冷启动阶段失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量处理历史学习事件
+   */
+  async batchProcessEvents(
+    events: import('../types/amas').LearningEventInput[]
+  ): Promise<import('../types/amas').BatchProcessResult> {
+    try {
+      return await this.request<import('../types/amas').BatchProcessResult>('/api/amas/batch-process', {
+        method: 'POST',
+        body: JSON.stringify({ events }),
+      });
+    } catch (error) {
+      console.error('批量处理事件失败:', error);
       throw error;
     }
   }

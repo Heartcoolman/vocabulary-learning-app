@@ -1,21 +1,63 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
 
+export interface PaginationOptions {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export class RecordService {
-  async getRecordsByUserId(userId: string) {
-    return await prisma.answerRecord.findMany({
-      where: { userId },
-      include: {
-        word: {
-          select: {
-            spelling: true,
-            phonetic: true,
-            meanings: true,
+  /**
+   * 获取用户的学习记录（带分页）
+   * @param userId 用户ID
+   * @param options 分页选项，默认第1页，每页50条，最大100条
+   */
+  async getRecordsByUserId(
+    userId: string,
+    options?: PaginationOptions
+  ): Promise<PaginatedResult<any>> {
+    const page = Math.max(1, options?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 50));
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      prisma.answerRecord.findMany({
+        where: { userId },
+        include: {
+          word: {
+            select: {
+              spelling: true,
+              phonetic: true,
+              meanings: true,
+            },
           },
         },
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      prisma.answerRecord.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
       },
-      orderBy: { timestamp: 'desc' },
-    });
+    };
   }
 
   async createRecord(userId: string, data: CreateRecordDto) {
@@ -72,8 +114,8 @@ export class RecordService {
       console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
     }
 
-    // 验证所有单词都存在且用户有权限访问
-    const wordIds = records.map(r => r.wordId);
+    // 验证所有单词都存在且用户有权限访问（先去重提高查询效率）
+    const wordIds = Array.from(new Set(records.map(r => r.wordId)));
     const words = await prisma.word.findMany({
       where: { id: { in: wordIds } },
       select: {

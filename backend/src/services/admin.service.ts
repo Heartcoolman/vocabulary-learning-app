@@ -42,38 +42,65 @@ export class AdminService {
             prisma.user.count({ where }),
         ]);
 
-        // 为每个用户获取统计数据
-        const usersWithStats = await Promise.all(
-            users.map(async (user) => {
-                const [learnedWords, scoreAvg, totalRecords, correctRecords, lastRecord] = await Promise.all([
-                    prisma.answerRecord.groupBy({
-                        by: ['wordId'],
-                        where: { userId: user.id },
-                    }),
-                    prisma.wordScore.aggregate({
-                        where: { userId: user.id },
-                        _avg: { totalScore: true },
-                    }),
-                    prisma.answerRecord.count({ where: { userId: user.id } }),
-                    prisma.answerRecord.count({ where: { userId: user.id, isCorrect: true } }),
-                    prisma.answerRecord.findFirst({
-                        where: { userId: user.id },
-                        orderBy: { timestamp: 'desc' },
-                        select: { timestamp: true },
-                    }),
-                ]);
+        // 批量获取所有用户的统计数据（避免 N+1 查询）
+        const userIds = users.map(u => u.id);
+        
+        // 单次查询：批量获取学习单词数（去重）
+        const learnedWordsStats = await prisma.answerRecord.groupBy({
+            by: ['userId', 'wordId'],
+            where: { userId: { in: userIds } },
+            _count: { _all: true },
+        });
+        const learnedWordsMap = new Map<string, number>();
+        for (const stat of learnedWordsStats) {
+            learnedWordsMap.set(stat.userId, (learnedWordsMap.get(stat.userId) || 0) + 1);
+        }
 
-                const accuracy = totalRecords > 0 ? (correctRecords / totalRecords) * 100 : 0;
+        // 单次查询：批量获取平均得分
+        const scoreStats = await prisma.wordScore.groupBy({
+            by: ['userId'],
+            where: { userId: { in: userIds } },
+            _avg: { totalScore: true },
+        });
+        const scoreMap = new Map(scoreStats.map(s => [s.userId, s._avg.totalScore ?? 0]));
 
-                return {
-                    ...user,
-                    totalWordsLearned: learnedWords.length,
-                    averageScore: scoreAvg._avg.totalScore ?? 0,
-                    accuracy,
-                    lastLearningTime: lastRecord?.timestamp.toISOString() ?? null,
-                };
-            })
-        );
+        // 单次查询：批量获取答题总数和正确数
+        const recordStats = await prisma.answerRecord.groupBy({
+            by: ['userId', 'isCorrect'],
+            where: { userId: { in: userIds } },
+            _count: true,
+        });
+        const recordCountMap = new Map<string, { total: number; correct: number }>();
+        for (const stat of recordStats) {
+            const existing = recordCountMap.get(stat.userId) || { total: 0, correct: 0 };
+            existing.total += stat._count;
+            if (stat.isCorrect) {
+                existing.correct += stat._count;
+            }
+            recordCountMap.set(stat.userId, existing);
+        }
+
+        // 单次查询：批量获取最后学习时间（使用 Prisma groupBy）
+        const lastRecordStats = await prisma.answerRecord.groupBy({
+            by: ['userId'],
+            where: { userId: { in: userIds } },
+            _max: { timestamp: true },
+        });
+        const lastTimeMap = new Map(lastRecordStats.map(r => [r.userId, r._max.timestamp]));
+
+        // 组装结果
+        const usersWithStats = users.map((user) => {
+            const recordCount = recordCountMap.get(user.id) || { total: 0, correct: 0 };
+            const accuracy = recordCount.total > 0 ? (recordCount.correct / recordCount.total) * 100 : 0;
+
+            return {
+                ...user,
+                totalWordsLearned: learnedWordsMap.get(user.id) || 0,
+                averageScore: scoreMap.get(user.id) || 0,
+                accuracy,
+                lastLearningTime: lastTimeMap.get(user.id)?.toISOString() ?? null,
+            };
+        });
 
         return {
             users: usersWithStats,
@@ -624,118 +651,10 @@ export class AdminService {
         const skip = (page - 1) * pageSize;
         const sortOrder = params.sortOrder || 'desc';
 
-        const needsScore = params.scoreRange || params.minAccuracy !== undefined ||
-                          params.sortBy === 'score' || params.sortBy === 'accuracy';
+        const needsScoreSort = params.sortBy === 'score' || params.sortBy === 'accuracy';
+        const needsScoreFilter = params.scoreRange || params.minAccuracy !== undefined;
 
-        // 当需要按score/accuracy筛选或排序时，先在word_scores表上操作
-        if (needsScore) {
-            const scoreWhere: any = { userId };
-
-            // 按得分范围筛选
-            if (params.scoreRange === 'low') {
-                scoreWhere.totalScore = { lt: 40 };
-            } else if (params.scoreRange === 'medium') {
-                scoreWhere.totalScore = { gte: 40, lt: 70 };
-            } else if (params.scoreRange === 'high') {
-                scoreWhere.totalScore = { gte: 70 };
-            }
-
-            // 按准确率筛选
-            if (params.minAccuracy !== undefined) {
-                scoreWhere.recentAccuracy = { gte: params.minAccuracy / 100 };
-            }
-
-            // 确定排序字段
-            const orderBy = params.sortBy === 'accuracy'
-                ? { recentAccuracy: sortOrder }
-                : { totalScore: sortOrder };
-
-            // 在word_scores表上进行筛选、排序和分页
-            const [scoreRows, total] = await Promise.all([
-                prisma.wordScore.findMany({
-                    where: scoreWhere,
-                    orderBy,
-                    skip,
-                    take: pageSize,
-                    select: {
-                        wordId: true,
-                        totalScore: true,
-                        recentAccuracy: true,
-                        totalAttempts: true,
-                        correctAttempts: true,
-                    },
-                }),
-                prisma.wordScore.count({ where: scoreWhere }),
-            ]);
-
-            if (scoreRows.length === 0) {
-                return {
-                    words: [],
-                    pagination: { page, pageSize, total: 0, totalPages: 0 },
-                };
-            }
-
-            const wordIds = scoreRows.map((s) => s.wordId);
-
-            // 回查对应的学习状态
-            const stateWhere: any = { userId, wordId: { in: wordIds } };
-            if (params.state) {
-                stateWhere.state = params.state.toUpperCase();
-            }
-            if (params.masteryLevel !== undefined) {
-                stateWhere.masteryLevel = params.masteryLevel;
-            }
-
-            const states = await prisma.wordLearningState.findMany({
-                where: stateWhere,
-                include: {
-                    word: {
-                        select: {
-                            id: true,
-                            spelling: true,
-                            phonetic: true,
-                            meanings: true,
-                            examples: true,
-                        },
-                    },
-                },
-            });
-
-            const stateMap = new Map(states.map((s) => [s.wordId, s]));
-
-            // 按照scoreRows的顺序组装结果
-            const words = scoreRows.map((score) => {
-                const state = stateMap.get(score.wordId);
-                const accuracy = score.recentAccuracy != null
-                    ? score.recentAccuracy * 100
-                    : score.totalAttempts > 0
-                        ? (score.correctAttempts / score.totalAttempts) * 100
-                        : 0;
-
-                return {
-                    word: state?.word,
-                    score: score.totalScore ?? 0,
-                    masteryLevel: state?.masteryLevel ?? 0,
-                    accuracy,
-                    reviewCount: state?.reviewCount ?? 0,
-                    lastReviewDate: state?.lastReviewDate ?? null,
-                    nextReviewDate: state?.nextReviewDate ?? null,
-                    state: state?.state ?? 'NEW',
-                };
-            });
-
-            return {
-                words,
-                pagination: {
-                    page,
-                    pageSize,
-                    total,
-                    totalPages: Math.ceil(total / pageSize),
-                },
-            };
-        }
-
-        // 非score/accuracy情况：以word_learning_state为主
+        // 统一以 word_learning_state 为主表，这样可以包含尚未生成得分记录的单词（使用默认值0）
         const whereState: any = { userId };
         if (params.state) {
             whereState.state = params.state.toUpperCase();
@@ -749,6 +668,97 @@ export class AdminService {
             };
         }
 
+        // 如果需要按得分筛选或排序，需要在内存中处理
+        if (needsScoreFilter || needsScoreSort) {
+            // 获取所有符合基本条件的学习状态（不分页）
+            const allStates = await prisma.wordLearningState.findMany({
+                where: whereState,
+                include: {
+                    word: {
+                        select: {
+                            id: true,
+                            spelling: true,
+                            phonetic: true,
+                            meanings: true,
+                            examples: true,
+                        },
+                    },
+                },
+            });
+
+            // 批量获取所有单词的得分
+            const allWordIds = allStates.map((s: any) => s.wordId);
+            const allScores = allWordIds.length > 0 ? await prisma.wordScore.findMany({
+                where: { userId, wordId: { in: allWordIds } },
+                select: {
+                    wordId: true,
+                    totalScore: true,
+                    recentAccuracy: true,
+                    totalAttempts: true,
+                    correctAttempts: true,
+                },
+            }) : [];
+
+            const scoreMap = new Map(allScores.map((s: any) => [s.wordId, s]));
+
+            // 组装所有数据并计算准确率
+            let allWords = allStates.map((state: any) => {
+                const score = scoreMap.get(state.wordId);
+                const accuracyVal = score?.recentAccuracy !== null && score?.recentAccuracy !== undefined
+                    ? score.recentAccuracy * 100
+                    : score && score.totalAttempts > 0
+                        ? (score.correctAttempts / score.totalAttempts) * 100
+                        : 0;
+
+                return {
+                    word: state.word,
+                    score: score?.totalScore ?? 0,
+                    masteryLevel: state.masteryLevel,
+                    accuracy: accuracyVal,
+                    reviewCount: state.reviewCount,
+                    lastReviewDate: state.lastReviewDate,
+                    nextReviewDate: state.nextReviewDate,
+                    state: state.state,
+                };
+            });
+
+            // 按得分范围筛选（没有得分记录的单词得分为0，属于 low 范围）
+            if (params.scoreRange === 'low') {
+                allWords = allWords.filter((w: any) => w.score < 40);
+            } else if (params.scoreRange === 'medium') {
+                allWords = allWords.filter((w: any) => w.score >= 40 && w.score < 70);
+            } else if (params.scoreRange === 'high') {
+                allWords = allWords.filter((w: any) => w.score >= 70);
+            }
+
+            // 按准确率筛选
+            if (params.minAccuracy !== undefined) {
+                allWords = allWords.filter((w: any) => w.accuracy >= params.minAccuracy!);
+            }
+
+            // 排序
+            if (params.sortBy === 'score') {
+                allWords.sort((a: any, b: any) => sortOrder === 'asc' ? a.score - b.score : b.score - a.score);
+            } else if (params.sortBy === 'accuracy') {
+                allWords.sort((a: any, b: any) => sortOrder === 'asc' ? a.accuracy - b.accuracy : b.accuracy - a.accuracy);
+            }
+
+            // 分页
+            const total = allWords.length;
+            const paginatedWords = allWords.slice(skip, skip + pageSize);
+
+            return {
+                words: paginatedWords,
+                pagination: {
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.ceil(total / pageSize),
+                },
+            };
+        }
+
+        // 非得分筛选/排序情况：直接在数据库层面分页
         const orderBy: any = {};
         switch (params.sortBy) {
             case 'reviewCount':
@@ -789,7 +799,7 @@ export class AdminService {
         ]);
 
         // 批量获取这一页单词的得分数据
-        const wordIds = learningStates.map((s) => s.wordId);
+        const wordIds = learningStates.map((s: any) => s.wordId);
         const scores = wordIds.length > 0 ? await prisma.wordScore.findMany({
             where: { userId, wordId: { in: wordIds } },
             select: {
@@ -801,9 +811,9 @@ export class AdminService {
             },
         }) : [];
 
-        const scoreMap = new Map(scores.map(s => [s.wordId, s]));
+        const scoreMap = new Map(scores.map((s: any) => [s.wordId, s]));
 
-        const words = learningStates.map((state) => {
+        const words = learningStates.map((state: any) => {
             const score = scoreMap.get(state.wordId);
             const accuracy = score?.recentAccuracy !== null && score?.recentAccuracy !== undefined
                 ? score.recentAccuracy * 100

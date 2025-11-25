@@ -15,12 +15,43 @@ import recordRoutes from './routes/record.routes';
 import wordStateRoutes from './routes/word-state.routes';
 import wordScoreRoutes from './routes/word-score.routes';
 import algorithmConfigRoutes from './routes/algorithm-config.routes';
+import amasRoutes from './routes/amas.routes';
 
 
 const app = express();
 
-// 安全中间件
-app.use(helmet());
+// 反向代理场景下启用真实 IP，保证限流/日志准确
+app.set('trust proxy', 1);
+
+// 安全中间件 - 配置严格的安全头
+app.use(
+  helmet({
+    // 内容安全策略
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", env.CORS_ORIGIN], // 允许前端访问API
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    // 跨域嵌入策略
+    crossOriginEmbedderPolicy: false, // 允许加载跨域资源
+    // 引用策略
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // HSTS
+    hsts: {
+      maxAge: 31536000, // 1年
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 
 // CORS配置
 app.use(
@@ -34,6 +65,8 @@ app.use(
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
   max: 500, // 限制500个请求（从100放宽到500）
+  standardHeaders: true,
+  legacyHeaders: false,
   handler: (req, res) => {
     res.status(429).json({
       success: false,
@@ -44,9 +77,25 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// 解析JSON
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 针对登录/注册的更严格限流，缓解暴力破解
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5分钟
+  max: 30, // 限制30个请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: '认证请求过于频繁，请稍后再试',
+      code: 'TOO_MANY_AUTH_REQUESTS'
+    });
+  },
+});
+app.use('/api/auth', authLimiter);
+
+// 解析JSON并限制请求体大小（防止大包攻击）
+app.use(express.json({ limit: '200kb' }));
+app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
 // 请求日志
 app.use(loggerMiddleware);
@@ -67,6 +116,7 @@ app.use('/api/records', recordRoutes);
 app.use('/api/word-states', wordStateRoutes);
 app.use('/api/word-scores', wordScoreRoutes);
 app.use('/api/algorithm-config', algorithmConfigRoutes);
+app.use('/api/amas', amasRoutes);
 
 
 // 404处理

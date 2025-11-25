@@ -138,8 +138,11 @@ class StorageService {
       return await this.refreshCacheFromCloud();
     } catch (error) {
       console.error('获取单词失败:', error);
-      // 返回缓存数据或空数组，不抛出异常
-      return this.wordCache || [];
+      // 如果有缓存数据则返回缓存，否则抛出错误让上层处理
+      if (this.wordCache.length > 0) {
+        return this.wordCache;
+      }
+      throw error instanceof Error ? error : new Error('获取单词失败');
     }
   }
 
@@ -204,8 +207,8 @@ class StorageService {
 
   async getAnswerRecords(wordId: string): Promise<AnswerRecord[]> {
     try {
-      const records = await ApiClient.getRecords();
-      return records.filter((r) => r.wordId === wordId);
+      const result = await ApiClient.getRecords({ pageSize: 100 });
+      return result.records.filter((r) => r.wordId === wordId);
     } catch (error) {
       console.error('获取答题记录失败:', error);
       return [];
@@ -214,7 +217,11 @@ class StorageService {
 
   async getStudyStatistics(): Promise<StudyStatistics> {
     try {
-      const [words, records] = await Promise.all([this.getWords(), ApiClient.getRecords()]);
+      const [words, recordsResult] = await Promise.all([
+        this.getWords(),
+        ApiClient.getRecords({ pageSize: 100 })
+      ]);
+      const records = recordsResult.records;
       const wordStats = new Map<string, WordStatistics>();
 
       records.forEach((record) => {

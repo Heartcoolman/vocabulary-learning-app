@@ -131,12 +131,13 @@ export class StudyConfigService {
         const scoreMap = new Map(wordScores.map(s => [s.wordId, s]));
 
         // 1. 获取到期需要复习的单词（带优先级计算）
+        // 修复：纳入已学习过的NEW状态单词（reviewCount > 0 表示已经学习过）
         const now = new Date();
         const dueStates = allLearnedStates
             .filter(s =>
                 s.nextReviewDate &&
                 s.nextReviewDate <= now &&
-                ['LEARNING', 'REVIEWING'].includes(s.state)
+                (['LEARNING', 'REVIEWING'].includes(s.state) || s.state === 'NEW')
             )
             .map(state => {
                 const score = scoreMap.get(state.wordId);

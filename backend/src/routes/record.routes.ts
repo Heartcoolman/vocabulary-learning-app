@@ -9,14 +9,22 @@ const router = Router();
 // 所有记录路由都需要认证
 router.use(authMiddleware);
 
-// 获取用户的学习记录
+// 获取用户的学习记录（支持分页）
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
-    const records = await recordService.getRecordsByUserId(req.user!.id);
+    // 解析分页参数，确保无效值回退为 undefined
+    const parsedPage = req.query.page ? parseInt(req.query.page as string, 10) : NaN;
+    const parsedPageSize = req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : NaN;
+    
+    const page = Number.isNaN(parsedPage) ? undefined : parsedPage;
+    const pageSize = Number.isNaN(parsedPageSize) ? undefined : parsedPageSize;
+
+    const result = await recordService.getRecordsByUserId(req.user!.id, { page, pageSize });
 
     res.json({
       success: true,
-      data: records,
+      data: result.data,
+      pagination: result.pagination,
     });
   } catch (error) {
     next(error);

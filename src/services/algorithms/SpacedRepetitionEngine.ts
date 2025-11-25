@@ -25,8 +25,12 @@ export class SpacedRepetitionEngine {
     // 获取当前复习间隔（天）
     const intervalDays = this.getIntervalForReviewCount(state.reviewCount);
     
-    // 应用难度因子
-    const adjustedIntervalDays = Math.round(intervalDays * state.easeFactor);
+    // 早期（<=2 次复习）不放大间隔，避免首次复习被拉长到一周+
+    const applyEaseFactor = state.reviewCount > 2;
+    const effectiveEase = applyEaseFactor ? state.easeFactor : 1;
+    
+    // 应用难度因子，至少间隔 1 天
+    const adjustedIntervalDays = Math.max(1, Math.round(intervalDays * effectiveEase));
     
     // 转换为毫秒并计算下次复习时间
     const intervalMs = adjustedIntervalDays * 24 * 60 * 60 * 1000;

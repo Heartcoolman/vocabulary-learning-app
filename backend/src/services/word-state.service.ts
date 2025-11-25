@@ -115,16 +115,16 @@ export class WordStateService {
     }
 
     // 从数据库查询
+    // 修复：纳入已学习过的NEW状态单词（reviewCount > 0 表示已经学习过）
     const now = new Date();
     const dueWords = await prisma.wordLearningState.findMany({
       where: {
         userId,
-        nextReviewDate: {
-          lte: now
-        },
-        state: {
-          in: [WordState.LEARNING, WordState.REVIEWING]
-        }
+        nextReviewDate: { lte: now },
+        OR: [
+          { state: { in: [WordState.LEARNING, WordState.REVIEWING] } },
+          { state: WordState.NEW }
+        ]
       },
       orderBy: { nextReviewDate: 'asc' }
     });
@@ -199,19 +199,44 @@ export class WordStateService {
 
   /**
    * 批量更新单词学习状态
+   * 优化：使用单次查询校验所有单词的访问权限，避免 N+1 查询
    */
   async batchUpdateWordStates(
     userId: string,
     updates: Array<{ wordId: string; data: Partial<WordLearningState> }>
   ): Promise<void> {
-    // 先验证所有单词的访问权限
-    await Promise.all(updates.map(({ wordId }) => this.assertWordAccessible(userId, wordId)));
+    // 获取去重后的单词ID列表
+    const uniqueWordIds = Array.from(new Set(updates.map(({ wordId }) => wordId)));
+    
+    // 单次查询校验所有单词的访问权限
+    const accessibleWordIds = await this.getAccessibleWordIds(userId, uniqueWordIds);
+    
+    // 检查是否所有单词都可访问
+    const inaccessibleWordIds = uniqueWordIds.filter(id => !accessibleWordIds.has(id));
+    if (inaccessibleWordIds.length > 0) {
+      throw new Error(`无权访问以下单词: ${inaccessibleWordIds.join(', ')}`);
+    }
 
     // 使用事务批量更新
     await prisma.$transaction(
       updates.map(({ wordId, data }) => {
         // 过滤掉userId和wordId，防止被data覆盖
         const { userId: _, wordId: __, ...safeData } = data as any;
+
+        // 转换时间戳为Date对象（复用单条更新的逻辑）
+        const convertedData: any = { ...safeData };
+        if (typeof convertedData.lastReviewDate === 'number') {
+          convertedData.lastReviewDate = convertedData.lastReviewDate === 0 ? null : new Date(convertedData.lastReviewDate);
+        }
+        if (typeof convertedData.nextReviewDate === 'number') {
+          convertedData.nextReviewDate = new Date(convertedData.nextReviewDate);
+        }
+        if (typeof convertedData.createdAt === 'number') {
+          convertedData.createdAt = new Date(convertedData.createdAt);
+        }
+        if (typeof convertedData.updatedAt === 'number') {
+          convertedData.updatedAt = new Date(convertedData.updatedAt);
+        }
 
         return prisma.wordLearningState.upsert({
           where: {
@@ -223,15 +248,38 @@ export class WordStateService {
           create: {
             userId,
             wordId,
-            ...safeData
+            ...convertedData
           } as any,
-          update: safeData
+          update: convertedData
         });
       })
     );
 
     // 清除用户缓存
     this.invalidateUserCache(userId);
+  }
+
+  /**
+   * 批量获取用户可访问的单词ID集合
+   * 单次查询，避免 N+1 问题
+   */
+  private async getAccessibleWordIds(userId: string, wordIds: string[]): Promise<Set<string>> {
+    const words = await prisma.word.findMany({
+      where: { id: { in: wordIds } },
+      select: {
+        id: true,
+        wordBook: { select: { type: true, userId: true } }
+      }
+    });
+
+    const accessibleIds = new Set<string>();
+    for (const word of words) {
+      // 系统词书所有人可访问，用户词书只能本人访问
+      if (word.wordBook.type === WordBookType.SYSTEM || word.wordBook.userId === userId) {
+        accessibleIds.add(word.id);
+      }
+    }
+    return accessibleIds;
   }
 
   /**

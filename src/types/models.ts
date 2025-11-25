@@ -3,6 +3,7 @@
  */
 export interface Word {
   id: string;                    // 唯一标识符
+  wordBookId?: string;           // 所属词书ID（可选，兼容旧数据）
   spelling: string;              // 单词拼写
   phonetic: string;              // 国际音标
   meanings: string[];            // 中文释义列表
@@ -144,8 +145,8 @@ export interface WordLearningState {
   masteryLevel: number;          // 掌握程度（0-5级）
   easeFactor: number;            // 难度因子（1.3-2.5）
   reviewCount: number;           // 复习次数
-  lastReviewDate: number;        // 最后复习时间戳
-  nextReviewDate: number;        // 下次复习时间戳
+  lastReviewDate: number | null; // 最后复习时间戳（可为空）
+  nextReviewDate: number | null; // 下次复习时间戳（可为空）
   currentInterval: number;       // 当前复习间隔（天）
   consecutiveCorrect: number;    // 连续答对次数
   consecutiveWrong: number;      // 连续答错次数

@@ -32,6 +32,9 @@ model User {
   learningStates WordLearningState[]
   wordScores     WordScore[]
   anomalyFlags   AnomalyFlag[]
+  learningSessions LearningSession[]
+  habitProfile     HabitProfile?
+  rewardQueues     RewardQueue[]
 
   @@map("users")
 }
@@ -74,6 +77,7 @@ model Word {
   @@index([wordBookId])
   @@index([spelling])
   @@index([wordBookId, createdAt])
+  @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
   @@map("words")
 }
 
@@ -263,4 +267,107 @@ model AnomalyFlag {
   @@index([wordId])
   @@index([flaggedAt])
   @@map("anomaly_flags")
+}
+
+// AMAS 用户状态持久化
+model AmasUserState {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  attention       Float    @default(0.7)   // A: 注意力 [0,1]
+  fatigue         Float    @default(0)     // F: 疲劳度 [0,1]
+  motivation      Float    @default(0)     // M: 动机 [-1,1]
+  confidence      Float    @default(0.5)   // conf: 状态置信度 [0,1]
+  cognitiveProfile Json    @default("{\"mem\":0.5,\"speed\":0.5,\"stability\":0.5}") // C: 认知能力画像
+  habitProfile    Json?                     // H: 学习习惯画像 (可选)
+  trendState      String?                   // T: 长期趋势 'up'|'flat'|'stuck'|'down'
+  lastUpdateTs    BigInt   @default(0)     // ts: 最后更新时间戳
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([lastUpdateTs])
+  @@map("amas_user_states")
+}
+
+// AMAS LinUCB 模型持久化
+model AmasUserModel {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  modelData  Json                          // LinUCB模型数据 (theta, A_inv, b)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@map("amas_user_models")
+}
+
+// 学习会话表 (AMAS扩展版)
+model LearningSession {
+  id             String          @id @default(uuid())
+  userId         String
+  startedAt      DateTime        @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  featureVectors FeatureVector[]
+  rewardQueues   RewardQueue[]
+
+  @@index([userId, startedAt])
+  @@map("learning_sessions")
+}
+
+// 延迟奖励状态枚举
+enum RewardStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+// 特征向量表 (AMAS扩展版 - 支持特征版本化)
+model FeatureVector {
+  sessionId      String          @id
+  featureVersion Int
+  features       Json
+  normMethod     String?
+  createdAt      DateTime        @default(now())
+  session        LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([featureVersion, createdAt])
+  @@map("feature_vectors")
+}
+
+// 用户习惯画像表 (AMAS扩展版)
+model HabitProfile {
+  userId     String   @id
+  timePref   Json?    // 时间偏好 (24/48小时桶权重)
+  rhythmPref Json?    // 节奏偏好 (学习周期/节奏分布)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("habit_profiles")
+}
+
+// 延迟奖励队列表 (AMAS扩展版)
+model RewardQueue {
+  id             String           @id @default(uuid())
+  sessionId      String?
+  userId         String
+  dueTs          DateTime         // 奖励到期时间
+  reward         Float            // 延迟奖励值
+  status         RewardStatus     @default(PENDING)
+  idempotencyKey String           @unique  // 幂等键
+  lastError      String?          // 最后错误信息
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        LearningSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([dueTs, status])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([userId, status, dueTs])
+  @@map("reward_queue")
 }

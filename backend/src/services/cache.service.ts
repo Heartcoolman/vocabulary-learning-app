@@ -17,6 +17,8 @@ class CacheService {
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, 60 * 1000);
+    // 使用 unref() 防止定时器阻止进程退出（测试/脚本场景）
+    this.cleanupInterval.unref();
   }
 
   /**
@@ -144,6 +146,10 @@ export const CacheKeys = {
   
   // 单词列表缓存（TTL: 10分钟）
   WORDBOOK_WORDS: (wordbookId: string) => `wordbook_words:${wordbookId}`,
+
+  // AMAS缓存（TTL: 15分钟）
+  USER_STRATEGY: 'amas_strategy',
+  AMAS_STATE: (userId: string) => `amas_state:${userId}`,
 };
 
 // 缓存TTL（秒）
@@ -153,4 +159,6 @@ export const CacheTTL = {
   WORD_SCORE: 10 * 60, // 10分钟
   USER_STATS: 5 * 60, // 5分钟
   WORDBOOK_WORDS: 10 * 60, // 10分钟
+  USER_STRATEGY: 15 * 60, // 15分钟
+  AMAS_STATE: 15 * 60, // 15分钟
 };
