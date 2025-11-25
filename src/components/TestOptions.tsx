@@ -21,23 +21,28 @@ export default function TestOptions({
 }: TestOptionsProps) {
   const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // 使用 ref 存储最新的回调和选项，避免频繁重新添加事件监听器
+  const stateRef = useRef({ options, onSelect, showResult });
+  stateRef.current = { options, onSelect, showResult };
+
   // 键盘快捷键支持 (1-4数字键选择选项)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (showResult) return;
+      const { options: currentOptions, onSelect: currentOnSelect, showResult: currentShowResult } = stateRef.current;
+      if (currentShowResult) return;
 
       const key = e.key;
       const numKey = parseInt(key);
-      
-      if (numKey >= 1 && numKey <= options.length) {
+
+      if (numKey >= 1 && numKey <= currentOptions.length) {
         e.preventDefault();
-        onSelect(options[numKey - 1]);
+        currentOnSelect(currentOptions[numKey - 1]);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [options, onSelect, showResult]);
+  }, []); // 空依赖数组，只在挂载时添加一次监听器
 
   const getButtonStyle = (option: string) => {
     // 如果还没有显示结果，使用默认样式
@@ -83,8 +88,8 @@ export default function TestOptions({
   };
 
   return (
-    <div 
-      className="flex flex-wrap justify-center gap-4 px-4 py-8 max-w-5xl mx-auto w-full"
+    <div
+      className="flex flex-nowrap justify-center gap-3 px-4 py-8 w-full"
       role="group"
       aria-label="测试选项"
     >
@@ -101,7 +106,7 @@ export default function TestOptions({
           }}
           disabled={showResult}
           className={`
-            min-w-[160px] px-8 py-3 rounded-lg text-base md:text-lg font-medium
+            flex-1 max-w-[180px] px-4 py-3 rounded-lg text-base font-medium
             transition-all duration-200 animate-fade-in
             ${getButtonStyle(option)}
             ${!showResult ? 'hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}

@@ -8,6 +8,15 @@ import { randomUUID } from 'crypto';
 import { amasService } from '../services/amas.service';
 import { delayedRewardService } from '../services/delayed-reward.service';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { validateBody, validateQuery } from '../middleware/validate.middleware';
+import {
+  processEventSchema,
+  batchProcessSchema,
+  delayedRewardsQuerySchema,
+  ProcessEventDto,
+  BatchProcessDto,
+  DelayedRewardsQueryDto
+} from '../validators/amas.validator';
 import { AuthRequest } from '../types';
 import { RewardStatus } from '@prisma/client';
 
@@ -17,9 +26,10 @@ const router = Router();
  * POST /api/amas/process
  * 处理学习事件，返回策略建议
  */
-router.post('/process', authMiddleware, async (req: AuthRequest, res, next) => {
+router.post('/process', authMiddleware, validateBody(processEventSchema), async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
+    const validatedData = req.validatedBody as ProcessEventDto;
     const {
       wordId,
       isCorrect,
@@ -31,15 +41,7 @@ router.post('/process', authMiddleware, async (req: AuthRequest, res, next) => {
       retryCount,
       focusLossDuration,
       interactionDensity
-    } = req.body;
-
-    // 参数验证
-    if (!wordId || typeof isCorrect !== 'boolean' || !responseTime) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必需参数: wordId, isCorrect, responseTime'
-      });
-    }
+    } = validatedData;
 
     // 解析sessionId: 优先使用前端传入的，否则后端生成
     const resolvedSessionId =
@@ -109,6 +111,10 @@ router.get('/state', authMiddleware, async (req: AuthRequest, res, next) => {
         attention: state.A,
         fatigue: state.F,
         motivation: state.M,
+        // 展开认知维度字段以匹配前端UserState类型
+        memory: state.C.mem,
+        speed: state.C.speed,
+        stability: state.C.stability,
         cognitive: state.C,
         confidence: state.conf,
         timestamp: state.ts
@@ -186,18 +192,13 @@ router.get('/phase', authMiddleware, async (req: AuthRequest, res, next) => {
 /**
  * POST /api/amas/batch-process
  * 批量处理历史事件（用于数据导入）
+ * 限制：单次最多处理100条事件
  */
-router.post('/batch-process', authMiddleware, async (req: AuthRequest, res, next) => {
+router.post('/batch-process', authMiddleware, validateBody(batchProcessSchema), async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const { events } = req.body;
-
-    if (!Array.isArray(events) || events.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少events数组'
-      });
-    }
+    const validatedData = req.validatedBody as BatchProcessDto;
+    const { events } = validatedData;
 
     const result = await amasService.batchProcessEvents(userId, events);
 
@@ -217,41 +218,17 @@ router.post('/batch-process', authMiddleware, async (req: AuthRequest, res, next
  * - status: 奖励状态 (PENDING|PROCESSING|DONE|FAILED)
  * - limit: 返回数量限制 (默认50,最大100)
  */
-router.get('/delayed-rewards', authMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/delayed-rewards', authMiddleware, validateQuery(delayedRewardsQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const { status, limit } = req.query;
-
-    // 验证status参数
-    let rewardStatus: RewardStatus | undefined;
-    if (status) {
-      const statusStr = String(status).toUpperCase();
-      if (!['PENDING', 'PROCESSING', 'DONE', 'FAILED'].includes(statusStr)) {
-        return res.status(400).json({
-          success: false,
-          message: 'status参数无效,必须是: PENDING, PROCESSING, DONE, FAILED之一'
-        });
-      }
-      rewardStatus = statusStr as RewardStatus;
-    }
-
-    // 验证limit参数
-    let limitNum: number | undefined;
-    if (limit) {
-      limitNum = parseInt(String(limit), 10);
-      if (!Number.isInteger(limitNum) || limitNum <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'limit参数必须是正整数'
-        });
-      }
-    }
+    const validatedQuery = req.validatedQuery as DelayedRewardsQueryDto;
+    const { status, limit } = validatedQuery;
 
     // 查询延迟奖励
     const rewards = await delayedRewardService.findRewards({
       userId,
-      status: rewardStatus,
-      limit: limitNum
+      status: status as RewardStatus | undefined,
+      limit
     });
 
     res.json({

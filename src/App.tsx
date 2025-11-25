@@ -13,6 +13,11 @@ import WordListPage from './pages/WordListPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
+// AMAS 增强功能页面
+import LearningTimePage from './pages/LearningTimePage';
+import TrendReportPage from './pages/TrendReportPage';
+import AchievementPage from './pages/AchievementPage';
+import PlanPage from './pages/PlanPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -100,6 +105,40 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* AMAS 增强功能路由 */}
+            <Route
+              path="/learning-time"
+              element={
+                <ProtectedRoute>
+                  <LearningTimePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trend-report"
+              element={
+                <ProtectedRoute>
+                  <TrendReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/achievements"
+              element={
+                <ProtectedRoute>
+                  <AchievementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/plan"
+              element={
+                <ProtectedRoute>
+                  <PlanPage />
                 </ProtectedRoute>
               }
             />

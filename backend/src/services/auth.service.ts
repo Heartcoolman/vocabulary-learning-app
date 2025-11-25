@@ -130,9 +130,15 @@ export class AuthService {
   async verifyToken(token: string) {
     try {
       // 验证JWT（限定算法防止算法混淆攻击）
-      const decoded = jwt.verify(token, env.JWT_SECRET, {
-        algorithms: ['HS256'],
-      }) as { userId: string };
+      let decoded: { userId: string };
+      try {
+        decoded = jwt.verify(token, env.JWT_SECRET, {
+          algorithms: ['HS256'],
+        }) as { userId: string };
+      } catch (jwtError) {
+        console.error('[Auth] JWT 验证失败:', jwtError instanceof Error ? jwtError.message : jwtError);
+        throw new Error('JWT验证失败');
+      }
 
       // 检查会话是否存在且未过期，并验证用户归属
       const hashedToken = hashToken(token);
@@ -140,8 +146,19 @@ export class AuthService {
         where: { token: hashedToken },
       });
 
-      if (!session || session.expiresAt < new Date() || session.userId !== decoded.userId) {
+      if (!session) {
+        console.error('[Auth] Session 不存在, hashedToken:', hashedToken.substring(0, 16) + '...');
+        throw new Error('会话不存在');
+      }
+
+      if (session.expiresAt < new Date()) {
+        console.error('[Auth] Session 已过期:', session.expiresAt);
         throw new Error('会话已过期');
+      }
+
+      if (session.userId !== decoded.userId) {
+        console.error('[Auth] Session userId 不匹配:', session.userId, '!=', decoded.userId);
+        throw new Error('会话用户不匹配');
       }
 
       // 获取用户信息
@@ -158,12 +175,15 @@ export class AuthService {
       });
 
       if (!user) {
+        console.error('[Auth] 用户不存在:', decoded.userId);
         throw new Error('用户不存在');
       }
 
       return user;
     } catch (error) {
-      throw new Error('无效的认证令牌');
+      // 重新抛出已有的错误消息，便于调试
+      const message = error instanceof Error ? error.message : '无效的认证令牌';
+      throw new Error(message);
     }
   }
 

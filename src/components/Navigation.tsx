@@ -1,5 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck } from './Icon';
 
 /**
  * Navigation 组件 - 顶部导航栏
@@ -8,9 +10,26 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Navigation() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  const insightsRef = useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (insightsRef.current && !insightsRef.current.contains(event.target as Node)) {
+        setIsInsightsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const isInsightsActive = () => {
+    return ['/learning-time', '/trend-report', '/achievements', '/plan'].includes(location.pathname);
   };
 
   const linkClass = (path: string) => {
@@ -18,6 +37,13 @@ export default function Navigation() {
     return isActive(path)
       ? `${base} bg-blue-500 text-white shadow-sm`
       : `${base} text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`;
+  };
+
+  const dropdownLinkClass = (path: string) => {
+    const base = 'flex items-center gap-2 px-4 py-2 text-sm transition-colors';
+    return isActive(path)
+      ? `${base} bg-blue-50 text-blue-600`
+      : `${base} text-gray-700 hover:bg-gray-100`;
   };
 
   return (
@@ -68,6 +94,66 @@ export default function Navigation() {
             >
               学习历史
             </Link>
+
+            {/* 学习洞察下拉菜单 */}
+            {isAuthenticated && (
+              <div className="relative" ref={insightsRef}>
+                <button
+                  onClick={() => setIsInsightsOpen(!isInsightsOpen)}
+                  className={`px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 flex items-center gap-1 ${
+                    isInsightsActive()
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                  }`}
+                  aria-expanded={isInsightsOpen}
+                  aria-haspopup="true"
+                >
+                  学习洞察
+                  <CaretDown
+                    size={16}
+                    weight="bold"
+                    className={`transition-transform ${isInsightsOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isInsightsOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-fade-in">
+                    <Link
+                      to="/learning-time"
+                      className={dropdownLinkClass('/learning-time')}
+                      onClick={() => setIsInsightsOpen(false)}
+                    >
+                      <Clock size={18} weight="bold" />
+                      学习时机
+                    </Link>
+                    <Link
+                      to="/trend-report"
+                      className={dropdownLinkClass('/trend-report')}
+                      onClick={() => setIsInsightsOpen(false)}
+                    >
+                      <TrendUp size={18} weight="bold" />
+                      趋势分析
+                    </Link>
+                    <Link
+                      to="/achievements"
+                      className={dropdownLinkClass('/achievements')}
+                      onClick={() => setIsInsightsOpen(false)}
+                    >
+                      <Trophy size={18} weight="bold" />
+                      成就徽章
+                    </Link>
+                    <Link
+                      to="/plan"
+                      className={dropdownLinkClass('/plan')}
+                      onClick={() => setIsInsightsOpen(false)}
+                    >
+                      <CalendarCheck size={18} weight="bold" />
+                      学习计划
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 管理后台入口 - 仅管理员可见 */}
             {isAuthenticated && user?.role === 'ADMIN' && (

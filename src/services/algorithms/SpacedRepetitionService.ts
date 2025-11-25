@@ -36,7 +36,7 @@ export interface AnswerResult {
   wordScore: WordScore;
   masteryLevelChange: number;
   scoreChange: number;
-  nextReviewDate: number;
+  nextReviewDate: number | null;
 }
 
 /**
@@ -98,10 +98,36 @@ export class SpacedRepetitionService {
       }
     }
     
-    // 获取所有单词的得分（这里需要从外部传入或查询）
-    // 暂时使用空Map，实际使用时需要注入
+    // 获取所有单词的得分（容错处理：失败时使用空 Map，不阻断会话创建）
     const wordScores = new Map<string, WordScore>();
-    
+    try {
+      if (this.storage.batchLoadScores) {
+        // 优先使用批量加载
+        const scores = await this.storage.batchLoadScores(userId, availableWordIds);
+        for (const score of scores) {
+          wordScores.set(score.wordId, score);
+        }
+      } else if (this.storage.loadScore) {
+        // 降级为单个加载，使用 Promise.allSettled 容错
+        const scorePromises = availableWordIds.map(async wordId => {
+          try {
+            const score = await this.storage.loadScore!(userId, wordId);
+            return score ? { wordId, score } : null;
+          } catch {
+            return null;
+          }
+        });
+        const results = await Promise.all(scorePromises);
+        for (const item of results) {
+          if (item?.score) {
+            wordScores.set(item.wordId, item.score);
+          }
+        }
+      }
+    } catch {
+      // 批量加载失败时继续使用空 Map
+    }
+
     // 生成学习队列
     const selectedWordIds = this.priorityScheduler.generateLearningQueue(
       Array.from(stateMap.values()),
@@ -176,6 +202,9 @@ export class SpacedRepetitionService {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+
+    // 保存旧的得分，用于计算本次变化量
+    const scoreBefore = wordScore.totalScore;
     
     // 创建答题记录
     const answerRecord: AnswerRecord = {
@@ -193,15 +222,23 @@ export class SpacedRepetitionService {
     };
     
     // 获取最近的答题记录（用于计算稳定性）
-    // 这里需要从外部传入或查询，暂时使用空数组
-    const recentRecords: AnswerRecord[] = [];
+    let recentRecords: AnswerRecord[] = [];
+    if (this.storage.loadRecentAnswerRecords) {
+      try {
+        recentRecords = await this.storage.loadRecentAnswerRecords(userId, wordId, 5);
+      } catch (error) {
+        // 获取历史记录失败不阻断答题流程
+      }
+    }
     
     // 更新单词得分统计
     const scoreStats = this.scoreCalculator.updateScoreStatistics(wordScore, answerRecord);
     wordScore = { ...wordScore, ...scoreStats };
-    
+
     // 计算新的得分
-    const newScores = this.scoreCalculator.calculateScore(wordScore, [...recentRecords, answerRecord]);
+    // 将当前记录放在开头（最新），确保稳定性计算使用最近的记录
+    const allRecords = [answerRecord, ...recentRecords].slice(0, 5);
+    const newScores = this.scoreCalculator.calculateScore(wordScore, allRecords);
     wordScore = { ...wordScore, ...newScores };
     
     // 计算正确率
@@ -252,8 +289,7 @@ export class SpacedRepetitionService {
       );
       
       if (adjustment.shouldAdjust && adjustment.newWordCount) {
-        console.log(`难度调整: ${adjustment.reason}, 新单词数量: ${adjustment.newWordCount}`);
-        // 这里可以记录调整信息，供下次会话使用
+        // 难度调整信息可用于分析和调优
       }
     }
     
@@ -262,7 +298,7 @@ export class SpacedRepetitionService {
       wordState: updatedState,
       wordScore,
       masteryLevelChange: updatedState.masteryLevel - masteryLevelBefore,
-      scoreChange: wordScore.totalScore,
+      scoreChange: wordScore.totalScore - scoreBefore,
       nextReviewDate: updatedState.nextReviewDate
     };
   }
@@ -418,7 +454,7 @@ export class SpacedRepetitionService {
     reason?: string
   ): Promise<WordLearningState> {
     const now = Date.now();
-    
+
     const updates: Partial<WordLearningState> = {
       state: WordState.MASTERED,
       masteryLevel: 5,
@@ -426,12 +462,17 @@ export class SpacedRepetitionService {
       nextReviewDate: now + (30 * 24 * 60 * 60 * 1000),
       updatedAt: now
     };
-    
+
     const updatedState = await this.stateManager.updateState(userId, wordId, updates);
-    
-    // 记录手动调整
-    console.log(`手动标记为已掌握: 用户=${userId}, 单词=${wordId}, 原因=${reason || '无'}, 时间=${new Date(now).toLocaleString()}`);
-    
+
+    // 记录手动调整日志（用于审计）
+    console.log('[SRS] 手动标记为已掌握:', {
+      userId,
+      wordId,
+      reason: reason || '未提供原因',
+      timestamp: new Date(now).toISOString()
+    });
+
     return updatedState;
   }
 
@@ -450,7 +491,7 @@ export class SpacedRepetitionService {
     reason?: string
   ): Promise<WordLearningState> {
     const now = Date.now();
-    
+
     const updates: Partial<WordLearningState> = {
       state: WordState.NEW,
       masteryLevel: 0,
@@ -461,12 +502,17 @@ export class SpacedRepetitionService {
       consecutiveWrong: 0,
       updatedAt: now
     };
-    
+
     const updatedState = await this.stateManager.updateState(userId, wordId, updates);
-    
-    // 记录手动调整
-    console.log(`手动标记为需要重点学习: 用户=${userId}, 单词=${wordId}, 原因=${reason || '无'}, 时间=${new Date(now).toLocaleString()}`);
-    
+
+    // 记录手动调整日志（用于审计）
+    console.log('[SRS] 手动标记为需要练习:', {
+      userId,
+      wordId,
+      reason: reason || '未提供原因',
+      timestamp: new Date(now).toISOString()
+    });
+
     return updatedState;
   }
 
@@ -486,10 +532,15 @@ export class SpacedRepetitionService {
   ): Promise<WordLearningState> {
     // 重新初始化单词状态
     const newState = await this.stateManager.initializeWordState(userId, wordId);
-    
-    // 记录手动调整
-    console.log(`重置学习进度: 用户=${userId}, 单词=${wordId}, 原因=${reason || '无'}, 时间=${new Date().toLocaleString()}`);
-    
+
+    // 记录手动调整日志（用于审计）
+    console.log('[SRS] 手动重置学习进度:', {
+      userId,
+      wordId,
+      reason: reason || '未提供原因',
+      timestamp: new Date().toISOString()
+    });
+
     return newState;
   }
 
@@ -536,8 +587,7 @@ export class SpacedRepetitionService {
       }
     }
     
-    // 记录批量操作
-    console.log(`批量操作完成: 用户=${userId}, 操作=${operation}, 成功=${results.length}/${wordIds.length}, 原因=${reason || '无'}`);
+    // 批量操作已完成
     
     return results;
   }

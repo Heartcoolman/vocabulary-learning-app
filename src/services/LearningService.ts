@@ -35,14 +35,12 @@ class StorageAdapter implements WordStateStorage {
     return await this.batchLoadStates(userId, wordIds);
   }
 
-  async deleteState(_userId: string, _wordId: string): Promise<void> {
+  async deleteState(_userId: string, wordId: string): Promise<void> {
     try {
-      // 调用 ApiClient 删除单词学习状态
-      await ApiClient.deleteWordLearningState(_wordId);
+      // 调用 ApiClient 删除单词学习状态（userId 通过 token 识别）
+      await ApiClient.deleteWordLearningState(wordId);
       
-      // 从本地缓存中移除状态（如果 WordStateManager 有缓存的话）
-      // 这里通过清除用户缓存来确保下次获取时重新加载
-      console.log(`已删除单词 ${_wordId} 的学习状态`);
+      // 缓存会在下次获取时重新加载
     } catch (error) {
       console.error('删除单词学习状态失败:', error);
       throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -51,6 +49,17 @@ class StorageAdapter implements WordStateStorage {
 
   async loadScore(userId: string, wordId: string): Promise<WordScore | null> {
     return await StorageService.getWordScore(userId, wordId);
+  }
+
+  async batchLoadScores(userId: string, wordIds: string[]): Promise<WordScore[]> {
+    return await StorageService.getWordScores(userId, wordIds);
+  }
+
+  async loadRecentAnswerRecords(_userId: string, wordId: string, limit: number = 5): Promise<AnswerRecord[]> {
+    const records = await StorageService.getAnswerRecords(wordId);
+    return records
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
   }
 }
 
@@ -159,6 +168,27 @@ class LearningService {
       try {
         // 初始化间隔重复服务（用于 submitAnswer 时更新状态）
         await this.initSRService(userId);
+
+        // 启动间隔重复会话，初始化会话统计（连续正确/错误计数等）
+        if (this.srService) {
+          // 从用户统计获取真实正确率，失败时回退到默认值
+          let userAccuracy = 0.7; // 默认正确率
+          try {
+            const stats = await ApiClient.getUserStatistics();
+            if (stats.correctRate > 0 && stats.correctRate <= 1) {
+              userAccuracy = stats.correctRate;
+            }
+          } catch {
+            // 获取统计失败时使用默认值，不阻塞学习流程
+          }
+
+          await this.srService.startSession(
+            userId,
+            wordIds,
+            wordIds.length,
+            userAccuracy
+          );
+        }
       } catch (error) {
         console.error('初始化间隔重复服务失败:', error);
       }
@@ -243,8 +273,8 @@ class LearningService {
    * @returns 答题反馈信息
    */
   async submitAnswer(
-    wordId: string, 
-    answer: string, 
+    wordId: string,
+    answer: string,
     isCorrect: boolean,
     responseTime: number,
     dwellTime: number,
@@ -253,7 +283,7 @@ class LearningService {
     masteryLevelBefore: number;
     masteryLevelAfter: number;
     score: number;
-    nextReviewDate: number;
+    nextReviewDate: number | null;
   } | null> {
     const word = this.words.find(w => w.id === wordId);
     if (!word) {
@@ -305,12 +335,7 @@ class LearningService {
           nextReviewDate: result.nextReviewDate
         };
 
-        console.log(`单词 ${word.spelling} 答题结果:`, {
-          isCorrect,
-          masteryLevel: result.wordState.masteryLevel,
-          score: result.wordScore.totalScore,
-          nextReview: new Date(result.nextReviewDate).toLocaleString()
-        });
+        // 答题结果已处理
       } catch (error) {
         console.error('更新单词状态失败:', error);
         // 失败不阻断学习流程
@@ -384,7 +409,7 @@ class LearningService {
   async getWordState(userId: string, wordId: string): Promise<{
     masteryLevel: number;
     score: number;
-    nextReviewDate: number;
+    nextReviewDate: number | null;
   } | null> {
     await this.initSRService(userId);
     
@@ -460,65 +485,73 @@ class LearningService {
    * @returns { options: string[], correctAnswer: string } 选项数组和正确答案
    */
   generateTestOptions(correctWord: Word, allWords: Word[], optionCount: number = 4): { options: string[], correctAnswer: string } {
-    const count = Math.max(2, Math.min(4, optionCount));
+    const requestedCount = Math.max(2, Math.min(4, optionCount));
 
     // 固定使用第一个释义作为正确答案，确保与判分逻辑一致
     const correctAnswer = correctWord.meanings[0];
-    
+
     // 边界情况：单词缺少释义
     if (!correctAnswer) {
       throw new Error(`单词 ${correctWord.spelling} 缺少释义，无法生成测验选项`);
     }
 
     // 收集其他单词的释义作为干扰项，并去重
+    // 排除正确答案及其近似（避免混淆）
     const otherMeanings = Array.from(new Set(
       allWords
         .filter(w => w.id !== correctWord.id)
         .flatMap(w => w.meanings)
-        .filter(m => m !== correctAnswer)
+        .filter(m => m && m !== correctAnswer && m.trim() !== correctAnswer.trim())
     ));
 
-    // 如果干扰项不足，使用当前单词的其他释义补充
-    let distractors = this.shuffleArray(otherMeanings).slice(0, count - 1);
+    // 所需干扰项数量
+    const requiredDistractorCount = requestedCount - 1;
 
-    if (distractors.length < count - 1) {
+    // 如果干扰项不足，使用当前单词的其他释义补充
+    let distractors = this.shuffleArray(otherMeanings).slice(0, requiredDistractorCount);
+
+    if (distractors.length < requiredDistractorCount) {
       // 干扰项不足时，添加当前单词的其他释义作为补充
       const additionalMeanings = correctWord.meanings
-        .filter(m => m !== correctAnswer)
-        .slice(0, count - 1 - distractors.length);
+        .filter(m => m !== correctAnswer && !distractors.includes(m))
+        .slice(0, requiredDistractorCount - distractors.length);
       distractors = [...distractors, ...additionalMeanings];
     }
 
-    // 如果仍然不足，循环使用已有的干扰项（但避免连续重复）
-    const originalDistractorsLength = distractors.length;
-    let cycleIndex = 0;
-    while (distractors.length < count - 1 && originalDistractorsLength > 0) {
-      const sourceIndex = cycleIndex % originalDistractorsLength;
-      distractors.push(distractors[sourceIndex]);
-      cycleIndex++;
+    // 确保去重
+    distractors = Array.from(new Set(distractors));
+    if (distractors.length > requiredDistractorCount) {
+      distractors = distractors.slice(0, requiredDistractorCount);
     }
 
-    // 兜底：如果干扰项不足（极端情况：只有一个单词且只有一个释义）
-    // 生成通用的占位选项，确保至少有指定数量的选项
-    if (distractors.length < count - 1) {
-      const fallbackOptions = [
-        '（暂无释义）',
-        '（待补充）',
-        '（其他释义）',
-      ];
-      for (const placeholder of fallbackOptions) {
-        if (distractors.length >= count - 1) break;
-        if (!distractors.includes(placeholder)) {
-          distractors.push(placeholder);
-        }
-      }
+    // 动态调整选项数量：如果干扰项不足，减少选项数量而非使用占位符
+    // 最少保留2个选项（1个正确答案 + 1个干扰项）
+    const actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
+    const actualOptionCount = actualDistractorCount + 1;
+
+    // 极端情况警告：只有一个选项（完全没有干扰项）
+    if (actualDistractorCount === 0) {
+      console.warn(`[LearningService] 单词 "${correctWord.spelling}" 无法生成干扰项，词库可能过小`);
+      // 此时返回只有正确答案的选项，UI层应处理此情况
     }
 
-    const options = [correctAnswer, ...distractors];
+    const options = [correctAnswer, ...distractors.slice(0, actualDistractorCount)];
     return {
       options: this.shuffleArray(options),
       correctAnswer,
     };
+  }
+
+  /**
+   * 检查答案是否正确（支持多释义）
+   * @param answer 用户选择的答案
+   * @param word 正确的单词
+   * @returns 是否正确
+   */
+  isAnswerCorrect(answer: string, word: Word): boolean {
+    // 检查答案是否匹配任何释义（不区分前后空格）
+    const normalizedAnswer = answer.trim();
+    return word.meanings.some(meaning => meaning.trim() === normalizedAnswer);
   }
 
   /**
@@ -606,8 +639,6 @@ class LearningService {
       if (this.srService) {
         this.srService.clearUserCache(userId);
       }
-      
-      console.log(`已删除单词 ${wordId} 的学习状态`);
     } catch (error) {
       console.error('删除单词学习状态失败:', error);
       throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);

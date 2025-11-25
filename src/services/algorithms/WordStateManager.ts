@@ -1,4 +1,4 @@
-import { WordLearningState, WordState } from '../../types/models';
+import { AnswerRecord, WordLearningState, WordScore, WordState } from '../../types/models';
 
 /**
  * 单词状态管理器
@@ -268,5 +268,15 @@ export interface WordStateStorage {
   /**
    * 加载单词得分（可选）
    */
-  loadScore?(userId: string, wordId: string): Promise<import('../../types/models').WordScore | null>;
+  loadScore?(userId: string, wordId: string): Promise<WordScore | null>;
+
+  /**
+   * 批量加载单词得分（可选）
+   */
+  batchLoadScores?(userId: string, wordIds: string[]): Promise<WordScore[]>;
+
+  /**
+   * 加载最近的答题记录（可选，用于计算稳定性得分）
+   */
+  loadRecentAnswerRecords?(userId: string, wordId: string, limit?: number): Promise<AnswerRecord[]>;
 }

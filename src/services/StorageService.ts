@@ -274,9 +274,9 @@ class StorageService {
   /**
    * 获取单词学习状态
    */
-  async getWordLearningState(_userId: string, _wordId: string): Promise<WordLearningState | null> {
+  async getWordLearningState(_userId: string, wordId: string): Promise<WordLearningState | null> {
     try {
-      const state = await ApiClient.getWordLearningState(_wordId);
+      const state = await ApiClient.getWordLearningState(wordId);
       return state;
     } catch (error) {
       console.error('获取单词学习状态失败:', error);
@@ -287,9 +287,9 @@ class StorageService {
   /**
    * 创建或更新单词学习状态
    */
-  async saveWordLearningState(_state: WordLearningState): Promise<void> {
+  async saveWordLearningState(state: WordLearningState): Promise<void> {
     try {
-      await ApiClient.saveWordLearningState(_state);
+      await ApiClient.saveWordLearningState(state);
     } catch (error) {
       console.error('保存单词学习状态失败:', error);
       throw error;
@@ -299,9 +299,9 @@ class StorageService {
   /**
    * 批量获取单词学习状态
    */
-  async getWordLearningStates(_userId: string, _wordIds: string[]): Promise<WordLearningState[]> {
+  async getWordLearningStates(_userId: string, wordIds: string[]): Promise<WordLearningState[]> {
     try {
-      const states = await ApiClient.getWordLearningStates(_wordIds);
+      const states = await ApiClient.getWordLearningStates(wordIds);
       return states;
     } catch (error) {
       console.error('批量获取单词学习状态失败:', error);
@@ -312,9 +312,9 @@ class StorageService {
   /**
    * 按状态获取单词
    */
-  async getWordsByState(_userId: string, _state: WordState): Promise<WordLearningState[]> {
+  async getWordsByState(_userId: string, state: WordState): Promise<WordLearningState[]> {
     try {
-      const states = await ApiClient.getWordsByState(_state);
+      const states = await ApiClient.getWordsByState(state);
       return states;
     } catch (error) {
       console.error('按状态获取单词失败:', error);
@@ -340,9 +340,9 @@ class StorageService {
   /**
    * 获取单词得分
    */
-  async getWordScore(_userId: string, _wordId: string): Promise<WordScore | null> {
+  async getWordScore(_userId: string, wordId: string): Promise<WordScore | null> {
     try {
-      const score = await ApiClient.getWordScore(_wordId);
+      const score = await ApiClient.getWordScore(wordId);
       return score;
     } catch (error) {
       console.error('获取单词得分失败:', error);
@@ -353,9 +353,9 @@ class StorageService {
   /**
    * 保存单词得分
    */
-  async saveWordScore(_score: WordScore): Promise<void> {
+  async saveWordScore(score: WordScore): Promise<void> {
     try {
-      await ApiClient.saveWordScore(_score);
+      await ApiClient.saveWordScore(score);
     } catch (error) {
       console.error('保存单词得分失败:', error);
       throw error;
@@ -365,9 +365,9 @@ class StorageService {
   /**
    * 批量获取单词得分
    */
-  async getWordScores(_userId: string, _wordIds: string[]): Promise<WordScore[]> {
+  async getWordScores(_userId: string, wordIds: string[]): Promise<WordScore[]> {
     try {
-      const scores = await ApiClient.getWordScores(_wordIds);
+      const scores = await ApiClient.getWordScores(wordIds);
       return scores;
     } catch (error) {
       console.error('批量获取单词得分失败:', error);
@@ -380,11 +380,11 @@ class StorageService {
    */
   async getWordsByScoreRange(
     _userId: string,
-    _minScore: number,
-    _maxScore: number
+    minScore: number,
+    maxScore: number
   ): Promise<WordScore[]> {
     try {
-      const scores = await ApiClient.getWordsByScoreRange(_minScore, _maxScore);
+      const scores = await ApiClient.getWordsByScoreRange(minScore, maxScore);
       return scores;
     } catch (error) {
       console.error('按得分范围获取单词失败:', error);
@@ -411,12 +411,12 @@ class StorageService {
    * 更新算法配置（仅管理员）
    */
   async updateAlgorithmConfig(
-    _configId: string,
-    _config: Partial<AlgorithmConfig>,
-    _changeReason?: string
+    configId: string,
+    config: Partial<AlgorithmConfig>,
+    changeReason?: string
   ): Promise<void> {
     try {
-      await ApiClient.updateAlgorithmConfig(_configId, _config, _changeReason);
+      await ApiClient.updateAlgorithmConfig(configId, config, changeReason);
     } catch (error) {
       console.error('更新算法配置失败:', error);
       throw error;
@@ -426,9 +426,9 @@ class StorageService {
   /**
    * 重置算法配置为默认值（仅管理员）
    */
-  async resetAlgorithmConfig(_configId: string): Promise<void> {
+  async resetAlgorithmConfig(configId: string): Promise<void> {
     try {
-      await ApiClient.resetAlgorithmConfig(_configId);
+      await ApiClient.resetAlgorithmConfig(configId);
     } catch (error) {
       console.error('重置算法配置失败:', error);
       throw error;

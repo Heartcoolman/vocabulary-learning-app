@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
-import { loggerMiddleware } from './middleware/logger.middleware';
+import { httpLoggerMiddleware } from './logger/http';
+import { logger } from './logger';
 import { errorHandler } from './middleware/error.middleware';
+import prisma from './config/database';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import wordRoutes from './routes/word.routes';
@@ -16,12 +18,21 @@ import wordStateRoutes from './routes/word-state.routes';
 import wordScoreRoutes from './routes/word-score.routes';
 import algorithmConfigRoutes from './routes/algorithm-config.routes';
 import amasRoutes from './routes/amas.routes';
+import timeRecommendRoutes from './routes/time-recommend.routes';
+import trendAnalysisRoutes from './routes/trend-analysis.routes';
+import badgeRoutes from './routes/badge.routes';
+import planRoutes from './routes/plan.routes';
+import stateHistoryRoutes from './routes/state-history.routes';
 
 
 const app = express();
 
 // 反向代理场景下启用真实 IP，保证限流/日志准确
 app.set('trust proxy', 1);
+
+// 请求日志 - 前置以捕获所有请求（包括解析失败的请求）
+// 注入 requestId 并启用结构化日志
+app.use(httpLoggerMiddleware);
 
 // 安全中间件 - 配置严格的安全头
 app.use(
@@ -31,13 +42,20 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        // 移除 'unsafe-inline' 以加强 XSS 防护
+        // 如果前端使用 CSS-in-JS，需要配置 nonce 或 hash
+        styleSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'", env.CORS_ORIGIN], // 允许前端访问API
+        // 限定 connectSrc 为受控白名单
+        connectSrc: ["'self'", env.CORS_ORIGIN].filter(Boolean),
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
+        // 禁止在 base 标签中使用外部 URI
+        baseUri: ["'self'"],
+        // 禁止表单提交到外部地址
+        formAction: ["'self'"],
       },
     },
     // 跨域嵌入策略
@@ -97,12 +115,26 @@ app.use('/api/auth', authLimiter);
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
-// 请求日志
-app.use(loggerMiddleware);
+// 健康检查（包含数据库连接验证）
+app.get('/health', async (req, res) => {
+  const checks: { database: string; timestamp: string; status: string } = {
+    database: 'unknown',
+    timestamp: new Date().toISOString(),
+    status: 'ok'
+  };
 
-// 健康检查
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  try {
+    // 验证数据库连接和基本查询能力
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = 'connected';
+  } catch (error) {
+    checks.database = 'disconnected';
+    checks.status = 'degraded';
+    logger.error({ err: error }, '健康检查：数据库连接失败');
+  }
+
+  const statusCode = checks.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(checks);
 });
 
 // API路由
@@ -117,6 +149,11 @@ app.use('/api/word-states', wordStateRoutes);
 app.use('/api/word-scores', wordScoreRoutes);
 app.use('/api/algorithm-config', algorithmConfigRoutes);
 app.use('/api/amas', amasRoutes);
+app.use('/api/amas', timeRecommendRoutes);
+app.use('/api/amas', trendAnalysisRoutes);
+app.use('/api/badges', badgeRoutes);
+app.use('/api/plan', planRoutes);
+app.use('/api/amas', stateHistoryRoutes);
 
 
 // 404处理

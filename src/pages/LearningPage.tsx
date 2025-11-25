@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
@@ -30,15 +30,19 @@ export default function LearningPage() {
     wordState,
     amasResult,
     amasRefreshTrigger,
+    submitError,
   } = state;
   const { responseTime } = timer;
+
+  // 使用 ref 存储 actions，避免依赖数组问题
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
 
   // 初始化学习会话
   useEffect(() => {
     if (user?.id) {
-      actions.initialize(user.id);
+      actionsRef.current.initialize(user.id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   // 发音处理
@@ -59,14 +63,10 @@ export default function LearningPage() {
     await actions.handleSelectAnswer(answer, user?.id);
   }, [actions, user?.id]);
 
-  // 下一题
+  // 下一题（hook 内部已处理 userId 传递）
   const handleNext = useCallback(() => {
     actions.handleNext();
-    // 如果有用户ID，重新加载带用户状态的单词
-    if (user?.id) {
-      actions.loadCurrentWord(allWords, user.id);
-    }
-  }, [actions, allWords, user?.id]);
+  }, [actions]);
 
   // 休息
   const handleBreak = useCallback(() => {
@@ -178,6 +178,20 @@ export default function LearningPage() {
     <div className="min-h-screen flex flex-col">
       {/* 顶部进度条 */}
       <ProgressBar current={progress.current} total={progress.total} />
+
+      {/* 提交错误提示 */}
+      {submitError && (
+        <div className="mx-4 mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+          <span className="text-yellow-700 text-sm">{submitError}</span>
+          <button
+            onClick={() => actions.clearSubmitError()}
+            className="text-yellow-600 hover:text-yellow-800 text-sm underline"
+            aria-label="关闭提示"
+          >
+            知道了
+          </button>
+        </div>
+      )}
 
       {/* 主内容区域 - 三栏布局：左状态 | 中学习 | 右建议 */}
       <div className="flex-1 grid grid-cols-5 gap-4 p-4 overflow-hidden">

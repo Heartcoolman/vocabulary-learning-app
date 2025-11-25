@@ -66,9 +66,13 @@ router.get(
 });
 
 // 获取用户详情
-router.get('/users/:id', async (req: AuthRequest, res: Response, next) => {
+router.get(
+    '/users/:id',
+    validateParams(idParamSchema),
+    async (req: AuthRequest, res: Response, next) => {
     try {
-        const user = await adminService.getUserById(req.params.id);
+        const { id } = req.validatedParams as { id: string };
+        const user = await adminService.getUserById(id);
 
         res.json({
             success: true,
@@ -82,12 +86,14 @@ router.get('/users/:id', async (req: AuthRequest, res: Response, next) => {
 // 获取用户学习数据详情
 router.get(
     '/users/:id/learning-data',
+    validateParams(idParamSchema),
     validateQuery(adminLearningDataSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const { limit } = req.validatedQuery as { limit: number };
 
-            const data = await adminService.getUserLearningData(req.params.id, {
+            const data = await adminService.getUserLearningData(id, {
                 limit,
             });
 
@@ -104,9 +110,11 @@ router.get(
 // 获取用户详细统计数据
 router.get(
     '/users/:id/statistics',
+    validateParams(idParamSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const data = await adminService.getUserDetailedStatistics(req.params.id);
+            const { id } = req.validatedParams as { id: string };
+            const data = await adminService.getUserDetailedStatistics(id);
 
             res.json({
                 success: true,
@@ -121,12 +129,14 @@ router.get(
 // 导出用户单词数据
 router.get(
     '/users/:id/words/export',
+    validateParams(idParamSchema),
     validateQuery(exportFormatSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const { format } = req.validatedQuery as { format: 'csv' | 'excel' };
 
-            const result = await adminService.exportUserWords(req.params.id, format);
+            const result = await adminService.exportUserWords(id, format);
 
             res.setHeader('Content-Type', result.contentType);
             res.setHeader(
@@ -143,9 +153,11 @@ router.get(
 // 获取用户单词列表
 router.get(
     '/users/:id/words',
+    validateParams(idParamSchema),
     validateQuery(adminUserWordsSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const {
                 page,
                 pageSize,
@@ -166,12 +178,15 @@ router.get(
                 sortOrder: 'asc' | 'desc';
             };
 
-            const data = await adminService.getUserWords(req.params.id, {
+            const data = await adminService.getUserWords(id, {
                 page,
                 pageSize,
                 state,
                 sortBy,
                 sortOrder,
+                scoreRange,
+                masteryLevel,
+                minAccuracy,
             });
 
             res.json({
@@ -187,15 +202,14 @@ router.get(
 // 修改用户角色
 router.put(
     '/users/:id/role',
+    validateParams(idParamSchema),
     validateBody(updateUserRoleSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const { role } = req.body as { role: 'USER' | 'ADMIN' };
 
-            const user = await adminService.updateUserRole(
-                req.params.id,
-                role
-            );
+            const user = await adminService.updateUserRole(id, role);
 
             res.json({
                 success: true,
@@ -208,18 +222,23 @@ router.put(
 );
 
 // 删除用户
-router.delete('/users/:id', async (req: AuthRequest, res: Response, next) => {
-    try {
-        await adminService.deleteUser(req.params.id);
+router.delete(
+    '/users/:id',
+    validateParams(idParamSchema),
+    async (req: AuthRequest, res: Response, next) => {
+        try {
+            const { id } = req.validatedParams as { id: string };
+            await adminService.deleteUser(id);
 
-        res.json({
-            success: true,
-            message: '用户删除成功',
-        });
-    } catch (error) {
-        next(error);
+            res.json({
+                success: true,
+                message: '用户删除成功',
+            });
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 // =============== 系统词库管理 ===============
 
@@ -253,16 +272,18 @@ router.post(
 // 更新系统词库
 router.put(
     '/wordbooks/:id',
+    validateParams(idParamSchema),
     validateBody(updateSystemWordBookSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const { name, description, coverImage } = req.body as {
                 name?: string;
                 description?: string;
                 coverImage?: string;
             };
 
-            const wordBook = await adminService.updateSystemWordBook(req.params.id, {
+            const wordBook = await adminService.updateSystemWordBook(id, {
                 name,
                 description,
                 coverImage,
@@ -281,9 +302,11 @@ router.put(
 // 删除系统词库
 router.delete(
     '/wordbooks/:id',
+    validateParams(idParamSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            await adminService.deleteSystemWordBook(req.params.id);
+            const { id } = req.validatedParams as { id: string };
+            await adminService.deleteSystemWordBook(id);
 
             res.json({
                 success: true,
@@ -298,9 +321,11 @@ router.delete(
 // 批量添加单词到系统词库
 router.post(
     '/wordbooks/:id/words/batch',
+    validateParams(idParamSchema),
     validateBody(batchAddWordsSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { id } = req.validatedParams as { id: string };
             const { words } = req.body as {
                 words: Array<{
                     spelling: string;
@@ -312,7 +337,7 @@ router.post(
             };
 
             const createdWords = await adminService.batchAddWordsToSystemWordBook(
-                req.params.id,
+                id,
                 words
             );
 
@@ -334,10 +359,11 @@ router.post(
 // 获取单词的完整学习历史
 router.get(
     '/users/:userId/words/:wordId/history',
+    validateParams(userWordParamsSchema),
     validateQuery(adminWordHistorySchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const { userId, wordId } = req.params;
+            const { userId, wordId } = req.validatedParams as { userId: string; wordId: string };
             const { limit } = req.validatedQuery as { limit: number };
 
             const data = await adminService.getWordLearningHistory(
@@ -359,9 +385,10 @@ router.get(
 // 获取单词得分历史（用于绘制曲线图）
 router.get(
     '/users/:userId/words/:wordId/score-history',
+    validateParams(userWordParamsSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const { userId, wordId } = req.params;
+            const { userId, wordId } = req.validatedParams as { userId: string; wordId: string };
 
             const data = await adminService.getWordScoreHistory(userId, wordId);
 
@@ -378,10 +405,11 @@ router.get(
 // 获取用户学习热力图数据
 router.get(
     '/users/:userId/heatmap',
+    validateParams(userIdParamSchema),
     validateQuery(adminHeatmapSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const { userId } = req.params;
+            const { userId } = req.validatedParams as { userId: string };
             const { days } = req.validatedQuery as { days: number };
 
             const data = await adminService.getUserLearningHeatmap(userId, { days });
@@ -399,10 +427,11 @@ router.get(
 // 标记异常单词或学习记录
 router.post(
     '/users/:userId/words/:wordId/flag',
+    validateParams(userWordParamsSchema),
     validateBody(flagAnomalySchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const { userId, wordId } = req.params;
+            const { userId, wordId } = req.validatedParams as { userId: string; wordId: string };
             const { recordId, reason, notes } = req.body as {
                 recordId?: string;
                 reason: string;
@@ -429,9 +458,10 @@ router.post(
 // 获取异常标记列表
 router.get(
     '/users/:userId/words/:wordId/flags',
+    validateParams(userWordParamsSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
-            const { userId, wordId } = req.params;
+            const { userId, wordId } = req.validatedParams as { userId: string; wordId: string };
 
             const data = await adminService.getAnomalyFlags(userId, wordId);
 

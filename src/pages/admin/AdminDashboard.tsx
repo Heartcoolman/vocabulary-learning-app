@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../../services/ApiClient';
+import apiClient, { AdminStatistics } from '../../services/ApiClient';
 import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar } from '../../components/Icon';
 
+/** 颜色类名映射 */
+type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
+
 export default function AdminDashboard() {
-    const [stats, setStats] = useState<any>(null);
+    const [stats, setStats] = useState<AdminStatistics | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +44,12 @@ export default function AdminDashboard() {
         );
     }
 
-    const statCards = [
+    const statCards: Array<{
+        label: string;
+        value: number;
+        icon: typeof UsersThree;
+        color: ColorKey;
+    }> = [
         {
             label: '总用户数',
             value: stats.totalUsers,
@@ -86,8 +94,8 @@ export default function AdminDashboard() {
         },
     ];
 
-    const getColorClasses = (color: string) => {
-        const colors: any = {
+    const getColorClasses = (color: ColorKey): string => {
+        const colors: Record<ColorKey, string> = {
             blue: 'bg-blue-50 text-blue-600',
             green: 'bg-green-50 text-green-600',
             purple: 'bg-purple-50 text-purple-600',
@@ -96,7 +104,7 @@ export default function AdminDashboard() {
             yellow: 'bg-yellow-50 text-yellow-600',
             red: 'bg-red-50 text-red-600',
         };
-        return colors[color] || 'bg-gray-50 text-gray-600';
+        return colors[color];
     };
 
     return (

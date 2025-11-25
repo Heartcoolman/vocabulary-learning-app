@@ -38,14 +38,188 @@ function sigmoid(x: number): number {
 // ==================== 特征构建器 ====================
 
 /**
+ * 用户窗口状态
+ */
+interface UserWindowState {
+  rtWindow: number[];
+  paceWindow: number[];
+  lastAccessTime: number; // 最后访问时间戳
+}
+
+/**
  * 特征构建器
  * 负责将原始事件转换为标准化特征向量
+ *
+ * 修复问题#14: 移除全局currentUserId，改为参数传递userId，避免竞态条件
+ *
+ * 注意: 按用户维护独立的窗口统计，避免跨用户污染
  */
+/**
+ * 内存清理配置
+ */
+interface MemoryCleanupConfig {
+  maxUsers: number;           // 最大用户数
+  ttlMs: number;              // 用户窗口过期时间（毫秒）
+  cleanupIntervalMs: number;  // 清理间隔（毫秒）
+}
+
+const DEFAULT_CLEANUP_CONFIG: MemoryCleanupConfig = {
+  maxUsers: 10000,              // 最多保留10000个用户的窗口
+  ttlMs: 30 * 60 * 1000,        // 30分钟无访问则过期
+  cleanupIntervalMs: 5 * 60 * 1000  // 每5分钟清理一次
+};
+
 export class FeatureBuilder {
   private readonly config: PerceptionConfig;
+  protected readonly windowSize: number;
+  private readonly cleanupConfig: MemoryCleanupConfig;
 
-  constructor(config: PerceptionConfig = DEFAULT_PERCEPTION_CONFIG) {
+  // 按用户维护窗口统计器 (避免跨用户 CV 污染)
+  private userWindows: Map<string, UserWindowState> = new Map();
+
+  // 清理定时器
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  constructor(
+    config: PerceptionConfig = DEFAULT_PERCEPTION_CONFIG,
+    windowSize: number = 10,
+    cleanupConfig: MemoryCleanupConfig = DEFAULT_CLEANUP_CONFIG
+  ) {
     this.config = config;
+    this.windowSize = windowSize;
+    this.cleanupConfig = cleanupConfig;
+
+    // 启动定期清理
+    this.startCleanupTimer();
+  }
+
+  /**
+   * 启动定期清理定时器
+   */
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      return;
+    }
+
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupExpiredWindows();
+    }, this.cleanupConfig.cleanupIntervalMs);
+
+    // 防止定时器阻止进程退出
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  /**
+   * 停止清理定时器
+   */
+  stopCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
+
+  /**
+   * 清理过期的用户窗口
+   * 修复问题#8: 防止内存无限增长
+   */
+  private cleanupExpiredWindows(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+
+    // 找出过期的用户
+    for (const [userId, state] of this.userWindows) {
+      if (now - state.lastAccessTime > this.cleanupConfig.ttlMs) {
+        expiredKeys.push(userId);
+      }
+    }
+
+    // 删除过期用户
+    for (const key of expiredKeys) {
+      this.userWindows.delete(key);
+    }
+
+    // 如果仍然超过最大用户数，按LRU策略淘汰
+    if (this.userWindows.size > this.cleanupConfig.maxUsers) {
+      const entries = Array.from(this.userWindows.entries());
+      entries.sort((a, b) => a[1].lastAccessTime - b[1].lastAccessTime);
+
+      const toRemove = entries.slice(0, entries.length - this.cleanupConfig.maxUsers);
+      for (const [key] of toRemove) {
+        this.userWindows.delete(key);
+      }
+    }
+
+    if (expiredKeys.length > 0) {
+      console.log(`[FeatureBuilder] 清理了 ${expiredKeys.length} 个过期用户窗口，当前用户数: ${this.userWindows.size}`);
+    }
+  }
+
+  /**
+   * 获取当前用户窗口数量（用于监控）
+   */
+  getUserWindowCount(): number {
+    return this.userWindows.size;
+  }
+
+  /**
+   * 获取用户窗口状态
+   *
+   * 修复问题#14: userId为必选参数，避免使用全局状态
+   * 修复问题#8: 更新lastAccessTime用于过期清理
+   *
+   * @param userId 用户ID（必选）
+   */
+  private getUserWindows(userId: string): UserWindowState {
+    const now = Date.now();
+    let state = this.userWindows.get(userId);
+    if (!state) {
+      state = { rtWindow: [], paceWindow: [], lastAccessTime: now };
+      this.userWindows.set(userId, state);
+    } else {
+      // 更新最后访问时间
+      state.lastAccessTime = now;
+    }
+    return state;
+  }
+
+  /**
+   * 计算窗口变异系数 (CV = std / mean)
+   */
+  private computeWindowCV(window: number[]): number {
+    if (window.length < 2) return 0;
+    const mean = window.reduce((a, b) => a + b, 0) / window.length;
+    if (Math.abs(mean) < 1e-6) return 0;
+    const variance = window.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / window.length;
+    return Math.sqrt(variance) / Math.abs(mean);
+  }
+
+  /**
+   * 更新滑动窗口
+   */
+  private updateWindow(window: number[], value: number): void {
+    window.push(value);
+    if (window.length > this.windowSize) {
+      window.shift();
+    }
+  }
+
+  /**
+   * 重置指定用户的窗口统计
+   *
+   * @param userId 用户ID（必选）
+   */
+  resetWindows(userId: string): void {
+    this.userWindows.delete(userId);
+  }
+
+  /**
+   * 清空所有用户的窗口统计
+   */
+  resetAllWindows(): void {
+    this.userWindows.clear();
   }
 
   /**
@@ -98,15 +272,28 @@ export class FeatureBuilder {
 
   /**
    * 构建特征向量
+   *
+   * 修复问题#14: userId作为必选参数传入，避免全局状态竞态
+   *
    * 输出维度: 10 (MVP版本)
+   *
+   * @param raw 原始事件
+   * @param userId 用户ID（必选）
    */
-  buildFeatureVector(raw: RawEvent): FeatureVector {
+  buildFeatureVector(raw: RawEvent, userId: string): FeatureVector {
     const event = this.sanitize(raw);
+
+    // 获取指定用户的窗口状态
+    const windows = this.getUserWindows(userId);
+
+    // 更新滑动窗口
+    this.updateWindow(windows.rtWindow, event.responseTime);
+    this.updateWindow(windows.paceWindow, event.dwellTime);
 
     // 标准化特征
     const z_rt_mean = safeZScore(event.responseTime, this.config.rt);
-    const z_rt_cv = 0; // MVP占位: 需要窗口级统计
-    const z_pace_cv = 0; // MVP占位: 需要序列节奏统计
+    const z_rt_cv = this.computeWindowCV(windows.rtWindow); // 使用用户专属窗口CV
+    const z_pace_cv = this.computeWindowCV(windows.paceWindow); // 使用用户专属窗口CV
     const z_pause = safeZScore(event.pauseCount, this.config.pause);
     const z_switch = safeZScore(event.switchCount, this.config.switches);
     const z_drift = safeZScore(event.dwellTime, this.config.dwell);
@@ -153,15 +340,29 @@ export class FeatureBuilder {
 
   /**
    * 构建注意力特征子集
+   *
+   * 修复问题#14: userId作为必选参数传入
+   *
    * 用于注意力模型计算
+   * 注意: 此方法不更新窗口，应在 buildFeatureVector 之后调用
+   *
+   * @param raw 原始事件
+   * @param userId 用户ID（必选）
    */
-  buildAttentionFeatures(raw: RawEvent): Float32Array {
+  buildAttentionFeatures(raw: RawEvent, userId: string): Float32Array {
     const event = this.sanitize(raw);
+
+    // 获取指定用户的窗口状态
+    const windows = this.getUserWindows(userId);
+
+    // 使用当前窗口的CV值 (不更新窗口，避免重复计算)
+    const z_rt_cv = this.computeWindowCV(windows.rtWindow);
+    const z_pace_cv = this.computeWindowCV(windows.paceWindow);
 
     return new Float32Array([
       safeZScore(event.responseTime, this.config.rt),
-      0, // z_rt_cv placeholder
-      0, // z_pace_cv placeholder
+      z_rt_cv,
+      z_pace_cv,
       safeZScore(event.pauseCount, this.config.pause),
       safeZScore(event.switchCount, this.config.switches),
       safeZScore(event.dwellTime, this.config.dwell),
@@ -272,34 +473,149 @@ export class WindowStatistics {
 // ==================== 增强特征构建器 ====================
 
 /**
+ * 增强用户窗口状态
+ */
+interface EnhancedUserWindowState {
+  rtWindow: WindowStatistics;
+  paceWindow: WindowStatistics;
+  baseline: number;
+  lastAccessTime: number; // 最后访问时间戳
+}
+
+/**
  * 增强特征构建器
+ *
+ * 修复问题#7: 继承父类的用户隔离机制，每个用户拥有独立的窗口统计
+ * 修复问题#8: 添加内存过期清理机制
+ *
  * 支持窗口级统计特征
  */
 export class EnhancedFeatureBuilder extends FeatureBuilder {
-  private rtWindow: WindowStatistics;
-  private paceWindow: WindowStatistics;
-  private baselineRT: number = 3200;
+  private defaultBaselineRT: number = 3200;
+
+  // 修复#7: 按用户维护增强窗口统计
+  private enhancedUserWindows: Map<string, EnhancedUserWindowState> = new Map();
+
+  // 增强窗口的清理配置
+  private readonly enhancedTtlMs: number = 30 * 60 * 1000; // 30分钟过期
+  private readonly enhancedMaxUsers: number = 10000;
+  private enhancedCleanupTimer: NodeJS.Timeout | null = null;
 
   constructor(config?: PerceptionConfig, windowSize: number = 10) {
-    super(config);
-    this.rtWindow = new WindowStatistics(windowSize);
-    this.paceWindow = new WindowStatistics(windowSize);
+    super(config, windowSize);
+    this.startEnhancedCleanupTimer();
+  }
+
+  /**
+   * 启动增强窗口清理定时器
+   */
+  private startEnhancedCleanupTimer(): void {
+    if (this.enhancedCleanupTimer) {
+      return;
+    }
+
+    this.enhancedCleanupTimer = setInterval(() => {
+      this.cleanupExpiredEnhancedWindows();
+    }, 5 * 60 * 1000); // 每5分钟清理一次
+
+    if (this.enhancedCleanupTimer.unref) {
+      this.enhancedCleanupTimer.unref();
+    }
+  }
+
+  /**
+   * 停止增强窗口清理定时器
+   */
+  stopEnhancedCleanupTimer(): void {
+    if (this.enhancedCleanupTimer) {
+      clearInterval(this.enhancedCleanupTimer);
+      this.enhancedCleanupTimer = null;
+    }
+    // 同时停止父类的清理定时器
+    this.stopCleanupTimer();
+  }
+
+  /**
+   * 清理过期的增强用户窗口
+   */
+  private cleanupExpiredEnhancedWindows(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+
+    for (const [userId, state] of this.enhancedUserWindows) {
+      if (now - state.lastAccessTime > this.enhancedTtlMs) {
+        expiredKeys.push(userId);
+      }
+    }
+
+    for (const key of expiredKeys) {
+      this.enhancedUserWindows.delete(key);
+    }
+
+    // LRU淘汰
+    if (this.enhancedUserWindows.size > this.enhancedMaxUsers) {
+      const entries = Array.from(this.enhancedUserWindows.entries());
+      entries.sort((a, b) => a[1].lastAccessTime - b[1].lastAccessTime);
+      const toRemove = entries.slice(0, entries.length - this.enhancedMaxUsers);
+      for (const [key] of toRemove) {
+        this.enhancedUserWindows.delete(key);
+      }
+    }
+  }
+
+  /**
+   * 获取增强窗口用户数量（用于监控）
+   */
+  getEnhancedUserWindowCount(): number {
+    return this.enhancedUserWindows.size;
+  }
+
+  /**
+   * 获取用户的增强窗口状态
+   *
+   * 修复问题#8: 更新lastAccessTime用于过期清理
+   *
+   * @param userId 用户ID（必选）
+   */
+  private getEnhancedWindows(userId: string): EnhancedUserWindowState {
+    const now = Date.now();
+    let state = this.enhancedUserWindows.get(userId);
+    if (!state) {
+      state = {
+        rtWindow: new WindowStatistics(this.windowSize),
+        paceWindow: new WindowStatistics(this.windowSize),
+        baseline: this.defaultBaselineRT,
+        lastAccessTime: now
+      };
+      this.enhancedUserWindows.set(userId, state);
+    } else {
+      state.lastAccessTime = now;
+    }
+    return state;
   }
 
   /**
    * 更新窗口并构建增强特征向量
+   *
+   * 修复问题#7: userId作为必选参数传入，使用用户专属窗口
+   *
+   * @param raw 原始事件
+   * @param userId 用户ID（必选）
    */
-  buildEnhancedFeatureVector(raw: RawEvent): FeatureVector {
+  buildEnhancedFeatureVector(raw: RawEvent, userId: string): FeatureVector {
     const event = this.sanitize(raw);
 
+    // 获取用户专属窗口
+    const windows = this.getEnhancedWindows(userId);
+
     // 更新窗口
-    this.rtWindow.push(event.responseTime);
-    this.paceWindow.push(event.dwellTime);
+    windows.rtWindow.push(event.responseTime);
+    windows.paceWindow.push(event.dwellTime);
 
     // 计算窗口级特征
-    const z_rt_cv = this.rtWindow.cv();
-    const z_pace_cv = this.paceWindow.cv();
-    const z_drift = (this.rtWindow.mean() - this.baselineRT) / this.baselineRT;
+    const z_rt_cv = windows.rtWindow.cv();
+    const z_pace_cv = windows.paceWindow.cv();
+    const z_drift = (windows.rtWindow.mean() - windows.baseline) / windows.baseline;
 
     // 构建特征向量
     const values = new Float32Array([
@@ -324,17 +640,42 @@ export class EnhancedFeatureBuilder extends FeatureBuilder {
 
   /**
    * 设置基线反应时间
+   *
+   * @param baseline 基线反应时间
+   * @param userId 可选的用户ID，如果提供则只设置该用户的基线
    */
-  setBaselineRT(baseline: number): void {
-    this.baselineRT = baseline;
+  setBaselineRT(baseline: number, userId?: string): void {
+    this.defaultBaselineRT = baseline;
+
+    if (userId) {
+      const windows = this.getEnhancedWindows(userId);
+      windows.baseline = baseline;
+      return;
+    }
+
+    // 更新所有用户的基线
+    this.enhancedUserWindows.forEach((state) => {
+      state.baseline = baseline;
+    });
   }
 
   /**
    * 重置窗口
+   *
+   * @param userId 可选的用户ID，如果提供则只重置该用户的窗口
    */
-  reset(): void {
-    this.rtWindow.clear();
-    this.paceWindow.clear();
+  reset(userId?: string): void {
+    if (userId) {
+      const state = this.enhancedUserWindows.get(userId);
+      if (state) {
+        state.rtWindow.clear();
+        state.paceWindow.clear();
+      }
+      return;
+    }
+
+    // 清空所有用户的窗口
+    this.enhancedUserWindows.clear();
   }
 }
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <circle cx="32" cy="32" r="30" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/>
+  <path d="M20 32h8l-4-12 12 14h-8l4 12z" fill="#3B82F6"/>
+  <text x="32" y="54" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#1E40AF">Speed</text>
+</svg>

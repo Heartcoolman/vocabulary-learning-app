@@ -172,15 +172,23 @@ export default function SyncIndicator() {
             {syncStatus.error && (
               <button
                 onClick={async () => {
+                  // 触发同步，状态会通过 onSyncStatusChange 回调自动更新
+                  // 按钮会在 isSyncing 变为 true 时显示 loading 状态
                   try {
                     await StorageService.syncToCloud();
                   } catch (err) {
                     console.error('手动同步失败:', err);
+                    // 同步失败会触发 onSyncStatusChange，显示错误图标
                   }
                 }}
-                className="w-full px-3 py-1.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+                disabled={syncStatus.isSyncing}
+                className={`w-full px-3 py-1.5 text-white text-xs rounded transition-colors ${
+                  syncStatus.isSyncing
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600'
+                }`}
               >
-                重试同步
+                {syncStatus.isSyncing ? '同步中...' : '重试同步'}
               </button>
             )}
           </div>

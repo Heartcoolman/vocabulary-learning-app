@@ -16,6 +16,7 @@ import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import { recordFeatureVectorSaved } from './metrics.service';
 import prisma from '../config/database';
 import { delayedRewardService } from './delayed-reward.service';
+import { stateHistoryService } from './state-history.service';
 
 class AMASService {
   private engine: AMASEngine;
@@ -186,6 +187,26 @@ class AMASService {
     // 记录决策日志（可选）
     await this.logDecision(userId, result);
 
+    // 保存状态快照到历史记录 (Requirements: 5.2)
+    try {
+      await stateHistoryService.saveStateSnapshot(userId, {
+        A: result.state.A,
+        F: result.state.F,
+        M: result.state.M,
+        C: {
+          // 映射 AMAS CognitiveProfile (mem) 到 StateHistory (memory)
+          memory: result.state.C.mem,
+          speed: result.state.C.speed,
+          stability: result.state.C.stability
+        },
+        T: result.state.T
+      });
+      console.log(`[AMAS] 状态快照已保存: userId=${userId}`);
+    } catch (error) {
+      // 状态快照保存失败不影响主流程
+      console.warn(`[AMAS] 状态快照保存失败: userId=${userId}`, error);
+    }
+
     // 延迟奖励入队
     // 使用rawEvent.timestamp作为事件时间戳
     const eventTs = rawEvent.timestamp;
@@ -243,9 +264,13 @@ class AMASService {
   ): Promise<void> {
     try {
       await prisma.featureVector.upsert({
-        where: { sessionId },
+        where: {
+          sessionId_featureVersion: {
+            sessionId,
+            featureVersion: featureVector.version
+          }
+        },
         update: {
-          featureVersion: featureVector.version,
           features: {
             values: featureVector.values,
             labels: featureVector.labels,
@@ -362,14 +387,14 @@ class AMASService {
     sessionId?: string
   ): Promise<void> {
     try {
-      // 校验并裁剪reward值到合理区间 [0, 1]
+      // 校验并裁剪reward值到合理区间 [-1, 1]（与实时奖励保持一致）
       if (typeof reward !== 'number' || !Number.isFinite(reward)) {
         console.warn(
           `[AMAS] 延迟奖励: 无效的reward值 ${reward}, userId=${userId}, sessionId=${sessionId}`
         );
         return;
       }
-      const clampedReward = Math.max(0, Math.min(1, reward));
+      const clampedReward = Math.max(-1, Math.min(1, reward));
       if (clampedReward !== reward) {
         console.warn(
           `[AMAS] 延迟奖励: reward值被裁剪 ${reward} -> ${clampedReward}, userId=${userId}`
@@ -380,8 +405,10 @@ class AMASService {
       let featureVector: number[] | null = null;
 
       if (sessionId) {
-        const storedVector = await prisma.featureVector.findUnique({
-          where: { sessionId }
+        // 获取最新版本的特征向量
+        const storedVector = await prisma.featureVector.findFirst({
+          where: { sessionId },
+          orderBy: { featureVersion: 'desc' }
         });
 
         if (storedVector && storedVector.features) {
@@ -433,39 +460,19 @@ class AMASService {
         return;
       }
 
-      // 通过引擎访问bandit并更新模型
-      // 注意: 这需要引擎暴露bandit或提供延迟更新接口
-      // 暂时通过直接加载和保存模型来实现
-      const model = await this.engine['modelRepo'].loadModel(userId);
-      if (!model) {
+      // 使用引擎提供的公共方法应用延迟奖励
+      const result = await this.engine.applyDelayedRewardUpdate(
+        userId,
+        featureVector,
+        clampedReward
+      );
+
+      if (!result.success) {
         console.warn(
-          `[AMAS] 延迟奖励: 模型不存在，跳过更新 userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: 模型更新失败 error=${result.error}, userId=${userId}, sessionId=${sessionId}`
         );
         return;
       }
-
-      // 校验特征向量维度与模型一致
-      if (featureVector.length !== model.d) {
-        console.warn(
-          `[AMAS] 延迟奖励: 特征向量维度不匹配 expected=${model.d}, got=${featureVector.length}, userId=${userId}, sessionId=${sessionId}`
-        );
-        return;
-      }
-
-      // 创建临时LinUCB实例来更新模型
-      const { LinUCB } = await import('../amas/learning/linucb');
-      const tempBandit = new LinUCB({
-        alpha: model.alpha,
-        lambda: model.lambda,
-        dimension: model.d
-      });
-      tempBandit.setModel(model);
-
-      // 使用特征向量更新模型
-      tempBandit.updateWithFeatureVector(featureVector, clampedReward);
-
-      // 保存更新后的模型
-      await this.engine['modelRepo'].saveModel(userId, tempBandit.getModel());
 
       console.log(
         `[AMAS] 延迟奖励已应用: userId=${userId}, reward=${clampedReward.toFixed(3)}, sessionId=${sessionId}`

@@ -127,6 +127,8 @@ export class LinUCB {
 
   /**
    * 选择最优动作
+   *
+   * 修复问题#13: 添加空数组检查，防止崩溃
    */
   selectAction(
     state: UserState,
@@ -137,6 +139,11 @@ export class LinUCB {
       timeBucket: number;
     }
   ): Action {
+    // 修复#13: 空数组检查
+    if (!actions || actions.length === 0) {
+      throw new Error('[LinUCB] actions array must not be empty');
+    }
+
     let bestAction: Action | null = null;
     let bestScore = -Number.MAX_VALUE;
 
@@ -200,6 +207,8 @@ export class LinUCB {
 
   /**
    * 使用预构建的特征向量更新模型 (用于延迟奖励)
+   * 修复问题#7: 添加数值稳定性检查，防止A矩阵变得奇异
+   *
    * @param featureVector 特征向量 (d维Float32Array或数组)
    * @param reward 奖励值
    */
@@ -211,13 +220,27 @@ export class LinUCB {
       ? featureVector
       : new Float32Array(featureVector);
 
-    const { d, A, b } = this.model;
+    const { d, A, b, lambda } = this.model;
 
     // 验证维度匹配
     if (x.length !== d) {
       throw new Error(
         `[LinUCB] 特征向量维度不匹配: expected d=${d}, got ${x.length}`
       );
+    }
+
+    // 验证特征向量的数值有效性
+    for (let i = 0; i < d; i++) {
+      if (!Number.isFinite(x[i])) {
+        console.warn('[LinUCB] 特征向量包含无效值，跳过更新');
+        return;
+      }
+    }
+
+    // 验证奖励值的有效性
+    if (!Number.isFinite(reward)) {
+      console.warn('[LinUCB] 奖励值无效，跳过更新');
+      return;
     }
 
     // A += x x^T
@@ -234,6 +257,27 @@ export class LinUCB {
     }
 
     this.model.updateCount++;
+
+    // 检查A矩阵的对角线元素，防止数值不稳定
+    // 如果对角线元素过小，增加正则化
+    let needsRegularization = false;
+    for (let i = 0; i < d; i++) {
+      const diag = A[i * d + i];
+      if (!Number.isFinite(diag) || diag < lambda * 0.1) {
+        needsRegularization = true;
+        break;
+      }
+    }
+
+    if (needsRegularization) {
+      console.warn('[LinUCB] 检测到A矩阵不稳定，应用正则化修复');
+      for (let i = 0; i < d; i++) {
+        // 确保对角线元素至少为lambda
+        if (A[i * d + i] < lambda) {
+          A[i * d + i] = lambda;
+        }
+      }
+    }
 
     // 每次更新后重新Cholesky分解（确保L与A同步）
     this.model.L = this.choleskyDecompose(A, d);
@@ -375,7 +419,14 @@ export class LinUCB {
       normSq += y[i] * y[i];
     }
 
-    return Math.sqrt(normSq);
+    const result = Math.sqrt(normSq);
+
+    // 校验数值有效性，防止 NaN/Infinity 传播
+    if (!Number.isFinite(result)) {
+      return 0;
+    }
+
+    return result;
   }
 
   /**
@@ -403,27 +454,64 @@ export class LinUCB {
       x[i] = sum / Math.max(L[i * d + i], 1e-10);
     }
 
+    // 校验数值有效性，防止 NaN/Infinity 传播
+    for (let i = 0; i < d; i++) {
+      if (!Number.isFinite(x[i])) {
+        // 返回零向量作为安全回退
+        return new Float32Array(d);
+      }
+    }
+
     return x;
   }
 
   /**
    * Cholesky分解: A = L L^T
+   *
+   * 修复问题#4: 不再原地修改输入矩阵A，而是先复制再处理
+   *
+   * 增强版：添加对称化处理和 SPD 失败回退
    */
   private choleskyDecompose(A: Float32Array, d: number): Float32Array {
+    // 修复#4: 复制矩阵，避免原地修改输入
+    const matrix = new Float32Array(A);
+
+    // 对称化处理：确保 matrix 是对称矩阵
+    for (let i = 0; i < d; i++) {
+      for (let j = i + 1; j < d; j++) {
+        const avg = (matrix[i * d + j] + matrix[j * d + i]) / 2;
+        matrix[i * d + j] = avg;
+        matrix[j * d + i] = avg;
+      }
+    }
+
     const L = new Float32Array(d * d);
 
     for (let i = 0; i < d; i++) {
       for (let j = 0; j <= i; j++) {
-        let sum = A[i * d + j];
+        let sum = matrix[i * d + j];
         for (let k = 0; k < j; k++) {
           sum -= L[i * d + k] * L[j * d + k];
         }
 
         if (i === j) {
+          // 对角元素为负或非有限数时，使用正则化修复
+          if (sum <= 1e-9 || !Number.isFinite(sum)) {
+            sum = this.model.lambda + 1e-6;
+          }
           L[i * d + j] = Math.sqrt(Math.max(sum, 1e-9));
         } else {
           L[i * d + j] = sum / Math.max(L[j * d + j], 1e-10);
         }
+      }
+    }
+
+    // 校验结果有效性
+    for (let i = 0; i < L.length; i++) {
+      if (!Number.isFinite(L[i])) {
+        // 分解失败，返回正则化单位矩阵
+        console.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
+        return this.initIdentityMatrix(d, this.model.lambda);
       }
     }
 
@@ -487,6 +575,9 @@ export class LinUCB {
       A: newA,
       b: newB,
       L: newL,
+      // 保留原始 updateCount，旧特征的学习进度仍然有价值
+      // 新特征维度会通过后续更新自然学习
+      // 仅在降维时重置为 0（见上方分支）
       updateCount: model.updateCount
     };
   }

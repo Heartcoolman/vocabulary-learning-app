@@ -4,9 +4,10 @@
 
 ## 特性
 
+### 基础功能
 - 🔐 **用户认证** - 注册、登录、JWT令牌认证
 - ☁️ **云端同步** - 多设备数据同步，自动备份
-- 📚 **词库管理** - 添加、编辑、删除单词
+- 📚 **词库管理** - 添加、编辑、删除单词，支持多词书
 - 🎯 **学习测试** - 选择题测试，实时反馈
 - 📊 **学习统计** - 学习进度追踪，正确率统计
 - 🔊 **发音功能** - 单词发音播放
@@ -14,28 +15,56 @@
 - ♿ **可访问性** - 键盘导航、屏幕阅读器支持
 - 🔄 **离线支持** - 本地优先，后台同步
 
+### AMAS 智能学习算法（新增）
+- 🧠 **自适应学习** - 基于多维度用户状态感知的智能学习算法（AMAS）
+- ⏰ **学习时机推荐** - 分析24小时学习效率分布，智能推荐黄金学习时间
+- 📈 **趋势分析** - 正确率、响应时间、动机趋势追踪，提供干预建议
+- 🏆 **徽章系统** - 四类成就徽章（连续学习、正确率、认知提升、里程碑）
+- 📅 **智能学习计划** - 每日目标、周里程碑、词书分配、自动调整
+- 📉 **状态历史追踪** - 注意力、疲劳度、动机、认知能力历史记录
+- 🎁 **延迟奖励系统** - 基于间隔重复的异步奖励补记
+
+### 管理员功能（新增）
+- 👮 **管理后台** - 管理员专属后台入口
+- ⚙️ **算法配置** - 智能学习算法参数调整
+
 ## 项目结构
 
 ```
 vocabulary-learning-app/
 ├── backend/                    # 后端服务
 │   ├── src/
+│   │   ├── amas/              # AMAS智能学习算法核心
 │   │   ├── config/            # 配置文件
 │   │   ├── middleware/        # 中间件（认证、错误处理）
 │   │   ├── routes/            # API路由
+│   │   │   ├── badge.routes.ts        # 徽章API
+│   │   │   ├── plan.routes.ts         # 学习计划API
+│   │   │   ├── state-history.routes.ts # 状态历史API
+│   │   │   ├── time-recommend.routes.ts # 时间推荐API
+│   │   │   └── trend-analysis.routes.ts # 趋势分析API
 │   │   ├── services/          # 业务逻辑
+│   │   │   ├── amas.service.ts        # AMAS核心服务
+│   │   │   ├── badge.service.ts       # 徽章服务
+│   │   │   ├── plan-generator.service.ts # 计划生成服务
+│   │   │   ├── state-history.service.ts  # 状态历史服务
+│   │   │   ├── time-recommend.service.ts # 时间推荐服务
+│   │   │   └── trend-analysis.service.ts # 趋势分析服务
 │   │   ├── types/             # TypeScript类型
 │   │   └── validators/        # 输入验证
 │   ├── prisma/                # 数据库模型和迁移
+│   │   └── seeds/             # 数据库种子数据
 │   └── package.json
 ├── src/                       # 前端应用
 │   ├── components/            # React组件
 │   │   ├── WordCard.tsx       # 单词卡片
 │   │   ├── TestOptions.tsx    # 测试选项
 │   │   ├── ProgressBar.tsx    # 进度条
-│   │   ├── Navigation.tsx     # 导航栏
+│   │   ├── Navigation.tsx     # 导航栏（含学习洞察下拉菜单）
 │   │   ├── SyncIndicator.tsx  # 同步状态指示器
-│   │   └── MigrationPrompt.tsx # 数据迁移提示
+│   │   ├── MigrationPrompt.tsx # 数据迁移提示
+│   │   ├── BadgeCelebration.tsx # 徽章获得庆祝动画
+│   │   └── Icon.tsx           # 图标组件库
 │   ├── contexts/              # React Context
 │   │   └── AuthContext.tsx    # 认证上下文
 │   ├── pages/                 # 页面组件
@@ -44,13 +73,18 @@ vocabulary-learning-app/
 │   │   ├── HistoryPage.tsx    # 学习历史
 │   │   ├── LoginPage.tsx      # 登录页面
 │   │   ├── RegisterPage.tsx   # 注册页面
-│   │   └── ProfilePage.tsx    # 个人资料
+│   │   ├── ProfilePage.tsx    # 个人资料
+│   │   ├── LearningTimePage.tsx   # 学习时机分析页面（新增）
+│   │   ├── TrendReportPage.tsx    # 趋势分析报告页面（新增）
+│   │   ├── AchievementPage.tsx    # 成就与徽章页面（新增）
+│   │   └── PlanPage.tsx           # 智能学习计划页面（新增）
 │   ├── services/              # 服务层
-│   │   ├── ApiClient.ts       # API客户端
+│   │   ├── ApiClient.ts       # API客户端（含AMAS相关接口）
 │   │   ├── StorageService.ts  # 存储服务（支持云端同步）
 │   │   ├── AudioService.ts    # 音频服务
 │   │   └── LearningService.ts # 学习逻辑
 │   ├── types/                 # TypeScript类型
+│   │   └── amas-enhanced.ts   # AMAS增强功能类型定义（新增）
 │   └── utils/                 # 工具函数
 ├── scripts/                   # 部署脚本
 │   ├── deploy-backend.sh      # 后端部署
@@ -103,6 +137,49 @@ vocabulary-learning-app/
 - 单词级别统计
 - 学习历史查看
 
+### AMAS 智能学习系统（新增）
+
+AMAS（Adaptive Multi-dimensional Awareness System）是一个自适应多维度用户感知智能学习算法系统。
+
+#### 核心状态追踪
+- **注意力 (Attention)** - 实时监测用户注意力水平
+- **疲劳度 (Fatigue)** - 追踪用户疲劳状态，适时建议休息
+- **动机 (Motivation)** - 感知学习动机变化，提供激励干预
+- **认知能力 (Cognitive)** - 评估记忆力、速度、稳定性
+
+#### 学习时机推荐
+- 24小时学习效率分布分析
+- 智能推荐前3个最佳学习时段
+- 黄金学习时间实时检测
+- 置信度评估（需积累足够学习数据）
+
+#### 趋势分析报告
+- 正确率趋势追踪
+- 响应时间趋势追踪
+- 动机变化趋势追踪
+- 智能干预建议（警告/建议/鼓励）
+
+#### 徽章成就系统
+- **连续学习徽章 (STREAK)** - 奖励持续学习习惯
+- **正确率徽章 (ACCURACY)** - 奖励高正确率表现
+- **认知提升徽章 (COGNITIVE)** - 奖励认知能力进步
+- **里程碑徽章 (MILESTONE)** - 奖励学习数量成就
+- 徽章获得庆祝动画
+- 进度追踪和预览
+
+#### 智能学习计划
+- 个性化每日学习目标
+- 周里程碑设置
+- 词书智能分配（饼图可视化）
+- 预计完成日期计算
+- 计划进度追踪（按计划/需加油）
+- 自动调整计划功能
+
+#### 状态历史追踪
+- 7/30/90天历史数据查看
+- 认知能力成长对比
+- 显著变化检测和提醒
+
 ## 技术栈
 
 ### 前端
@@ -126,6 +203,7 @@ vocabulary-learning-app/
 - **密码加密**: bcrypt
 - **验证**: Zod
 - **安全**: helmet, cors, express-rate-limit
+- **智能学习**: AMAS 自适应算法、LinUCB 强化学习
 
 ### 部署
 
@@ -231,17 +309,37 @@ chmod +x scripts/deploy-frontend.sh
 
 主要端点：
 
+#### 认证相关
 - `POST /api/auth/register` - 用户注册
 - `POST /api/auth/login` - 用户登录
 - `POST /api/auth/logout` - 用户退出
 - `GET /api/users/me` - 获取当前用户信息
+
+#### 词汇管理
 - `GET /api/words` - 获取单词列表
 - `POST /api/words` - 添加单词
 - `PUT /api/words/:id` - 更新单词
 - `DELETE /api/words/:id` - 删除单词
+
+#### 学习记录
 - `GET /api/records` - 获取学习记录
 - `POST /api/records` - 保存学习记录
 - `GET /api/statistics` - 获取学习统计
+
+#### AMAS 智能学习（新增）
+- `GET /api/time-recommend/preferences` - 获取时间偏好分析
+- `GET /api/time-recommend/golden-time` - 获取当前黄金学习时间
+- `GET /api/trend-analysis/report` - 获取趋势分析报告
+- `GET /api/trend-analysis/intervention` - 获取干预建议
+- `GET /api/badges` - 获取用户徽章列表
+- `POST /api/badges/check` - 检查并授予新徽章
+- `GET /api/badges/:id/progress` - 获取徽章进度
+- `GET /api/plan` - 获取学习计划
+- `POST /api/plan/generate` - 生成新学习计划
+- `POST /api/plan/adjust` - 调整学习计划
+- `GET /api/plan/progress` - 获取计划进度
+- `GET /api/state-history` - 获取状态历史数据
+- `GET /api/state-history/growth` - 获取认知成长对比
 
 ## 测试
 
@@ -254,7 +352,7 @@ npm test -- --coverage     # 生成覆盖率报告
 ```
 
 测试覆盖：
-- ✅ 组件测试（WordCard, TestOptions, ProgressBar）
+- ✅ 组件测试（WordCard, TestOptions, ProgressBar, BadgeCelebration）
 - ✅ 服务测试（LearningService, ApiClient）
 - ✅ 工具函数测试（validation）
 - ✅ Context测试（AuthContext）
@@ -262,6 +360,9 @@ npm test -- --coverage     # 生成覆盖率报告
 ### 后端测试
 
 后端使用手动测试，可以使用 `backend/test-api.http` 文件配合REST Client插件进行测试。
+
+AMAS增强功能测试：
+- ✅ 属性测试（Property-based Testing）：`backend/tests/unit/amas-enhanced.property.test.ts`
 
 ## 环境变量
 
@@ -303,3 +404,35 @@ MIT License
 ## 联系方式
 
 如有问题或建议，请提交 Issue。
+
+---
+
+## 更新日志
+
+### v2.0.0 (2025-11-25)
+- 新增 AMAS 智能学习算法系统
+- 新增 学习时机推荐功能（24小时效率分布、黄金时间检测）
+- 新增 趋势分析报告功能（正确率/响应时间/动机趋势）
+- 新增 徽章成就系统（4类徽章、庆祝动画）
+- 新增 智能学习计划功能（每日目标、周里程碑、自动调整）
+- 新增 状态历史追踪功能（7/30/90天数据、认知成长对比）
+- 新增 管理员后台入口
+- 新增 小学词汇系统词书
+- 优化 导航栏，添加学习洞察下拉菜单
+
+### v1.0.0
+- 基础词汇学习功能
+- 用户认证系统
+- 云端数据同步
+- 学习统计功能
+
+---
+
+## 文档信息
+
+| 项目 | 内容 |
+|------|------|
+| **撰写人** | Claude (AI Assistant by Anthropic) |
+| **调用模型** | Claude Opus 4.5 (claude-opus-4-5-20251101) |
+| **知识库截至日期** | 2025年1月 |
+| **文档更新时间** | 2025年11月25日 |

@@ -1,14 +1,41 @@
 import { PrismaClient, UserRole, WordBookType } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { seedBadges } from './seeds/badges';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // 生产环境保护
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('❌ 生产环境禁止运行种子数据脚本！请使用专门的数据迁移工具。');
+  }
+
+  // 从环境变量获取密码
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const testUserPassword = process.env.TEST_USER_PASSWORD;
+
+  // 开发环境允许使用默认密码，但需要显式设置 ALLOW_DEFAULT_PASSWORDS=true
+  const allowDefaultPasswords = process.env.ALLOW_DEFAULT_PASSWORDS === 'true';
+
+  if (!adminPassword || !testUserPassword) {
+    if (allowDefaultPasswords) {
+      console.log('⚠️  警告：使用默认测试密码（ALLOW_DEFAULT_PASSWORDS=true）');
+    } else {
+      throw new Error(
+        '❌ 必须设置 ADMIN_PASSWORD 和 TEST_USER_PASSWORD 环境变量。\n' +
+        '   如需在开发环境使用默认密码，请设置 ALLOW_DEFAULT_PASSWORDS=true'
+      );
+    }
+  }
+
+  // 使用环境变量或默认值（仅在显式允许时）
+  const finalAdminPassword = adminPassword || 'admin123';
+  const finalTestUserPassword = testUserPassword || 'password123';
+
   console.log('🌱 开始数据库种子...');
 
   // 创建管理员用户
-  // 注意：以下账号密码仅用于开发环境测试，生产环境请修改
-  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  const adminPasswordHash = await bcrypt.hash(finalAdminPassword, 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {
@@ -24,7 +51,7 @@ async function main() {
   console.log('✅ 创建管理员用户:', admin.email);
 
   // 创建测试用户
-  const userPasswordHash = await bcrypt.hash('password123', 10);
+  const userPasswordHash = await bcrypt.hash(finalTestUserPassword, 10);
   const user = await prisma.user.upsert({
     where: { email: 'test@example.com' },
     update: {
@@ -560,12 +587,16 @@ async function main() {
   });
   console.log('✅ 创建用户学习配置');
 
+  // 种子徽章数据（传递 prisma 实例以复用连接）
+  await seedBadges(prisma);
+
   console.log('\n🎉 数据库种子完成！');
   console.log('\n📊 数据统计:');
   console.log(`- 用户数: ${await prisma.user.count()}`);
   console.log(`- 词库数: ${await prisma.wordBook.count()}`);
   console.log(`- 单词数: ${await prisma.word.count()}`);
   console.log(`- 学习配置: ${await prisma.userStudyConfig.count()}`);
+  console.log(`- 徽章定义: ${await prisma.badgeDefinition.count()}`);
 }
 
 main()

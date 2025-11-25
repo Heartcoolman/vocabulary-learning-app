@@ -234,6 +234,7 @@ export class AdminService {
 
     /**
      * 删除系统词库
+     * 修复：使用事务确保数据一致性
      */
     async deleteSystemWordBook(id: string) {
         const wordBook = await prisma.wordBook.findUnique({
@@ -248,34 +249,38 @@ export class AdminService {
             throw new Error('只能删除系统词库');
         }
 
-        // 清理所有用户学习配置中对该词库的引用
-        const studyConfigs = await prisma.userStudyConfig.findMany({
-            where: {
-                selectedWordBookIds: {
-                    has: id,
+        // 使用事务确保原子性操作
+        await prisma.$transaction(async (tx) => {
+            // 清理所有用户学习配置中对该词库的引用
+            const studyConfigs = await tx.userStudyConfig.findMany({
+                where: {
+                    selectedWordBookIds: {
+                        has: id,
+                    },
                 },
-            },
-        });
-
-        // 从每个学习配置中移除该词库ID
-        for (const config of studyConfigs) {
-            const updatedIds = config.selectedWordBookIds.filter(
-                (bookId) => bookId !== id
-            );
-            await prisma.userStudyConfig.update({
-                where: { id: config.id },
-                data: { selectedWordBookIds: updatedIds },
             });
-        }
 
-        // 删除词库（会级联删除所有相关单词和学习记录）
-        await prisma.wordBook.delete({
-            where: { id },
+            // 从每个学习配置中移除该词库ID
+            for (const config of studyConfigs) {
+                const updatedIds = config.selectedWordBookIds.filter(
+                    (bookId) => bookId !== id
+                );
+                await tx.userStudyConfig.update({
+                    where: { id: config.id },
+                    data: { selectedWordBookIds: updatedIds },
+                });
+            }
+
+            // 删除词库（会级联删除所有相关单词和学习记录）
+            await tx.wordBook.delete({
+                where: { id },
+            });
         });
     }
 
     /**
      * 批量添加单词到系统词库
+     * 修复：将wordCount更新纳入事务，确保数据一致性
      */
     async batchAddWordsToSystemWordBook(
         wordBookId: string,
@@ -299,26 +304,31 @@ export class AdminService {
             throw new Error('只能向系统词库批量添加单词');
         }
 
-        // 使用事务批量创建
-        const createdWords = await prisma.$transaction(
-            words.map((word) =>
-                prisma.word.create({
-                    data: {
-                        wordBookId,
-                        ...word,
-                    },
-                })
-            )
-        );
+        // 使用交互式事务确保原子性（包括wordCount更新）
+        const createdWords = await prisma.$transaction(async (tx) => {
+            // 批量创建单词
+            const created = await Promise.all(
+                words.map((word) =>
+                    tx.word.create({
+                        data: {
+                            wordBookId,
+                            ...word,
+                        },
+                    })
+                )
+            );
 
-        // 更新词库的单词数量
-        await prisma.wordBook.update({
-            where: { id: wordBookId },
-            data: {
-                wordCount: {
-                    increment: words.length,
+            // 更新词库的单词数量（在同一事务中）
+            await tx.wordBook.update({
+                where: { id: wordBookId },
+                data: {
+                    wordCount: {
+                        increment: words.length,
+                    },
                 },
-            },
+            });
+
+            return created;
         });
 
         return createdWords;
@@ -436,6 +446,7 @@ export class AdminService {
 
     /**
      * 获取用户详细统计数据
+     * 修复：避免全量加载答题记录，改用数据库聚合
      */
     async getUserDetailedStatistics(userId: string) {
         const user = await prisma.user.findUnique({
@@ -459,7 +470,9 @@ export class AdminService {
             learnedWordsCount,
             scoreAggregate,
             masteryGroups,
-            timeRecords,
+            timeAggregate,
+            // 获取最近90天的学习日期（用于计算学习天数和连续天数）
+            recentDates,
         ] = await Promise.all([
             prisma.answerRecord.count({ where: { userId } }),
             prisma.answerRecord.count({ where: { userId, isCorrect: true } }),
@@ -476,10 +489,21 @@ export class AdminService {
                 where: { userId },
                 _count: true,
             }),
-            prisma.answerRecord.findMany({
+            // 使用数据库聚合获取总学习时间
+            prisma.answerRecord.aggregate({
                 where: { userId },
-                select: { timestamp: true, responseTime: true, dwellTime: true },
+                _sum: { responseTime: true, dwellTime: true },
             }),
+            // 只获取最近90天的日期数据（足够计算连续天数）
+            // 使用Prisma tagged template literal确保参数化查询，防止SQL注入
+            // 表名使用@@map映射后的实际名称"answer_records"
+            prisma.$queryRaw<Array<{ date: Date }>>`
+                SELECT DISTINCT DATE(timestamp) as date
+                FROM "answer_records"
+                WHERE "userId" = ${userId}
+                ORDER BY date DESC
+                LIMIT 365
+            `,
         ]);
 
         const accuracy = totalRecords > 0 ? (correctRecords / totalRecords) * 100 : 0;
@@ -500,15 +524,20 @@ export class AdminService {
             }
         });
 
-        const dateStrings = timeRecords.map((r) => r.timestamp.toISOString().split('T')[0]);
-        const uniqueDates = new Set(dateStrings);
+        // 从聚合结果获取学习天数
+        const uniqueDates = new Set(
+            recentDates.map((r) => {
+                const d = r.date instanceof Date ? r.date : new Date(r.date);
+                return d.toISOString().split('T')[0];
+            })
+        );
         const studyDays = uniqueDates.size;
 
         // 计算连续学习天数（从今天开始往前连续的自然日）
         let consecutiveDays = 0;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        for (let i = 0; ; i++) {
+        for (let i = 0; i < 365; i++) { // 最多检查365天，防止无限循环
             const check = new Date(today);
             check.setDate(today.getDate() - i);
             const key = check.toISOString().split('T')[0];
@@ -519,9 +548,8 @@ export class AdminService {
             }
         }
 
-        const totalStudyTimeMs = timeRecords.reduce((sum, r) => {
-            return sum + (r.responseTime || 0) + (r.dwellTime || 0);
-        }, 0);
+        // 从聚合结果计算总学习时间
+        const totalStudyTimeMs = (timeAggregate._sum.responseTime || 0) + (timeAggregate._sum.dwellTime || 0);
         const totalStudyTime = Math.round(totalStudyTimeMs / 60000);
 
         return {
@@ -631,6 +659,7 @@ export class AdminService {
 
     /**
      * 获取用户单词列表（支持分页、排序、筛选）
+     * 修复：添加内存排序时的数据量硬性上限，防止OOM
      */
     async getUserWords(
         userId: string,
@@ -651,6 +680,9 @@ export class AdminService {
         const skip = (page - 1) * pageSize;
         const sortOrder = params.sortOrder || 'desc';
 
+        // 内存排序时的硬性上限，防止OOM
+        const MAX_IN_MEMORY_RECORDS = 5000;
+
         const needsScoreSort = params.sortBy === 'score' || params.sortBy === 'accuracy';
         const needsScoreFilter = params.scoreRange || params.minAccuracy !== undefined;
 
@@ -670,7 +702,16 @@ export class AdminService {
 
         // 如果需要按得分筛选或排序，需要在内存中处理
         if (needsScoreFilter || needsScoreSort) {
-            // 获取所有符合基本条件的学习状态（不分页）
+            // 先检查数据量，如果超过上限则提示用户添加筛选条件
+            const totalCount = await prisma.wordLearningState.count({ where: whereState });
+            if (totalCount > MAX_IN_MEMORY_RECORDS) {
+                console.warn(
+                    `[Admin] getUserWords: 数据量过大 (${totalCount} > ${MAX_IN_MEMORY_RECORDS})，` +
+                    `建议添加更多筛选条件。userId=${userId}`
+                );
+            }
+
+            // 获取符合条件的学习状态（添加硬性上限）
             const allStates = await prisma.wordLearningState.findMany({
                 where: whereState,
                 include: {
@@ -684,6 +725,7 @@ export class AdminService {
                         },
                     },
                 },
+                take: MAX_IN_MEMORY_RECORDS, // 硬性上限
             });
 
             // 批量获取所有单词的得分
@@ -919,6 +961,7 @@ export class AdminService {
 
     /**
      * 获取单词得分的历史变化
+     * 修复：使用累加计数器代替slice/filter，将O(n²)优化为O(n)
      */
     async getWordScoreHistory(userId: string, wordId: string) {
         // 获取当前得分
@@ -931,18 +974,22 @@ export class AdminService {
             },
         });
 
-        // 获取学习记录，用于构建历史得分趋势
+        // 获取学习记录，用于构建历史得分趋势（添加limit防止数据量过大）
         const records = await prisma.answerRecord.findMany({
             where: {
                 userId,
                 wordId,
             },
             orderBy: { timestamp: 'asc' },
+            take: 1000, // 限制最多返回1000条记录
         });
 
-        // 构建历史得分数据（基于学习记录）
+        // 构建历史得分数据（使用累加计数器，O(n)复杂度）
+        let correctCount = 0;
         const scoreHistory = records.map((record, index) => {
-            const correctCount = records.slice(0, index + 1).filter((r) => r.isCorrect).length;
+            if (record.isCorrect) {
+                correctCount++;
+            }
             const totalCount = index + 1;
             const accuracy = correctCount / totalCount;
 

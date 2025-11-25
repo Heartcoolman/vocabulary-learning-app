@@ -911,7 +911,20 @@ function computeReward(
 
 #### 延迟奖励处理
 
+> **实现状态说明**
+>
+> 以下为原始设计方案，基于实际回忆率（recall_1d, recall_7d）计算延迟奖励。
+>
+> **当前实现**采用了简化的队列机制：
+> - 即时奖励计算后入队到 `RewardQueue` 表
+> - `dueTs`（到期时间）基于 `WordLearningState.nextReviewDate` 或 `currentInterval` 计算
+> - 到期后通过存储的 `FeatureVector` 将奖励应用到 LinUCB 模型
+> - 相关代码：`backend/src/services/delayed-reward.service.ts`、`backend/src/services/amas.service.ts`
+>
+> 这种实现简化了系统复杂度，同时保留了延迟反馈更新模型的核心机制。
+
 ```typescript
+// 原始设计接口（供参考）
 interface DelayedReward {
     episodeId: string;
     recall_1d: number;     // 次日回忆率 [0,1]

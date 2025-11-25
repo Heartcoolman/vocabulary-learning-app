@@ -15,6 +15,8 @@ export interface CircuitBreakerOptions {
   failureThreshold: number;
   /** 滑动窗口大小(样本数) */
   windowSize: number;
+  /** 滑动窗口时间范围(毫秒), 超过此时间的样本将被淘汰 */
+  windowDurationMs?: number;
   /** OPEN状态持续时长(毫秒), 之后进入HALF_OPEN */
   openDurationMs: number;
   /** HALF_OPEN状态下允许的探测请求数 */
@@ -144,6 +146,11 @@ export class CircuitBreaker {
     const from = this.state;
     this.state = to;
 
+    // 修复: 转换到CLOSED状态时清空历史失败样本，避免抖动
+    if (to === 'CLOSED') {
+      this.samples = [];
+    }
+
     // 触发状态变更回调
     this.opts.onStateChange?.(from, to);
 
@@ -159,10 +166,18 @@ export class CircuitBreaker {
    */
   private pushSample(sample: { at: number; ok: boolean }): void {
     this.samples.push(sample);
-    // 保持窗口大小
+
+    // 基于数量的窗口裁剪
     if (this.samples.length > this.opts.windowSize) {
       this.samples.shift();
     }
+
+    // 基于时间的窗口裁剪 (淘汰过期样本)
+    if (this.opts.windowDurationMs) {
+      const cutoffTime = sample.at - this.opts.windowDurationMs;
+      this.samples = this.samples.filter(s => s.at >= cutoffTime);
+    }
+
     // 触发事件回调
     this.emit(sample.ok ? 'success' : 'failure');
   }
@@ -201,6 +216,7 @@ export function createDefaultCircuitBreaker(
   return new CircuitBreaker({
     failureThreshold: 0.5, // 50%失败率触发熔断
     windowSize: 20, // 20个样本的滑动窗口
+    windowDurationMs: 60000, // 60秒时间窗口，过期样本自动淘汰
     openDurationMs: 5000, // 5秒后尝试半开
     halfOpenProbe: 2, // 半开状态允许2个探测请求
     onEvent,

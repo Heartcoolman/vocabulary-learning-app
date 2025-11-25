@@ -1,7 +1,10 @@
 import { Router, Response } from 'express';
 import wordBookService from '../services/wordbook.service';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { validateBody } from '../middleware/validate.middleware';
+import { createWordSchema } from '../validators/word.validator';
 import { AuthRequest } from '../types';
+import { CreateWordDto } from '../types';
 
 const router = Router();
 
@@ -254,26 +257,20 @@ router.get('/:id/words', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 向词书添加单词
-router.post('/:id/words', async (req: AuthRequest, res: Response, next) => {
+router.post('/:id/words', validateBody(createWordSchema), async (req: AuthRequest, res: Response, next) => {
     try {
-        const { spelling, phonetic, meanings, examples, audioUrl } = req.body;
-
-        if (!spelling || !phonetic || !meanings || !examples) {
-            return res.status(400).json({
-                success: false,
-                error: '缺少必要字段',
-            });
-        }
+        const validatedData = req.validatedBody as unknown as CreateWordDto;
+        const { spelling, phonetic, meanings, examples, audioUrl } = validatedData;
 
         const word = await wordBookService.addWordToWordBook(
             req.params.id,
             req.user!.id,
             {
                 spelling,
-                phonetic,
+                phonetic: phonetic ?? '',
                 meanings,
                 examples,
-                audioUrl,
+                audioUrl: audioUrl ?? undefined,
             }
         );
 

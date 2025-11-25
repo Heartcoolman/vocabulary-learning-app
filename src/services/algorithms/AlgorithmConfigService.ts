@@ -83,7 +83,6 @@ export class AlgorithmConfigService {
     try {
       await StorageService.updateAlgorithmConfig(currentConfig.id, updates, changeReason);
       this.currentConfig = newConfig;
-      console.log(`配置已更新: 原因=${changeReason || '无'}, 时间=${new Date().toLocaleString()}`);
       return newConfig;
     } catch (error) {
       console.error('保存配置到后端失败:', error);
@@ -104,7 +103,6 @@ export class AlgorithmConfigService {
     try {
       await StorageService.resetAlgorithmConfig(currentConfig.id);
       this.currentConfig = { ...defaultConfig, id: currentConfig.id };
-      console.log(`配置已重置为默认值, 时间=${new Date().toLocaleString()}`);
       return this.currentConfig;
     } catch (error) {
       console.error('重置配置到后端失败:', error);

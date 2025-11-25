@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { logger } from '../logger';
 
 /**
  * 结构化应用错误类
@@ -73,15 +74,18 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ) {
-  // 仅在开发环境打印完整错误堆栈
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('Error:', err);
-  } else {
-    console.error('Error:', err.message);
-  }
+  // 优先使用 req.log（pino-http 注入的带上下文日志器），fallback 到全局 logger
+  const log = req.log ?? logger;
+  const logContext = {
+    err,
+    method: req.method,
+    path: req.path,
+    statusCode: res.statusCode,
+  };
 
-  // Zod 验证错误
+  // Zod 验证错误 - 业务级别警告
   if (err instanceof ZodError) {
+    log.warn(logContext, `参数验证错误: ${err.errors[0]?.message}`);
     return res.status(400).json({
       success: false,
       error: err.errors[0]?.message || '请求参数不合法',
@@ -89,8 +93,13 @@ export function errorHandler(
     });
   }
 
-  // 结构化应用错误
+  // 结构化应用错误 - 根据 isOperational 区分日志级别
   if (err instanceof AppError) {
+    if (err.isOperational) {
+      log.warn(logContext, `业务错误: ${err.message}`);
+    } else {
+      log.error(logContext, `系统错误: ${err.message}`);
+    }
     return res.status(err.statusCode).json({
       success: false,
       error: err.isOperational ? err.message : '服务器内部错误',
@@ -98,17 +107,9 @@ export function errorHandler(
     });
   }
 
-  // 兼容旧代码：根据错误消息推断错误类型
-  if (err.message) {
-    const appError = inferAppError(err.message);
-    return res.status(appError.statusCode).json({
-      success: false,
-      error: appError.message,
-      code: appError.code,
-    });
-  }
-
-  // 未知错误，返回通用错误信息（不泄露内部细节）
+  // 未知错误 - 统一返回 500，不泄露内部实现细节
+  // 仅记录完整错误信息到日志，对外使用通用文案
+  log.error(logContext, `未处理错误: ${err.message}`);
   return res.status(500).json({
     success: false,
     error: '服务器内部错误',

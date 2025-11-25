@@ -371,13 +371,21 @@ function computeReward(event, state, action):
         + w3 × speed_gain
         - w4 × frustration
 
-    // 延迟奖励 (次日回忆率，异步补记)
-    // r_delayed = w5 × (recall_1d - 0.7)  (w5 = 1.0)
-    // r_total = (1 - gamma) × r_immediate + gamma × r_delayed
+    // 延迟奖励
+    // 原设计: r_delayed = w5 × (recall_1d - 0.7)，基于次日回忆率
+    //
+    // 当前实现: 使用基于复习间隔的队列系统
+    // - 即时奖励计算后入队到 RewardQueue
+    // - dueTs 基于 WordLearningState.nextReviewDate 或 currentInterval 计算
+    // - 延迟到期后，通过 FeatureVector 将奖励应用到 LinUCB 模型
+    // - 详见: backend/src/services/delayed-reward.service.ts
+    //        backend/src/services/amas.service.ts#applyDelayedReward
 
-    // 暂时只返回即时奖励，延迟奖励异步补记
     return normalize(r_immediate, -2, 2)  // 归一化到 [-1, 1]
 ```
+
+> **实现说明**: 当前延迟奖励采用队列机制，将即时奖励延迟到下一复习时间点应用，
+> 而非原设计中基于实际回忆率的反馈。这简化了实现复杂度，同时保留了延迟更新的核心思想。
 
 ### 冷启动策略
 

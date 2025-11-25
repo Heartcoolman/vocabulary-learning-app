@@ -87,6 +87,5 @@ export {
   Logger,
   EngineDependencies,
   ProcessOptions,
-  ProcessResult,
-  defaultAMASEngine
+  ProcessResult
 } from './engine';

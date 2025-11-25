@@ -3,6 +3,7 @@ import { wordStateService } from '../services/word-state.service';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { AuthRequest } from '../types';
 import { validateWordStateUpdate } from '../validators/word-state.validator';
+import { WordState } from '@prisma/client';
 
 
 const router = Router();
@@ -10,8 +11,23 @@ const router = Router();
 // 所有路由都需要认证
 router.use(authMiddleware);
 
+/**
+ * 路由顺序规则：
+ * 1. 静态路由（如 /batch, /due/list, /stats/overview）必须放在参数路由之前
+ * 2. 参数路由（如 /:wordId）必须放在文件末尾
+ * 3. 添加新路由时，GET/PUT/DELETE 的静态路由必须在对应的 /:wordId 路由之前
+ */
+
+// 小写状态到 Prisma 枚举的映射
+const STATE_MAP: Record<string, WordState> = {
+  new: WordState.NEW,
+  learning: WordState.LEARNING,
+  review: WordState.REVIEWING,
+  mastered: WordState.MASTERED
+};
+
 // 合法的学习状态枚举
-const ALLOWED_STATES = new Set<string>(['new', 'learning', 'review', 'mastered']);
+const ALLOWED_STATES = new Set<string>(Object.keys(STATE_MAP));
 
 // 批量请求最大数量限制
 const MAX_BATCH_SIZE = 500;
@@ -180,7 +196,7 @@ router.get('/by-state/:state', async (req: AuthRequest, res: Response, next: Nex
             });
         }
 
-        const words = await wordStateService.getWordsByState(userId, state as 'new' | 'learning' | 'review' | 'mastered');
+        const words = await wordStateService.getWordsByState(userId, STATE_MAP[state]);
 
         res.json({
             success: true,

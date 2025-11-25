@@ -9,15 +9,23 @@ import prisma from '../config/database';
 
 
 export class WordStateService {
+  // 空值标记，用于缓存穿透防护
+  private static readonly NULL_MARKER = '__NULL__';
+
   /**
    * 获取单词学习状态（带缓存）
+   * 修复问题#19: 添加空值缓存防止缓存穿透
    */
   async getWordState(userId: string, wordId: string): Promise<WordLearningState | null> {
     const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
 
     // 尝试从缓存获取
-    const cached = cacheService.get<WordLearningState>(cacheKey);
-    if (cached) {
+    const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(cacheKey);
+    if (cached !== null) {
+      // 如果是空值标记，返回null
+      if (cached === WordStateService.NULL_MARKER) {
+        return null;
+      }
       return cached;
     }
 
@@ -31,9 +39,12 @@ export class WordStateService {
       }
     });
 
-    // 存入缓存
+    // 存入缓存（包括空值）
     if (state) {
       cacheService.set(cacheKey, state, CacheTTL.LEARNING_STATE);
+    } else {
+      // 缓存空值，使用较短的TTL防止数据长期不一致
+      cacheService.set(cacheKey, WordStateService.NULL_MARKER, 60); // 1分钟
     }
 
     return state;

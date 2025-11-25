@@ -7,34 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
-enum WordBookType {
-  SYSTEM
-  USER
-}
-
 model User {
-  id           String         @id @default(uuid())
-  email        String         @unique
-  passwordHash String
-  username     String
-  role         UserRole       @default(USER)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  wordBooks    WordBook[]
-  records      AnswerRecord[]
-  sessions     Session[]
-  studyConfig  UserStudyConfig?
-  learningStates WordLearningState[]
-  wordScores     WordScore[]
-  anomalyFlags   AnomalyFlag[]
-  learningSessions LearningSession[]
+  id               String              @id @default(uuid())
+  email            String              @unique
+  passwordHash     String
+  username         String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  role             UserRole            @default(USER)
+  anomalyFlags     AnomalyFlag[]
+  records          AnswerRecord[]
   habitProfile     HabitProfile?
+  learningPlan     LearningPlan?
+  learningSessions LearningSession[]
   rewardQueues     RewardQueue[]
+  sessions         Session[]
+  badges           UserBadge[]
+  stateHistory     UserStateHistory[]
+  studyConfig      UserStudyConfig?
+  wordBooks        WordBook[]
+  learningStates   WordLearningState[]
+  wordScores       WordScore[]
 
   @@map("users")
 }
@@ -44,7 +37,7 @@ model WordBook {
   name        String
   description String?
   type        WordBookType
-  userId      String?      // null for SYSTEM wordbooks
+  userId      String?
   isPublic    Boolean      @default(false)
   wordCount   Int          @default(0)
   coverImage  String?
@@ -59,43 +52,44 @@ model WordBook {
 }
 
 model Word {
-  id         String         @id @default(uuid())
-  wordBookId String
-  spelling   String
-  phonetic   String
-  meanings   String[]       // JSON array stored as text
-  examples   String[]       // JSON array stored as text
-  audioUrl   String?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  wordBook   WordBook       @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
-  records    AnswerRecord[]
+  id             String              @id @default(uuid())
+  spelling       String
+  phonetic       String
+  meanings       String[]
+  examples       String[]
+  audioUrl       String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  wordBookId     String
+  anomalyFlags   AnomalyFlag[]
+  records        AnswerRecord[]
   learningStates WordLearningState[]
   wordScores     WordScore[]
-  anomalyFlags   AnomalyFlag[]
+  wordBook       WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
 
+  @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
   @@index([wordBookId])
   @@index([spelling])
   @@index([wordBookId, createdAt])
-  @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
   @@map("words")
 }
 
 model AnswerRecord {
-  id                  String   @id @default(uuid())
-  userId              String
-  wordId              String
-  selectedAnswer      String
-  correctAnswer       String
-  isCorrect           Boolean
-  timestamp           DateTime @default(now())
-  responseTime        Int?     // 响应时间（毫秒）
-  dwellTime           Int?     // 停留时长（毫秒）
-  sessionId           String?  // 学习会话ID
-  masteryLevelBefore  Int?     // 答题前的掌握程度（0-5级）
-  masteryLevelAfter   Int?     // 答题后的掌握程度（0-5级）
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word                Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(uuid())
+  userId             String
+  wordId             String
+  selectedAnswer     String
+  correctAnswer      String
+  isCorrect          Boolean
+  timestamp          DateTime         @default(now())
+  dwellTime          Int?
+  masteryLevelAfter  Int?
+  masteryLevelBefore Int?
+  responseTime       Int?
+  sessionId          String?
+  session            LearningSession? @relation(fields: [sessionId], references: [id])
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word               Word             @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
   @@unique([userId, wordId, timestamp], name: "unique_user_word_timestamp")
   @@index([userId])
@@ -123,42 +117,35 @@ model Session {
 }
 
 model UserStudyConfig {
-  id                   String   @id @default(uuid())
-  userId               String   @unique
-  selectedWordBookIds  String[] // JSON array of wordbook IDs
-  dailyWordCount       Int      @default(20)
-  studyMode            String   @default("sequential") // sequential, random, review
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  selectedWordBookIds String[]
+  dailyWordCount      Int      @default(20)
+  studyMode           String   @default("sequential")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_study_configs")
 }
 
-enum WordState {
-  NEW
-  LEARNING
-  REVIEWING
-  MASTERED
-}
-
 model WordLearningState {
-  id                  String    @id @default(uuid())
-  userId              String
-  wordId              String
-  state               WordState @default(NEW)
-  masteryLevel        Int       @default(0) // 0-5级
-  easeFactor          Float     @default(2.5) // 1.3-2.5
-  reviewCount         Int       @default(0)
-  lastReviewDate      DateTime?
-  nextReviewDate      DateTime?
-  currentInterval     Int       @default(1) // 天数
-  consecutiveCorrect  Int       @default(0)
-  consecutiveWrong    Int       @default(0)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word                Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid())
+  userId             String
+  wordId             String
+  state              WordState @default(NEW)
+  masteryLevel       Int       @default(0)
+  easeFactor         Float     @default(2.5)
+  reviewCount        Int       @default(0)
+  lastReviewDate     DateTime?
+  nextReviewDate     DateTime?
+  currentInterval    Int       @default(1)
+  consecutiveCorrect Int       @default(0)
+  consecutiveWrong   Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word               Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
   @@unique([userId, wordId], name: "unique_user_word")
   @@index([userId])
@@ -172,23 +159,23 @@ model WordLearningState {
 }
 
 model WordScore {
-  id                   String   @id @default(uuid())
-  userId               String
-  wordId               String
-  totalScore           Float    @default(0) // 0-100
-  accuracyScore        Float    @default(0) // 0-40
-  speedScore           Float    @default(0) // 0-30
-  stabilityScore       Float    @default(0) // 0-20
-  proficiencyScore     Float    @default(0) // 0-10
-  totalAttempts        Int      @default(0)
-  correctAttempts      Int      @default(0)
-  averageResponseTime  Float    @default(0) // 毫秒
-  averageDwellTime     Float    @default(0) // 毫秒
-  recentAccuracy       Float    @default(0) // 0-1
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word                 Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  userId              String
+  wordId              String
+  totalScore          Float    @default(0)
+  accuracyScore       Float    @default(0)
+  speedScore          Float    @default(0)
+  stabilityScore      Float    @default(0)
+  proficiencyScore    Float    @default(0)
+  totalAttempts       Int      @default(0)
+  correctAttempts     Int      @default(0)
+  averageResponseTime Float    @default(0)
+  averageDwellTime    Float    @default(0)
+  recentAccuracy      Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word                Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
   @@unique([userId, wordId], name: "unique_user_word_score")
   @@index([userId])
@@ -199,36 +186,36 @@ model WordScore {
 }
 
 model AlgorithmConfig {
-  id                              String   @id @default(uuid())
-  name                            String
-  description                     String?
-  reviewIntervals                 Int[]    // [1, 3, 7, 15, 30]
-  consecutiveCorrectThreshold     Int      @default(5)
-  consecutiveWrongThreshold       Int      @default(3)
-  difficultyAdjustmentInterval    Int      @default(1)
-  priorityWeightNewWord           Int      @default(40)
-  priorityWeightErrorRate         Int      @default(30)
-  priorityWeightOverdueTime       Int      @default(20)
-  priorityWeightWordScore         Int      @default(10)
-  scoreWeightAccuracy             Int      @default(40)
-  scoreWeightSpeed                Int      @default(30)
-  scoreWeightStability            Int      @default(20)
-  scoreWeightProficiency          Int      @default(10)
-  speedThresholdExcellent         Int      @default(3000)
-  speedThresholdGood              Int      @default(5000)
-  speedThresholdAverage           Int      @default(10000)
-  speedThresholdSlow              Int      @default(10000)
-  newWordRatioDefault             Float    @default(0.3)
-  newWordRatioHighAccuracy        Float    @default(0.5)
-  newWordRatioLowAccuracy         Float    @default(0.1)
-  newWordRatioHighAccuracyThreshold Float  @default(0.85)
-  newWordRatioLowAccuracyThreshold  Float  @default(0.65)
-  masteryThresholds               Json     // JSON array of mastery level thresholds
-  isDefault                       Boolean  @default(false)
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
-  createdBy                       String?
-  configHistory                   ConfigHistory[]
+  id                                String          @id @default(uuid())
+  name                              String          @unique
+  description                       String?
+  reviewIntervals                   Int[]
+  consecutiveCorrectThreshold       Int             @default(5)
+  consecutiveWrongThreshold         Int             @default(3)
+  difficultyAdjustmentInterval      Int             @default(1)
+  priorityWeightNewWord             Int             @default(40)
+  priorityWeightErrorRate           Int             @default(30)
+  priorityWeightOverdueTime         Int             @default(20)
+  priorityWeightWordScore           Int             @default(10)
+  scoreWeightAccuracy               Int             @default(40)
+  scoreWeightSpeed                  Int             @default(30)
+  scoreWeightStability              Int             @default(20)
+  scoreWeightProficiency            Int             @default(10)
+  speedThresholdExcellent           Int             @default(3000)
+  speedThresholdGood                Int             @default(5000)
+  speedThresholdAverage             Int             @default(10000)
+  speedThresholdSlow                Int             @default(10000)
+  newWordRatioDefault               Float           @default(0.3)
+  newWordRatioHighAccuracy          Float           @default(0.5)
+  newWordRatioLowAccuracy           Float           @default(0.1)
+  newWordRatioHighAccuracyThreshold Float           @default(0.85)
+  newWordRatioLowAccuracyThreshold  Float           @default(0.65)
+  masteryThresholds                 Json
+  isDefault                         Boolean         @default(false)
+  createdAt                         DateTime        @default(now())
+  updatedAt                         DateTime        @updatedAt
+  createdBy                         String?
+  configHistory                     ConfigHistory[]
 
   @@map("algorithm_configs")
 }
@@ -238,8 +225,8 @@ model ConfigHistory {
   configId      String
   changedBy     String
   changeReason  String?
-  previousValue Json            // Partial<AlgorithmConfig>
-  newValue      Json            // Partial<AlgorithmConfig>
+  previousValue Json
+  newValue      Json
   timestamp     DateTime        @default(now())
   config        AlgorithmConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 
@@ -250,17 +237,17 @@ model ConfigHistory {
 }
 
 model AnomalyFlag {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
   wordId     String
   flaggedBy  String
   reason     String
-  flaggedAt  DateTime @default(now())
-  resolved   Boolean  @default(false)
+  flaggedAt  DateTime  @default(now())
+  resolved   Boolean   @default(false)
   resolvedAt DateTime?
   resolvedBy String?
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word       Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
   @@unique([userId, wordId])
   @@index([userId])
@@ -269,39 +256,36 @@ model AnomalyFlag {
   @@map("anomaly_flags")
 }
 
-// AMAS 用户状态持久化
 model AmasUserState {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  attention       Float    @default(0.7)   // A: 注意力 [0,1]
-  fatigue         Float    @default(0)     // F: 疲劳度 [0,1]
-  motivation      Float    @default(0)     // M: 动机 [-1,1]
-  confidence      Float    @default(0.5)   // conf: 状态置信度 [0,1]
-  cognitiveProfile Json    @default("{\"mem\":0.5,\"speed\":0.5,\"stability\":0.5}") // C: 认知能力画像
-  habitProfile    Json?                     // H: 学习习惯画像 (可选)
-  trendState      String?                   // T: 长期趋势 'up'|'flat'|'stuck'|'down'
-  lastUpdateTs    BigInt   @default(0)     // ts: 最后更新时间戳
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  attention        Float    @default(0.7)
+  fatigue          Float    @default(0)
+  motivation       Float    @default(0)
+  confidence       Float    @default(0.5)
+  cognitiveProfile Json     @default("{\"mem\": 0.5, \"speed\": 0.5, \"stability\": 0.5}")
+  habitProfile     Json?
+  trendState       String?
+  lastUpdateTs     BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([userId])
   @@index([lastUpdateTs])
   @@map("amas_user_states")
 }
 
-// AMAS LinUCB 模型持久化
 model AmasUserModel {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  modelData  Json                          // LinUCB模型数据 (theta, A_inv, b)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  modelData Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("amas_user_models")
 }
 
-// 学习会话表 (AMAS扩展版)
 model LearningSession {
   id             String          @id @default(uuid())
   userId         String
@@ -309,40 +293,32 @@ model LearningSession {
   endedAt        DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answerRecords  AnswerRecord[]
   featureVectors FeatureVector[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   rewardQueues   RewardQueue[]
 
   @@index([userId, startedAt])
   @@map("learning_sessions")
 }
 
-// 延迟奖励状态枚举
-enum RewardStatus {
-  PENDING
-  PROCESSING
-  DONE
-  FAILED
-}
-
-// 特征向量表 (AMAS扩展版 - 支持特征版本化)
 model FeatureVector {
-  sessionId      String          @id
+  sessionId      String
   featureVersion Int
   features       Json
   normMethod     String?
   createdAt      DateTime        @default(now())
   session        LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@id([sessionId, featureVersion])
   @@index([featureVersion, createdAt])
   @@map("feature_vectors")
 }
 
-// 用户习惯画像表 (AMAS扩展版)
 model HabitProfile {
   userId     String   @id
-  timePref   Json?    // 时间偏好 (24/48小时桶权重)
-  rhythmPref Json?    // 节奏偏好 (学习周期/节奏分布)
+  timePref   Json?
+  rhythmPref Json?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -350,24 +326,118 @@ model HabitProfile {
   @@map("habit_profiles")
 }
 
-// 延迟奖励队列表 (AMAS扩展版)
 model RewardQueue {
   id             String           @id @default(uuid())
   sessionId      String?
   userId         String
-  dueTs          DateTime         // 奖励到期时间
-  reward         Float            // 延迟奖励值
+  dueTs          DateTime
+  reward         Float
   status         RewardStatus     @default(PENDING)
-  idempotencyKey String           @unique  // 幂等键
-  lastError      String?          // 最后错误信息
+  idempotencyKey String           @unique
+  lastError      String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  session        LearningSession? @relation(fields: [sessionId], references: [id])
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session        LearningSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([dueTs, status])
   @@index([userId])
   @@index([sessionId])
   @@index([userId, status, dueTs])
   @@map("reward_queue")
+}
+
+model UserStateHistory {
+  id         String   @id @default(uuid())
+  userId     String
+  date       DateTime @db.Date
+  attention  Float
+  fatigue    Float
+  motivation Float
+  memory     Float
+  speed      Float
+  stability  Float
+  trendState String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("user_state_history")
+}
+
+model BadgeDefinition {
+  id          String        @id @default(uuid())
+  name        String
+  description String
+  iconUrl     String
+  category    BadgeCategory
+  tier        Int           @default(1)
+  condition   Json
+  createdAt   DateTime      @default(now())
+  userBadges  UserBadge[]
+
+  @@unique([name, tier])
+  @@map("badge_definitions")
+}
+
+model UserBadge {
+  id         String          @id @default(uuid())
+  userId     String
+  badgeId    String
+  tier       Int             @default(1)
+  unlockedAt DateTime        @default(now())
+  badge      BadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId, tier])
+  @@index([userId])
+  @@index([badgeId])
+  @@map("user_badges")
+}
+
+model LearningPlan {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  dailyTarget             Int
+  estimatedCompletionDate DateTime
+  wordbookDistribution    Json
+  weeklyMilestones        Json
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  totalWords              Int      @default(0)
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("learning_plans")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum WordBookType {
+  SYSTEM
+  USER
+}
+
+enum WordState {
+  NEW
+  LEARNING
+  REVIEWING
+  MASTERED
+}
+
+enum RewardStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum BadgeCategory {
+  STREAK
+  ACCURACY
+  COGNITIVE
+  MILESTONE
 }

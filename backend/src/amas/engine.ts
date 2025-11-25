@@ -23,7 +23,9 @@ import {
   DEFAULT_STRATEGY,
   DEFAULT_PERCEPTION_CONFIG,
   REWARD_WEIGHTS,
-  REFERENCE_RESPONSE_TIME
+  REFERENCE_RESPONSE_TIME,
+  FEATURE_VERSION,
+  DEFAULT_DIMENSION
 } from './config/action-space';
 import { CircuitBreaker, createDefaultCircuitBreaker } from './common/circuit-breaker';
 import { telemetry } from './common/telemetry';
@@ -37,6 +39,28 @@ import {
   UserState,
   ColdStartPhase
 } from './types';
+
+// ==================== 用户隔离类型定义 ====================
+
+/**
+ * 用户专属模型实例集合
+ * 每个用户拥有独立的建模层实例，避免跨用户状态污染
+ */
+interface UserModels {
+  attention: AttentionMonitor;
+  fatigue: FatigueEstimator;
+  cognitive: CognitiveProfiler;
+  motivation: MotivationTracker;
+  bandit: LinUCB;
+}
+
+/**
+ * 超时标志位
+ * 用于在超时后阻止后续写入操作
+ */
+interface TimeoutFlag {
+  value: boolean;
+}
 
 // ==================== 存储接口 ====================
 
@@ -165,26 +189,52 @@ function clamp(value: number, min: number, max: number): number {
  */
 export class AMASEngine {
   private featureBuilder: FeatureBuilder;
-  private attention: AttentionMonitor;
-  private fatigue: FatigueEstimator;
-  private cognitive: CognitiveProfiler;
-  private motivation: MotivationTracker;
-  private bandit: LinUCB;
   private stateRepo: StateRepository;
   private modelRepo: ModelRepository;
   private logger?: Logger;
   private circuit: CircuitBreaker;
+
+  // 用户隔离：每个用户拥有独立的模型实例
+  private userModels = new Map<string, UserModels>();
+
+  // 模型模板：用于创建新用户的模型实例
+  private modelTemplates: UserModels;
+
+  // 用户级锁：防止同一用户的并发请求冲突
+  private userLocks = new Map<string, Promise<unknown>>();
 
   // 运行时状态
   private interactionCounts = new Map<string, number>();
 
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
-    this.attention = deps.attention ?? new AttentionMonitor();
-    this.fatigue = deps.fatigue ?? new FatigueEstimator();
-    this.cognitive = deps.cognitive ?? new CognitiveProfiler();
-    this.motivation = deps.motivation ?? new MotivationTracker();
-    this.bandit = deps.bandit ?? new LinUCB();
+
+    // 初始化模型模板（用于克隆给新用户）
+    this.modelTemplates = {
+      attention: deps.attention ?? new AttentionMonitor(),
+      fatigue: deps.fatigue ?? new FatigueEstimator(),
+      cognitive: deps.cognitive ?? new CognitiveProfiler(),
+      motivation: deps.motivation ?? new MotivationTracker(),
+      bandit: deps.bandit ?? new LinUCB()
+    };
+
+    // 生产环境强制要求数据库存储，防止数据丢失
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction && (!deps.stateRepo || !deps.modelRepo)) {
+      throw new Error(
+        'AMAS Engine: 生产环境必须提供数据库存储仓库 (stateRepo/modelRepo)，' +
+        '禁止使用内存存储以防止服务重启导致用户学习数据丢失'
+      );
+    }
+
+    // 开发/测试环境可以使用内存存储，但会记录警告
+    if (!isProduction && (!deps.stateRepo || !deps.modelRepo)) {
+      console.warn(
+        '[AMAS Engine] 警告：使用内存存储，数据在服务重启后会丢失。' +
+        '生产环境请务必配置数据库存储。'
+      );
+    }
+
     this.stateRepo = deps.stateRepo ?? new MemoryStateRepository();
     this.modelRepo = deps.modelRepo ?? new MemoryModelRepository();
     this.logger = deps.logger;
@@ -203,145 +253,228 @@ export class AMASEngine {
 
   /**
    * 处理学习事件(带弹性保护)
+   *
+   * 修复问题:
+   * - #3: 使用用户级锁防止并发Lost Update
+   * - #5: 异常统一在外层处理，正确记录熔断
+   * - #6: 使用超时标志位阻止超时后的写入
    */
   async processEvent(
     userId: string,
     rawEvent: RawEvent,
     opts: ProcessOptions = {}
   ): Promise<ProcessResult> {
-    // 熔断器检查
-    if (!this.circuit.canExecute()) {
-      telemetry.increment('amas.degradation', { reason: 'circuit_open' });
-      this.logger?.warn('Circuit breaker is open', { userId });
-      return this.createIntelligentFallbackResult(userId, 'circuit_open', opts);
-    }
+    // 使用用户级锁防止同一用户的并发请求冲突
+    return this.withUserLock(userId, async () => {
+      // 熔断器检查
+      if (!this.circuit.canExecute()) {
+        telemetry.increment('amas.degradation', { reason: 'circuit_open' });
+        this.logger?.warn('Circuit breaker is open', { userId });
+        return this.createIntelligentFallbackResult(userId, 'circuit_open', opts, rawEvent.timestamp);
+      }
 
-    const startTime = Date.now();
+      const startTime = Date.now();
+      const abortController = new AbortController();
+      // 超时标志位：用于阻止超时后的写入操作
+      const timedOut: TimeoutFlag = { value: false };
 
-    try {
-      // 使用超时保护执行决策
-      const result = await this.executeWithTimeout(
-        () => this.processEventCore(userId, rawEvent, opts),
-        100, // 100ms超时
-        userId
-      );
+      try {
+        // 使用超时保护执行决策
+        const result = await this.executeWithTimeout(
+          () => this.processEventCore(userId, rawEvent, opts, abortController.signal, timedOut),
+          100, // 100ms超时
+          userId,
+          abortController,
+          () => { timedOut.value = true; } // 超时回调
+        );
 
-      // 记录成功
-      this.circuit.recordSuccess();
-      telemetry.histogram('amas.decision.latency', Date.now() - startTime);
+        // 记录成功
+        this.circuit.recordSuccess();
+        telemetry.histogram('amas.decision.latency', Date.now() - startTime);
 
-      return result;
-    } catch (error) {
-      // 记录失败
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.circuit.recordFailure(errorMessage);
-      telemetry.increment('amas.degradation', {
-        reason: 'exception',
-        message: errorMessage
-      });
+        return result;
+      } catch (error) {
+        // 记录失败（包括内部异常，修复#5熔断器误判）
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.circuit.recordFailure(errorMessage);
+        telemetry.increment('amas.degradation', {
+          reason: 'exception',
+          message: errorMessage
+        });
 
-      this.logger?.error('Error processing event', { userId, error });
-      return this.createIntelligentFallbackResult(userId, 'exception', opts);
-    }
+        this.logger?.error('Error processing event', { userId, error });
+        return this.createIntelligentFallbackResult(userId, 'exception', opts, rawEvent.timestamp);
+      }
+    });
   }
 
   /**
    * 核心处理逻辑(无弹性保护)
+   *
+   * 修复问题:
+   * - #1: 使用用户专属模型实例，避免跨用户污染
+   * - #5: 移除内部try-catch，让异常传播到外层统一处理
+   * - #6: 检查超时标志位，阻止超时后的写入
+   * - #14: 使用参数传递userId，避免全局currentUserId竞态
+   *
+   * @param signal AbortSignal 用于取消操作
+   * @param timedOut 超时标志位，用于阻止超时后的写入
    */
   private async processEventCore(
     userId: string,
     rawEvent: RawEvent,
-    opts: ProcessOptions = {}
+    opts: ProcessOptions = {},
+    signal?: AbortSignal,
+    timedOut?: TimeoutFlag
   ): Promise<ProcessResult> {
-    try {
-      // 1. 异常检测
-      if (this.featureBuilder.isAnomalous(rawEvent)) {
-        this.logger?.warn('Anomalous event detected', { userId, event: rawEvent });
-        return this.createIntelligentFallbackResult(userId, 'degraded_state', opts);
+    const startTime = Date.now();
+
+    // 获取用户专属模型实例（修复#1跨用户污染）
+    const models = this.getUserModels(userId);
+
+    // 1. 异常检测
+    if (this.featureBuilder.isAnomalous(rawEvent)) {
+      this.logger?.warn('Anomalous event detected', { userId, event: rawEvent });
+      return this.createIntelligentFallbackResult(userId, 'degraded_state', opts, rawEvent.timestamp);
+    }
+
+    // 2. 加载状态和模型
+    const prevState = await this.loadOrCreateState(userId);
+    await this.loadModelIfExists(userId, models.bandit);
+
+    // 检查取消/超时状态
+    if (signal?.aborted || timedOut?.value) {
+      throw new Error('Operation cancelled');
+    }
+
+    // 3. 特征提取（使用参数传递userId，修复#14竞态）
+    const featureVec = this.featureBuilder.buildFeatureVector(rawEvent, userId);
+
+    // 4. 获取上下文信息 (提前到状态更新之前)
+    const interactionCount = this.getInteractionCount(userId, opts.interactionCount);
+    const recentAccuracy = opts.recentAccuracy ?? 0.5;
+    const recentErrorRate = 1 - recentAccuracy;
+
+    // 5. 状态更新（使用用户专属模型，修复#1）
+    const state = this.updateUserState(prevState, featureVec, rawEvent, recentErrorRate, models);
+
+    // 6. 设置冷启动探索率
+    const alpha = models.bandit.getColdStartAlpha(interactionCount, recentAccuracy, state.F);
+    models.bandit.setAlpha(alpha);
+
+    // 7. 动作选择
+    const context = {
+      recentErrorRate,
+      recentResponseTime: rawEvent.responseTime,
+      timeBucket: this.getTimeBucket(rawEvent.timestamp)
+    };
+    const action = models.bandit.selectFromActionSpace(state, context);
+
+    // 构建LinUCB上下文特征向量（用于延迟奖励持久化）
+    const contextVec = models.bandit.buildContextVector({
+      state,
+      action,
+      recentErrorRate: context.recentErrorRate,
+      recentResponseTime: context.recentResponseTime,
+      timeBucket: context.timeBucket
+    });
+
+    // 8. 策略映射和安全约束
+    const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
+    const mappedParams = mapActionToStrategy(action, currentParams);
+    const finalStrategy = applyGuardrails(state, mappedParams);
+
+    // 9. 生成解释
+    const explanation = generateExplanation(state, currentParams, finalStrategy);
+    const suggestion = generateSuggestion(state);
+
+    // 10. 计算奖励
+    const reward = this.computeReward(rawEvent, state);
+
+    // 检查取消/超时状态（在模型更新前）
+    if (signal?.aborted || timedOut?.value) {
+      throw new Error('Operation cancelled');
+    }
+
+    // 11. 更新模型（除非跳过）
+    if (!opts.skipUpdate) {
+      models.bandit.update(state, action, reward, context);
+      this.incrementInteractionCount(userId);
+    }
+
+    // 检查取消/超时状态（在持久化前，修复#6超时后写入）
+    if (signal?.aborted || timedOut?.value) {
+      throw new Error('Operation cancelled');
+    }
+
+    // 12. 持久化
+    await this.stateRepo.saveState(userId, state);
+
+    // 再次检查超时状态（在第二次写入前）
+    if (timedOut?.value || signal?.aborted) {
+      throw new Error('Operation cancelled');
+    }
+
+    await this.modelRepo.saveModel(userId, models.bandit.getModel());
+
+    // 13. 记录性能
+    const elapsed = Date.now() - startTime;
+    if (elapsed > 100) {
+      this.logger?.warn('Decision exceeded 100ms', { userId, elapsed });
+    }
+
+    // 构建可序列化的特征向量（使用LinUCB上下文向量，确保维度一致）
+    // 特征标签必须与 DEFAULT_DIMENSION 保持一致
+    const FEATURE_LABELS = [
+      'state.A', 'state.F', 'state.C.mem', 'state.C.speed', 'state.M',
+      'recentErrorRate', 'interval_scale', 'new_ratio', 'difficulty',
+      'hint_level', 'batch_norm', 'rt_norm', 'time_norm', 'time_sin',
+      'time_cos', 'attn_fatigue', 'motivation_fatigue', 'pace_match',
+      'memory_new_ratio', 'fatigue_latency', 'new_ratio_motivation', 'bias'
+    ] as const;
+
+    let persistableFeatureVector: PersistableFeatureVector | undefined;
+    if (contextVec && contextVec.length > 0) {
+      // 维度一致性校验：确保特征向量、标签数组和预期维度完全匹配
+      const dimensionMismatch = contextVec.length !== DEFAULT_DIMENSION;
+      const labelsMismatch = FEATURE_LABELS.length !== DEFAULT_DIMENSION;
+
+      if (dimensionMismatch) {
+        this.logger?.error('Feature vector dimension mismatch, skipping persistence', {
+          userId,
+          expected: DEFAULT_DIMENSION,
+          actual: contextVec.length
+        });
+      }
+      if (labelsMismatch) {
+        this.logger?.error('Feature labels count mismatch, skipping persistence', {
+          expected: DEFAULT_DIMENSION,
+          actual: FEATURE_LABELS.length
+        });
       }
 
-      // 2. 加载状态和模型
-      const prevState = await this.loadOrCreateState(userId);
-      await this.loadModelIfExists(userId);
-
-      // 3. 特征提取
-      const featureVec = this.featureBuilder.buildFeatureVector(rawEvent);
-
-      // 4. 状态更新
-      const state = this.updateUserState(prevState, featureVec, rawEvent);
-
-      // 5. 获取上下文信息
-      const interactionCount = this.getInteractionCount(userId, opts.interactionCount);
-      const recentAccuracy = opts.recentAccuracy ?? 0.5;
-
-      // 6. 设置冷启动探索率
-      const alpha = this.bandit.getColdStartAlpha(interactionCount, recentAccuracy, state.F);
-      this.bandit.setAlpha(alpha);
-
-      // 7. 动作选择
-      const context = {
-        recentErrorRate: 1 - recentAccuracy,
-        recentResponseTime: rawEvent.responseTime,
-        timeBucket: this.getTimeBucket(rawEvent.timestamp)
-      };
-      const action = this.bandit.selectFromActionSpace(state, context);
-
-      // 8. 策略映射和安全约束
-      const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
-      const mappedParams = mapActionToStrategy(action, currentParams);
-      const finalStrategy = applyGuardrails(state, mappedParams);
-
-      // 9. 生成解释
-      const explanation = generateExplanation(state, currentParams, finalStrategy);
-      const suggestion = generateSuggestion(state);
-
-      // 10. 计算奖励
-      const reward = this.computeReward(rawEvent, state);
-
-      // 11. 更新模型（除非跳过）
-      if (!opts.skipUpdate) {
-        this.bandit.update(state, action, reward, context);
-        this.incrementInteractionCount(userId);
-      }
-
-      // 12. 持久化
-      await this.stateRepo.saveState(userId, state);
-      await this.modelRepo.saveModel(userId, this.bandit.getModel());
-
-      // 13. 记录性能
-      const elapsed = Date.now() - startTime;
-      if (elapsed > 100) {
-        this.logger?.warn('Decision exceeded 100ms', { userId, elapsed });
-      }
-
-      // 构建可序列化的特征向量（带空值防护）
-      let persistableFeatureVector: PersistableFeatureVector | undefined;
-      if (featureVec && featureVec.values && featureVec.values.length > 0) {
-        const { FEATURE_VERSION } = await import('./config/action-space');
+      // 只有维度完全匹配时才保存特征向量，避免数据不一致
+      if (!dimensionMismatch && !labelsMismatch) {
         persistableFeatureVector = {
-          values: Array.from(featureVec.values),
-          version: FEATURE_VERSION, // 使用配置的特征版本 (v1=12维, v2=22维)
-          normMethod: 'z-score', // 默认归一化方法
+          values: Array.from(contextVec),
+          version: FEATURE_VERSION,
+          normMethod: 'ucb-context',
           ts: featureVec.ts,
-          labels: featureVec.labels
+          labels: [...FEATURE_LABELS]
         };
       }
-
-      return {
-        strategy: finalStrategy,
-        action,
-        explanation,
-        state,
-        reward,
-        suggestion,
-        shouldBreak: shouldSuggestBreak(state),
-        featureVector: persistableFeatureVector
-      };
-
-    } catch (error) {
-      this.logger?.error('Error processing event', { userId, error });
-      return this.createFallbackResult(userId);
     }
+
+    return {
+      strategy: finalStrategy,
+      action,
+      explanation,
+      state,
+      reward,
+      suggestion,
+      shouldBreak: shouldSuggestBreak(state),
+      featureVector: persistableFeatureVector
+    };
   }
 
   /**
@@ -353,18 +486,26 @@ export class AMASEngine {
 
   /**
    * 重置用户状态
+   *
+   * 修复问题#2: 只重置指定用户的状态，不影响其他用户
    */
   async resetUser(userId: string): Promise<void> {
-    this.attention.reset();
-    this.fatigue.reset();
-    this.cognitive.reset();
-    this.motivation.reset();
-    this.bandit.reset();
-    this.interactionCounts.set(userId, 0);
+    // 删除用户专属模型实例（下次访问时会重新创建）
+    this.userModels.delete(userId);
 
+    // 重置交互计数
+    this.interactionCounts.delete(userId);
+
+    // 重置特征构建器的用户窗口
+    this.featureBuilder.resetWindows(userId);
+
+    // 保存默认状态和模型
     const defaultState = this.createDefaultState();
     await this.stateRepo.saveState(userId, defaultState);
-    await this.modelRepo.saveModel(userId, this.bandit.getModel());
+
+    // 创建新的默认模型保存
+    const defaultBandit = new LinUCB();
+    await this.modelRepo.saveModel(userId, defaultBandit.getModel());
   }
 
   /**
@@ -384,10 +525,14 @@ export class AMASEngine {
     return state ?? this.createDefaultState();
   }
 
-  private async loadModelIfExists(userId: string): Promise<void> {
+  /**
+   * 加载用户模型（如果存在）
+   * @param bandit 用户专属的LinUCB实例
+   */
+  private async loadModelIfExists(userId: string, bandit: LinUCB): Promise<void> {
     const model = await this.modelRepo.loadModel(userId);
     if (model) {
-      this.bandit.setModel(model);
+      bandit.setModel(model);
     }
   }
 
@@ -402,31 +547,38 @@ export class AMASEngine {
     };
   }
 
+  /**
+   * 更新用户状态
+   * @param models 用户专属模型实例（修复#1跨用户污染）
+   */
   private updateUserState(
     prevState: UserState,
     featureVec: FeatureVector,
-    event: RawEvent
+    event: RawEvent,
+    recentErrorRate: number = 0.5,
+    models: UserModels
   ): UserState {
     // 转换特征为注意力输入
     const attentionFeatures = this.extractAttentionFeatures(featureVec);
-    const A = this.attention.update(attentionFeatures);
+    const A = models.attention.update(attentionFeatures);
 
     // 疲劳度更新
-    const F = this.fatigue.update({
+    const F = models.fatigue.update({
       error_rate_trend: event.isCorrect ? -0.05 : 0.1,
       rt_increase_rate: featureVec.values[0],
       repeat_errors: event.retryCount
     });
 
-    // 认知能力更新
-    const C = this.cognitive.update({
+    // 认知能力更新 (使用二项分布方差公式: p * (1-p))
+    const errorVariance = recentErrorRate * (1 - recentErrorRate);
+    const C = models.cognitive.update({
       accuracy: event.isCorrect ? 1 : 0,
       avgResponseTime: event.responseTime,
-      errorVariance: 0.1 // 简化处理
+      errorVariance
     });
 
     // 动机更新
-    const M = this.motivation.update({
+    const M = models.motivation.update({
       successes: event.isCorrect ? 1 : 0,
       failures: event.isCorrect ? 0 : 1,
       quits: 0
@@ -499,11 +651,18 @@ export class AMASEngine {
 
   /**
    * 执行超时保护
+   *
+   * 修复问题#6: 添加超时回调，设置标志位阻止后续写入
+   *
+   * @param abortController 用于取消内部操作的 AbortController
+   * @param onTimeout 超时时的回调函数
    */
   private async executeWithTimeout<T>(
     fn: () => Promise<T>,
     timeoutMs: number,
-    userId: string
+    userId: string,
+    abortController?: AbortController,
+    onTimeout?: () => void
   ): Promise<T> {
     let timeoutHandle: NodeJS.Timeout;
 
@@ -511,6 +670,10 @@ export class AMASEngine {
       timeoutHandle = setTimeout(() => {
         telemetry.increment('amas.timeout', { path: 'decision' });
         this.logger?.warn('Decision timeout', { userId, timeoutMs });
+        // 触发取消信号，通知内部操作停止
+        abortController?.abort();
+        // 执行超时回调（设置标志位）
+        onTimeout?.();
         reject(new Error(`Timeout after ${timeoutMs}ms`));
       }, timeoutMs);
     });
@@ -531,22 +694,28 @@ export class AMASEngine {
   private async createIntelligentFallbackResult(
     userId: string,
     reason: FallbackReason,
-    opts: ProcessOptions = {}
+    opts: ProcessOptions = {},
+    eventTimestamp?: number
   ): Promise<ProcessResult> {
     const state = await this.loadOrCreateState(userId);
     const interactionCount = this.getInteractionCount(userId, opts.interactionCount);
-    const recentErrorRate = opts.recentAccuracy ? 1 - opts.recentAccuracy : undefined;
+    const recentErrorRate = opts.recentAccuracy !== undefined ? 1 - opts.recentAccuracy : undefined;
+
+    // 使用事件时间而非当前时间，确保离线回放正确性
+    const hour = eventTimestamp !== undefined
+      ? new Date(eventTimestamp).getHours()
+      : new Date().getHours();
 
     // 使用智能降级策略
     const fallbackResult = intelligentFallback(state, reason, {
       interactionCount,
       recentErrorRate,
-      hour: new Date().getHours()
+      hour
     });
 
     return {
       strategy: fallbackResult.strategy,
-      action: ACTION_SPACE[0], // 使用第一个动作作为占位
+      action: fallbackResult.action, // 使用与策略匹配的动作
       explanation: fallbackResult.explanation,
       state,
       reward: 0,
@@ -562,8 +731,188 @@ export class AMASEngine {
   private async createFallbackResult(userId: string): Promise<ProcessResult> {
     return this.createIntelligentFallbackResult(userId, 'degraded_state');
   }
+
+  // ==================== 用户隔离支持方法 ====================
+
+  /**
+   * 获取用户专属模型实例
+   *
+   * 修复问题#1: 每个用户拥有独立的建模层实例，避免跨用户状态污染
+   *
+   * @param userId 用户ID
+   * @returns 用户专属模型实例集合
+   */
+  private getUserModels(userId: string): UserModels {
+    let models = this.userModels.get(userId);
+    if (!models) {
+      // 为新用户创建独立的模型实例
+      models = {
+        attention: this.cloneAttentionMonitor(),
+        fatigue: this.cloneFatigueEstimator(),
+        cognitive: this.cloneCognitiveProfiler(),
+        motivation: this.cloneMotivationTracker(),
+        bandit: this.cloneLinUCB()
+      };
+      this.userModels.set(userId, models);
+    }
+    return models;
+  }
+
+  /**
+   * 用户级锁机制
+   *
+   * 修复问题#3: 防止同一用户的并发请求导致Lost Update
+   *
+   * 注意: 前一个请求的异常会被吞掉，不会传播给后续请求
+   *
+   * @param userId 用户ID
+   * @param fn 需要串行执行的异步函数
+   */
+  private async withUserLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+    // 获取当前用户的锁（如果不存在则为已完成的Promise）
+    const previousLock = this.userLocks.get(userId) ?? Promise.resolve();
+
+    // 创建新的锁门控
+    let releaseLock: () => void;
+    const currentLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    // 设置当前锁：吞掉前一个锁的异常，避免传播给后续请求
+    const chainedLock = previousLock.catch(() => {}).then(() => currentLock);
+    this.userLocks.set(userId, chainedLock);
+
+    // 等待之前的锁释放（吞掉异常）
+    await previousLock.catch(() => {});
+
+    try {
+      return await fn();
+    } finally {
+      // 释放锁
+      releaseLock!();
+      // 清理已完成的锁
+      if (this.userLocks.get(userId) === chainedLock) {
+        this.userLocks.delete(userId);
+      }
+    }
+  }
+
+  // ==================== 模型克隆方法 ====================
+
+  /**
+   * 克隆注意力监测器
+   */
+  private cloneAttentionMonitor(): AttentionMonitor {
+    const template = this.modelTemplates.attention;
+    const state = template.getState();
+    const clone = new AttentionMonitor(
+      undefined, // 使用默认权重
+      state.beta,
+      state.prevAttention
+    );
+    return clone;
+  }
+
+  /**
+   * 克隆疲劳估计器
+   */
+  private cloneFatigueEstimator(): FatigueEstimator {
+    const template = this.modelTemplates.fatigue;
+    const state = template.getState();
+    const clone = new FatigueEstimator(undefined, state.F);
+    clone.setState(state);
+    return clone;
+  }
+
+  /**
+   * 克隆认知分析器
+   */
+  private cloneCognitiveProfiler(): CognitiveProfiler {
+    const template = this.modelTemplates.cognitive;
+    const state = template.getState();
+    const clone = new CognitiveProfiler();
+    clone.setState(state);
+    return clone;
+  }
+
+  /**
+   * 克隆动机追踪器
+   */
+  private cloneMotivationTracker(): MotivationTracker {
+    const template = this.modelTemplates.motivation;
+    const state = template.getState();
+    const clone = new MotivationTracker(undefined, state.M);
+    clone.setState(state);
+    return clone;
+  }
+
+  /**
+   * 克隆LinUCB模型
+   */
+  private cloneLinUCB(): LinUCB {
+    const template = this.modelTemplates.bandit;
+    const model = template.getModel();
+    const clone = new LinUCB({
+      alpha: model.alpha,
+      lambda: model.lambda,
+      dimension: model.d
+    });
+    // 新用户使用默认初始化模型，不复制模板的学习历史
+    return clone;
+  }
+
+  // ==================== 延迟奖励支持方法 ====================
+
+  /**
+   * 应用延迟奖励更新模型
+   *
+   * 该方法封装了模型加载、更新和保存的逻辑，
+   * 避免服务层直接访问私有属性 modelRepo。
+   *
+   * @param userId 用户ID
+   * @param featureVector 特征向量
+   * @param reward 奖励值（应已裁剪到 [-1, 1]）
+   * @returns 更新是否成功
+   */
+  async applyDelayedRewardUpdate(
+    userId: string,
+    featureVector: number[],
+    reward: number
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // 加载用户模型
+      const model = await this.modelRepo.loadModel(userId);
+      if (!model) {
+        return { success: false, error: 'model_not_found' };
+      }
+
+      // 校验特征向量维度与模型一致
+      if (featureVector.length !== model.d) {
+        return {
+          success: false,
+          error: `dimension_mismatch: expected=${model.d}, got=${featureVector.length}`
+        };
+      }
+
+      // 创建临时LinUCB实例来更新模型
+      const tempBandit = new LinUCB({
+        alpha: model.alpha,
+        lambda: model.lambda,
+        dimension: model.d
+      });
+      tempBandit.setModel(model);
+
+      // 使用特征向量更新模型
+      tempBandit.updateWithFeatureVector(featureVector, reward);
+
+      // 保存更新后的模型
+      await this.modelRepo.saveModel(userId, tempBandit.getModel());
+
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: message };
+    }
+  }
 }
 
-// ==================== 导出默认实例 ====================
-
-export const defaultAMASEngine = new AMASEngine();

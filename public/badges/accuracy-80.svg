@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <circle cx="32" cy="32" r="30" fill="#A7F3D0" stroke="#059669" stroke-width="2"/>
+  <circle cx="32" cy="28" r="14" fill="none" stroke="#059669" stroke-width="2"/>
+  <circle cx="32" cy="28" r="8" fill="none" stroke="#059669" stroke-width="2"/>
+  <circle cx="32" cy="28" r="3" fill="#059669"/>
+  <text x="32" y="52" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#064E3B">80%</text>
+</svg>

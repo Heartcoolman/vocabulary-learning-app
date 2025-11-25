@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Word } from '../types/models';
 import LearningService from '../services/LearningService';
 import ApiClient from '../services/ApiClient';
@@ -52,11 +52,13 @@ export interface LearningSessionState {
   wordState: WordLearningState | null;
   amasResult: AmasProcessResult | null;
   amasRefreshTrigger: number;
+  submitError: string | null;
 }
 
 /**
  * 学习会话 Hook
  * 管理学习会话的完整生命周期
+ * 修复：添加会话代际追踪，防止跨会话数据混用
  */
 export function useLearningSession() {
   // 状态
@@ -73,30 +75,53 @@ export function useLearningSession() {
   const [wordState, setWordState] = useState<WordLearningState | null>(null);
   const [amasResult, setAmasResult] = useState<AmasProcessResult | null>(null);
   const [amasRefreshTrigger, setAmasRefreshTrigger] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Refs
   const currentWordIdRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | undefined>(undefined);
+  // 复用 AMAS 会话，避免每题新建 sessionId
+  const amasSessionIdRef = useRef<string | null>(null);
   const precomputedResultsRef = useRef<PrecomputedResults>({
     wordId: null,
     correct: null,
     wrong: null,
   });
 
+  // 会话代际追踪：用于防止跨会话/跨用户数据混用
+  const sessionGenerationRef = useRef<number>(0);
+  // 组件是否已卸载
+  const isMountedRef = useRef<boolean>(true);
+
+  // 组件卸载时标记
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // 计时器
   const timer = useLearningTimer();
 
   /**
    * 加载当前单词
+   * 修复：添加会话代际检查，防止跨会话数据覆盖
    */
   const loadCurrentWord = useCallback(
     async (words: Word[], userId?: string) => {
       const word = LearningService.getCurrentWord();
-      
+      // 捕获当前会话代际
+      const currentGeneration = sessionGenerationRef.current;
+
       if (!word) {
-        setIsCompleted(true);
+        if (isMountedRef.current) {
+          setIsCompleted(true);
+        }
         return;
       }
 
+      if (!isMountedRef.current) return;
       setCurrentWord(word);
       currentWordIdRef.current = word.id;
       setSelectedAnswer(undefined);
@@ -108,8 +133,10 @@ export function useLearningSession() {
       if (userId) {
         try {
           const state = await LearningService.getWordState(userId, word.id);
-          
-          // 防止竞态条件
+
+          // 防止竞态条件：检查组件是否卸载、会话代际是否变化、单词是否变化
+          if (!isMountedRef.current) return;
+          if (sessionGenerationRef.current !== currentGeneration) return;
           if (currentWordIdRef.current !== word.id) return;
 
           if (state) {
@@ -124,36 +151,64 @@ export function useLearningSession() {
             setWordState(currentState);
 
             // 预计算答对/答错结果
+            // 注意：这是前端预计算的近似值，实际结果由后端 SRS 算法决定
+            // 答对：掌握度 +1（最高5级）
+            const newMasteryOnCorrect = Math.min(5, masteryLevel + 1);
+
+            // 答错：掌握度 -1（最低0级）
+            const newMasteryOnWrong = Math.max(0, masteryLevel - 1);
+
+            // 计算下次复习时间（基于当前间隔和难度因子）
+            // 修复问题#22: 使用统一的日期格式化函数，避免时区不一致
+            const formatLocalDate = (date: Date): string => {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}/${month}/${day}`;
+            };
+
+            const reviewIntervals = [1, 3, 7, 15, 30]; // 默认配置
+            const intervalIndex = Math.min(newMasteryOnCorrect, reviewIntervals.length - 1);
+            const nextIntervalDays = reviewIntervals[intervalIndex] || 1;
+            const nextReviewOnCorrect = formatLocalDate(new Date(
+              Date.now() + nextIntervalDays * 24 * 60 * 60 * 1000
+            ));
+            // 答错时下次复习设为1天后
+            const nextReviewOnWrong = formatLocalDate(new Date(
+              Date.now() + 1 * 24 * 60 * 60 * 1000
+            ));
+
             precomputedResultsRef.current = {
               wordId: word.id,
               correct: {
                 masteryLevelBefore: masteryLevel,
-                masteryLevelAfter: Math.min(5, masteryLevel + 1),
+                masteryLevelAfter: newMasteryOnCorrect,
                 score: state.score || 0,
-                nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
+                nextReviewDate: nextReviewOnCorrect,
               },
               wrong: {
                 masteryLevelBefore: masteryLevel,
-                masteryLevelAfter: Math.max(0, masteryLevel - 1),
+                masteryLevelAfter: newMasteryOnWrong,
                 score: state.score || 0,
-                nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
+                nextReviewDate: nextReviewOnWrong,
               },
             };
           } else {
             setWordState(null);
+            // 新单词的预计算结果
             precomputedResultsRef.current = {
               wordId: word.id,
               correct: {
                 masteryLevelBefore: 0,
                 masteryLevelAfter: 1,
                 score: 0,
-                nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
+                nextReviewDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
               },
               wrong: {
                 masteryLevelBefore: 0,
                 masteryLevelAfter: 0,
                 score: 0,
-                nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
+                nextReviewDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString('zh-CN'),
               },
             };
           }
@@ -191,15 +246,29 @@ export function useLearningSession() {
 
   /**
    * 初始化学习会话
+   * 修复：增加会话代际，防止旧请求覆盖新会话状态
    */
   const initialize = useCallback(
     async (userId: string) => {
+      // 增加会话代际，使旧请求的回调失效
+      sessionGenerationRef.current += 1;
+      const currentGeneration = sessionGenerationRef.current;
+      // 重置 AMAS 会话ID
+      amasSessionIdRef.current = null;
+
       try {
         setIsLoading(true);
         setError(null);
         setIsCompleted(false);
+        setSubmitError(null); // 清空上一会话的提交错误
+        userIdRef.current = userId;
 
         const response = await ApiClient.getTodayWords();
+
+        // 检查会话代际是否变化（用户可能已切换）
+        if (!isMountedRef.current) return;
+        if (sessionGenerationRef.current !== currentGeneration) return;
+
         const words: Word[] = response.words;
 
         if (!words || words.length === 0) {
@@ -211,9 +280,18 @@ export function useLearningSession() {
         setAllWords(words);
         const wordIds = words.map((w) => w.id);
         await LearningService.startSession(wordIds, userId);
+
+        // 再次检查会话代际
+        if (!isMountedRef.current) return;
+        if (sessionGenerationRef.current !== currentGeneration) return;
+
         await loadCurrentWord(words, userId);
         setIsLoading(false);
       } catch (err) {
+        // 只有当前会话才处理错误
+        if (!isMountedRef.current) return;
+        if (sessionGenerationRef.current !== currentGeneration) return;
+
         const errorMessage = handleError(err);
         setError(errorMessage || '加载学习内容失败');
         setIsLoading(false);
@@ -235,7 +313,8 @@ export function useLearningSession() {
       setSelectedAnswer(answer);
       setShowResult(true);
 
-      const isCorrect = answer === currentWord.meanings[0];
+      // 使用 LearningService 的方法检查答案（支持多释义）
+      const isCorrect = LearningService.isAnswerCorrect(answer, currentWord);
 
       // 使用预计算结果（0延迟）
       const precomputed = precomputedResultsRef.current;
@@ -261,8 +340,15 @@ export function useLearningSession() {
         });
       }
 
-      // 后台提交答题（不阻塞UI）
+      // 清除之前的提交错误
+      setSubmitError(null);
+
+      // 捕获当前会话代际，用于回调中检查会话是否已切换
+      const submitGeneration = sessionGenerationRef.current;
       const submitWordId = currentWord.id;
+
+      // 后台提交答题（不阻塞UI）
+      // 修复问题#6: 添加会话代际检查，防止跨会话数据污染
       LearningService.submitAnswer(
         submitWordId,
         answer,
@@ -272,7 +358,12 @@ export function useLearningSession() {
         userId
       )
         .then((result) => {
-          if (result && currentWordIdRef.current === submitWordId) {
+          // 检查组件是否卸载、会话是否切换、单词是否变化
+          if (!isMountedRef.current) return;
+          if (sessionGenerationRef.current !== submitGeneration) return;
+          if (currentWordIdRef.current !== submitWordId) return;
+
+          if (result) {
             setAnswerFeedback({
               masteryLevelBefore: result.masteryLevelBefore || 0,
               masteryLevelAfter: result.masteryLevelAfter || 0,
@@ -285,23 +376,39 @@ export function useLearningSession() {
         })
         .catch((err) => {
           console.error('保存答题记录失败:', err);
+          // 只有当前会话且同一题时才显示错误
+          if (!isMountedRef.current) return;
+          if (sessionGenerationRef.current !== submitGeneration) return;
+          if (currentWordIdRef.current === submitWordId) {
+            setSubmitError('答题记录保存失败，请检查网络连接');
+          }
         });
 
-      // 后台调用AMAS
+      // 后台调用AMAS（复用sessionId以关联同一学习会话）
+      // 修复问题#6: 添加会话代际检查
       ApiClient.processLearningEvent({
         wordId: submitWordId,
         isCorrect,
         responseTime: finalResponseTime,
         dwellTime: finalDwellTime,
+        sessionId: amasSessionIdRef.current || undefined,
       })
         .then((result) => {
-          if (currentWordIdRef.current === submitWordId) {
-            setAmasResult(result);
-            setAmasRefreshTrigger((prev) => prev + 1);
+          // 检查组件是否卸载、会话是否切换
+          if (!isMountedRef.current) return;
+          if (sessionGenerationRef.current !== submitGeneration) return;
+          if (currentWordIdRef.current !== submitWordId) return;
+
+          // 保存返回的sessionId供后续答题复用
+          if (result.sessionId) {
+            amasSessionIdRef.current = result.sessionId;
           }
+          setAmasResult(result);
+          setAmasRefreshTrigger((prev) => prev + 1);
         })
         .catch((err) => {
           console.error('AMAS处理失败:', err);
+          // AMAS失败不影响主要流程，但记录错误供调试
         });
     },
     [currentWord, showResult, timer, wordState]
@@ -319,7 +426,8 @@ export function useLearningSession() {
       return;
     }
 
-    loadCurrentWord(allWords, undefined);
+    // 使用存储的 userId 加载单词状态
+    loadCurrentWord(allWords, userIdRef.current);
   }, [allWords, loadCurrentWord]);
 
   /**
@@ -328,8 +436,18 @@ export function useLearningSession() {
   const restart = useCallback(() => {
     LearningService.endSession();
     setIsCompleted(false);
+    setSubmitError(null); // 清空提交错误
     timer.reset();
+    // 重置 AMAS 会话ID
+    amasSessionIdRef.current = null;
   }, [timer]);
+
+  /**
+   * 清除提交错误
+   */
+  const clearSubmitError = useCallback(() => {
+    setSubmitError(null);
+  }, []);
 
   return {
     // 状态
@@ -347,6 +465,7 @@ export function useLearningSession() {
       wordState,
       amasResult,
       amasRefreshTrigger,
+      submitError,
     },
     // 操作
     actions: {
@@ -355,6 +474,7 @@ export function useLearningSession() {
       handleNext,
       restart,
       loadCurrentWord,
+      clearSubmitError,
     },
     // 计时器
     timer,

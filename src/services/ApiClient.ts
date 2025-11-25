@@ -371,12 +371,33 @@ export interface AnomalyFlag {
 }
 
 /**
+ * API 响应中的 WordLearningState 类型（日期字段为字符串）
+ */
+interface ApiWordLearningState {
+  id: string;
+  userId: string;
+  wordId: string;
+  state: string;
+  masteryLevel: number;
+  easeFactor: number;
+  reviewCount: number;
+  lastReviewDate: string | null;
+  nextReviewDate: string | null;
+  currentInterval: number;
+  consecutiveCorrect: number;
+  consecutiveWrong: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * 转换WordLearningState的日期字段为时间戳
  */
-function convertLearningStateDates(state: any): any {
-  if (!state) return null;
+function convertLearningStateDates(state: ApiWordLearningState): import('../types/models').WordLearningState {
   return {
     ...state,
+    // 将 string 类型的 state 转换为 WordState 枚举
+    state: state.state as import('../types/models').WordState,
     lastReviewDate: state.lastReviewDate
       ? new Date(state.lastReviewDate).getTime()
       : null,
@@ -389,10 +410,30 @@ function convertLearningStateDates(state: any): any {
 }
 
 /**
+ * API 响应中的 WordScore 类型（日期字段为字符串）
+ */
+interface ApiWordScore {
+  id: string;
+  userId: string;
+  wordId: string;
+  totalScore: number;
+  accuracyScore: number;
+  speedScore: number;
+  stabilityScore: number;
+  proficiencyScore: number;
+  totalAttempts: number;
+  correctAttempts: number;
+  averageResponseTime: number;
+  averageDwellTime: number;
+  recentAccuracy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * 转换WordScore的日期字段为时间戳
  */
-function convertWordScoreDates(score: any): any {
-  if (!score) return null;
+function convertWordScoreDates(score: ApiWordScore): import('../types/models').WordScore {
   return {
     ...score,
     createdAt: new Date(score.createdAt).getTime(),
@@ -401,7 +442,35 @@ function convertWordScoreDates(score: any): any {
 }
 
 /**
+ * API请求错误类型
+ * 用于区分"数据不存在"和"请求失败"
+ */
+export class ApiError extends Error {
+  public readonly statusCode: number;
+  public readonly code: string;
+  public readonly isNotFound: boolean;
+
+  constructor(message: string, statusCode: number, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.code = code || 'UNKNOWN_ERROR';
+    this.isNotFound = statusCode === 404;
+  }
+}
+
+/**
  * API客户端 - 封装所有HTTP请求
+ *
+ * 安全注意事项：
+ * - JWT存储在localStorage中，存在XSS攻击风险
+ * - 生产环境建议使用httpOnly cookie存储token（需要后端支持）
+ * - 当前实现仅在客户端验证token过期时间，不验证签名
+ *
+ * 缓解措施：
+ * - 设置较短的token过期时间
+ * - 实现token刷新机制
+ * - 确保应用有充分的XSS防护
  */
 /** 默认请求超时时间（毫秒） */
 const DEFAULT_TIMEOUT = 30000;
@@ -416,6 +485,7 @@ class ApiClient {
     this.baseUrl = baseUrl;
 
     // 从localStorage读取token并验证有效性
+    // 安全警告：localStorage容易受到XSS攻击，建议生产环境使用httpOnly cookie
     const storedToken = localStorage.getItem('auth_token');
     if (storedToken) {
       // 检查token是否已过期
@@ -500,13 +570,13 @@ class ApiClient {
         if (this.onUnauthorizedCallback) {
           this.onUnauthorizedCallback();
         }
-        throw new Error('认证失败，请重新登录');
+        throw new ApiError('认证失败，请重新登录', 401, 'UNAUTHORIZED');
       }
 
       // 处理空响应（204 No Content 或其他无内容响应）
       if (response.status === 204 || response.headers.get('content-length') === '0') {
         if (!response.ok) {
-          throw new Error(`请求失败: ${response.status}`);
+          throw new ApiError(`请求失败: ${response.status}`, response.status);
         }
         return undefined as T;
       }
@@ -515,7 +585,7 @@ class ApiClient {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         if (!response.ok) {
-          throw new Error(`请求失败: ${response.status}`);
+          throw new ApiError(`请求失败: ${response.status}`, response.status);
         }
         return undefined as T;
       }
@@ -523,11 +593,16 @@ class ApiClient {
       const data: ApiResponse<T> = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `请求失败: ${response.status}`);
+        // 使用ApiError以便调用方区分错误类型
+        throw new ApiError(
+          data.error || `请求失败: ${response.status}`,
+          response.status,
+          data.code
+        );
       }
 
       if (!data.success) {
-        throw new Error(data.error || '请求失败');
+        throw new ApiError(data.error || '请求失败', response.status, data.code);
       }
 
       return data.data as T;
@@ -1196,30 +1271,49 @@ class ApiClient {
 
   /**
    * 获取单词学习状态
+   * 修复：区分"数据不存在"和"请求失败"
+   * - 返回null表示数据不存在（404）
+   * - 其他错误会被抛出，调用方需要处理
    */
   async getWordLearningState(wordId: string): Promise<import('../types/models').WordLearningState | null> {
     try {
-      const state = await this.request<any>(`/api/word-states/${wordId}`);
+      const state = await this.request<ApiWordLearningState>(`/api/word-states/${wordId}`);
       return state ? convertLearningStateDates(state) : null;
     } catch (error) {
+      // 404表示数据不存在，返回null
+      if (error instanceof ApiError && error.isNotFound) {
+        return null;
+      }
+      // 其他错误重新抛出，让调用方处理
       console.error('获取单词学习状态失败:', error);
-      return null;
+      throw error;
     }
   }
 
   /**
    * 批量获取单词学习状态
+   * 修复：区分"数据不存在"和"请求失败"
+   * 修复：正确处理后端返回的 { wordId, state } 格式
    */
   async getWordLearningStates(wordIds: string[]): Promise<import('../types/models').WordLearningState[]> {
     try {
-      const states = await this.request<any[]>('/api/word-states/batch', {
+      // 后端返回格式: { wordId: string, state: ApiWordLearningState | null }[]
+      const response = await this.request<Array<{ wordId: string; state: ApiWordLearningState | null }>>('/api/word-states/batch', {
         method: 'POST',
         body: JSON.stringify({ wordIds }),
       });
-      return states.map(convertLearningStateDates);
+      // 过滤掉 state 为 null 的条目，只转换有状态的单词
+      return response
+        .filter((item): item is { wordId: string; state: ApiWordLearningState } => item.state !== null)
+        .map(item => convertLearningStateDates(item.state));
     } catch (error) {
+      // 404表示无数据，返回空数组
+      if (error instanceof ApiError && error.isNotFound) {
+        return [];
+      }
+      // 其他错误重新抛出
       console.error('批量获取单词学习状态失败:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -1270,7 +1364,7 @@ class ApiClient {
    */
   async getDueWords(): Promise<import('../types/models').WordLearningState[]> {
     try {
-      const states = await this.request<any[]>('/api/word-states/due/list');
+      const states = await this.request<ApiWordLearningState[]>('/api/word-states/due/list');
       return states.map(convertLearningStateDates);
     } catch (error) {
       console.error('获取到期单词失败:', error);
@@ -1283,7 +1377,7 @@ class ApiClient {
    */
   async getWordsByState(state: import('../types/models').WordState): Promise<import('../types/models').WordLearningState[]> {
     try {
-      const states = await this.request<any[]>(`/api/word-states/by-state/${state}`);
+      const states = await this.request<ApiWordLearningState[]>(`/api/word-states/by-state/${state}`);
       return states.map(convertLearningStateDates);
     } catch (error) {
       console.error('按状态获取单词失败:', error);
@@ -1298,7 +1392,7 @@ class ApiClient {
    */
   async getWordScore(wordId: string): Promise<import('../types/models').WordScore | null> {
     try {
-      const score = await this.request<any>(`/api/word-scores/${wordId}`);
+      const score = await this.request<ApiWordScore>(`/api/word-scores/${wordId}`);
       return score ? convertWordScoreDates(score) : null;
     } catch (error) {
       console.error('获取单词得分失败:', error);
@@ -1311,7 +1405,7 @@ class ApiClient {
    */
   async getWordScores(wordIds: string[]): Promise<import('../types/models').WordScore[]> {
     try {
-      const scores = await this.request<any[]>('/api/word-scores/batch', {
+      const scores = await this.request<ApiWordScore[]>('/api/word-scores/batch', {
         method: 'POST',
         body: JSON.stringify({ wordIds }),
       });
@@ -1344,7 +1438,7 @@ class ApiClient {
    */
   async getWordsByScoreRange(minScore: number, maxScore: number): Promise<import('../types/models').WordScore[]> {
     try {
-      const scores = await this.request<any[]>(`/api/word-scores/range?minScore=${minScore}&maxScore=${maxScore}`);
+      const scores = await this.request<ApiWordScore[]>(`/api/word-scores/range?minScore=${minScore}&maxScore=${maxScore}`);
       return scores.map(convertWordScoreDates);
     } catch (error) {
       console.error('按得分范围获取单词失败:', error);
@@ -1548,7 +1642,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas').UserState>('/api/amas/state');
     } catch (error) {
-      if (error instanceof Error && error.message.includes('404')) {
+      if (error instanceof ApiError && error.isNotFound) {
         // 状态未初始化，返回null
         return null;
       }
@@ -1564,7 +1658,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas').LearningStrategy>('/api/amas/strategy');
     } catch (error) {
-      if (error instanceof Error && error.message.includes('404')) {
+      if (error instanceof ApiError && error.isNotFound) {
         // 策略未初始化，返回null
         return null;
       }
@@ -1612,6 +1706,353 @@ class ApiClient {
       });
     } catch (error) {
       console.error('批量处理事件失败:', error);
+      throw error;
+    }
+  }
+  // ==================== AMAS 增强功能 API ====================
+
+  /**
+   * 获取时间偏好分析
+   * Requirements: 1.1, 1.3, 1.5
+   */
+  async getTimePreferences(): Promise<import('../types/amas-enhanced').TimePreferenceResponse> {
+    try {
+      return await this.request<import('../types/amas-enhanced').TimePreferenceResponse>('/api/amas/time-preferences');
+    } catch (error) {
+      console.error('获取时间偏好失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查当前是否为黄金学习时间
+   * Requirements: 1.2
+   */
+  async getGoldenTime(): Promise<import('../types/amas-enhanced').GoldenTimeResult & { message: string }> {
+    try {
+      return await this.request<import('../types/amas-enhanced').GoldenTimeResult & { message: string }>('/api/amas/golden-time');
+    } catch (error) {
+      console.error('获取黄金时间失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取当前趋势状态
+   * Requirements: 2.1
+   */
+  async getCurrentTrend(): Promise<import('../types/amas-enhanced').TrendInfo & { stateDescription: string }> {
+    try {
+      return await this.request<import('../types/amas-enhanced').TrendInfo & { stateDescription: string }>('/api/amas/trend');
+    } catch (error) {
+      console.error('获取趋势状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取趋势历史数据
+   * Requirements: 2.3
+   */
+  async getTrendHistory(days: number = 28): Promise<{
+    daily: import('../types/amas-enhanced').TrendHistoryItem[];
+    weekly: Array<{
+      weekNumber: number;
+      startDate: string;
+      endDate: string;
+      avgAccuracy: number;
+      avgResponseTime: number;
+      avgMotivation: number;
+      dominantState: string;
+    }>;
+    totalDays: number;
+  }> {
+    try {
+      return await this.request<{
+        daily: import('../types/amas-enhanced').TrendHistoryItem[];
+        weekly: Array<{
+          weekNumber: number;
+          startDate: string;
+          endDate: string;
+          avgAccuracy: number;
+          avgResponseTime: number;
+          avgMotivation: number;
+          dominantState: string;
+        }>;
+        totalDays: number;
+      }>(`/api/amas/trend/history?days=${days}`);
+    } catch (error) {
+      console.error('获取趋势历史失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 生成趋势报告
+   * Requirements: 2.5
+   */
+  async getTrendReport(): Promise<import('../types/amas-enhanced').TrendReport> {
+    try {
+      return await this.request<import('../types/amas-enhanced').TrendReport>('/api/amas/trend/report');
+    } catch (error) {
+      console.error('获取趋势报告失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查是否需要干预
+   * Requirements: 2.2, 2.4
+   */
+  async getIntervention(): Promise<import('../types/amas-enhanced').InterventionResult> {
+    try {
+      return await this.request<import('../types/amas-enhanced').InterventionResult>('/api/amas/trend/intervention');
+    } catch (error) {
+      console.error('获取干预建议失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户所有徽章
+   * Requirements: 3.2
+   */
+  async getUserBadges(): Promise<{ badges: import('../types/amas-enhanced').Badge[]; count: number }> {
+    try {
+      return await this.request<{ badges: import('../types/amas-enhanced').Badge[]; count: number }>('/api/badges');
+    } catch (error) {
+      console.error('获取用户徽章失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取所有徽章（包含解锁状态）
+   */
+  async getAllBadgesWithStatus(): Promise<{
+    badges: Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>;
+    grouped: Record<string, Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>>;
+    totalCount: number;
+    unlockedCount: number;
+  }> {
+    try {
+      return await this.request<{
+        badges: Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>;
+        grouped: Record<string, Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>>;
+        totalCount: number;
+        unlockedCount: number;
+      }>('/api/badges/all');
+    } catch (error) {
+      console.error('获取所有徽章失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取徽章详情
+   * Requirements: 3.5
+   */
+  async getBadgeDetails(badgeId: string): Promise<import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }> {
+    try {
+      return await this.request<import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }>(`/api/badges/${badgeId}`);
+    } catch (error) {
+      console.error('获取徽章详情失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取徽章进度
+   * Requirements: 3.5
+   */
+  async getBadgeProgress(badgeId: string): Promise<import('../types/amas-enhanced').BadgeProgress> {
+    try {
+      return await this.request<import('../types/amas-enhanced').BadgeProgress>(`/api/badges/${badgeId}/progress`);
+    } catch (error) {
+      console.error('获取徽章进度失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查并授予新徽章
+   * Requirements: 3.1, 3.3, 3.4
+   */
+  async checkAndAwardBadges(): Promise<{
+    newBadges: import('../types/amas-enhanced').NewBadgeResult[];
+    hasNewBadges: boolean;
+    message: string;
+  }> {
+    try {
+      return await this.request<{
+        newBadges: import('../types/amas-enhanced').NewBadgeResult[];
+        hasNewBadges: boolean;
+        message: string;
+      }>('/api/badges/check', { method: 'POST' });
+    } catch (error) {
+      console.error('检查徽章失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取当前学习计划
+   * Requirements: 4.1, 4.4
+   */
+  async getLearningPlan(): Promise<import('../types/amas-enhanced').LearningPlan | null> {
+    try {
+      const result = await this.request<import('../types/amas-enhanced').LearningPlan | null>('/api/plan');
+      return result;
+    } catch (error) {
+      // 404表示用户尚未创建学习计划，返回null
+      if (error instanceof ApiError && error.isNotFound) {
+        return null;
+      }
+      console.error('获取学习计划失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 生成学习计划
+   * Requirements: 4.1, 4.2, 4.4, 4.5
+   */
+  async generateLearningPlan(options?: import('../types/amas-enhanced').PlanOptions): Promise<import('../types/amas-enhanced').LearningPlan> {
+    try {
+      return await this.request<import('../types/amas-enhanced').LearningPlan>('/api/plan/generate', {
+        method: 'POST',
+        body: JSON.stringify(options || {}),
+      });
+    } catch (error) {
+      console.error('生成学习计划失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取计划进度
+   * Requirements: 4.3, 4.4
+   */
+  async getPlanProgress(): Promise<import('../types/amas-enhanced').PlanProgress & { status: string }> {
+    try {
+      return await this.request<import('../types/amas-enhanced').PlanProgress & { status: string }>('/api/plan/progress');
+    } catch (error) {
+      console.error('获取计划进度失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 调整学习计划
+   * Requirements: 4.3
+   */
+  async adjustLearningPlan(reason?: string): Promise<import('../types/amas-enhanced').LearningPlan> {
+    try {
+      return await this.request<import('../types/amas-enhanced').LearningPlan>('/api/plan/adjust', {
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+      });
+    } catch (error) {
+      console.error('调整学习计划失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取状态历史数据
+   * Requirements: 5.1, 5.4
+   */
+  async getStateHistory(range: import('../types/amas-enhanced').DateRangeOption = 30): Promise<{
+    history: import('../types/amas-enhanced').StateHistoryPoint[];
+    summary: {
+      recordCount: number;
+      averages: {
+        attention: number;
+        fatigue: number;
+        motivation: number;
+        memory: number;
+        speed: number;
+        stability: number;
+      };
+    };
+    range: number;
+    totalRecords: number;
+  }> {
+    try {
+      return await this.request<{
+        history: import('../types/amas-enhanced').StateHistoryPoint[];
+        summary: {
+          recordCount: number;
+          averages: {
+            attention: number;
+            fatigue: number;
+            motivation: number;
+            memory: number;
+            speed: number;
+            stability: number;
+          };
+        };
+        range: number;
+        totalRecords: number;
+      }>(`/api/amas/history?range=${range}`);
+    } catch (error) {
+      console.error('获取状态历史失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取认知成长对比
+   * Requirements: 5.3
+   */
+  async getCognitiveGrowth(): Promise<{
+    current: import('../types/amas-enhanced').CognitiveProfile;
+    past: import('../types/amas-enhanced').CognitiveProfile;
+    changes: {
+      memory: { value: number; percent: number; direction: 'up' | 'down' };
+      speed: { value: number; percent: number; direction: 'up' | 'down' };
+      stability: { value: number; percent: number; direction: 'up' | 'down' };
+    };
+    period: number;
+    periodLabel: string;
+  }> {
+    try {
+      return await this.request<{
+        current: import('../types/amas-enhanced').CognitiveProfile;
+        past: import('../types/amas-enhanced').CognitiveProfile;
+        changes: {
+          memory: { value: number; percent: number; direction: 'up' | 'down' };
+          speed: { value: number; percent: number; direction: 'up' | 'down' };
+          stability: { value: number; percent: number; direction: 'up' | 'down' };
+        };
+        period: number;
+        periodLabel: string;
+      }>('/api/amas/growth');
+    } catch (error) {
+      console.error('获取认知成长失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取显著变化
+   * Requirements: 5.5
+   */
+  async getSignificantChanges(range: import('../types/amas-enhanced').DateRangeOption = 30): Promise<{
+    changes: Array<import('../types/amas-enhanced').SignificantChange & { description: string }>;
+    range: number;
+    hasSignificantChanges: boolean;
+    summary: string;
+  }> {
+    try {
+      return await this.request<{
+        changes: Array<import('../types/amas-enhanced').SignificantChange & { description: string }>;
+        range: number;
+        hasSignificantChanges: boolean;
+        summary: string;
+      }>(`/api/amas/changes?range=${range}`);
+    } catch (error) {
+      console.error('获取显著变化失败:', error);
       throw error;
     }
   }

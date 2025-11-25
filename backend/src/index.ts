@@ -55,4 +55,25 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
+// 修复问题#16: 全局未处理Promise拒绝处理
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  console.error('Unhandled Promise Rejection:', reason);
+  console.error('Promise:', promise);
+  // 生产环境不应因为未处理的Promise拒绝而崩溃
+  // 但应该记录错误以便后续分析
+  if (env.NODE_ENV === 'production') {
+    // TODO: 发送到错误追踪服务（如Sentry）
+  }
+});
+
+// 全局未捕获异常处理
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+  // 未捕获异常通常意味着应用状态不可预测，应该重启
+  // 但先尝试优雅关闭
+  gracefulShutdown('uncaughtException').catch(() => {
+    process.exit(1);
+  });
+});
+
 startServer();

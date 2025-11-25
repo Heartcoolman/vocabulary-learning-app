@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/ApiClient';
 import { Books } from '../../components/Icon';
 
 export default function AdminWordBooks() {
+    const navigate = useNavigate();
     const [wordBooks, setWordBooks] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -119,7 +121,7 @@ export default function AdminWordBooks() {
 
                             <div className="flex gap-2">
                                 <button
-                                    onClick={() => (window.location.href = `/wordbooks/${book.id}`)}
+                                    onClick={() => navigate(`/wordbooks/${book.id}`)}
                                     className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all"
                                 >
                                     查看详情
