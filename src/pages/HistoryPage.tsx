@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
@@ -7,16 +7,15 @@ import {
   StateHistoryPoint,
   SignificantChange,
   DateRangeOption,
-  CognitiveProfile,
   CognitiveGrowthResult
 } from '../types/amas-enhanced';
-import { 
-  ChartBar, 
-  Target, 
-  CheckCircle, 
-  Warning, 
-  Clock, 
-  TrendUp, 
+import {
+  ChartBar,
+  Target,
+  CheckCircle,
+  Warning,
+  Clock,
+  TrendUp,
   TrendDown,
   Hash,
   BookOpen,
@@ -56,6 +55,10 @@ export default function HistoryPage() {
   const [filterBy, setFilterBy] = useState<FilterType>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('words');
 
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
   // 状态历史相关状态
   const [dateRange, setDateRange] = useState<DateRangeOption>(30);
   const [stateHistory, setStateHistory] = useState<StateHistoryPoint[]>([]);
@@ -63,65 +66,89 @@ export default function HistoryPage() {
   const [significantChanges, setSignificantChanges] = useState<(SignificantChange & { description: string })[]>([]);
   const [isLoadingState, setIsLoadingState] = useState(false);
 
-  const loadStatistics = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const statistics = await StorageService.getStudyStatistics();
-      const words = await StorageService.getWords();
+  // 加载单词统计数据
+  useEffect(() => {
+    let mounted = true;
 
-      const statsArray: WordStats[] = [];
-      statistics.wordStats.forEach((stat, wordId) => {
-        const word = words.find(w => w.id === wordId);
-        if (word) {
-          statsArray.push({
-            wordId,
-            spelling: word.spelling,
-            attempts: stat.attempts,
-            correct: stat.correct,
-            correctRate: stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0,
-            lastStudied: stat.lastStudied,
-          });
+    const loadStatistics = async () => {
+      try {
+        if (mounted) setIsLoading(true);
+
+        const statistics = await StorageService.getStudyStatistics();
+        if (!mounted) return;
+
+        const words = await StorageService.getWords();
+        if (!mounted) return;
+
+        const statsArray: WordStats[] = [];
+        statistics.wordStats.forEach((stat, wordId) => {
+          const word = words.find(w => w.id === wordId);
+          if (word) {
+            statsArray.push({
+              wordId,
+              spelling: word.spelling,
+              attempts: stat.attempts,
+              correct: stat.correct,
+              correctRate: stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0,
+              lastStudied: stat.lastStudied,
+            });
+          }
+        });
+
+        statsArray.sort((a, b) => b.lastStudied - a.lastStudied);
+
+        if (mounted) {
+          setStats(statsArray);
+          setError(null);
         }
-      });
+      } catch (err) {
+        if (mounted) setError(handleError(err));
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
 
-      statsArray.sort((a, b) => b.lastStudied - a.lastStudied);
-      setStats(statsArray);
-      setError(null);
-    } catch (err) {
-      setError(handleError(err));
-    } finally {
-      setIsLoading(false);
-    }
+    loadStatistics();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const loadStateHistory = useCallback(async () => {
-    try {
-      setIsLoadingState(true);
-      const [historyData, growthData, changesData] = await Promise.all([
-        ApiClient.getStateHistory(dateRange),
-        ApiClient.getCognitiveGrowth(),
-        ApiClient.getSignificantChanges(dateRange)
-      ]);
-
-      setStateHistory(historyData.history);
-      setCognitiveGrowth(growthData);
-      setSignificantChanges(changesData.changes);
-    } catch (err) {
-      console.error('加载状态历史失败:', err);
-    } finally {
-      setIsLoadingState(false);
-    }
-  }, [dateRange]);
-
+  // 加载状态历史数据
   useEffect(() => {
-    loadStatistics();
-  }, [loadStatistics]);
+    if (viewMode !== 'state') return;
 
-  useEffect(() => {
-    if (viewMode === 'state') {
-      loadStateHistory();
-    }
-  }, [viewMode, loadStateHistory]);
+    let mounted = true;
+
+    const loadStateHistory = async () => {
+      try {
+        if (mounted) setIsLoadingState(true);
+
+        const [historyData, growthData, changesData] = await Promise.all([
+          ApiClient.getStateHistory(dateRange),
+          ApiClient.getCognitiveGrowth(),
+          ApiClient.getSignificantChanges(dateRange)
+        ]);
+
+        if (mounted) {
+          setStateHistory(historyData.history);
+          setCognitiveGrowth(growthData);
+          setSignificantChanges(changesData.changes);
+        }
+      } catch (err) {
+        console.error('加载状态历史失败:', err);
+      } finally {
+        if (mounted) setIsLoadingState(false);
+      }
+    };
+
+    loadStateHistory();
+
+    return () => {
+      mounted = false;
+    };
+  }, [viewMode, dateRange]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -135,7 +162,7 @@ export default function HistoryPage() {
     if (diffMins < 60) return `${diffMins}分钟前`;
     if (diffHours < 24) return `${diffHours}小时前`;
     if (diffDays < 7) return `${diffDays}天前`;
-    
+
     return date.toLocaleDateString('zh-CN');
   };
 
@@ -157,26 +184,26 @@ export default function HistoryPage() {
   };
 
   const getMasteryLabel = (rate: number) => {
-    if (rate >= 80) return { 
-      label: '已掌握', 
-      icon: CheckCircle, 
-      color: 'text-green-600', 
-      bg: 'bg-green-50', 
-      border: 'border-green-300' 
+    if (rate >= 80) return {
+      label: '已掌握',
+      icon: CheckCircle,
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      border: 'border-green-300'
     };
-    if (rate >= 40) return { 
-      label: '需复习', 
-      icon: Warning, 
-      color: 'text-yellow-600', 
-      bg: 'bg-yellow-50', 
-      border: 'border-yellow-300' 
+    if (rate >= 40) return {
+      label: '需复习',
+      icon: Warning,
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-300'
     };
-    return { 
-      label: '未掌握', 
-      icon: Warning, 
-      color: 'text-red-600', 
-      bg: 'bg-red-50', 
-      border: 'border-red-300' 
+    return {
+      label: '未掌握',
+      icon: Warning,
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+      border: 'border-red-300'
     };
   };
 
@@ -253,6 +280,18 @@ export default function HistoryPage() {
     return sorted;
   }, [stats, sortBy, filterBy]);
 
+  // 分页逻辑
+  const totalPages = Math.ceil(filteredAndSortedStats.length / itemsPerPage);
+  const currentStats = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedStats.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedStats, currentPage]);
+
+  // 重置页码当筛选/排序改变时
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterBy, sortBy]);
+
   // 统计数据
   const statistics = useMemo(() => {
     if (stats.length === 0) return { total: 0, avgCorrectRate: 0, mastered: 0, reviewing: 0, struggling: 0 };
@@ -285,7 +324,7 @@ export default function HistoryPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={loadStatistics}
+            onClick={() => window.location.reload()}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             重试
@@ -307,22 +346,20 @@ export default function HistoryPage() {
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setViewMode('words')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-              viewMode === 'words'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${viewMode === 'words'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
           >
             <BookOpen size={18} weight="bold" />
             单词统计
           </button>
           <button
             onClick={() => setViewMode('state')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-              viewMode === 'state'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${viewMode === 'state'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
           >
             <ChartLine size={18} weight="bold" />
             状态历史
@@ -342,11 +379,10 @@ export default function HistoryPage() {
                     <button
                       key={range}
                       onClick={() => setDateRange(range)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                        dateRange === range
-                          ? 'bg-blue-500 text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${dateRange === range
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       {range} 天
                     </button>
@@ -374,9 +410,8 @@ export default function HistoryPage() {
                       <div className="bg-purple-50 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-purple-700">记忆力</span>
-                          <div className={`flex items-center gap-1 ${
-                            cognitiveGrowth.changes.memory.direction === 'up' ? 'text-green-600' : 'text-red-600'
-                          }`}>
+                          <div className={`flex items-center gap-1 ${cognitiveGrowth.changes.memory.direction === 'up' ? 'text-green-600' : 'text-red-600'
+                            }`}>
                             {cognitiveGrowth.changes.memory.direction === 'up' ? (
                               <ArrowUp size={16} weight="bold" />
                             ) : (
@@ -402,9 +437,8 @@ export default function HistoryPage() {
                       <div className="bg-blue-50 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-blue-700">速度</span>
-                          <div className={`flex items-center gap-1 ${
-                            cognitiveGrowth.changes.speed.direction === 'up' ? 'text-green-600' : 'text-red-600'
-                          }`}>
+                          <div className={`flex items-center gap-1 ${cognitiveGrowth.changes.speed.direction === 'up' ? 'text-green-600' : 'text-red-600'
+                            }`}>
                             {cognitiveGrowth.changes.speed.direction === 'up' ? (
                               <ArrowUp size={16} weight="bold" />
                             ) : (
@@ -430,9 +464,8 @@ export default function HistoryPage() {
                       <div className="bg-green-50 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-green-700">稳定性</span>
-                          <div className={`flex items-center gap-1 ${
-                            cognitiveGrowth.changes.stability.direction === 'up' ? 'text-green-600' : 'text-red-600'
-                          }`}>
+                          <div className={`flex items-center gap-1 ${cognitiveGrowth.changes.stability.direction === 'up' ? 'text-green-600' : 'text-red-600'
+                            }`}>
                             {cognitiveGrowth.changes.stability.direction === 'up' ? (
                               <ArrowUp size={16} weight="bold" />
                             ) : (
@@ -492,12 +525,12 @@ export default function HistoryPage() {
                     </h2>
                     <div className="space-y-3">
                       {significantChanges.map((change, index) => (
-                        <div 
+                        <div
                           key={index}
                           className={`
                             flex items-center gap-4 p-4 rounded-xl border-2 transition-all
-                            ${change.isPositive 
-                              ? 'bg-green-50 border-green-300' 
+                            ${change.isPositive
+                              ? 'bg-green-50 border-green-300'
                               : 'bg-red-50 border-red-300'
                             }
                           `}
@@ -571,7 +604,7 @@ export default function HistoryPage() {
               <>
                 {/* 统计面板 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-200/60">
                     <div className="flex items-center gap-3 mb-2">
                       <ChartBar size={32} weight="duotone" color="#3b82f6" />
                       <span className="text-sm text-gray-600 font-medium">总学习单词</span>
@@ -579,7 +612,7 @@ export default function HistoryPage() {
                     <p className="text-3xl font-bold text-gray-900">{statistics.total}</p>
                   </div>
 
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-200/60">
                     <div className="flex items-center gap-3 mb-2">
                       <Target size={32} weight="duotone" color="#a855f7" />
                       <span className="text-sm text-gray-600 font-medium">平均正确率</span>
@@ -607,50 +640,46 @@ export default function HistoryPage() {
                 </div>
 
                 {/* 筛选和排序 */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8">
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-200/60 mb-8">
                   <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-3">筛选</h3>
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setFilterBy('all')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            filterBy === 'all'
-                              ? 'bg-blue-500 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${filterBy === 'all'
+                            ? 'bg-blue-500 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                           全部 ({stats.length})
                         </button>
                         <button
                           onClick={() => setFilterBy('mastered')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            filterBy === 'mastered'
-                              ? 'bg-green-500 text-white shadow-md'
-                              : 'bg-green-100 text-green-700 hover:bg-green-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${filterBy === 'mastered'
+                            ? 'bg-green-500 text-white shadow-md'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
                         >
                           <CheckCircle size={16} weight="bold" />
                           已掌握 ({statistics.mastered})
                         </button>
                         <button
                           onClick={() => setFilterBy('reviewing')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            filterBy === 'reviewing'
-                              ? 'bg-yellow-500 text-white shadow-md'
-                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${filterBy === 'reviewing'
+                            ? 'bg-yellow-500 text-white shadow-md'
+                            : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            }`}
                         >
                           <Warning size={16} weight="bold" />
                           需复习 ({statistics.reviewing})
                         </button>
                         <button
                           onClick={() => setFilterBy('struggling')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            filterBy === 'struggling'
-                              ? 'bg-red-500 text-white shadow-md'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${filterBy === 'struggling'
+                            ? 'bg-red-500 text-white shadow-md'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
                         >
                           <Warning size={16} weight="bold" />
                           未掌握 ({statistics.struggling})
@@ -663,33 +692,30 @@ export default function HistoryPage() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setSortBy('time')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            sortBy === 'time'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${sortBy === 'time'
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                           <Clock size={16} weight="bold" />
                           最近学习
                         </button>
                         <button
                           onClick={() => setSortBy('correctRate')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            sortBy === 'correctRate'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${sortBy === 'correctRate'
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                           <TrendUp size={16} weight="bold" />
                           正确率
                         </button>
                         <button
                           onClick={() => setSortBy('attempts')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${
-                            sortBy === 'attempts'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 ${sortBy === 'attempts'
+                            ? 'bg-gray-900 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                           <Hash size={16} weight="bold" />
                           学习次数
@@ -700,91 +726,114 @@ export default function HistoryPage() {
                 </div>
 
                 {/* 单词卡片网格 */}
-                {filteredAndSortedStats.length === 0 ? (
+                {currentStats.length === 0 ? (
                   <div className="text-center py-12 animate-fade-in">
                     <MagnifyingGlass className="mx-auto mb-4" size={80} weight="thin" color="#9ca3af" />
                     <p className="text-gray-600 text-lg">没有找到符合条件的单词</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAndSortedStats.map((stat, index) => {
-                      const mastery = getMasteryLabel(stat.correctRate);
-                      return (
-                        <div
-                          key={stat.wordId}
-                          className={`group relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border-2 hover:shadow-xl transition-all duration-200 hover:scale-105 animate-fade-in ${mastery.border}`}
-                          style={{ animationDelay: `${index * 30}ms` }}
-                        >
-                          {/* 掌握程度标签 */}
-                          <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${mastery.bg} ${mastery.color}`}>
-                            <mastery.icon size={12} weight="bold" />
-                            {mastery.label}
-                          </div>
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {currentStats.map((stat, index) => {
+                        const mastery = getMasteryLabel(stat.correctRate);
+                        return (
+                          <div
+                            key={stat.wordId}
+                            className={`group relative bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border hover:shadow-lg transition-all duration-200 hover:scale-105 animate-fade-in ${mastery.border}`}
+                            style={{ animationDelay: `${index * 30}ms` }}
+                          >
+                            {/* 掌握程度标签 */}
+                            <div className={`absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${mastery.bg} ${mastery.color}`}>
+                              <mastery.icon size={10} weight="bold" />
+                              {mastery.label}
+                            </div>
 
-                          {/* 单词名称 */}
-                          <div className="mb-6">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                              {stat.spelling}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {formatDate(stat.lastStudied)}
-                            </p>
-                          </div>
+                            {/* 单词名称 */}
+                            <div className="mb-4">
+                              <h3 className="text-xl font-bold text-gray-900 mb-0.5 truncate" title={stat.spelling}>
+                                {stat.spelling}
+                              </h3>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(stat.lastStudied)}
+                              </p>
+                            </div>
 
-                          {/* 圆形进度条 */}
-                          <div className="flex items-center justify-center mb-6">
-                            <div className="relative w-32 h-32">
-                              <svg className="transform -rotate-90 w-32 h-32">
-                                <circle
-                                  cx="64"
-                                  cy="64"
-                                  r="56"
-                                  stroke="currentColor"
-                                  strokeWidth="8"
-                                  fill="none"
-                                  className="text-gray-200"
-                                />
-                                <circle
-                                  cx="64"
-                                  cy="64"
-                                  r="56"
-                                  stroke="currentColor"
-                                  strokeWidth="8"
-                                  fill="none"
-                                  strokeDasharray={`${2 * Math.PI * 56}`}
-                                  strokeDashoffset={`${2 * Math.PI * 56 * (1 - stat.correctRate / 100)}`}
-                                  className={`transition-all duration-500 ${
-                                    stat.correctRate >= 80 ? 'text-green-500' :
-                                    stat.correctRate >= 40 ? 'text-yellow-500' :
-                                    'text-red-500'
-                                  }`}
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className={`text-3xl font-bold ${getCorrectRateColor(stat.correctRate)}`}>
-                                  {stat.correctRate.toFixed(0)}%
-                                </span>
-                                <span className="text-xs text-gray-500 mt-1">正确率</span>
+                            {/* 圆形进度条 - 缩小尺寸 */}
+                            <div className="flex items-center justify-center mb-4">
+                              <div className="relative w-20 h-20">
+                                <svg className="transform -rotate-90 w-20 h-20">
+                                  <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="36"
+                                    stroke="currentColor"
+                                    strokeWidth="6"
+                                    fill="none"
+                                    className="text-gray-200"
+                                  />
+                                  <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="36"
+                                    stroke="currentColor"
+                                    strokeWidth="6"
+                                    fill="none"
+                                    strokeDasharray={`${2 * Math.PI * 36}`}
+                                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
+                                    className={`transition-all duration-500 ${stat.correctRate >= 80 ? 'text-green-500' :
+                                      stat.correctRate >= 40 ? 'text-yellow-500' :
+                                        'text-red-500'
+                                      }`}
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className={`text-lg font-bold ${getCorrectRateColor(stat.correctRate)}`}>
+                                    {stat.correctRate.toFixed(0)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 统计信息 - 紧凑布局 */}
+                            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-0.5">次数</p>
+                                <p className="text-sm font-bold text-gray-900">{stat.attempts}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-0.5">正确</p>
+                                <p className="text-sm font-bold text-green-600">{stat.correct}</p>
                               </div>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          {/* 统计信息 */}
-                          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-                            <div className="text-center">
-                              <p className="text-sm text-gray-600 mb-1">学习次数</p>
-                              <p className="text-xl font-bold text-gray-900">{stat.attempts}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-gray-600 mb-1">正确次数</p>
-                              <p className="text-xl font-bold text-green-600">{stat.correct}</p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    {/* 分页控件 */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center gap-2 mt-8">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          上一页
+                        </button>
+                        <span className="text-sm text-gray-600">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-3 py-1 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          下一页
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

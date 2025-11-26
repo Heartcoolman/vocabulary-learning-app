@@ -10,6 +10,7 @@ import {
     ChartBar,
     Target,
     Clock,
+    CircleNotch,
 } from '../../components/Icon';
 
 interface PaginationInfo {
@@ -106,10 +107,10 @@ export default function UserManagementPage() {
     if (isLoading && users.length === 0) {
         return (
             <div className="p-8">
-                <div className="flex items-center justify-center min-h-[400px]">
+                <div className="flex items-center justify-center min-h-[400px] animate-fade-in">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
-                        <p className="text-gray-600">加载中...</p>
+                        <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                        <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
                     </div>
                 </div>
             </div>

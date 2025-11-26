@@ -8,7 +8,8 @@ import {
   Warning,
   CheckCircle,
   Plus,
-  Trash
+  Trash,
+  CircleNotch
 } from '../../components/Icon';
 
 /**
@@ -96,8 +97,11 @@ export default function AlgorithmConfigPage() {
 
   if (isLoading || !config || !defaultConfig) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">加载配置中...</div>
+      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+        <div className="text-center">
+          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+          <p className="text-gray-600" role="status" aria-live="polite">加载配置中...</p>
+        </div>
       </div>
     );
   }
@@ -278,7 +282,7 @@ function ReviewIntervalsSection({ intervals, defaultIntervals, onChange }: Revie
   const isDefault = JSON.stringify(intervals) === JSON.stringify(defaultIntervals);
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">遗忘曲线参数</h2>
@@ -360,7 +364,7 @@ function DifficultyAdjustmentSection({
     adjustmentInterval === defaultAdjustmentInterval;
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">难度调整参数</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -464,7 +468,7 @@ function PriorityWeightsSection({ weights, defaultWeights, onChange }: PriorityW
   };
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">优先级权重</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -586,7 +590,7 @@ function MasteryThresholdsSection({ thresholds, defaultThresholds, onChange }: M
   };
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">掌握程度阈值</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -681,7 +685,7 @@ function ScoreWeightsSection({ weights, defaultWeights, onChange }: ScoreWeights
   };
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">单词得分权重</h2>
         <p className="text-sm text-gray-600 mt-1">
@@ -800,7 +804,7 @@ function SpeedThresholdsSection({ thresholds, defaultThresholds, onChange }: Spe
   };
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+    <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">答题速度评分标准</h2>
         <p className="text-sm text-gray-600 mt-1">

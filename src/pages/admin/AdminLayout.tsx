@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/ApiClient';
-import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock } from '../../components/Icon';
+import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch } from '../../components/Icon';
 
 export default function AdminLayout() {
     const location = useLocation();
@@ -34,8 +34,11 @@ export default function AdminLayout() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-gray-500">加载中...</div>
+            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+                <div className="text-center">
+                    <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                    <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
+                </div>
             </div>
         );
     }

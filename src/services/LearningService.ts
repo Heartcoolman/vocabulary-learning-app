@@ -527,7 +527,6 @@ class LearningService {
     // 动态调整选项数量：如果干扰项不足，减少选项数量而非使用占位符
     // 最少保留2个选项（1个正确答案 + 1个干扰项）
     const actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
-    const actualOptionCount = actualDistractorCount + 1;
 
     // 极端情况警告：只有一个选项（完全没有干扰项）
     if (actualDistractorCount === 0) {

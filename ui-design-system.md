@@ -1066,7 +1066,12 @@ import { Books, ArrowLeft, Plus } from '../components/Icon';
 ```tsx
 <div className="min-h-screen flex items-center justify-center animate-fade-in">
   <div className="text-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+    <CircleNotch 
+      className="animate-spin mx-auto mb-4" 
+      size={48} 
+      weight="bold" 
+      color="#3b82f6" 
+    />
     <p className="text-gray-600" role="status" aria-live="polite">
       正在加载...
     </p>

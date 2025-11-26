@@ -7,6 +7,43 @@ import { WordLearningState, WordState, Prisma, WordBookType } from '@prisma/clie
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import prisma from '../config/database';
 
+/** 时间戳有效范围：过去1年到未来1小时 */
+const TIMESTAMP_PAST_LIMIT_MS = 365 * 24 * 60 * 60 * 1000;
+const TIMESTAMP_FUTURE_LIMIT_MS = 60 * 60 * 1000;
+
+/**
+ * 验证并转换时间戳
+ * 对于学习状态，允许更长的历史时间（1年），因为可能需要同步历史数据
+ * @param timestamp 时间戳（毫秒）或0（表示null）
+ * @returns Date对象或null
+ */
+function validateAndConvertTimestamp(timestamp: number): Date | null {
+  // 0 表示 null
+  if (timestamp === 0) {
+    return null;
+  }
+
+  const now = Date.now();
+  const date = new Date(timestamp);
+
+  // 检查是否为有效日期
+  if (isNaN(date.getTime())) {
+    throw new Error('无效的时间戳格式');
+  }
+
+  // 不允许超过未来1小时
+  if (timestamp > now + TIMESTAMP_FUTURE_LIMIT_MS) {
+    throw new Error('时间戳不能超过当前时间1小时');
+  }
+
+  // 不允许早于过去1年
+  if (timestamp < now - TIMESTAMP_PAST_LIMIT_MS) {
+    throw new Error('时间戳不能早于1年前');
+  }
+
+  return date;
+}
+
 
 export class WordStateService {
   // 空值标记，用于缓存穿透防护
@@ -52,18 +89,26 @@ export class WordStateService {
 
   /**
    * 批量获取单词学习状态（带缓存）
+   * 修复：正确处理空值标记，与getWordState方法保持一致
    */
   async batchGetWordStates(userId: string, wordIds: string[]): Promise<Map<string, WordLearningState>> {
     const result = new Map<string, WordLearningState>();
     const uncachedWordIds: string[] = [];
+    const nullCachedWordIds: string[] = []; // 已知为空的单词ID（命中空值缓存）
 
     // 先从缓存获取
     for (const wordId of wordIds) {
       const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
-      const cached = cacheService.get<WordLearningState>(cacheKey);
+      const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(cacheKey);
 
-      if (cached) {
-        result.set(wordId, cached);
+      if (cached !== null) {
+        // 检查是否为空值标记
+        if (cached === WordStateService.NULL_MARKER) {
+          // 空值缓存命中，不需要查询数据库，也不添加到结果
+          nullCachedWordIds.push(wordId);
+        } else {
+          result.set(wordId, cached);
+        }
       } else {
         uncachedWordIds.push(wordId);
       }
@@ -78,11 +123,22 @@ export class WordStateService {
         }
       });
 
+      // 构建查询结果的wordId集合
+      const foundWordIds = new Set(states.map(s => s.wordId));
+
       // 存入缓存和结果
       for (const state of states) {
         const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, state.wordId);
         cacheService.set(cacheKey, state, CacheTTL.LEARNING_STATE);
         result.set(state.wordId, state);
+      }
+
+      // 为未找到的单词缓存空值标记，防止缓存穿透
+      for (const wordId of uncachedWordIds) {
+        if (!foundWordIds.has(wordId)) {
+          const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
+          cacheService.set(cacheKey, WordStateService.NULL_MARKER, 60); // 1分钟
+        }
       }
     }
 
@@ -172,19 +228,19 @@ export class WordStateService {
     // 过滤掉userId和wordId，防止被data覆盖
     const { userId: _, wordId: __, ...safeData } = data as any;
 
-    // 转换时间戳为Date对象
+    // 转换并验证时间戳为Date对象
     const convertedData: any = { ...safeData };
     if (typeof convertedData.lastReviewDate === 'number') {
-      convertedData.lastReviewDate = convertedData.lastReviewDate === 0 ? null : new Date(convertedData.lastReviewDate);
+      convertedData.lastReviewDate = validateAndConvertTimestamp(convertedData.lastReviewDate);
     }
     if (typeof convertedData.nextReviewDate === 'number') {
-      convertedData.nextReviewDate = new Date(convertedData.nextReviewDate);
+      convertedData.nextReviewDate = validateAndConvertTimestamp(convertedData.nextReviewDate);
     }
     if (typeof convertedData.createdAt === 'number') {
-      convertedData.createdAt = new Date(convertedData.createdAt);
+      convertedData.createdAt = validateAndConvertTimestamp(convertedData.createdAt);
     }
     if (typeof convertedData.updatedAt === 'number') {
-      convertedData.updatedAt = new Date(convertedData.updatedAt);
+      convertedData.updatedAt = validateAndConvertTimestamp(convertedData.updatedAt);
     }
 
     const state = await prisma.wordLearningState.upsert({

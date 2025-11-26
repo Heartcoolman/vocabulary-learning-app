@@ -23,6 +23,7 @@ import trendAnalysisRoutes from './routes/trend-analysis.routes';
 import badgeRoutes from './routes/badge.routes';
 import planRoutes from './routes/plan.routes';
 import stateHistoryRoutes from './routes/state-history.routes';
+import habitProfileRoutes from './routes/habit-profile.routes';
 
 
 const app = express();
@@ -154,6 +155,7 @@ app.use('/api/amas', trendAnalysisRoutes);
 app.use('/api/badges', badgeRoutes);
 app.use('/api/plan', planRoutes);
 app.use('/api/amas', stateHistoryRoutes);
+app.use('/api/habit-profile', habitProfileRoutes);
 
 
 // 404处理

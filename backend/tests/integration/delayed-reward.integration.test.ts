@@ -122,8 +122,8 @@ describe('Delayed Reward Integration Tests', () => {
       expect(result.featureVector).toBeDefined();
       expect(result.featureVector?.values.length).toBeGreaterThan(0);
 
-      // 验证FeatureVector已持久化到数据库
-      const savedVector = await prisma.featureVector.findUnique({
+      // 验证FeatureVector已持久化到数据库 (使用findFirst因为是复合主键)
+      const savedVector = await prisma.featureVector.findFirst({
         where: { sessionId: session.id }
       });
 
@@ -302,8 +302,8 @@ describe('Delayed Reward Integration Tests', () => {
 
       expect(queuedReward.status).toBe('PENDING');
 
-      // 4. 验证FeatureVector存在
-      const featureVector = await prisma.featureVector.findUnique({
+      // 4. 验证FeatureVector存在 (使用findFirst因为是复合主键)
+      const featureVector = await prisma.featureVector.findFirst({
         where: { sessionId: session.id }
       });
 

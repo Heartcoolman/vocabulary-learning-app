@@ -10,6 +10,60 @@ interface JwtPayload {
 }
 
 /**
+ * API 响应中的 AlgorithmConfig 类型（扁平字段结构）
+ * 用于类型安全的 API 响应处理
+ */
+interface ApiAlgorithmConfig {
+  id: string;
+  name: string;
+  description?: string;
+  reviewIntervals?: number[];
+  consecutiveCorrectThreshold?: number;
+  consecutiveWrongThreshold?: number;
+  difficultyAdjustmentInterval?: number;
+  priorityWeightNewWord?: number;
+  priorityWeightErrorRate?: number;
+  priorityWeightOverdueTime?: number;
+  priorityWeightWordScore?: number;
+  masteryThresholds?: {
+    level: number;
+    requiredCorrectStreak: number;
+    minAccuracy: number;
+    minScore: number;
+  }[];
+  scoreWeightAccuracy?: number;
+  scoreWeightSpeed?: number;
+  scoreWeightStability?: number;
+  scoreWeightProficiency?: number;
+  speedThresholdExcellent?: number;
+  speedThresholdGood?: number;
+  speedThresholdAverage?: number;
+  speedThresholdSlow?: number;
+  newWordRatioDefault?: number;
+  newWordRatioHighAccuracy?: number;
+  newWordRatioLowAccuracy?: number;
+  newWordRatioHighAccuracyThreshold?: number;
+  newWordRatioLowAccuracyThreshold?: number;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+/**
+ * API 响应中的 ConfigHistory 类型
+ */
+interface ApiConfigHistory {
+  id: string;
+  configId: string;
+  changedBy: string;
+  changeReason?: string;
+  previousValue: ApiAlgorithmConfig | null;
+  newValue: ApiAlgorithmConfig | null;
+  timestamp: string;
+}
+
+/**
  * API 响应中的 WordBook 类型（日期字段为字符串）
  */
 interface ApiWordBook {
@@ -556,11 +610,18 @@ class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // 如果外部传入了 signal，监听其 abort 事件并联动
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => {
+        controller.abort(options.signal!.reason);
+      });
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
-        signal: options.signal || controller.signal,
+        signal: controller.signal, // 始终使用内部 controller，确保超时控制生效
       });
 
       // 处理 401 错误，清除令牌并触发回调
@@ -641,11 +702,18 @@ class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // 如果外部传入了 signal，监听其 abort 事件并联动
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => {
+        controller.abort(options.signal!.reason);
+      });
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
-        signal: options.signal || controller.signal,
+        signal: controller.signal, // 始终使用内部 controller，确保超时控制生效
       });
 
       if (response.status === 401) {
@@ -794,7 +862,7 @@ class ApiClient {
   /**
    * 分页结果类型
    */
-  
+
 
   /**
    * 获取学习记录（支持分页）
@@ -1451,7 +1519,7 @@ class ApiClient {
   /**
    * 将后端扁平字段转换为前端嵌套对象
    */
-  private normalizeAlgorithmConfig(raw: any): import('../types/models').AlgorithmConfig {
+  private normalizeAlgorithmConfig(raw: ApiAlgorithmConfig): import('../types/models').AlgorithmConfig {
     if (!raw) throw new Error('算法配置为空');
     return {
       id: raw.id,
@@ -1538,7 +1606,7 @@ class ApiClient {
    */
   async getAlgorithmConfig(): Promise<import('../types/models').AlgorithmConfig> {
     try {
-      const raw = await this.request<any>('/api/algorithm-config');
+      const raw = await this.request<ApiAlgorithmConfig>('/api/algorithm-config');
       return this.normalizeAlgorithmConfig(raw);
     } catch (error) {
       console.error('获取算法配置失败:', error);
@@ -1556,7 +1624,7 @@ class ApiClient {
   ): Promise<import('../types/models').AlgorithmConfig> {
     try {
       const payload = this.denormalizeAlgorithmConfig(config);
-      const raw = await this.request<any>('/api/algorithm-config', {
+      const raw = await this.request<ApiAlgorithmConfig>('/api/algorithm-config', {
         method: 'PUT',
         body: JSON.stringify({ configId, config: payload, changeReason }),
       });
@@ -1572,7 +1640,7 @@ class ApiClient {
    */
   async resetAlgorithmConfig(configId: string): Promise<import('../types/models').AlgorithmConfig> {
     try {
-      const raw = await this.request<any>('/api/algorithm-config/reset', {
+      const raw = await this.request<ApiAlgorithmConfig>('/api/algorithm-config/reset', {
         method: 'POST',
         body: JSON.stringify({ configId }),
       });
@@ -1589,11 +1657,14 @@ class ApiClient {
   async getConfigHistory(limit?: number): Promise<import('../types/models').ConfigHistory[]> {
     try {
       const query = limit ? `?limit=${limit}` : '';
-      const raw = await this.request<any[]>(`/api/algorithm-config/history${query}`);
+      const raw = await this.request<ApiConfigHistory[]>(`/api/algorithm-config/history${query}`);
       return raw.map(h => ({
-        ...h,
-        previousValue: h.previousValue ? this.normalizeAlgorithmConfig(h.previousValue) : {} as any,
-        newValue: h.newValue ? this.normalizeAlgorithmConfig(h.newValue) : {} as any,
+        id: h.id,
+        configId: h.configId,
+        changedBy: h.changedBy,
+        changeReason: h.changeReason,
+        previousValue: h.previousValue ? this.normalizeAlgorithmConfig(h.previousValue) : {},
+        newValue: h.newValue ? this.normalizeAlgorithmConfig(h.newValue) : {},
         timestamp: new Date(h.timestamp).getTime(),
       }));
     } catch (error) {

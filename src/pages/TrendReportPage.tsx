@@ -126,9 +126,9 @@ export default function TrendReportPage() {
 
   const renderTrendChart = (
     points: { date: string; value: number }[],
-    direction: 'up' | 'down' | 'flat',
+    _direction: 'up' | 'down' | 'flat',
     color: string,
-    label: string,
+    _label: string,
     unit: string = '%'
   ) => {
     if (!points || points.length === 0) {
@@ -224,11 +224,10 @@ export default function TrendReportPage() {
             <button
               key={days}
               onClick={() => setSelectedDays(days)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                selectedDays === days
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${selectedDays === days
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
+                }`}
             >
               {days === 7 ? '最近 7 天' : days === 28 ? '最近 28 天' : '最近 90 天'}
             </button>
@@ -245,7 +244,7 @@ export default function TrendReportPage() {
                 w-16 h-16 rounded-full flex items-center justify-center
                 ${trendInfo.state === 'up' ? 'bg-green-500' :
                   trendInfo.state === 'down' ? 'bg-red-500' :
-                  trendInfo.state === 'stuck' ? 'bg-yellow-500' : 'bg-gray-400'}
+                    trendInfo.state === 'stuck' ? 'bg-yellow-500' : 'bg-gray-400'}
               `}>
                 {(() => {
                   const TrendIcon = getTrendIcon(trendInfo.state);
@@ -280,7 +279,7 @@ export default function TrendReportPage() {
               <div className="flex-1">
                 <h3 className={`text-lg font-bold mb-2 ${getInterventionColor(intervention.type).text}`}>
                   {intervention.type === 'warning' ? '需要注意' :
-                   intervention.type === 'encouragement' ? '表现出色！' : '建议'}
+                    intervention.type === 'encouragement' ? '表现出色！' : '建议'}
                 </h3>
                 <p className={getInterventionColor(intervention.type).text}>
                   {intervention.message}
@@ -312,10 +311,10 @@ export default function TrendReportPage() {
                   px-2 py-1 rounded-full text-xs font-medium
                   ${trendReport.accuracyTrend.direction === 'up' ? 'bg-green-100 text-green-700' :
                     trendReport.accuracyTrend.direction === 'down' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'}
+                      'bg-gray-100 text-gray-700'}
                 `}>
                   {trendReport.accuracyTrend.direction === 'up' ? '+' :
-                   trendReport.accuracyTrend.direction === 'down' ? '' : ''}
+                    trendReport.accuracyTrend.direction === 'down' ? '' : ''}
                   {trendReport.accuracyTrend.changePercent.toFixed(1)}%
                 </span>
               </div>
@@ -338,10 +337,10 @@ export default function TrendReportPage() {
                   px-2 py-1 rounded-full text-xs font-medium
                   ${trendReport.responseTimeTrend.direction === 'down' ? 'bg-green-100 text-green-700' :
                     trendReport.responseTimeTrend.direction === 'up' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'}
+                      'bg-gray-100 text-gray-700'}
                 `}>
                   {trendReport.responseTimeTrend.direction === 'up' ? '+' :
-                   trendReport.responseTimeTrend.direction === 'down' ? '' : ''}
+                    trendReport.responseTimeTrend.direction === 'down' ? '' : ''}
                   {trendReport.responseTimeTrend.changePercent.toFixed(1)}%
                 </span>
               </div>
@@ -364,10 +363,10 @@ export default function TrendReportPage() {
                   px-2 py-1 rounded-full text-xs font-medium
                   ${trendReport.motivationTrend.direction === 'up' ? 'bg-green-100 text-green-700' :
                     trendReport.motivationTrend.direction === 'down' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'}
+                      'bg-gray-100 text-gray-700'}
                 `}>
                   {trendReport.motivationTrend.direction === 'up' ? '+' :
-                   trendReport.motivationTrend.direction === 'down' ? '' : ''}
+                    trendReport.motivationTrend.direction === 'down' ? '' : ''}
                   {trendReport.motivationTrend.changePercent.toFixed(1)}%
                 </span>
               </div>
@@ -459,10 +458,9 @@ export default function TrendReportPage() {
                         {item.avgResponseTime.toFixed(0)}ms
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className={`text-sm font-medium ${
-                          item.motivation > 0 ? 'text-green-600' :
-                          item.motivation < 0 ? 'text-red-600' : 'text-gray-600'
-                        }`}>
+                        <span className={`text-sm font-medium ${item.motivation > 0 ? 'text-green-600' :
+                            item.motivation < 0 ? 'text-red-600' : 'text-gray-600'
+                          }`}>
                           {item.motivation > 0 ? '+' : ''}{(item.motivation * 100).toFixed(0)}%
                         </span>
                       </td>

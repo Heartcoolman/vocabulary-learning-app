@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
-import { 
-  TimePreference, 
+import {
+  TimePreference,
   GoldenTimeResult,
-  isInsufficientData 
+  isInsufficientData
 } from '../types/amas-enhanced';
 import {
   Clock,
@@ -142,16 +142,16 @@ export default function LearningTimePage() {
         {goldenTime && (
           <div className={`
             mb-8 p-6 rounded-2xl border-2 transition-all duration-300
-            ${goldenTime.isGolden 
-              ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-lg' 
+            ${goldenTime.isGolden
+              ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-lg'
               : 'bg-white/80 backdrop-blur-sm border-gray-200'
             }
           `}>
             <div className="flex items-center gap-4">
               <div className={`
                 w-16 h-16 rounded-full flex items-center justify-center
-                ${goldenTime.isGolden 
-                  ? 'bg-yellow-400 animate-pulse' 
+                ${goldenTime.isGolden
+                  ? 'bg-yellow-400 animate-pulse'
                   : 'bg-gray-100'
                 }
               `}>
@@ -193,7 +193,7 @@ export default function LearningTimePage() {
               需要至少 <span className="font-bold">{insufficientData.minRequired}</span> 次学习会话才能分析时间偏好
             </p>
             <div className="w-full max-w-xs mx-auto bg-blue-200 rounded-full h-4 mb-2">
-              <div 
+              <div
                 className="bg-blue-500 h-4 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min((insufficientData.currentCount / insufficientData.minRequired) * 100, 100)}%` }}
               />
@@ -223,12 +223,12 @@ export default function LearningTimePage() {
                 {timePreference.preferredSlots.map((slot, index) => {
                   const TimeIcon = getTimeIcon(slot.hour);
                   return (
-                    <div 
+                    <div
                       key={slot.hour}
                       className={`
                         p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105
-                        ${index === 0 
-                          ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300' 
+                        ${index === 0
+                          ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300'
                           : 'bg-gray-50 border-gray-200'
                         }
                       `}
@@ -257,7 +257,7 @@ export default function LearningTimePage() {
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div 
+                        <div
                           className={`h-2 rounded-full transition-all duration-500 ${index === 0 ? 'bg-yellow-400' : 'bg-blue-500'}`}
                           style={{ width: `${slot.score * 100}%` }}
                         />
@@ -290,7 +290,7 @@ export default function LearningTimePage() {
                     const isGoldenHour = timePreference.preferredSlots.some(s => s.hour === hour);
                     const isCurrentHour = goldenTime?.currentHour === hour;
                     return (
-                      <div 
+                      <div
                         key={hour}
                         className="flex-1 flex flex-col items-center group relative"
                       >
@@ -301,7 +301,7 @@ export default function LearningTimePage() {
                           </div>
                         </div>
                         {/* 柱子 */}
-                        <div 
+                        <div
                           className={`
                             w-full rounded-t transition-all duration-300 cursor-pointer
                             hover:opacity-80

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck } from './Icon';
+import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar } from './Icon';
 
 /**
  * Navigation 组件 - 顶部导航栏
@@ -100,11 +100,10 @@ export default function Navigation() {
               <div className="relative" ref={insightsRef}>
                 <button
                   onClick={() => setIsInsightsOpen(!isInsightsOpen)}
-                  className={`px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 flex items-center gap-1 ${
-                    isInsightsActive()
-                      ? 'bg-blue-500 text-white shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 flex items-center gap-1 ${isInsightsActive()
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                    }`}
                   aria-expanded={isInsightsOpen}
                   aria-haspopup="true"
                 >
@@ -118,6 +117,14 @@ export default function Navigation() {
 
                 {isInsightsOpen && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-fade-in">
+                    <Link
+                      to="/statistics"
+                      className={dropdownLinkClass('/statistics')}
+                      onClick={() => setIsInsightsOpen(false)}
+                    >
+                      <ChartBar size={18} weight="bold" />
+                      学习统计
+                    </Link>
                     <Link
                       to="/learning-time"
                       className={dropdownLinkClass('/learning-time')}

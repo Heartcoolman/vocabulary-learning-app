@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DelayedRewardService } from '../../../src/services/delayed-reward.service';
-import { RewardStatus } from '@prisma/client';
+import { RewardStatus, Prisma } from '@prisma/client';
 
 // Mock Prisma
 vi.mock('../../../src/config/database', () => ({
@@ -79,9 +79,11 @@ describe('DelayedRewardService', () => {
         idempotencyKey: 'duplicate-key'
       };
 
-      // 模拟唯一约束冲突
-      const conflictError: any = new Error('Unique constraint failed');
-      conflictError.code = 'P2002';
+      // 模拟唯一约束冲突 - 使用正确的 Prisma 错误类型
+      const conflictError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.0.0' }
+      );
 
       const existingReward = {
         id: 'existing-123',

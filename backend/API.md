@@ -1214,7 +1214,93 @@ Authorization: Bearer <token>
 
 ---
 
+## AMAS 监控服务
+
+监控服务用于采集AMAS智能学习算法的运行指标，评估系统健康状态，并在异常时触发告警。
+
+### MonitoringService API
+
+> 注意：以下是服务层API，不是HTTP端点。用于系统内部调用和测试。
+
+#### 指标记录方法
+
+| 方法 | 参数 | 说明 |
+|------|------|------|
+| `recordDecisionLatency(latencyMs: number)` | 延迟毫秒数 | 记录AMAS决策延迟 |
+| `recordSuccess()` | 无 | 记录成功请求 |
+| `recordError()` | 无 | 记录错误请求 |
+| `recordTimeout()` | 无 | 记录超时请求 |
+| `recordDegradation()` | 无 | 记录降级请求 |
+| `recordCircuitState(isOpen: boolean)` | 是否打开 | 记录熔断器状态 |
+| `recordRewardResult(success: boolean)` | 是否成功 | 记录延迟奖励处理结果 |
+
+#### 状态查询方法
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getHealthStatus()` | `HealthStatus` | 获取系统健康状态 |
+| `getActiveAlerts()` | `Alert[]` | 获取活动告警列表 |
+| `getAlertHistory(limit?)` | `Alert[]` | 获取告警历史 |
+| `getStats()` | `MonitoringStats` | 获取监控统计 |
+| `resolveAlert(alertId: string)` | `boolean` | 手动解决告警 |
+
+#### HealthStatus 结构
+
+```typescript
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  components: {
+    decision: ComponentHealth;  // 决策组件
+    circuit: ComponentHealth;   // 熔断器
+    reward: ComponentHealth;    // 延迟奖励
+  };
+  slo: {
+    decisionLatency: boolean;   // 延迟SLO达成
+    errorRate: boolean;         // 错误率SLO达成
+    circuitHealth: boolean;     // 熔断器SLO达成
+    rewardQueueHealth: boolean; // 奖励队列SLO达成
+  };
+  checkedAt: Date;
+}
+
+interface ComponentHealth {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  message: string;
+  metrics?: Record<string, number>;
+}
+```
+
+#### 告警严重级别
+
+| 级别 | 响应时间 | 说明 |
+|------|----------|------|
+| P0 | 立即(15分钟内) | 关键告警，影响核心功能 |
+| P1 | 1小时内 | 高优先级，影响性能或部分功能 |
+| P2 | 4小时内 | 中优先级，影响较小 |
+| P3 | 24小时内 | 低优先级，信息性告警 |
+
+#### 默认SLO配置
+
+| 指标 | 阈值 | 说明 |
+|------|------|------|
+| `decisionLatencyP95` | 100ms | 决策延迟P95 |
+| `decisionLatencyP99` | 200ms | 决策延迟P99 |
+| `errorRate` | 5% | 错误率 |
+| `circuitOpenRate` | 10% | 熔断器打开率 |
+| `degradationRate` | 20% | 降级率 |
+| `timeoutRate` | 5% | 超时率 |
+| `rewardFailureRate` | 10% | 延迟奖励失败率 |
+
+---
+
 ## 版本历史
+
+### v1.2.0 (2024-11-26)
+- 新增AMAS监控服务API文档
+- 修复认证服务测试以匹配SHA256哈希token实现
+- 修复错误中间件以正确推断业务错误类型
+- 修复AB测试方差计算（添加m2参数）
+- 修复延迟奖励服务Prisma错误类型
 
 ### v1.1.0 (2024-11-24)
 - 新增单词得分范围查询端点

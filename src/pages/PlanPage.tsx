@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
-import { 
-  LearningPlan, 
+import {
+  LearningPlan,
   PlanProgress,
   PlanOptions
 } from '../types/amas-enhanced';
@@ -257,7 +257,7 @@ export default function PlanPage() {
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min((progress.completedToday / progress.targetToday) * 100, 100)}%` }}
                       />
@@ -281,7 +281,7 @@ export default function PlanPage() {
                 </div>
                 {progress && (
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-green-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${progress.weeklyProgress}%` }}
                     />
@@ -304,7 +304,7 @@ export default function PlanPage() {
                 </div>
                 {progress && (
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-purple-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${progress.overallProgress}%` }}
                     />
@@ -315,9 +315,8 @@ export default function PlanPage() {
               {/* 计划状态 */}
               <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    progress?.onTrack ? 'bg-green-100' : 'bg-yellow-100'
-                  }`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${progress?.onTrack ? 'bg-green-100' : 'bg-yellow-100'
+                    }`}>
                     {progress?.onTrack ? (
                       <TrendUp size={24} weight="duotone" color="#16a34a" />
                     ) : (
@@ -404,12 +403,12 @@ export default function PlanPage() {
                 </h2>
                 <div className="space-y-4">
                   {plan.weeklyMilestones.map((milestone, index) => (
-                    <div 
+                    <div
                       key={index}
                       className={`
                         flex items-center gap-4 p-4 rounded-xl border-2 transition-all
-                        ${milestone.completed 
-                          ? 'bg-green-50 border-green-300' 
+                        ${milestone.completed
+                          ? 'bg-green-50 border-green-300'
                           : 'bg-gray-50 border-gray-200'
                         }
                       `}
@@ -475,11 +474,11 @@ export default function PlanPage() {
 
         {/* 生成计划弹窗 */}
         {showGenerateModal && (
-          <div 
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
             onClick={() => setShowGenerateModal(false)}
           >
-            <div 
+            <div
               className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full mx-4 animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >

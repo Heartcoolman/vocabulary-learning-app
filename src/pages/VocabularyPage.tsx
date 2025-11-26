@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
-import { Books } from '../components/Icon';
+import { Books, CircleNotch } from '../components/Icon';
 
 /**
  * VocabularyPage - 词库管理页面（重构为词书列表）
@@ -134,8 +134,11 @@ export default function VocabularyPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">加载中...</div>
+      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+        <div className="text-center">
+          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+          <p className="text-gray-600">正在加载...</p>
+        </div>
       </div>
     );
   }
@@ -167,8 +170,8 @@ export default function VocabularyPage() {
         <button
           onClick={() => setActiveTab('system')}
           className={`px-4 py-2 font-medium transition-all ${activeTab === 'system'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'text-blue-600 border-b-2 border-blue-600'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           系统词库 ({systemBooks.length})
@@ -176,8 +179,8 @@ export default function VocabularyPage() {
         <button
           onClick={() => setActiveTab('user')}
           className={`px-4 py-2 font-medium transition-all ${activeTab === 'user'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'text-blue-600 border-b-2 border-blue-600'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           我的词库 ({userBooks.length})
@@ -194,7 +197,7 @@ export default function VocabularyPage() {
           {activeTab === 'user' && (
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200"
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
             >
               创建第一个词书
             </button>
@@ -210,9 +213,9 @@ export default function VocabularyPage() {
 
       {/* 创建词书对话框 */}
       {showCreateDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-book-title">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-slide-up">
+            <h2 id="create-book-title" className="text-2xl font-bold text-gray-900 mb-6">
               创建新词书
             </h2>
 
@@ -245,7 +248,7 @@ export default function VocabularyPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleCreateBook}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200"
+                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
               >
                 创建
               </button>
@@ -255,7 +258,7 @@ export default function VocabularyPage() {
                   setNewBookName('');
                   setNewBookDesc('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 取消
               </button>

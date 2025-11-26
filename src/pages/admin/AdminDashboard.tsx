@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient, { AdminStatistics } from '../../services/ApiClient';
-import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar } from '../../components/Icon';
+import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar, CircleNotch, Warning } from '../../components/Icon';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -30,16 +30,29 @@ export default function AdminDashboard() {
 
     if (isLoading) {
         return (
-            <div className="p-8">
-                <div className="text-gray-500">加载中...</div>
+            <div className="p-8 min-h-[400px] flex items-center justify-center animate-fade-in">
+                <div className="text-center">
+                    <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                    <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
+                </div>
             </div>
         );
     }
 
     if (error || !stats) {
         return (
-            <div className="p-8">
-                <div className="text-red-600">{error || '加载失败'}</div>
+            <div className="p-8 min-h-[400px] flex items-center justify-center animate-fade-in">
+                <div className="text-center max-w-md" role="alert" aria-live="assertive">
+                    <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
+                    <p className="text-gray-600 mb-6">{error || '无法加载统计数据'}</p>
+                    <button
+                        onClick={loadStatistics}
+                        className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                        重试
+                    </button>
+                </div>
             </div>
         );
     }
@@ -117,7 +130,7 @@ export default function AdminDashboard() {
                     return (
                         <div
                             key={card.label}
-                            className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
+                            className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200"
                         >
                             <div
                                 className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${getColorClasses(
@@ -135,7 +148,7 @@ export default function AdminDashboard() {
 
             {/* 额外信息 */}
             <div className="grid gap-6 md:grid-cols-2">
-                <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">用户活跃度</h2>
                     <div className="space-y-3">
                         <div className="flex justify-between">
@@ -158,7 +171,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">词库统计</h2>
                     <div className="space-y-3">
                         <div className="flex justify-between">

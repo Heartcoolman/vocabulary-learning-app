@@ -702,16 +702,16 @@ export class AdminService {
 
         // 如果需要按得分筛选或排序，需要在内存中处理
         if (needsScoreFilter || needsScoreSort) {
-            // 先检查数据量，如果超过上限则提示用户添加筛选条件
+            // 先检查数据量，如果超过上限则拒绝请求
             const totalCount = await prisma.wordLearningState.count({ where: whereState });
             if (totalCount > MAX_IN_MEMORY_RECORDS) {
-                console.warn(
-                    `[Admin] getUserWords: 数据量过大 (${totalCount} > ${MAX_IN_MEMORY_RECORDS})，` +
-                    `建议添加更多筛选条件。userId=${userId}`
+                throw new Error(
+                    `数据量过大 (${totalCount} 条)，超过内存处理上限 ${MAX_IN_MEMORY_RECORDS} 条。` +
+                    `请添加更多筛选条件（如状态、掌握等级等）缩小范围后重试。`
                 );
             }
 
-            // 获取符合条件的学习状态（添加硬性上限）
+            // 获取符合条件的学习状态（已通过上限检查）
             const allStates = await prisma.wordLearningState.findMany({
                 where: whereState,
                 include: {
@@ -725,7 +725,6 @@ export class AdminService {
                         },
                     },
                 },
-                take: MAX_IN_MEMORY_RECORDS, // 硬性上限
             });
 
             // 批量获取所有单词的得分

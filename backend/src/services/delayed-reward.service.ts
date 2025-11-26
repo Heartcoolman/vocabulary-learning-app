@@ -73,35 +73,41 @@ export class DelayedRewardService {
 
   /**
    * 处理待处理的奖励 (Worker调用)
+   * 使用事务 + SELECT FOR UPDATE SKIP LOCKED 实现原子抢占，避免多Worker竞争
    * @param handler 奖励应用处理器
    */
   async processPendingRewards(handler?: ApplyRewardHandler): Promise<void> {
     const now = new Date();
 
-    // 查找到期的待处理任务
-    const due = await prisma.rewardQueue.findMany({
-      where: {
-        status: RewardStatus.PENDING,
-        dueTs: { lte: now }
-      },
-      orderBy: { dueTs: 'asc' },
-      take: BATCH_SIZE
+    // 使用事务和行锁实现原子抢占，避免TOCTOU竞态条件
+    // SELECT FOR UPDATE SKIP LOCKED: 跳过已被其他Worker锁定的行
+    const tasks = await prisma.$transaction(async (tx) => {
+      // 原子查询并锁定到期的待处理任务
+      const lockedTasks = await tx.$queryRaw<RewardQueue[]>`
+        SELECT * FROM "reward_queue"
+        WHERE status = 'PENDING'
+          AND "dueTs" <= ${now}
+        ORDER BY "dueTs" ASC
+        LIMIT ${BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      `;
+
+      if (lockedTasks.length === 0) {
+        return [];
+      }
+
+      const ids = lockedTasks.map(t => t.id);
+
+      // 在同一事务中更新状态为PROCESSING
+      await tx.rewardQueue.updateMany({
+        where: { id: { in: ids } },
+        data: { status: RewardStatus.PROCESSING, updatedAt: now }
+      });
+
+      return lockedTasks;
     });
 
-    if (due.length === 0) return;
-
-    const ids = due.map(t => t.id);
-
-    // 抢占任务 (标记为PROCESSING)
-    await prisma.rewardQueue.updateMany({
-      where: { id: { in: ids }, status: RewardStatus.PENDING },
-      data: { status: RewardStatus.PROCESSING, updatedAt: now }
-    });
-
-    // 重新获取被抢占的任务
-    const tasks = await prisma.rewardQueue.findMany({
-      where: { id: { in: ids }, status: RewardStatus.PROCESSING }
-    });
+    if (tasks.length === 0) return;
 
     // 逐个处理任务
     for (const task of tasks) {

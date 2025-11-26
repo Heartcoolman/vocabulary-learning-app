@@ -1,6 +1,40 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
 
+/** 最大批量操作大小 */
+const MAX_BATCH_SIZE = 1000;
+
+/** 时间戳有效范围（毫秒）：过去24小时到未来1小时 */
+const TIMESTAMP_PAST_LIMIT_MS = 24 * 60 * 60 * 1000;
+const TIMESTAMP_FUTURE_LIMIT_MS = 60 * 60 * 1000;
+
+/**
+ * 验证时间戳的合理性
+ * @param timestamp 时间戳（毫秒）
+ * @throws 如果时间戳不合理则抛出错误
+ */
+function validateTimestamp(timestamp: number): Date {
+  const now = Date.now();
+  const date = new Date(timestamp);
+
+  // 检查是否为有效日期
+  if (isNaN(date.getTime())) {
+    throw new Error('无效的时间戳格式');
+  }
+
+  // 不允许超过未来1小时
+  if (timestamp > now + TIMESTAMP_FUTURE_LIMIT_MS) {
+    throw new Error('时间戳不能超过当前时间1小时');
+  }
+
+  // 不允许早于过去24小时
+  if (timestamp < now - TIMESTAMP_PAST_LIMIT_MS) {
+    throw new Error('时间戳不能早于24小时前');
+  }
+
+  return date;
+}
+
 export interface PaginationOptions {
   page?: number;
   pageSize?: number;
@@ -61,6 +95,11 @@ export class RecordService {
   }
 
   async createRecord(userId: string, data: CreateRecordDto) {
+    // 如果提供了 sessionId，确保对应的 LearningSession 存在
+    if (data.sessionId) {
+      await this.ensureLearningSession(data.sessionId, userId);
+    }
+
     // 验证单词存在且属于用户可访问的词书
     const word = await prisma.word.findUnique({
       where: { id: data.wordId },
@@ -98,8 +137,9 @@ export class RecordService {
 
 
     // 使用客户端时间戳以保证与本地记录一致，从而实现可靠去重
+    // 验证时间戳的合理性，防止恶意提交无效时间戳
     if (typeof data.timestamp === 'number') {
-      createData.timestamp = new Date(data.timestamp);
+      createData.timestamp = validateTimestamp(data.timestamp);
     }
 
     return await prisma.answerRecord.create({
@@ -108,10 +148,28 @@ export class RecordService {
   }
 
   async batchCreateRecords(userId: string, records: CreateRecordDto[]) {
+    // 检查批量大小限制
+    if (records.length > MAX_BATCH_SIZE) {
+      throw new Error(
+        `批量操作上限为 ${MAX_BATCH_SIZE} 条，当前 ${records.length} 条。请分批提交。`
+      );
+    }
+
     // 检查是否有记录缺少时间戳，如果有则警告但不阻止
     const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
     if (recordsWithoutTimestamp.length > 0) {
       console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
+    }
+
+    // 验证所有时间戳的合理性
+    for (const record of records) {
+      if (record.timestamp) {
+        try {
+          validateTimestamp(record.timestamp);
+        } catch (error) {
+          throw new Error(`记录时间戳无效 (wordId=${record.wordId}): ${(error as Error).message}`);
+        }
+      }
     }
 
     // 验证所有单词都存在且用户有权限访问（先去重提高查询效率）
@@ -151,6 +209,12 @@ export class RecordService {
     }
 
     console.log(`准备创建 ${validRecords.length} 条学习记录（数据库自动跳过重复）`);
+
+    // 收集所有有效的 sessionId 并确保对应的 LearningSession 存在
+    const sessionIds = [...new Set(validRecords.map(r => r.sessionId).filter((id): id is string => !!id))];
+    for (const sessionId of sessionIds) {
+      await this.ensureLearningSession(sessionId, userId);
+    }
 
     // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
     // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
@@ -221,6 +285,62 @@ export class RecordService {
       correctRate,
       recentRecords,
     };
+  }
+
+  /**
+   * 确保学习会话存在
+   * 使用事务+锁定查询避免 TOCTOU 竞态条件
+   * @param sessionId 学习会话ID
+   * @param userId 用户ID
+   */
+  private async ensureLearningSession(sessionId: string, userId: string): Promise<void> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 先尝试查询现有会话
+        const existing = await tx.learningSession.findUnique({
+          where: { id: sessionId }
+        });
+
+        if (existing) {
+          // 会话已存在，校验用户归属
+          if (existing.userId !== userId) {
+            console.warn(
+              `[RecordService] 学习会话用户不匹配: sessionId=${sessionId}, expected=${userId}, actual=${existing.userId}`
+            );
+            throw new Error(`Session ${sessionId} belongs to different user`);
+          }
+          // 用户匹配，无需操作
+          return;
+        }
+
+        // 会话不存在，创建新会话
+        await tx.learningSession.create({
+          data: {
+            id: sessionId,
+            userId
+          }
+        });
+      });
+    } catch (error) {
+      // 如果是用户不匹配错误，重新抛出
+      if (error instanceof Error && error.message.includes('belongs to different user')) {
+        throw error;
+      }
+      // 处理并发创建时的唯一约束冲突
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        // 再次检查会话归属
+        const session = await prisma.learningSession.findUnique({
+          where: { id: sessionId }
+        });
+        if (session && session.userId !== userId) {
+          throw new Error(`Session ${sessionId} belongs to different user`);
+        }
+        // 如果是同一用户的并发请求，忽略错误
+        return;
+      }
+      // 其他错误仅记录，不阻断主流程
+      console.warn(`[RecordService] 确保学习会话失败: sessionId=${sessionId}`, error);
+    }
   }
 }
 

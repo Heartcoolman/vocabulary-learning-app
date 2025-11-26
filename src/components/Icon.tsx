@@ -8,6 +8,7 @@
 export {
   ChartBar,
   ChartLine,
+  ChartPie,
   Target,
   Check,
   CheckCircle,

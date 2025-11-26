@@ -55,13 +55,21 @@ export class AppError extends Error {
  * 用于处理服务层直接 throw new Error() 的情况
  */
 function inferAppError(message: string): AppError {
-  if (message.includes('不存在')) {
+  if (message.includes('不存在') && !message.includes('密码')) {
     return AppError.notFound(message);
   }
   if (message.includes('已被注册') || message.includes('已存在')) {
     return AppError.conflict(message);
   }
-  if (message.includes('无权') || message.includes('令牌') || message.includes('密码错误')) {
+  // 认证相关错误
+  if (
+    message.includes('无权') ||
+    message.includes('令牌') ||
+    message.includes('密码错误') ||
+    message.includes('邮箱或密码') ||
+    message.includes('认证') ||
+    message.includes('会话')
+  ) {
     return AppError.unauthorized(message);
   }
   return AppError.badRequest(message);
@@ -104,6 +112,17 @@ export function errorHandler(
       success: false,
       error: err.isOperational ? err.message : '服务器内部错误',
       code: err.code,
+    });
+  }
+
+  // 常规 Error 对象 - 尝试推断错误类型（兼容旧代码）
+  if (err instanceof Error && err.message) {
+    const appError = inferAppError(err.message);
+    log.warn(logContext, `推断业务错误: ${err.message}`);
+    return res.status(appError.statusCode).json({
+      success: false,
+      error: appError.message,
+      code: appError.code,
     });
   }
 

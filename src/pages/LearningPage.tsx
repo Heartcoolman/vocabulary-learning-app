@@ -2,23 +2,24 @@
 import { useNavigate } from 'react-router-dom';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
-import ProgressBar from '../components/ProgressBar';
 import AudioService from '../services/AudioService';
-import { Confetti, Books, TrendUp, TrendDown, Clock, Star } from '../components/Icon';
+import { Confetti, Books, TrendUp, TrendDown, Clock, Star, Lightbulb, ChartPie, CircleNotch } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
-import { AmasStatus, AmasSuggestion } from '../components';
 import { useLearningSession } from '../hooks';
+import SuggestionModal from '../components/SuggestionModal';
+import StatusModal from '../components/StatusModal';
 
 export default function LearningPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isPronouncing, setIsPronouncing] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [showStatus, setShowStatus] = useState(false);
 
   // 使用学习会话 Hook
   const { state, actions, timer } = useLearningSession();
   const {
     currentWord,
-    allWords,
     testOptions,
     selectedAnswer,
     showResult,
@@ -27,7 +28,6 @@ export default function LearningPage() {
     error,
     isCompleted,
     answerFeedback,
-    wordState,
     amasResult,
     amasRefreshTrigger,
     submitError,
@@ -44,6 +44,24 @@ export default function LearningPage() {
       actionsRef.current.initialize(user.id);
     }
   }, [user?.id]);
+
+  // 监听 AMAS 结果，自动弹出建议
+  useEffect(() => {
+    if (!amasResult) return;
+
+    // 自动弹出条件：
+    // 1. 明确建议休息
+    // 2. 注意力低于 40%
+    // 3. 疲劳度高于 70%
+    const shouldPopup =
+      amasResult.shouldBreak ||
+      (amasResult.state.attention < 0.4) ||
+      (amasResult.state.fatigue > 0.7);
+
+    if (shouldPopup) {
+      setShowSuggestion(true);
+    }
+  }, [amasResult]);
 
   // 发音处理
   const handlePronounce = useCallback(async () => {
@@ -85,7 +103,7 @@ export default function LearningPage() {
     return (
       <div className="min-h-screen flex items-center justify-center animate-fade-in">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600" role="status" aria-live="polite">
             正在加载...
           </p>
@@ -125,11 +143,10 @@ export default function LearningPage() {
             )}
             <button
               onClick={() => navigate('/vocabulary')}
-              className={`px-6 py-3 ${
-                showSettingsButton
-                  ? 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
-              } rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+              className={`px-6 py-3 ${showSettingsButton
+                ? 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+                } rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
             >
               词库管理
             </button>
@@ -175,138 +192,168 @@ export default function LearningPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* 顶部进度条 */}
-      <ProgressBar current={progress.current} total={progress.total} />
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* 顶部极细进度条 */}
+      <div className="w-full h-1 bg-gray-200 fixed top-0 left-0 z-50">
+        <div
+          className="h-full bg-green-500 transition-all duration-500 ease-out"
+          style={{ width: `${(progress.current / progress.total) * 100}%` }}
+        />
+      </div>
 
       {/* 提交错误提示 */}
       {submitError && (
-        <div className="mx-4 mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
-          <span className="text-yellow-700 text-sm">{submitError}</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg shadow-lg flex items-center gap-2 animate-slide-up">
+          <span>{submitError}</span>
           <button
             onClick={() => actions.clearSubmitError()}
-            className="text-yellow-600 hover:text-yellow-800 text-sm underline"
-            aria-label="关闭提示"
+            className="text-red-500 hover:text-red-700 font-bold"
           >
-            知道了
+            ×
           </button>
         </div>
       )}
 
-      {/* 主内容区域 - 三栏布局：左状态 | 中学习 | 右建议 */}
-      <div className="flex-1 grid grid-cols-5 gap-4 p-4 overflow-hidden">
-        {/* 左侧：AMAS状态 */}
-        <div className="col-span-1 flex flex-col justify-start pt-8">
-          <AmasStatus detailed={false} refreshTrigger={amasRefreshTrigger} />
-        </div>
+      {/* 沉浸式主内容区域 */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto relative">
 
-        {/* 中间：学习主区域 - 居中 */}
-        <div className="col-span-3 flex flex-col justify-center items-center min-w-0">
-          <div className="w-full max-w-2xl">
-            <WordCard
-              word={currentWord}
-              onPronounce={handlePronounce}
-              isPronouncing={isPronouncing}
-              masteryLevel={wordState?.masteryLevel}
-              wordScore={wordState?.score}
-              nextReviewDate={wordState?.nextReviewDate}
-            />
+        {/* 学习状态按钮 - 左下角幽灵按钮 */}
+        <button
+          onClick={() => setShowStatus(true)}
+          className="absolute bottom-4 left-4 p-2 text-gray-400 rounded-full hover:bg-white hover:shadow-sm hover:scale-105 transition-all duration-300 opacity-0 hover:opacity-100 group z-10"
+          title="查看学习状态"
+        >
+          <ChartPie size={24} weight="duotone" className="group-hover:text-blue-600" />
+          <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            学习状态
+          </span>
+        </button>
 
-            <TestOptions
-              options={testOptions}
-              correctAnswer={currentWord.meanings[0]}
-              onSelect={handleSelectAnswer}
-              selectedAnswer={selectedAnswer}
-              showResult={showResult}
-            />
+        {/* AI 建议按钮 - 右上角 */}
+        {amasResult && (
+          <button
+            onClick={() => setShowSuggestion(true)}
+            className="absolute top-4 right-4 p-2 bg-white text-blue-500 rounded-full shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 group"
+            title="查看 AI 建议"
+          >
+            <Lightbulb size={24} weight="duotone" className="group-hover:text-blue-600" />
+            <span className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              AI 建议
+            </span>
+          </button>
+        )}
 
-            {showResult && (
-              <div className="flex flex-col items-center pb-4 animate-fade-in">
-                {/* 答题反馈信息 */}
-                {answerFeedback && (
-                  <div className="mb-6 p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm w-full">
-                    <div className="grid grid-cols-4 gap-3">
-                      {/* 掌握程度变化 */}
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Star size={16} weight="duotone" color="#3b82f6" />
-                          <span className="text-xs text-gray-600">掌握度</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg font-bold text-gray-900">
-                            {answerFeedback.masteryLevelBefore}
-                          </span>
-                          {answerFeedback.masteryLevelAfter > answerFeedback.masteryLevelBefore ? (
-                            <TrendUp size={14} weight="bold" color="#22c55e" />
-                          ) : answerFeedback.masteryLevelAfter < answerFeedback.masteryLevelBefore ? (
-                            <TrendDown size={14} weight="bold" color="#ef4444" />
-                          ) : null}
-                          <span className="text-lg font-bold text-gray-900">
-                            {answerFeedback.masteryLevelAfter}
-                          </span>
-                        </div>
+        <div className="w-full space-y-8">
+          <WordCard
+            word={currentWord}
+            onPronounce={handlePronounce}
+            isPronouncing={isPronouncing}
+          />
+
+          <TestOptions
+            options={testOptions}
+            correctAnswer={currentWord.meanings[0]}
+            onSelect={handleSelectAnswer}
+            selectedAnswer={selectedAnswer}
+            showResult={showResult}
+          />
+
+          {showResult && (
+            <div className="flex flex-col items-center pb-4 animate-fade-in">
+              {/* 答题反馈信息 - 简化版 */}
+              {answerFeedback && (
+                <div className="mb-6 p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm w-full">
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* 掌握程度变化 */}
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Star size={16} weight="duotone" color="#3b82f6" />
+                        <span className="text-xs text-gray-600">掌握度</span>
                       </div>
-
-                      {/* 单词得分 */}
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Star size={16} weight="fill" color="#f59e0b" />
-                          <span className="text-xs text-gray-600">得分</span>
-                        </div>
+                      <div className="flex items-center gap-1">
                         <span className="text-lg font-bold text-gray-900">
-                          {Math.round(answerFeedback.score)}
+                          {answerFeedback.masteryLevelBefore}
                         </span>
-                      </div>
-
-                      {/* 响应时间 */}
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Clock size={16} weight="bold" color="#8b5cf6" />
-                          <span className="text-xs text-gray-600">用时</span>
-                        </div>
+                        {answerFeedback.masteryLevelAfter > answerFeedback.masteryLevelBefore ? (
+                          <TrendUp size={14} weight="bold" color="#22c55e" />
+                        ) : answerFeedback.masteryLevelAfter < answerFeedback.masteryLevelBefore ? (
+                          <TrendDown size={14} weight="bold" color="#ef4444" />
+                        ) : null}
                         <span className="text-lg font-bold text-gray-900">
-                          {(responseTime / 1000).toFixed(1)}s
-                        </span>
-                      </div>
-
-                      {/* 下次复习 */}
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Clock size={16} weight="duotone" color="#06b6d4" />
-                          <span className="text-xs text-gray-600">复习</span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          {answerFeedback.nextReviewDate}
+                          {answerFeedback.masteryLevelAfter}
                         </span>
                       </div>
                     </div>
+
+                    {/* 单词得分 */}
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Star size={16} weight="fill" color="#f59e0b" />
+                        <span className="text-xs text-gray-600">得分</span>
+                      </div>
+                      <span className="text-lg font-bold text-gray-900">
+                        {Math.round(answerFeedback.score)}
+                      </span>
+                    </div>
+
+                    {/* 响应时间 */}
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Clock size={16} weight="bold" color="#8b5cf6" />
+                        <span className="text-xs text-gray-600">用时</span>
+                      </div>
+                      <span className="text-lg font-bold text-gray-900">
+                        {(responseTime / 1000).toFixed(1)}s
+                      </span>
+                    </div>
+
+                    {/* 下次复习 */}
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Clock size={16} weight="duotone" color="#06b6d4" />
+                        <span className="text-xs text-gray-600">复习</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {answerFeedback.nextReviewDate}
+                      </span>
+                    </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                <button
-                  onClick={handleNext}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleNext();
-                    }
-                  }}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-lg text-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  aria-label="进入下一个单词，或按回车"
-                  autoFocus
-                >
-                  下一词 (Enter)
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 右侧：AI建议 */}
-        <div className="col-span-1 flex flex-col justify-start pt-8">
-          {showResult && <AmasSuggestion result={amasResult} onBreak={handleBreak} />}
+              <button
+                onClick={handleNext}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleNext();
+                  }
+                }}
+                className="px-8 py-3 bg-blue-500 text-white rounded-lg text-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+                aria-label="进入下一个单词，或按回车"
+                autoFocus
+              >
+                下一词 (Enter)
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* AI 建议模态框 */}
+      <SuggestionModal
+        isOpen={showSuggestion}
+        onClose={() => setShowSuggestion(false)}
+        result={amasResult}
+        onBreak={handleBreak}
+      />
+
+      {/* 学习状态模态框 */}
+      <StatusModal
+        isOpen={showStatus}
+        onClose={() => setShowStatus(false)}
+        refreshTrigger={amasRefreshTrigger}
+      />
     </div>
   );
 }

@@ -391,11 +391,13 @@ describe('ABTestEngine', () => {
       engine.startExperiment(config.id);
 
       // 对照组: 低性能
+      // m2 = variance * (n - 1) = stdDev^2 * (100 - 1) = 0.0064 * 99 = 0.6336
       engine.recordMetrics(config.id, 'control', {
         sampleCount: 100,
         primaryMetric: 0.60,
         averageReward: 0.60,
-        stdDev: 0.08
+        stdDev: 0.08,
+        m2: 0.6336
       });
 
       // 处理组: 高性能(显著改进>10%)
@@ -403,7 +405,8 @@ describe('ABTestEngine', () => {
         sampleCount: 100,
         primaryMetric: 0.75,
         averageReward: 0.75,
-        stdDev: 0.08
+        stdDev: 0.08,
+        m2: 0.6336
       });
 
       const result = engine.analyzeExperiment(config.id);

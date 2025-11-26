@@ -12,7 +12,9 @@ import {
     ArrowRight,
     Trash,
     ListNumbers,
-    SpeakerHigh
+    SpeakerHigh,
+    CircleNotch,
+    Warning
 } from '../components/Icon';
 
 export default function WordBookDetailPage() {
@@ -156,22 +158,29 @@ export default function WordBookDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-gray-500">加载中...</div>
+            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+                <div className="text-center">
+                    <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                    <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
+                </div>
             </div>
         );
     }
 
     if (error || !wordBook) {
         return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="text-red-600">{error || '词书不存在'}</div>
-                <button
-                    onClick={() => navigate('/vocabulary')}
-                    className="mt-4 px-4 py-2 bg-gray-100 rounded-lg"
-                >
-                    返回
-                </button>
+            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+                <div className="text-center max-w-md px-4" role="alert" aria-live="assertive">
+                    <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
+                    <p className="text-gray-600 mb-6">{error || '词书不存在'}</p>
+                    <button
+                        onClick={() => navigate('/vocabulary')}
+                        className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        返回词库列表
+                    </button>
+                </div>
             </div>
         );
     }
@@ -407,14 +416,14 @@ export default function WordBookDetailPage() {
                                                         onClick={() => handlePageChange(pageNum)}
                                                         aria-label={`第 ${pageNum} 页`}
                                                         aria-current={currentPage === pageNum ? 'page' : undefined}
-                                                        className="
+                                                        className={`
                                                             w-10 h-10 rounded-lg font-medium transition-all duration-200
                                                             hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                                                             ${currentPage === pageNum
                                                                 ? 'bg-blue-500 text-white shadow-lg'
                                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                             }
-                                                        "
+                                                        `}
                                                     >
                                                         {pageNum}
                                                     </button>

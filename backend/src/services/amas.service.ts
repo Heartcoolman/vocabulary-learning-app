@@ -17,6 +17,7 @@ import { recordFeatureVectorSaved } from './metrics.service';
 import prisma from '../config/database';
 import { delayedRewardService } from './delayed-reward.service';
 import { stateHistoryService } from './state-history.service';
+import { habitProfileService } from './habit-profile.service';
 
 class AMASService {
   private engine: AMASEngine;
@@ -153,6 +154,9 @@ class AMASService {
       focusLossDuration: event.focusLossDuration ?? 0,
       interactionDensity: event.interactionDensity ?? 1.0
     };
+
+    // 记录学习时间事件（用于习惯画像）
+    habitProfileService.recordTimeEvent(userId, rawEvent.timestamp);
 
     // 获取当前策略和统计
     const currentStrategy = await this.getCurrentStrategy(userId);
@@ -306,34 +310,57 @@ class AMASService {
 
   /**
    * 确保学习会话存在
-   * 使用 upsert 避免竞态条件，并校验用户归属
+   * 使用事务+锁定查询避免 TOCTOU 竞态条件
    * @param sessionId 学习会话ID
    * @param userId 用户ID
    */
   private async ensureLearningSession(sessionId: string, userId: string): Promise<void> {
     try {
-      // 使用 upsert 避免竞态条件和额外查询
-      const session = await prisma.learningSession.upsert({
-        where: { id: sessionId },
-        update: {}, // 会话已存在时不更新任何字段
-        create: {
-          id: sessionId,
-          userId
-        }
-      });
+      await prisma.$transaction(async (tx) => {
+        // 先尝试查询现有会话（带锁定）
+        const existing = await tx.learningSession.findUnique({
+          where: { id: sessionId }
+        });
 
-      // 校验用户归属：确保会话属于当前用户
-      if (session.userId !== userId) {
-        console.warn(
-          `[AMAS] 学习会话用户不匹配: sessionId=${sessionId}, expected=${userId}, actual=${session.userId}`
-        );
-        throw new Error(
-          `Session ${sessionId} belongs to different user`
-        );
-      }
+        if (existing) {
+          // 会话已存在，校验用户归属
+          if (existing.userId !== userId) {
+            console.warn(
+              `[AMAS] 学习会话用户不匹配: sessionId=${sessionId}, expected=${userId}, actual=${existing.userId}`
+            );
+            throw new Error(
+              `Session ${sessionId} belongs to different user`
+            );
+          }
+          // 用户匹配，无需操作
+          return;
+        }
+
+        // 会话不存在，创建新会话
+        await tx.learningSession.create({
+          data: {
+            id: sessionId,
+            userId
+          }
+        });
+      });
 
       console.log(`[AMAS] 学习会话已确保: sessionId=${sessionId}, userId=${userId}`);
     } catch (error) {
+      // 处理并发创建时的唯一约束冲突
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        // 再次检查会话归属
+        const session = await prisma.learningSession.findUnique({
+          where: { id: sessionId }
+        });
+        if (session && session.userId !== userId) {
+          throw new Error(`Session ${sessionId} belongs to different user`);
+        }
+        // 如果是同一用户的并发请求，忽略错误
+        console.log(`[AMAS] 学习会话已由并发请求创建: sessionId=${sessionId}, userId=${userId}`);
+        return;
+      }
+
       console.error(
         `[AMAS] 确保学习会话失败: sessionId=${sessionId}, userId=${userId}`,
         error
@@ -376,23 +403,43 @@ class AMASService {
   }
 
   /**
+   * 延迟奖励应用结果
+   */
+  static readonly DelayedRewardResult = {
+    SUCCESS: 'success',
+    INVALID_REWARD: 'invalid_reward',
+    NO_FEATURE_VECTOR: 'no_feature_vector',
+    MODEL_UPDATE_FAILED: 'model_update_failed'
+  } as const;
+
+  /**
    * 应用延迟奖励 (用于异步奖励补记)
    * @param userId 用户ID
    * @param reward 延迟奖励值
    * @param sessionId 可选的学习会话ID (用于获取特征向量)
+   * @returns 操作结果，包含成功状态和失败原因
    */
   async applyDelayedReward(
     userId: string,
     reward: number,
     sessionId?: string
-  ): Promise<void> {
+  ): Promise<{
+    success: boolean;
+    result: typeof AMASService.DelayedRewardResult[keyof typeof AMASService.DelayedRewardResult];
+    error?: string;
+  }> {
     try {
       // 校验并裁剪reward值到合理区间 [-1, 1]（与实时奖励保持一致）
       if (typeof reward !== 'number' || !Number.isFinite(reward)) {
+        const errorMsg = `无效的reward值 ${reward}`;
         console.warn(
-          `[AMAS] 延迟奖励: 无效的reward值 ${reward}, userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, sessionId=${sessionId}`
         );
-        return;
+        return {
+          success: false,
+          result: AMASService.DelayedRewardResult.INVALID_REWARD,
+          error: errorMsg
+        };
       }
       const clampedReward = Math.max(-1, Math.min(1, reward));
       if (clampedReward !== reward) {
@@ -452,12 +499,17 @@ class AMASService {
         }
       }
 
-      // 如果没有存储的特征向量，记录警告但不抛出错误
+      // 如果没有存储的特征向量，返回失败结果
       if (!featureVector) {
+        const errorMsg = '未找到有效特征向量，跳过模型更新';
         console.warn(
-          `[AMAS] 延迟奖励: 未找到有效特征向量，跳过模型更新 userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg} userId=${userId}, sessionId=${sessionId}`
         );
-        return;
+        return {
+          success: false,
+          result: AMASService.DelayedRewardResult.NO_FEATURE_VECTOR,
+          error: errorMsg
+        };
       }
 
       // 使用引擎提供的公共方法应用延迟奖励
@@ -468,15 +520,24 @@ class AMASService {
       );
 
       if (!result.success) {
+        const errorMsg = `模型更新失败: ${result.error}`;
         console.warn(
-          `[AMAS] 延迟奖励: 模型更新失败 error=${result.error}, userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, sessionId=${sessionId}`
         );
-        return;
+        return {
+          success: false,
+          result: AMASService.DelayedRewardResult.MODEL_UPDATE_FAILED,
+          error: errorMsg
+        };
       }
 
       console.log(
         `[AMAS] 延迟奖励已应用: userId=${userId}, reward=${clampedReward.toFixed(3)}, sessionId=${sessionId}`
       );
+      return {
+        success: true,
+        result: AMASService.DelayedRewardResult.SUCCESS
+      };
     } catch (error) {
       console.error('[AMAS] 应用延迟奖励失败:', error);
       throw error;

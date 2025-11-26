@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
+import { CircleNotch } from '../components/Icon';
 
 export default function StudySettingsPage() {
     const navigate = useNavigate();
@@ -81,8 +82,11 @@ export default function StudySettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-gray-500">加载中...</div>
+            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+                <div className="text-center">
+                    <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                    <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
+                </div>
             </div>
         );
     }
@@ -101,7 +105,7 @@ export default function StudySettingsPage() {
                 {/* 左右分栏布局 */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 左侧 - 词书选择 */}
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl p-6 shadow-sm">
                         <h2 className="text-xl font-bold text-gray-900 mb-4">选择学习词书</h2>
                         <p className="text-sm text-gray-600 mb-4">
                             选中的词书将用于每日学习，支持多选
@@ -160,7 +164,7 @@ export default function StudySettingsPage() {
                     {/* 右侧 - 设置选项 */}
                     <div className="space-y-6">
                         {/* 每日学习量 */}
-                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                        <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl p-6 shadow-sm">
                             <h2 className="text-xl font-bold text-gray-900 mb-4">每日学习量</h2>
                             <div className="flex items-center gap-4">
                                 <input

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../../services/ApiClient';
+import { CircleNotch } from '../../components/Icon';
 
 export default function AdminUsers() {
     const [users, setUsers] = useState<any[]>([]);
@@ -87,7 +88,7 @@ export default function AdminUsers() {
                         setPage(1);
                     }}
                     placeholder="搜索用户名或邮箱..."
-                    className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
             </div>
 
@@ -98,7 +99,10 @@ export default function AdminUsers() {
             )}
 
             {isLoading ? (
-                <div className="text-center py-8 text-gray-500">加载中...</div>
+                <div className="text-center py-12">
+                    <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+                    <p className="text-gray-600">正在加载...</p>
+                </div>
             ) : users.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">没有找到用户</div>
             ) : (
@@ -191,7 +195,7 @@ export default function AdminUsers() {
                                 <button
                                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                                 >
                                     上一页
                                 </button>
@@ -200,7 +204,7 @@ export default function AdminUsers() {
                                         setPage((p) => Math.min(pagination.totalPages, p + 1))
                                     }
                                     disabled={page === pagination.totalPages}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                                 >
                                     下一页
                                 </button>
