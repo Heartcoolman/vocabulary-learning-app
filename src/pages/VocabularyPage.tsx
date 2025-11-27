@@ -81,7 +81,7 @@ export default function VocabularyPage() {
   const renderWordBookCard = (book: WordBook, isUserBook: boolean) => (
     <div
       key={book.id}
-      className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer animate-fade-in"
+      className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer animate-g3-fade-in"
     >
       {/* 词书信息 */}
       <div onClick={() => navigate(`/wordbooks/${book.id}`)}>
@@ -134,7 +134,7 @@ export default function VocabularyPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600">正在加载...</p>
@@ -214,7 +214,7 @@ export default function VocabularyPage() {
       {/* 创建词书对话框 */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-book-title">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-slide-up">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
             <h2 id="create-book-title" className="text-2xl font-bold text-gray-900 mb-6">
               创建新词书
             </h2>

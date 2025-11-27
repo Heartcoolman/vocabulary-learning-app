@@ -142,7 +142,7 @@ export default function WordDetailPage() {
     }
 
     return (
-        <div className="p-8 animate-fade-in">
+        <div className="p-8 animate-g3-fade-in">
             {/* 返回按钮 */}
             <button
                 onClick={() => navigate(`/admin/users/${userId}`)}
@@ -542,7 +542,7 @@ export default function WordDetailPage() {
             {/* 异常标记对话框 */}
             {showFlagDialog && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full animate-slide-up">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full animate-g3-slide-up">
                         <div className="flex items-center gap-3 mb-6">
                             <Warning size={32} weight="duotone" className="text-yellow-500" />
                             <h3 className="text-2xl font-bold text-gray-900">标记异常</h3>

@@ -158,7 +158,7 @@ export default function WordBookDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -169,7 +169,7 @@ export default function WordBookDetailPage() {
 
     if (error || !wordBook) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center max-w-md px-4" role="alert" aria-live="assertive">
                     <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
@@ -189,7 +189,7 @@ export default function WordBookDetailPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
                 {/* 头部 */}
                 <header className="mb-8">
                     <nav className="mb-6">
@@ -262,7 +262,7 @@ export default function WordBookDetailPage() {
                 {/* 单词网格 */}
                 <main>
                     {words.length === 0 ? (
-                        <div className="text-center py-16 animate-slide-up">
+                        <div className="text-center py-16 animate-g3-slide-up">
                             <BookOpen className="mx-auto mb-6 animate-pulse" size={96} weight="thin" color="#9ca3af" />
                             <h2 className="text-2xl font-bold text-gray-900 mb-3">这个词书还没有单词</h2>
                             <p className="text-gray-600 mb-8">开始添加单词，构建你的个性化词库吧</p>
@@ -308,7 +308,7 @@ export default function WordBookDetailPage() {
                                             flex flex-col justify-between min-h-[200px]
                                             hover:border-blue-400 hover:bg-white/95
                                             focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
-                                            animate-fade-in
+                                            animate-g3-fade-in
                                         "
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     >
@@ -460,7 +460,7 @@ export default function WordBookDetailPage() {
                             aria-modal="true"
                             aria-labelledby="word-detail-title"
                         >
-                            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up">
+                            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-g3-slide-up">
                                 {/* 关闭按钮 */}
                                 <button
                                     onClick={() => setShowWordDetail(false)}
@@ -554,7 +554,7 @@ export default function WordBookDetailPage() {
                             aria-modal="true"
                             aria-labelledby="add-word-title"
                         >
-                            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-slide-up">
+                            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-g3-slide-up">
                                 <h2
                                     id="add-word-title"
                                     className="text-3xl font-bold text-gray-900 mb-6"

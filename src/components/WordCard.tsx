@@ -43,7 +43,7 @@ export default function WordCard({
 
   return (
     <div 
-      className="flex flex-col items-center justify-center space-y-5 py-10 px-8 md:py-16 md:px-12 animate-slide-up bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
+      className="flex flex-col items-center justify-center space-y-5 py-10 px-8 md:py-16 md:px-12 animate-g3-slide-up bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
     >
@@ -75,7 +75,7 @@ export default function WordCard({
 
       {/* 单词拼写 */}
       <h2 
-        className="text-5xl md:text-6xl font-bold text-gray-900 animate-fade-in"
+        className="text-5xl md:text-6xl font-bold text-gray-900 animate-g3-fade-in"
         role="heading"
         aria-level={2}
       >
@@ -84,7 +84,7 @@ export default function WordCard({
 
       {/* 音标 */}
       <p 
-        className="text-2xl md:text-3xl text-gray-600 animate-fade-in"
+        className="text-2xl md:text-3xl text-gray-600 animate-g3-fade-in"
         aria-label={`音标: ${word.phonetic}`}
       >
         /{word.phonetic}/
@@ -92,7 +92,7 @@ export default function WordCard({
 
       {/* 例句 */}
       <p
-        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8 animate-fade-in"
+        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8 animate-g3-fade-in"
         role="region"
         aria-label="例句"
       >
@@ -101,7 +101,7 @@ export default function WordCard({
 
       {/* 学习状态信息 */}
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
-        <div className="mt-8 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/60 animate-fade-in">
+        <div className="mt-8 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/60 animate-g3-fade-in">
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}
             {masteryLevel !== undefined && (

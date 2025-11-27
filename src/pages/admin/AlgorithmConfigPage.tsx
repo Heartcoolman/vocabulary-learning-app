@@ -97,7 +97,7 @@ export default function AlgorithmConfigPage() {
 
   if (isLoading || !config || !defaultConfig) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600" role="status" aria-live="polite">加载配置中...</p>
@@ -107,7 +107,7 @@ export default function AlgorithmConfigPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto animate-g3-fade-in">
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
@@ -219,7 +219,7 @@ export default function AlgorithmConfigPage() {
       {/* 重置确认对话框 */}
       {showResetConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-slide-up">
+          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-g3-slide-up">
             <div className="text-center mb-6">
               <Warning size={64} weight="duotone" className="text-yellow-500 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-900 mb-2">确认重置</h3>

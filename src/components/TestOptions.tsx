@@ -107,7 +107,7 @@ export default function TestOptions({
           disabled={showResult}
           className={`
             flex-1 min-w-[120px] max-w-[180px] px-6 py-3 rounded-lg text-base font-medium
-            transition-all duration-200 animate-fade-in
+            transition-all duration-200 animate-g3-fade-in
             ${getButtonStyle(option)}
             ${!showResult ? 'hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
             disabled:cursor-not-allowed

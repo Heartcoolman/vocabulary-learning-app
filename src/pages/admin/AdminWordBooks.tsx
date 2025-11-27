@@ -146,7 +146,7 @@ export default function AdminWordBooks() {
             {/* 创建对话框 */}
             {showCreateDialog && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-wordbook-title">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-slide-up">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
                         <h2 id="create-wordbook-title" className="text-2xl font-bold text-gray-900 mb-6">
                             创建系统词库
                         </h2>

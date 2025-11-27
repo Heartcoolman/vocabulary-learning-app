@@ -57,7 +57,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 animate-g3-fade-in">
       <div className="max-w-md w-full">
         {/* 标题 */}
         <div className="text-center mb-8">

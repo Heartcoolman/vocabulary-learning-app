@@ -101,7 +101,7 @@ export default function LearningPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600" role="status" aria-live="polite">
@@ -125,7 +125,7 @@ export default function LearningPage() {
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4" role="alert" aria-live="assertive">
           <div className="mb-4" aria-hidden="true">
             <Books size={80} weight="thin" color="#eab308" className="mx-auto" />
@@ -158,7 +158,7 @@ export default function LearningPage() {
 
   if (isCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4" role="status" aria-live="polite">
           <div className="mb-4 animate-bounce" aria-hidden="true">
             <Confetti size={96} weight="duotone" color="#22c55e" className="mx-auto" />
@@ -203,7 +203,7 @@ export default function LearningPage() {
 
       {/* 提交错误提示 */}
       {submitError && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg shadow-lg flex items-center gap-2 animate-slide-up">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg shadow-lg flex items-center gap-2 animate-g3-slide-up">
           <span>{submitError}</span>
           <button
             onClick={() => actions.clearSubmitError()}
@@ -259,7 +259,7 @@ export default function LearningPage() {
           />
 
           {showResult && (
-            <div className="flex flex-col items-center pb-4 animate-fade-in">
+            <div className="flex flex-col items-center pb-4 animate-g3-fade-in">
               {/* 答题反馈信息 - 简化版 */}
               {answerFeedback && (
                 <div className="mb-6 p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm w-full">
