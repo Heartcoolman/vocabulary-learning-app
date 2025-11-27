@@ -1207,6 +1207,15 @@ class ApiClient {
   }
 
   /**
+   * 获取所有系统词库（管理员）
+   * 包括非公开的词库
+   */
+  async adminGetSystemWordBooks(): Promise<WordBook[]> {
+    const apiWordBooks = await this.request<ApiWordBook[]>('/api/admin/wordbooks');
+    return apiWordBooks.map(convertApiWordBook);
+  }
+
+  /**
    * 创建系统词库（管理员）
    */
   async adminCreateSystemWordBook(data: {

@@ -28,8 +28,10 @@ export default function WordCard({
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // 按空格键播放发音
-      if (e.code === 'Space' && !isPronouncing && document.activeElement?.tagName !== 'INPUT') {
+      // 按空格键播放发音（排除表单控件，避免与原生行为冲突）
+      const activeTag = document.activeElement?.tagName || '';
+      const isFormControl = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(activeTag);
+      if (e.code === 'Space' && !isPronouncing && !isFormControl) {
         e.preventDefault();
         onPronounce();
       }
@@ -89,12 +91,12 @@ export default function WordCard({
       </p>
 
       {/* 例句 */}
-      <p 
+      <p
         className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8 animate-fade-in"
         role="region"
         aria-label="例句"
       >
-        {word.examples[0]}
+        {word.examples && word.examples.length > 0 ? word.examples[0] : '暂无例句'}
       </p>
 
       {/* 学习状态信息 */}

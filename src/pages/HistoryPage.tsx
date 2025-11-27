@@ -227,8 +227,11 @@ export default function HistoryPage() {
     const maxValue = Math.max(...values);
     const range = maxValue - minValue || 1;
 
+    // 处理单条数据的边界情况，避免除零异常
     const points = data.map((d, i) => {
-      const x = padding + (i / (data.length - 1)) * chartWidth;
+      const x = data.length === 1
+        ? padding + chartWidth / 2  // 单点居中
+        : padding + (i / (data.length - 1)) * chartWidth;
       const y = padding + chartHeight - ((d[metric] as number - minValue) / range) * chartHeight;
       return `${x},${y}`;
     }).join(' ');

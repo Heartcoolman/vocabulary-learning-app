@@ -161,11 +161,13 @@ export class RecordService {
       console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
     }
 
-    // 验证所有时间戳的合理性
+    // 验证所有时间戳的合理性并缓存验证后的日期对象
+    const validatedTimestamps = new Map<number, Date>();
     for (const record of records) {
       if (record.timestamp) {
         try {
-          validateTimestamp(record.timestamp);
+          const validatedDate = validateTimestamp(record.timestamp);
+          validatedTimestamps.set(record.timestamp, validatedDate);
         } catch (error) {
           throw new Error(`记录时间戳无效 (wordId=${record.wordId}): ${(error as Error).message}`);
         }
@@ -225,8 +227,10 @@ export class RecordService {
         selectedAnswer: record.selectedAnswer ?? '',
         correctAnswer: record.correctAnswer ?? '',
         isCorrect: record.isCorrect,
-        // 如果有客户端时间戳则使用，否则使用服务端当前时间
-        timestamp: record.timestamp ? new Date(record.timestamp) : new Date(),
+        // 复用已验证的时间戳，避免二次创建Date对象产生不一致
+        timestamp: record.timestamp
+          ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
+          : new Date(),
         responseTime: record.responseTime,
         dwellTime: record.dwellTime,
         sessionId: record.sessionId,

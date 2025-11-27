@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/ApiClient';
 import { Books, CircleNotch } from '../../components/Icon';
+import { WordBook } from '../../types/models';
 
 export default function AdminWordBooks() {
     const navigate = useNavigate();
-    const [wordBooks, setWordBooks] = useState<any[]>([]);
+    const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -22,7 +23,8 @@ export default function AdminWordBooks() {
         try {
             setIsLoading(true);
             setError(null);
-            const data = await apiClient.getSystemWordBooks();
+            // 使用管理员接口获取所有系统词库（包括非公开的）
+            const data = await apiClient.adminGetSystemWordBooks();
             setWordBooks(data);
         } catch (err) {
             console.error('加载系统词库失败:', err);
