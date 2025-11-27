@@ -72,7 +72,7 @@ export default function ConfigHistoryPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto animate-g3-fade-in">
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">

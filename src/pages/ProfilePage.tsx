@@ -113,7 +113,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
         {/* 页面标题 */}
         <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
 

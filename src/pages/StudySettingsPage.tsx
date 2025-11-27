@@ -82,7 +82,7 @@ export default function StudySettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -93,7 +93,7 @@ export default function StudySettingsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">学习设置</h1>
 
                 {error && (

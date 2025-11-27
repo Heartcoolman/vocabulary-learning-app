@@ -116,7 +116,7 @@ export default function Navigation() {
                 </button>
 
                 {isInsightsOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-fade-in">
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-g3-fade-in">
                     <Link
                       to="/statistics"
                       className={dropdownLinkClass('/statistics')}

@@ -91,7 +91,7 @@ export default function SyncIndicator() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-lg shadow-lg p-4 max-w-sm animate-fade-in">
+      <div className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-lg shadow-lg p-4 max-w-sm animate-g3-fade-in">
         {/* 主状态 */}
         <div 
           className="flex items-center gap-3 cursor-pointer"
@@ -104,13 +104,13 @@ export default function SyncIndicator() {
             </>
           ) : showSuccessIcon ? (
             <>
-              <Check size={24} weight="bold" className="text-green-500 animate-fade-in" />
-              <span className="text-sm font-medium text-green-600 animate-fade-in">同步成功</span>
+              <Check size={24} weight="bold" className="text-green-500 animate-g3-fade-in" />
+              <span className="text-sm font-medium text-green-600 animate-g3-fade-in">同步成功</span>
             </>
           ) : showErrorIcon ? (
             <>
-              <X size={24} weight="bold" className="text-red-500 animate-fade-in" />
-              <span className="text-sm font-medium text-red-600 animate-fade-in">同步失败</span>
+              <X size={24} weight="bold" className="text-red-500 animate-g3-fade-in" />
+              <span className="text-sm font-medium text-red-600 animate-g3-fade-in">同步失败</span>
             </>
           ) : syncStatus.error ? (
             <>
@@ -148,7 +148,7 @@ export default function SyncIndicator() {
 
         {/* 详细信息 */}
         {showDetails && (
-          <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 animate-fade-in">
+          <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 animate-g3-fade-in">
             {syncStatus.error && (
               <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
                 {syncStatus.error}

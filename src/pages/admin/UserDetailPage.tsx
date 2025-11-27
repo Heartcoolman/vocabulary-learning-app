@@ -214,7 +214,7 @@ export default function UserDetailPage() {
     }
 
     return (
-        <div className="p-8 animate-fade-in">
+        <div className="p-8 animate-g3-fade-in">
             {/* 返回按钮 */}
             <button
                 onClick={() => navigate('/admin/users')}
