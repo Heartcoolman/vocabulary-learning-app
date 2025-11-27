@@ -182,16 +182,13 @@ export class WordStateService {
     }
 
     // 从数据库查询
-    // 修复：纳入已学习过的NEW状态单词（reviewCount > 0 表示已经学习过）
+    // 返回所有到期的单词：LEARNING、REVIEWING 状态，以及 NEW 状态（包括未学习的新词）
     const now = new Date();
     const dueWords = await prisma.wordLearningState.findMany({
       where: {
         userId,
         nextReviewDate: { lte: now },
-        OR: [
-          { state: { in: [WordState.LEARNING, WordState.REVIEWING] } },
-          { state: WordState.NEW }
-        ]
+        state: { in: [WordState.NEW, WordState.LEARNING, WordState.REVIEWING] }
       },
       orderBy: { nextReviewDate: 'asc' }
     });

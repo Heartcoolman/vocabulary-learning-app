@@ -1,17 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../../services/ApiClient';
+import apiClient, { UserOverview, AdminUsersResponse } from '../../services/ApiClient';
 import { CircleNotch } from '../../components/Icon';
 
 export default function AdminUsers() {
-    const [users, setUsers] = useState<any[]>([]);
-    const [pagination, setPagination] = useState<any>(null);
+    const [users, setUsers] = useState<UserOverview[]>([]);
+    const [pagination, setPagination] = useState<AdminUsersResponse['pagination'] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
+    // 使用 ref 跟踪搜索变化，避免 setPage(1) 触发重复请求
+    const isSearchChangeRef = useRef(false);
+
     useEffect(() => {
+        // 如果是搜索词变化导致的 page 重置，跳过本次加载（等待 page 变化后再加载）
+        if (isSearchChangeRef.current && page !== 1) {
+            return;
+        }
+        isSearchChangeRef.current = false;
         loadUsers();
     }, [page, search]);
 
@@ -84,7 +92,12 @@ export default function AdminUsers() {
                     type="text"
                     value={search}
                     onChange={(e) => {
-                        setSearch(e.target.value);
+                        const newSearch = e.target.value;
+                        setSearch(newSearch);
+                        // 标记为搜索变化，避免双重请求
+                        if (page !== 1) {
+                            isSearchChangeRef.current = true;
+                        }
                         setPage(1);
                     }}
                     placeholder="搜索用户名或邮箱..."
@@ -107,7 +120,7 @@ export default function AdminUsers() {
                 <div className="text-center py-8 text-gray-500">没有找到用户</div>
             ) : (
                 <>
-                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl overflow-hidden">
                         <table className="w-full">
                             <thead className="bg-gray-50">
                                 <tr>

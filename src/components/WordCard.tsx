@@ -101,7 +101,7 @@ export default function WordCard({
 
       {/* 学习状态信息 */}
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
-        <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 animate-fade-in">
+        <div className="mt-8 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/60 animate-fade-in">
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}
             {masteryLevel !== undefined && (
