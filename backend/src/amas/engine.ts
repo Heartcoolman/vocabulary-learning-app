@@ -13,8 +13,23 @@ import { AttentionMonitor, AttentionFeatures } from './modeling/attention-monito
 import { FatigueEstimator } from './modeling/fatigue-estimator';
 import { CognitiveProfiler } from './modeling/cognitive-profiler';
 import { MotivationTracker } from './modeling/motivation-tracker';
+import { TrendAnalyzer } from './modeling/trend-analyzer';
+import { ACTRMemoryModel } from './modeling/actr-memory';
 import { LinUCB } from './learning/linucb';
+import { ColdStartManager } from './learning/coldstart';
+import { ThompsonSampling } from './learning/thompson-sampling';
+import { HeuristicLearner } from './learning/heuristic';
+import { EnsembleLearningFramework, EnsembleContext } from './decision/ensemble';
 import { mapActionToStrategy } from './decision/mapper';
+import { UserParamsManager } from './config/user-params';
+import {
+  getFeatureFlags,
+  isEnsembleEnabled,
+  isColdStartEnabled,
+  isTrendAnalyzerEnabled,
+  isUserParamsManagerEnabled,
+  getEnsembleLearnerFlags
+} from './config/feature-flags';
 import { applyGuardrails, shouldSuggestBreak } from './decision/guardrails';
 import { generateExplanation, generateSuggestion } from './decision/explain';
 import { intelligentFallback, FallbackReason } from './decision/fallback';
@@ -43,15 +58,31 @@ import {
 // ==================== 用户隔离类型定义 ====================
 
 /**
+ * 决策模型类型 - 支持 LinUCB 或 Ensemble
+ */
+type DecisionModel = LinUCB | EnsembleLearningFramework;
+
+/**
  * 用户专属模型实例集合
  * 每个用户拥有独立的建模层实例，避免跨用户状态污染
  */
 interface UserModels {
+  // 核心建模层
   attention: AttentionMonitor;
   fatigue: FatigueEstimator;
   cognitive: CognitiveProfiler;
   motivation: MotivationTracker;
-  bandit: LinUCB;
+
+  // 决策模型 (LinUCB 或 Ensemble)
+  bandit: DecisionModel;
+
+  // 扩展模块 (通过功能开关控制)
+  trendAnalyzer: TrendAnalyzer | null;
+  coldStart: ColdStartManager | null;
+  thompson: ThompsonSampling | null;
+  heuristic: HeuristicLearner | null;
+  actrMemory: ACTRMemoryModel | null;
+  userParams: UserParamsManager | null;
 }
 
 /**
@@ -126,10 +157,17 @@ export interface EngineDependencies {
   fatigue?: FatigueEstimator;
   cognitive?: CognitiveProfiler;
   motivation?: MotivationTracker;
-  bandit?: LinUCB;
+  bandit?: DecisionModel;
   stateRepo?: StateRepository;
   modelRepo?: ModelRepository;
   logger?: Logger;
+  // 扩展模块依赖
+  trendAnalyzer?: TrendAnalyzer;
+  coldStartManager?: ColdStartManager;
+  thompson?: ThompsonSampling;
+  heuristic?: HeuristicLearner;
+  actrMemory?: ACTRMemoryModel;
+  userParamsManager?: UserParamsManager;
 }
 
 /**
@@ -209,13 +247,43 @@ export class AMASEngine {
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
 
+    // 获取功能开关配置
+    const flags = getFeatureFlags();
+
+    // 根据功能开关决定默认决策模型
+    const defaultBandit: DecisionModel = deps.bandit ??
+      (flags.enableEnsemble
+        ? new EnsembleLearningFramework()
+        : new LinUCB());
+
     // 初始化模型模板（用于克隆给新用户）
     this.modelTemplates = {
+      // 核心建模层
       attention: deps.attention ?? new AttentionMonitor(),
       fatigue: deps.fatigue ?? new FatigueEstimator(),
       cognitive: deps.cognitive ?? new CognitiveProfiler(),
       motivation: deps.motivation ?? new MotivationTracker(),
-      bandit: deps.bandit ?? new LinUCB()
+      bandit: defaultBandit,
+
+      // 扩展模块 (根据功能开关初始化)
+      trendAnalyzer: flags.enableTrendAnalyzer
+        ? (deps.trendAnalyzer ?? new TrendAnalyzer())
+        : null,
+      coldStart: flags.enableColdStartManager
+        ? (deps.coldStartManager ?? new ColdStartManager())
+        : null,
+      thompson: flags.enableThompsonSampling
+        ? (deps.thompson ?? new ThompsonSampling())
+        : null,
+      heuristic: flags.enableHeuristicBaseline
+        ? (deps.heuristic ?? new HeuristicLearner())
+        : null,
+      actrMemory: flags.enableACTRMemory
+        ? (deps.actrMemory ?? new ACTRMemoryModel())
+        : null,
+      userParams: flags.enableUserParamsManager
+        ? (deps.userParamsManager ?? new UserParamsManager())
+        : null
     };
 
     // 生产环境强制要求数据库存储，防止数据丢失
@@ -358,26 +426,104 @@ export class AMASEngine {
     // 5. 状态更新（使用用户专属模型，修复#1）
     const state = this.updateUserState(prevState, featureVec, rawEvent, recentErrorRate, models);
 
-    // 6. 设置冷启动探索率
-    const alpha = models.bandit.getColdStartAlpha(interactionCount, recentAccuracy, state.F);
-    models.bandit.setAlpha(alpha);
-
-    // 7. 动作选择
-    const context = {
+    // 6. 构建决策上下文
+    const baseContext = {
       recentErrorRate,
       recentResponseTime: rawEvent.responseTime,
       timeBucket: this.getTimeBucket(rawEvent.timestamp)
     };
-    const action = models.bandit.selectFromActionSpace(state, context);
 
-    // 构建LinUCB上下文特征向量（用于延迟奖励持久化）
-    const contextVec = models.bandit.buildContextVector({
-      state,
-      action,
-      recentErrorRate: context.recentErrorRate,
-      recentResponseTime: context.recentResponseTime,
-      timeBucket: context.timeBucket
-    });
+    // 判断是否在冷启动阶段
+    const coldStartEnabled = isColdStartEnabled() && models.coldStart !== null;
+    const coldStartPhase = coldStartEnabled
+      ? models.coldStart!.getPhase()
+      : this.getColdStartPhase(userId);
+    const inColdStartPhase = coldStartPhase !== 'normal';
+
+    // 应用用户参数（如果启用）
+    if (models.userParams && isUserParamsManagerEnabled()) {
+      const params = models.userParams.getParams(userId);
+      if (models.bandit instanceof LinUCB) {
+        models.bandit.setAlpha(params.alpha);
+      }
+    } else if (models.bandit instanceof LinUCB && !inColdStartPhase) {
+      // 使用默认冷启动探索率
+      const alpha = models.bandit.getColdStartAlpha(interactionCount, recentAccuracy, state.F);
+      models.bandit.setAlpha(alpha);
+    }
+
+    // 7. 动作选择 (根据启用的模块选择策略)
+    let action: Action;
+    let contextVec: Float32Array | undefined;
+
+    if (inColdStartPhase && coldStartEnabled && models.coldStart) {
+      // 冷启动阶段: 使用 ColdStartManager
+      const selection = models.coldStart.selectAction(state, ACTION_SPACE, baseContext);
+      action = selection.action;
+
+      // 构建 LinUCB 上下文向量用于延迟奖励
+      if (models.bandit instanceof LinUCB) {
+        contextVec = models.bandit.buildContextVector({
+          state,
+          action,
+          ...baseContext
+        });
+      } else if (models.bandit instanceof EnsembleLearningFramework) {
+        // 从 Ensemble 内部的 LinUCB 构建上下文向量
+        const ensembleState = models.bandit.getState();
+        const internalLinUCB = new LinUCB();
+        internalLinUCB.setModel(ensembleState.linucb);
+        contextVec = internalLinUCB.buildContextVector({
+          state,
+          action,
+          ...baseContext
+        });
+      }
+    } else if (isEnsembleEnabled() && models.bandit instanceof EnsembleLearningFramework) {
+      // 成熟阶段 + Ensemble 启用: 使用 EnsembleLearningFramework
+      const ensembleContext: EnsembleContext = {
+        phase: coldStartPhase,
+        base: baseContext,
+        linucb: baseContext,
+        thompson: baseContext,
+        actr: { ...baseContext, trace: [] },
+        heuristic: baseContext
+      };
+
+      // 应用学习器功能开关
+      const learnerFlags = getEnsembleLearnerFlags();
+      const ensembleState = models.bandit.getState();
+      const weights = { ...ensembleState.weights };
+      if (!learnerFlags.thompson) weights.thompson = 0;
+      if (!learnerFlags.actr) weights.actr = 0;
+      if (!learnerFlags.heuristic) weights.heuristic = 0;
+      models.bandit.setState({ ...ensembleState, weights });
+
+      const selection = models.bandit.selectAction(state, ACTION_SPACE, ensembleContext);
+      action = selection.action;
+
+      // 构建 LinUCB 上下文向量用于延迟奖励（从 Ensemble 内部的 LinUCB）
+      const internalLinUCB = new LinUCB();
+      internalLinUCB.setModel(ensembleState.linucb);
+      contextVec = internalLinUCB.buildContextVector({
+        state,
+        action,
+        ...baseContext
+      });
+    } else {
+      // 默认: 使用 LinUCB
+      if (models.bandit instanceof LinUCB) {
+        action = models.bandit.selectFromActionSpace(state, baseContext);
+        contextVec = models.bandit.buildContextVector({
+          state,
+          action,
+          ...baseContext
+        });
+      } else {
+        // 回退到默认动作
+        action = ACTION_SPACE[0];
+      }
+    }
 
     // 8. 策略映射和安全约束
     const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
@@ -398,7 +544,36 @@ export class AMASEngine {
 
     // 11. 更新模型（除非跳过）
     if (!opts.skipUpdate) {
-      models.bandit.update(state, action, reward, context);
+      // 更新决策模型
+      if (models.bandit instanceof EnsembleLearningFramework) {
+        const ensembleContext: EnsembleContext = {
+          phase: coldStartPhase,
+          base: baseContext,
+          linucb: baseContext,
+          thompson: baseContext,
+          actr: { ...baseContext, trace: [] },
+          heuristic: baseContext
+        };
+        models.bandit.update(state, action, reward, ensembleContext);
+      } else if (models.bandit instanceof LinUCB) {
+        models.bandit.update(state, action, reward, baseContext);
+      }
+
+      // 更新冷启动管理器
+      if (coldStartEnabled && models.coldStart) {
+        models.coldStart.update(state, action, reward, baseContext);
+      }
+
+      // 更新用户参数管理器
+      if (models.userParams && isUserParamsManagerEnabled()) {
+        models.userParams.updateParams(userId, {
+          accuracy: rawEvent.isCorrect ? 1 : 0,
+          fatigueChange: state.F - prevState.F,
+          motivationChange: state.M - prevState.M,
+          reward
+        });
+      }
+
       this.incrementInteractionCount(userId);
     }
 
@@ -415,7 +590,12 @@ export class AMASEngine {
       throw new Error('Operation cancelled');
     }
 
-    await this.modelRepo.saveModel(userId, models.bandit.getModel());
+    // 保存 Bandit 模型
+    if (models.bandit instanceof EnsembleLearningFramework) {
+      await this.modelRepo.saveModel(userId, models.bandit.getState().linucb);
+    } else if (models.bandit instanceof LinUCB) {
+      await this.modelRepo.saveModel(userId, models.bandit.getModel());
+    }
 
     // 13. 记录性能
     const elapsed = Date.now() - startTime;
@@ -503,15 +683,29 @@ export class AMASEngine {
     const defaultState = this.createDefaultState();
     await this.stateRepo.saveState(userId, defaultState);
 
-    // 创建新的默认模型保存
-    const defaultBandit = new LinUCB();
-    await this.modelRepo.saveModel(userId, defaultBandit.getModel());
+    // 根据功能开关创建默认决策模型
+    const flags = getFeatureFlags();
+    if (flags.enableEnsemble) {
+      const defaultEnsemble = new EnsembleLearningFramework();
+      await this.modelRepo.saveModel(userId, defaultEnsemble.getState().linucb);
+    } else {
+      const defaultBandit = new LinUCB();
+      await this.modelRepo.saveModel(userId, defaultBandit.getModel());
+    }
   }
 
   /**
    * 获取冷启动阶段
+   * 优先使用 ColdStartManager，否则使用简单阈值判断
    */
   getColdStartPhase(userId: string): ColdStartPhase {
+    // 优先使用 ColdStartManager
+    const models = this.userModels.get(userId);
+    if (isColdStartEnabled() && models?.coldStart) {
+      return models.coldStart.getPhase();
+    }
+
+    // 回退到简单阈值判断
     const count = this.interactionCounts.get(userId) ?? 0;
     if (count < 15) return 'classify';
     if (count < 50) return 'explore';
@@ -527,12 +721,22 @@ export class AMASEngine {
 
   /**
    * 加载用户模型（如果存在）
-   * @param bandit 用户专属的LinUCB实例
+   * 支持 LinUCB 和 EnsembleLearningFramework
+   * @param bandit 用户专属的决策模型实例
    */
-  private async loadModelIfExists(userId: string, bandit: LinUCB): Promise<void> {
+  private async loadModelIfExists(userId: string, bandit: DecisionModel): Promise<void> {
     const model = await this.modelRepo.loadModel(userId);
-    if (model) {
+    if (!model) return;
+
+    if (bandit instanceof LinUCB) {
       bandit.setModel(model);
+    } else if (bandit instanceof EnsembleLearningFramework) {
+      // Ensemble 内部的 LinUCB 使用加载的模型
+      const currentState = bandit.getState();
+      bandit.setState({
+        ...currentState,
+        linucb: model
+      });
     }
   }
 
@@ -542,6 +746,7 @@ export class AMASEngine {
       F: 0.1,
       C: { mem: 0.5, speed: 0.5, stability: 0.5 },
       M: 0,
+      T: 'flat',
       conf: 0.5,
       ts: Date.now()
     };
@@ -584,12 +789,21 @@ export class AMASEngine {
       quits: 0
     });
 
+    // 趋势分析更新 (如果启用)
+    let trendState = prevState.T ?? 'flat';
+    if (models.trendAnalyzer && isTrendAnalyzerEnabled()) {
+      // 综合能力指标: 70%记忆 + 30%稳定性
+      const ability = clamp(0.7 * C.mem + 0.3 * C.stability, 0, 1);
+      trendState = models.trendAnalyzer.update(ability, event.timestamp);
+    }
+
     return {
       ...prevState,
       A,
       F,
       C,
       M,
+      T: trendState,
       ts: event.timestamp,
       conf: Math.min(1, prevState.conf + 0.01)
     };
@@ -745,13 +959,41 @@ export class AMASEngine {
   private getUserModels(userId: string): UserModels {
     let models = this.userModels.get(userId);
     if (!models) {
+      const flags = getFeatureFlags();
+
+      // 根据功能开关选择决策模型
+      const bandit: DecisionModel = flags.enableEnsemble
+        ? this.cloneEnsemble()
+        : this.cloneLinUCB();
+
       // 为新用户创建独立的模型实例
       models = {
+        // 核心建模层
         attention: this.cloneAttentionMonitor(),
         fatigue: this.cloneFatigueEstimator(),
         cognitive: this.cloneCognitiveProfiler(),
         motivation: this.cloneMotivationTracker(),
-        bandit: this.cloneLinUCB()
+        bandit,
+
+        // 扩展模块 (根据功能开关创建)
+        trendAnalyzer: flags.enableTrendAnalyzer
+          ? this.cloneTrendAnalyzer()
+          : null,
+        coldStart: flags.enableColdStartManager
+          ? this.cloneColdStartManager()
+          : null,
+        thompson: flags.enableThompsonSampling
+          ? this.cloneThompsonSampling()
+          : null,
+        heuristic: flags.enableHeuristicBaseline
+          ? this.cloneHeuristicLearner()
+          : null,
+        actrMemory: flags.enableACTRMemory
+          ? this.cloneACTRMemoryModel()
+          : null,
+        userParams: flags.enableUserParamsManager
+          ? this.cloneUserParamsManager()
+          : null
       };
       this.userModels.set(userId, models);
     }
@@ -851,14 +1093,71 @@ export class AMASEngine {
    */
   private cloneLinUCB(): LinUCB {
     const template = this.modelTemplates.bandit;
-    const model = template.getModel();
-    const clone = new LinUCB({
-      alpha: model.alpha,
-      lambda: model.lambda,
-      dimension: model.d
-    });
-    // 新用户使用默认初始化模型，不复制模板的学习历史
-    return clone;
+    if (template instanceof LinUCB) {
+      const model = template.getModel();
+      return new LinUCB({
+        alpha: model.alpha,
+        lambda: model.lambda,
+        dimension: model.d
+      });
+    }
+    // 如果模板是 Ensemble，创建新的 LinUCB
+    return new LinUCB();
+  }
+
+  /**
+   * 克隆 EnsembleLearningFramework
+   */
+  private cloneEnsemble(): EnsembleLearningFramework {
+    const template = this.modelTemplates.bandit;
+    if (template instanceof EnsembleLearningFramework) {
+      const clone = new EnsembleLearningFramework();
+      // 新用户使用默认初始化，不复制学习历史
+      return clone;
+    }
+    return new EnsembleLearningFramework();
+  }
+
+  /**
+   * 克隆 TrendAnalyzer
+   */
+  private cloneTrendAnalyzer(): TrendAnalyzer {
+    return new TrendAnalyzer();
+  }
+
+  /**
+   * 克隆 ColdStartManager
+   */
+  private cloneColdStartManager(): ColdStartManager {
+    return new ColdStartManager();
+  }
+
+  /**
+   * 克隆 ThompsonSampling
+   */
+  private cloneThompsonSampling(): ThompsonSampling {
+    return new ThompsonSampling();
+  }
+
+  /**
+   * 克隆 HeuristicLearner
+   */
+  private cloneHeuristicLearner(): HeuristicLearner {
+    return new HeuristicLearner();
+  }
+
+  /**
+   * 克隆 ACTRMemoryModel
+   */
+  private cloneACTRMemoryModel(): ACTRMemoryModel {
+    return new ACTRMemoryModel();
+  }
+
+  /**
+   * 克隆 UserParamsManager
+   */
+  private cloneUserParamsManager(): UserParamsManager {
+    return new UserParamsManager();
   }
 
   // ==================== 延迟奖励支持方法 ====================

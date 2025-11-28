@@ -5,12 +5,14 @@ import {
   startDelayedRewardWorker,
   stopDelayedRewardWorker
 } from './workers/delayed-reward.worker';
+import { startOptimizationWorker } from './workers/optimization.worker';
 import type { ScheduledTask } from 'node-cron';
 
 const PORT = parseInt(env.PORT, 10);
 
 // 保存worker引用，用于优雅关闭
 let delayedRewardWorkerTask: ScheduledTask | null = null;
+let optimizationWorkerTask: ScheduledTask | null = null;
 
 async function startServer() {
   try {
@@ -21,6 +23,12 @@ async function startServer() {
     // 启动延迟奖励Worker
     delayedRewardWorkerTask = startDelayedRewardWorker();
     console.log('Delayed reward worker started');
+
+    // 启动优化Worker（每天凌晨3点执行）
+    optimizationWorkerTask = startOptimizationWorker();
+    if (optimizationWorkerTask) {
+      console.log('Optimization worker started');
+    }
 
     // 启动服务器
     app.listen(PORT, () => {
@@ -42,6 +50,12 @@ async function gracefulShutdown(signal: string) {
   if (delayedRewardWorkerTask) {
     stopDelayedRewardWorker(delayedRewardWorkerTask);
     console.log('Delayed reward worker stopped');
+  }
+
+  // 停止优化Worker
+  if (optimizationWorkerTask) {
+    optimizationWorkerTask.stop();
+    console.log('Optimization worker stopped');
   }
 
   // 断开数据库连接

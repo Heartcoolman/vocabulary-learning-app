@@ -24,6 +24,9 @@ import badgeRoutes from './routes/badge.routes';
 import planRoutes from './routes/plan.routes';
 import stateHistoryRoutes from './routes/state-history.routes';
 import habitProfileRoutes from './routes/habit-profile.routes';
+import evaluationRoutes from './routes/evaluation.routes';
+import optimizationRoutes from './routes/optimization.routes';
+import aboutRoutes from './routes/about.routes';
 
 
 const app = express();
@@ -80,37 +83,39 @@ app.use(
   })
 );
 
-// 速率限制
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 500, // 限制500个请求（从100放宽到500）
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      error: '请求过于频繁，请稍后再试',
-      code: 'TOO_MANY_REQUESTS'
-    });
-  },
-});
-app.use('/api/', limiter);
+// 速率限制（测试环境禁用）
+if (process.env.NODE_ENV !== 'test') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15分钟
+    max: 500, // 限制500个请求（从100放宽到500）
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        success: false,
+        error: '请求过于频繁，请稍后再试',
+        code: 'TOO_MANY_REQUESTS'
+      });
+    },
+  });
+  app.use('/api/', limiter);
 
-// 针对登录/注册的更严格限流，缓解暴力破解
-const authLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5分钟
-  max: 30, // 限制30个请求
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      error: '认证请求过于频繁，请稍后再试',
-      code: 'TOO_MANY_AUTH_REQUESTS'
-    });
-  },
-});
-app.use('/api/auth', authLimiter);
+  // 针对登录/注册的更严格限流，缓解暴力破解
+  const authLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 30, // 限制30个请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        success: false,
+        error: '认证请求过于频繁，请稍后再试',
+        code: 'TOO_MANY_AUTH_REQUESTS'
+      });
+    },
+  });
+  app.use('/api/auth', authLimiter);
+}
 
 // 解析JSON并限制请求体大小（防止大包攻击）
 app.use(express.json({ limit: '200kb' }));
@@ -156,6 +161,9 @@ app.use('/api/badges', badgeRoutes);
 app.use('/api/plan', planRoutes);
 app.use('/api/amas', stateHistoryRoutes);
 app.use('/api/habit-profile', habitProfileRoutes);
+app.use('/api/evaluation', evaluationRoutes);
+app.use('/api/optimization', optimizationRoutes);
+app.use('/api/about', aboutRoutes);
 
 
 // 404处理

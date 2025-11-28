@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import prisma from '../config/database';
 import { env } from '../config/env';
 import { RegisterDto, LoginDto } from '../types';
+import { AppError } from '../middleware/error.middleware';
 
 // 从 prisma.$transaction 推断事务客户端类型
 type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -49,7 +50,7 @@ export class AuthService {
       });
 
       if (existingUser) {
-        throw new Error('该邮箱已被注册');
+        throw AppError.conflict('该邮箱已被注册');
       }
 
       // 加密密码
@@ -90,14 +91,14 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new Error('邮箱或密码错误');
+        throw AppError.badRequest('该邮箱尚未注册');
       }
 
       // 验证密码
       const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
 
       if (!isPasswordValid) {
-        throw new Error('邮箱或密码错误');
+        throw AppError.badRequest('密码错误');
       }
 
       // 生成令牌
