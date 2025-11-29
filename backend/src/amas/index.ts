@@ -86,6 +86,11 @@ export {
   HeuristicState
 } from './learning/heuristic';
 
+export {
+  ThompsonExploreHookImpl,
+  createThompsonExploreHook
+} from './learning/thompson-explore-hook';
+
 // ==================== 决策层 ====================
 export {
   mapActionToStrategy,

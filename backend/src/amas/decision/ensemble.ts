@@ -137,12 +137,19 @@ interface VoteDetail {
 
 // ==================== 常量 ====================
 
-/** 初始权重配置 */
+/**
+ * 初始权重配置
+ *
+ * 设计原则：
+ * - LinUCB 作为主力学习器（40%）
+ * - Thompson/ACT-R 作为辅助探索（各 25%）
+ * - Heuristic 仅作为降级路径（10%）
+ */
 const INITIAL_WEIGHTS: EnsembleWeights = {
-  thompson: 0.30,
-  linucb: 0.30,
-  actr: 0.20,
-  heuristic: 0.20
+  thompson: 0.25,
+  linucb: 0.40,
+  actr: 0.25,
+  heuristic: 0.10
 };
 
 /** 权重下限（防止被完全淘汰） */
@@ -723,12 +730,36 @@ export class EnsembleLearningFramework
       return { ...INITIAL_WEIGHTS };
     }
 
-    return {
+    // 归一化后再次确保最小权重约束
+    const normalized = {
       thompson: merged.thompson / total,
       linucb: merged.linucb / total,
       actr: merged.actr / total,
       heuristic: merged.heuristic / total
     };
+
+    // 如果归一化后有权重低于 MIN_WEIGHT，需要重新调整
+    const belowMin = Object.entries(normalized).filter(([_, v]) => v < MIN_WEIGHT);
+    if (belowMin.length > 0) {
+      // 将低于最小值的权重提升到 MIN_WEIGHT，其余按比例缩放
+      const minTotal = belowMin.length * MIN_WEIGHT;
+      const remainingTotal = 1 - minTotal;
+      const aboveMinTotal = Object.entries(normalized)
+        .filter(([_, v]) => v >= MIN_WEIGHT)
+        .reduce((sum, [_, v]) => sum + v, 0);
+
+      if (aboveMinTotal > 0) {
+        const scale = remainingTotal / aboveMinTotal;
+        return {
+          thompson: normalized.thompson < MIN_WEIGHT ? MIN_WEIGHT : normalized.thompson * scale,
+          linucb: normalized.linucb < MIN_WEIGHT ? MIN_WEIGHT : normalized.linucb * scale,
+          actr: normalized.actr < MIN_WEIGHT ? MIN_WEIGHT : normalized.actr * scale,
+          heuristic: normalized.heuristic < MIN_WEIGHT ? MIN_WEIGHT : normalized.heuristic * scale
+        };
+      }
+    }
+
+    return normalized;
   }
 
   /**

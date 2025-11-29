@@ -9,6 +9,8 @@ export default defineConfig({
     testTimeout: 30000,
     // 钩子超时设置
     hookTimeout: 30000,
+    // 集成测试使用共享数据库，需要串行运行以避免数据隔离问题
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

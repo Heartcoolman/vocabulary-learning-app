@@ -7,21 +7,40 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock modules before importing service
 const mockOptimizerInstance = {
-  addParam: vi.fn(),
-  suggest: vi.fn().mockReturnValue({
-    interval_scale: 1.2,
-    new_ratio: 0.35,
-    difficulty: 2,
-    hint_level: 1
-  }),
-  observe: vi.fn(),
+  // 实际的 BayesianOptimizer 方法
+  suggestNext: vi.fn().mockReturnValue([1.2, 0.35, 2, 1]),  // 返回 number[]
+  recordEvaluation: vi.fn(),
+  paramsToObject: vi.fn().mockImplementation((params: number[]) => ({
+    interval_scale: params[0],
+    new_ratio: params[1],
+    difficulty: params[2],
+    hint_level: params[3]
+  })),
+  objectToParams: vi.fn().mockImplementation((obj: Record<string, number>) => [
+    obj.interval_scale,
+    obj.new_ratio,
+    obj.difficulty,
+    obj.hint_level
+  ]),
   getState: vi.fn().mockReturnValue({
     observations: [
-      { params: { interval_scale: 1.0 }, value: 0.7, timestamp: Date.now() }
+      { params: [1.0, 0.3, 2, 1], value: 0.7, timestamp: Date.now() }
     ],
-    bestParams: { interval_scale: 1.2 },
-    bestValue: 0.85
-  })
+    bestParams: [1.2, 0.35, 2, 1],
+    bestValue: 0.85,
+    paramSpace: [
+      { name: 'interval_scale', min: 0.5, max: 2.0 },
+      { name: 'new_ratio', min: 0.0, max: 0.5 },
+      { name: 'difficulty', min: 1, max: 3 },
+      { name: 'hint_level', min: 0, max: 2 }
+    ]
+  }),
+  getBest: vi.fn().mockReturnValue({
+    params: [1.2, 0.35, 2, 1],
+    value: 0.85
+  }),
+  reset: vi.fn(),
+  setState: vi.fn()
 };
 
 const mockPrisma = {
@@ -63,18 +82,29 @@ describe('OptimizationService', () => {
     mockFeatureFlagEnabled = true;
 
     // Reset mock implementations
-    mockOptimizerInstance.suggest.mockReturnValue({
-      interval_scale: 1.2,
-      new_ratio: 0.35,
-      difficulty: 2,
-      hint_level: 1
-    });
+    mockOptimizerInstance.suggestNext.mockReturnValue([1.2, 0.35, 2, 1]);
+    mockOptimizerInstance.paramsToObject.mockImplementation((params: number[]) => ({
+      interval_scale: params[0],
+      new_ratio: params[1],
+      difficulty: params[2],
+      hint_level: params[3]
+    }));
     mockOptimizerInstance.getState.mockReturnValue({
       observations: [
-        { params: { interval_scale: 1.0 }, value: 0.7, timestamp: Date.now() }
+        { params: [1.0, 0.3, 2, 1], value: 0.7, timestamp: Date.now() }
       ],
-      bestParams: { interval_scale: 1.2 },
-      bestValue: 0.85
+      bestParams: [1.2, 0.35, 2, 1],
+      bestValue: 0.85,
+      paramSpace: [
+        { name: 'interval_scale', min: 0.5, max: 2.0 },
+        { name: 'new_ratio', min: 0.0, max: 0.5 },
+        { name: 'difficulty', min: 1, max: 3 },
+        { name: 'hint_level', min: 0, max: 2 }
+      ]
+    });
+    mockOptimizerInstance.getBest.mockReturnValue({
+      params: [1.2, 0.35, 2, 1],
+      value: 0.85
     });
 
     mockPrisma.bayesianOptimizerState.findUnique.mockResolvedValue(null);
@@ -120,12 +150,14 @@ describe('OptimizationService', () => {
 
   describe('recordEvaluation', () => {
     it('应该记录参数评估结果', async () => {
-      const params = { interval_scale: 1.2, new_ratio: 0.35 };
+      const params = { interval_scale: 1.2, new_ratio: 0.35, difficulty: 2, hint_level: 1 };
       const value = 0.85;
 
       await service.recordEvaluation(params, value);
 
-      expect(mockOptimizerInstance.observe).toHaveBeenCalledWith(params, value);
+      // Service 会调用 objectToParams 转换参数，然后传给 recordEvaluation
+      expect(mockOptimizerInstance.objectToParams).toHaveBeenCalledWith(params);
+      expect(mockOptimizerInstance.recordEvaluation).toHaveBeenCalledWith([1.2, 0.35, 2, 1], value);
       expect(mockPrisma.bayesianOptimizerState.upsert).toHaveBeenCalled();
     });
 
@@ -137,7 +169,7 @@ describe('OptimizationService', () => {
 
       await disabledService.recordEvaluation({}, 0.5);
 
-      expect(mockOptimizerInstance.observe).not.toHaveBeenCalled();
+      expect(mockOptimizerInstance.recordEvaluation).not.toHaveBeenCalled();
     });
   });
 
@@ -146,17 +178,18 @@ describe('OptimizationService', () => {
       const result = service.getBestParams();
 
       expect(result).toEqual({
-        params: { interval_scale: 1.2 },
+        params: {
+          interval_scale: 1.2,
+          new_ratio: 0.35,
+          difficulty: 2,
+          hint_level: 1
+        },
         value: 0.85
       });
     });
 
     it('没有最优参数时应该返回null', () => {
-      mockOptimizerInstance.getState.mockReturnValue({
-        observations: [],
-        bestParams: null,
-        bestValue: undefined
-      });
+      mockOptimizerInstance.getBest.mockReturnValue(null);
 
       const result = service.getBestParams();
 
@@ -259,17 +292,17 @@ describe('OptimizationService', () => {
       await service.loadState();
 
       // 验证观测被重放
-      expect(mockOptimizerInstance.observe).toHaveBeenCalled();
+      expect(mockOptimizerInstance.recordEvaluation).toHaveBeenCalled();
     });
 
     it('没有保存状态时应该静默返回', async () => {
       mockPrisma.bayesianOptimizerState.findUnique.mockResolvedValue(null);
-      mockOptimizerInstance.observe.mockClear();
+      mockOptimizerInstance.recordEvaluation.mockClear();
 
       await service.loadState();
 
       // 不应该有观测重放（初始化时已经调用过一次 loadState）
-      expect(mockOptimizerInstance.observe).not.toHaveBeenCalled();
+      expect(mockOptimizerInstance.recordEvaluation).not.toHaveBeenCalled();
     });
   });
 
@@ -348,7 +381,7 @@ describe('OptimizationService', () => {
       const result = await service.runOptimizationCycle();
 
       expect(result.evaluated).toBe(true);
-      expect(mockOptimizerInstance.observe).toHaveBeenCalled();
+      expect(mockOptimizerInstance.recordEvaluation).toHaveBeenCalled();
     });
 
     it('响应时间为null时应该使用默认速度分', async () => {

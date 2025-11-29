@@ -91,14 +91,14 @@ export class AuthService {
       });
 
       if (!user) {
-        throw AppError.badRequest('该邮箱尚未注册');
+        throw AppError.unauthorized('该邮箱尚未注册');
       }
 
       // 验证密码
       const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
 
       if (!isPasswordValid) {
-        throw AppError.badRequest('密码错误');
+        throw AppError.unauthorized('密码错误');
       }
 
       // 生成令牌

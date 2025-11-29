@@ -196,9 +196,14 @@ export class ColdStartManager
    */
   selectAction(
     _state: UserState,
-    _actions: Action[],
+    actions: Action[],
     context: BaseLearnerContext
   ): ActionSelection<Action> {
+    // 保持与其他学习器一致的 API 行为
+    if (!actions || actions.length === 0) {
+      throw new Error('Action list cannot be empty');
+    }
+
     const action = this.determineNextAction();
     const confidence = this.computeConfidence(context);
 

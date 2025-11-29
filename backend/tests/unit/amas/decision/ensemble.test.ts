@@ -61,10 +61,10 @@ describe('EnsembleLearningFramework', () => {
     it('should have initial weights', () => {
       const weights = ensemble.getWeights();
 
-      expect(weights.thompson).toBe(0.3);
-      expect(weights.linucb).toBe(0.3);
-      expect(weights.actr).toBe(0.2);
-      expect(weights.heuristic).toBe(0.2);
+      expect(weights.thompson).toBe(0.25);
+      expect(weights.linucb).toBe(0.40);
+      expect(weights.actr).toBe(0.25);
+      expect(weights.heuristic).toBe(0.10);
     });
 
     it('should have zero update count initially', () => {
@@ -240,7 +240,13 @@ describe('EnsembleLearningFramework', () => {
       newEnsemble.setState(state);
 
       expect(newEnsemble.getUpdateCount()).toBe(5);
-      expect(newEnsemble.getWeights()).toEqual(ensemble.getWeights());
+      // 使用近似比较避免浮点精度问题
+      const originalWeights = ensemble.getWeights();
+      const restoredWeights = newEnsemble.getWeights();
+      expect(restoredWeights.thompson).toBeCloseTo(originalWeights.thompson, 10);
+      expect(restoredWeights.linucb).toBeCloseTo(originalWeights.linucb, 10);
+      expect(restoredWeights.actr).toBeCloseTo(originalWeights.actr, 10);
+      expect(restoredWeights.heuristic).toBeCloseTo(originalWeights.heuristic, 10);
     });
 
     it('should handle invalid state gracefully', () => {
@@ -264,8 +270,9 @@ describe('EnsembleLearningFramework', () => {
       expect(ensemble.isWarm()).toBe(false);
 
       const weights = ensemble.getWeights();
-      expect(weights.thompson).toBe(0.3);
-      expect(weights.linucb).toBe(0.3);
+      // 新权重配置: LinUCB 40%, Thompson/ACT-R 25%, Heuristic 10%
+      expect(weights.thompson).toBe(0.25);
+      expect(weights.linucb).toBe(0.4);
     });
   });
 

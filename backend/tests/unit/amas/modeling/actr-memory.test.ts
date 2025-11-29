@@ -343,4 +343,117 @@ describe('ACTRMemoryModel', () => {
       expect(Number.isFinite(activation)).toBe(true);
     });
   });
+
+  describe('retrievalProbability (Convenience Interface)', () => {
+    it('should return RecallPrediction for valid trace', () => {
+      const trace: ReviewTrace[] = [
+        { secondsAgo: 3600, isCorrect: true },
+        { secondsAgo: 7200, isCorrect: true }
+      ];
+
+      const prediction = actr.retrievalProbability(trace);
+
+      expect(prediction).toHaveProperty('activation');
+      expect(prediction).toHaveProperty('recallProbability');
+      expect(prediction).toHaveProperty('confidence');
+      expect(prediction.recallProbability).toBeGreaterThanOrEqual(0);
+      expect(prediction.recallProbability).toBeLessThanOrEqual(1);
+      expect(prediction.confidence).toBeGreaterThanOrEqual(0);
+      expect(prediction.confidence).toBeLessThanOrEqual(1);
+    });
+
+    it('should return zero values for empty trace', () => {
+      const prediction = actr.retrievalProbability([]);
+
+      expect(prediction.activation).toBe(-Infinity);
+      expect(prediction.recallProbability).toBe(0);
+      expect(prediction.confidence).toBe(0);
+    });
+
+    it('should increase confidence with more reviews', () => {
+      const shortTrace: ReviewTrace[] = [{ secondsAgo: 3600 }];
+      const longTrace: ReviewTrace[] = Array(10).fill(null).map((_, i) => ({
+        secondsAgo: (i + 1) * 3600,
+        isCorrect: true
+      }));
+
+      const shortPrediction = actr.retrievalProbability(shortTrace);
+      const longPrediction = actr.retrievalProbability(longTrace);
+
+      expect(longPrediction.confidence).toBeGreaterThanOrEqual(shortPrediction.confidence);
+    });
+
+    it('should have higher recall probability for recent reviews', () => {
+      const recentTrace: ReviewTrace[] = [{ secondsAgo: 60 }];
+      const oldTrace: ReviewTrace[] = [{ secondsAgo: 86400 }];
+
+      const recentPrediction = actr.retrievalProbability(recentTrace);
+      const oldPrediction = actr.retrievalProbability(oldTrace);
+
+      expect(recentPrediction.recallProbability).toBeGreaterThan(oldPrediction.recallProbability);
+    });
+  });
+
+  describe('predictOptimalInterval (Convenience Interface)', () => {
+    it('should return IntervalPrediction for valid trace', () => {
+      const trace: ReviewTrace[] = [
+        { secondsAgo: 60, isCorrect: true },
+        { secondsAgo: 120, isCorrect: true }
+      ];
+
+      const prediction = actr.predictOptimalInterval(trace);
+
+      expect(prediction).toHaveProperty('optimalSeconds');
+      expect(prediction).toHaveProperty('minSeconds');
+      expect(prediction).toHaveProperty('maxSeconds');
+      expect(prediction).toHaveProperty('targetRecall');
+      expect(prediction.targetRecall).toBe(0.9);
+    });
+
+    it('should use custom targetRecall', () => {
+      const trace: ReviewTrace[] = [{ secondsAgo: 60, isCorrect: true }];
+
+      const prediction = actr.predictOptimalInterval(trace, 0.7);
+
+      expect(prediction.targetRecall).toBe(0.7);
+    });
+
+    it('should clamp targetRecall to valid range', () => {
+      const trace: ReviewTrace[] = [{ secondsAgo: 60, isCorrect: true }];
+
+      const lowPrediction = actr.predictOptimalInterval(trace, 0.001);
+      const highPrediction = actr.predictOptimalInterval(trace, 0.999);
+
+      expect(lowPrediction.targetRecall).toBeGreaterThanOrEqual(0.01);
+      expect(highPrediction.targetRecall).toBeLessThanOrEqual(0.99);
+    });
+
+    it('should have minSeconds <= optimalSeconds <= maxSeconds', () => {
+      const trace: ReviewTrace[] = [
+        { secondsAgo: 60, isCorrect: true },
+        { secondsAgo: 120, isCorrect: true }
+      ];
+
+      const prediction = actr.predictOptimalInterval(trace, 0.8);
+
+      expect(prediction.minSeconds).toBeLessThanOrEqual(prediction.optimalSeconds);
+      expect(prediction.optimalSeconds).toBeLessThanOrEqual(prediction.maxSeconds);
+    });
+
+    it('should respect minimum interval of 1 hour', () => {
+      const trace: ReviewTrace[] = [{ secondsAgo: 60, isCorrect: true }];
+
+      const prediction = actr.predictOptimalInterval(trace);
+
+      expect(prediction.minSeconds).toBeGreaterThanOrEqual(3600);
+    });
+
+    it('should respect maximum interval of 30 days', () => {
+      const trace: ReviewTrace[] = [{ secondsAgo: 60, isCorrect: true }];
+
+      const prediction = actr.predictOptimalInterval(trace, 0.1);
+
+      expect(prediction.maxSeconds).toBeLessThanOrEqual(30 * 24 * 3600);
+    });
+  });
 });

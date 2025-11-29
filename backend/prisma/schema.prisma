@@ -28,6 +28,7 @@ model User {
   wordBooks        WordBook[]
   learningStates   WordLearningState[]
   wordScores       WordScore[]
+  reviewTraces     WordReviewTrace[]
 
   @@map("users")
 }
@@ -65,6 +66,7 @@ model Word {
   records        AnswerRecord[]
   learningStates WordLearningState[]
   wordScores     WordScore[]
+  reviewTraces   WordReviewTrace[]
   wordBook       WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
 
   @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
@@ -566,4 +568,24 @@ model CausalObservation {
   @@index([timestamp])
   @@index([userId])
   @@map("causal_observations")
+}
+
+// ==================== 单词掌握度评估相关模型 ====================
+
+/// 单词复习轨迹记录
+model WordReviewTrace {
+  id           String   @id @default(cuid())
+  userId       String
+  wordId       String
+  timestamp    DateTime
+  isCorrect    Boolean
+  responseTime Int      // 毫秒
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word Word @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([userId, wordId])
+  @@index([userId, wordId, timestamp])
+  @@map("word_review_traces")
 }

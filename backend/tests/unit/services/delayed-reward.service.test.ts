@@ -7,27 +7,45 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DelayedRewardService } from '../../../src/services/delayed-reward.service';
 import { RewardStatus, Prisma } from '@prisma/client';
 
-// Mock Prisma
-vi.mock('../../../src/config/database', () => ({
-  default: {
+// Mock Prisma - 使用工厂函数并提供可重置的 mock
+const createMockPrisma = () => {
+  const mock = {
     rewardQueue: {
       create: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn()
+    },
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    $transaction: vi.fn()
+  };
+
+  // $transaction 实现：调用 callback 并传入 mock 作为 tx
+  mock.$transaction.mockImplementation(async (callback: (tx: typeof mock) => Promise<unknown>) => {
+    return callback(mock);
+  });
+
+  return mock;
+};
+
+// 全局 mock 实例
+let mockPrisma: ReturnType<typeof createMockPrisma>;
+
+vi.mock('../../../src/config/database', () => {
+  return {
+    get default() {
+      return mockPrisma;
     }
-  }
-}));
+  };
+});
 
 describe('DelayedRewardService', () => {
   let service: DelayedRewardService;
-  let mockPrisma: any;
 
   beforeEach(async () => {
-    // 重新导入以获取新的 mock
-    const prismaModule = await import('../../../src/config/database');
-    mockPrisma = prismaModule.default;
+    // 每次测试前创建新的 mock 实例
+    mockPrisma = createMockPrisma();
 
     // 重置所有 mock
     vi.clearAllMocks();
@@ -153,10 +171,8 @@ describe('DelayedRewardService', () => {
         }
       ];
 
-      mockPrisma.rewardQueue.findMany
-        .mockResolvedValueOnce(tasks) // 第一次查找待处理任务
-        .mockResolvedValueOnce(tasks); // 第二次查找被抢占的任务
-
+      // $queryRaw 返回锁定的任务
+      mockPrisma.$queryRaw.mockResolvedValue(tasks);
       mockPrisma.rewardQueue.updateMany.mockResolvedValue({ count: 2 });
       mockPrisma.rewardQueue.update.mockResolvedValue({});
 
@@ -187,10 +203,7 @@ describe('DelayedRewardService', () => {
         updatedAt: now
       };
 
-      mockPrisma.rewardQueue.findMany
-        .mockResolvedValueOnce([task])
-        .mockResolvedValueOnce([task]);
-
+      mockPrisma.$queryRaw.mockResolvedValue([task]);
       mockPrisma.rewardQueue.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.rewardQueue.update.mockResolvedValue({});
 
@@ -221,10 +234,7 @@ describe('DelayedRewardService', () => {
         updatedAt: now
       };
 
-      mockPrisma.rewardQueue.findMany
-        .mockResolvedValueOnce([task])
-        .mockResolvedValueOnce([task]);
-
+      mockPrisma.$queryRaw.mockResolvedValue([task]);
       mockPrisma.rewardQueue.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.rewardQueue.update.mockResolvedValue({});
 
@@ -239,14 +249,15 @@ describe('DelayedRewardService', () => {
     });
 
     it('当没有待处理任务时应该提前返回', async () => {
-      mockPrisma.rewardQueue.findMany.mockResolvedValue([]);
+      mockPrisma.$queryRaw.mockResolvedValue([]);
 
       const handler = vi.fn();
 
       await service.processPendingRewards(handler);
 
       expect(handler).not.toHaveBeenCalled();
-      expect(mockPrisma.rewardQueue.updateMany).not.toHaveBeenCalled();
+      // updateMany 只在有任务时调用
+      expect(mockPrisma.rewardQueue.update).not.toHaveBeenCalled();
     });
   });
 

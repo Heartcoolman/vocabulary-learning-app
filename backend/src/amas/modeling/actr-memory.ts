@@ -97,6 +97,32 @@ export interface ActivationResult {
   recallProbability: number;
 }
 
+/**
+ * 记忆提取预测结果
+ */
+export interface RecallPrediction {
+  /** 激活度 (通常 -2 到 2) */
+  activation: number;
+  /** 提取概率 [0, 1] */
+  recallProbability: number;
+  /** 预测置信度 [0, 1] */
+  confidence: number;
+}
+
+/**
+ * 最佳复习间隔预测结果
+ */
+export interface IntervalPrediction {
+  /** 最佳间隔（秒） */
+  optimalSeconds: number;
+  /** 最小建议间隔（秒） */
+  minSeconds: number;
+  /** 最大建议间隔（秒） */
+  maxSeconds: number;
+  /** 目标提取概率 */
+  targetRecall: number;
+}
+
 // ==================== 常量 ====================
 
 /** 默认衰减率（Anderson推荐值） */
@@ -463,6 +489,79 @@ export class ACTRMemoryModel
     }
     // 将激活度映射到[0,1]，使用sigmoid
     return this.computeRecallProbability(activation);
+  }
+
+  // ==================== 便捷接口方法 ====================
+
+  /**
+   * 计算记忆提取概率（便捷接口）
+   *
+   * 根据复习轨迹预测当前的记忆提取概率
+   *
+   * @param trace 复习轨迹
+   * @returns RecallPrediction 包含激活度、提取概率和置信度
+   */
+  retrievalProbability(trace: ReviewTrace[]): RecallPrediction {
+    if (!trace || trace.length === 0) {
+      return {
+        activation: -Infinity,
+        recallProbability: 0,
+        confidence: 0
+      };
+    }
+
+    // 使用无噪声的激活度以获得稳定的预测
+    const activation = this.computeActivation(trace, this.decay, false);
+    const recallProbability = this.computeRecallProbability(activation);
+
+    // 置信度基于复习次数和时间跨度
+    // 复习次数越多，时间跨度越大，置信度越高
+    const reviewCount = trace.length;
+    const timeSpan = Math.max(...trace.map(t => t.secondsAgo)) - Math.min(...trace.map(t => t.secondsAgo));
+    const countFactor = Math.min(1, reviewCount / 10); // 10次复习达到满置信度
+    const timeFactor = Math.min(1, timeSpan / (7 * 24 * 3600)); // 7天跨度达到满置信度
+    const confidence = this.clamp(0.5 * countFactor + 0.5 * timeFactor, 0, 1);
+
+    return {
+      activation,
+      recallProbability,
+      confidence
+    };
+  }
+
+  /**
+   * 预测最佳复习间隔（便捷接口）
+   *
+   * 根据复习轨迹预测下次最佳复习时间
+   *
+   * @param trace 复习轨迹
+   * @param targetRecall 目标提取概率（默认 0.9）
+   * @returns IntervalPrediction 包含最优、最小、最大间隔
+   */
+  predictOptimalInterval(trace: ReviewTrace[], targetRecall = 0.9): IntervalPrediction {
+    const target = this.clamp(targetRecall, 0.01, 0.99);
+
+    // 计算最优间隔
+    const optimalSeconds = this.computeOptimalInterval(trace, target);
+
+    // 计算最小间隔（目标概率 + 0.1，最高0.95）
+    const highTarget = Math.min(0.95, target + 0.1);
+    const minSeconds = this.computeOptimalInterval(trace, highTarget);
+
+    // 计算最大间隔（目标概率 - 0.15，最低0.5）
+    const lowTarget = Math.max(0.5, target - 0.15);
+    const maxSeconds = this.computeOptimalInterval(trace, lowTarget);
+
+    // 限制间隔范围：最小1小时，最大30天
+    const MIN_INTERVAL = 3600; // 1小时
+    const MAX_INTERVAL = 30 * 24 * 3600; // 30天
+
+    return {
+      optimalSeconds: this.clamp(optimalSeconds, MIN_INTERVAL, MAX_INTERVAL),
+      minSeconds: this.clamp(minSeconds, MIN_INTERVAL, MAX_INTERVAL),
+      maxSeconds: this.clamp(maxSeconds, MIN_INTERVAL, MAX_INTERVAL),
+      targetRecall: target
+    };
   }
 
   // ==================== 辅助方法 ====================

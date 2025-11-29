@@ -27,6 +27,7 @@ import habitProfileRoutes from './routes/habit-profile.routes';
 import evaluationRoutes from './routes/evaluation.routes';
 import optimizationRoutes from './routes/optimization.routes';
 import aboutRoutes from './routes/about.routes';
+import wordMasteryRoutes from './routes/word-mastery.routes';
 
 
 const app = express();
@@ -164,6 +165,7 @@ app.use('/api/habit-profile', habitProfileRoutes);
 app.use('/api/evaluation', evaluationRoutes);
 app.use('/api/optimization', optimizationRoutes);
 app.use('/api/about', aboutRoutes);
+app.use('/api/word-mastery', wordMasteryRoutes);
 
 
 // 404处理

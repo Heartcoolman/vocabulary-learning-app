@@ -1,5 +1,6 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
+import { wordMasteryService } from './word-mastery.service';
 
 /** 最大批量操作大小 */
 const MAX_BATCH_SIZE = 1000;
@@ -142,9 +143,23 @@ export class RecordService {
       createData.timestamp = validateTimestamp(data.timestamp);
     }
 
-    return await prisma.answerRecord.create({
+    const record = await prisma.answerRecord.create({
       data: createData,
     });
+
+    // 同步记录到 WordReviewTrace 用于掌握度评估
+    try {
+      await wordMasteryService.recordReview(userId, data.wordId, {
+        timestamp: data.timestamp ?? Date.now(),
+        isCorrect: data.isCorrect,
+        responseTime: data.responseTime ?? 0
+      });
+    } catch (error) {
+      // 记录失败不阻断主流程，仅警告
+      console.warn('[RecordService] 同步复习轨迹失败:', error);
+    }
+
+    return record;
   }
 
   async batchCreateRecords(userId: string, records: CreateRecordDto[]) {
@@ -220,7 +235,7 @@ export class RecordService {
 
     // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
     // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
-    return await prisma.answerRecord.createMany({
+    const result = await prisma.answerRecord.createMany({
       data: validRecords.map(record => ({
         userId,
         wordId: record.wordId,
@@ -240,6 +255,24 @@ export class RecordService {
 
       skipDuplicates: true, // 数据库层面跳过重复记录，基于 unique_user_word_timestamp 唯一约束
     });
+
+    // 批量同步到 WordReviewTrace 用于掌握度评估
+    try {
+      const reviewEvents = validRecords.map(record => ({
+        wordId: record.wordId,
+        event: {
+          timestamp: record.timestamp ?? Date.now(),
+          isCorrect: record.isCorrect,
+          responseTime: record.responseTime ?? 0
+        }
+      }));
+      await wordMasteryService.batchRecordReview(userId, reviewEvents);
+    } catch (error) {
+      // 记录失败不阻断主流程，仅警告
+      console.warn('[RecordService] 批量同步复习轨迹失败:', error);
+    }
+
+    return result;
   }
 
   async getStatistics(userId: string) {
