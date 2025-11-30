@@ -22,6 +22,9 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.test
+.env.production
+.env.development
 
 # Editor directories and files
 .vscode/*
@@ -41,6 +44,7 @@ dist-ssr
 .claude/
 .shrimp/
 .agent/
+.serena/
 
 # OS files
 Thumbs.db
@@ -58,3 +62,9 @@ public/phosphor-icons/
 # Test files (optional - uncomment if needed)
 # *.test.ts
 # *.spec.ts
+
+# Test outputs and reports
+*-test-results*.txt
+*-output.txt
+backend/tests/simulation/reports/
+backend/test-db-connection.ts
