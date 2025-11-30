@@ -182,16 +182,13 @@ export class WordStateService {
     }
 
     // 从数据库查询
-    // 修复：纳入已学习过的NEW状态单词（reviewCount > 0 表示已经学习过）
+    // 返回所有到期的单词：LEARNING、REVIEWING 状态，以及 NEW 状态（包括未学习的新词）
     const now = new Date();
     const dueWords = await prisma.wordLearningState.findMany({
       where: {
         userId,
         nextReviewDate: { lte: now },
-        OR: [
-          { state: { in: [WordState.LEARNING, WordState.REVIEWING] } },
-          { state: WordState.NEW }
-        ]
+        state: { in: [WordState.NEW, WordState.LEARNING, WordState.REVIEWING] }
       },
       orderBy: { nextReviewDate: 'asc' }
     });
@@ -290,19 +287,19 @@ export class WordStateService {
         // 过滤掉userId和wordId，防止被data覆盖
         const { userId: _, wordId: __, ...safeData } = data as any;
 
-        // 转换时间戳为Date对象（复用单条更新的逻辑）
+        // 转换时间戳为Date对象，使用统一的校验逻辑
         const convertedData: any = { ...safeData };
         if (typeof convertedData.lastReviewDate === 'number') {
-          convertedData.lastReviewDate = convertedData.lastReviewDate === 0 ? null : new Date(convertedData.lastReviewDate);
+          convertedData.lastReviewDate = validateAndConvertTimestamp(convertedData.lastReviewDate);
         }
         if (typeof convertedData.nextReviewDate === 'number') {
-          convertedData.nextReviewDate = new Date(convertedData.nextReviewDate);
+          convertedData.nextReviewDate = validateAndConvertTimestamp(convertedData.nextReviewDate);
         }
         if (typeof convertedData.createdAt === 'number') {
-          convertedData.createdAt = new Date(convertedData.createdAt);
+          convertedData.createdAt = validateAndConvertTimestamp(convertedData.createdAt);
         }
         if (typeof convertedData.updatedAt === 'number') {
-          convertedData.updatedAt = new Date(convertedData.updatedAt);
+          convertedData.updatedAt = validateAndConvertTimestamp(convertedData.updatedAt);
         }
 
         return prisma.wordLearningState.upsert({

@@ -41,9 +41,12 @@ function clipFatigue(value: number): number {
  * 疲劳度评估模型
  *
  * 数学模型:
- * F_accumulate = β·Δerr + γ·Δrt + δ·repeat
- * F_decay = F_t · exp(-k · Δt_minutes)
- * F_{t+1} = max(F_accumulate, F_decay)
+ * F_base = β·Δerr + γ·Δrt + δ·repeat   (基础疲劳贡献)
+ * F_decay = F_t · exp(-k · Δt_minutes)  (衰减后的疲劳度)
+ * F_increment = F_base · (1 - F_decay)  (剩余容量折扣)
+ * F_{t+1} = F_decay + F_increment       (先衰减再累加)
+ *
+ * 剩余容量折扣确保疲劳度越高，新增疲劳越难累积，形成自然上限
  */
 export class FatigueEstimator {
   private F: number;
@@ -78,21 +81,28 @@ export class FatigueEstimator {
   update(features: FatigueFeatures): number {
     const now = features.currentTime ?? Date.now();
 
-    // 计算休息时长(分钟)
-    const breakMinutes = features.breakMinutes ??
-      Math.max(0, (now - this.lastUpdateTime) / 60000);
+    // 计算休息时长(分钟)，确保非负以避免异常衰减行为
+    const rawBreakMinutes = features.breakMinutes ??
+      (now - this.lastUpdateTime) / 60000;
+    const breakMinutes = Math.max(0, rawBreakMinutes);
 
     // 指数衰减 (休息时恢复)
     const F_decay = this.F * Math.exp(-this.k * breakMinutes);
 
-    // 非线性累积 (学习时增加)
-    const F_accumulate =
+    // 计算本次事件的基础疲劳贡献
+    const F_base =
       this.beta * features.error_rate_trend +
       this.gamma * features.rt_increase_rate +
       this.delta * features.repeat_errors;
 
-    // 取最大值 (体现累积效应)
-    let nextF = Math.max(F_accumulate, F_decay);
+    // 使用剩余容量折扣：疲劳度越高，新增疲劳越难累积
+    // 平滑因子控制累加速度，避免单次事件导致疲劳度骤增
+    const smoothingFactor = 0.5;
+    const remainingCapacity = Math.max(0, 1 - F_decay); // 确保非负
+    const F_increment = F_base * remainingCapacity * smoothingFactor;
+
+    // 先衰减再累加：疲劳度 = 衰减后的疲劳度 + 折扣后的疲劳贡献
+    let nextF = F_decay + F_increment;
 
     // 长休息重置
     if (breakMinutes > this.longBreakThreshold) {
@@ -116,7 +126,12 @@ export class FatigueEstimator {
     isRepeatError: boolean = false
   ): number {
     const error_rate_trend = isCorrect ? 0 : 0.5;
-    const rt_increase_rate = Math.max(0, (responseTime - baselineRT) / baselineRT);
+    // 对响应时间增长率进行限幅，防止单次极端响应时间导致疲劳度突增
+    // 上限设为1.0意味着响应时间超过基线2倍时不再额外增加疲劳累积
+    const rt_increase_rate = Math.min(
+      1.0,
+      Math.max(0, (responseTime - baselineRT) / baselineRT)
+    );
     const repeat_errors = isRepeatError ? 1 : 0;
 
     return this.update({

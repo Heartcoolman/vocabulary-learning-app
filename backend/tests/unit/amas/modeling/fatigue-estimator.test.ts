@@ -93,10 +93,10 @@ describe('FatigueEstimator', () => {
         fatigues.push(estimator.update({...badFeatures, currentTime}));
       }
 
-      // 疲劳度应该达到稳定的高水平（验证累积效果而非严格单调增长）
-      // 由于累积和衰减的平衡，检查是否达到合理的疲劳水平
-      expect(fatigues[9]).toBeGreaterThan(0.4); // 确保累积到较高水平
-      expect(fatigues[9]).toBeLessThanOrEqual(0.8); // 确保有上限控制
+      // 疲劳度应该累积到高水平，触发休息建议阈值（HIGH_FATIGUE = 0.6）
+      // 使用剩余容量折扣后，连续极端负面学习会逐渐接近上限
+      expect(fatigues[9]).toBeGreaterThan(0.6); // 确保超过休息建议阈值
+      expect(fatigues[9]).toBeLessThanOrEqual(1.0); // 确保不超过理论上限
     });
   });
 
@@ -263,9 +263,10 @@ describe('FatigueEstimator', () => {
         }
       }
 
-      // 疲劳度应该稳定在某个中间值
-      expect(fatigues[9]).toBeGreaterThan(0);
-      expect(fatigues[9]).toBeLessThan(0.8);
+      // 交替好坏表现，疲劳度会累积但受好表现抑制
+      // 使用剩余容量折扣后，疲劳度会趋于某个平衡值
+      expect(fatigues[9]).toBeGreaterThan(0.3); // 确保有累积效果
+      expect(fatigues[9]).toBeLessThan(0.95); // 不会达到极端高值
     });
 
     it('should show recovery trend after sustained good performance', () => {

@@ -587,6 +587,45 @@ class ApiClient {
   }
 
   /**
+   * 从响应体中提取错误信息
+   * 优先提取 JSON 格式的 error/message 字段，失败则回退到默认信息
+   */
+  private async extractErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
+    try {
+      // 检查响应体是否已被读取
+      if (response.bodyUsed) {
+        return fallbackMessage;
+      }
+
+      // 读取响应文本
+      const text = await response.text();
+      if (!text || !text.trim()) {
+        return fallbackMessage;
+      }
+
+      // 尝试解析 JSON
+      try {
+        const parsed = JSON.parse(text) as { error?: string; message?: string };
+        const errorMessage = parsed.error || parsed.message;
+        if (typeof errorMessage === 'string' && errorMessage.trim()) {
+          return errorMessage.trim();
+        }
+      } catch {
+        // 非 JSON 响应，检查是否为 HTML
+        if (text.trim().startsWith('<')) {
+          return fallbackMessage;
+        }
+        // 返回纯文本（截取前 200 字符避免过长）
+        return text.trim().substring(0, 200);
+      }
+
+      return fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  }
+
+  /**
    * 通用请求方法
    * @param endpoint API 端点
    * @param options 请求选项
@@ -631,7 +670,8 @@ class ApiClient {
         if (this.onUnauthorizedCallback) {
           this.onUnauthorizedCallback();
         }
-        throw new ApiError('认证失败，请重新登录', 401, 'UNAUTHORIZED');
+        const errorMessage = await this.extractErrorMessage(response, '认证失败，请重新登录');
+        throw new ApiError(errorMessage, 401, 'UNAUTHORIZED');
       }
 
       // 处理空响应（204 No Content 或其他无内容响应）
@@ -721,7 +761,8 @@ class ApiClient {
         if (this.onUnauthorizedCallback) {
           this.onUnauthorizedCallback();
         }
-        throw new Error('认证失败，请重新登录');
+        const errorMessage = await this.extractErrorMessage(response, '认证失败，请重新登录');
+        throw new Error(errorMessage);
       }
 
       if (!response.ok) {
@@ -1204,6 +1245,15 @@ class ApiClient {
     return this.request<void>(`/api/admin/users/${userId}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * 获取所有系统词库（管理员）
+   * 包括非公开的词库
+   */
+  async adminGetSystemWordBooks(): Promise<WordBook[]> {
+    const apiWordBooks = await this.request<ApiWordBook[]>('/api/admin/wordbooks');
+    return apiWordBooks.map(convertApiWordBook);
   }
 
   /**

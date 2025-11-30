@@ -1,12 +1,12 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import apiClient from '../../services/ApiClient';
+import apiClient, { User } from '../../services/ApiClient';
 import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch } from '../../components/Icon';
 
 export default function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -54,7 +54,7 @@ export default function AdminLayout() {
     return (
         <div className="flex min-h-screen bg-gray-50">
             {/* 侧边栏 */}
-            <aside className="w-64 bg-white border-r border-gray-200">
+            <aside className="w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200/60">
                 <div className="p-6 border-b border-gray-200">
                     <h1 className="text-xl font-bold text-gray-900">管理后台</h1>
                     {user && (
@@ -75,7 +75,7 @@ export default function AdminLayout() {
                                 to={item.path}
                                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-lg
-                  transition-all duration-200
+                  transition-all duration-200 hover:scale-105 active:scale-95
                   ${isActive
                                         ? 'bg-blue-50 text-blue-600 font-medium'
                                         : 'text-gray-700 hover:bg-gray-100'

@@ -197,7 +197,7 @@ export default function LearningPage() {
       <div className="w-full h-1 bg-gray-200 fixed top-0 left-0 z-50">
         <div
           className="h-full bg-green-500 transition-all duration-500 ease-out"
-          style={{ width: `${(progress.current / progress.total) * 100}%` }}
+          style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
         />
       </div>
 

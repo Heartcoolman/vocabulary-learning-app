@@ -29,7 +29,7 @@ export default function Navigation() {
   };
 
   const isInsightsActive = () => {
-    return ['/learning-time', '/trend-report', '/achievements', '/plan'].includes(location.pathname);
+    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan'].includes(location.pathname);
   };
 
   const linkClass = (path: string) => {

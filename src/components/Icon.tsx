@@ -10,6 +10,9 @@ export {
   ChartLine,
   ChartPie,
   Target,
+  Eye,
+  Pulse,
+  Globe,
   Check,
   CheckCircle,
   X,
@@ -74,4 +77,17 @@ export {
   Play,
   Pause,
   CaretUp,
+  // AMAS 公开展示图标
+  SlidersHorizontal,
+  SignIn,
+  Cpu,
+  Graph,
+  Atom,
+  Robot,
+  Shuffle,
+  Flask,
+  ShareNetwork,
 } from '@phosphor-icons/react';
+
+// 图标别名
+export { SlidersHorizontal as Sliders, User as UserFocus } from '@phosphor-icons/react';

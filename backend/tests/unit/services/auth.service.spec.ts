@@ -177,7 +177,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.login({ email: 'none@example.com', password: 'Password123' })
-      ).rejects.toThrow('邮箱或密码错误');
+      ).rejects.toThrow('该邮箱尚未注册');
     });
 
     it('当密码错误时应该抛出错误', async () => {
@@ -206,7 +206,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.login({ email: 'test@example.com', password: 'wrong' })
-      ).rejects.toThrow('邮箱或密码错误');
+      ).rejects.toThrow('密码错误');
     });
   });
 

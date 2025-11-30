@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMAS 模拟学习测试报告</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 28px; margin-bottom: 8px; color: #1a1a1a; }
+    h2 { font-size: 20px; margin: 24px 0 16px; color: #333; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+    h3 { font-size: 16px; margin: 16px 0 12px; color: #555; }
+    .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .card-title { font-size: 14px; color: #666; margin-bottom: 8px; }
+    .card-value { font-size: 32px; font-weight: 600; color: #1a1a1a; }
+    .card-value.success { color: #22c55e; }
+    .card-value.warning { color: #f59e0b; }
+    .card-value.error { color: #ef4444; }
+    .chart-container { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 24px; }
+    .chart-wrapper { height: 300px; position: relative; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .user-section { background: white; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .validation-list { list-style: none; }
+    .validation-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; }
+    .validation-list li:last-child { border-bottom: none; }
+    .validation-icon { font-size: 18px; }
+    .validation-icon.pass { color: #22c55e; }
+    .validation-icon.fail { color: #ef4444; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 14px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AMAS 模拟学习测试报告</h1>
+    <p class="meta">
+      生成时间: 2025/11/27 12:30:46 |
+      总耗时: 431.56秒
+    </p>
+
+    <!-- 摘要卡片 -->
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">用户数量</div>
+        <div class="card-value">13</div>
+      </div>
+      <div class="card">
+        <div class="card-title">总答题数</div>
+        <div class="card-value">1800</div>
+      </div>
+      <div class="card">
+        <div class="card-title">成功率</div>
+        <div class="card-value success">
+          100.0%
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">失败数</div>
+        <div class="card-value success">
+          0
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">休息建议触发</div>
+        <div class="card-value">0</div>
+      </div>
+    </div>
+
+    <!-- 验证摘要 -->
+    <h2>验证结果摘要</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">总验证项</div>
+        <div class="card-value">72</div>
+      </div>
+      <div class="card">
+        <div class="card-title">通过</div>
+        <div class="card-value success">57</div>
+      </div>
+      <div class="card">
+        <div class="card-title">失败</div>
+        <div class="card-value error">
+          15
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态演变图表 -->
+    
+    <h2>状态演变图表</h2>
+    <div class="chart-container">
+      <h3>用户 sim_test_Fc9L2NNb 的状态变化</h3>
+      <div class="chart-wrapper">
+        <canvas id="stateChart"></canvas>
+      </div>
+    </div>
+    
+
+    <!-- 各用户详情 -->
+    <h2>用户详情</h2>
+    
+    <div class="user-section">
+      <h3>用户 #1: sim_test_Fc9L2NNb</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">500</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">500/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">138.92s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.544</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.567</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.752</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.658</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.988</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.012</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.544)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.567)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.752)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #2: sim_test_W0ysRCoo</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">22.76s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.621</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.363</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.555</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.981</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.981</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.019</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.621)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.363)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.555)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #3: sim_test_r4H5lSkx</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">21.78s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.653</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.080</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>-0.400</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.653)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.080)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(-0.400)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #4: sim_test_H5uRaqfN</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">22.93s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.573</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.461</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.450</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.963</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.965</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.035</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.573)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.461)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.450)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #5: sim_test_ix3Ygiu7</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">21.20s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.637</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.089</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.300</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.637)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.089)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.300)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #6: sim_test_ep4Yuhe4</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">22.96s</div>
+        </div>
+      </div>
+
+      
+
+      
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>状态获取</strong>: 应能获取用户状态</span>
+            <span style="color: #666; font-size: 12px;">(用户AMAS状态未初始化)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #7: sim_test_vlcm3iqr</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">21.97s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.661</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.274</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>-0.400</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.661)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.274)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(-0.400)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #8: sim_test_7eE89bv3</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">21.97s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.683</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.431</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>-0.400</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.683)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.431)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(-0.400)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #9: sim_test_rEbxoJx9</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">23.02s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.671</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.328</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>-0.400</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.671)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.328)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(-0.400)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #10: sim_test_12hWZSo2</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">22.35s</div>
+        </div>
+      </div>
+
+      
+
+      
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>状态获取</strong>: 应能获取用户状态</span>
+            <span style="color: #666; font-size: 12px;">(用户AMAS状态未初始化)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #11: sim_test_dubO7bZT</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">21.55s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.666</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.479</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.300</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.990</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.010</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.666)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.479)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.300)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #12: sim_test_uFRmPnVx</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">100</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">100/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">22.69s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.762</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>1.000</td>
+          <td><span class="badge badge-error">需休息</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>-0.740</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.019</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.340</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.019</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.762)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(1.000)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(-0.740)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+    <div class="user-section">
+      <h3>用户 #13: sim_test_JSFHHp2D</h3>
+
+      <div class="grid" style="margin: 16px 0;">
+        <div class="card">
+          <div class="card-title">答题数</div>
+          <div class="card-value" style="font-size: 24px;">200</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功/失败</div>
+          <div class="card-value" style="font-size: 24px;">200/0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">成功率</div>
+          <div class="card-value" style="font-size: 24px;">100.0%</div>
+        </div>
+        <div class="card">
+          <div class="card-title">耗时</div>
+          <div class="card-value" style="font-size: 24px;">47.45s</div>
+        </div>
+      </div>
+
+      
+
+      
+    <h4 style="margin-top: 16px;">最终AMAS状态</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>指标</th>
+          <th>值</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>注意力 (Attention)</td>
+          <td>0.315</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+        <tr>
+          <td>疲劳度 (Fatigue)</td>
+          <td>0.072</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>动机 (Motivation)</td>
+          <td>0.880</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>记忆力 (Memory)</td>
+          <td>0.812</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>速度 (Speed)</td>
+          <td>0.878</td>
+          <td><span class="badge badge-success">良好</span></td>
+        </tr>
+        <tr>
+          <td>稳定性 (Stability)</td>
+          <td>0.122</td>
+          <td><span class="badge badge-error">较低</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+
+      <h4 style="margin-top: 16px;">验证结果</h4>
+      <ul class="validation-list">
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>API成功率</strong>: API调用成功率应大于95%</span>
+            <span style="color: #666; font-size: 12px;">(100.0%)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>状态存在</strong>: 用户AMAS状态应已初始化</span>
+            
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>注意力范围</strong>: 注意力应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.315)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>疲劳度范围</strong>: 疲劳度应在0-1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.072)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon pass">✓</span>
+            <span><strong>动机范围</strong>: 动机应在-1到1之间</span>
+            <span style="color: #666; font-size: 12px;">(0.880)</span>
+          </li>
+        
+          <li>
+            <span class="validation-icon fail">✗</span>
+            <span><strong>答题记录存储</strong>: 答题记录应被正确存储</span>
+            <span style="color: #666; font-size: 12px;">(0 条记录)</span>
+          </li>
+        
+      </ul>
+
+      
+    </div>
+    
+
+    <div class="footer">
+      AMAS 模拟学习测试报告 | 自动生成
+    </div>
+  </div>
+
+  <script>
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      const ctx = document.getElementById('stateChart');
+      if (!ctx) return;
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ["2025-11-26"],
+          datasets: [
+            {
+              label: '注意力',
+              data: [0.5504973025670645],
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: '疲劳度',
+              data: [0.5683978545150525],
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: '动机',
+              data: [0.6987212254125116],
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              tension: 0.3,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top'
+            },
+            title: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 1,
+              title: {
+                display: true,
+                text: '值'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: '日期'
+              }
+            }
+          }
+        }
+      });
+    });
+    
+  </script>
+</body>
+</html>

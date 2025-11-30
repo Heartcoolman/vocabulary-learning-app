@@ -83,11 +83,21 @@ router.post('/end-session', authMiddleware, async (req: AuthRequest, res, next) 
       session._count.answerRecords
     );
 
+    // 获取当前习惯画像（用于检查样本数）
+    const profile = habitProfileService.getHabitProfile(userId);
+
     // 持久化习惯画像
     const saved = await habitProfileService.persistHabitProfile(userId);
 
-    // 获取当前习惯画像
-    const profile = habitProfileService.getHabitProfile(userId);
+    // 生成保存状态消息，区分"样本不足"和"保存失败"
+    let habitProfileMessage: string | undefined;
+    if (!saved) {
+      if (profile.samples.timeEvents < 10) {
+        habitProfileMessage = `样本不足（当前${profile.samples.timeEvents}/10），继续学习后将自动保存`;
+      } else {
+        habitProfileMessage = '习惯画像保存失败，请稍后重试';
+      }
+    }
 
     res.json({
       success: true,
@@ -96,6 +106,7 @@ router.post('/end-session', authMiddleware, async (req: AuthRequest, res, next) 
         durationMinutes: Math.round(durationMinutes * 10) / 10,
         wordCount: session._count.answerRecords,
         habitProfileSaved: saved,
+        habitProfileMessage,
         preferredTimeSlots: profile.preferredTimeSlots
       }
     });

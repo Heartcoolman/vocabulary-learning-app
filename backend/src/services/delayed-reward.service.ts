@@ -74,9 +74,13 @@ export class DelayedRewardService {
   /**
    * 处理待处理的奖励 (Worker调用)
    * 使用事务 + SELECT FOR UPDATE SKIP LOCKED 实现原子抢占，避免多Worker竞争
-   * @param handler 奖励应用处理器
+   * @param handler 奖励应用处理器（必需）
    */
-  async processPendingRewards(handler?: ApplyRewardHandler): Promise<void> {
+  async processPendingRewards(handler: ApplyRewardHandler): Promise<void> {
+    if (!handler) {
+      console.error('[DelayedReward] handler is required but not provided');
+      return;
+    }
     const now = new Date();
 
     // 使用事务和行锁实现原子抢占，避免TOCTOU竞态条件
@@ -115,9 +119,7 @@ export class DelayedRewardService {
 
       try {
         // 应用奖励
-        if (handler) {
-          await handler(task);
-        }
+        await handler(task);
 
         // 标记为完成
         await prisma.rewardQueue.update({

@@ -9,28 +9,47 @@
 import {
   Action,
   BanditModel,
-  StrategyParams,
   UserState
 } from '../types';
 import {
   DEFAULT_ALPHA,
   DEFAULT_DIMENSION,
   DEFAULT_LAMBDA,
-  CHOLESKY_RECOMPUTE_INTERVAL,
   ACTION_SPACE
 } from '../config/action-space';
+import {
+  ActionSelection,
+  BaseLearner,
+  BaseLearnerContext,
+  LearnerCapabilities
+} from './base-learner';
+import {
+  choleskyRank1Update,
+  addOuterProduct,
+  addScaledVector,
+  hasInvalidValues
+} from './math-utils';
 
 // ==================== 类型定义 ====================
 
 /**
+ * LinUCB上下文（覆盖基础上下文中的可选字段为必需）
+ */
+export interface LinUCBContext extends BaseLearnerContext {
+  /** 近期错误率 [0,1] - LinUCB必需 */
+  recentErrorRate: number;
+  /** 近期平均反应时间(ms) - LinUCB必需 */
+  recentResponseTime: number;
+  /** 时间段 (0-23小时) - LinUCB必需 */
+  timeBucket: number;
+}
+
+/**
  * 特征构建输入
  */
-export interface ContextBuildInput {
+export interface ContextBuildInput extends LinUCBContext {
   state: UserState;
   action: Action;
-  recentErrorRate: number;
-  recentResponseTime: number;
-  timeBucket: number;
 }
 
 /**
@@ -105,7 +124,10 @@ function normalizeTimeFeatures(timeBucket: number): {
  * score_a = θ_a^T x + α √(x^T A_a^(-1) x)
  * a* = argmax_a score_a
  */
-export class LinUCB {
+export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, BanditModel> {
+  private static readonly NAME = 'LinUCB';
+  private static readonly VERSION = '2.0.0';
+
   private model: BanditModel;
 
   constructor(opts: LinUCBOptions = {}) {
@@ -126,26 +148,20 @@ export class LinUCB {
   }
 
   /**
-   * 选择最优动作
+   * 选择最优动作（实现 BaseLearner 接口）
    *
-   * 修复问题#13: 添加空数组检查，防止崩溃
+   * @returns ActionSelection 包含动作、评分和置信度
    */
   selectAction(
     state: UserState,
     actions: Action[],
-    context: {
-      recentErrorRate: number;
-      recentResponseTime: number;
-      timeBucket: number;
-    }
-  ): Action {
-    // 修复#13: 空数组检查
+    context: LinUCBContext
+  ): ActionSelection<Action> {
     if (!actions || actions.length === 0) {
       throw new Error('[LinUCB] actions array must not be empty');
     }
 
-    let bestAction: Action | null = null;
-    let bestScore = -Number.MAX_VALUE;
+    let bestSelection: ActionSelection<Action> | null = null;
 
     for (const action of actions) {
       const x = this.buildContextVector({
@@ -156,43 +172,48 @@ export class LinUCB {
         timeBucket: context.timeBucket
       });
 
-      const score = this.computeUCBScore(x);
+      const { score, confidence, exploitation } = this.computeUCBStats(x);
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestAction = action;
+      if (!bestSelection || score > bestSelection.score) {
+        bestSelection = {
+          action,
+          score,
+          confidence,
+          meta: { exploitation, exploration: this.model.alpha * confidence }
+        };
       }
     }
 
-    return bestAction ?? actions[0];
+    // 回退保护
+    if (!bestSelection) {
+      return {
+        action: actions[0],
+        score: -Number.MAX_VALUE,
+        confidence: 0
+      };
+    }
+
+    return bestSelection;
   }
 
   /**
-   * 使用默认动作空间选择
+   * 使用默认动作空间选择（便捷方法，返回Action而非ActionSelection）
    */
   selectFromActionSpace(
     state: UserState,
-    context: {
-      recentErrorRate: number;
-      recentResponseTime: number;
-      timeBucket: number;
-    }
+    context: LinUCBContext
   ): Action {
-    return this.selectAction(state, ACTION_SPACE, context);
+    return this.selectAction(state, ACTION_SPACE, context).action;
   }
 
   /**
-   * 更新模型
+   * 更新模型（实现 BaseLearner 接口）
    */
   update(
     state: UserState,
     action: Action,
     reward: number,
-    context: {
-      recentErrorRate: number;
-      recentResponseTime: number;
-      timeBucket: number;
-    }
+    context: LinUCBContext
   ): void {
     const x = this.buildContextVector({
       state,
@@ -207,7 +228,8 @@ export class LinUCB {
 
   /**
    * 使用预构建的特征向量更新模型 (用于延迟奖励)
-   * 修复问题#7: 添加数值稳定性检查，防止A矩阵变得奇异
+   *
+   * 优化: 使用Cholesky Rank-1增量更新，O(d²) vs O(d³)
    *
    * @param featureVector 特征向量 (d维Float32Array或数组)
    * @param reward 奖励值
@@ -220,7 +242,7 @@ export class LinUCB {
       ? featureVector
       : new Float32Array(featureVector);
 
-    const { d, A, b, lambda } = this.model;
+    const { d, A, b, lambda, L } = this.model;
 
     // 验证维度匹配
     if (x.length !== d) {
@@ -230,11 +252,9 @@ export class LinUCB {
     }
 
     // 验证特征向量的数值有效性
-    for (let i = 0; i < d; i++) {
-      if (!Number.isFinite(x[i])) {
-        console.warn('[LinUCB] 特征向量包含无效值，跳过更新');
-        return;
-      }
+    if (hasInvalidValues(x)) {
+      console.warn('[LinUCB] 特征向量包含无效值，跳过更新');
+      return;
     }
 
     // 验证奖励值的有效性
@@ -243,35 +263,20 @@ export class LinUCB {
       return;
     }
 
-    // A += x x^T
-    for (let i = 0; i < d; i++) {
-      const xi = x[i];
-      for (let j = 0; j < d; j++) {
-        A[i * d + j] += xi * x[j];
-      }
-    }
+    // A += x x^T (使用工具函数)
+    addOuterProduct(A, x, d);
 
-    // b += r * x
-    for (let i = 0; i < d; i++) {
-      b[i] += reward * x[i];
-    }
+    // b += r * x (使用工具函数)
+    addScaledVector(b, x, reward, d);
 
     this.model.updateCount++;
 
     // 检查A矩阵的对角线元素，防止数值不稳定
-    // 如果对角线元素过小，增加正则化
-    let needsRegularization = false;
+    let needsFullRecompute = false;
     for (let i = 0; i < d; i++) {
       const diag = A[i * d + i];
       if (!Number.isFinite(diag) || diag < lambda * 0.1) {
-        needsRegularization = true;
-        break;
-      }
-    }
-
-    if (needsRegularization) {
-      console.warn('[LinUCB] 检测到A矩阵不稳定，应用正则化修复');
-      for (let i = 0; i < d; i++) {
+        needsFullRecompute = true;
         // 确保对角线元素至少为lambda
         if (A[i * d + i] < lambda) {
           A[i * d + i] = lambda;
@@ -279,8 +284,22 @@ export class LinUCB {
       }
     }
 
-    // 每次更新后重新Cholesky分解（确保L与A同步）
-    this.model.L = this.choleskyDecompose(A, d);
+    if (needsFullRecompute) {
+      // A矩阵不稳定，需要完整重算Cholesky
+      console.warn('[LinUCB] 检测到A矩阵不稳定，执行完整Cholesky分解');
+      this.model.L = this.choleskyDecompose(A, d, lambda);
+    } else {
+      // 正常情况：使用O(d²)的Rank-1增量更新
+      const updateResult = choleskyRank1Update(L, x, d, lambda * 0.01);
+
+      if (!updateResult.success) {
+        // 增量更新失败，回退到完整分解
+        console.warn('[LinUCB] Rank-1更新失败，回退到完整Cholesky分解');
+        this.model.L = this.choleskyDecompose(A, d, lambda);
+      } else {
+        this.model.L = updateResult.L;
+      }
+    }
   }
 
   /**
@@ -374,6 +393,49 @@ export class LinUCB {
     this.model.updateCount = 0;
   }
 
+  // ==================== BaseLearner 接口方法 ====================
+
+  /**
+   * 获取模型状态（BaseLearner接口）
+   */
+  getState(): BanditModel {
+    return this.getModel();
+  }
+
+  /**
+   * 恢复模型状态（BaseLearner接口）
+   */
+  setState(state: BanditModel): void {
+    this.setModel(state);
+  }
+
+  /**
+   * 获取学习器名称
+   */
+  getName(): string {
+    return LinUCB.NAME;
+  }
+
+  /**
+   * 获取学习器版本
+   */
+  getVersion(): string {
+    return LinUCB.VERSION;
+  }
+
+  /**
+   * 获取学习器能力描述
+   */
+  getCapabilities(): LearnerCapabilities {
+    return {
+      supportsOnlineLearning: true,
+      supportsBatchUpdate: true,
+      requiresPretraining: false,
+      minSamplesForReliability: 50,
+      primaryUseCase: '基于上下文的动态策略选择，适合稳定期利用'
+    };
+  }
+
   // ==================== 私有方法 ====================
 
   /**
@@ -388,13 +450,26 @@ export class LinUCB {
   }
 
   /**
-   * 计算UCB分数
+   * 计算UCB分数（兼容旧方法）
    */
   private computeUCBScore(x: Float32Array): number {
+    return this.computeUCBStats(x).score;
+  }
+
+  /**
+   * 计算UCB统计量（新方法，返回详细信息）
+   */
+  private computeUCBStats(x: Float32Array): {
+    score: number;
+    confidence: number;
+    exploitation: number;
+  } {
     const theta = this.solveLinearSystem(this.model.L, this.model.b, this.model.d);
     const exploitation = this.dotProduct(theta, x);
     const confidence = this.computeConfidence(this.model.L, x);
-    return exploitation + this.model.alpha * confidence;
+    const score = exploitation + this.model.alpha * confidence;
+
+    return { score, confidence, exploitation };
   }
 
   /**
@@ -471,8 +546,15 @@ export class LinUCB {
    * 修复问题#4: 不再原地修改输入矩阵A，而是先复制再处理
    *
    * 增强版：添加对称化处理和 SPD 失败回退
+   *
+   * @param A 输入矩阵
+   * @param d 维度
+   * @param lambda 正则化系数（可选，默认使用模型的lambda）
    */
-  private choleskyDecompose(A: Float32Array, d: number): Float32Array {
+  private choleskyDecompose(A: Float32Array, d: number, lambda?: number): Float32Array {
+    // 使用传入的lambda或模型的lambda
+    const effectiveLambda = lambda ?? this.model.lambda;
+
     // 修复#4: 复制矩阵，避免原地修改输入
     const matrix = new Float32Array(A);
 
@@ -497,7 +579,7 @@ export class LinUCB {
         if (i === j) {
           // 对角元素为负或非有限数时，使用正则化修复
           if (sum <= 1e-9 || !Number.isFinite(sum)) {
-            sum = this.model.lambda + 1e-6;
+            sum = effectiveLambda + 1e-6;
           }
           L[i * d + j] = Math.sqrt(Math.max(sum, 1e-9));
         } else {
@@ -511,7 +593,7 @@ export class LinUCB {
       if (!Number.isFinite(L[i])) {
         // 分解失败，返回正则化单位矩阵
         console.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
-        return this.initIdentityMatrix(d, this.model.lambda);
+        return this.initIdentityMatrix(d, effectiveLambda);
       }
     }
 
@@ -565,8 +647,8 @@ export class LinUCB {
       }
     }
 
-    // 重新Cholesky分解
-    const newL = this.choleskyDecompose(newA, targetD);
+    // 重新Cholesky分解（使用新的lambda参数）
+    const newL = this.choleskyDecompose(newA, targetD, lambda);
 
     return {
       d: targetD,

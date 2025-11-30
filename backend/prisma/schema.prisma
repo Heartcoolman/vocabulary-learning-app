@@ -28,6 +28,7 @@ model User {
   wordBooks        WordBook[]
   learningStates   WordLearningState[]
   wordScores       WordScore[]
+  reviewTraces     WordReviewTrace[]
 
   @@map("users")
 }
@@ -65,6 +66,7 @@ model Word {
   records        AnswerRecord[]
   learningStates WordLearningState[]
   wordScores     WordScore[]
+  reviewTraces   WordReviewTrace[]
   wordBook       WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
 
   @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
@@ -440,4 +442,150 @@ enum BadgeCategory {
   ACCURACY
   COGNITIVE
   MILESTONE
+}
+
+enum ABExperimentStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  ABORTED
+}
+
+enum ABTrafficAllocation {
+  EVEN
+  WEIGHTED
+  DYNAMIC
+}
+
+// ==================== A/B测试相关模型 ====================
+
+/// A/B测试实验配置
+model ABExperiment {
+  id                      String               @id @default(uuid())
+  name                    String
+  description             String?
+  trafficAllocation       ABTrafficAllocation  @default(WEIGHTED)
+  minSampleSize           Int                  @default(100)
+  significanceLevel       Float                @default(0.05)
+  minimumDetectableEffect Float                @default(0.05)
+  autoDecision            Boolean              @default(false)
+  status                  ABExperimentStatus   @default(DRAFT)
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  variants    ABVariant[]
+  metrics     ABExperimentMetrics[]
+  assignments ABUserAssignment[]
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("ab_experiments")
+}
+
+/// A/B测试变体
+model ABVariant {
+  id           String       @id @default(uuid())
+  experimentId String
+  name         String
+  weight       Float        @default(0.5)
+  isControl    Boolean      @default(false)
+  parameters   Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  experiment  ABExperiment          @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  assignments ABUserAssignment[]
+  metrics     ABExperimentMetrics[]
+
+  @@index([experimentId])
+  @@map("ab_variants")
+}
+
+/// 用户变体分配（持久化）
+model ABUserAssignment {
+  userId       String
+  experimentId String
+  variantId    String
+  assignedAt   DateTime @default(now())
+
+  experiment ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variant    ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, experimentId])
+  @@index([variantId])
+  @@map("ab_user_assignments")
+}
+
+/// 实验指标数据
+model ABExperimentMetrics {
+  id           String   @id @default(uuid())
+  experimentId String
+  variantId    String
+  sampleCount  Int      @default(0)
+  primaryMetric Float   @default(0)
+  averageReward Float   @default(0)
+  stdDev       Float    @default(0)
+  m2           Float    @default(0) // Welford算法累积值
+  updatedAt    DateTime @updatedAt
+
+  experiment ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variant    ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, variantId])
+  @@map("ab_experiment_metrics")
+}
+
+// ==================== 优化器相关模型 ====================
+
+/// 贝叶斯优化器状态持久化
+model BayesianOptimizerState {
+  id              String   @id @default("global") // 全局单例
+  observations    Json     @default("[]")
+  bestParams      Json?
+  bestValue       Float?
+  evaluationCount Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("bayesian_optimizer_state")
+}
+
+// ==================== 因果推断相关模型 ====================
+
+/// 因果推断观测数据
+model CausalObservation {
+  id        String   @id @default(uuid())
+  userId    String?
+  features  Json     // 特征向量
+  treatment Int      // 0 或 1
+  outcome   Float    // [-1, 1]
+  timestamp BigInt
+  createdAt DateTime @default(now())
+
+  @@index([treatment])
+  @@index([timestamp])
+  @@index([userId])
+  @@map("causal_observations")
+}
+
+// ==================== 单词掌握度评估相关模型 ====================
+
+/// 单词复习轨迹记录
+model WordReviewTrace {
+  id           String   @id @default(cuid())
+  userId       String
+  wordId       String
+  timestamp    DateTime
+  isCorrect    Boolean
+  responseTime Int      // 毫秒
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word Word @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([userId, wordId])
+  @@index([userId, wordId, timestamp])
+  @@map("word_review_traces")
 }
