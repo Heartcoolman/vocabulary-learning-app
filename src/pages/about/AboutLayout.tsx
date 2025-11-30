@@ -45,10 +45,6 @@ export default function AboutLayout() {
         {/* 导航菜单 */}
         <nav className="flex-1 p-4 space-y-2">
           {menuItems.map((item) => {
-            const isActive = item.exact
-              ? location.pathname === item.path
-              : location.pathname.startsWith(item.path) && location.pathname !== '/about';
-
             // 特殊处理：/about 精确匹配
             const finalActive = item.exact
               ? location.pathname === item.path

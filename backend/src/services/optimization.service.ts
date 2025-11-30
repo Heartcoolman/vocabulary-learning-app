@@ -22,16 +22,19 @@ import { isBayesianOptimizerEnabled } from '../amas/config/feature-flags';
 
 // ==================== 类型定义 ====================
 
+/** 参数边界（无name字段，用于对象形式参数空间） */
+type ParamRange = Omit<ParamBound, 'name'>;
+
 /** 优化参数空间定义 */
 export interface OptimizationParamSpace {
   /** 复习间隔倍数 [0.5, 2.0] */
-  interval_scale: ParamBound;
+  interval_scale: ParamRange;
   /** 新词比例 [0.0, 0.5] */
-  new_ratio: ParamBound;
+  new_ratio: ParamRange;
   /** 难度等级 [1, 3] (low/mid/high) */
-  difficulty: ParamBound;
+  difficulty: ParamRange;
   /** 提示级别 [0, 2] */
-  hint_level: ParamBound;
+  hint_level: ParamRange;
 }
 
 /** 参数评估结果 */

@@ -161,7 +161,7 @@ export class EvaluationService {
       return null;
     }
 
-    return this.causalInference.estimate();
+    return this.causalInference.estimateATE();
   }
 
   /**
@@ -261,7 +261,7 @@ export class EvaluationService {
     return {
       observationCount: total,
       treatmentDistribution,
-      latestEstimate: this.causalInference?.estimate() ?? null
+      latestEstimate: this.causalInference?.estimateATE() ?? null
     };
   }
 
@@ -315,7 +315,7 @@ export class EvaluationService {
             name: variant.name,
             weight: variant.weight ?? 1 / params.variants.length,
             isControl: variant.isControl ?? false,
-            parameters: variant.parameters ?? {}
+            parameters: (variant.parameters ?? {}) as Prisma.InputJsonValue
           }
         });
       }

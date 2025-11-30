@@ -70,7 +70,7 @@ vi.mock('../../../src/amas/config/feature-flags', () => ({
 // Mock CausalInference
 const mockCausalInstance = {
   addObservation: vi.fn(),
-  estimate: vi.fn().mockReturnValue({
+  estimateATE: vi.fn().mockReturnValue({
     ate: 0.15,
     ci: [0.05, 0.25],
     pValue: 0.02,
@@ -110,7 +110,7 @@ describe('EvaluationService', () => {
     mockABTestEnabled = true;
 
     // Reset mock implementations
-    mockCausalInstance.estimate.mockReturnValue({
+    mockCausalInstance.estimateATE.mockReturnValue({
       ate: 0.15,
       ci: [0.05, 0.25],
       pValue: 0.02,

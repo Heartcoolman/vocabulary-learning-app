@@ -26,7 +26,7 @@ import { delayedRewardService } from './delayed-reward.service';
 import { stateHistoryService } from './state-history.service';
 import { habitProfileService } from './habit-profile.service';
 import { evaluationService } from './evaluation.service';
-import { WordState } from '@prisma/client';
+import { Prisma, WordState } from '@prisma/client';
 
 class AMASService {
   private engine: AMASEngine;
@@ -190,6 +190,47 @@ class AMASService {
   }
 
   /**
+   * 执行带重试机制的事务操作
+   * 用于处理高并发场景下的事务超时问题
+   */
+  private async runWordStateTransaction<T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+    context: { userId: string; wordId: string }
+  ): Promise<T> {
+    const maxAttempts = 3;
+    const baseDelayMs = 100;
+    const txOptions = { maxWait: 5_000, timeout: 20_000 };
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await prisma.$transaction(operation, txOptions);
+      } catch (error) {
+        if (!this.isRetryableTransactionError(error) || attempt === maxAttempts) {
+          throw error;
+        }
+        const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
+        console.warn(
+          `[AMAS] 事务开启等待超时，准备重试: userId=${context.userId}, wordId=${context.wordId}, attempt=${attempt + 1}, backoff=${backoffMs}ms`
+        );
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+    throw new Error('Transaction retries exhausted');
+  }
+
+  /**
+   * 检查是否为可重试的事务错误
+   */
+  private isRetryableTransactionError(error: unknown): boolean {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // P2024: 连接池等待超时；P2034: 事务被中断/超时
+      return error.code === 'P2024' || error.code === 'P2034';
+    }
+    return error instanceof Error &&
+      error.message.includes('Unable to start a transaction in the given time');
+  }
+
+  /**
    * 处理学习事件并返回策略建议
    * @param userId 用户ID
    * @param event 学习事件数据
@@ -342,7 +383,7 @@ class AMASService {
       const intervalDays = baseIntervalDays * safeIntervalScale;
 
       // 使用事务保证原子性：读取当前状态、计算新值、更新状态和得分
-      const updateResult = await prisma.$transaction(async (tx) => {
+      const updateResult = await this.runWordStateTransaction(async (tx) => {
         // 1. 计算下次复习时间
         const nextReviewDate = new Date(rawEvent.timestamp + intervalDays * 24 * 60 * 60 * 1000);
 
@@ -440,7 +481,7 @@ class AMASService {
         });
 
         return { masteryLevel, wordState, totalScore, reviewCount };
-      });
+      }, { userId, wordId: event.wordId });
 
       // 清除相关缓存（事务成功后）
       // 直接使用 cacheService 清除，避免访问 service 私有方法
