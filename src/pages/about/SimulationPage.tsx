@@ -9,7 +9,7 @@
  * - 噪声注入测试
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -162,7 +162,7 @@ function ConsensusVisualizer({
              ${result.decisionProcess.phase === 'explore' ? 'bg-blue-100 text-blue-700' :
                result.decisionProcess.phase === 'classify' ? 'bg-amber-100 text-amber-700' :
                'bg-emerald-100 text-emerald-700'}`}>
-             Phase: {result.decisionProcess.phase}
+             阶段: {result.decisionProcess.phase === 'explore' ? '探索' : result.decisionProcess.phase === 'classify' ? '分类' : '正常'}
            </span>
         )}
       </div>
@@ -173,7 +173,7 @@ function ConsensusVisualizer({
         </div>
       ) : !result ? (
         <div className="flex items-center justify-center h-32 text-gray-400 text-sm italic">
-          Waiting for input parameters...
+          等待输入参数...
         </div>
       ) : (
         <div className="relative pt-8 pb-12 px-4">
@@ -242,7 +242,7 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
         <div className="text-center mb-4">
           <h4 className="text-gray-400 text-xs uppercase tracking-widest mb-1">决策凭证 (Decision Receipt)</h4>
           <div className="text-3xl font-mono font-bold text-gray-800">
-            {result.outputStrategy.difficulty.toUpperCase()}
+            {result.outputStrategy.difficulty === 'easy' ? '简单' : result.outputStrategy.difficulty === 'mid' ? '中等' : '困难'}
           </div>
           <div className="text-emerald-500 text-sm font-medium mt-1">
             Interval: x{result.outputStrategy.interval_scale.toFixed(1)}
@@ -261,7 +261,7 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
             <span>{(winner[1] * 100).toFixed(0)}%</span>
           </div>
           <div className="flex justify-between text-gray-600">
-             <span>New Words Ratio</span>
+             <span>生词比例</span>
              <span>{(result.outputStrategy.new_ratio * 100).toFixed(0)}%</span>
           </div>
         </div>
@@ -340,8 +340,6 @@ export default function SimulationPage() {
     }
   }, [params, injectNoise, selectedScenario]);
 
-  useEffect(() => { runSimulation(); }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 md:p-8 font-sans transition-colors">
       <div className="max-w-6xl mx-auto">
@@ -377,7 +375,7 @@ export default function SimulationPage() {
           >
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60">
               <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Shuffle /> Simulation Context
+                <Shuffle /> 模拟场景
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {SCENARIOS.map(s => (
@@ -402,7 +400,7 @@ export default function SimulationPage() {
               <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-100">
                  <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
                    <Warning className="text-amber-500" />
-                   Inject Random Noise
+                   注入随机噪声
                  </span>
                  <button
                    onClick={() => setInjectNoise(!injectNoise)}
@@ -415,17 +413,17 @@ export default function SimulationPage() {
 
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60">
               <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
-                <Sliders /> User State Vectors
+                <Sliders /> 用户状态向量
               </h2>
 
-              <ControlSlider label="Attention Span" icon={UserFocus} value={params.attention} onChange={v => setParams(p => ({...p, attention: v}))} />
-              <ControlSlider label="Fatigue Level" icon={Pulse} value={params.fatigue} onChange={v => setParams(p => ({...p, fatigue: v}))} />
-              <ControlSlider label="Motivation" icon={Lightning} value={params.motivation} onChange={v => setParams(p => ({...p, motivation: v}))} min={-1} max={1} />
+              <ControlSlider label="注意力" icon={UserFocus} value={params.attention} onChange={v => setParams(p => ({...p, attention: v}))} />
+              <ControlSlider label="疲劳度" icon={Pulse} value={params.fatigue} onChange={v => setParams(p => ({...p, fatigue: v}))} />
+              <ControlSlider label="动机" icon={Lightning} value={params.motivation} onChange={v => setParams(p => ({...p, motivation: v}))} min={-1} max={1} />
 
               <div className="h-px bg-gray-100 my-6" />
 
-              <ControlSlider label="Memory Strength" icon={Brain} value={params.cognitive.memory} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, memory: v}}))} />
-              <ControlSlider label="Processing Speed" icon={Gear} value={params.cognitive.speed} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, speed: v}}))} />
+              <ControlSlider label="记忆强度" icon={Brain} value={params.cognitive.memory} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, memory: v}}))} />
+              <ControlSlider label="处理速度" icon={Gear} value={params.cognitive.speed} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, speed: v}}))} />
             </div>
 
             <button

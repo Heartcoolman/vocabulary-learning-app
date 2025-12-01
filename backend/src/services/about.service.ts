@@ -23,6 +23,7 @@ import { ActionSelection } from '../amas/learning/base-learner';
 
 /** 成员投票详情 */
 export interface MemberVoteDetail {
+  member?: string;
   action: string;
   contribution: number;
   confidence: number;
@@ -120,6 +121,7 @@ export interface StateDistributionResponse {
 
 /** 近期决策记录（脱敏） */
 export interface RecentDecision {
+  decisionId: string;
   pseudoId: string;
   timestamp: string;
   decisionSource: string;
@@ -128,6 +130,43 @@ export interface RecentDecision {
     batch_size: number;
   };
   dominantFactor: string;
+}
+
+/** Pipeline阶段详情 */
+export interface PipelineStageDetail {
+  stage: number;
+  stageType: string;
+  stageName: string;
+  status: string;
+  durationMs?: number;
+  startedAt: string;
+  endedAt?: string;
+  inputSummary?: Record<string, unknown>;
+  outputSummary?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  errorMessage?: string;
+}
+
+/** 决策详情 */
+export interface DecisionDetail {
+  decisionId: string;
+  timestamp: string;
+  pseudoId: string;
+  decisionSource: string;
+  coldstartPhase?: string;
+  confidence: number;
+  reward?: number;
+  totalDurationMs?: number;
+  strategy: {
+    interval_scale?: number;
+    new_ratio?: number;
+    difficulty?: string;
+    batch_size?: number;
+    hint_level?: number;
+  };
+  weights: Record<string, number>;
+  memberVotes: MemberVoteDetail[];
+  pipeline: PipelineStageDetail[];
 }
 
 // ==================== Pipeline 可视化类型 ====================
@@ -537,6 +576,7 @@ class AboutService {
    */
   getRecentDecisions(): RecentDecision[] {
     return this.recentDecisions.map(d => ({
+      decisionId: d.id,
       pseudoId: d.pseudoId,
       timestamp: new Date(d.timestamp).toISOString(),
       decisionSource: d.decisionSource,

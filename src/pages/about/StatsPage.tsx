@@ -239,10 +239,10 @@ function WordMasteryRadar() {
           <polygon points={points} fill="rgba(244, 63, 94, 0.2)" stroke="#fb7185" strokeWidth="2" />
 
           {/* Labels */}
-          <text x="100" y="10" textAnchor="middle" className="text-[10px] fill-gray-500">Speed</text>
-          <text x="190" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">Stability</text>
-          <text x="100" y="190" textAnchor="middle" className="text-[10px] fill-gray-500">Complexity</text>
-          <text x="10" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">Consistency</text>
+          <text x="100" y="10" textAnchor="middle" className="text-[10px] fill-gray-500">速度</text>
+          <text x="190" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">稳定性</text>
+          <text x="100" y="190" textAnchor="middle" className="text-[10px] fill-gray-500">复杂度</text>
+          <text x="10" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">一致性</text>
         </svg>
       </div>
     </motion.div>

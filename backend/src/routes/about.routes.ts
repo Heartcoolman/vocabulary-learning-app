@@ -7,6 +7,8 @@
  * - 算法分布
  * - 状态分布
  * - 近期决策
+ *
+ * 支持通过特性开关切换虚拟/真实数据源
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -15,9 +17,42 @@ import {
   SimulateRequest,
   FaultInjectionRequest
 } from '../services/about.service';
+import { RealAboutService, createRealAboutService } from '../services/real-about.service';
+import {
+  useRealDataSource,
+  useVirtualDataSource,
+  getFeatureFlagsStatus,
+  isDecisionWriteEnabled
+} from '../config/amas-feature-flags';
+import { getAllMetrics, getPrometheusMetrics } from '../monitoring/amas-metrics';
 import { logger } from '../logger';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { adminMiddleware } from '../middleware/admin.middleware';
+import { AuthRequest } from '../types';
+import prisma from '../config/database';
+import { DecisionRecorderService } from '../amas/services/decision-recorder.service';
+import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
+import { createId } from '@paralleldrive/cuid2';
 
 const router = Router();
+
+// 真实数据服务实例（惰性初始化）
+let realAboutService: RealAboutService | null = null;
+let decisionRecorder: DecisionRecorderService | null = null;
+
+function getRealAboutService(): RealAboutService {
+  if (!realAboutService) {
+    realAboutService = createRealAboutService(prisma);
+  }
+  return realAboutService;
+}
+
+function getDecisionRecorder(): DecisionRecorderService {
+  if (!decisionRecorder) {
+    decisionRecorder = new DecisionRecorderService(prisma);
+  }
+  return decisionRecorder;
+}
 
 /**
  * 统一错误响应处理
@@ -81,13 +116,46 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
+/**
+ * 真实数据保护中间件：当使用真实数据源时要求管理员权限
+ * 防止运营数据通过公开接口泄露
+ */
+function realDataProtection(req: Request, res: Response, next: NextFunction): void {
+  if (useRealDataSource()) {
+    // 使用真实数据时，必须验证管理员身份
+    authMiddleware(req as AuthRequest, res, (authErr?: unknown) => {
+      if (authErr) {
+        res.status(401).json({
+          success: false,
+          error: '访问真实数据需要登录'
+        });
+        return;
+      }
+      adminMiddleware(req as AuthRequest, res, (adminErr?: unknown) => {
+        if (adminErr) {
+          res.status(403).json({
+            success: false,
+            error: '访问真实运营数据需要管理员权限'
+          });
+          return;
+        }
+        next();
+      });
+    });
+  } else {
+    // 虚拟数据可公开访问
+    next();
+  }
+}
+
 // ==================== 路由定义 ====================
 
 /**
  * POST /api/about/simulate
  * 模拟一次 AMAS 决策过程
+ * 需要登录，普通用户可访问（公开展示接口）
  */
-router.post('/simulate', rateLimit, (req: Request, res: Response) => {
+router.post('/simulate', authMiddleware, rateLimit, async (req: AuthRequest, res: Response) => {
   try {
     const body = req.body;
 
@@ -140,6 +208,98 @@ router.post('/simulate', rateLimit, (req: Request, res: Response) => {
 
     const result = aboutService.simulate(input);
 
+    // 如果启用了写入，记录仿真决策到数据库
+    if (isDecisionWriteEnabled()) {
+      try {
+        const decisionId = createId();
+        const now = new Date();
+
+        const memberVotes =
+          result.decisionProcess.votes && Object.keys(result.decisionProcess.votes).length > 0
+            ? { ...result.decisionProcess.votes }
+            : undefined;
+
+        await getDecisionRecorder().record({
+          decisionId,
+          timestamp: now,
+          decisionSource: result.decisionProcess.decisionSource,
+          coldstartPhase: result.decisionProcess.phase,
+          weightsSnapshot: { ...result.decisionProcess.weights },
+          memberVotes,
+          selectedAction: { ...result.outputStrategy },
+          confidence: result.inputState.conf,
+          reward: undefined,
+          isSimulation: true,
+          traceVersion: 1,
+          totalDurationMs: undefined,
+          stages: [
+            {
+              stage: 'PERCEPTION' as PipelineStageType,
+              stageName: '感知层',
+              status: 'SUCCESS' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: { rawInput: input },
+              outputSummary: { state: result.inputState }
+            },
+            {
+              stage: 'MODELING' as PipelineStageType,
+              stageName: '建模层',
+              status: 'SKIPPED' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: { state: result.inputState },
+              outputSummary: { reason: '模拟模式跳过认知建模' }
+            },
+            {
+              stage: 'LEARNING' as PipelineStageType,
+              stageName: '学习层',
+              status: 'SKIPPED' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: { weights: result.decisionProcess.weights },
+              outputSummary: { reason: '模拟模式跳过在线学习' }
+            },
+            {
+              stage: 'DECISION' as PipelineStageType,
+              stageName: '决策层',
+              status: 'SUCCESS' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: { state: result.inputState },
+              outputSummary: { strategy: result.outputStrategy }
+            },
+            {
+              stage: 'EVALUATION' as PipelineStageType,
+              stageName: '评估层',
+              status: 'SKIPPED' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: { strategy: result.outputStrategy },
+              outputSummary: { reason: '模拟模式无延迟奖励' }
+            },
+            {
+              stage: 'OPTIMIZATION' as PipelineStageType,
+              stageName: '优化层',
+              status: 'SKIPPED' as PipelineStageStatus,
+              startedAt: now,
+              endedAt: now,
+              durationMs: 0,
+              inputSummary: {},
+              outputSummary: { reason: '模拟模式跳过参数优化' }
+            }
+          ]
+        });
+      } catch (recordError) {
+        logger.warn({ err: recordError }, '[Simulate] Failed to record simulation decision');
+      }
+    }
+
     res.json({
       success: true,
       data: result
@@ -153,12 +313,20 @@ router.post('/simulate', rateLimit, (req: Request, res: Response) => {
  * GET /api/about/stats/overview
  * 获取今日决策数、活跃用户数等概览统计
  */
-router.get('/stats/overview', (_req: Request, res: Response) => {
+router.get('/stats/overview', realDataProtection, async (_req: Request, res: Response) => {
   try {
-    const stats = aboutService.getOverviewStats();
+    let stats;
+
+    if (useRealDataSource()) {
+      stats = await getRealAboutService().getOverviewStats();
+    } else {
+      stats = aboutService.getOverviewStats();
+    }
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取概览统计失败');
@@ -169,12 +337,20 @@ router.get('/stats/overview', (_req: Request, res: Response) => {
  * GET /api/about/stats/algorithm-distribution
  * 获取各算法贡献占比
  */
-router.get('/stats/algorithm-distribution', (_req: Request, res: Response) => {
+router.get('/stats/algorithm-distribution', realDataProtection, async (_req: Request, res: Response) => {
   try {
-    const distribution = aboutService.getAlgorithmDistribution();
+    let distribution;
+
+    if (useRealDataSource()) {
+      distribution = await getRealAboutService().getAlgorithmDistribution();
+    } else {
+      distribution = aboutService.getAlgorithmDistribution();
+    }
+
     res.json({
       success: true,
-      data: distribution
+      data: distribution,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取算法分布失败');
@@ -185,12 +361,20 @@ router.get('/stats/algorithm-distribution', (_req: Request, res: Response) => {
  * GET /api/about/stats/state-distribution
  * 获取用户状态分布
  */
-router.get('/stats/state-distribution', (_req: Request, res: Response) => {
+router.get('/stats/state-distribution', realDataProtection, async (_req: Request, res: Response) => {
   try {
-    const distribution = aboutService.getStateDistribution();
+    let distribution;
+
+    if (useRealDataSource()) {
+      distribution = await getRealAboutService().getStateDistribution();
+    } else {
+      distribution = aboutService.getStateDistribution();
+    }
+
     res.json({
       success: true,
-      data: distribution
+      data: distribution,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取状态分布失败');
@@ -201,15 +385,67 @@ router.get('/stats/state-distribution', (_req: Request, res: Response) => {
  * GET /api/about/stats/recent-decisions
  * 获取最近 50 条脱敏决策记录
  */
-router.get('/stats/recent-decisions', (_req: Request, res: Response) => {
+router.get('/stats/recent-decisions', realDataProtection, async (_req: Request, res: Response) => {
   try {
-    const decisions = aboutService.getRecentDecisions();
+    let decisions;
+
+    if (useRealDataSource()) {
+      decisions = await getRealAboutService().getRecentDecisions();
+    } else {
+      decisions = aboutService.getRecentDecisions();
+    }
+
     res.json({
       success: true,
-      data: decisions
+      data: decisions,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取近期决策失败');
+  }
+});
+
+/**
+ * GET /api/about/decision/:decisionId
+ * 获取决策详情
+ */
+router.get('/decision/:decisionId', realDataProtection, async (req: Request, res: Response) => {
+  try {
+    const { decisionId } = req.params;
+
+    if (!decisionId || typeof decisionId !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'decisionId 参数无效'
+      });
+      return;
+    }
+
+    if (!useRealDataSource()) {
+      res.status(400).json({
+        success: false,
+        error: '决策详情仅支持真实数据源'
+      });
+      return;
+    }
+
+    const detail = await getRealAboutService().getDecisionDetail(decisionId);
+
+    if (!detail) {
+      res.status(404).json({
+        success: false,
+        error: '未找到指定决策'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: detail,
+      source: 'real'
+    });
+  } catch (error) {
+    handleError(res, error, '获取决策详情失败');
   }
 });
 
@@ -219,12 +455,20 @@ router.get('/stats/recent-decisions', (_req: Request, res: Response) => {
  * GET /api/about/pipeline/snapshot
  * 获取管道实时可视化快照
  */
-router.get('/pipeline/snapshot', (_req: Request, res: Response) => {
+router.get('/pipeline/snapshot', realDataProtection, async (_req: Request, res: Response) => {
   try {
-    const snapshot = aboutService.getPipelineSnapshot();
+    let snapshot;
+
+    if (useRealDataSource()) {
+      snapshot = await getRealAboutService().getPipelineSnapshot();
+    } else {
+      snapshot = aboutService.getPipelineSnapshot();
+    }
+
     res.json({
       success: true,
-      data: snapshot
+      data: snapshot,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取管道快照失败');
@@ -235,7 +479,7 @@ router.get('/pipeline/snapshot', (_req: Request, res: Response) => {
  * GET /api/about/pipeline/trace/:packetId
  * 获取单个数据包的处理轨迹
  */
-router.get('/pipeline/trace/:packetId', (req: Request, res: Response) => {
+router.get('/pipeline/trace/:packetId', realDataProtection, async (req: Request, res: Response) => {
   try {
     const { packetId } = req.params;
 
@@ -247,10 +491,18 @@ router.get('/pipeline/trace/:packetId', (req: Request, res: Response) => {
       return;
     }
 
-    const trace = aboutService.getPacketTrace(packetId);
+    let trace;
+
+    if (useRealDataSource()) {
+      trace = await getRealAboutService().getPacketTrace(packetId);
+    } else {
+      trace = aboutService.getPacketTrace(packetId);
+    }
+
     res.json({
       success: true,
-      data: trace
+      data: trace,
+      source: useRealDataSource() ? 'real' : 'virtual'
     });
   } catch (error) {
     handleError(res, error, '获取数据包轨迹失败');
@@ -260,8 +512,9 @@ router.get('/pipeline/trace/:packetId', (req: Request, res: Response) => {
 /**
  * POST /api/about/pipeline/inject-fault
  * 注入故障测试
+ * 需要管理员权限（安全敏感操作）
  */
-router.post('/pipeline/inject-fault', rateLimit, (req: Request, res: Response) => {
+router.post('/pipeline/inject-fault', authMiddleware, adminMiddleware, rateLimit, (req: AuthRequest, res: Response) => {
   try {
     const body = req.body;
 
@@ -297,6 +550,104 @@ router.post('/pipeline/inject-fault', rateLimit, (req: Request, res: Response) =
     });
   } catch (error) {
     handleError(res, error, '故障注入失败');
+  }
+});
+
+// ==================== 监控与诊断 API ====================
+
+/**
+ * GET /api/about/metrics
+ * 获取 AMAS 决策流水线监控指标（JSON 格式）
+ */
+router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
+  try {
+    const metrics = getAllMetrics();
+    res.json({
+      success: true,
+      data: metrics
+    });
+  } catch (error) {
+    handleError(res, error, '获取监控指标失败');
+  }
+});
+
+/**
+ * GET /api/about/metrics/prometheus
+ * 获取 Prometheus 格式的监控指标
+ */
+router.get('/metrics/prometheus', realDataProtection, (_req: Request, res: Response) => {
+  try {
+    const metrics = getPrometheusMetrics();
+    res.type('text/plain').send(metrics);
+  } catch (error) {
+    handleError(res, error, '获取 Prometheus 指标失败');
+  }
+});
+
+/**
+ * GET /api/about/feature-flags
+ * 获取当前特性开关状态
+ */
+router.get('/feature-flags', realDataProtection, (_req: Request, res: Response) => {
+  try {
+    const flags = getFeatureFlagsStatus();
+    res.json({
+      success: true,
+      data: flags
+    });
+  } catch (error) {
+    handleError(res, error, '获取特性开关状态失败');
+  }
+});
+
+/**
+ * GET /api/about/health
+ * 健康检查端点 (需要登录)
+ * - 普通用户: 只返回基本状态
+ * - 管理员: 返回详细诊断信息
+ */
+router.get('/health', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    // 检查数据库连接
+    let dbHealthy = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbHealthy = true;
+    } catch {
+      dbHealthy = false;
+    }
+
+    const basicInfo = {
+      status: dbHealthy ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString()
+    };
+
+    // 管理员可见详细信息
+    if (isAdmin) {
+      const flags = getFeatureFlagsStatus();
+      res.json({
+        success: true,
+        data: {
+          ...basicInfo,
+          database: dbHealthy ? 'connected' : 'disconnected',
+          dataSource: useRealDataSource() ? 'real' : 'virtual',
+          features: {
+            writeEnabled: flags.writeEnabled,
+            readEnabled: flags.readEnabled
+          }
+        }
+      });
+    } else {
+      // 普通用户只看到基本状态
+      res.json({
+        success: true,
+        data: basicInfo
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '健康检查失败');
   }
 });
 
