@@ -105,6 +105,7 @@ export interface StateDistribution {
 
 /** 近期决策 */
 export interface RecentDecision {
+  decisionId: string;
   pseudoId: string;
   timestamp: string;
   decisionSource: string;
@@ -113,6 +114,51 @@ export interface RecentDecision {
     batch_size: number;
   };
   dominantFactor: string;
+}
+
+/** Pipeline阶段详情 */
+export interface PipelineStageDetail {
+  stage: number;
+  stageType: string;
+  stageName: string;
+  status: string;
+  durationMs?: number;
+  startedAt: string;
+  endedAt?: string;
+  inputSummary?: Record<string, unknown>;
+  outputSummary?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  errorMessage?: string;
+}
+
+/** 成员投票详情 */
+export interface MemberVoteDetail {
+  member?: string;
+  action: string;
+  contribution: number;
+  confidence: number;
+}
+
+/** 决策详情 */
+export interface DecisionDetail {
+  decisionId: string;
+  timestamp: string;
+  pseudoId: string;
+  decisionSource: string;
+  coldstartPhase?: string;
+  confidence: number;
+  reward?: number;
+  totalDurationMs?: number;
+  strategy: {
+    interval_scale?: number;
+    new_ratio?: number;
+    difficulty?: string;
+    batch_size?: number;
+    hint_level?: number;
+  };
+  weights: Record<string, number>;
+  memberVotes: MemberVoteDetail[];
+  pipeline: PipelineStageDetail[];
 }
 
 // ==================== Pipeline 可视化类型 ====================
@@ -202,6 +248,30 @@ interface ApiResponse<T> {
 // ==================== 辅助函数 ====================
 
 /**
+ * 获取认证token（用于需要管理员权限的真实数据接口）
+ */
+function getAuthToken(): string | null {
+  return localStorage.getItem('auth_token');
+}
+
+/**
+ * 构建带认证的fetch headers
+ */
+function buildHeaders(additionalHeaders?: Record<string, string>): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...additionalHeaders
+  };
+
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+/**
  * 安全解析 JSON 响应
  */
 async function parseJsonResponse<T>(response: Response, errorPrefix: string): Promise<T> {
@@ -242,7 +312,7 @@ async function parseJsonResponse<T>(response: Response, errorPrefix: string): Pr
 export async function simulate(params: SimulateRequest): Promise<SimulateResponse> {
   const response = await fetch(`${API_BASE}/simulate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify(params),
   });
 
@@ -253,7 +323,9 @@ export async function simulate(params: SimulateRequest): Promise<SimulateRespons
  * 获取概览统计
  */
 export async function getOverviewStats(): Promise<OverviewStats> {
-  const response = await fetch(`${API_BASE}/stats/overview`);
+  const response = await fetch(`${API_BASE}/stats/overview`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<OverviewStats>(response, '获取统计失败');
 }
 
@@ -261,7 +333,9 @@ export async function getOverviewStats(): Promise<OverviewStats> {
  * 获取算法分布
  */
 export async function getAlgorithmDistribution(): Promise<AlgorithmDistribution> {
-  const response = await fetch(`${API_BASE}/stats/algorithm-distribution`);
+  const response = await fetch(`${API_BASE}/stats/algorithm-distribution`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<AlgorithmDistribution>(response, '获取算法分布失败');
 }
 
@@ -269,7 +343,9 @@ export async function getAlgorithmDistribution(): Promise<AlgorithmDistribution>
  * 获取状态分布
  */
 export async function getStateDistribution(): Promise<StateDistribution> {
-  const response = await fetch(`${API_BASE}/stats/state-distribution`);
+  const response = await fetch(`${API_BASE}/stats/state-distribution`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<StateDistribution>(response, '获取状态分布失败');
 }
 
@@ -277,8 +353,27 @@ export async function getStateDistribution(): Promise<StateDistribution> {
  * 获取近期决策
  */
 export async function getRecentDecisions(): Promise<RecentDecision[]> {
-  const response = await fetch(`${API_BASE}/stats/recent-decisions`);
+  const response = await fetch(`${API_BASE}/stats/recent-decisions`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<RecentDecision[]>(response, '获取近期决策失败');
+}
+
+/**
+ * 获取决策详情
+ * @returns DecisionDetail | null (404时返回null)
+ * @throws Error 其他HTTP错误
+ */
+export async function getDecisionDetail(decisionId: string): Promise<DecisionDetail | null> {
+  const response = await fetch(`${API_BASE}/decision/${encodeURIComponent(decisionId)}`, {
+    headers: buildHeaders()
+  });
+
+  // 404表示决策不存在，返回null
+  if (response.status === 404) return null;
+
+  // 其他错误会由parseJsonResponse抛出
+  return parseJsonResponse<DecisionDetail>(response, '获取决策详情失败');
 }
 
 // ==================== Pipeline 可视化 API ====================
@@ -287,7 +382,9 @@ export async function getRecentDecisions(): Promise<RecentDecision[]> {
  * 获取管道实时快照
  */
 export async function getPipelineSnapshot(): Promise<PipelineSnapshot> {
-  const response = await fetch(`${API_BASE}/pipeline/snapshot`);
+  const response = await fetch(`${API_BASE}/pipeline/snapshot`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<PipelineSnapshot>(response, '获取管道快照失败');
 }
 
@@ -295,7 +392,9 @@ export async function getPipelineSnapshot(): Promise<PipelineSnapshot> {
  * 获取数据包处理轨迹
  */
 export async function getPacketTrace(packetId: string): Promise<PacketTrace> {
-  const response = await fetch(`${API_BASE}/pipeline/trace/${encodeURIComponent(packetId)}`);
+  const response = await fetch(`${API_BASE}/pipeline/trace/${encodeURIComponent(packetId)}`, {
+    headers: buildHeaders()
+  });
   return parseJsonResponse<PacketTrace>(response, '获取数据包轨迹失败');
 }
 
@@ -305,7 +404,7 @@ export async function getPacketTrace(packetId: string): Promise<PacketTrace> {
 export async function injectFault(request: FaultInjectionRequest): Promise<FaultInjectionResponse> {
   const response = await fetch(`${API_BASE}/pipeline/inject-fault`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify(request),
   });
   return parseJsonResponse<FaultInjectionResponse>(response, '故障注入失败');
@@ -318,6 +417,7 @@ export default {
   getAlgorithmDistribution,
   getStateDistribution,
   getRecentDecisions,
+  getDecisionDetail,
   getPipelineSnapshot,
   getPacketTrace,
   injectFault,

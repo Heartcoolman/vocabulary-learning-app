@@ -84,6 +84,18 @@ export interface LearningEventInput {
 }
 
 /**
+ * 单词掌握判定结果（从后端返回）
+ */
+export interface WordMasteryDecision {
+  /** 是否已掌握 */
+  isMastered: boolean;
+  /** 判定置信度 [0,1] */
+  confidence: number;
+  /** 建议重复次数 */
+  suggestedRepeats: number;
+}
+
+/**
  * AMAS处理结果
  */
 export interface AmasProcessResult {
@@ -99,6 +111,8 @@ export interface AmasProcessResult {
   suggestion?: string;
   /** 是否建议休息 */
   shouldBreak?: boolean;
+  /** 单词掌握判定（后端计算，用于掌握度学习模式） */
+  wordMasteryDecision?: WordMasteryDecision;
 }
 
 /**

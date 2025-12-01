@@ -87,6 +87,9 @@ export {
   Shuffle,
   Flask,
   ShareNetwork,
+  GitBranch,
+  IdentificationBadge,
+  WarningCircle,
 } from '@phosphor-icons/react';
 
 // 图标别名

@@ -1,14 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { Word } from '../types/models';
 import { Star, Clock, Target, SpeakerHigh } from './Icon';
 
+interface WordCardWord {
+  id: string;
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+  examples: string[];
+}
+
 interface WordCardProps {
-  word: Word;
+  word: WordCardWord;
   onPronounce: () => void;
   isPronouncing: boolean;
-  masteryLevel?: number; // 掌握程度 (0-5级)
-  wordScore?: number; // 单词得分 (0-100)
-  nextReviewDate?: string; // 下次复习时间
+  masteryLevel?: number;
+  wordScore?: number;
+  nextReviewDate?: string;
 }
 
 /**

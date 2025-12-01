@@ -1737,6 +1737,57 @@ class ApiClient {
     }
   }
 
+  // ==================== Mastery Learning API ====================
+
+  /**
+   * 获取掌握模式的学习单词
+   */
+  async getMasteryStudyWords(targetCount?: number): Promise<{
+    words: Array<{
+      id: string;
+      spelling: string;
+      phonetic: string;
+      meanings: string[];
+      examples: string[];
+      audioUrl?: string;
+      isNew: boolean;
+    }>;
+    meta: {
+      mode: string;
+      targetCount: number;
+      fetchCount: number;
+      masteryThreshold: number;
+      maxQuestions: number;
+    };
+  }> {
+    const query = targetCount ? `?targetCount=${targetCount}` : '';
+    return this.request(`/api/learning/study-words${query}`);
+  }
+
+  /**
+   * 创建掌握学习会话
+   */
+  async createMasterySession(targetMasteryCount: number): Promise<{ sessionId: string }> {
+    return this.request('/api/learning/session', {
+      method: 'POST',
+      body: JSON.stringify({ targetMasteryCount }),
+    });
+  }
+
+  /**
+   * 同步学习进度
+   */
+  async syncMasteryProgress(data: {
+    sessionId: string;
+    actualMasteryCount: number;
+    totalQuestions: number;
+  }): Promise<void> {
+    return this.request('/api/learning/sync-progress', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ==================== AMAS API ====================
 
   /**
