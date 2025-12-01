@@ -20,14 +20,22 @@ async function startServer() {
     await prisma.$connect();
     console.log('Database connected successfully');
 
-    // 启动延迟奖励Worker
-    delayedRewardWorkerTask = startDelayedRewardWorker();
-    console.log('Delayed reward worker started');
+    // 仅在主节点或单实例模式下启动cron worker
+    // 多实例部署时，设置 WORKER_LEADER=true 仅在一个实例上启用
+    const shouldRunWorkers = env.WORKER_LEADER || env.NODE_ENV === 'development';
+    
+    if (shouldRunWorkers) {
+      // 启动延迟奖励Worker
+      delayedRewardWorkerTask = startDelayedRewardWorker();
+      console.log('Delayed reward worker started (leader mode)');
 
-    // 启动优化Worker（每天凌晨3点执行）
-    optimizationWorkerTask = startOptimizationWorker();
-    if (optimizationWorkerTask) {
-      console.log('Optimization worker started');
+      // 启动优化Worker（每天凌晨3点执行）
+      optimizationWorkerTask = startOptimizationWorker();
+      if (optimizationWorkerTask) {
+        console.log('Optimization worker started (leader mode)');
+      }
+    } else {
+      console.log('Workers skipped (not leader node, set WORKER_LEADER=true to enable)');
     }
 
     // 启动服务器

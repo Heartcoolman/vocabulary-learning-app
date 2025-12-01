@@ -12,6 +12,11 @@ import { ABExperimentStatus } from '@prisma/client';
 
 const router = Router();
 
+// ==================== 验证常量 ====================
+
+const MAX_FEATURES_LENGTH = 100;
+const MAX_FEATURE_VALUE = 1e6;
+
 // ==================== 因果推断 API ====================
 
 /**
@@ -31,6 +36,25 @@ router.post(
           success: false,
           error: 'features 必须是数组'
         });
+      }
+
+      // 限制 features 数组长度和元素类型，防止恶意超大请求
+      if (features.length > MAX_FEATURES_LENGTH) {
+        return res.status(400).json({
+          success: false,
+          error: `features 数组长度不能超过 ${MAX_FEATURES_LENGTH}`
+        });
+      }
+
+      // 验证每个 feature 元素是有效数字
+      for (let i = 0; i < features.length; i++) {
+        const f = features[i];
+        if (typeof f !== 'number' || !Number.isFinite(f) || Math.abs(f) > MAX_FEATURE_VALUE) {
+          return res.status(400).json({
+            success: false,
+            error: `features[${i}] 必须是有效数字，且绝对值不超过 ${MAX_FEATURE_VALUE}`
+          });
+        }
       }
 
       if (treatment !== 0 && treatment !== 1) {
@@ -75,7 +99,7 @@ router.post(
  * GET /api/evaluation/causal/ate
  * 获取平均处理效应估计
  */
-router.get('/causal/ate', authMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/causal/ate', authMiddleware, adminMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const estimate = await evaluationService.estimateStrategyEffect();
 
@@ -95,6 +119,7 @@ router.get('/causal/ate', authMiddleware, async (req: AuthRequest, res, next) =>
 router.get(
   '/causal/compare',
   authMiddleware,
+  adminMiddleware,
   async (req: AuthRequest, res, next) => {
     try {
       const strategyA = parseInt(req.query.strategyA as string, 10);
@@ -126,6 +151,7 @@ router.get(
 router.get(
   '/causal/diagnostics',
   authMiddleware,
+  adminMiddleware,
   async (req: AuthRequest, res, next) => {
     try {
       const diagnostics = await evaluationService.getCausalDiagnostics();

@@ -162,24 +162,48 @@ export class StudyConfigService {
         const needNewCount = config.dailyWordCount - dueCount;
 
         if (needNewCount > 0) {
-            newWords = await prisma.word.findMany({
-                where: {
-                    wordBookId: { in: accessibleIds },
-                    id: { notIn: learnedWordIds }
-                },
-                orderBy:
-                    config.studyMode === 'random'
-                        ? { createdAt: 'desc' }
-                        : { createdAt: 'asc' },
-                take: needNewCount,
-            });
+            if (config.studyMode === 'random') {
+                // 随机模式：使用 PostgreSQL 原生随机排序
+                newWords = await prisma.$queryRaw<Array<{
+                    id: string;
+                    spelling: string;
+                    phonetic: string;
+                    meanings: string[];
+                    examples: string[];
+                    audioUrl: string | null;
+                    wordBookId: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>>`
+                    SELECT * FROM "Word"
+                    WHERE "wordBookId" = ANY(${accessibleIds})
+                      AND id NOT IN (SELECT unnest(${learnedWordIds}::text[]))
+                    ORDER BY RANDOM()
+                    LIMIT ${needNewCount}
+                `;
+            } else {
+                // 顺序模式：按创建时间排序
+                newWords = await prisma.word.findMany({
+                    where: {
+                        wordBookId: { in: accessibleIds },
+                        id: { notIn: learnedWordIds }
+                    },
+                    orderBy: { createdAt: 'asc' },
+                    take: needNewCount,
+                });
+            }
         }
 
-        // 3. 合并：到期复习词 + 新词
-        const words = [
-            ...dueStates.slice(0, dueCount).map(d => d.word),
-            ...newWords
-        ];
+        // 3. 合并：到期复习词 + 新词，并添加 isNew 标记
+        const dueWords = dueStates.slice(0, dueCount).map(d => ({
+            ...d.word,
+            isNew: false  // 复习词不是新词
+        }));
+        const newWordsWithFlag = newWords.map(w => ({
+            ...w,
+            isNew: true  // 新词
+        }));
+        const words = [...dueWords, ...newWordsWithFlag];
 
         // 计算学习进度
         const today = new Date();

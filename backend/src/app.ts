@@ -28,12 +28,20 @@ import evaluationRoutes from './routes/evaluation.routes';
 import optimizationRoutes from './routes/optimization.routes';
 import aboutRoutes from './routes/about.routes';
 import wordMasteryRoutes from './routes/word-mastery.routes';
+import learningRoutes from './routes/learning.routes';
 
 
 const app = express();
 
-// 反向代理场景下启用真实 IP，保证限流/日志准确
-app.set('trust proxy', 1);
+// 反向代理配置：仅在明确配置且受控反代后面时启用
+// 攻击者可伪造 X-Forwarded-For 绕过限流，因此默认禁用
+if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
+  const proxyValue = env.TRUST_PROXY === 'true' ? 1 : parseInt(env.TRUST_PROXY, 10) || false;
+  if (proxyValue) {
+    app.set('trust proxy', proxyValue);
+    logger.info({ trustProxy: proxyValue }, 'Trust proxy enabled');
+  }
+}
 
 // 请求日志 - 前置以捕获所有请求（包括解析失败的请求）
 // 注入 requestId 并启用结构化日志
@@ -166,6 +174,7 @@ app.use('/api/evaluation', evaluationRoutes);
 app.use('/api/optimization', optimizationRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/word-mastery', wordMasteryRoutes);
+app.use('/api/learning', learningRoutes);
 
 
 // 404处理

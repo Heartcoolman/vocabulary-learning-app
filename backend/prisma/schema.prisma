@@ -77,21 +77,22 @@ model Word {
 }
 
 model AnswerRecord {
-  id                 String           @id @default(uuid())
+  id                 String            @id @default(uuid())
   userId             String
   wordId             String
   selectedAnswer     String
   correctAnswer      String
   isCorrect          Boolean
-  timestamp          DateTime         @default(now())
+  timestamp          DateTime          @default(now())
   dwellTime          Int?
   masteryLevelAfter  Int?
   masteryLevelBefore Int?
   responseTime       Int?
   sessionId          String?
-  session            LearningSession? @relation(fields: [sessionId], references: [id])
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word               Word             @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  session            LearningSession?  @relation(fields: [sessionId], references: [id])
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word               Word              @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  decisionRecords    DecisionRecord[]
 
   @@unique([userId, wordId, timestamp], name: "unique_user_word_timestamp")
   @@index([userId])
@@ -124,6 +125,7 @@ model UserStudyConfig {
   selectedWordBookIds String[]
   dailyWordCount      Int      @default(20)
   studyMode           String   @default("sequential")
+  dailyMasteryTarget  Int      @default(20)  // 每日掌握目标
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -289,16 +291,19 @@ model AmasUserModel {
 }
 
 model LearningSession {
-  id             String          @id @default(uuid())
-  userId         String
-  startedAt      DateTime        @default(now())
-  endedAt        DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  answerRecords  AnswerRecord[]
-  featureVectors FeatureVector[]
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rewardQueues   RewardQueue[]
+  id                 String          @id @default(uuid())
+  userId             String
+  startedAt          DateTime        @default(now())
+  endedAt            DateTime?
+  targetMasteryCount Int?            // 目标掌握数
+  actualMasteryCount Int?            // 实际掌握数
+  totalQuestions     Int?            // 总答题数
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  answerRecords      AnswerRecord[]
+  featureVectors     FeatureVector[]
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardQueues       RewardQueue[]
 
   @@index([userId, startedAt])
   @@map("learning_sessions")
@@ -588,4 +593,90 @@ model WordReviewTrace {
   @@index([userId, wordId])
   @@index([userId, wordId, timestamp])
   @@map("word_review_traces")
+}
+
+// ==================== AMAS决策流水线相关模型 ====================
+
+/// AMAS决策记录主表
+model DecisionRecord {
+  id              String                   @id @default(cuid())
+  decisionId      String                   @unique
+  answerRecordId  String?
+  sessionId       String?
+  timestamp       DateTime                 @default(now())
+
+  decisionSource  String
+  coldstartPhase  String?
+  weightsSnapshot Json?
+  memberVotes     Json?
+  selectedAction  Json
+  confidence      Float                    @default(0)
+  reward          Float?
+
+  isSimulation    Boolean                  @default(false)
+  traceVersion    Int                      @default(1)
+  ingestionStatus DecisionIngestionStatus  @default(PENDING)
+  totalDurationMs Int?
+
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  answerRecord    AnswerRecord?             @relation(fields: [answerRecordId], references: [id], onDelete: Cascade)
+  pipelineStages  PipelineStage[]
+
+  @@index([answerRecordId])
+  @@index([decisionSource])
+  @@index([timestamp])
+  @@index([sessionId])
+  @@index([isSimulation])
+  @@map("decision_records")
+}
+
+/// 决策流水线阶段记�?
+model PipelineStage {
+  id               String              @id @default(cuid())
+  decisionRecordId String
+  stage            PipelineStageType
+  stageName        String
+  status           PipelineStageStatus
+  startedAt        DateTime
+  endedAt          DateTime?
+  durationMs       Int?
+  inputSummary     Json?
+  outputSummary    Json?
+  metadata         Json?
+  errorMessage     String?
+  createdAt        DateTime            @default(now())
+
+  decisionRecord   DecisionRecord      @relation(fields: [decisionRecordId], references: [id], onDelete: Cascade)
+
+  @@index([decisionRecordId, stage])
+  @@index([stage])
+  @@index([status])
+  @@map("pipeline_stages")
+}
+
+/// 决策数据摄入状态
+enum DecisionIngestionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+/// 流水线阶段类型（对应AMAS六层架构）
+enum PipelineStageType {
+  PERCEPTION    // 感知层
+  MODELING      // 建模层
+  LEARNING      // 学习层
+  DECISION      // 决策层
+  EVALUATION    // 评估层
+  OPTIMIZATION  // 优化层
+}
+
+/// 流水线阶段执行状态
+enum PipelineStageStatus {
+  STARTED
+  SUCCESS
+  FAILED
+  SKIPPED
 }

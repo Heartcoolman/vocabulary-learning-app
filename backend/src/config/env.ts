@@ -26,4 +26,8 @@ export const env = {
   JWT_SECRET: JWT_SECRET || 'dev_only_weak_secret_change_in_production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // 反向代理配置：仅在受控反代后面时启用，设为代理层数(如1)或false禁用
+  TRUST_PROXY: process.env.TRUST_PROXY || 'false',
+  // Worker主节点标识：多实例部署时仅主节点运行cron任务
+  WORKER_LEADER: process.env.WORKER_LEADER === 'true',
 };
