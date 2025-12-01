@@ -198,6 +198,10 @@ export interface EngineDependencies {
   heuristic?: HeuristicLearner;
   actrMemory?: ACTRMemoryModel;
   userParamsManager?: UserParamsManager;
+  // 决策记录器（可选，用于持久化决策轨迹）
+  recorder?: any; // 使用 any 避免循环依赖，实际类型为 DecisionRecorderService
+  // Prisma客户端（可选，用于自动创建默认 recorder）
+  prisma?: any; // 使用 any 避免循环依赖，实际类型为 PrismaClient
 }
 
 /**
@@ -212,6 +216,22 @@ export interface ProcessOptions {
   recentAccuracy?: number;
   /** 是否跳过模型更新 */
   skipUpdate?: boolean;
+  /** 答题记录ID (用于关联决策记录) */
+  answerRecordId?: string;
+  /** 学习会话ID */
+  sessionId?: string;
+}
+
+/**
+ * 单词掌握判定结果
+ */
+export interface WordMasteryDecision {
+  /** 是否已掌握 */
+  isMastered: boolean;
+  /** 判定置信度 [0,1] */
+  confidence: number;
+  /** 建议重复次数 */
+  suggestedRepeats: number;
 }
 
 /**
@@ -234,6 +254,8 @@ export interface ProcessResult {
   shouldBreak: boolean;
   /** 特征向量 (用于延迟奖励持久化) */
   featureVector?: PersistableFeatureVector;
+  /** 单词掌握判定 (用于掌握度学习模式) */
+  wordMasteryDecision?: WordMasteryDecision;
 }
 
 // ==================== 工具函数 ====================

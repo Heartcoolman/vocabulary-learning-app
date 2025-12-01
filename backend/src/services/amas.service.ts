@@ -45,9 +45,11 @@ class AMASService {
 
   constructor() {
     // 初始化AMAS引擎（使用数据库持久化仓库）
+    // 传入 prisma 以启用决策轨迹持久化
     this.engine = new AMASEngine({
       stateRepo: databaseStateRepository,
-      modelRepo: databaseModelRepository
+      modelRepo: databaseModelRepository,
+      prisma
     });
 
     // 记录功能开关状态
@@ -285,8 +287,9 @@ class AMASService {
 
     // 存储答题记录（用于统计和历史查询）
     // 必须在获取统计数据前存储，以确保当前事件计入统计
+    let answerRecordId: string | undefined;
     try {
-      await prisma.answerRecord.create({
+      const answerRecord = await prisma.answerRecord.create({
         data: {
           userId,
           wordId: event.wordId,
@@ -299,6 +302,7 @@ class AMASService {
           correctAnswer: ''
         }
       });
+      answerRecordId = answerRecord.id;
     } catch (error) {
       // 如果是唯一约束冲突（重复记录），忽略错误
       if (error instanceof Error && error.message.includes('Unique constraint')) {
@@ -317,7 +321,9 @@ class AMASService {
     const result = await this.engine.processEvent(userId, rawEvent, {
       currentParams: currentStrategy ?? undefined,
       interactionCount: stats.interactionCount,
-      recentAccuracy: stats.recentAccuracy
+      recentAccuracy: stats.recentAccuracy,
+      answerRecordId,
+      sessionId
     });
 
     // 缓存新策略
@@ -393,6 +399,11 @@ class AMASService {
         // 先计算 reviewCount=1 时的初始状态（用于 create 分支）
         const initialWordState = this.mapToWordState(masteryLevel, stability, 1);
 
+        // 根据当前答题结果更新连续正确/错误计数
+        const streakUpdate = event.isCorrect
+          ? { consecutiveCorrect: { increment: 1 }, consecutiveWrong: 0 }
+          : { consecutiveCorrect: 0, consecutiveWrong: { increment: 1 } };
+
         const upsertedState = await tx.wordLearningState.upsert({
           where: {
             unique_user_word: { userId, wordId: event.wordId }
@@ -406,7 +417,9 @@ class AMASService {
             lastReviewDate: new Date(rawEvent.timestamp),
             nextReviewDate,
             currentInterval: intervalDays,
-            easeFactor: 2.5 + (stability - 0.5) * 0.5
+            easeFactor: 2.5 + (stability - 0.5) * 0.5,
+            consecutiveCorrect: event.isCorrect ? 1 : 0,
+            consecutiveWrong: event.isCorrect ? 0 : 1
           },
           update: {
             masteryLevel,
@@ -414,7 +427,8 @@ class AMASService {
             lastReviewDate: new Date(rawEvent.timestamp),
             nextReviewDate,
             currentInterval: intervalDays,
-            easeFactor: 2.5 + (stability - 0.5) * 0.5
+            easeFactor: 2.5 + (stability - 0.5) * 0.5,
+            ...streakUpdate
           }
         });
 
@@ -563,7 +577,127 @@ class AMASService {
         });
     }
 
-    return result;
+    // 计算单词掌握判定（仅用于掌握度学习模式,避免普通模式的性能损失）
+    let wordMasteryDecision: import('../amas/engine/engine-types').WordMasteryDecision | undefined;
+
+    if (sessionId) {
+      // 仅在掌握模式下(有sessionId)才计算,避免不必要的数据库查询
+      wordMasteryDecision = await this.calculateWordMasteryDecision(
+        userId,
+        event.wordId,
+        event.isCorrect,
+        event.responseTime,
+        result.state
+      );
+    }
+
+    // 将掌握判定添加到结果中
+    const enrichedResult = {
+      ...result,
+      wordMasteryDecision
+    };
+
+    return enrichedResult;
+  }
+
+  /**
+   * 计算单词掌握判定
+   * 基于认知状态、答题历史和当前表现综合判断
+   */
+  private async calculateWordMasteryDecision(
+    userId: string,
+    wordId: string,
+    isCorrect: boolean,
+    responseTime: number,
+    state: UserState
+  ): Promise<import('../amas/engine/engine-types').WordMasteryDecision> {
+    try {
+      // 1. 查询单词的历史学习数据
+      const learningState = await prisma.wordLearningState.findUnique({
+        where: {
+          unique_user_word: { userId, wordId }
+        },
+        select: {
+          consecutiveCorrect: true,
+          consecutiveWrong: true,
+          reviewCount: true,
+          masteryLevel: true
+        }
+      });
+
+      // 2. 查询最近的答题记录（用于判断稳定性）
+      const recentRecords = await prisma.answerRecord.findMany({
+        where: { userId, wordId },
+        orderBy: { timestamp: 'desc' },
+        take: 5,
+        select: { isCorrect: true, responseTime: true }
+      });
+
+      // 3. 从AMAS状态提取认知指标
+      const memory = this.clamp01(state.C.mem);          // 记忆能力 [0,1]
+      const stability = this.clamp01(state.C.stability); // 稳定性 [0,1]
+      const speed = this.clamp01(state.C.speed);         // 速度 [0,1]
+
+      // 4. 计算综合掌握度分数
+      let masteryScore = 0;
+      let confidence = 0.5; // 默认置信度
+
+      // 4.1 认知状态得分 (权重40%)
+      const cognitiveScore = (memory * 0.5 + stability * 0.3 + speed * 0.2) * 0.4;
+      masteryScore += cognitiveScore;
+
+      // 4.2 历史表现得分 (权重35%)
+      if (learningState) {
+        const consecutiveScore = Math.min(learningState.consecutiveCorrect / 3, 1) * 0.2; // 连续正确
+        const masteryLevelScore = (learningState.masteryLevel / 5) * 0.15; // 掌握等级
+        masteryScore += (consecutiveScore + masteryLevelScore) * 0.35 / 0.35; // 归一化到35%
+      }
+
+      // 4.3 当前表现得分 (权重25%)
+      const currentPerformanceScore = isCorrect ? 0.25 : 0;
+      const timeBonus = responseTime < 3000 ? 0.05 : 0; // 快速回答加分
+      masteryScore += currentPerformanceScore + timeBonus;
+
+      // 4.4 最近稳定性得分 (计算置信度)
+      if (recentRecords.length >= 3) {
+        const recentCorrectRate = recentRecords.filter(r => r.isCorrect).length / recentRecords.length;
+        const recentAvgTime = recentRecords.reduce((sum, r) => sum + (r.responseTime || 0), 0) / recentRecords.length;
+
+        confidence = recentCorrectRate * 0.7 + (recentAvgTime < 5000 ? 0.3 : 0.1);
+      }
+
+      // 5. 掌握判定逻辑
+      const isMastered = masteryScore >= 0.75 && confidence >= 0.7;
+
+      // 6. 建议重复次数
+      let suggestedRepeats = 2; // 默认2次
+      if (masteryScore < 0.5) {
+        suggestedRepeats = 4; // 掌握度低，建议多练
+      } else if (masteryScore >= 0.75) {
+        suggestedRepeats = 1; // 掌握度高，只需再练1次
+      }
+
+      console.log(
+        `[AMAS] 掌握判定: userId=${userId}, wordId=${wordId}, ` +
+        `score=${masteryScore.toFixed(2)}, confidence=${confidence.toFixed(2)}, ` +
+        `isMastered=${isMastered}, suggestedRepeats=${suggestedRepeats}`
+      );
+
+      return {
+        isMastered,
+        confidence: this.clamp01(confidence),
+        suggestedRepeats
+      };
+    } catch (error) {
+      console.warn(`[AMAS] 掌握判定计算失败: userId=${userId}, wordId=${wordId}`, error);
+
+      // 降级策略：使用简单规则
+      return {
+        isMastered: false,
+        confidence: 0.5,
+        suggestedRepeats: 2
+      };
+    }
   }
 
   /**

@@ -107,6 +107,10 @@ export interface EnsembleState {
   actr: ACTRState;
   /** Heuristic状态 */
   heuristic: HeuristicState;
+  /** 上一次成员投票（用于决策轨迹记录） */
+  lastVotes?: Record<string, unknown>;
+  /** 上一次决策置信度（用于决策轨迹记录） */
+  lastConfidence?: number;
 }
 
 /**
@@ -193,6 +197,12 @@ export class EnsembleLearningFramework
   /** 上一次各成员决策（用于权重更新） */
   private lastDecisions: Partial<Record<EnsembleMember, ActionSelection<Action>>> = {};
 
+  /** 上一次成员投票（用于轨迹记录） */
+  private lastVotes: Record<string, unknown> | undefined;
+
+  /** 上一次决策置信度（用于轨迹记录） */
+  private lastConfidence: number | undefined;
+
   // ==================== BaseLearner接口实现 ====================
 
   /**
@@ -217,6 +227,8 @@ export class EnsembleLearningFramework
     if (ctx.phase !== 'normal') {
       const cold = this.coldStart.selectAction(state, actions, ctx.base);
       this.lastDecisions = {};
+      this.lastVotes = undefined;
+      this.lastConfidence = cold.confidence;
 
       return {
         ...cold,
@@ -234,6 +246,8 @@ export class EnsembleLearningFramework
     const aggregation = this.aggregateDecisions(decisions, actions);
 
     this.lastDecisions = decisions;
+    this.lastVotes = this.serializeVotes(aggregation.votes);
+    this.lastConfidence = aggregation.aggregatedConfidence;
 
     return {
       action: aggregation.winner,
@@ -243,7 +257,7 @@ export class EnsembleLearningFramework
         ensemblePhase: ctx.phase,
         weights: { ...this.weights },
         decisionSource: 'ensemble',
-        memberVotes: this.serializeVotes(aggregation.votes)
+        memberVotes: this.lastVotes
       }
     };
   }
@@ -299,7 +313,9 @@ export class EnsembleLearningFramework
       linucb: this.cloneBanditModel(this.linucb.getModel()),
       thompson: this.thompson.getState(),
       actr: this.actr.getState(),
-      heuristic: this.heuristic.getState()
+      heuristic: this.heuristic.getState(),
+      lastVotes: this.lastVotes,
+      lastConfidence: this.lastConfidence
     };
   }
 
@@ -340,6 +356,10 @@ export class EnsembleLearningFramework
       this.heuristic.setState(state.heuristic);
     }
 
+    // 恢复轨迹记录字段
+    this.lastVotes = state.lastVotes;
+    this.lastConfidence = state.lastConfidence;
+
     // 清空临时状态
     this.lastDecisions = {};
   }
@@ -351,6 +371,8 @@ export class EnsembleLearningFramework
     this.weights = { ...INITIAL_WEIGHTS };
     this.updateCount = 0;
     this.lastDecisions = {};
+    this.lastVotes = undefined;
+    this.lastConfidence = undefined;
 
     this.coldStart.reset();
     this.linucb.reset();

@@ -58,6 +58,8 @@ import { ResilienceManager } from './engine-resilience';
 import { IsolationManager } from './engine-isolation';
 import { ModelingManager } from './engine-modeling';
 import { LearningManager } from './engine-learning';
+import { DecisionRecorderService, createDecisionRecorder } from '../services/decision-recorder.service';
+import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 
 /**
  * AMAS 核心引擎
@@ -69,6 +71,7 @@ export class AMASEngine {
   private stateRepo: StateRepository;
   private modelRepo: ModelRepository;
   private logger?: Logger;
+  private recorder?: DecisionRecorderService;
 
   // 子管理器
   private resilience: ResilienceManager;
@@ -138,6 +141,13 @@ export class AMASEngine {
     this.stateRepo = deps.stateRepo ?? new MemoryStateRepository();
     this.modelRepo = deps.modelRepo ?? new MemoryModelRepository();
     this.logger = deps.logger;
+
+    // 自动创建默认 recorder（如果提供了 prisma 但未提供 recorder）
+    if (!deps.recorder && deps.prisma) {
+      this.recorder = createDecisionRecorder(deps.prisma);
+    } else {
+      this.recorder = deps.recorder;
+    }
 
     // 初始化子管理器
     this.resilience = new ResilienceManager(this.logger);
@@ -209,6 +219,16 @@ export class AMASEngine {
   ): Promise<ProcessResult> {
     const startTime = Date.now();
 
+    // 阶段计时（用于Pipeline记录）
+    const stageTiming = {
+      perception: { start: 0, end: 0 },
+      modeling: { start: 0, end: 0 },
+      learning: { start: 0, end: 0 },
+      decision: { start: 0, end: 0 },
+      evaluation: { start: 0, end: 0 },
+      optimization: { start: 0, end: 0 }
+    };
+
     // 获取用户专属模型实例
     const models = this.isolation.getUserModels(userId);
 
@@ -227,16 +247,20 @@ export class AMASEngine {
       throw new Error('Operation cancelled');
     }
 
-    // 3. 特征提取
+    // 3. 特征提取（感知层）
+    stageTiming.perception.start = Date.now();
     const featureVec = this.featureBuilder.buildFeatureVector(rawEvent, userId);
+    stageTiming.perception.end = Date.now();
 
     // 4. 获取上下文信息
     const interactionCount = this.isolation.getInteractionCount(userId, opts.interactionCount);
     const recentAccuracy = opts.recentAccuracy ?? 0.5;
     const recentErrorRate = 1 - recentAccuracy;
 
-    // 5. 状态更新
+    // 5. 状态更新（建模层）
+    stageTiming.modeling.start = Date.now();
     const state = this.modeling.updateUserState(prevState, featureVec, rawEvent, recentErrorRate, models);
+    stageTiming.modeling.end = Date.now();
 
     // 6. 构建决策上下文
     const context = {
@@ -259,7 +283,8 @@ export class AMASEngine {
       inColdStartPhase
     );
 
-    // 7. 动作选择
+    // 7. 动作选择（学习层）
+    stageTiming.learning.start = Date.now();
     const { action, contextVec } = this.learning.selectAction(
       state,
       models,
@@ -268,25 +293,31 @@ export class AMASEngine {
       interactionCount,
       recentAccuracy
     );
+    stageTiming.learning.end = Date.now();
 
-    // 8. 策略映射和安全约束
+    // 8. 策略映射和安全约束（决策层）
+    stageTiming.decision.start = Date.now();
     const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
     const mappedParams = mapActionToStrategy(action, currentParams);
     const finalStrategy = applyGuardrails(state, mappedParams);
+    stageTiming.decision.end = Date.now();
 
     // 9. 生成解释
     const explanation = generateExplanation(state, currentParams, finalStrategy);
     const suggestion = generateSuggestion(state);
 
-    // 10. 计算奖励
+    // 10. 计算奖励（评估层）
+    stageTiming.evaluation.start = Date.now();
     const reward = this.learning.computeReward(rawEvent, state);
+    stageTiming.evaluation.end = Date.now();
 
     // 检查取消/超时状态
     if (signal?.aborted || timedOut?.value) {
       throw new Error('Operation cancelled');
     }
 
-    // 11. 更新模型
+    // 11. 更新模型（优化层）
+    stageTiming.optimization.start = Date.now();
     if (!opts.skipUpdate) {
       this.learning.updateModels(
         models,
@@ -301,6 +332,7 @@ export class AMASEngine {
       );
       this.isolation.incrementInteractionCount(userId);
     }
+    stageTiming.optimization.end = Date.now();
 
     // 检查取消/超时状态
     if (signal?.aborted || timedOut?.value) {
@@ -325,6 +357,26 @@ export class AMASEngine {
     const elapsed = Date.now() - startTime;
     if (elapsed > 100) {
       this.logger?.warn('Decision exceeded 100ms', { userId, elapsed });
+    }
+
+    // 14. 记录决策轨迹（异步，不阻塞）
+    if (this.recorder && opts.answerRecordId) {
+      void this.recordDecisionTrace({
+        answerRecordId: opts.answerRecordId,
+        sessionId: opts.sessionId,
+        timestamp: new Date(rawEvent.timestamp),
+        decisionSource: this.getDecisionSource(models, coldStartPhase),
+        coldstartPhase: coldStartPhase !== 'normal' ? coldStartPhase : undefined,
+        weightsSnapshot: this.extractWeights(models),
+        memberVotes: this.extractVotes(models),
+        selectedAction: action,
+        confidence: this.getConfidence(models),
+        reward,
+        totalDurationMs: elapsed,
+        stageTiming
+      }).catch(err => {
+        this.logger?.error('Failed to record decision trace', { userId, error: err });
+      });
     }
 
     // 构建可序列化的特征向量
@@ -501,5 +553,154 @@ export class AMASEngine {
       ts,
       labels: [...FEATURE_LABELS]
     };
+  }
+
+  /**
+   * 记录决策轨迹到数据库（异步）
+   */
+  private async recordDecisionTrace(params: {
+    answerRecordId: string;
+    sessionId?: string;
+    timestamp: Date;
+    decisionSource: string;
+    coldstartPhase?: string;
+    weightsSnapshot?: Record<string, number>;
+    memberVotes?: Record<string, unknown>;
+    selectedAction: any;
+    confidence: number;
+    reward: number;
+    totalDurationMs: number;
+    stageTiming: any;
+  }): Promise<void> {
+    if (!this.recorder) return;
+
+    const { generateDecisionId } = await import('../services/decision-recorder.service');
+    const decisionId = generateDecisionId();
+
+    await this.recorder.record({
+      decisionId,
+      answerRecordId: params.answerRecordId,
+      sessionId: params.sessionId,
+      timestamp: params.timestamp,
+      decisionSource: params.decisionSource,
+      coldstartPhase: params.coldstartPhase,
+      weightsSnapshot: params.weightsSnapshot,
+      memberVotes: params.memberVotes,
+      selectedAction: params.selectedAction,
+      confidence: params.confidence,
+      reward: params.reward,
+      traceVersion: 1,
+      totalDurationMs: params.totalDurationMs,
+      stages: this.buildPipelineStages(params.stageTiming)
+    });
+  }
+
+  /**
+   * 构建流水线阶段记录
+   */
+  private buildPipelineStages(stageTiming: any) {
+    const stages: Array<{
+      stage: PipelineStageType;
+      stageName: string;
+      status: PipelineStageStatus;
+      startedAt: Date;
+      endedAt?: Date;
+      durationMs?: number;
+    }> = [];
+
+    const stageMap: Array<{
+      key: string;
+      type: PipelineStageType;
+      name: string;
+    }> = [
+      { key: 'perception', type: 'PERCEPTION' as PipelineStageType, name: '感知层' },
+      { key: 'modeling', type: 'MODELING' as PipelineStageType, name: '建模层' },
+      { key: 'learning', type: 'LEARNING' as PipelineStageType, name: '学习层' },
+      { key: 'decision', type: 'DECISION' as PipelineStageType, name: '决策层' },
+      { key: 'evaluation', type: 'EVALUATION' as PipelineStageType, name: '评估层' },
+      { key: 'optimization', type: 'OPTIMIZATION' as PipelineStageType, name: '优化层' }
+    ];
+
+    for (const { key, type, name } of stageMap) {
+      const timing = stageTiming[key];
+      if (timing && timing.start && timing.end) {
+        stages.push({
+          stage: type,
+          stageName: name,
+          status: 'SUCCESS' as PipelineStageStatus,
+          startedAt: new Date(timing.start),
+          endedAt: new Date(timing.end),
+          durationMs: timing.end - timing.start
+        });
+      }
+    }
+
+    return stages;
+  }
+
+  /**
+   * 获取决策来源
+   */
+  private getDecisionSource(models: UserModels, coldStartPhase: ColdStartPhase): string {
+    if (coldStartPhase !== 'normal') {
+      return 'coldstart';
+    }
+    if (models.bandit instanceof EnsembleLearningFramework) {
+      return 'ensemble';
+    }
+    return 'linucb';
+  }
+
+  /**
+   * 提取集成权重
+   */
+  private extractWeights(models: UserModels): Record<string, number> | undefined {
+    if (!(models.bandit instanceof EnsembleLearningFramework)) {
+      return undefined;
+    }
+
+    try {
+      const state = models.bandit.getState();
+      if (!state.weights) return undefined;
+      // 转换 EnsembleWeights 为 Record<string, number>
+      const weights: Record<string, number> = {};
+      for (const [key, value] of Object.entries(state.weights)) {
+        weights[key] = value;
+      }
+      return weights;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * 提取成员投票
+   */
+  private extractVotes(models: UserModels): Record<string, unknown> | undefined {
+    if (!(models.bandit instanceof EnsembleLearningFramework)) {
+      return undefined;
+    }
+
+    try {
+      const state = models.bandit.getState();
+      return state.lastVotes || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * 获取决策置信度
+   */
+  private getConfidence(models: UserModels): number {
+    if (models.bandit instanceof EnsembleLearningFramework) {
+      try {
+        const state = models.bandit.getState();
+        return state.lastConfidence ?? 0.5;
+      } catch {
+        return 0.5;
+      }
+    }
+    return 0.5;
   }
 }
