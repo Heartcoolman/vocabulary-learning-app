@@ -184,7 +184,9 @@ async function main() {
   for (const wordData of dailyWords) {
     await prisma.word.create({
       data: {
-        wordBookId: dailyWordBook.id,
+        wordBook: {
+          connect: { id: dailyWordBook.id },
+        },
         ...wordData,
       },
     });
@@ -515,7 +517,9 @@ async function main() {
   for (const wordData of primaryWords) {
     await prisma.word.create({
       data: {
-        wordBookId: primaryWordBook.id,
+        wordBook: {
+          connect: { id: primaryWordBook.id },
+        },
         ...wordData,
       },
     });
@@ -564,7 +568,9 @@ async function main() {
   for (const wordData of userWords) {
     await prisma.word.create({
       data: {
-        wordBookId: userWordBook.id,
+        wordBook: {
+          connect: { id: userWordBook.id },
+        },
         ...wordData,
       },
     });

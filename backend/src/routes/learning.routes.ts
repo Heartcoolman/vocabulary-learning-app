@@ -44,12 +44,69 @@ router.get('/study-words', async (req: AuthRequest, res: Response) => {
       targetCount
     );
 
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (error) {
     console.error('[Learning Routes] 获取学习单词失败:', error);
     res.status(500).json({
-      error: '获取学习单词失败',
-      message: error instanceof Error ? error.message : '未知错误'
+      success: false,
+      error: error instanceof Error ? error.message : '获取学习单词失败'
+    });
+  }
+});
+
+/**
+ * POST /api/learning/next-words
+ * 动态获取下一批学习单词（AMAS驱动的按需加载）
+ *
+ * Body:
+ * {
+ *   currentWordIds: string[];   // 当前队列中的单词ID
+ *   masteredWordIds: string[];  // 已掌握的单词ID
+ *   sessionId: string;          // 会话ID
+ *   count?: number;             // 需要的数量，默认3
+ * }
+ */
+router.post('/next-words', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: '未授权' });
+    }
+
+    const { currentWordIds, masteredWordIds, sessionId, count } = req.body;
+
+    // 参数校验
+    if (!sessionId || typeof sessionId !== 'string') {
+      return res.status(400).json({ success: false, error: 'sessionId 必填且必须是字符串' });
+    }
+
+    if (!Array.isArray(currentWordIds) || !Array.isArray(masteredWordIds)) {
+      return res.status(400).json({
+        success: false,
+        error: 'currentWordIds 和 masteredWordIds 必须是数组'
+      });
+    }
+
+    if (count !== undefined && (!Number.isInteger(count) || count <= 0 || count > 20)) {
+      return res.status(400).json({
+        success: false,
+        error: 'count 必须是1-20之间的正整数'
+      });
+    }
+
+    const result = await masteryLearningService.getNextWords(userId, {
+      currentWordIds,
+      masteredWordIds,
+      sessionId,
+      count
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Learning Routes] 动态获取单词失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取下一批单词失败'
     });
   }
 });
@@ -102,12 +159,12 @@ router.post('/sync-progress', async (req: AuthRequest, res: Response) => {
       totalQuestions
     });
 
-    res.json({ success: true });
+    res.json({ success: true, data: { synced: true } });
   } catch (error) {
     console.error('[Learning Routes] 同步进度失败:', error);
     res.status(500).json({
-      error: '同步进度失败',
-      message: error instanceof Error ? error.message : '未知错误'
+      success: false,
+      error: error instanceof Error ? error.message : '同步进度失败'
     });
   }
 });
@@ -145,12 +202,12 @@ router.post('/session', async (req: AuthRequest, res: Response) => {
       sessionId
     );
 
-    res.json({ sessionId: newSessionId });
+    res.json({ success: true, data: { sessionId: newSessionId } });
   } catch (error) {
     console.error('[Learning Routes] 创建会话失败:', error);
     res.status(500).json({
-      error: '创建会话失败',
-      message: error instanceof Error ? error.message : '未知错误'
+      success: false,
+      error: error instanceof Error ? error.message : '创建会话失败'
     });
   }
 });
@@ -170,12 +227,113 @@ router.get('/session/:sessionId', async (req: AuthRequest, res: Response) => {
 
     const progress = await masteryLearningService.getSessionProgress(sessionId, userId);
 
-    res.json(progress);
+    res.json({ success: true, data: progress });
   } catch (error) {
     console.error('[Learning Routes] 获取会话进度失败:', error);
     res.status(500).json({
-      error: '获取会话进度失败',
-      message: error instanceof Error ? error.message : '未知错误'
+      success: false,
+      error: error instanceof Error ? error.message : '获取会话进度失败'
+    });
+  }
+});
+
+/**
+ * POST /api/learning/adjust-words
+ * 动态调整学习队列
+ *
+ * Body:
+ * {
+ *   sessionId: string;
+ *   currentWordIds: string[];
+ *   masteredWordIds: string[];
+ *   userState?: { fatigue: number; attention: number; motivation: number };
+ *   recentPerformance: { accuracy: number; avgResponseTime: number; consecutiveWrong: number };
+ *   adjustReason: 'fatigue' | 'struggling' | 'excelling' | 'periodic';
+ * }
+ */
+router.post('/adjust-words', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: '未授权' });
+    }
+
+    const {
+      sessionId,
+      currentWordIds,
+      masteredWordIds,
+      userState,
+      recentPerformance,
+      adjustReason
+    } = req.body;
+
+    // 参数校验
+    if (!sessionId || typeof sessionId !== 'string') {
+      return res.status(400).json({ error: 'sessionId 必填且为字符串' });
+    }
+
+    if (!Array.isArray(currentWordIds)) {
+      return res.status(400).json({ error: 'currentWordIds 必须是数组' });
+    }
+
+    if (!Array.isArray(masteredWordIds)) {
+      return res.status(400).json({ error: 'masteredWordIds 必须是数组' });
+    }
+
+    if (!recentPerformance || typeof recentPerformance !== 'object') {
+      return res.status(400).json({ error: 'recentPerformance 必填' });
+    }
+
+    const validReasons = ['fatigue', 'struggling', 'excelling', 'periodic'];
+    if (!validReasons.includes(adjustReason)) {
+      return res.status(400).json({ error: `adjustReason 必须是 ${validReasons.join('/')}` });
+    }
+
+    // 校验 recentPerformance 字段
+    const { accuracy, avgResponseTime, consecutiveWrong } = recentPerformance;
+    if (typeof accuracy !== 'number' || accuracy < 0 || accuracy > 1) {
+      return res.status(400).json({ error: 'accuracy 必须是 0-1 之间的数值' });
+    }
+    if (typeof avgResponseTime !== 'number' || avgResponseTime < 0) {
+      return res.status(400).json({ error: 'avgResponseTime 必须是非负数' });
+    }
+    if (typeof consecutiveWrong !== 'number' || consecutiveWrong < 0) {
+      return res.status(400).json({ error: 'consecutiveWrong 必须是非负整数' });
+    }
+
+    // 校验可选的 userState
+    if (userState !== undefined) {
+      if (typeof userState !== 'object') {
+        return res.status(400).json({ error: 'userState 格式错误' });
+      }
+      const { fatigue, attention, motivation } = userState;
+      if (fatigue !== undefined && (typeof fatigue !== 'number' || fatigue < 0 || fatigue > 1)) {
+        return res.status(400).json({ error: 'fatigue 必须是 0-1 之间的数值' });
+      }
+      if (attention !== undefined && (typeof attention !== 'number' || attention < 0 || attention > 1)) {
+        return res.status(400).json({ error: 'attention 必须是 0-1 之间的数值' });
+      }
+      if (motivation !== undefined && (typeof motivation !== 'number' || motivation < -1 || motivation > 1)) {
+        return res.status(400).json({ error: 'motivation 必须是 -1 到 1 之间的数值' });
+      }
+    }
+
+    const result = await masteryLearningService.adjustWordsForUser({
+      userId,
+      sessionId,
+      currentWordIds,
+      masteredWordIds,
+      userState,
+      recentPerformance,
+      adjustReason
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Learning Routes] 调整队列失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '调整队列失败'
     });
   }
 });

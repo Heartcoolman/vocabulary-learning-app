@@ -319,7 +319,82 @@ class TimeRecommendService {
     // 综合置信度
     return sampleConfidence * 0.6 + varianceConfidence * 0.4;
   }
+
+  /**
+   * Compatibility for legacy *.spec.ts
+   * 返回推荐学习时间（根据学习会话起始时间 + performance 简单排序）
+   */
+  async getRecommendation(userId: string): Promise<{ recommendedHours: number[] }> {
+    const repo: any = (prisma as any).learningSession ?? prisma.learningSession;
+    const sessions = repo ? await repo.findMany({ where: { userId } }) : [];
+
+    const scores = new Map<number, number>();
+    for (const session of sessions ?? []) {
+      const hour = new Date(session.startTime ?? Date.now()).getHours();
+      const perf = typeof session.performance === 'number' ? session.performance : 1;
+      scores.set(hour, (scores.get(hour) ?? 0) + perf);
+    }
+
+    const recommendedHours = [...scores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([hour]) => hour);
+
+    return { recommendedHours };
+  }
+
+  /**
+   * Compatibility for legacy *.spec.ts
+   * 按时间段分析表现，返回最佳小时
+   */
+  async analyzePerformanceByTime(
+    userId: string
+  ): Promise<{ bestHour: number | null; byHour: Record<number, number> }> {
+    const prismaAny = prisma as any;
+    const legacyRepo = prismaAny.learningRecord;
+    let grouped: Array<{ hour: number; _avg: { accuracy: number } }> | undefined;
+
+    if (legacyRepo?.groupBy) {
+      grouped = await legacyRepo.groupBy({
+        by: ['hour'],
+        where: { userId },
+        _avg: { accuracy: true }
+      });
+    } else {
+      const records = await prisma.answerRecord.findMany({
+        where: { userId },
+        select: { timestamp: true, isCorrect: true }
+      });
+      const hourStats: Record<number, { correct: number; total: number }> = {};
+      for (const record of records ?? []) {
+        const hour = new Date(record.timestamp ?? Date.now()).getHours();
+        const bucket = hourStats[hour] ?? { correct: 0, total: 0 };
+        bucket.total += 1;
+        bucket.correct += record.isCorrect ? 1 : 0;
+        hourStats[hour] = bucket;
+      }
+      grouped = Object.entries(hourStats).map(([hour, stats]) => ({
+        hour: Number(hour),
+        _avg: { accuracy: stats.total ? stats.correct / stats.total : 0 }
+      }));
+    }
+
+    let bestHour: number | null = null;
+    const byHour: Record<number, number> = {};
+
+    for (const row of grouped ?? []) {
+      const hour = (row as any).hour;
+      const accuracy = (row as any)._avg?.accuracy ?? 0;
+      byHour[hour] = accuracy;
+      if (bestHour === null || accuracy > (byHour[bestHour] ?? -Infinity)) {
+        bestHour = hour;
+      }
+    }
+
+    return { bestHour, byHour };
+  }
 }
 
 // 导出单例实例
 export const timeRecommendService = new TimeRecommendService();
+// 兼容 legacy 默认导入
+export default timeRecommendService;

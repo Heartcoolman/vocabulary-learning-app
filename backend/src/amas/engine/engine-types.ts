@@ -31,9 +31,9 @@ export type { Action } from '../types';
 // ==================== 决策模型类型 ====================
 
 /**
- * 决策模型类型 - 支持 LinUCB 或 Ensemble
+ * 决策模型类型 - 支持 LinUCB、Thompson Sampling 或 Ensemble
  */
-export type DecisionModel = LinUCB | EnsembleLearningFramework;
+export type DecisionModel = LinUCB | EnsembleLearningFramework | import('../learning/thompson-sampling').ThompsonSampling;
 
 // ==================== Thompson 探索钩子 ====================
 
@@ -162,6 +162,15 @@ export class MemoryStateRepository implements StateRepository {
   async saveState(userId: string, state: UserState): Promise<void> {
     this.store.set(userId, state);
   }
+
+  // 兼容旧版别名
+  async get(userId: string): Promise<UserState | null> {
+    return this.loadState(userId);
+  }
+
+  async save(userId: string, state: UserState): Promise<void> {
+    return this.saveState(userId, state);
+  }
 }
 
 export class MemoryModelRepository implements ModelRepository {
@@ -173,6 +182,15 @@ export class MemoryModelRepository implements ModelRepository {
 
   async saveModel(userId: string, model: BanditModel): Promise<void> {
     this.store.set(userId, model);
+  }
+
+  // 兼容旧版别名
+  async get(userId: string): Promise<BanditModel | null> {
+    return this.loadModel(userId);
+  }
+
+  async save(userId: string, model: BanditModel): Promise<void> {
+    return this.saveModel(userId, model);
   }
 }
 
@@ -244,6 +262,8 @@ export interface ProcessResult {
   action: Action;
   /** 决策解释 */
   explanation: string;
+  /** 增强的决策解释（包含详细因素分析） */
+  enhancedExplanation?: import('../decision/explain').EnhancedExplanation;
   /** 用户状态 */
   state: UserState;
   /** 奖励值 */

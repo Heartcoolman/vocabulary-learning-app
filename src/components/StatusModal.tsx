@@ -1,4 +1,6 @@
+import { motion } from 'framer-motion';
 import { X, ChartPie } from './Icon';
+import { fadeInVariants, scaleInVariants } from '../utils/animations';
 import AmasStatus from './AmasStatus';
 
 interface StatusModalProps {
@@ -11,8 +13,20 @@ export default function StatusModal({ isOpen, onClose, refreshTrigger = 0 }: Sta
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-g3-fade-in">
-            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden animate-g3-scale-in">
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={fadeInVariants}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+        >
+            <motion.div
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={scaleInVariants}
+                className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden"
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-2 text-blue-600">
@@ -37,12 +51,12 @@ export default function StatusModal({ isOpen, onClose, refreshTrigger = 0 }: Sta
                 <div className="px-6 py-4 bg-gray-50 flex justify-end">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                        className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
                     >
                         关闭
                     </button>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }

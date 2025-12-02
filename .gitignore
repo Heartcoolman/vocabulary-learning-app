@@ -25,6 +25,9 @@ dist-ssr
 .env.test
 .env.production
 .env.development
+.env.docker
+.env.remote
+backend/.env.remote
 
 # Editor directories and files
 .vscode/*

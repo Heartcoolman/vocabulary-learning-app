@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Upload } from 'lucide-react';
 import apiClient from '../../services/ApiClient';
 import { Books, CircleNotch } from '../../components/Icon';
+import { BatchImportModal } from '../../components';
 import { WordBook } from '../../types/models';
 
 export default function AdminWordBooks() {
@@ -13,6 +15,11 @@ export default function AdminWordBooks() {
     const [newBook, setNewBook] = useState({
         name: '',
         description: '',
+    });
+    const [importModal, setImportModal] = useState<{ isOpen: boolean; wordBookId: string; wordBookName: string }>({
+        isOpen: false,
+        wordBookId: '',
+        wordBookName: '',
     });
 
     useEffect(() => {
@@ -132,6 +139,14 @@ export default function AdminWordBooks() {
                                     查看详情
                                 </button>
                                 <button
+                                    onClick={() => setImportModal({ isOpen: true, wordBookId: book.id, wordBookName: book.name })}
+                                    className="px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1"
+                                    title="批量导入单词"
+                                >
+                                    <Upload size={16} />
+                                    导入
+                                </button>
+                                <button
                                     onClick={() => handleDeleteBook(book.id, book.name)}
                                     className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95"
                                 >
@@ -199,6 +214,15 @@ export default function AdminWordBooks() {
                     </div>
                 </div>
             )}
+
+            <BatchImportModal
+                isOpen={importModal.isOpen}
+                onClose={() => setImportModal({ isOpen: false, wordBookId: '', wordBookName: '' })}
+                wordBookId={importModal.wordBookId}
+                onImportSuccess={() => {
+                    loadWordBooks();
+                }}
+            />
         </div>
     );
 }

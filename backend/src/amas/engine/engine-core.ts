@@ -24,9 +24,9 @@ import { HeuristicLearner } from '../learning/heuristic';
 import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
 import { getFeatureFlags, isColdStartEnabled } from '../config/feature-flags';
-import { mapActionToStrategy } from '../decision/mapper';
+import { mapActionToStrategy, mapStrategyToAction } from '../decision/mapper';
 import { applyGuardrails, shouldSuggestBreak } from '../decision/guardrails';
-import { generateExplanation, generateSuggestion } from '../decision/explain';
+import { generateExplanation, generateSuggestion, generateEnhancedExplanation } from '../decision/explain';
 import {
   ACTION_SPACE,
   DEFAULT_STRATEGY,
@@ -34,12 +34,20 @@ import {
   FEATURE_VERSION,
   DEFAULT_DIMENSION
 } from '../config/action-space';
+import { getRewardProfile } from '../config/reward-profiles';
+import { algorithmRouter } from './algorithm-router';
 import { telemetry } from '../common/telemetry';
+import prisma from '../../config/database';
 import {
   ColdStartPhase,
   PersistableFeatureVector,
   RawEvent
 } from '../types';
+import {
+  recordActionSelection,
+  recordDecisionConfidence,
+  recordInferenceLatencyMs
+} from '../../monitoring/amas-metrics';
 
 import {
   DecisionModel,
@@ -58,7 +66,7 @@ import { ResilienceManager } from './engine-resilience';
 import { IsolationManager } from './engine-isolation';
 import { ModelingManager } from './engine-modeling';
 import { LearningManager } from './engine-learning';
-import { DecisionRecorderService, createDecisionRecorder } from '../services/decision-recorder.service';
+import { DecisionRecorderService, getSharedDecisionRecorder } from '../services/decision-recorder.service';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 
 /**
@@ -142,9 +150,9 @@ export class AMASEngine {
     this.modelRepo = deps.modelRepo ?? new MemoryModelRepository();
     this.logger = deps.logger;
 
-    // 自动创建默认 recorder（如果提供了 prisma 但未提供 recorder）
+    // Optimization #3: 使用共享的 recorder 实例，确保 shutdown 时 flush 正确的队列
     if (!deps.recorder && deps.prisma) {
-      this.recorder = createDecisionRecorder(deps.prisma);
+      this.recorder = getSharedDecisionRecorder(deps.prisma);
     } else {
       this.recorder = deps.recorder;
     }
@@ -242,6 +250,13 @@ export class AMASEngine {
     const prevState = await this.loadOrCreateState(userId);
     await this.loadModelIfExists(userId, models.bandit);
 
+    // 2.5. 加载用户奖励配置
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { rewardProfile: true }
+    });
+    const rewardProfile = getRewardProfile((user as any)?.rewardProfile);
+
     // 检查取消/超时状态
     if (signal?.aborted || timedOut?.value) {
       throw new Error('Operation cancelled');
@@ -285,7 +300,7 @@ export class AMASEngine {
 
     // 7. 动作选择（学习层）
     stageTiming.learning.start = Date.now();
-    const { action, contextVec } = this.learning.selectAction(
+    const { action, contextVec, confidence } = this.learning.selectAction(
       state,
       models,
       context,
@@ -295,20 +310,56 @@ export class AMASEngine {
     );
     stageTiming.learning.end = Date.now();
 
+    const inferenceLatencyMs = stageTiming.learning.end - stageTiming.learning.start;
+    recordInferenceLatencyMs(inferenceLatencyMs);
+    if (confidence !== undefined && Number.isFinite(confidence)) {
+      recordDecisionConfidence(confidence);
+    }
+
     // 8. 策略映射和安全约束（决策层）
     stageTiming.decision.start = Date.now();
     const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
     const mappedParams = mapActionToStrategy(action, currentParams);
     const finalStrategy = applyGuardrails(state, mappedParams);
+
+    // Critical Fix #3: 重建action以匹配guardrail后的策略
+    // 确保用户体验、模型训练、决策记录使用一致的action
+    const alignedAction = mapStrategyToAction(finalStrategy, action);
+
+    // Optimization #1: 在alignedAction后重建contextVector，确保持久化的特征向量与alignedAction匹配
+    const alignedContextVec = this.learning.buildContextVector(models, state, alignedAction, context);
+    const finalContextVec = alignedContextVec ?? contextVec;
+
     stageTiming.decision.end = Date.now();
+
+    recordActionSelection({
+      difficulty: alignedAction.difficulty,
+      batch_size: alignedAction.batch_size,
+      hint_level: alignedAction.hint_level,
+      interval_scale: alignedAction.interval_scale,
+      new_ratio: alignedAction.new_ratio
+    });
 
     // 9. 生成解释
     const explanation = generateExplanation(state, currentParams, finalStrategy);
     const suggestion = generateSuggestion(state);
 
+    // 9.5. 生成增强解释（包含详细因素分析）
+    const decisionSource = this.getDecisionSource(models, coldStartPhase);
+    const enhancedExplanation = generateEnhancedExplanation(
+      state,
+      currentParams,
+      finalStrategy,
+      {
+        algorithm: decisionSource,
+        confidence: confidence || 0.5,
+        phase: coldStartPhase !== 'normal' ? coldStartPhase : undefined
+      }
+    );
+
     // 10. 计算奖励（评估层）
     stageTiming.evaluation.start = Date.now();
-    const reward = this.learning.computeReward(rawEvent, state);
+    const reward = this.learning.computeReward(rawEvent, state, rewardProfile);
     stageTiming.evaluation.end = Date.now();
 
     // 检查取消/超时状态
@@ -317,13 +368,14 @@ export class AMASEngine {
     }
 
     // 11. 更新模型（优化层）
+    // Critical Fix #3: 使用alignedAction而非原始action，确保训练一致性
     stageTiming.optimization.start = Date.now();
     if (!opts.skipUpdate) {
       this.learning.updateModels(
         models,
         state,
         prevState,
-        action,
+        alignedAction,
         reward,
         context,
         coldStartPhase,
@@ -360,6 +412,7 @@ export class AMASEngine {
     }
 
     // 14. 记录决策轨迹（异步，不阻塞）
+    // Critical Fix #3: 使用alignedAction确保记录与实际执行一致
     if (this.recorder && opts.answerRecordId) {
       void this.recordDecisionTrace({
         answerRecordId: opts.answerRecordId,
@@ -369,7 +422,7 @@ export class AMASEngine {
         coldstartPhase: coldStartPhase !== 'normal' ? coldStartPhase : undefined,
         weightsSnapshot: this.extractWeights(models),
         memberVotes: this.extractVotes(models),
-        selectedAction: action,
+        selectedAction: alignedAction,
         confidence: this.getConfidence(models),
         reward,
         totalDurationMs: elapsed,
@@ -380,12 +433,26 @@ export class AMASEngine {
     }
 
     // 构建可序列化的特征向量
-    const persistableFeatureVector = this.buildPersistableFeatureVector(contextVec, featureVec.ts);
+    // Optimization #1: 使用finalContextVec（基于alignedAction重建）
+    const persistableFeatureVector = this.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
+
+    // 15. 记录A/B测试指标（异步，不阻塞）
+    try {
+      algorithmRouter.recordMetrics(userId, {
+        reward,
+        accuracy: rawEvent.isCorrect ? 1 : 0,
+        duration: elapsed
+      });
+    } catch (err) {
+      // 静默失败，不影响主流程
+      this.logger?.warn('Failed to record A/B metrics', { userId, error: err });
+    }
 
     return {
       strategy: finalStrategy,
-      action,
+      action: alignedAction,
       explanation,
+      enhancedExplanation,
       state,
       reward,
       suggestion,

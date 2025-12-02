@@ -1,8 +1,15 @@
 export { default as WordCard } from './WordCard';
 export { default as TestOptions } from './TestOptions';
-export { default as ProgressBar } from './ProgressBar';
 export { default as Navigation } from './Navigation';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as SyncIndicator } from './SyncIndicator';
 export { default as AmasStatus } from './AmasStatus';
 export { default as AmasSuggestion } from './AmasSuggestion';
+export { default as FileUpload } from './FileUpload';
+export { default as StatusModal } from './StatusModal';
+export { default as SuggestionModal } from './SuggestionModal';
+export { default as BatchImportModal } from './BatchImportModal';
+export { default as ProgressBarChart } from './ProgressBarChart';
+export { default as LineChart } from './LineChart';
+export { default as HabitHeatmap } from './HabitHeatmap';
+export { default as HabitProfileTab } from './HabitProfileTab';

@@ -36,6 +36,13 @@ class StorageService {
    * 初始化服务，从云端加载缓存数据
    */
   async init(): Promise<void> {
+    // 检查是否有认证令牌，未认证时跳过初始化
+    if (!ApiClient.getToken()) {
+      this.wordCache = [];
+      this.cacheTimestamp = null;
+      return;
+    }
+
     try {
       // 从云端加载数据并初始化缓存
       await this.refreshCacheFromCloud();
@@ -100,6 +107,11 @@ class StorageService {
    * 此方法仅用于从云端拉取最新数据刷新本地缓存。
    */
   async syncToCloud(): Promise<void> {
+    // 检查是否有认证令牌，未认证时跳过同步
+    if (!ApiClient.getToken()) {
+      return;
+    }
+
     if (this.syncStatus.isSyncing) return;
     this.updateSyncStatus({ isSyncing: true, error: null });
     try {
@@ -300,6 +312,10 @@ class StorageService {
    * 批量获取单词学习状态
    */
   async getWordLearningStates(_userId: string, wordIds: string[]): Promise<WordLearningState[]> {
+    // 空数组直接返回，避免无效请求
+    if (!wordIds || wordIds.length === 0) {
+      return [];
+    }
     try {
       const states = await ApiClient.getWordLearningStates(wordIds);
       return states;

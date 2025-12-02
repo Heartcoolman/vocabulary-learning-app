@@ -17,8 +17,10 @@ import {
   REWARD_WEIGHTS,
   REFERENCE_RESPONSE_TIME
 } from '../config/action-space';
+import { RewardProfile, REWARD_PROFILES } from '../config/reward-profiles';
 import { Action, ColdStartPhase, RawEvent, UserState } from '../types';
 import { UserModels, clamp } from './engine-types';
+import { recordModelDrift } from '../../monitoring/amas-metrics';
 
 /**
  * 决策上下文
@@ -38,6 +40,7 @@ export interface DecisionContext {
 export interface ActionSelection {
   action: Action;
   contextVec?: Float32Array;
+  confidence?: number;
 }
 
 /**
@@ -76,6 +79,7 @@ export class LearningManager {
 
     let action: Action;
     let contextVec: Float32Array | undefined;
+    let confidence: number | undefined;
 
     if (inColdStartPhase && coldStartEnabled && models.coldStart) {
       // 冷启动阶段: 使用 ColdStartManager
@@ -118,7 +122,9 @@ export class LearningManager {
     } else {
       // 默认: 使用 LinUCB
       if (models.bandit instanceof LinUCB) {
-        action = models.bandit.selectFromActionSpace(state, context);
+        const selection = models.bandit.selectAction(state, ACTION_SPACE, context);
+        action = selection.action;
+        confidence = selection.confidence;
         contextVec = models.bandit.buildContextVector({
           state,
           action,
@@ -130,13 +136,14 @@ export class LearningManager {
       }
     }
 
-    return { action, contextVec };
+    return { action, contextVec, confidence };
   }
 
   /**
    * 构建上下文向量
+   * Optimization #1: 改为public以支持在alignedAction后重建contextVector
    */
-  private buildContextVector(
+  public buildContextVector(
     models: UserModels,
     state: UserState,
     action: Action,
@@ -191,8 +198,10 @@ export class LearningManager {
         heuristic: context
       };
       models.bandit.update(state, action, reward, ensembleContext);
+      recordModelDrift({ model: 'ensemble', phase: coldStartPhase });
     } else if (models.bandit instanceof LinUCB) {
       models.bandit.update(state, action, reward, context);
+      recordModelDrift({ model: 'linucb', phase: coldStartPhase });
     }
 
     // 更新冷启动管理器
@@ -215,9 +224,14 @@ export class LearningManager {
    * 计算奖励
    *
    * 混合奖励计算，考虑正确率、疲劳、速度和挫折
+   * 支持多目标优化 - 根据用户选择的学习模式调整权重
    */
-  computeReward(event: RawEvent, state: UserState): number {
-    const { correct, fatigue, speed, frustration } = REWARD_WEIGHTS;
+  computeReward(
+    event: RawEvent,
+    state: UserState,
+    profile: RewardProfile = REWARD_PROFILES.standard
+  ): number {
+    const { correct, fatigue, speed, frustration, engagement } = profile.weights;
 
     const correctValue = event.isCorrect ? 1 : -1;
     const fatiguePenalty = state.F;
@@ -228,14 +242,37 @@ export class LearningManager {
     );
     const frustrationValue = (event.retryCount > 1 || state.M < 0) ? 1 : 0;
 
+    // 新增: 参与度计算
+    const engagementValue = this.computeEngagement(event, state);
+
     const rawReward =
       correct * correctValue -
       fatigue * fatiguePenalty +
       speed * speedGain -
-      frustration * frustrationValue;
+      frustration * frustrationValue +
+      engagement * engagementValue;
 
     // 归一化到 [-1, 1]
     return clamp(rawReward / 2, -1, 1);
+  }
+
+  /**
+   * 计算参与度值
+   *
+   * 基于停留时间和交互密度判断用户参与度
+   */
+  private computeEngagement(event: RawEvent, state: UserState): number {
+    const optimalDwellTime = 3000; // 最佳停留时间：3秒
+
+    // 停留时间得分: 越接近最佳值得分越高
+    const dwellScore = 1 - Math.abs((event.dwellTime || 0) - optimalDwellTime) / optimalDwellTime;
+    const normalizedDwellScore = clamp(dwellScore, 0, 1);
+
+    // 交互密度得分
+    const interactionScore = event.interactionDensity || 0.5;
+
+    // 综合得分
+    return clamp((normalizedDwellScore + interactionScore) / 2, 0, 1);
   }
 
   /**

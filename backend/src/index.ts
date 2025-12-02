@@ -1,11 +1,15 @@
 import app from './app';
 import { env } from './config/env';
 import prisma from './config/database';
+import { connectRedis, disconnectRedis } from './config/redis';
 import {
   startDelayedRewardWorker,
   stopDelayedRewardWorker
 } from './workers/delayed-reward.worker';
 import { startOptimizationWorker } from './workers/optimization.worker';
+import { startGlobalMonitoring, stopGlobalMonitoring } from './amas/monitoring/monitoring-service';
+import { startAlertMonitoring, stopAlertMonitoring } from './monitoring/monitoring-service';
+import { getSharedDecisionRecorder } from './amas/services/decision-recorder.service';
 import type { ScheduledTask } from 'node-cron';
 
 const PORT = parseInt(env.PORT, 10);
@@ -19,6 +23,14 @@ async function startServer() {
     // 测试数据库连接
     await prisma.$connect();
     console.log('Database connected successfully');
+
+    // 连接 Redis 缓存（可选，连接失败不影响启动）
+    const redisConnected = await connectRedis();
+    if (redisConnected) {
+      console.log('Redis cache connected');
+    } else {
+      console.log('Redis cache unavailable, using database directly');
+    }
 
     // 仅在主节点或单实例模式下启动cron worker
     // 多实例部署时，设置 WORKER_LEADER=true 仅在一个实例上启用
@@ -43,6 +55,29 @@ async function startServer() {
       console.log(`Server running on http://localhost:${PORT}`);
       console.log(`Environment: ${env.NODE_ENV}`);
       console.log(`CORS origin: ${env.CORS_ORIGIN}`);
+
+      // Optimization #4: 仅在leader实例启动监控，避免多实例重复监控
+      if (shouldRunWorkers) {
+        // Critical Fix #2: 启动AMAS全局监控和告警系统
+        try {
+          startGlobalMonitoring();
+          console.log('AMAS monitoring and alerting system started (leader mode)');
+        } catch (error) {
+          console.error('Failed to start monitoring system:', error);
+          // 监控启动失败不应阻止服务器运行
+        }
+
+        // Day 13: 启动Alert监控和Webhook通知系统
+        try {
+          startAlertMonitoring();
+          console.log('Alert monitoring and webhook notification system started (leader mode)');
+        } catch (error) {
+          console.error('Failed to start alert monitoring:', error);
+          // 告警监控启动失败不应阻止服务器运行
+        }
+      } else {
+        console.log('Monitoring skipped (not leader node, set WORKER_LEADER=true to enable)');
+      }
     });
   } catch (error) {
     console.error('Server startup failed:', error);
@@ -53,6 +88,15 @@ async function startServer() {
 // 优雅关闭处理函数
 async function gracefulShutdown(signal: string) {
   console.log(`\nReceived ${signal}, shutting down gracefully...`);
+
+  // Critical Fix #2: Flush决策记录器队列，避免丢失尾部轨迹
+  try {
+    const decisionRecorder = getSharedDecisionRecorder(prisma);
+    await decisionRecorder.cleanup();
+    console.log('Decision recorder flushed');
+  } catch (error) {
+    console.warn('Failed to flush decision recorder:', error);
+  }
 
   // 停止延迟奖励Worker
   if (delayedRewardWorkerTask) {
@@ -65,6 +109,37 @@ async function gracefulShutdown(signal: string) {
     optimizationWorkerTask.stop();
     console.log('Optimization worker stopped');
   }
+
+  // 停止监控服务
+  try {
+    stopGlobalMonitoring();
+    console.log('Monitoring service stopped');
+  } catch (error) {
+    console.warn('Failed to stop monitoring service:', error);
+  }
+
+  // Day 13: 停止Alert监控服务
+  try {
+    stopAlertMonitoring();
+    console.log('Alert monitoring stopped');
+  } catch (error) {
+    console.warn('Failed to stop alert monitoring:', error);
+  }
+
+  // 停止HTTP指标采集并flush队列
+  try {
+    if (process.env.NODE_ENV !== 'test') {
+      const { stopMetricsCollection } = require('./middleware/metrics.middleware');
+      await stopMetricsCollection();
+      console.log('Metrics collection stopped');
+    }
+  } catch (error) {
+    console.warn('Failed to stop metrics collection:', error);
+  }
+
+  // 断开 Redis 连接
+  await disconnectRedis();
+  console.log('Redis disconnected');
 
   // 断开数据库连接
   await prisma.$disconnect();

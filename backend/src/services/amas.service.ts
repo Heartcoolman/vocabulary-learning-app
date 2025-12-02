@@ -11,7 +11,7 @@ import {
   StrategyParams,
   ColdStartPhase
 } from '../amas';
-import { databaseStateRepository, databaseModelRepository } from '../amas/repositories';
+import { cachedStateRepository, cachedModelRepository } from '../amas/repositories';
 import {
   getFeatureFlags,
   getFeatureFlagsSummary,
@@ -44,11 +44,11 @@ class AMASService {
   } as const;
 
   constructor() {
-    // 初始化AMAS引擎（使用数据库持久化仓库）
+    // 初始化AMAS引擎（使用带缓存的持久化仓库）
     // 传入 prisma 以启用决策轨迹持久化
     this.engine = new AMASEngine({
-      stateRepo: databaseStateRepository,
-      modelRepo: databaseModelRepository,
+      stateRepo: cachedStateRepository,
+      modelRepo: cachedModelRepository,
       prisma
     });
 
@@ -330,18 +330,22 @@ class AMASService {
     await this.cacheStrategy(userId, result.strategy);
 
     // 持久化特征向量（用于延迟奖励）
-    console.log(`[AMAS] processLearningEvent: sessionId=${sessionId}, hasFeatureVector=${!!result.featureVector}`);
+    // Critical Fix: 使用answerRecordId作为主键，避免覆盖
+    console.log(
+      `[AMAS] processLearningEvent: answerRecordId=${answerRecordId}, sessionId=${sessionId}, hasFeatureVector=${!!result.featureVector}`
+    );
 
-    if (sessionId && result.featureVector) {
-      console.log(`[AMAS] 准备保存特征向量: version=${result.featureVector.version}, dimension=${result.featureVector.values.length}`);
-      await this.persistFeatureVector(sessionId, result.featureVector);
+    if (result.featureVector) {
+      if (answerRecordId) {
+        console.log(
+          `[AMAS] 准备保存特征向量: answerRecordId=${answerRecordId}, version=${result.featureVector.version}, dimension=${result.featureVector.values.length}`
+        );
+        await this.persistFeatureVector(answerRecordId, sessionId, result.featureVector);
+      } else {
+        console.warn('[AMAS] 未保存特征向量: answerRecordId缺失，无法保证唯一性');
+      }
     } else {
-      if (!sessionId) {
-        console.warn('[AMAS] 未保存特征向量: sessionId为空');
-      }
-      if (!result.featureVector) {
-        console.warn('[AMAS] 未保存特征向量: featureVector为空');
-      }
+      console.warn('[AMAS] 未保存特征向量: featureVector为空');
     }
 
     // 记录决策日志（可选）
@@ -536,7 +540,9 @@ class AMASService {
         );
       } else {
         // 入队延迟奖励
+        // Critical Fix #1 (Codex Review): 必须传递answerRecordId以支持特征向量精确匹配
         await delayedRewardService.enqueueDelayedReward({
+          answerRecordId,
           sessionId,
           userId,
           dueTs,
@@ -545,7 +551,7 @@ class AMASService {
         });
 
         console.log(
-          `[AMAS] 延迟奖励已入队: userId=${userId}, wordId=${event.wordId}, reward=${result.reward.toFixed(3)}, dueTs=${dueTs.toISOString()}, sessionId=${sessionId || 'null'}`
+          `[AMAS] 延迟奖励已入队: userId=${userId}, wordId=${event.wordId}, reward=${result.reward.toFixed(3)}, dueTs=${dueTs.toISOString()}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'null'}`
         );
       }
     } catch (error) {
@@ -702,11 +708,14 @@ class AMASService {
 
   /**
    * 持久化特征向量到数据库
-   * @param sessionId 学习会话ID
+   * Critical Fix: 使用answerRecordId而非sessionId作为唯一键，避免同session多次答题时覆盖
+   * @param answerRecordId 答题记录ID（必需，确保特征向量唯一性）
+   * @param sessionId 学习会话ID（可选，用于诊断和向后兼容）
    * @param featureVector 可序列化的特征向量
    */
   private async persistFeatureVector(
-    sessionId: string,
+    answerRecordId: string | undefined,
+    sessionId: string | undefined,
     featureVector: {
       values: number[];
       version: number;
@@ -715,11 +724,17 @@ class AMASService {
       labels: string[];
     }
   ): Promise<void> {
+    if (!answerRecordId) {
+      console.warn('[AMAS] FeatureVector持久化跳过: answerRecordId缺失，无法保证唯一性');
+      recordFeatureVectorSaved('failure');
+      return;
+    }
+
     try {
       await prisma.featureVector.upsert({
         where: {
-          sessionId_featureVersion: {
-            sessionId,
+          answerRecordId_featureVersion: {
+            answerRecordId,
             featureVersion: featureVector.version
           }
         },
@@ -732,7 +747,8 @@ class AMASService {
           normMethod: featureVector.normMethod ?? null
         },
         create: {
-          sessionId,
+          answerRecordId,
+          sessionId: sessionId ?? null,
           featureVersion: featureVector.version,
           features: {
             values: featureVector.values,
@@ -743,15 +759,14 @@ class AMASService {
         }
       });
 
-      // 记录成功指标
       recordFeatureVectorSaved('success');
-      console.log(`[AMAS] FeatureVector持久化成功: sessionId=${sessionId}`);
+      console.log(
+        `[AMAS] FeatureVector持久化成功: answerRecordId=${answerRecordId}, sessionId=${sessionId ?? 'null'}`
+      );
     } catch (error) {
-      // 记录失败指标
       recordFeatureVectorSaved('failure');
-      // 持久化失败不影响主流程，仅记录警告
       console.warn(
-        `[AMAS] FeatureVector持久化失败: sessionId=${sessionId}`,
+        `[AMAS] FeatureVector持久化失败: answerRecordId=${answerRecordId}, sessionId=${sessionId ?? 'null'}`,
         error
       );
     }
@@ -891,7 +906,8 @@ class AMASService {
   async applyDelayedReward(
     userId: string,
     reward: number,
-    sessionId?: string
+    sessionId?: string,
+    answerRecordId?: string
   ): Promise<{
     success: boolean;
     result: typeof AMASService.DelayedRewardResult[keyof typeof AMASService.DelayedRewardResult];
@@ -902,7 +918,7 @@ class AMASService {
       if (typeof reward !== 'number' || !Number.isFinite(reward)) {
         const errorMsg = `无效的reward值 ${reward}`;
         console.warn(
-          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
         );
         return {
           success: false,
@@ -917,13 +933,20 @@ class AMASService {
         );
       }
 
-      // 如果提供了sessionId，尝试从数据库获取特征向量
+      // Critical Fix: 优先使用answerRecordId查找特征向量，回退到sessionId以兼容旧数据
       let featureVector: number[] | null = null;
 
-      if (sessionId) {
+      // 构建查询条件：优先answerRecordId，其次sessionId
+      const vectorWhere = answerRecordId
+        ? { answerRecordId }
+        : sessionId
+          ? { sessionId }
+          : null;
+
+      if (vectorWhere) {
         // 获取最新版本的特征向量
         const storedVector = await prisma.featureVector.findFirst({
-          where: { sessionId },
+          where: vectorWhere,
           orderBy: { featureVersion: 'desc' }
         });
 
@@ -940,7 +963,7 @@ class AMASService {
           if (isNumberArray(features)) {
             featureVector = features;
             console.log(
-              `[AMAS] 延迟奖励: 使用数组格式特征向量 userId=${userId}, sessionId=${sessionId}`
+              `[AMAS] 延迟奖励: 使用数组格式特征向量 userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
             );
           }
           // 当前格式: 对象 {values, labels, ts}
@@ -953,16 +976,16 @@ class AMASService {
             if (isNumberArray(featureObj.values)) {
               featureVector = featureObj.values;
               console.log(
-                `[AMAS] 延迟奖励: 使用对象格式特征向量 userId=${userId}, sessionId=${sessionId}`
+                `[AMAS] 延迟奖励: 使用对象格式特征向量 userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
               );
             } else {
               console.warn(
-                `[AMAS] 延迟奖励: 特征向量values字段无效（非数字数组） userId=${userId}, sessionId=${sessionId}`
+                `[AMAS] 延迟奖励: 特征向量values字段无效（非数字数组） userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
               );
             }
           } else {
             console.warn(
-              `[AMAS] 延迟奖励: 无法识别的特征向量格式 userId=${userId}, sessionId=${sessionId}`
+              `[AMAS] 延迟奖励: 无法识别的特征向量格式 userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
             );
           }
         }
@@ -972,7 +995,7 @@ class AMASService {
       if (!featureVector) {
         const errorMsg = '未找到有效特征向量，跳过模型更新';
         console.warn(
-          `[AMAS] 延迟奖励: ${errorMsg} userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg} userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
         );
         return {
           success: false,
@@ -991,7 +1014,7 @@ class AMASService {
       if (!result.success) {
         const errorMsg = `模型更新失败: ${result.error}`;
         console.warn(
-          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, sessionId=${sessionId}`
+          `[AMAS] 延迟奖励: ${errorMsg}, userId=${userId}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
         );
         return {
           success: false,
@@ -1001,7 +1024,7 @@ class AMASService {
       }
 
       console.log(
-        `[AMAS] 延迟奖励已应用: userId=${userId}, reward=${clampedReward.toFixed(3)}, sessionId=${sessionId}`
+        `[AMAS] 延迟奖励已应用: userId=${userId}, reward=${clampedReward.toFixed(3)}, answerRecordId=${answerRecordId ?? 'n/a'}, sessionId=${sessionId ?? 'n/a'}`
       );
       return {
         success: true,
@@ -1052,7 +1075,7 @@ class AMASService {
   /**
    * 获取默认策略
    */
-  private getDefaultStrategy(): StrategyParams {
+  getDefaultStrategy(): StrategyParams {
     return {
       interval_scale: 1.0,
       new_ratio: 0.2,

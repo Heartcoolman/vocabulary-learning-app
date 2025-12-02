@@ -22,6 +22,9 @@ const EPSILON = 1e-10;
 /** Cholesky对角线最小值（防止奇异） */
 const MIN_DIAG = 1e-6;
 
+/** 数值稳定性：防溢出上限（保护Cholesky步骤） */
+const MAX_MAGNITUDE = 1e12;
+
 // ==================== Cholesky相关 ====================
 
 /**
@@ -55,6 +58,8 @@ export function choleskyRank1Update(
   d: number,
   minDiag = MIN_DIAG
 ): Rank1UpdateResult {
+  const safeMinDiag = Math.max(minDiag, MIN_DIAG);
+
   // 输入验证
   if (
     !Number.isFinite(d) ||
@@ -84,15 +89,20 @@ export function choleskyRank1Update(
     const xk = w[k];
 
     // 检查当前对角元素有效性
-    if (!Number.isFinite(Lkk) || Lkk < minDiag) {
+    if (
+      !Number.isFinite(Lkk) ||
+      Lkk < safeMinDiag ||
+      Math.abs(Lkk) > MAX_MAGNITUDE
+    ) {
       console.warn(`[math-utils] 对角元素无效: L[${k},${k}]=${Lkk}`);
       return { L: new Float32Array(L), success: false };
     }
 
     // 计算新的对角元素: r = sqrt(Lkk² + xk²)
-    const r = Math.sqrt(Lkk * Lkk + xk * xk);
+    // 使用 hypot 避免在大幅度下发生溢出
+    const r = Math.hypot(Lkk, xk);
 
-    if (!Number.isFinite(r) || r < minDiag) {
+    if (!Number.isFinite(r) || r < safeMinDiag || r > MAX_MAGNITUDE) {
       console.warn(`[math-utils] 新对角元素无效: r=${r}`);
       return { L: new Float32Array(L), success: false };
     }
@@ -100,6 +110,11 @@ export function choleskyRank1Update(
     // Givens旋转参数
     const c = r / Lkk;  // cos-like
     const s = xk / Lkk; // sin-like
+
+    if (!Number.isFinite(c) || !Number.isFinite(s) || Math.abs(c) < EPSILON) {
+      console.warn('[math-utils] Givens旋转参数无效');
+      return { L: new Float32Array(L), success: false };
+    }
 
     // 更新对角元素
     next[k * d + k] = r;
@@ -114,7 +129,12 @@ export function choleskyRank1Update(
       const updatedXi = c * xi - s * Lik;
 
       // 数值检查
-      if (!Number.isFinite(updatedLik) || !Number.isFinite(updatedXi)) {
+      if (
+        !Number.isFinite(updatedLik) ||
+        !Number.isFinite(updatedXi) ||
+        Math.abs(updatedLik) > MAX_MAGNITUDE ||
+        Math.abs(updatedXi) > MAX_MAGNITUDE
+      ) {
         console.warn(`[math-utils] 更新产生无效值: L[${i},${k}]=${updatedLik}`);
         return { L: new Float32Array(L), success: false };
       }
@@ -127,7 +147,11 @@ export function choleskyRank1Update(
   // 最终对角线完整性检查
   for (let i = 0; i < d; i++) {
     const diag = next[i * d + i];
-    if (!Number.isFinite(diag) || diag < minDiag) {
+    if (
+      !Number.isFinite(diag) ||
+      diag < safeMinDiag ||
+      Math.abs(diag) > MAX_MAGNITUDE
+    ) {
       console.warn(`[math-utils] 最终对角元素无效: L[${i},${i}]=${diag}`);
       return { L: new Float32Array(L), success: false };
     }
@@ -151,8 +175,10 @@ export function choleskyDecompose(
   d: number,
   lambda = 1.0
 ): Float32Array {
+  const safeLambda = Math.max(lambda, MIN_DIAG);
+
   if (!A || A.length < d * d || d <= 0) {
-    return initIdentityMatrix(d, lambda);
+    return initIdentityMatrix(d, safeLambda);
   }
 
   // 复制并对称化
@@ -179,21 +205,22 @@ export function choleskyDecompose(
         // 对角元素
         if (sum <= EPSILON || !Number.isFinite(sum)) {
           // 使用正则化修复
-          sum = lambda + EPSILON;
+          sum = safeLambda + EPSILON;
         }
-        L[i * d + j] = Math.sqrt(Math.max(sum, EPSILON));
+        L[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_MAGNITUDE));
       } else {
         // 非对角元素
-        L[i * d + j] = sum / Math.max(L[j * d + j], EPSILON);
+        const denom = Math.max(L[j * d + j], Math.sqrt(safeLambda));
+        L[i * d + j] = sum / denom;
       }
     }
   }
 
   // 验证结果
   for (let i = 0; i < L.length; i++) {
-    if (!Number.isFinite(L[i])) {
+    if (!Number.isFinite(L[i]) || Math.abs(L[i]) > MAX_MAGNITUDE) {
       console.warn('[math-utils] Cholesky分解失败，返回正则化单位矩阵');
-      return initIdentityMatrix(d, lambda);
+      return initIdentityMatrix(d, safeLambda);
     }
   }
 

@@ -29,6 +29,10 @@ import optimizationRoutes from './routes/optimization.routes';
 import aboutRoutes from './routes/about.routes';
 import wordMasteryRoutes from './routes/word-mastery.routes';
 import learningRoutes from './routes/learning.routes';
+import amasExplainRoutes from './routes/amas-explain.routes';
+import alertsRoutes from './routes/alerts.routes';
+import experimentsRoutes from './routes/experiments.routes';
+import profileRoutes from './routes/profile.routes';
 
 
 const app = express();
@@ -130,6 +134,12 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
+// HTTP 请求监控（采样）
+if (process.env.NODE_ENV !== 'test') {
+  const { metricsMiddleware } = require('./middleware/metrics.middleware');
+  app.use(metricsMiddleware);
+}
+
 // 健康检查（包含数据库连接验证）
 app.get('/health', async (req, res) => {
   const checks: { database: string; timestamp: string; status: string } = {
@@ -172,9 +182,13 @@ app.use('/api/amas', stateHistoryRoutes);
 app.use('/api/habit-profile', habitProfileRoutes);
 app.use('/api/evaluation', evaluationRoutes);
 app.use('/api/optimization', optimizationRoutes);
+app.use('/api/experiments', experimentsRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/word-mastery', wordMasteryRoutes);
 app.use('/api/learning', learningRoutes);
+app.use('/api/amas', amasExplainRoutes);
+app.use('/api/alerts', alertsRoutes);
+app.use(profileRoutes); // Profile routes already include /api prefix
 
 
 // 404处理

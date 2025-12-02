@@ -140,16 +140,20 @@ export class MetricsCollector {
 
   /**
    * 记录降级
+   * 降级也计入总请求数（作为一种特殊的成功响应）
    */
   recordDegradation(): void {
     this.degradationCounts++;
+    this.successCounts++;  // 降级视为成功响应（只是降级了）
   }
 
   /**
    * 记录超时
+   * 超时计入总请求数（作为一种错误）
    */
   recordTimeout(): void {
     this.timeoutCounts++;
+    this.errorCounts++;  // 超时视为错误
   }
 
   /**

@@ -43,11 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(userData);
 
-      // 将当前用户写入缓存服务，便于隔离缓存
+      // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
-      // 初始化存储服务（登录后才加载数据）
-      await StorageService.init();
-      await StorageService.syncToCloud();
     } catch (error) {
       console.error('加载用户信息失败:', error);
       if (!isMounted()) return; // 组件已卸载，停止后续操作
@@ -91,11 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const { user: userData, token } = await apiClient.login(email, password);
+      if (!token) {
+        throw new Error('登录响应中缺少认证令牌');
+      }
       apiClient.setToken(token);
       setUser(userData);
+      // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
-      await StorageService.init();
-      await StorageService.syncToCloud();
     } catch (error) {
       console.error('登录失败:', error);
       throw error;
@@ -108,11 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, username: string) => {
     try {
       const { user: userData, token } = await apiClient.register(email, password, username);
+      if (!token) {
+        throw new Error('注册响应中缺少认证令牌');
+      }
       apiClient.setToken(token);
       setUser(userData);
+      // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
-      await StorageService.init();
-      await StorageService.syncToCloud();
     } catch (error) {
       console.error('注册失败:', error);
       throw error;

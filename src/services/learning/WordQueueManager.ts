@@ -441,6 +441,60 @@ export class WordQueueManager {
     );
   }
 
+  // ========== 队列动态调整方法 ==========
+
+  /**
+   * 获取当前队列中的所有单词ID（包括活跃和等待中）
+   */
+  getCurrentWordIds(): string[] {
+    const activeIds = Array.from(this.activeWords.keys());
+    const pendingIds = this.pendingWords.map(w => w.id);
+    return [...new Set([...activeIds, ...pendingIds])];
+  }
+
+  /**
+   * 应用调整（移除单词和添加新词）
+   */
+  applyAdjustments(adjustments: {
+    remove: string[];
+    add: WordItem[];
+  }): void {
+    // 1. 处理移除
+    if (adjustments.remove.length > 0) {
+      const removeSet = new Set(adjustments.remove);
+
+      // 从 pending 中移除
+      this.pendingWords = this.pendingWords.filter(w => !removeSet.has(w.id));
+
+      // 从 active 中移除
+      for (const id of adjustments.remove) {
+        if (this.activeWords.has(id)) {
+          this.activeWords.delete(id);
+          console.log(`[WordQueue] 移除活跃单词: ${this.getWordItem(id)?.spelling}`);
+        }
+      }
+    }
+
+    // 2. 处理添加
+    if (adjustments.add.length > 0) {
+      for (const word of adjustments.add) {
+        // 更新映射
+        this.wordMap.set(word.id, word);
+
+        // 检查是否已经在队列中（避免重复）
+        const inActive = this.activeWords.has(word.id);
+        const inMastered = this.masteredWords.has(word.id);
+        const inPending = this.pendingWords.some(p => p.id === word.id);
+
+        if (!inActive && !inMastered && !inPending) {
+          // 添加到 pending 队首（作为高优先级插入）
+          this.pendingWords.unshift(word);
+        }
+      }
+      console.log(`[WordQueue] 添加了 ${adjustments.add.length} 个新词`);
+    }
+  }
+
   // ========== 私有辅助方法 ==========
 
   private isRecentlyShown(wordId: string): boolean {

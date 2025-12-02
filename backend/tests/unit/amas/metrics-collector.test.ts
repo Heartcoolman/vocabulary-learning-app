@@ -124,7 +124,8 @@ describe('MetricsCollector', () => {
 
   describe('降级指标', () => {
     it('应该计算降级率', () => {
-      // 7个成功, 3个降级 = 3/7 ≈ 42.9%降级率
+      // 7个成功 + 3个降级 = 10个总请求, 降级率 = 3/10 = 0.3
+      // 注意: recordDegradation() 同时计入成功请求数（降级是成功响应的一种）
       for (let i = 0; i < 7; i++) {
         collector.recordSuccess();
       }
@@ -136,13 +137,14 @@ describe('MetricsCollector', () => {
       const degradationRate = metrics.find(m => m.metric === 'amas.degradation_rate');
 
       expect(degradationRate).toBeDefined();
-      expect(degradationRate!.value).toBeCloseTo(0.4286, 2);
+      expect(degradationRate!.value).toBeCloseTo(0.3, 2);
     });
   });
 
   describe('超时指标', () => {
     it('应该计算超时率', () => {
-      // 9个成功, 1个超时 = 1/9 ≈ 11.1%超时率
+      // 9个成功 + 1个超时 = 10个总请求, 超时率 = 1/10 = 0.1
+      // 注意: recordTimeout() 同时计入错误请求数（超时是错误的一种）
       for (let i = 0; i < 9; i++) {
         collector.recordSuccess();
       }
@@ -152,7 +154,7 @@ describe('MetricsCollector', () => {
       const timeoutRate = metrics.find(m => m.metric === 'amas.timeout_rate');
 
       expect(timeoutRate).toBeDefined();
-      expect(timeoutRate!.value).toBeCloseTo(0.1111, 2);
+      expect(timeoutRate!.value).toBeCloseTo(0.1, 2);
     });
   });
 

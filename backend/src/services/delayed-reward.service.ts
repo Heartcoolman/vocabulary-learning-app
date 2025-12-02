@@ -19,8 +19,10 @@ const MAX_RETRY = 3;
 
 /**
  * 入队延迟奖励参数
+ * Critical Fix: 添加answerRecordId以支持特征向量的精确匹配
  */
 export interface EnqueueDelayedRewardParams {
+  answerRecordId?: string;
   sessionId?: string;
   userId: string;
   dueTs: Date;
@@ -48,6 +50,7 @@ export class DelayedRewardService {
     try {
       return await prisma.rewardQueue.create({
         data: {
+          answerRecordId: params.answerRecordId ?? null,
           sessionId: params.sessionId ?? null,
           userId: params.userId,
           dueTs: params.dueTs,

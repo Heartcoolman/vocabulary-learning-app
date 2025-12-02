@@ -15,6 +15,7 @@ model User {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   role             UserRole            @default(USER)
+  rewardProfile    String              @default("standard")
   anomalyFlags     AnomalyFlag[]
   records          AnswerRecord[]
   habitProfile     HabitProfile?
@@ -27,9 +28,10 @@ model User {
   studyConfig      UserStudyConfig?
   wordBooks        WordBook[]
   learningStates   WordLearningState[]
-  wordScores       WordScore[]
   reviewTraces     WordReviewTrace[]
+  wordScores       WordScore[]
 
+  @@index([rewardProfile])
   @@map("users")
 }
 
@@ -64,9 +66,10 @@ model Word {
   wordBookId     String
   anomalyFlags   AnomalyFlag[]
   records        AnswerRecord[]
+  wordFrequency  WordFrequency?
   learningStates WordLearningState[]
-  wordScores     WordScore[]
   reviewTraces   WordReviewTrace[]
+  wordScores     WordScore[]
   wordBook       WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
 
   @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
@@ -76,24 +79,38 @@ model Word {
   @@map("words")
 }
 
+model WordFrequency {
+  id             String   @id @default(uuid())
+  wordId         String   @unique
+  frequencyScore Decimal  @db.Decimal(5, 4)
+  corpusSource   String?
+  rawFrequency   Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  word           Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([frequencyScore])
+  @@map("word_frequencies")
+}
+
 model AnswerRecord {
-  id                 String            @id @default(uuid())
+  id                 String           @default(uuid())
   userId             String
   wordId             String
   selectedAnswer     String
   correctAnswer      String
   isCorrect          Boolean
-  timestamp          DateTime          @default(now())
+  timestamp          DateTime         @default(now())
   dwellTime          Int?
   masteryLevelAfter  Int?
   masteryLevelBefore Int?
   responseTime       Int?
   sessionId          String?
-  session            LearningSession?  @relation(fields: [sessionId], references: [id])
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word               Word              @relation(fields: [wordId], references: [id], onDelete: Cascade)
-  decisionRecords    DecisionRecord[]
+  session            LearningSession? @relation(fields: [sessionId], references: [id])
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word               Word             @relation(fields: [wordId], references: [id], onDelete: Cascade)
 
+  @@id([id, timestamp])
   @@unique([userId, wordId, timestamp], name: "unique_user_word_timestamp")
   @@index([userId])
   @@index([wordId])
@@ -125,9 +142,9 @@ model UserStudyConfig {
   selectedWordBookIds String[]
   dailyWordCount      Int      @default(20)
   studyMode           String   @default("sequential")
-  dailyMasteryTarget  Int      @default(20)  // 每日掌握目标
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  dailyMasteryTarget  Int      @default(20)
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_study_configs")
@@ -295,11 +312,11 @@ model LearningSession {
   userId             String
   startedAt          DateTime        @default(now())
   endedAt            DateTime?
-  targetMasteryCount Int?            // 目标掌握数
-  actualMasteryCount Int?            // 实际掌握数
-  totalQuestions     Int?            // 总答题数
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+  actualMasteryCount Int?
+  targetMasteryCount Int?
+  totalQuestions     Int?
   answerRecords      AnswerRecord[]
   featureVectors     FeatureVector[]
   user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -315,9 +332,11 @@ model FeatureVector {
   features       Json
   normMethod     String?
   createdAt      DateTime        @default(now())
+  answerRecordId String
   session        LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@id([sessionId, featureVersion])
+  @@unique([answerRecordId, featureVersion])
   @@index([featureVersion, createdAt])
   @@map("feature_vectors")
 }
@@ -344,6 +363,7 @@ model RewardQueue {
   lastError      String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  answerRecordId String?
   session        LearningSession? @relation(fields: [sessionId], references: [id])
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -351,6 +371,7 @@ model RewardQueue {
   @@index([userId])
   @@index([sessionId])
   @@index([userId, status, dueTs])
+  @@index([answerRecordId], map: "idx_reward_queue_answerRecordId")
   @@map("reward_queue")
 }
 
@@ -418,6 +439,210 @@ model LearningPlan {
   @@map("learning_plans")
 }
 
+/// A/B测试实验配置
+model ABExperiment {
+  id                      String                @id @default(uuid())
+  name                    String
+  description             String?
+  trafficAllocation       ABTrafficAllocation   @default(WEIGHTED)
+  minSampleSize           Int                   @default(100)
+  significanceLevel       Float                 @default(0.05)
+  minimumDetectableEffect Float                 @default(0.05)
+  autoDecision            Boolean               @default(false)
+  status                  ABExperimentStatus    @default(DRAFT)
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  metrics                 ABExperimentMetrics[]
+  assignments             ABUserAssignment[]
+  variants                ABVariant[]
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("ab_experiments")
+}
+
+/// A/B测试变体
+model ABVariant {
+  id           String                @id @default(uuid())
+  experimentId String
+  name         String
+  weight       Float                 @default(0.5)
+  isControl    Boolean               @default(false)
+  parameters   Json                  @default("{}")
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  metrics      ABExperimentMetrics[]
+  assignments  ABUserAssignment[]
+  experiment   ABExperiment          @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId])
+  @@map("ab_variants")
+}
+
+/// 用户变体分配（持久化）
+model ABUserAssignment {
+  userId       String
+  experimentId String
+  variantId    String
+  assignedAt   DateTime     @default(now())
+  experiment   ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variant      ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, experimentId])
+  @@index([variantId])
+  @@map("ab_user_assignments")
+}
+
+/// 实验指标数据
+model ABExperimentMetrics {
+  id            String       @id @default(uuid())
+  experimentId  String
+  variantId     String
+  sampleCount   Int          @default(0)
+  primaryMetric Float        @default(0)
+  averageReward Float        @default(0)
+  stdDev        Float        @default(0)
+  m2            Float        @default(0)
+  updatedAt     DateTime     @updatedAt
+  experiment    ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variant       ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, variantId])
+  @@map("ab_experiment_metrics")
+}
+
+/// 贝叶斯优化器状态持久化
+model BayesianOptimizerState {
+  id              String   @id @default("global")
+  observations    Json     @default("[]")
+  bestParams      Json?
+  bestValue       Float?
+  evaluationCount Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("bayesian_optimizer_state")
+}
+
+/// 因果推断观测数据
+model CausalObservation {
+  id        String   @default(uuid())
+  userId    String?
+  features  Json
+  treatment Int
+  outcome   Float
+  timestamp BigInt
+  createdAt DateTime @default(now())
+
+  @@id([id, timestamp])
+  @@index([treatment])
+  @@index([timestamp])
+  @@index([userId])
+  @@map("causal_observations")
+}
+
+/// 单词复习轨迹记录
+model WordReviewTrace {
+  id           String   @default(cuid())
+  userId       String
+  wordId       String
+  timestamp    DateTime
+  isCorrect    Boolean
+  responseTime Int
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@id([id, timestamp])
+  @@index([userId, wordId])
+  @@index([userId, wordId, timestamp])
+  @@map("word_review_traces")
+}
+
+/// AMAS决策记录主表
+model DecisionRecord {
+  id              String                  @default(cuid())
+  decisionId      String
+  answerRecordId  String?
+  sessionId       String?
+  timestamp       DateTime                @default(now())
+  decisionSource  String
+  coldstartPhase  String?
+  weightsSnapshot Json?
+  memberVotes     Json?
+  selectedAction  Json
+  confidence      Float                   @default(0)
+  reward          Float?
+  traceVersion    Int                     @default(1)
+  ingestionStatus DecisionIngestionStatus @default(PENDING)
+  totalDurationMs Int?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  isSimulation    Boolean                 @default(false)
+
+  @@id([id, timestamp])
+  @@unique([decisionId, timestamp])
+  @@index([answerRecordId])
+  @@index([decisionSource])
+  @@index([timestamp])
+  @@index([sessionId])
+  @@index([isSimulation])
+  @@map("decision_records")
+}
+
+/// AMAS 决策洞察表（用于解释性读写与缓存）
+model DecisionInsight {
+  id                String   @id @default(cuid())
+  decisionId        String   @unique @map("decision_id")
+  userId            String   @map("user_id")
+  stateSnapshot     Json     @map("state_snapshot")
+  difficultyFactors Json     @map("difficulty_factors")
+  triggers          String[] @default([])
+  featureVectorHash String   @map("feature_vector_hash")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, decisionId])
+  @@index([featureVectorHash])
+  @@index([createdAt])
+  @@map("decision_insights")
+}
+
+/// 决策流水线阶段记�?
+model PipelineStage {
+  id               String              @id @default(cuid())
+  decisionRecordId String
+  stage            PipelineStageType
+  stageName        String
+  status           PipelineStageStatus
+  startedAt        DateTime
+  endedAt          DateTime?
+  durationMs       Int?
+  inputSummary     Json?
+  outputSummary    Json?
+  metadata         Json?
+  errorMessage     String?
+  createdAt        DateTime            @default(now())
+
+  @@index([decisionRecordId, stage])
+  @@index([stage])
+  @@index([status])
+  @@map("pipeline_stages")
+}
+
+model word_frequency {
+  word_id         String   @id
+  frequency_rank  Int
+  frequency_score Decimal  @db.Decimal(5, 4)
+  corpus_source   String
+  updated_at      DateTime
+
+  @@index([frequency_rank], map: "idx_word_frequency_rank")
+  @@index([corpus_source], map: "idx_word_frequency_source")
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -462,200 +687,6 @@ enum ABTrafficAllocation {
   DYNAMIC
 }
 
-// ==================== A/B测试相关模型 ====================
-
-/// A/B测试实验配置
-model ABExperiment {
-  id                      String               @id @default(uuid())
-  name                    String
-  description             String?
-  trafficAllocation       ABTrafficAllocation  @default(WEIGHTED)
-  minSampleSize           Int                  @default(100)
-  significanceLevel       Float                @default(0.05)
-  minimumDetectableEffect Float                @default(0.05)
-  autoDecision            Boolean              @default(false)
-  status                  ABExperimentStatus   @default(DRAFT)
-  startedAt               DateTime?
-  endedAt                 DateTime?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
-
-  variants    ABVariant[]
-  metrics     ABExperimentMetrics[]
-  assignments ABUserAssignment[]
-
-  @@index([status])
-  @@index([startedAt])
-  @@map("ab_experiments")
-}
-
-/// A/B测试变体
-model ABVariant {
-  id           String       @id @default(uuid())
-  experimentId String
-  name         String
-  weight       Float        @default(0.5)
-  isControl    Boolean      @default(false)
-  parameters   Json         @default("{}")
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  experiment  ABExperiment          @relation(fields: [experimentId], references: [id], onDelete: Cascade)
-  assignments ABUserAssignment[]
-  metrics     ABExperimentMetrics[]
-
-  @@index([experimentId])
-  @@map("ab_variants")
-}
-
-/// 用户变体分配（持久化）
-model ABUserAssignment {
-  userId       String
-  experimentId String
-  variantId    String
-  assignedAt   DateTime @default(now())
-
-  experiment ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
-  variant    ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@id([userId, experimentId])
-  @@index([variantId])
-  @@map("ab_user_assignments")
-}
-
-/// 实验指标数据
-model ABExperimentMetrics {
-  id           String   @id @default(uuid())
-  experimentId String
-  variantId    String
-  sampleCount  Int      @default(0)
-  primaryMetric Float   @default(0)
-  averageReward Float   @default(0)
-  stdDev       Float    @default(0)
-  m2           Float    @default(0) // Welford算法累积值
-  updatedAt    DateTime @updatedAt
-
-  experiment ABExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
-  variant    ABVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@unique([experimentId, variantId])
-  @@map("ab_experiment_metrics")
-}
-
-// ==================== 优化器相关模型 ====================
-
-/// 贝叶斯优化器状态持久化
-model BayesianOptimizerState {
-  id              String   @id @default("global") // 全局单例
-  observations    Json     @default("[]")
-  bestParams      Json?
-  bestValue       Float?
-  evaluationCount Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("bayesian_optimizer_state")
-}
-
-// ==================== 因果推断相关模型 ====================
-
-/// 因果推断观测数据
-model CausalObservation {
-  id        String   @id @default(uuid())
-  userId    String?
-  features  Json     // 特征向量
-  treatment Int      // 0 或 1
-  outcome   Float    // [-1, 1]
-  timestamp BigInt
-  createdAt DateTime @default(now())
-
-  @@index([treatment])
-  @@index([timestamp])
-  @@index([userId])
-  @@map("causal_observations")
-}
-
-// ==================== 单词掌握度评估相关模型 ====================
-
-/// 单词复习轨迹记录
-model WordReviewTrace {
-  id           String   @id @default(cuid())
-  userId       String
-  wordId       String
-  timestamp    DateTime
-  isCorrect    Boolean
-  responseTime Int      // 毫秒
-  createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  word Word @relation(fields: [wordId], references: [id], onDelete: Cascade)
-
-  @@index([userId, wordId])
-  @@index([userId, wordId, timestamp])
-  @@map("word_review_traces")
-}
-
-// ==================== AMAS决策流水线相关模型 ====================
-
-/// AMAS决策记录主表
-model DecisionRecord {
-  id              String                   @id @default(cuid())
-  decisionId      String                   @unique
-  answerRecordId  String?
-  sessionId       String?
-  timestamp       DateTime                 @default(now())
-
-  decisionSource  String
-  coldstartPhase  String?
-  weightsSnapshot Json?
-  memberVotes     Json?
-  selectedAction  Json
-  confidence      Float                    @default(0)
-  reward          Float?
-
-  isSimulation    Boolean                  @default(false)
-  traceVersion    Int                      @default(1)
-  ingestionStatus DecisionIngestionStatus  @default(PENDING)
-  totalDurationMs Int?
-
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-
-  answerRecord    AnswerRecord?             @relation(fields: [answerRecordId], references: [id], onDelete: Cascade)
-  pipelineStages  PipelineStage[]
-
-  @@index([answerRecordId])
-  @@index([decisionSource])
-  @@index([timestamp])
-  @@index([sessionId])
-  @@index([isSimulation])
-  @@map("decision_records")
-}
-
-/// 决策流水线阶段记�?
-model PipelineStage {
-  id               String              @id @default(cuid())
-  decisionRecordId String
-  stage            PipelineStageType
-  stageName        String
-  status           PipelineStageStatus
-  startedAt        DateTime
-  endedAt          DateTime?
-  durationMs       Int?
-  inputSummary     Json?
-  outputSummary    Json?
-  metadata         Json?
-  errorMessage     String?
-  createdAt        DateTime            @default(now())
-
-  decisionRecord   DecisionRecord      @relation(fields: [decisionRecordId], references: [id], onDelete: Cascade)
-
-  @@index([decisionRecordId, stage])
-  @@index([stage])
-  @@index([status])
-  @@map("pipeline_stages")
-}
-
 /// 决策数据摄入状态
 enum DecisionIngestionStatus {
   PENDING
@@ -665,12 +696,12 @@ enum DecisionIngestionStatus {
 
 /// 流水线阶段类型（对应AMAS六层架构）
 enum PipelineStageType {
-  PERCEPTION    // 感知层
-  MODELING      // 建模层
-  LEARNING      // 学习层
-  DECISION      // 决策层
-  EVALUATION    // 评估层
-  OPTIMIZATION  // 优化层
+  PERCEPTION
+  MODELING
+  LEARNING
+  DECISION
+  EVALUATION
+  OPTIMIZATION
 }
 
 /// 流水线阶段执行状态

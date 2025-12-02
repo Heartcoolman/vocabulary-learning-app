@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Calendar
 } from '../components/Icon';
+import LineChart from '../components/LineChart';
 
 /**
  * TrendReportPage - Trend Analysis Report Page
@@ -127,9 +128,9 @@ export default function TrendReportPage() {
   const renderTrendChart = (
     points: { date: string; value: number }[],
     _direction: 'up' | 'down' | 'flat',
-    color: string,
+    _color: string,
     _label: string,
-    unit: string = '%'
+    _unit: string = '%'
   ) => {
     if (!points || points.length === 0) {
       return (
@@ -139,44 +140,12 @@ export default function TrendReportPage() {
       );
     }
 
-    const maxValue = Math.max(...points.map(p => p.value));
-    const minValue = Math.min(...points.map(p => p.value));
-    const range = maxValue - minValue || 1;
+    const chartData = points.slice(-14).map(p => ({
+      date: formatDate(p.date),
+      value: p.value
+    }));
 
-    return (
-      <div className="relative">
-        <div className="flex items-end justify-between gap-1 h-32 mb-2">
-          {points.slice(-14).map((point, index) => {
-            const height = ((point.value - minValue) / range) * 100;
-            return (
-              <div
-                key={index}
-                className="flex-1 flex flex-col items-center group relative"
-              >
-                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                  <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    {formatDate(point.date)}: {point.value.toFixed(1)}{unit}
-                  </div>
-                </div>
-                <div
-                  className={`w-full rounded-t transition-all duration-300 cursor-pointer hover:opacity-80 ${color}`}
-                  style={{ height: `${Math.max(height, 8)}%` }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex justify-between text-xs text-gray-500">
-          {points.length > 0 && (
-            <>
-              <span>{formatDate(points[0].date)}</span>
-              <span>{formatDate(points[points.length - 1].date)}</span>
-            </>
-          )}
-        </div>
-      </div>
-    );
+    return <LineChart data={chartData} height={160} />;
   };
 
   if (isLoading) {
@@ -209,7 +178,7 @@ export default function TrendReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="max-w-6xl mx-auto px-4 py-8 animate-g3-fade-in">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { staggerContainerVariants, staggerItemVariants, g3SpringSnappy } from '../utils/animations';
 
 interface TestOptionsProps {
   options: string[];
@@ -88,13 +90,16 @@ export default function TestOptions({
   };
 
   return (
-    <div
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
       className="flex flex-nowrap justify-center gap-3 px-4 py-8 w-full"
       role="group"
       aria-label="测试选项"
     >
       {options.map((option, index) => (
-        <button
+        <motion.button
           key={index}
           ref={(el) => (optionsRef.current[index] = el)}
           onClick={() => !showResult && onSelect(option)}
@@ -105,14 +110,16 @@ export default function TestOptions({
             }
           }}
           disabled={showResult}
+          variants={staggerItemVariants}
+          whileHover={!showResult ? { scale: 1.05 } : undefined}
+          whileTap={!showResult ? { scale: 0.95 } : undefined}
+          transition={g3SpringSnappy}
           className={`
-            flex-1 min-w-[120px] max-w-[180px] px-6 py-3 rounded-lg text-base font-medium
-            transition-all duration-200 animate-g3-fade-in
+            flex-1 min-w-[120px] max-w-[180px] px-6 py-3 rounded-lg text-base md:text-lg font-medium
             ${getButtonStyle(option)}
-            ${!showResult ? 'hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
+            ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
             disabled:cursor-not-allowed
           `}
-          style={{ animationDelay: `${index * 50}ms` }}
           aria-label={getAriaLabel(option, index)}
           aria-pressed={showResult && option === selectedAnswer}
           tabIndex={showResult ? -1 : 0}
@@ -121,8 +128,8 @@ export default function TestOptions({
             {index + 1}.
           </span>
           {option}
-        </button>
+        </motion.button>
       ))}
-    </div>
+    </motion.div>
   );
 }

@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_FATIGUE_PARAMS } from '../config/action-space';
+import { FatigueRecoveryModel } from './fatigue-recovery';
 
 // ==================== 类型定义 ====================
 
@@ -59,6 +60,9 @@ export class FatigueEstimator {
   private k: number;
   private longBreakThreshold: number;
 
+  // 疲劳恢复模型（增强功能）
+  private recoveryModel: FatigueRecoveryModel;
+
   constructor(
     params = DEFAULT_FATIGUE_PARAMS,
     initialFatigue: number = 0.1
@@ -71,6 +75,9 @@ export class FatigueEstimator {
 
     this.F = clipFatigue(initialFatigue);
     this.lastUpdateTime = Date.now();
+
+    // 初始化恢复模型
+    this.recoveryModel = new FatigueRecoveryModel();
   }
 
   /**
@@ -80,14 +87,21 @@ export class FatigueEstimator {
    */
   update(features: FatigueFeatures): number {
     const now = features.currentTime ?? Date.now();
+    const nowDate = new Date(now);
+
+    // 应用恢复模型（基于上次会话结束时间）
+    const recoveredFatigue = this.recoveryModel.computeRecoveredFatigue(
+      this.F,
+      nowDate
+    );
 
     // 计算休息时长(分钟)，确保非负以避免异常衰减行为
     const rawBreakMinutes = features.breakMinutes ??
       (now - this.lastUpdateTime) / 60000;
     const breakMinutes = Math.max(0, rawBreakMinutes);
 
-    // 指数衰减 (休息时恢复)
-    const F_decay = this.F * Math.exp(-this.k * breakMinutes);
+    // 指数衰减 (休息时恢复) - 使用恢复后的值
+    const F_decay = recoveredFatigue * Math.exp(-this.k * breakMinutes);
 
     // 计算本次事件的基础疲劳贡献
     const F_base =
@@ -168,6 +182,27 @@ export class FatigueEstimator {
    */
   needsForcedBreak(): boolean {
     return this.F > 0.8;
+  }
+
+  /**
+   * 标记会话结束（用于恢复模型）
+   */
+  markSessionEnd(): void {
+    this.recoveryModel.markSessionEnd(this.F);
+  }
+
+  /**
+   * 预测休息后的疲劳值
+   */
+  predictFatigueAfterBreak(breakMinutes: number): number {
+    return this.recoveryModel.predictFatigueAfterBreak(this.F, breakMinutes);
+  }
+
+  /**
+   * 计算达到目标疲劳值所需的休息时间
+   */
+  computeRequiredBreakTime(targetFatigue: number = 0.3): number {
+    return this.recoveryModel.computeRequiredBreakTime(this.F, targetFatigue);
   }
 
   /**

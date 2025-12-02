@@ -90,6 +90,7 @@ export {
   GitBranch,
   IdentificationBadge,
   WarningCircle,
+  Database,
 } from '@phosphor-icons/react';
 
 // 图标别名

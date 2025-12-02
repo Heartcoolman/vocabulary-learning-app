@@ -6,3 +6,6 @@ export { default as WordListPage } from './WordListPage';
 export { default as LoginPage } from './LoginPage';
 export { default as RegisterPage } from './RegisterPage';
 export { default as ProfilePage } from './ProfilePage';
+export { default as BatchImportPage } from './BatchImportPage';
+export { default as WordMasteryPage } from './WordMasteryPage';
+export { default as ExperimentDashboard } from './admin/ExperimentDashboard';

@@ -15,6 +15,7 @@ vi.mock('../../../src/config/database', () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      upsert: vi.fn(),
       deleteMany: vi.fn()
     }
   }
@@ -48,23 +49,24 @@ describe('StateHistoryService', () => {
         T: 'up'
       };
 
-      mockPrisma.userStateHistory.findUnique.mockResolvedValue(null);
-      mockPrisma.userStateHistory.create.mockResolvedValue({});
+      mockPrisma.userStateHistory.upsert.mockResolvedValue({});
 
       await stateHistoryService.saveStateSnapshot(userId, state);
 
-      expect(mockPrisma.userStateHistory.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId,
-          attention: 0.8,
-          fatigue: 0.3,
-          motivation: 0.7,
-          memory: 0.6,
-          speed: 0.7,
-          stability: 0.8,
-          trendState: 'up'
+      expect(mockPrisma.userStateHistory.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            userId,
+            attention: 0.8,
+            fatigue: 0.3,
+            motivation: 0.7,
+            memory: 0.6,
+            speed: 0.7,
+            stability: 0.8,
+            trendState: 'up'
+          })
         })
-      });
+      );
     });
 
     it('应该使用EMA更新当今天已有记录 (Property 16)', async () => {
@@ -87,16 +89,16 @@ describe('StateHistoryService', () => {
       };
 
       mockPrisma.userStateHistory.findUnique.mockResolvedValue(existingRecord);
-      mockPrisma.userStateHistory.update.mockResolvedValue({});
+      mockPrisma.userStateHistory.upsert.mockResolvedValue({});
 
       await stateHistoryService.saveStateSnapshot(userId, newState);
 
-      expect(mockPrisma.userStateHistory.update).toHaveBeenCalled();
+      expect(mockPrisma.userStateHistory.upsert).toHaveBeenCalled();
 
       // 验证EMA计算 (alpha = 0.3)
-      const updateCall = mockPrisma.userStateHistory.update.mock.calls[0][0];
+      const upsertCall = mockPrisma.userStateHistory.upsert.mock.calls[0][0];
       const expectedAttention = 0.3 * 0.8 + 0.7 * 0.5; // 0.59
-      expect(updateCall.data.attention).toBeCloseTo(expectedAttention, 2);
+      expect(upsertCall.update.attention).toBeCloseTo(expectedAttention, 2);
     });
   });
 

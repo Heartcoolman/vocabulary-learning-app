@@ -9,9 +9,11 @@
 ### 核心理念
 1. **简洁优先** - 界面清晰，避免视觉干扰
 2. **以学习为中心** - 突出学习内容，弱化装饰元素
-3. **流畅交互** - 所有操作都有即时反馈
+3. **流畅交互** - 所有操作都有即时反馈，采用物理弹簧动画
 4. **可访问性** - 支持键盘导航和屏幕阅读器
 5. **响应式设计** - 适配所有设备尺寸
+6. **层次分明** - 通过毛玻璃、阴影和渐变创建视觉层次
+7. **自然触感** - 基于 G3 弹簧物理系统的动效设计
 
 ---
 
@@ -26,6 +28,13 @@
 --primary-500: #3b82f6;  /* 主要按钮、链接 */
 --primary-600: #2563eb;  /* 悬停状态 */
 
+/* 品牌色 - Indigo 系（高级功能/数据面板） */
+--indigo-50: #eef2ff;
+--indigo-100: #e0e7ff;
+--indigo-200: #c7d2fe;
+--indigo-500: #6366f1;
+--indigo-600: #4f46e5;
+
 /* 中性色 - 灰色系 */
 --gray-50: #f9fafb;
 --gray-100: #f3f4f6;     /* 次要按钮背景 */
@@ -34,6 +43,18 @@
 --gray-600: #4b5563;     /* 音标、提示文字 */
 --gray-700: #374151;     /* 导航文字 */
 --gray-900: #111827;     /* 主要文字、标题 */
+
+/* 中性色 - Slate 系（数据面板/专业界面） */
+--slate-50: #f8fafc;
+--slate-100: #f1f5f9;
+--slate-200: #e2e8f0;
+--slate-300: #cbd5e1;
+--slate-400: #94a3b8;
+--slate-500: #64748b;
+--slate-600: #475569;
+--slate-700: #334155;
+--slate-800: #1e293b;
+--slate-900: #0f172a;
 
 /* 语义色 */
 --success-100: #dcfce7;  /* 正确答案背景 */
@@ -46,6 +67,29 @@
 
 --warning-100: #fef3c7;
 --warning-500: #f59e0b;
+
+/* 扩展语义色（数据状态标签） */
+--emerald-50: #ecfdf5;
+--emerald-100: #d1fae5;
+--emerald-500: #10b981;
+--emerald-600: #059669;
+--emerald-700: #047857;
+
+--amber-50: #fffbeb;
+--amber-100: #fef3c7;
+--amber-500: #f59e0b;
+--amber-600: #d97706;
+--amber-700: #b45309;
+
+--purple-50: #faf5ff;
+--purple-100: #f3e8ff;
+--purple-500: #a855f7;
+--purple-600: #9333ea;
+--purple-700: #7e22ce;
+
+--rose-50: #fff1f2;
+--rose-100: #ffe4e6;
+--rose-500: #f43f5e;
 
 /* 背景色 */
 --bg-primary: #ffffff;   /* 主背景 */
@@ -66,6 +110,39 @@
 | 主要文字 | Gray-900 | `text-gray-900` |
 | 次要文字 | Gray-600 | `text-gray-600` |
 | 边框 | Gray-200 | `border-gray-200` |
+
+### 数据面板配色（Slate 系）
+
+数据可视化、监控面板等专业界面使用 Slate 色系，提供更冷静、专业的视觉感受：
+
+| 用途 | 颜色 | Tailwind类 |
+|------|------|-----------|
+| 面板背景 | Slate-50/100 | `bg-slate-50` / `bg-slate-100` |
+| 面板文字标题 | Slate-800/900 | `text-slate-800` / `text-slate-900` |
+| 面板次要文字 | Slate-500/600 | `text-slate-500` / `text-slate-600` |
+| 面板边框 | Slate-200 | `border-slate-200` |
+| 侧边栏背景 | White/90 + Blur | `bg-white/90 backdrop-blur-lg` |
+| 数据强调色 | Indigo-500 | `text-indigo-500` / `bg-indigo-500` |
+
+### 状态标签配色
+
+用于表示不同状态、类型或难度的彩色标签：
+
+| 状态 | 背景 | 文字 | 边框 | 示例 |
+|------|------|------|------|------|
+| 真实数据 | Emerald-100 | Emerald-700 | Emerald-200 | `bg-emerald-100 text-emerald-700 border-emerald-200` |
+| 模拟数据 | Purple-100 | Purple-700 | Purple-200 | `bg-purple-100 text-purple-700 border-purple-200` |
+| 简单/Easy | Green-100 | Green-700 | Green-200 | `bg-green-100 text-green-700 border-green-200` |
+| 中等/Mid | Amber-100 | Amber-700 | Amber-200 | `bg-amber-100 text-amber-700 border-amber-200` |
+| 困难/Hard | Red-100 | Red-700 | Red-200 | `bg-red-100 text-red-700 border-red-200` |
+| 跳过/Skipped | Slate-100 | Slate-600 | Slate-200 | `bg-slate-100 text-slate-600 border-slate-200` |
+
+```tsx
+// 状态标签示例
+<span className="text-[10px] px-1.5 py-0.5 rounded border font-medium bg-emerald-100 text-emerald-700 border-emerald-200">
+  真实
+</span>
+```
 
 ---
 
@@ -261,15 +338,182 @@ line-height: 1.5;  /* 默认行高 */
 
 ## 🎭 动画系统
 
-### 动画时长标准
+本项目采用双轨动画方案：CSS 动画用于简单过渡，Framer Motion + G3 弹簧物理系统用于复杂交互。
 
-| 类型 | 时长 | 使用场景 |
-|------|------|---------|
-| 快速 | 150ms | 按钮点击、小元素 |
-| 标准 | 200-300ms | 页面切换、卡片进入 |
-| 慢速 | 400-500ms | 大元素进入、进度条 |
+### G3 动画时长标准
 
-### 预定义动画
+基于 HyperOS/MIUI 的自然触感设计理念：
+
+| 类型 | 时长 | Tailwind/CSS | 使用场景 |
+|------|------|-------------|---------|
+| 瞬时 | 120ms | `duration-[120ms]` | 按钮点击、图标切换 |
+| 快速 | 180ms | `duration-[180ms]` | 悬停状态、小组件 |
+| 标准 | 240ms | `duration-[240ms]` | 淡入淡出、状态变化 |
+| 强调 | 320ms | `duration-[320ms]` | 卡片展开、进度条 |
+| 大型 | 480ms | `duration-[480ms]` | 模态框、页面切换 |
+
+### G3 弹簧物理配置（Framer Motion）
+
+```typescript
+import type { Transition } from 'framer-motion';
+
+// 标准弹簧 - 平衡自然感，收敛约 240ms
+export const g3SpringStandard: Transition = {
+  type: 'spring',
+  stiffness: 280,
+  damping: 28,
+  mass: 1,
+};
+
+// 快速弹簧 - 响应迅速，收敛约 180ms
+export const g3SpringSnappy: Transition = {
+  type: 'spring',
+  stiffness: 400,
+  damping: 35,
+  mass: 0.8,
+};
+
+// 柔和弹簧 - 优雅缓慢，收敛约 320ms
+export const g3SpringGentle: Transition = {
+  type: 'spring',
+  stiffness: 220,
+  damping: 26,
+  mass: 1.1,
+};
+
+// 弹性弹簧 - 带适度过冲，收敛约 400ms（用于庆祝动画）
+export const g3SpringBouncy: Transition = {
+  type: 'spring',
+  stiffness: 250,
+  damping: 18,
+  mass: 1,
+};
+```
+
+### G3 缓动函数（Cubic Bezier）
+
+```typescript
+export const G3_EASING = {
+  standard: [0.2, 0, 0, 1],    // 标准缓动
+  enter: [0.05, 0.7, 0.1, 1],  // 进入动画
+  exit: [0.3, 0, 0.8, 0.15],   // 退出动画
+};
+```
+
+### Framer Motion Variants 预设
+
+#### 淡入变体
+
+```typescript
+export const fadeInVariants: Variants = {
+  hidden: { opacity: 0, y: 4 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: g3SpringStandard,
+  },
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: { duration: 0.18, ease: G3_EASING.exit },
+  },
+};
+```
+
+#### 向上滑入变体
+
+```typescript
+export const slideUpVariants: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: g3SpringGentle,
+  },
+};
+```
+
+#### 缩放入场变体（模态框）
+
+```typescript
+export const scaleInVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.92 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: g3SpringStandard,
+  },
+};
+```
+
+#### 列表错开入场变体
+
+```typescript
+export const staggerContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+export const staggerItemVariants: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: g3SpringStandard,
+  },
+};
+```
+
+#### 庆祝动画变体
+
+```typescript
+export const celebrationVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.5, rotate: -10 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    rotate: 0,
+    transition: g3SpringBouncy,
+  },
+};
+```
+
+### 使用示例
+
+```tsx
+import { motion } from 'framer-motion';
+import { fadeInVariants, staggerContainerVariants, staggerItemVariants } from '@/utils/animations';
+
+// 单个元素淡入
+<motion.div
+  initial="hidden"
+  animate="visible"
+  variants={fadeInVariants}
+>
+  内容
+</motion.div>
+
+// 列表错开入场
+<motion.div
+  variants={staggerContainerVariants}
+  initial="hidden"
+  animate="visible"
+>
+  {items.map((item) => (
+    <motion.div key={item.id} variants={staggerItemVariants}>
+      {item.content}
+    </motion.div>
+  ))}
+</motion.div>
+```
+
+### CSS 预定义动画（简单场景）
 
 #### 1. 淡入动画（Fade In）
 
@@ -315,6 +559,9 @@ className="hover:scale-105 transition-transform duration-200"
 
 // 点击缩小
 className="active:scale-95 transition-transform duration-150"
+
+// 微妙缩放（数据卡片）
+className="hover:scale-[1.01] transition-all duration-200"
 ```
 
 **使用场景**：所有可点击元素
@@ -325,7 +572,7 @@ className="active:scale-95 transition-transform duration-150"
 className="animate-pulse"
 ```
 
-**使用场景**：发音播放中、加载状态
+**使用场景**：发音播放中、加载状态、在线指示器
 
 #### 5. 旋转动画（Spin）
 
@@ -345,7 +592,9 @@ className="animate-bounce"
 
 ### 延迟动画（Staggered Animation）
 
-用于列表项依次出现：
+用于列表项依次出现，创造"瀑布"或"逐行揭示"效果。
+
+#### 方案一：CSS 动画延迟（简单场景）
 
 ```tsx
 {items.map((item, index) => (
@@ -357,6 +606,92 @@ className="animate-bounce"
     {item.content}
   </div>
 ))}
+```
+
+#### 方案二：Framer Motion 延迟（推荐，更流畅）
+
+```tsx
+import { motion } from 'framer-motion';
+
+{items.map((item, idx) => (
+  <motion.li
+    key={item.id}
+    initial={{ opacity: 0, x: -10 }}   // 初始状态：透明 + 左移
+    animate={{ opacity: 1, x: 0 }}      // 结束状态：显示 + 归位
+    transition={{ delay: idx * 0.08 }} // 每项延迟 80ms
+  >
+    {item.content}
+  </motion.li>
+))}
+```
+
+**延迟间隔参考值**：
+
+| 间隔 | 效果 | 适用场景 |
+|------|------|---------|
+| `idx * 0.05` (50ms) | 快速连贯 | 短列表（3-5项） |
+| `idx * 0.08` (80ms) | 平衡节奏 | 中等列表（4-8项）✅ 推荐 |
+| `idx * 0.1` (100ms) | 明显依次 | 长列表或强调效果 |
+| `idx * 0.15` (150ms) | 戏剧感 | 重要内容逐条揭示 |
+
+**动画方向变体**：
+
+```tsx
+// 从左滑入（默认）
+initial={{ opacity: 0, x: -10 }}
+
+// 从右滑入
+initial={{ opacity: 0, x: 10 }}
+
+// 从下滑入
+initial={{ opacity: 0, y: 16 }}
+
+// 纯淡入（无位移）
+initial={{ opacity: 0 }}
+```
+
+#### 方案三：staggerChildren（容器控制）
+
+当需要容器统一控制子元素动画时：
+
+```tsx
+import { motion } from 'framer-motion';
+import { staggerContainerVariants, staggerItemVariants } from '@/utils/animations';
+
+<motion.ul
+  variants={staggerContainerVariants}  // staggerChildren: 0.05, delayChildren: 0.1
+  initial="hidden"
+  animate="visible"
+>
+  {items.map((item) => (
+    <motion.li key={item.id} variants={staggerItemVariants}>
+      {item.content}
+    </motion.li>
+  ))}
+</motion.ul>
+```
+
+**三种方案对比**：
+
+| 方案 | 优点 | 缺点 | 适用场景 |
+|------|------|------|---------|
+| CSS delay | 简单、无依赖 | 动画类型固定 | 简单淡入效果 |
+| transition delay | 灵活、可定制方向 | 需逐项设置 | 展开内容、详情列表 |
+| staggerChildren | 统一管理、代码简洁 | 需定义 variants | 页面级列表、卡片网格 |
+
+### 交互式高度动画（Framer Motion）
+
+可展开卡片使用 `layout` 和 `animate` 实现平滑高度变化：
+
+```tsx
+<motion.div
+  layout
+  animate={{ height: isOpen ? 'auto' : 120 }}
+  transition={g3SpringStandard}
+  className="overflow-hidden rounded-2xl"
+>
+  {/* 卡片内容 */}
+</motion.div>
 ```
 
 ---
@@ -534,6 +869,125 @@ className="hover:bg-gray-100"
   />
 </div>
 ```
+
+### 可展开阶段卡片（Expandable Stage Card）
+
+用于首页功能介绍、手风琴列表等场景：
+
+```tsx
+import { motion, AnimatePresence } from 'framer-motion';
+import { CaretDown } from '../../components/Icon';
+import { g3SpringStandard } from '../../utils/animations';
+
+interface StageCardProps {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  description: string;
+  details: string[];
+  accentColor: string;  // e.g., 'bg-blue-500'
+  bgColor: string;      // e.g., 'bg-blue-50'
+  isOpen: boolean;
+  onClick: () => void;
+}
+
+function StageCard({
+  title, subtitle, icon, description, details,
+  accentColor, bgColor, isOpen, onClick,
+}: StageCardProps) {
+  return (
+    <motion.div
+      layout
+      onClick={onClick}
+      className={`
+        relative overflow-hidden rounded-2xl border cursor-pointer
+        transition-colors duration-300
+        ${isOpen
+          ? 'bg-white border-slate-300 shadow-lg'
+          : 'bg-white/60 border-slate-200 hover:border-slate-300 hover:bg-white/80'
+        }
+      `}
+      initial={false}
+      animate={{ height: isOpen ? 'auto' : 120 }}
+      transition={g3SpringStandard}
+    >
+      {/* 左侧强调色条 */}
+      <div className={`absolute top-0 left-0 w-1 h-full ${accentColor}`} />
+
+      <div className="p-6">
+        {/* 头部 */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <div className={`
+              p-3 rounded-xl transition-colors duration-200
+              ${isOpen ? `${bgColor} text-slate-700` : 'bg-slate-100 text-slate-500'}
+            `}>
+              {icon}
+            </div>
+            <div>
+              <h3 className={`
+                text-lg font-bold transition-colors duration-200
+                ${isOpen ? 'text-slate-900' : 'text-slate-700'}
+              `}>
+                {title}
+                <span className="ml-2 text-sm font-normal text-slate-400">
+                  {subtitle}
+                </span>
+              </h3>
+              {!isOpen && (
+                <p className="text-sm text-slate-500 line-clamp-1">{description}</p>
+              )}
+            </div>
+          </div>
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={g3SpringStandard}
+            className="text-slate-400"
+          >
+            <CaretDown size={20} />
+          </motion.div>
+        </div>
+
+        {/* 展开内容 */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="pl-[60px] pt-2"
+            >
+              <p className="text-slate-600 mb-4 leading-relaxed">{description}</p>
+              <ul className="space-y-2">
+                {details.map((detail, idx) => (
+                  <motion.li
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.08 }}
+                    className="flex items-start gap-2 text-sm text-slate-500"
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${accentColor}`} />
+                    {detail}
+                  </motion.li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+```
+
+**关键特点**：
+- 使用 `motion.div` 的 `layout` 属性实现平滑高度动画
+- 左侧彩色强调条区分不同阶段
+- 展开时图标背景变色，强调当前选中状态
+- 列表项逐个动画进入 (`delay: idx * 0.08`)
+- 箭头旋转动画指示展开/收起状态
 
 ---
 
@@ -1029,6 +1483,37 @@ import { Books, ArrowLeft, Plus } from '../components/Icon';
 
 ## 🌈 渐变效果
 
+### 页面渐变背景
+
+用于创建有层次感的页面背景，提升视觉品质：
+
+```tsx
+// 学习页面 - 清新蓝色调
+<div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+
+// 数据面板 - 专业冷色调
+<div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
+
+// 统计页面 - 活力蓝紫色调
+<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+
+// 首页 - 纯净白色调
+<div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+```
+
+### 文字渐变效果
+
+用于标题强调：
+
+```tsx
+<h1 className="text-4xl font-bold text-slate-900">
+  AMAS{' '}
+  <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+    智能引擎
+  </span>
+</h1>
+```
+
 ### 渐变分隔线
 
 用于对话框、卡片等处，提供优雅的视觉分隔。
@@ -1056,6 +1541,217 @@ import { Books, ArrowLeft, Plus } from '../components/Icon';
 ```
 
 **注意**：渐变背景应谨慎使用，避免过度装饰。
+
+---
+
+## 📊 数据面板组件
+
+用于监控面板、统计页面等专业数据展示场景。
+
+### 数据面板布局
+
+```tsx
+// 全屏仪表盘布局（带侧边栏）
+<div className="flex h-screen w-full bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+  {/* 侧边栏 */}
+  <aside className="w-[300px] flex flex-col flex-shrink-0 border-r border-slate-200 bg-white/90 backdrop-blur-lg shadow-xl z-10">
+    {/* 侧边栏内容 */}
+  </aside>
+  
+  {/* 主内容区 */}
+  <main className="flex-1 relative flex flex-col h-full overflow-hidden">
+    {/* 主内容 */}
+  </main>
+</div>
+```
+
+### 统计指标卡片
+
+大数字指标展示，带装饰性背景图标：
+
+```tsx
+<motion.div 
+  variants={fadeInVariants} 
+  className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm"
+>
+  {/* 装饰性背景图标 */}
+  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+    <Target size={80} weight="fill" className="text-emerald-500" />
+  </div>
+  
+  <div className="relative z-10">
+    <p className="text-gray-600 text-sm font-medium mb-1 flex items-center gap-2">
+      <TrendUp className="text-emerald-500" /> 全局准确率
+    </p>
+    <div className="text-3xl font-bold text-gray-900">92.4%</div>
+    <div className="text-emerald-500 text-xs mt-2 font-mono">+12.4% 提升</div>
+  </div>
+</motion.div>
+```
+
+### 决策卡片（可选中）
+
+带选中状态的列表卡片：
+
+```tsx
+interface DecisionCardProps {
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function DecisionCard({ isSelected, onClick }: DecisionCardProps) {
+  const baseClasses = 'p-3 mb-3 rounded-lg cursor-pointer border transition-all duration-200 group hover:shadow-md hover:scale-[1.01]';
+  const selectedClasses = isSelected
+    ? 'bg-indigo-50/80 border-indigo-500 shadow-sm ring-1 ring-indigo-200'
+    : 'bg-white border-slate-200 hover:border-indigo-200';
+
+  return (
+    <div onClick={onClick} className={`${baseClasses} ${selectedClasses}`}>
+      {/* 卡片内容 */}
+    </div>
+  );
+}
+```
+
+### 侧边栏头部
+
+带筛选 Tab 的侧边栏：
+
+```tsx
+<div className="p-4 border-b border-slate-200 bg-white/50">
+  <div className="flex items-center justify-between mb-3">
+    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+      <Target size={18} weight="fill" className="text-indigo-500" />
+      近期决策
+    </h2>
+    {isLoading && <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />}
+  </div>
+  
+  {/* Tab 筛选器 */}
+  <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+    <button
+      onClick={() => setActiveTab('all')}
+      className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all ${
+        activeTab === 'all' 
+          ? 'bg-white text-slate-700 shadow-sm' 
+          : 'text-slate-500 hover:text-slate-700'
+      }`}
+    >
+      全部
+    </button>
+    {/* 更多 Tab */}
+  </div>
+</div>
+```
+
+### 信息头部卡片
+
+展示详情信息的头部区域：
+
+```tsx
+<header className="bg-white/80 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm">
+  <div className="flex items-start justify-between mb-4">
+    <div>
+      <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <GitBranch size={20} weight="bold" className="text-indigo-500" />
+        决策轨迹
+      </h2>
+      <div className="text-xs text-slate-500 font-mono mt-1.5">
+        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          {decisionId}
+        </span>
+      </div>
+    </div>
+    <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+      <Clock size={14} />
+      <span className="font-mono">{timestamp}</span>
+    </div>
+  </div>
+
+  {/* 网格信息展示 */}
+  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+    <div className="flex items-center gap-3">
+      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+        <IdentificationBadge size={18} weight="fill" />
+      </div>
+      <div>
+        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pseudo ID</p>
+        <p className="text-sm font-mono font-medium text-slate-700">{pseudoId}</p>
+      </div>
+    </div>
+    {/* 更多字段 */}
+  </div>
+</header>
+```
+
+### 流水线/流程指示器
+
+展示多阶段流程状态：
+
+```tsx
+<div className="bg-white/60 backdrop-blur-sm rounded-lg border border-slate-200 p-4">
+  <div className="flex items-center justify-between">
+    {stages.map((stage, index) => (
+      <React.Fragment key={stage.type}>
+        {/* 节点 */}
+        <div className="flex flex-col items-center flex-1 min-w-0">
+          <div
+            className="w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all"
+            style={{
+              borderColor: stage.color,
+              backgroundColor: stage.status === 'SUCCESS' ? `${stage.color}15` : 'white'
+            }}
+          >
+            {stage.status === 'SUCCESS' && <Check size={16} color={stage.color} weight="bold" />}
+            {stage.status === 'FAILED' && <X size={16} color={stage.color} weight="bold" />}
+          </div>
+          <span className="text-[9px] text-slate-600 mt-1.5 font-medium text-center">
+            {stage.name}
+          </span>
+        </div>
+        
+        {/* 连接线 */}
+        {index < stages.length - 1 && (
+          <div className="w-6 h-0.5 -mt-4 flex-shrink-0 bg-slate-200" />
+        )}
+      </React.Fragment>
+    ))}
+  </div>
+</div>
+```
+
+### 空状态（数据面板）
+
+```tsx
+<div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 border-dashed">
+  <div className="text-center text-slate-400">
+    <GitBranch size={48} className="mx-auto mb-4 opacity-50" />
+    <p className="text-sm font-medium">请从左侧选择一条决策记录</p>
+    <p className="text-xs mt-1 text-slate-300">Select a decision to view details</p>
+  </div>
+</div>
+```
+
+### 实时状态指示器
+
+```tsx
+{/* 加载指示器 - 悬浮 */}
+<div className="absolute top-4 right-4 z-20 bg-white/80 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-slate-200 flex items-center gap-2 text-xs text-slate-500">
+  <CircleNotch size={14} weight="bold" className="animate-spin text-indigo-500" />
+  Loading details...
+</div>
+
+{/* 在线状态 */}
+<div className="text-xs text-gray-400 flex items-center justify-end gap-2">
+  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
+  系统在线
+</div>
+
+{/* 自动刷新提示 */}
+<div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[10px] text-center text-slate-400">
+  Auto-refreshing every 3s
+</div>
+```
 
 ---
 
@@ -1358,6 +2054,8 @@ export default function MyComponent({ }: MyComponentProps) {
 ### 常用类名组合
 
 ```tsx
+// ==================== 按钮 ====================
+
 // 主要按钮
 "px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 
@@ -1367,20 +2065,73 @@ export default function MyComponent({ }: MyComponentProps) {
 // 次要按钮
 "px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
 
+// ==================== 卡片 ====================
+
 // 毛玻璃效果卡片
 "p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
 
 // 单词卡片
 "group p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm hover:shadow-xl hover:scale-[1.03] transition-all duration-300 hover:border-blue-400"
 
+// 数据面板统计卡片
+"bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm"
+
+// 可选中列表卡片（未选中）
+"p-3 rounded-lg cursor-pointer border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-md hover:scale-[1.01] transition-all duration-200 group"
+
+// 可选中列表卡片（选中）
+"p-3 rounded-lg cursor-pointer border border-indigo-500 bg-indigo-50/80 shadow-sm ring-1 ring-indigo-200 transition-all duration-200"
+
+// ==================== 输入 & 表单 ====================
+
 // 输入框
 "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+
+// Tab 筛选器容器
+"flex gap-1 bg-slate-100 p-1 rounded-lg"
+
+// Tab 按钮（激活）
+"flex-1 px-2 py-1 text-xs font-medium rounded bg-white text-slate-700 shadow-sm transition-all"
+
+// Tab 按钮（未激活）
+"flex-1 px-2 py-1 text-xs font-medium rounded text-slate-500 hover:text-slate-700 transition-all"
+
+// ==================== 布局 ====================
 
 // 导航栏
 "fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
 
-// 页面容器
+// 页面容器（标准）
 "max-w-6xl mx-auto px-4 py-8 animate-fade-in"
+
+// 页面容器（大型）
+"max-w-7xl mx-auto"
+
+// 页面渐变背景
+"min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30"
+
+// 数据面板渐变背景
+"min-h-screen bg-gradient-to-br from-slate-100 to-slate-200"
+
+// 侧边栏
+"w-[300px] flex flex-col flex-shrink-0 border-r border-slate-200 bg-white/90 backdrop-blur-lg shadow-xl z-10"
+
+// 信息头部卡片
+"bg-white/80 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm"
+
+// ==================== 标签 & 徽章 ====================
+
+// 状态标签（基础）
+"text-[10px] px-1.5 py-0.5 rounded border font-medium"
+
+// 真实数据标签
+"text-[10px] px-1.5 py-0.5 rounded border font-medium bg-emerald-100 text-emerald-700 border-emerald-200"
+
+// 模拟数据标签
+"text-[10px] px-1.5 py-0.5 rounded border font-medium bg-purple-100 text-purple-700 border-purple-200"
+
+// ID 标签
+"bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-xs font-mono text-slate-500"
 
 // 圆形音标背景
 "text-base text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full"
@@ -1388,18 +2139,78 @@ export default function MyComponent({ }: MyComponentProps) {
 // 圆形编号徽章
 "w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold"
 
+// ==================== 装饰元素 ====================
+
 // 渐变分隔线
 "h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"
+
+// 左侧强调色条
+"absolute top-0 left-0 w-1 h-full bg-blue-500"
+
+// 装饰性背景图标
+"absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+
+// 在线状态指示器
+"w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+
+// ==================== 加载状态 ====================
+
+// 悬浮加载指示器
+"absolute top-4 right-4 z-20 bg-white/80 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-slate-200 flex items-center gap-2 text-xs text-slate-500"
+
+// ==================== 文字样式 ====================
+
+// 大写标签文字
+"text-xs font-bold uppercase tracking-wider"
+
+// 小标签
+"text-[10px] text-slate-500 uppercase tracking-wider"
+
+// 单空等宽字体
+"font-mono"
+
+// 渐变文字
+"bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
 ```
 
 
 ---
 
-**版本**: 2.0.0  
-**最后更新**: 2025年11月  
+**版本**: 3.0.0  
+**最后更新**: 2025年12月  
 **维护者**: 开发团队
 
 ## 更新日志
+
+### v3.0.0 (2025年12月)
+- ✨ **新增 G3 弹簧物理动画系统** - 基于 HyperOS/MIUI 自然触感设计
+  - 四种弹簧配置：Standard、Snappy、Gentle、Bouncy
+  - G3 时长标准：120ms - 480ms
+  - Framer Motion Variants 预设
+- ✨ **新增数据面板组件规范** - 监控面板、统计页面专用组件
+  - 全屏仪表盘布局（侧边栏 + 主内容）
+  - 统计指标卡片（带装饰性背景图标）
+  - 可选中列表卡片
+  - 流水线/流程指示器
+  - 实时状态指示器
+- ✨ **扩展颜色系统**
+  - 新增 Slate 系（数据面板/专业界面）
+  - 新增 Indigo 系（高级功能/数据面板）
+  - 新增扩展语义色：Emerald、Amber、Purple、Rose
+  - 新增状态标签配色规范
+- ✨ **新增页面渐变背景** - 多种场景渐变方案
+- ✨ **新增文字渐变效果** - 标题强调样式
+- ✨ **新增交互式高度动画** - Framer Motion layout 动画
+- 🔄 扩展常用类名组合
+  - 数据面板统计卡片
+  - 可选中列表卡片
+  - Tab 筛选器
+  - 侧边栏布局
+  - 状态标签/徽章
+  - 装饰元素
+  - 加载状态指示器
+  - 文字样式
+- 🔄 更新设计原则，强调层次分明和自然触感
 
 ### v2.0.0 (2025年11月)
 - ✨ 新增毛玻璃效果（Backdrop Blur）章节

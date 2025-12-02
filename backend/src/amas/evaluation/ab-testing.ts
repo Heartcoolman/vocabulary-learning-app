@@ -952,6 +952,86 @@ export class ABTestEngine {
 }
 
 /**
+ * 兼容测试的轻量版 A/B 测试实现
+ */
+export class ABTesting {
+  private experimentId: string;
+  private variants: string[];
+  private assignments = new Map<string, string>();
+  private metrics = new Map<string, Map<string, number[]>>();
+
+  constructor(config: { experimentId: string; variants: string[] }) {
+    this.experimentId = config.experimentId;
+    this.variants = config.variants;
+  }
+
+  assignVariant(userId: string): string {
+    if (this.assignments.has(userId)) {
+      return this.assignments.get(userId)!;
+    }
+    const hash = this.hash(userId + this.experimentId);
+    const variant = this.variants[hash % this.variants.length];
+    this.assignments.set(userId, variant);
+    return variant;
+  }
+
+  recordMetric(variant: string, metric: string, value: number): void {
+    if (!this.metrics.has(variant)) {
+      this.metrics.set(variant, new Map());
+    }
+    const metricMap = this.metrics.get(variant)!;
+    if (!metricMap.has(metric)) {
+      metricMap.set(metric, []);
+    }
+    metricMap.get(metric)!.push(value);
+  }
+
+  getMetricCount(variant: string, metric: string): number {
+    return this.metrics.get(variant)?.get(metric)?.length ?? 0;
+  }
+
+  getResults() {
+    const variants = this.variants.map((variant) => {
+      const metricValues = Array.from(this.metrics.get(variant)?.values() ?? []);
+      const flattened = metricValues.flat();
+      const mean =
+        flattened.reduce((s, v) => s + v, 0) / (flattened.length || 1);
+      return {
+        variant,
+        mean,
+        count: flattened.length
+      };
+    });
+
+    return { variants };
+  }
+
+  isStatisticallySignificant(metric: string, alpha = 0.05): boolean {
+    // 简化：根据两个变体均值差距判断
+    const values = this.variants.map((variant) => {
+      const metrics = this.metrics.get(variant)?.get(metric) ?? [];
+      return metrics.reduce((s, v) => s + v, 0) / (metrics.length || 1);
+    });
+    if (values.length < 2) return false;
+    return Math.abs(values[0] - values[1]) > alpha;
+  }
+
+  reset(): void {
+    this.assignments.clear();
+    this.metrics.clear();
+  }
+
+  private hash(input: string): number {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      hash = (hash << 5) - hash + input.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+}
+
+/**
  * 创建默认A/B测试引擎
  */
 export function createABTestEngine(): ABTestEngine {

@@ -79,6 +79,7 @@ describe('DelayedRewardService', () => {
       expect(result).toEqual(mockReward);
       expect(mockPrisma.rewardQueue.create).toHaveBeenCalledWith({
         data: {
+          answerRecordId: null,
           sessionId: params.sessionId,
           userId: params.userId,
           dueTs: params.dueTs,

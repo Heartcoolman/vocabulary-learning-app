@@ -193,6 +193,8 @@ router.get('/phase', authMiddleware, async (req: AuthRequest, res, next) => {
  * POST /api/amas/batch-process
  * 批量处理历史事件（用于数据导入）
  * 限制：单次最多处理100条事件
+ *
+ * ⚠️ 状态: 后端已实现，前端未调用 (TODO: 前端ApiClient缺少此方法)
  */
 router.post('/batch-process', authMiddleware, validateBody(batchProcessSchema), async (req: AuthRequest, res, next) => {
   try {

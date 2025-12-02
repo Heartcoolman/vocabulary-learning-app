@@ -69,3 +69,38 @@ export function validateBody(schema: ZodTypeAny) {
 export function validateParams(schema: ZodTypeAny) {
   return validate(schema, 'params');
 }
+
+/**
+ * 兼容测试的请求验证工厂
+ * 支持同时验证 body/query/params
+ */
+export function validateRequest(schemas: {
+  body?: ZodTypeAny;
+  query?: ZodTypeAny;
+  params?: ZodTypeAny;
+}) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (schemas.body) {
+        req.validatedBody = schemas.body.parse(req.body) as Record<string, unknown>;
+      }
+      if (schemas.query) {
+        req.validatedQuery = schemas.query.parse(req.query) as Record<string, unknown>;
+      }
+      if (schemas.params) {
+        req.validatedParams = schemas.params.parse(req.params) as Record<string, unknown>;
+      }
+      next();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: error.errors[0]?.message || '请求参数不合法'
+        });
+      }
+      return next(error);
+    }
+  };
+}
+
+export default validateRequest;

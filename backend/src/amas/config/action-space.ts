@@ -47,23 +47,23 @@ export const FEATURE_VERSION = 2;
 
 /** 分类阶段交互次数 */
 export const CLASSIFY_PHASE_THRESHOLD = 15;
-/** 探索阶段交互次数 */
-export const EXPLORE_PHASE_THRESHOLD = 50;
+/** 探索阶段交互次数 (5次classify + 15次explore = 20次后进入normal) */
+export const EXPLORE_PHASE_THRESHOLD = 20;
 /** 分类触发交互次数 */
 export const CLASSIFY_TRIGGER = 12;
 
 // ==================== 模型参数 ====================
 
-/** 注意力模型默认权重 */
+/** 注意力模型默认权重 (正值，配合 sigmoid(-weightedSum) 使用) */
 export const DEFAULT_ATTENTION_WEIGHTS: AttentionWeights = {
-  rt_mean: -0.25,
-  rt_cv: -0.35,
-  pace_cv: -0.2,
-  pause: -0.15,
-  switch: -0.2,
-  drift: -0.15,
-  interaction: -0.3,
-  focus_loss: -0.4
+  rt_mean: 0.25,
+  rt_cv: 0.35,
+  pace_cv: 0.2,
+  pause: 0.15,
+  switch: 0.2,
+  drift: 0.15,
+  interaction: -0.3,  // 交互密度高 → 注意力高，所以保持负数
+  focus_loss: 0.5     // 最高权重，失焦是最强的注意力下降信号
 };
 
 /** 注意力模型平滑系数 */

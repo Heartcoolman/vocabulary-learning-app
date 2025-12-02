@@ -350,22 +350,53 @@ export async function getStateDistribution(): Promise<StateDistribution> {
 }
 
 /**
- * 获取近期决策
+ * 混合决策数据
  */
-export async function getRecentDecisions(): Promise<RecentDecision[]> {
-  const response = await fetch(`${API_BASE}/stats/recent-decisions`, {
+export interface MixedDecisions {
+  real: RecentDecision[];
+  virtual: RecentDecision[];
+}
+
+/**
+ * 获取近期决策
+ * @param mixed 是否同时返回真实和模拟数据
+ */
+export async function getRecentDecisions(mixed?: boolean): Promise<RecentDecision[] | MixedDecisions> {
+  const url = mixed 
+    ? `${API_BASE}/stats/recent-decisions?mixed=true`
+    : `${API_BASE}/stats/recent-decisions`;
+  const response = await fetch(url, {
     headers: buildHeaders()
   });
-  return parseJsonResponse<RecentDecision[]>(response, '获取近期决策失败');
+  return parseJsonResponse<RecentDecision[] | MixedDecisions>(response, '获取近期决策失败');
+}
+
+/**
+ * 获取混合决策数据（真实 + 模拟）
+ */
+export async function getMixedDecisions(): Promise<MixedDecisions> {
+  const response = await fetch(`${API_BASE}/stats/recent-decisions?mixed=true`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<MixedDecisions>(response, '获取混合决策失败');
 }
 
 /**
  * 获取决策详情
+ * @param decisionId 决策ID
+ * @param source 数据源 ('real' | 'virtual')
  * @returns DecisionDetail | null (404时返回null)
  * @throws Error 其他HTTP错误
  */
-export async function getDecisionDetail(decisionId: string): Promise<DecisionDetail | null> {
-  const response = await fetch(`${API_BASE}/decision/${encodeURIComponent(decisionId)}`, {
+export async function getDecisionDetail(
+  decisionId: string, 
+  source?: 'real' | 'virtual'
+): Promise<DecisionDetail | null> {
+  const url = source === 'virtual'
+    ? `${API_BASE}/decision/${encodeURIComponent(decisionId)}?source=virtual`
+    : `${API_BASE}/decision/${encodeURIComponent(decisionId)}`;
+  
+  const response = await fetch(url, {
     headers: buildHeaders()
   });
 

@@ -53,6 +53,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 批量添加单词
+// ⚠️ 状态: 后端已实现，管理员UI待开发 (TODO: AdminWordBooks批量导入功能)
 router.post('/batch', async (req: AuthRequest, res: Response, next) => {
   try {
     const words = req.body.words;

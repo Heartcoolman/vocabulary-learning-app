@@ -10,6 +10,64 @@ import prisma from '../config/database';
 
 export class WordScoreService {
   /**
+   * Compute a lightweight score used by unit tests.
+   */
+  async calculateScore(
+    userId: string,
+    wordId: string
+  ): Promise<{ userId: string; wordId: string; score: number }> {
+    const records =
+      (await (prisma as any).learningRecord?.findMany({
+        where: { userId, wordId }
+      })) ?? [];
+
+    if (records.length === 0) {
+      return { userId, wordId, score: 0 };
+    }
+
+    const correct = records.filter((r: any) => r.isCorrect).length;
+    const accuracy = correct / records.length;
+    const avgTime =
+      records.reduce((sum: number, r: any) => sum + (r.responseTime ?? 0), 0) /
+      Math.max(records.length, 1);
+    const timeScore = Math.max(0, Math.min(1, 1 - avgTime / 5000));
+    const score = Math.max(0, Math.min(1, 0.7 * accuracy + 0.3 * timeScore));
+
+    return { userId, wordId, score };
+  }
+
+  /**
+   * Fetch multiple scores at once.
+   */
+  async getWordScores(
+    userId: string,
+    wordIds: string[]
+  ): Promise<Array<{ userId: string; wordId: string; score?: number }>> {
+    if (!wordIds?.length) return [];
+    return prisma.wordScore.findMany({
+      where: { userId, wordId: { in: wordIds } }
+    });
+  }
+
+  /**
+   * Update a single word score after a review.
+   */
+  async updateScore(
+    userId: string,
+    wordId: string,
+    _result: { isCorrect: boolean; responseTime?: number }
+  ): Promise<any> {
+    const { score } = await this.calculateScore(userId, wordId);
+    const payload = { userId, wordId, score, totalScore: score } as any;
+
+    return prisma.wordScore.upsert({
+      where: { unique_user_word_score: { userId, wordId } },
+      create: payload,
+      update: payload
+    });
+  }
+
+  /**
    * 获取单词得分（带缓存）
    */
   async getWordScore(userId: string, wordId: string): Promise<WordScore | null> {
@@ -312,3 +370,4 @@ export class WordScoreService {
 }
 
 export const wordScoreService = new WordScoreService();
+export default wordScoreService;

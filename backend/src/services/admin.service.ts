@@ -10,10 +10,11 @@ export class AdminService {
     async getAllUsers(options?: {
         page?: number;
         pageSize?: number;
+        limit?: number;
         search?: string;
     }) {
         const page = options?.page || 1;
-        const pageSize = options?.pageSize || 20;
+        const pageSize = options?.pageSize || options?.limit || 20;
         const skip = (page - 1) * pageSize;
 
         const where = options?.search
@@ -41,6 +42,20 @@ export class AdminService {
             }),
             prisma.user.count({ where }),
         ]);
+
+        // 空结果早期返回
+        if (users.length === 0) {
+            return {
+                users: [],
+                total,
+                pagination: {
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.ceil(total / pageSize),
+                },
+            };
+        }
 
         // 批量获取所有用户的统计数据（避免 N+1 查询）
         const userIds = users.map(u => u.id);
@@ -104,6 +119,7 @@ export class AdminService {
 
         return {
             users: usersWithStats,
+            total,
             pagination: {
                 page,
                 pageSize,
@@ -379,6 +395,33 @@ export class AdminService {
             totalWords,
             totalRecords,
         };
+    }
+
+    /**
+     * 兼容 *.spec.ts：系统统计简版
+     */
+    async getSystemStats() {
+        const stats = await this.getStatistics();
+        return {
+            totalUsers: stats.totalUsers,
+            totalWords: stats.totalWords,
+            totalWordBooks: stats.totalWordBooks,
+            totalRecords: stats.totalRecords,
+        };
+    }
+
+    /**
+     * 兼容 *.spec.ts：封禁用户（通过清除会话实现软封禁）
+     */
+    async banUser(userId: string) {
+        await prisma.session.deleteMany({ where: { userId } });
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { role: UserRole.USER },
+        });
+
+        return { ...updatedUser, banned: true };
     }
 
     /**

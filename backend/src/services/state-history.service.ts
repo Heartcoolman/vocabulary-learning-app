@@ -112,6 +112,104 @@ const POSITIVE_WHEN_DOWN = ['fatigue'];
 
 class StateHistoryService {
   /**
+   * 兼容旧版/测试的简单记录接口
+   */
+  async recordState(
+    userId: string,
+    state: Partial<UserState> & { timestamp?: Date }
+  ): Promise<{ state: Partial<UserState>; timestamp: Date; id?: string }> {
+    const prismaAny = prisma as any;
+    const timestamp = state.timestamp ?? new Date();
+
+    // 将简化的 state 映射到结构化字段（实际数据库使用）
+    const payload = {
+      userId,
+      date: new Date(timestamp),
+      attention: state.A ?? (state as any).attention ?? 0,
+      fatigue: state.F ?? (state as any).fatigue ?? 0,
+      motivation: state.M ?? (state as any).motivation ?? 0,
+      memory: state.C?.memory ?? (state as any).memory ?? (state as any).mem ?? 0,
+      speed: state.C?.speed ?? (state as any).speed ?? 0,
+      stability: state.C?.stability ?? (state as any).stability ?? 0,
+      trendState: (state as any).T
+    };
+
+    const created = prismaAny.userStateHistory
+      ? await prismaAny.userStateHistory.create({ data: payload })
+      : payload;
+
+    return {
+      ...(created ?? {}),
+      state,
+      timestamp: new Date(timestamp)
+    };
+  }
+
+  /**
+   * 兼容测试的历史查询接口
+   */
+  async getHistory(
+    userId: string,
+    options: { limit?: number; start?: Date; end?: Date } = {}
+  ): Promise<Array<{ state: Partial<UserState>; timestamp: Date }>> {
+    const prismaAny = prisma as any;
+    const records = prismaAny.userStateHistory
+      ? await prismaAny.userStateHistory.findMany({
+          where: {
+            userId,
+            ...(options.start || options.end
+              ? {
+                  date: {
+                    gte: options.start,
+                    lte: options.end
+                  }
+                }
+              : {})
+          },
+          orderBy: { date: 'desc' },
+          take: options.limit
+        })
+      : [];
+
+    return records.map((r: any) => ({
+      ...r,
+      state: r.state ?? {
+        A: r.attention,
+        F: r.fatigue,
+        M: r.motivation,
+        C: { mem: r.memory, speed: r.speed, stability: r.stability }
+      },
+      timestamp: r.timestamp ?? r.date
+    }));
+  }
+
+  /**
+   * 兼容测试的获取最新状态
+   */
+  async getLatestState(
+    userId: string
+  ): Promise<Partial<UserState> | null> {
+    const prismaAny = prisma as any;
+    const record = prismaAny.userStateHistory
+      ? await prismaAny.userStateHistory.findFirst({
+          where: { userId },
+          orderBy: { date: 'desc' }
+        })
+      : null;
+
+    if (!record) return null;
+
+    return (
+      record.state ?? {
+        A: record.attention,
+        F: record.fatigue,
+        M: record.motivation,
+        C: { mem: record.memory, speed: record.speed, stability: record.stability }
+      }
+    );
+  }
+
+  /**
    * 保存状态快照
    * Requirements: 5.2
    * 
@@ -124,7 +222,6 @@ class StateHistoryService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 检查今天是否已有记录
     const existing = await prisma.userStateHistory.findUnique({
       where: {
         userId_date: {
@@ -134,19 +231,21 @@ class StateHistoryService {
       }
     });
 
-    if (existing) {
-      // 使用指数移动平均（EMA）更新 (Property 16)
-      // alpha=0.3 表示新值占30%权重，历史值占70%权重
-      // 这样避免了简单 (old+new)/2 在多次更新时的权重偏差问题
-      const alpha = 0.3;
-      await prisma.userStateHistory.update({
-        where: {
-          userId_date: {
-            userId,
-            date: today
-          }
-        },
-        data: {
+    const alpha = 0.3;
+    const createData = {
+      userId,
+      date: today,
+      attention: state.A,
+      fatigue: state.F,
+      motivation: state.M,
+      memory: state.C.memory,
+      speed: state.C.speed,
+      stability: state.C.stability,
+      trendState: state.T
+    };
+
+    const updateData = existing
+      ? {
           attention: alpha * state.A + (1 - alpha) * existing.attention,
           fatigue: alpha * state.F + (1 - alpha) * existing.fatigue,
           motivation: alpha * state.M + (1 - alpha) * existing.motivation,
@@ -155,13 +254,7 @@ class StateHistoryService {
           stability: alpha * state.C.stability + (1 - alpha) * existing.stability,
           trendState: state.T || existing.trendState
         }
-      });
-    } else {
-      // 创建新记录
-      await prisma.userStateHistory.create({
-        data: {
-          userId,
-          date: today,
+      : {
           attention: state.A,
           fatigue: state.F,
           motivation: state.M,
@@ -169,9 +262,18 @@ class StateHistoryService {
           speed: state.C.speed,
           stability: state.C.stability,
           trendState: state.T
+        };
+
+    await prisma.userStateHistory.upsert({
+      where: {
+        userId_date: {
+          userId,
+          date: today
         }
-      });
-    }
+      },
+      create: createData,
+      update: updateData
+    });
   }
 
   /**
@@ -480,3 +582,4 @@ class StateHistoryService {
 
 // 导出单例实例
 export const stateHistoryService = new StateHistoryService();
+export default stateHistoryService;

@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, Lock, Database, Activity } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/ApiClient';
 import StorageService from '../services/StorageService';
+import HabitProfileTab from '../components/HabitProfileTab';
 
 /**
  * 个人资料页面组件
@@ -10,6 +12,8 @@ import StorageService from '../services/StorageService';
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'cache' | 'habit'>('profile');
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -124,66 +128,101 @@ export default function ProfilePage() {
     );
   }
 
+  const tabs = [
+    { id: 'profile' as const, label: '基本信息', icon: User },
+    { id: 'password' as const, label: '修改密码', icon: Lock },
+    { id: 'cache' as const, label: '数据管理', icon: Database },
+    { id: 'habit' as const, label: '学习习惯', icon: Activity },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
         {/* 页面标题 */}
         <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
 
-        {/* 左右分栏布局 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 左侧 - 用户信息与账号管理 */}
-          <div className="space-y-6">
-            {/* 用户信息卡片 */}
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">基本信息</h2>
+        {/* Tab 导航 */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+                    ${
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                >
+                  <Icon size={18} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    用户名
-                  </label>
-                  <p className="text-base text-gray-900">{user.username}</p>
-                </div>
+        {/* Tab 内容 */}
+        <div className="mt-6">
+          {activeTab === 'profile' && (
+            <div className="space-y-6 max-w-2xl">
+              {/* 用户信息卡片 */}
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">基本信息</h2>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    邮箱地址
-                  </label>
-                  <p className="text-base text-gray-900">{user.email}</p>
-                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      用户名
+                    </label>
+                    <p className="text-base text-gray-900">{user.username}</p>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    注册时间
-                  </label>
-                  <p className="text-base text-gray-900">
-                    {new Date(user.createdAt).toLocaleDateString('zh-CN', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      邮箱地址
+                    </label>
+                    <p className="text-base text-gray-900">{user.email}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      注册时间
+                    </label>
+                    <p className="text-base text-gray-900">
+                      {new Date(user.createdAt).toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* 账号管理 */}
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">账号管理</h2>
-              <button
-                onClick={handleLogout}
-                className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 border border-red-200"
-              >
-                退出登录
-              </button>
+              {/* 账号管理 */}
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">账号管理</h2>
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 border border-red-200"
+                >
+                  退出登录
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 右侧 - 密码修改与数据管理 */}
-          <div className="space-y-6">
-            {/* 修改密码表单 */}
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
+          {activeTab === 'password' && (
+            <div className="space-y-6 max-w-2xl">
+              {/* 修改密码表单 */}
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
               <h2 className="text-xl font-bold text-gray-900 mb-4">修改密码</h2>
 
               <form onSubmit={handleChangePassword}>
@@ -282,10 +321,14 @@ export default function ProfilePage() {
                   {loading ? '修改中...' : '修改密码'}
                 </button>
               </form>
+              </div>
             </div>
+          )}
 
-            {/* 数据缓存管理 */}
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
+          {activeTab === 'cache' && (
+            <div className="space-y-6 max-w-2xl">
+              {/* 数据缓存管理 */}
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
               <h2 className="text-xl font-bold text-gray-900 mb-4">数据缓存</h2>
 
               {cacheError && (
@@ -326,11 +369,18 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <p className="mt-4 text-xs text-gray-500">
-                说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
-              </p>
+                <p className="mt-4 text-xs text-gray-500">
+                  说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'habit' && (
+            <div>
+              <HabitProfileTab />
+            </div>
+          )}
         </div>
       </div>
     </div>

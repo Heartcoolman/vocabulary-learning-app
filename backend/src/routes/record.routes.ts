@@ -47,6 +47,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 批量保存答题记录
+// ⚠️ 状态: 后端已实现，管理员UI待开发 (TODO: 批量导入学习记录功能)
 router.post('/batch', async (req: AuthRequest, res: Response, next) => {
   try {
     const { records } = batchCreateRecordsSchema.parse(req.body);

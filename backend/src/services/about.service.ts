@@ -372,6 +372,7 @@ class AboutService {
 
   constructor() {
     this.initPipelineNodes();
+    this.initDemoDecisions();
   }
 
   /**
@@ -387,6 +388,64 @@ class AboutService {
         lastProcessedAt: 0
       };
     }
+  }
+
+  /**
+   * 初始化演示决策数据
+   */
+  private initDemoDecisions(): void {
+    const scenarios = [
+      { attention: 0.8, fatigue: 0.2, motivation: 0.5 },
+      { attention: 0.5, fatigue: 0.5, motivation: 0 },
+      { attention: 0.3, fatigue: 0.7, motivation: -0.3 },
+      { attention: 0.9, fatigue: 0.1, motivation: 0.8 },
+      { attention: 0.6, fatigue: 0.4, motivation: 0.2 },
+      { attention: 0.4, fatigue: 0.6, motivation: -0.1 },
+      { attention: 0.7, fatigue: 0.3, motivation: 0.4 },
+      { attention: 0.2, fatigue: 0.8, motivation: -0.5 },
+    ];
+
+    const now = Date.now();
+    scenarios.forEach((params, i) => {
+      const input: SimulateRequest = {
+        attention: params.attention,
+        fatigue: params.fatigue,
+        motivation: params.motivation,
+        cognitive: {
+          memory: 0.5 + Math.random() * 0.3,
+          speed: 0.5 + Math.random() * 0.3,
+          stability: 0.5 + Math.random() * 0.3
+        }
+      };
+
+      const userId = `demo-init-${i}`;
+      const state = this.buildUserState(input);
+      const context = this.buildContext(state);
+      const decision = this.ensemble.selectAction(state, ACTION_SPACE, context);
+      const decisionSource = (decision.meta?.decisionSource as 'coldstart' | 'ensemble') ?? 'ensemble';
+      const reward = this.estimateReward(state, decision.action);
+      const votes = this.extractVotes(decision.meta);
+
+      // 添加到历史记录，时间递减
+      const weights = this.ensemble.getWeights();
+      const record: InternalDecision = {
+        id: `demo-${now - i * 60000}-${Math.random().toString(36).slice(2, 6)}`,
+        pseudoId: `用户${String.fromCharCode(65 + i)}`,
+        userId,
+        timestamp: now - i * 60000,
+        stateSnapshot: this.toStateSnapshot(state),
+        action: decision.action,
+        reward,
+        score: 0.5 + Math.random() * 0.3,
+        confidence: 0.6 + Math.random() * 0.3,
+        phase: context.phase,
+        weights,
+        votes,
+        decisionSource
+      };
+
+      this.recentDecisions.push(record);
+    });
   }
 
   /**
@@ -586,6 +645,112 @@ class AboutService {
       },
       dominantFactor: this.getDominantFactor(d.stateSnapshot)
     }));
+  }
+
+  /**
+   * 获取决策详情（模拟数据）
+   */
+  getDecisionDetail(decisionId: string): DecisionDetail | null {
+    const decision = this.recentDecisions.find(d => d.id === decisionId);
+    if (!decision) return null;
+
+    const timestamp = new Date(decision.timestamp).toISOString();
+    
+    // 将 MemberVotes 对象转换为 MemberVoteDetail 数组
+    const memberVotes: MemberVoteDetail[] = Object.entries(decision.votes).map(([member, vote]) => ({
+      member,
+      action: vote.action,
+      contribution: vote.contribution,
+      confidence: vote.confidence
+    }));
+
+    return {
+      decisionId: decision.id,
+      pseudoId: decision.pseudoId,
+      timestamp,
+      decisionSource: decision.decisionSource,
+      coldstartPhase: decision.phase,
+      confidence: decision.confidence,
+      reward: decision.reward,
+      totalDurationMs: 40,
+      strategy: {
+        interval_scale: decision.action.interval_scale,
+        new_ratio: decision.action.new_ratio,
+        difficulty: decision.action.difficulty,
+        batch_size: decision.action.batch_size,
+        hint_level: decision.action.hint_level
+      },
+      weights: { ...decision.weights } as Record<string, number>,
+      memberVotes,
+      pipeline: [
+        {
+          stage: 1,
+          stageType: 'PERCEPTION',
+          stageName: '感知层',
+          status: 'SUCCESS',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 12,
+          inputSummary: { rawInput: decision.stateSnapshot },
+          outputSummary: { state: decision.stateSnapshot }
+        },
+        {
+          stage: 2,
+          stageType: 'MODELING',
+          stageName: '建模层',
+          status: 'SUCCESS',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 8,
+          inputSummary: { state: decision.stateSnapshot },
+          outputSummary: { cognitiveModel: 'updated' }
+        },
+        {
+          stage: 3,
+          stageType: 'LEARNING',
+          stageName: '学习层',
+          status: 'SUCCESS',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 15,
+          inputSummary: { weights: decision.weights },
+          outputSummary: { updatedWeights: decision.weights }
+        },
+        {
+          stage: 4,
+          stageType: 'DECISION',
+          stageName: '决策层',
+          status: 'SUCCESS',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 5,
+          inputSummary: { state: decision.stateSnapshot },
+          outputSummary: { strategy: decision.action }
+        },
+        {
+          stage: 5,
+          stageType: 'EVALUATION',
+          stageName: '评估层',
+          status: 'SKIPPED',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 0,
+          inputSummary: {},
+          outputSummary: { reason: '模拟数据无延迟奖励' }
+        },
+        {
+          stage: 6,
+          stageType: 'OPTIMIZATION',
+          stageName: '优化层',
+          status: 'SKIPPED',
+          startedAt: timestamp,
+          endedAt: timestamp,
+          durationMs: 0,
+          inputSummary: {},
+          outputSummary: { reason: '模拟数据跳过优化' }
+        }
+      ]
+    };
   }
 
   // ==================== Pipeline 可视化 API ====================

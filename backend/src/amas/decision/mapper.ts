@@ -4,7 +4,7 @@
  */
 
 import { Action, StrategyParams } from '../types';
-import { STRATEGY_SMOOTHING } from '../config/action-space';
+import { STRATEGY_SMOOTHING, ACTION_SPACE } from '../config/action-space';
 
 // ==================== 工具函数 ====================
 
@@ -97,4 +97,47 @@ export function hasSignificantChange(
   threshold: number = 0.5
 ): boolean {
   return computeStrategyDelta(oldParams, newParams) > threshold;
+}
+
+/**
+ * Critical Fix #3: 逆向映射 - 根据最终策略重建动作
+ * Optimization #2: 对齐到ACTION_SPACE，确保返回的action在预定义的动作空间中
+ * 用于Guardrail修改策略后，确保action与strategy保持一致
+ *
+ * @param strategy 最终策略参数（经过guardrail调整后）
+ * @param preferredAction 可选的原始动作（平局时优先选择）
+ * @returns 与strategy最接近的action（对齐到ACTION_SPACE）
+ */
+export function mapStrategyToAction(
+  strategy: StrategyParams,
+  preferredAction?: Action
+): Action {
+  // Optimization #2: 从ACTION_SPACE中查找最接近的action
+
+  // 计算策略与每个action的距离
+  let bestAction: Action = ACTION_SPACE[0];
+  let minDistance = Infinity;
+
+  for (const candidate of ACTION_SPACE) {
+    // 计算加权欧氏距离
+    const distance =
+      Math.pow(candidate.interval_scale - strategy.interval_scale, 2) +
+      Math.pow((candidate.new_ratio - strategy.new_ratio) * 10, 2) + // new_ratio权重更高
+      Math.pow((candidate.batch_size - strategy.batch_size) / 5, 2) + // 归一化batch_size
+      Math.pow(candidate.hint_level - strategy.hint_level, 2) +
+      (candidate.difficulty === strategy.difficulty ? 0 : 1); // difficulty不匹配额外惩罚
+
+    // 如果距离相同且是preferredAction，优先选择
+    if (distance < minDistance || (distance === minDistance && preferredAction &&
+        candidate.interval_scale === preferredAction.interval_scale &&
+        candidate.new_ratio === preferredAction.new_ratio &&
+        candidate.difficulty === preferredAction.difficulty &&
+        candidate.batch_size === preferredAction.batch_size &&
+        candidate.hint_level === preferredAction.hint_level)) {
+      minDistance = distance;
+      bestAction = candidate;
+    }
+  }
+
+  return bestAction;
 }

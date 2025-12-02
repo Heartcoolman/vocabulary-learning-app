@@ -12,6 +12,7 @@
  * - 幂等性（避免重复记录）
  */
 
+import { createHash } from 'crypto';
 import { PrismaClient, PipelineStageType, PipelineStageStatus, Prisma } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 import {
@@ -40,10 +41,14 @@ export interface PipelineStageTrace {
 export interface DecisionTrace {
   decisionId: string;
   answerRecordId?: string;
+  userId?: string;
   sessionId?: string;
   timestamp: Date;
   decisionSource: string;
   coldstartPhase?: string;
+  stateSnapshot?: Record<string, unknown>;
+  difficultyFactors?: Record<string, unknown>;
+  triggers?: string[];
   weightsSnapshot?: Record<string, number>;
   memberVotes?: Record<string, unknown>;
   selectedAction: Record<string, unknown>;
@@ -189,10 +194,22 @@ export class DecisionRecorderService {
    */
   private async persistDecisionTrace(trace: DecisionTrace): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      // 幂等性：使用 upsert
-      const record = await tx.decisionRecord.upsert({
-        where: { decisionId: trace.decisionId },
-        update: {
+      // 幂等性：先查找是否存在
+      const existing = await tx.decisionRecord.findFirst({
+        where: {
+          decisionId: trace.decisionId,
+          timestamp: trace.timestamp
+        }
+      });
+
+      const record = existing ? await tx.decisionRecord.update({
+        where: {
+          id_timestamp: {
+            id: existing.id,
+            timestamp: existing.timestamp
+          }
+        },
+        data: {
           decisionSource: trace.decisionSource,
           coldstartPhase: trace.coldstartPhase ?? null,
           weightsSnapshot: (trace.weightsSnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
@@ -204,8 +221,9 @@ export class DecisionRecorderService {
           traceVersion: trace.traceVersion,
           totalDurationMs: trace.totalDurationMs ?? null,
           ingestionStatus: 'SUCCESS'
-        },
-        create: {
+        }
+      }) : await tx.decisionRecord.create({
+        data: {
           decisionId: trace.decisionId,
           answerRecordId: trace.answerRecordId ?? null,
           sessionId: trace.sessionId ?? null,
@@ -223,6 +241,9 @@ export class DecisionRecorderService {
           ingestionStatus: 'SUCCESS'
         }
       });
+
+      // 写入决策洞察（失败不阻塞）
+      await this.writeDecisionInsight(trace, tx);
 
       // 删除旧的阶段记录（幂等性）
       await tx.pipelineStage.deleteMany({
@@ -258,21 +279,37 @@ export class DecisionRecorderService {
     answerRecordId?: string,
     errorMessage?: string
   ): Promise<void> {
-    await this.prisma.decisionRecord.upsert({
-      where: { decisionId },
-      update: { ingestionStatus: 'FAILED' },
-      create: {
-        decisionId,
-        answerRecordId: answerRecordId ?? null,
-        timestamp: new Date(),
-        decisionSource: 'unknown',
-        selectedAction: { error: 'failed_to_record' },
-        confidence: 0,
-        isSimulation: !answerRecordId,
-        traceVersion: 1,
-        ingestionStatus: 'FAILED'
-      }
+    const timestamp = new Date();
+    // 尝试查找现有记录
+    const existing = await this.prisma.decisionRecord.findFirst({
+      where: { decisionId }
     });
+
+    if (existing) {
+      await this.prisma.decisionRecord.update({
+        where: {
+          id_timestamp: {
+            id: existing.id,
+            timestamp: existing.timestamp
+          }
+        },
+        data: { ingestionStatus: 'FAILED' }
+      });
+    } else {
+      await this.prisma.decisionRecord.create({
+        data: {
+          decisionId,
+          answerRecordId: answerRecordId ?? null,
+          timestamp,
+          decisionSource: 'unknown',
+          selectedAction: { error: 'failed_to_record' },
+          confidence: 0,
+          isSimulation: !answerRecordId,
+          traceVersion: 1,
+          ingestionStatus: 'FAILED'
+        }
+      });
+    }
   }
 
   /**
@@ -341,6 +378,48 @@ export class DecisionRecorderService {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 写入决策洞察（失败不阻塞主流程）
+   */
+  private async writeDecisionInsight(trace: DecisionTrace, tx: Prisma.TransactionClient): Promise<void> {
+    if (!trace.userId || !trace.stateSnapshot) return;
+
+    try {
+      const featureVectorHash = this.hashFeatureVector(trace.stateSnapshot);
+
+      await tx.decisionInsight.upsert({
+        where: { decisionId: trace.decisionId },
+        update: {
+          userId: trace.userId,
+          stateSnapshot: trace.stateSnapshot as Prisma.InputJsonValue,
+          difficultyFactors: (trace.difficultyFactors ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+          triggers: trace.triggers ?? [],
+          featureVectorHash
+        },
+        create: {
+          decisionId: trace.decisionId,
+          userId: trace.userId,
+          stateSnapshot: trace.stateSnapshot as Prisma.InputJsonValue,
+          difficultyFactors: (trace.difficultyFactors ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+          triggers: trace.triggers ?? [],
+          featureVectorHash
+        }
+      });
+    } catch (error) {
+      console.error('[DecisionRecorder] Failed to write decision insight', {
+        decisionId: trace.decisionId,
+        error
+      });
+    }
+  }
+
+  private hashFeatureVector(state: Record<string, unknown>): string {
+    return createHash('sha256')
+      .update(JSON.stringify(state))
+      .digest('hex')
+      .substring(0, 16);
   }
 
   /**

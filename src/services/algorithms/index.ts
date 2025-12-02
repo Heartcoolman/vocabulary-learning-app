@@ -14,3 +14,5 @@ export { WordScoreCalculator } from './WordScoreCalculator';
 export { PriorityQueueScheduler } from './PriorityQueueScheduler';
 export { AdaptiveDifficultyEngine } from './AdaptiveDifficultyEngine';
 export { WordStateManager, type WordStateStorage } from './WordStateManager';
+export { AlgorithmConfigService } from './AlgorithmConfigService';
+export { SpacedRepetitionService } from './SpacedRepetitionService';

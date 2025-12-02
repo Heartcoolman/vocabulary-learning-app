@@ -24,20 +24,22 @@ import {
 /**
  * 奖励应用处理器 (业务逻辑)
  * 调用AMAS服务更新LinUCB模型
+ * Critical Fix: 传递answerRecordId以支持精确的特征向量匹配
  */
 const applyReward: ApplyRewardHandler = async (task: RewardQueue) => {
   const startTime = Date.now();
 
   try {
     console.log(
-      `[delayed-reward] 应用奖励: userId=${task.userId}, reward=${task.reward}, sessionId=${task.sessionId}`
+      `[delayed-reward] 应用奖励: userId=${task.userId}, reward=${task.reward}, answerRecordId=${task.answerRecordId ?? 'n/a'}, sessionId=${task.sessionId ?? 'n/a'}`
     );
 
-    // 调用AMAS服务应用延迟奖励
+    // 调用AMAS服务应用延迟奖励，优先使用answerRecordId
     await amasService.applyDelayedReward(
       task.userId,
       task.reward,
-      task.sessionId ?? undefined
+      task.sessionId ?? undefined,
+      task.answerRecordId ?? undefined
     );
 
     // 记录成功指标

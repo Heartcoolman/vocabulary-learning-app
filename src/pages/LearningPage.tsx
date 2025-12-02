@@ -1,8 +1,12 @@
 ﻿import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChartPie, Lightbulb } from 'lucide-react';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
+import { StatusModal, SuggestionModal } from '../components';
+import { LearningModeSelector } from '../components/LearningModeSelector';
+import { DecisionTooltip } from '../components/DecisionTooltip';
 import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle } from '../components/Icon';
@@ -16,6 +20,8 @@ export default function LearningPage() {
   const [showResult, setShowResult] = useState(false);
   const [responseStartTime, setResponseStartTime] = useState<number>(Date.now());
   const [testOptions, setTestOptions] = useState<string[]>([]);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
 
   const {
     currentWord,
@@ -28,7 +34,8 @@ export default function LearningPage() {
     resetSession,
     hasRestoredSession,
     allWords,
-    error
+    error,
+    latestAmasResult
   } = useMasteryLearning({ targetMasteryCount: 20 });
 
   const allWordsForOptions = useMemo(() => allWords.map(w => ({
@@ -133,6 +140,37 @@ export default function LearningPage() {
     );
   }
 
+  // 没有单词时显示提示
+  if (!isLoading && allWords.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <div className="mb-4 animate-bounce">
+            <Books size={96} weight="duotone" color="#3b82f6" className="mx-auto" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">暂无单词</h2>
+          <p className="text-gray-600 mb-6">
+            你还没有添加任何单词，请先选择词书或添加单词
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => navigate('/wordbooks')}
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200"
+            >
+              选择词书
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="px-6 py-3 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-all duration-200"
+            >
+              添加单词
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isCompleted) {
     const isMasteryAchieved = completionReason === 'mastery_achieved';
     const isQuestionLimit = completionReason === 'question_limit';
@@ -199,13 +237,38 @@ export default function LearningPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto">
         <div className="w-full space-y-6">
-          <MasteryProgress
-            progress={progress}
-            isCompleted={isCompleted}
-          />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <MasteryProgress
+                progress={progress}
+                isCompleted={isCompleted}
+              />
+            </div>
+            <div className="flex gap-2 sm:gap-3">
+              <LearningModeSelector />
+              <button
+                onClick={() => setIsStatusOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 text-sm font-medium shadow-sm"
+                aria-label="查看状态监控"
+              >
+                <ChartPie size={18} />
+                <span className="hidden sm:inline">状态监控</span>
+              </button>
+              <button
+                onClick={() => setIsSuggestionOpen(true)}
+                disabled={!latestAmasResult}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-200"
+                aria-label="查看AI建议"
+                title={!latestAmasResult ? '请先回答问题以获取AI建议' : ''}
+              >
+                <Lightbulb size={18} />
+                <span className="hidden sm:inline">AI建议</span>
+              </button>
+            </div>
+          </div>
           <WordCard
             word={currentWord}
             onPronounce={handlePronounce}
@@ -219,6 +282,16 @@ export default function LearningPage() {
             selectedAnswer={selectedAnswer}
             showResult={showResult}
           />
+
+          {/* AMAS决策解释 */}
+          {latestAmasResult?.enhancedExplanation && showResult && (
+            <div className="mt-4 p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">当前学习策略</span>
+                <DecisionTooltip explanation={latestAmasResult.enhancedExplanation} />
+              </div>
+            </div>
+          )}
 
           {showResult && (
             <div className="flex justify-center pb-4">
@@ -239,6 +312,19 @@ export default function LearningPage() {
           )}
         </div>
       </div>
+
+      <StatusModal
+        isOpen={isStatusOpen}
+        onClose={() => setIsStatusOpen(false)}
+        refreshTrigger={progress.totalQuestions}
+      />
+
+      <SuggestionModal
+        isOpen={isSuggestionOpen}
+        onClose={() => setIsSuggestionOpen(false)}
+        result={latestAmasResult}
+        onBreak={() => setIsSuggestionOpen(false)}
+      />
     </div>
   );
 }

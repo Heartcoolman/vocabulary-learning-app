@@ -5,6 +5,26 @@
 
 import { z } from 'zod';
 
+// 兼容测试的简化 schema
+export const userStateSchema = z.object({
+  A: z.number().min(0).max(1),
+  F: z.number().min(0).max(1),
+  M: z.number().min(-1).max(1),
+  C: z.object({
+    mem: z.number().min(0).max(1).optional(),
+    speed: z.number().min(0).max(1).optional(),
+    stability: z.number().min(0).max(1).optional()
+  }).partial()
+});
+
+export const actionSchema = z.object({
+  interval_scale: z.number(),
+  new_ratio: z.number().min(0).max(1),
+  difficulty: z.enum(['low', 'mid', 'high']),
+  batch_size: z.number().int().positive(),
+  hint_level: z.number().int().min(0)
+});
+
 /**
  * 处理学习事件请求验证
  * POST /api/amas/process

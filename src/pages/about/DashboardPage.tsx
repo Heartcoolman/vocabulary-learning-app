@@ -7,15 +7,16 @@
  */
 
 import { useState, useEffect } from 'react';
-import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target } from '../../components/Icon';
-import { getRecentDecisions, getDecisionDetail } from '../../services/aboutApi';
-import type { RecentDecision, DecisionDetail } from '../../services/aboutApi';
+import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target, Database, Flask } from '../../components/Icon';
+import { getMixedDecisions, getDecisionDetail } from '../../services/aboutApi';
+import type { RecentDecision, DecisionDetail, MixedDecisions } from '../../services/aboutApi';
 import { DecisionDetailPanel } from './components/DecisionDetailPanel';
 
 interface DecisionCardProps {
   decision: RecentDecision;
   isSelected: boolean;
   onClick: () => void;
+  source: 'real' | 'virtual';
 }
 
 const DIFFICULTY_STYLES: Record<string, string> = {
@@ -24,9 +25,13 @@ const DIFFICULTY_STYLES: Record<string, string> = {
   hard: 'bg-red-100 text-red-700 border-red-200'
 };
 
-function DecisionCard({ decision, isSelected, onClick }: DecisionCardProps) {
+function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardProps) {
   const difficultyStyle = DIFFICULTY_STYLES[decision.strategy.difficulty?.toLowerCase() || ''] ||
     'bg-slate-100 text-slate-600 border-slate-200';
+
+  const sourceStyle = source === 'real' 
+    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    : 'bg-purple-100 text-purple-700 border-purple-200';
 
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('zh-CN', {
@@ -49,9 +54,14 @@ function DecisionCard({ decision, isSelected, onClick }: DecisionCardProps) {
           <Clock size={12} />
           <span>{formatTime(decision.timestamp)}</span>
         </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium uppercase tracking-wider ${difficultyStyle}`}>
-          {decision.strategy.difficulty || 'N/A'}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${sourceStyle}`}>
+            {source === 'real' ? '真实' : '模拟'}
+          </span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium uppercase tracking-wider ${difficultyStyle}`}>
+            {decision.strategy.difficulty || 'N/A'}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-1">
@@ -78,14 +88,30 @@ function DecisionCard({ decision, isSelected, onClick }: DecisionCardProps) {
   );
 }
 
+interface DecisionWithSource extends RecentDecision {
+  source: 'real' | 'virtual';
+}
+
 export default function DashboardPage() {
-  const [recentDecisions, setRecentDecisions] = useState<RecentDecision[]>([]);
+  const [mixedData, setMixedData] = useState<MixedDecisions | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<'real' | 'virtual'>('real');
   const [selectedDecision, setSelectedDecision] = useState<DecisionDetail | null>(null);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'real' | 'virtual'>('all');
+
+  // 合并并排序决策列表
+  const allDecisions: DecisionWithSource[] = mixedData ? [
+    ...mixedData.real.map(d => ({ ...d, source: 'real' as const })),
+    ...mixedData.virtual.map(d => ({ ...d, source: 'virtual' as const }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
+
+  const filteredDecisions = activeTab === 'all' 
+    ? allDecisions 
+    : allDecisions.filter(d => d.source === activeTab);
 
   // Poll recent decisions every 3 seconds
   useEffect(() => {
@@ -93,15 +119,21 @@ export default function DashboardPage() {
 
     const fetchRecent = async () => {
       try {
-        const decisions = await getRecentDecisions();
+        const data = await getMixedDecisions();
         if (!isMounted) return;
 
-        setRecentDecisions(decisions);
+        setMixedData(data);
         setError(null);
 
-        // Auto-select first decision if none selected
-        if (decisions.length > 0) {
-          setSelectedId(prev => prev === null ? decisions[0].decisionId : prev);
+        // Auto-select first real decision if none selected
+        const allDecs = [
+          ...data.real.map(d => ({ ...d, source: 'real' as const })),
+          ...data.virtual.map(d => ({ ...d, source: 'virtual' as const }))
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        if (allDecs.length > 0 && selectedId === null) {
+          setSelectedId(allDecs[0].decisionId);
+          setSelectedSource(allDecs[0].source);
         }
       } catch (err) {
         if (isMounted) {
@@ -120,7 +152,7 @@ export default function DashboardPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [selectedId]);
 
   // Fetch decision detail when selection changes
   useEffect(() => {
@@ -131,10 +163,10 @@ export default function DashboardPage() {
       setIsLoadingDetail(true);
       setDetailError(null);
       try {
-        const detail = await getDecisionDetail(selectedId);
+        // 传递 source 参数区分真实/模拟数据
+        const detail = await getDecisionDetail(selectedId, selectedSource);
         if (isMounted) {
           if (!detail) {
-            // detail为null表示404（决策不存在）或网络错误
             setSelectedDecision(null);
             setDetailError('未找到该决策记录');
           } else {
@@ -147,9 +179,8 @@ export default function DashboardPage() {
         if (isMounted) {
           setSelectedDecision(null);
           const errorMessage = err instanceof Error ? err.message : String(err);
-          // 区分不同错误类型
-          if (errorMessage.includes('400') || errorMessage.includes('仅支持真实数据源')) {
-            setDetailError('演示模式不支持查看决策详情，请切换至真实数据源');
+          if (errorMessage.includes('400')) {
+            setDetailError('获取决策详情失败');
           } else if (errorMessage.includes('401') || errorMessage.includes('未授权')) {
             setDetailError('请先登录后查看决策详情');
           } else if (errorMessage.includes('403')) {
@@ -167,11 +198,12 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedId]);
+  }, [selectedId, selectedSource]);
 
-  const handleDecisionClick = (id: string) => {
-    if (id !== selectedId) {
+  const handleDecisionClick = (id: string, source: 'real' | 'virtual') => {
+    if (id !== selectedId || source !== selectedSource) {
       setSelectedId(id);
+      setSelectedSource(source);
     }
   };
 
@@ -182,12 +214,49 @@ export default function DashboardPage() {
       <aside className="w-[300px] flex flex-col flex-shrink-0 border-r border-slate-200 bg-white/90 backdrop-blur-lg shadow-xl z-10">
 
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white/50">
-          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-            <Target size={18} weight="fill" className="text-indigo-500" />
-            近期决策
-          </h2>
-          {isLoadingList && <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />}
+        <div className="p-4 border-b border-slate-200 bg-white/50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <Target size={18} weight="fill" className="text-indigo-500" />
+              近期决策
+            </h2>
+            {isLoadingList && <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />}
+          </div>
+          {/* Tab Filter */}
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all ${
+                activeTab === 'all' 
+                  ? 'bg-white text-slate-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              全部 ({allDecisions.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('real')}
+              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all flex items-center justify-center gap-1 ${
+                activeTab === 'real' 
+                  ? 'bg-emerald-50 text-emerald-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-emerald-600'
+              }`}
+            >
+              <Database size={12} />
+              真实 ({mixedData?.real.length || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('virtual')}
+              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all flex items-center justify-center gap-1 ${
+                activeTab === 'virtual' 
+                  ? 'bg-purple-50 text-purple-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-purple-600'
+              }`}
+            >
+              <Flask size={12} />
+              模拟 ({mixedData?.virtual.length || 0})
+            </button>
+          </div>
         </div>
 
         {/* Sidebar List */}
@@ -197,18 +266,20 @@ export default function DashboardPage() {
               <WarningCircle size={32} weight="fill" className="mb-2 text-red-300" />
               <p className="text-xs">{error}</p>
             </div>
-          ) : recentDecisions.length === 0 && !isLoadingList ? (
+          ) : filteredDecisions.length === 0 && !isLoadingList ? (
             <div className="text-center py-10 text-slate-400 text-xs">
-              暂无近期决策记录
+              {activeTab === 'real' ? '暂无真实决策记录，请先在学习页面使用系统' : 
+               activeTab === 'virtual' ? '暂无模拟决策数据' : '暂无决策记录'}
             </div>
           ) : (
             <div className="space-y-1">
-              {recentDecisions.map((decision) => (
+              {filteredDecisions.map((decision) => (
                 <DecisionCard
-                  key={decision.decisionId}
+                  key={`${decision.source}-${decision.decisionId}`}
                   decision={decision}
-                  isSelected={selectedId === decision.decisionId}
-                  onClick={() => handleDecisionClick(decision.decisionId)}
+                  isSelected={selectedId === decision.decisionId && selectedSource === decision.source}
+                  onClick={() => handleDecisionClick(decision.decisionId, decision.source)}
+                  source={decision.source}
                 />
               ))}
             </div>

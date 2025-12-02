@@ -8,3 +8,8 @@ export { CognitiveProfiler } from './cognitive-profiler';
 export { MotivationTracker } from './motivation-tracker';
 export { HabitRecognizer, type HabitProfile } from './habit-recognizer';
 export { TrendAnalyzer, type TrendState } from './trend-analyzer';
+export {
+  calculateForgettingFactor,
+  batchCalculateForgettingFactors,
+  type MemoryTrace,
+} from './forgetting-curve';

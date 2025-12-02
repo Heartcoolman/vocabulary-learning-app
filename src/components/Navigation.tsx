@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar } from './Icon';
+import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar, Target } from './Icon';
+import { fadeInVariants, g3SpringStandard } from '../utils/animations';
 
 /**
  * Navigation 组件 - 顶部导航栏
@@ -29,7 +31,7 @@ export default function Navigation() {
   };
 
   const isInsightsActive = () => {
-    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan'].includes(location.pathname);
+    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan', '/word-mastery'].includes(location.pathname);
   };
 
   const linkClass = (path: string) => {
@@ -108,57 +110,74 @@ export default function Navigation() {
                   aria-haspopup="true"
                 >
                   学习洞察
-                  <CaretDown
-                    size={16}
-                    weight="bold"
-                    className={`transition-transform ${isInsightsOpen ? 'rotate-180' : ''}`}
-                  />
+                  <motion.div
+                    animate={{ rotate: isInsightsOpen ? 180 : 0 }}
+                    transition={g3SpringStandard}
+                  >
+                    <CaretDown size={16} weight="bold" />
+                  </motion.div>
                 </button>
 
-                {isInsightsOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-g3-fade-in">
-                    <Link
-                      to="/statistics"
-                      className={dropdownLinkClass('/statistics')}
-                      onClick={() => setIsInsightsOpen(false)}
+                <AnimatePresence>
+                  {isInsightsOpen && (
+                    <motion.div
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={fadeInVariants}
+                      className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
                     >
-                      <ChartBar size={18} weight="bold" />
-                      学习统计
-                    </Link>
-                    <Link
-                      to="/learning-time"
-                      className={dropdownLinkClass('/learning-time')}
-                      onClick={() => setIsInsightsOpen(false)}
-                    >
-                      <Clock size={18} weight="bold" />
-                      学习时机
-                    </Link>
-                    <Link
-                      to="/trend-report"
-                      className={dropdownLinkClass('/trend-report')}
-                      onClick={() => setIsInsightsOpen(false)}
-                    >
-                      <TrendUp size={18} weight="bold" />
-                      趋势分析
-                    </Link>
-                    <Link
-                      to="/achievements"
-                      className={dropdownLinkClass('/achievements')}
-                      onClick={() => setIsInsightsOpen(false)}
-                    >
-                      <Trophy size={18} weight="bold" />
-                      成就徽章
-                    </Link>
-                    <Link
-                      to="/plan"
-                      className={dropdownLinkClass('/plan')}
-                      onClick={() => setIsInsightsOpen(false)}
-                    >
-                      <CalendarCheck size={18} weight="bold" />
-                      学习计划
-                    </Link>
-                  </div>
-                )}
+                      <Link
+                        to="/statistics"
+                        className={dropdownLinkClass('/statistics')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <ChartBar size={18} weight="bold" />
+                        学习统计
+                      </Link>
+                      <Link
+                        to="/learning-time"
+                        className={dropdownLinkClass('/learning-time')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <Clock size={18} weight="bold" />
+                        学习时机
+                      </Link>
+                      <Link
+                        to="/trend-report"
+                        className={dropdownLinkClass('/trend-report')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <TrendUp size={18} weight="bold" />
+                        趋势分析
+                      </Link>
+                      <Link
+                        to="/achievements"
+                        className={dropdownLinkClass('/achievements')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <Trophy size={18} weight="bold" />
+                        成就徽章
+                      </Link>
+                      <Link
+                        to="/plan"
+                        className={dropdownLinkClass('/plan')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <CalendarCheck size={18} weight="bold" />
+                        学习计划
+                      </Link>
+                      <Link
+                        to="/word-mastery"
+                        className={dropdownLinkClass('/word-mastery')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <Target size={18} weight="bold" />
+                        单词精通度
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 

@@ -37,6 +37,11 @@ export default function ConfigHistoryPage() {
   };
 
   const applyFilters = () => {
+    // 防御性检查：确保 history 是数组
+    if (!Array.isArray(history)) {
+      setFilteredHistory([]);
+      return;
+    }
     let filtered = [...history];
 
     // 按时间筛选

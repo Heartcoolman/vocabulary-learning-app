@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WordQueueManager, WordItem, QueueProgress, CompletionReason, QueueState } from '../services/learning/WordQueueManager';
+import { AdaptiveQueueManager } from '../services/learning/AdaptiveQueueManager';
 import apiClient from '../services/ApiClient';
 import { useAuth } from '../contexts/AuthContext';
+import { AmasProcessResult, AdjustReason } from '../types/amas';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -21,6 +23,7 @@ export interface UseMasteryLearningReturn {
   hasRestoredSession: boolean;
   allWords: WordItem[];
   error: string | null;
+  latestAmasResult: AmasProcessResult | null;
 }
 
 interface CachedSession {
@@ -56,10 +59,13 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     pendingCount: 0
   });
   const [hasRestoredSession, setHasRestoredSession] = useState(false);
+  const [latestAmasResult, setLatestAmasResult] = useState<AmasProcessResult | null>(null);
 
   const queueManagerRef = useRef<WordQueueManager | null>(null);
+  const adaptiveManagerRef = useRef<AdaptiveQueueManager | null>(null);
   const syncCounterRef = useRef(0);
   const currentSessionIdRef = useRef<string>(sessionId || '');
+  const sessionStartTimeRef = useRef<number>(0);
   const configRef = useRef<{ masteryThreshold: number; maxTotalQuestions: number }>({
     masteryThreshold: 2,
     maxTotalQuestions: 100
@@ -83,6 +89,19 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     if (result.isCompleted) {
       setIsCompleted(true);
       setCompletionReason(result.completionReason);
+
+      // 结束习惯追踪会话
+      if (currentSessionIdRef.current && sessionStartTimeRef.current > 0) {
+        apiClient.endHabitSession(currentSessionIdRef.current)
+          .then(() => {
+            console.log('[useMasteryLearning] 习惯追踪会话已结束');
+          })
+          .catch(error => {
+            console.warn('[useMasteryLearning] 结束习惯追踪失败:', error);
+          });
+
+        sessionStartTimeRef.current = 0;
+      }
     }
   }, []);
 
@@ -120,6 +139,80 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       console.error('[useMasteryLearning] 同步进度失败:', error);
     }
   }, []);
+
+  const triggerQueueAdjustment = useCallback((reason: AdjustReason) => {
+    if (!currentSessionIdRef.current || !queueManagerRef.current || !adaptiveManagerRef.current) return;
+
+    const params = {
+      sessionId: currentSessionIdRef.current,
+      currentWordIds: queueManagerRef.current.getCurrentWordIds(),
+      masteredWordIds: queueManagerRef.current.getMasteredWordIds(),
+      userState: latestAmasResult?.state ? {
+        fatigue: latestAmasResult.state.fatigue,
+        attention: latestAmasResult.state.attention,
+        motivation: latestAmasResult.state.motivation
+      } : undefined,
+      recentPerformance: adaptiveManagerRef.current.getRecentPerformance(),
+      adjustReason: reason
+    };
+
+    // Fire and forget - 不阻塞答题流程
+    apiClient.adjustLearningWords(params)
+      .then(response => {
+        if (queueManagerRef.current && adaptiveManagerRef.current && isMountedRef.current) {
+          queueManagerRef.current.applyAdjustments(response.adjustments);
+          saveSessionToCache();
+          adaptiveManagerRef.current.resetCounter();
+          console.log(`[useMasteryLearning] 队列已调整: ${reason}, 原因: ${response.reason}`);
+        }
+      })
+      .catch(err => {
+        console.warn('[useMasteryLearning] 队列调整失败:', err);
+      });
+  }, [latestAmasResult, saveSessionToCache]);
+
+  // 按需加载：当队列剩余单词 <= 2 时补充
+  const isFetchingRef = useRef(false);
+  const fetchMoreWords = useCallback(async () => {
+    if (!currentSessionIdRef.current || !queueManagerRef.current || isFetchingRef.current) return;
+    if (isCompleted) return;
+
+    const activeCount = progress.activeCount + progress.pendingCount;
+    if (activeCount > 2) return;
+
+    isFetchingRef.current = true;
+    try {
+      const result = await apiClient.getNextWords({
+        currentWordIds: queueManagerRef.current.getCurrentWordIds(),
+        masteredWordIds: queueManagerRef.current.getMasteredWordIds(),
+        sessionId: currentSessionIdRef.current,
+        count: 3
+      });
+
+      if (!isMountedRef.current || !queueManagerRef.current) return;
+
+      if (result.words.length > 0) {
+        // 将新单词添加到队列
+        queueManagerRef.current.applyAdjustments({
+          remove: [],
+          add: result.words.map(w => ({
+            ...w,
+            audioUrl: w.audioUrl || undefined
+          }))
+        });
+        setAllWords(prev => [...prev, ...result.words.map(w => ({
+          ...w,
+          audioUrl: w.audioUrl || undefined
+        }))]);
+        saveSessionToCache();
+        console.log(`[useMasteryLearning] 按需补充${result.words.length}个单词: ${result.reason}`);
+      }
+    } catch (err) {
+      console.warn('[useMasteryLearning] 按需加载单词失败:', err);
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [progress.activeCount, progress.pendingCount, isCompleted, saveSessionToCache]);
 
   useEffect(() => {
     // 重新挂载时重置为 true（修复组件重新挂载后初始化失效的问题）
@@ -162,6 +255,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
               manager.restoreState(cache.queueState);
 
               queueManagerRef.current = manager;
+              adaptiveManagerRef.current = new AdaptiveQueueManager();
               currentSessionIdRef.current = cache.sessionId;
               setAllWords(cache.queueState.words);
               setHasRestoredSession(true);
@@ -197,6 +291,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
           if (sessionResponse?.sessionId) {
             currentSessionIdRef.current = sessionResponse.sessionId;
+            sessionStartTimeRef.current = Date.now();
           }
 
           configRef.current = {
@@ -211,6 +306,8 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
             masteryThreshold: configRef.current.masteryThreshold,
             maxTotalQuestions: configRef.current.maxTotalQuestions
           });
+
+          adaptiveManagerRef.current = new AdaptiveQueueManager();
 
           console.log(
             `[useMasteryLearning] 创建新会话: ${currentSessionIdRef.current}, ` +
@@ -242,6 +339,16 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     };
   }, [initialTargetCount, sessionId, updateStateFromManager, user?.id]);
 
+  // 按需加载触发器：当队列剩余单词 <= 2 时自动补充
+  useEffect(() => {
+    if (isLoading || isCompleted) return;
+
+    const activeCount = progress.activeCount + progress.pendingCount;
+    if (activeCount <= 2) {
+      fetchMoreWords();
+    }
+  }, [progress.activeCount, progress.pendingCount, isLoading, isCompleted, fetchMoreWords]);
+
   const submitAnswer = useCallback(async (isCorrect: boolean, responseTime: number) => {
     if (!queueManagerRef.current || !currentWord) return;
 
@@ -256,6 +363,10 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
           timestamp: Date.now()
         });
 
+        if (!isMountedRef.current) return;
+
+        setLatestAmasResult(amasResult);
+
         queueManagerRef.current.recordAnswer(
           currentWord.id,
           isCorrect,
@@ -264,12 +375,33 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         );
       } catch (e) {
         console.warn('[useMasteryLearning] AMAS调用失败,使用本地判定:', e);
+
+        if (!isMountedRef.current) return;
+
+        setLatestAmasResult(null);
         queueManagerRef.current.recordAnswer(
           currentWord.id,
           isCorrect,
           responseTime,
           undefined
         );
+      }
+
+      // 自适应队列检查
+      if (adaptiveManagerRef.current) {
+        const { should, reason } = adaptiveManagerRef.current.onAnswerSubmitted(
+          isCorrect,
+          responseTime,
+          latestAmasResult?.state ? {
+            fatigue: latestAmasResult.state.fatigue,
+            attention: latestAmasResult.state.attention,
+            motivation: latestAmasResult.state.motivation
+          } : undefined
+        );
+
+        if (should && reason) {
+          triggerQueueAdjustment(reason);
+        }
       }
 
       // 不立即更新到下一题，等待用户点击"下一题"按钮
@@ -283,9 +415,11 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
     } catch (error) {
       console.error('[useMasteryLearning] 提交答案失败:', error);
-      setError(error instanceof Error ? error.message : '提交答案失败，请重试');
+      if (isMountedRef.current) {
+        setError(error instanceof Error ? error.message : '提交答案失败，请重试');
+      }
     }
-  }, [currentWord, saveSessionToCache, syncProgress]);
+  }, [currentWord, saveSessionToCache, syncProgress, latestAmasResult, triggerQueueAdjustment]);
 
   const advanceToNext = useCallback(() => {
     updateStateFromManager({ consume: true });
@@ -323,6 +457,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     resetSession,
     hasRestoredSession,
     allWords,
-    error
+    error,
+    latestAmasResult
   };
 }

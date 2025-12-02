@@ -30,6 +30,12 @@ import {
   hasInvalidValues
 } from './math-utils';
 
+// 数值稳定常量
+const MIN_LAMBDA = 1e-3;
+const MIN_RANK1_DIAG = 1e-6;
+const MAX_COVARIANCE = 1e9;
+const MAX_FEATURE_ABS = 50;
+
 // ==================== 类型定义 ====================
 
 /**
@@ -132,7 +138,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
   constructor(opts: LinUCBOptions = {}) {
     const d = opts.dimension ?? DEFAULT_DIMENSION;
-    const lambda = opts.lambda ?? DEFAULT_LAMBDA;
+    const lambda = Math.max(opts.lambda ?? DEFAULT_LAMBDA, MIN_LAMBDA);
     const alpha = opts.alpha ?? DEFAULT_ALPHA;
 
     // 初始化模型
@@ -238,11 +244,15 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     featureVector: Float32Array | number[],
     reward: number
   ): void {
-    const x = featureVector instanceof Float32Array
+    const rawX = featureVector instanceof Float32Array
       ? featureVector
       : new Float32Array(featureVector);
 
-    const { d, A, b, lambda, L } = this.model;
+    const { d, lambda } = this.model;
+    const A = this.model.A;
+    const b = this.model.b;
+    const L = this.model.L;
+    const x = this.sanitizeFeatureVector(rawX);
 
     // 验证维度匹配
     if (x.length !== d) {
@@ -271,31 +281,54 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     this.model.updateCount++;
 
-    // 检查A矩阵的对角线元素，防止数值不稳定
-    let needsFullRecompute = false;
+    // 检查A矩阵的对角线元素和L矩阵幅度，防止数值不稳定
+    let needsFullRecompute = hasInvalidValues(L);
+
+    // 检查L矩阵幅度
+    const maxCovSqrt = Math.sqrt(MAX_COVARIANCE);
+    for (let i = 0; i < L.length; i++) {
+      if (Math.abs(L[i]) > maxCovSqrt) {
+        needsFullRecompute = true;
+        break;
+      }
+    }
+
+    // 检查A矩阵对角线
     for (let i = 0; i < d; i++) {
       const diag = A[i * d + i];
-      if (!Number.isFinite(diag) || diag < lambda * 0.1) {
+      if (
+        !Number.isFinite(diag) ||
+        diag < lambda * 0.1 ||
+        Math.abs(diag) > MAX_COVARIANCE
+      ) {
         needsFullRecompute = true;
         // 确保对角线元素至少为lambda
-        if (A[i * d + i] < lambda) {
+        if (!Number.isFinite(diag) || diag < lambda) {
           A[i * d + i] = lambda;
+        } else if (Math.abs(diag) > MAX_COVARIANCE) {
+          A[i * d + i] = clamp(diag, -MAX_COVARIANCE, MAX_COVARIANCE);
         }
       }
     }
 
+    const minDiagForUpdate = Math.max(lambda * 0.01, MIN_RANK1_DIAG);
+
     if (needsFullRecompute) {
       // A矩阵不稳定，需要完整重算Cholesky
       console.warn('[LinUCB] 检测到A矩阵不稳定，执行完整Cholesky分解');
-      this.model.L = this.choleskyDecompose(A, d, lambda);
+      const sanitizedA = this.sanitizeCovariance(A, d, lambda);
+      this.model.A = sanitizedA;
+      this.model.L = this.choleskyDecompose(sanitizedA, d, lambda);
     } else {
       // 正常情况：使用O(d²)的Rank-1增量更新
-      const updateResult = choleskyRank1Update(L, x, d, lambda * 0.01);
+      const updateResult = choleskyRank1Update(L, x, d, minDiagForUpdate);
 
       if (!updateResult.success) {
         // 增量更新失败，回退到完整分解
         console.warn('[LinUCB] Rank-1更新失败，回退到完整Cholesky分解');
-        this.model.L = this.choleskyDecompose(A, d, lambda);
+        const sanitizedA = this.sanitizeCovariance(A, d, lambda);
+        this.model.A = sanitizedA;
+        this.model.L = this.choleskyDecompose(sanitizedA, d, lambda);
       } else {
         this.model.L = updateResult.L;
       }
@@ -361,22 +394,36 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    */
   setModel(model: BanditModel): void {
     const targetD = this.model.d;
+    const effectiveLambda = Math.max(model.lambda ?? DEFAULT_LAMBDA, MIN_LAMBDA);
 
     // 如果模型维度不匹配,自动扩展 (d=12 → d=22)
     if (model.d !== targetD) {
       console.log(`[LinUCB] 迁移模型: d=${model.d} → d=${targetD}`);
-      this.model = this.expandModel(model, targetD, model.lambda ?? DEFAULT_LAMBDA);
+      this.model = this.expandModel(model, targetD, effectiveLambda);
       return;
+    }
+
+    const sanitizedA = this.sanitizeCovariance(
+      new Float32Array(model.A),
+      targetD,
+      effectiveLambda
+    );
+    let sanitizedL: Float32Array;
+    const loadedL = new Float32Array(model.L);
+    if (hasInvalidValues(loadedL)) {
+      sanitizedL = this.choleskyDecompose(sanitizedA, targetD, effectiveLambda);
+    } else {
+      sanitizedL = loadedL;
     }
 
     // 维度匹配,直接加载
     this.model = {
       d: model.d,
-      lambda: model.lambda,
+      lambda: effectiveLambda,
       alpha: model.alpha,
-      A: new Float32Array(model.A),
+      A: sanitizedA,
       b: new Float32Array(model.b),
-      L: new Float32Array(model.L),
+      L: sanitizedL,
       updateCount: model.updateCount
     };
   }
@@ -478,6 +525,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   private computeConfidence(L: Float32Array, x: Float32Array): number {
     const d = this.model.d;
     const y = new Float32Array(d);
+    const minDiag = MIN_RANK1_DIAG;
 
     // Forward substitution: L y = x
     for (let i = 0; i < d; i++) {
@@ -485,7 +533,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       for (let j = 0; j < i; j++) {
         sum -= L[i * d + j] * y[j];
       }
-      y[i] = sum / Math.max(L[i * d + i], 1e-10);
+      y[i] = sum / Math.max(L[i * d + i], minDiag);
     }
 
     // ||y||^2
@@ -510,6 +558,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   private solveLinearSystem(L: Float32Array, b: Float32Array, d: number): Float32Array {
     const y = new Float32Array(d);
     const x = new Float32Array(d);
+    const minDiag = MIN_RANK1_DIAG;
 
     // Forward substitution: L y = b
     for (let i = 0; i < d; i++) {
@@ -517,7 +566,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       for (let j = 0; j < i; j++) {
         sum -= L[i * d + j] * y[j];
       }
-      y[i] = sum / Math.max(L[i * d + i], 1e-10);
+      y[i] = sum / Math.max(L[i * d + i], minDiag);
     }
 
     // Backward substitution: L^T x = y
@@ -526,7 +575,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       for (let j = i + 1; j < d; j++) {
         sum -= L[j * d + i] * x[j];
       }
-      x[i] = sum / Math.max(L[i * d + i], 1e-10);
+      x[i] = sum / Math.max(L[i * d + i], minDiag);
     }
 
     // 校验数值有效性，防止 NaN/Infinity 传播
@@ -545,7 +594,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    *
    * 修复问题#4: 不再原地修改输入矩阵A，而是先复制再处理
    *
-   * 增强版：添加对称化处理和 SPD 失败回退
+   * 增强版：添加对称化处理和 SPD 失败回退，与math-utils实现对齐
    *
    * @param A 输入矩阵
    * @param d 维度
@@ -553,7 +602,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    */
   private choleskyDecompose(A: Float32Array, d: number, lambda?: number): Float32Array {
     // 使用传入的lambda或模型的lambda
-    const effectiveLambda = lambda ?? this.model.lambda;
+    const effectiveLambda = Math.max(lambda ?? this.model.lambda, MIN_LAMBDA);
 
     // 修复#4: 复制矩阵，避免原地修改输入
     const matrix = new Float32Array(A);
@@ -568,6 +617,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     }
 
     const L = new Float32Array(d * d);
+    const EPSILON = 1e-10;
 
     for (let i = 0; i < d; i++) {
       for (let j = 0; j <= i; j++) {
@@ -578,19 +628,21 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
         if (i === j) {
           // 对角元素为负或非有限数时，使用正则化修复
-          if (sum <= 1e-9 || !Number.isFinite(sum)) {
-            sum = effectiveLambda + 1e-6;
+          if (sum <= EPSILON || !Number.isFinite(sum)) {
+            sum = effectiveLambda + EPSILON;
           }
-          L[i * d + j] = Math.sqrt(Math.max(sum, 1e-9));
+          L[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_COVARIANCE));
         } else {
-          L[i * d + j] = sum / Math.max(L[j * d + j], 1e-10);
+          // 非对角元素 - 使用与math-utils一致的分母下界
+          const denom = Math.max(L[j * d + j], Math.sqrt(effectiveLambda));
+          L[i * d + j] = sum / denom;
         }
       }
     }
 
-    // 校验结果有效性
+    // 校验结果有效性 - 添加幅度检查
     for (let i = 0; i < L.length; i++) {
-      if (!Number.isFinite(L[i])) {
+      if (!Number.isFinite(L[i]) || Math.abs(L[i]) > Math.sqrt(MAX_COVARIANCE)) {
         // 分解失败，返回正则化单位矩阵
         console.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
         return this.initIdentityMatrix(d, effectiveLambda);
@@ -662,6 +714,84 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       // 仅在降维时重置为 0（见上方分支）
       updateCount: model.updateCount
     };
+  }
+
+  /**
+   * 矫正异常特征向量幅度，防止溢出导致的数值问题
+   */
+  private sanitizeFeatureVector(vec: Float32Array): Float32Array {
+    const bounded = new Float32Array(vec.length);
+    let clipped = false;
+
+    for (let i = 0; i < vec.length; i++) {
+      let v = vec[i];
+      if (!Number.isFinite(v)) {
+        v = 0;
+        clipped = true;
+      } else if (Math.abs(v) > MAX_FEATURE_ABS) {
+        v = Math.sign(v) * MAX_FEATURE_ABS;
+        clipped = true;
+      }
+      bounded[i] = v;
+    }
+
+    if (clipped) {
+      console.warn('[LinUCB] 特征向量存在异常幅度，已裁剪处理');
+    }
+
+    return bounded;
+  }
+
+  /**
+   * 清理协方差矩阵的异常值并强制对称/正则化
+   */
+  private sanitizeCovariance(
+    A: Float32Array,
+    d: number,
+    lambda: number
+  ): Float32Array {
+    const safe = new Float32Array(d * d);
+    const diagFloor = Math.max(lambda, MIN_LAMBDA);
+    let corrected = false;
+
+    for (let i = 0; i < d; i++) {
+      for (let j = 0; j < d; j++) {
+        const idx = i * d + j;
+        let v = A[idx];
+        if (!Number.isFinite(v)) {
+          v = i === j ? diagFloor : 0;
+          corrected = true;
+        } else if (Math.abs(v) > MAX_COVARIANCE) {
+          v = clamp(v, -MAX_COVARIANCE, MAX_COVARIANCE);
+          corrected = true;
+        }
+        safe[idx] = v;
+      }
+    }
+
+    // 对称化
+    for (let i = 0; i < d; i++) {
+      for (let j = i + 1; j < d; j++) {
+        const avg = (safe[i * d + j] + safe[j * d + i]) / 2;
+        safe[i * d + j] = avg;
+        safe[j * d + i] = avg;
+      }
+    }
+
+    // 对角线下界
+    for (let i = 0; i < d; i++) {
+      const idx = i * d + i;
+      if (safe[idx] < diagFloor) {
+        safe[idx] = diagFloor;
+        corrected = true;
+      }
+    }
+
+    if (corrected) {
+      console.warn('[LinUCB] 协方差矩阵存在异常值，已矫正后重分解');
+    }
+
+    return safe;
   }
 
   /**

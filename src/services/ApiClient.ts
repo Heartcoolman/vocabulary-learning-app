@@ -1414,6 +1414,10 @@ class ApiClient {
    * 修复：正确处理后端返回的 { wordId, state } 格式
    */
   async getWordLearningStates(wordIds: string[]): Promise<import('../types/models').WordLearningState[]> {
+    // 空数组直接返回，避免无效请求
+    if (!wordIds || wordIds.length === 0) {
+      return [];
+    }
     try {
       // 后端返回格式: { wordId: string, state: ApiWordLearningState | null }[]
       const response = await this.request<Array<{ wordId: string; state: ApiWordLearningState | null }>>('/api/word-states/batch', {
@@ -1765,6 +1769,40 @@ class ApiClient {
   }
 
   /**
+   * 动态获取下一批学习单词（AMAS驱动的按需加载）
+   */
+  async getNextWords(params: {
+    currentWordIds: string[];
+    masteredWordIds: string[];
+    sessionId: string;
+    count?: number;
+  }): Promise<{
+    words: Array<{
+      id: string;
+      spelling: string;
+      phonetic: string;
+      meanings: string[];
+      examples: string[];
+      audioUrl?: string;
+      difficulty: number;
+      isNew: boolean;
+    }>;
+    strategy: {
+      new_ratio: number;
+      difficulty: 'easy' | 'mid' | 'hard';
+      batch_size: number;
+      session_length: number;
+      review_ratio: number;
+    };
+    reason: string;
+  }> {
+    return this.request('/api/learning/next-words', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
    * 创建掌握学习会话
    */
   async createMasterySession(targetMasteryCount: number): Promise<{ sessionId: string }> {
@@ -1785,6 +1823,19 @@ class ApiClient {
     return this.request('/api/learning/sync-progress', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * 动态调整学习单词队列
+   * 根据用户状态和表现动态调整当前学习的单词
+   */
+  async adjustLearningWords(
+    params: import('../types/amas').AdjustWordsParams
+  ): Promise<import('../types/amas').AdjustWordsResponse> {
+    return this.request<import('../types/amas').AdjustWordsResponse>('/api/learning/adjust-words', {
+      method: 'POST',
+      body: JSON.stringify(params),
     });
   }
 
@@ -2227,6 +2278,543 @@ class ApiClient {
       console.error('获取显著变化失败:', error);
       throw error;
     }
+  }
+
+  // ==================== Word Mastery Analytics APIs ====================
+
+  /**
+   * 获取用户整体精通度统计
+   * GET /api/word-mastery/stats
+   */
+  async getWordMasteryStats(): Promise<import('../types/word-mastery').UserMasteryStats> {
+    try {
+      return await this.request<import('../types/word-mastery').UserMasteryStats>('/api/word-mastery/stats');
+    } catch (error) {
+      console.error('获取单词精通度统计失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取单词精通度评估
+   * POST /api/word-mastery/batch
+   * @param wordIds 单词ID数组（最多100个，不能为空）
+   * @param userFatigue 用户疲劳度 0-1（可选）
+   */
+  async batchProcessWordMastery(
+    wordIds: string[],
+    userFatigue?: number
+  ): Promise<import('../types/word-mastery').MasteryEvaluation[]> {
+    try {
+      // 客户端验证
+      if (!Array.isArray(wordIds) || wordIds.length === 0) {
+        throw new Error('wordIds 必须是非空数组');
+      }
+      if (wordIds.length > 100) {
+        throw new Error('wordIds 数组不能超过100个');
+      }
+      // 验证所有元素都是非空字符串
+      if (!wordIds.every(id => typeof id === 'string' && id.trim().length > 0)) {
+        throw new Error('wordIds 中所有元素必须是非空字符串');
+      }
+      if (userFatigue !== undefined && (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)) {
+        throw new Error('userFatigue 必须是 0-1 之间的数字');
+      }
+
+      return await this.request<import('../types/word-mastery').MasteryEvaluation[]>('/api/word-mastery/batch', {
+        method: 'POST',
+        body: JSON.stringify({ wordIds, userFatigue }),
+      });
+    } catch (error) {
+      console.error('批量处理单词精通度失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取单词精通度评估
+   * GET /api/word-mastery/:wordId
+   * @param wordId 单词ID（必填）
+   * @param userFatigue 用户疲劳度 0-1（可选）
+   */
+  async getWordMasteryDetail(
+    wordId: string,
+    userFatigue?: number
+  ): Promise<import('../types/word-mastery').MasteryEvaluation> {
+    try {
+      // 客户端验证
+      if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0) {
+        throw new Error('wordId 必须是非空字符串');
+      }
+      if (userFatigue !== undefined && (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)) {
+        throw new Error('userFatigue 必须是 0-1 之间的数字');
+      }
+
+      const queryParams = new URLSearchParams();
+      if (userFatigue !== undefined) {
+        queryParams.append('userFatigue', userFatigue.toString());
+      }
+      const query = queryParams.toString();
+
+      return await this.request<import('../types/word-mastery').MasteryEvaluation>(
+        `/api/word-mastery/${wordId}${query ? `?${query}` : ''}`
+      );
+    } catch (error) {
+      console.error('获取单词精通度详情失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取单词学习轨迹
+   * GET /api/word-mastery/:wordId/trace
+   * @param wordId 单词ID（必填）
+   * @param limit 返回记录数限制（可选，默认50，范围1-100）
+   */
+  async getWordMasteryTrace(
+    wordId: string,
+    limit?: number
+  ): Promise<import('../types/word-mastery').WordMasteryTrace> {
+    try {
+      // 客户端验证
+      if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0) {
+        throw new Error('wordId 必须是非空字符串');
+      }
+      if (limit !== undefined && (typeof limit !== 'number' || limit < 1 || limit > 100)) {
+        throw new Error('limit 必须是 1-100 之间的整数');
+      }
+
+      const queryParams = new URLSearchParams();
+      if (limit !== undefined) {
+        queryParams.append('limit', Math.floor(limit).toString());
+      }
+      const query = queryParams.toString();
+
+      return await this.request<import('../types/word-mastery').WordMasteryTrace>(
+        `/api/word-mastery/${wordId}/trace${query ? `?${query}` : ''}`
+      );
+    } catch (error) {
+      console.error('获取单词学习轨迹失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 预测最佳复习间隔
+   * GET /api/word-mastery/:wordId/interval
+   * @param wordId 单词ID（必填）
+   * @param targetRecall 目标提取概率（可选，默认0.9，范围0-1之间）
+   */
+  async getWordMasteryInterval(
+    wordId: string,
+    targetRecall?: number
+  ): Promise<import('../types/word-mastery').WordMasteryIntervalResponse> {
+    try {
+      // 客户端验证
+      if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0) {
+        throw new Error('wordId 必须是非空字符串');
+      }
+      if (targetRecall !== undefined && (typeof targetRecall !== 'number' || targetRecall <= 0 || targetRecall >= 1)) {
+        throw new Error('targetRecall 必须是大于0小于1的数字');
+      }
+
+      const queryParams = new URLSearchParams();
+      if (targetRecall !== undefined) {
+        queryParams.append('targetRecall', targetRecall.toString());
+      }
+      const query = queryParams.toString();
+
+      return await this.request<import('../types/word-mastery').WordMasteryIntervalResponse>(
+        `/api/word-mastery/${wordId}/interval${query ? `?${query}` : ''}`
+      );
+    } catch (error) {
+      console.error('获取复习间隔预测失败:', error);
+      throw error;
+    }
+  }
+
+  // ==================== Habit Profile APIs ====================
+
+  /**
+   * 获取用户习惯画像
+   * GET /api/habit-profile
+   * 返回数据库中存储的画像和内存中实时计算的画像
+   */
+  async getHabitProfile(): Promise<import('../types/habit-profile').HabitProfileResponse> {
+    try {
+      return await this.request<import('../types/habit-profile').HabitProfileResponse>('/api/habit-profile');
+    } catch (error) {
+      console.error('获取习惯画像失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 从历史记录初始化习惯画像
+   * POST /api/habit-profile/initialize
+   * 用于数据恢复或首次生成习惯画像
+   */
+  async initializeHabitProfile(): Promise<import('../types/habit-profile').InitializeProfileResponse> {
+    try {
+      return await this.request<import('../types/habit-profile').InitializeProfileResponse>(
+        '/api/habit-profile/initialize',
+        { method: 'POST' }
+      );
+    } catch (error) {
+      console.error('初始化习惯画像失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 结束学习会话并持久化习惯画像
+   * POST /api/habit-profile/end-session
+   * @param sessionId 学习会话ID（必填）
+   */
+  async endHabitSession(sessionId: string): Promise<import('../types/habit-profile').EndSessionResponse> {
+    try {
+      // 客户端验证
+      if (!sessionId || typeof sessionId !== 'string' || sessionId.trim().length === 0) {
+        throw new Error('sessionId 必须是非空字符串');
+      }
+
+      return await this.request<import('../types/habit-profile').EndSessionResponse>(
+        '/api/habit-profile/end-session',
+        {
+          method: 'POST',
+          body: JSON.stringify({ sessionId }),
+        }
+      );
+    } catch (error) {
+      console.error('结束学习会话失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 手动触发习惯画像持久化
+   * POST /api/habit-profile/persist
+   * 将内存中的习惯画像保存到数据库
+   */
+  async persistHabitProfile(): Promise<import('../types/habit-profile').PersistProfileResponse> {
+    try {
+      return await this.request<import('../types/habit-profile').PersistProfileResponse>(
+        '/api/habit-profile/persist',
+        { method: 'POST' }
+      );
+    } catch (error) {
+      console.error('持久化习惯画像失败:', error);
+      throw error;
+    }
+  }
+
+  async batchImportWords(
+    wordBookId: string,
+    words: Array<{
+      spelling: string;
+      phonetic: string;
+      meanings: string[];
+      examples: string[];
+      audioUrl?: string;
+    }>
+  ): Promise<{ imported: number; failed: number; errors?: string[] }> {
+    if (!wordBookId || typeof wordBookId !== 'string' || wordBookId.trim().length === 0) {
+      throw new Error('wordBookId 必须是非空字符串');
+    }
+    if (!Array.isArray(words) || words.length === 0) {
+      throw new Error('words 必须是非空数组');
+    }
+    if (words.length > 1000) {
+      throw new Error('单次导入不能超过1000个单词');
+    }
+
+    try {
+      return await this.request<{ imported: number; failed: number; errors?: string[] }>(
+        `/api/wordbooks/${wordBookId}/words/batch`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ words }),
+        }
+      );
+    } catch (error) {
+      console.error('批量导入单词失败:', error);
+      throw error;
+    }
+  }
+
+  // ==================== 优化 API (管理员) ====================
+
+  /**
+   * 获取下一个推荐参数组合
+   * GET /api/optimization/suggest
+   */
+  async getOptimizationSuggestion(): Promise<{
+    params: Record<string, number>;
+    paramSpace: Record<string, { min: number; max: number; step: number }>;
+  }> {
+    return this.request('/api/optimization/suggest');
+  }
+
+  /**
+   * 记录参数评估结果
+   * POST /api/optimization/evaluate
+   */
+  async recordOptimizationEvaluation(
+    params: Record<string, number>,
+    value: number
+  ): Promise<{ recorded: boolean }> {
+    return this.request('/api/optimization/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ params, value }),
+    });
+  }
+
+  /**
+   * 获取当前最优参数
+   * GET /api/optimization/best
+   */
+  async getBestOptimizationParams(): Promise<{
+    params: Record<string, number> | null;
+    value: number | null;
+  }> {
+    return this.request('/api/optimization/best');
+  }
+
+  /**
+   * 获取优化历史
+   * GET /api/optimization/history
+   */
+  async getOptimizationHistory(): Promise<Array<{
+    params: Record<string, number>;
+    value: number;
+    timestamp: string;
+  }>> {
+    return this.request('/api/optimization/history');
+  }
+
+  /**
+   * 手动触发优化周期
+   * POST /api/optimization/trigger
+   */
+  async triggerOptimization(): Promise<{
+    triggered: boolean;
+    result?: Record<string, unknown>;
+  }> {
+    return this.request('/api/optimization/trigger', { method: 'POST' });
+  }
+
+  /**
+   * 重置优化器状态
+   * POST /api/optimization/reset
+   */
+  async resetOptimizer(): Promise<{ reset: boolean }> {
+    return this.request('/api/optimization/reset', { method: 'POST' });
+  }
+
+  /**
+   * 获取优化器诊断信息
+   * GET /api/optimization/diagnostics
+   */
+  async getOptimizationDiagnostics(): Promise<Record<string, unknown>> {
+    return this.request('/api/optimization/diagnostics');
+  }
+
+  // ==================== 评估 API ====================
+
+  /**
+   * 记录因果观测数据
+   * POST /api/evaluation/causal/observe
+   */
+  async recordCausalObservation(data: {
+    features: number[];
+    treatment: 0 | 1;
+    outcome: number;
+  }): Promise<{
+    id: string;
+    treatment: number;
+    outcome: number;
+    timestamp: string;
+  } | null> {
+    return this.request('/api/evaluation/causal/observe', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * 获取平均处理效应估计 (管理员)
+   * GET /api/evaluation/causal/ate
+   */
+  async getCausalATE(): Promise<{
+    ate: number;
+    confidence: number;
+    sampleSize: number;
+  }> {
+    return this.request('/api/evaluation/causal/ate');
+  }
+
+  /**
+   * 比较两个策略的效果 (管理员)
+   * GET /api/evaluation/causal/compare
+   */
+  async compareStrategies(
+    strategyA: number,
+    strategyB: number
+  ): Promise<{
+    difference: number;
+    pValue: number;
+    significant: boolean;
+  }> {
+    return this.request(`/api/evaluation/causal/compare?strategyA=${strategyA}&strategyB=${strategyB}`);
+  }
+
+  /**
+   * 获取用户的 A/B 测试变体分配
+   * GET /api/evaluation/variant/:experimentId
+   */
+  async getExperimentVariant(experimentId: string): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  } | null> {
+    return this.request(`/api/evaluation/variant/${experimentId}`);
+  }
+
+  /**
+   * 记录用户在实验中的指标
+   * POST /api/evaluation/variant/:experimentId/metric
+   */
+  async recordExperimentMetric(
+    experimentId: string,
+    reward: number
+  ): Promise<{ recorded: boolean }> {
+    return this.request(`/api/evaluation/variant/${experimentId}/metric`, {
+      method: 'POST',
+      body: JSON.stringify({ reward }),
+    });
+  }
+
+  // ==================== 用户配置 API ====================
+
+  /**
+   * 获取用户奖励配置（学习模式）
+   * GET /api/users/profile/reward
+   */
+  async getUserRewardProfile(): Promise<{
+    currentProfile: string;
+    availableProfiles: Array<{
+      id: string;
+      name: string;
+      description: string;
+    }>;
+  }> {
+    return this.request('/api/users/profile/reward');
+  }
+
+  /**
+   * 更新用户奖励配置（学习模式）
+   * PUT /api/users/profile/reward
+   */
+  async updateUserRewardProfile(profileId: string): Promise<{
+    currentProfile: string;
+    message: string;
+  }> {
+    return this.request('/api/users/profile/reward', {
+      method: 'PUT',
+      body: JSON.stringify({ profileId }),
+    });
+  }
+
+  // ==================== Experiments API (Admin) ====================
+
+  /**
+   * 获取实验状态（管理员）
+   * GET /api/experiments/:experimentId/status
+   */
+  async getExperimentStatus(experimentId: string): Promise<{
+    status: 'running' | 'completed' | 'stopped';
+    pValue: number;
+    effectSize: number;
+    confidenceInterval: {
+      lower: number;
+      upper: number;
+    };
+    isSignificant: boolean;
+    statisticalPower: number;
+    sampleSizes: Array<{
+      variantId: string;
+      sampleCount: number;
+    }>;
+    winner: string | null;
+    recommendation: string;
+    reason: string;
+    isActive: boolean;
+  }> {
+    return this.request(`/api/experiments/${experimentId}/status`);
+  }
+
+  // ==================== Cognitive Profiling API ====================
+
+  /**
+   * 获取用户Chronotype画像
+   * GET /api/users/profile/chronotype
+   */
+  async getChronotypeProfile(): Promise<{
+    category: 'morning' | 'evening' | 'intermediate';
+    peakHours: number[];
+    confidence: number;
+    learningHistory: Array<{
+      hour: number;
+      performance: number;
+      sampleCount: number;
+    }>;
+  }> {
+    return this.request('/api/users/profile/chronotype');
+  }
+
+  /**
+   * 获取用户Learning Style画像
+   * GET /api/users/profile/learning-style
+   */
+  async getLearningStyleProfile(): Promise<{
+    style: 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+    confidence: number;
+    scores: {
+      visual: number;
+      auditory: number;
+      kinesthetic: number;
+    };
+  }> {
+    return this.request('/api/users/profile/learning-style');
+  }
+
+  /**
+   * 获取用户完整认知画像（Chronotype + Learning Style）
+   * GET /api/users/profile/cognitive
+   */
+  async getCognitiveProfile(): Promise<{
+    chronotype: {
+      category: 'morning' | 'evening' | 'intermediate';
+      peakHours: number[];
+      confidence: number;
+      learningHistory: Array<{
+        hour: number;
+        performance: number;
+        sampleCount: number;
+      }>;
+    };
+    learningStyle: {
+      style: 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+      confidence: number;
+      scores: {
+        visual: number;
+        auditory: number;
+        kinesthetic: number;
+      };
+    };
+  }> {
+    return this.request('/api/users/profile/cognitive');
   }
 }
 

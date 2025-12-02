@@ -33,6 +33,7 @@ import {
   BaseLearnerContext,
   LearnerCapabilities
 } from './base-learner';
+import { globalStatsService } from '../cold-start/global-stats';
 
 // ==================== 类型定义 ====================
 

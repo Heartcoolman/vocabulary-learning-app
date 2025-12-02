@@ -25,9 +25,9 @@ class CacheService {
    * 设置缓存
    * @param key 缓存键
    * @param value 缓存值
-   * @param ttlSeconds TTL（秒）
+   * @param ttlSeconds TTL（秒），默认3600秒
    */
-  set<T>(key: string, value: T, ttlSeconds: number): void {
+  set<T>(key: string, value: T, ttlSeconds = 3600): void {
     const expiresAt = Date.now() + ttlSeconds * 1000;
     this.cache.set(key, { value, expiresAt });
   }
@@ -62,6 +62,14 @@ class CacheService {
   }
 
   /**
+   * 删除缓存（别名，用于测试兼容）
+   * @param key 缓存键
+   */
+  del(key: string): void {
+    this.delete(key);
+  }
+
+  /**
    * 删除匹配模式的所有缓存
    * @param pattern 键的模式（支持通配符 *）
    */
@@ -83,6 +91,34 @@ class CacheService {
    */
   clear(): void {
     this.cache.clear();
+  }
+
+  /**
+   * 清空所有缓存（别名，用于测试兼容）
+   */
+  flush(): void {
+    this.clear();
+  }
+
+  /**
+   * 获取或设置缓存（用于测试兼容）
+   * @param key 缓存键
+   * @param factory 工厂函数，当缓存不存在时调用
+   * @param ttlSeconds TTL（秒）
+   */
+  async getOrSet<T>(
+    key: string,
+    factory: () => Promise<T> | T,
+    ttlSeconds = 3600
+  ): Promise<T> {
+    const cached = this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const value = await factory();
+    this.set(key, value, ttlSeconds);
+    return value;
   }
 
   /**
@@ -126,6 +162,9 @@ class CacheService {
 // 导出单例
 export const cacheService = new CacheService();
 
+// 默认导出（用于测试兼容）
+export default cacheService;
+
 // 缓存键前缀
 export const CacheKeys = {
   // 算法配置缓存（TTL: 1小时）
@@ -150,6 +189,7 @@ export const CacheKeys = {
   // AMAS缓存（TTL: 15分钟）
   USER_STRATEGY: 'amas_strategy',
   AMAS_STATE: (userId: string) => `amas_state:${userId}`,
+  DECISION_INSIGHT: (decisionId: string) => `decision_insight:${decisionId}`,
 };
 
 // 缓存TTL（秒）

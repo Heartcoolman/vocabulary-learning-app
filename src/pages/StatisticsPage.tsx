@@ -187,7 +187,7 @@ export default function StatisticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 animate-g3-fade-in">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 py-8 px-4 animate-g3-fade-in">
       <div className="max-w-6xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8 flex items-center justify-between">

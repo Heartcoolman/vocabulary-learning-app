@@ -117,35 +117,11 @@ setInterval(() => {
 }, 60 * 1000);
 
 /**
- * 真实数据保护中间件：当使用真实数据源时要求管理员权限
- * 防止运营数据通过公开接口泄露
+ * 数据访问中间件：GET 路由公开访问，无论真实/虚拟数据源
+ * 写入接口通过各自路由的 authMiddleware 单独保护
  */
-function realDataProtection(req: Request, res: Response, next: NextFunction): void {
-  if (useRealDataSource()) {
-    // 使用真实数据时，必须验证管理员身份
-    authMiddleware(req as AuthRequest, res, (authErr?: unknown) => {
-      if (authErr) {
-        res.status(401).json({
-          success: false,
-          error: '访问真实数据需要登录'
-        });
-        return;
-      }
-      adminMiddleware(req as AuthRequest, res, (adminErr?: unknown) => {
-        if (adminErr) {
-          res.status(403).json({
-            success: false,
-            error: '访问真实运营数据需要管理员权限'
-          });
-          return;
-        }
-        next();
-      });
-    });
-  } else {
-    // 虚拟数据可公开访问
-    next();
-  }
+function realDataProtection(_req: Request, _res: Response, next: NextFunction): void {
+  next();
 }
 
 // ==================== 路由定义 ====================
@@ -153,9 +129,9 @@ function realDataProtection(req: Request, res: Response, next: NextFunction): vo
 /**
  * POST /api/about/simulate
  * 模拟一次 AMAS 决策过程
- * 需要登录，普通用户可访问（公开展示接口）
+ * 公开接口，用于演示系统决策能力
  */
-router.post('/simulate', authMiddleware, rateLimit, async (req: AuthRequest, res: Response) => {
+router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
@@ -383,23 +359,43 @@ router.get('/stats/state-distribution', realDataProtection, async (_req: Request
 
 /**
  * GET /api/about/stats/recent-decisions
- * 获取最近 50 条脱敏决策记录
+ * 获取最近决策记录
+ * 查询参数: ?mixed=true 同时返回真实和模拟数据
  */
-router.get('/stats/recent-decisions', realDataProtection, async (_req: Request, res: Response) => {
+router.get('/stats/recent-decisions', realDataProtection, async (req: Request, res: Response) => {
   try {
-    let decisions;
+    const includeMixed = req.query.mixed === 'true';
 
-    if (useRealDataSource()) {
-      decisions = await getRealAboutService().getRecentDecisions();
+    if (includeMixed && useRealDataSource()) {
+      // 混合模式：同时返回真实和模拟数据
+      const [realDecisions, virtualDecisions] = await Promise.all([
+        getRealAboutService().getRecentDecisions(),
+        Promise.resolve(aboutService.getRecentDecisions())
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          real: realDecisions,
+          virtual: virtualDecisions
+        },
+        source: 'mixed'
+      });
+    } else if (useRealDataSource()) {
+      const decisions = await getRealAboutService().getRecentDecisions();
+      res.json({
+        success: true,
+        data: decisions,
+        source: 'real'
+      });
     } else {
-      decisions = aboutService.getRecentDecisions();
+      const decisions = aboutService.getRecentDecisions();
+      res.json({
+        success: true,
+        data: decisions,
+        source: 'virtual'
+      });
     }
-
-    res.json({
-      success: true,
-      data: decisions,
-      source: useRealDataSource() ? 'real' : 'virtual'
-    });
   } catch (error) {
     handleError(res, error, '获取近期决策失败');
   }
@@ -408,10 +404,12 @@ router.get('/stats/recent-decisions', realDataProtection, async (_req: Request, 
 /**
  * GET /api/about/decision/:decisionId
  * 获取决策详情
+ * 查询参数: ?source=virtual 获取模拟数据详情
  */
 router.get('/decision/:decisionId', realDataProtection, async (req: Request, res: Response) => {
   try {
     const { decisionId } = req.params;
+    const source = req.query.source as string | undefined;
 
     if (!decisionId || typeof decisionId !== 'string') {
       res.status(400).json({
@@ -421,10 +419,29 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
       return;
     }
 
+    // 如果请求虚拟数据详情
+    if (source === 'virtual') {
+      const detail = aboutService.getDecisionDetail(decisionId);
+      if (!detail) {
+        res.status(404).json({
+          success: false,
+          error: '未找到指定模拟决策'
+        });
+        return;
+      }
+      res.json({
+        success: true,
+        data: detail,
+        source: 'virtual'
+      });
+      return;
+    }
+
+    // 真实数据需要启用真实数据源
     if (!useRealDataSource()) {
       res.status(400).json({
         success: false,
-        error: '决策详情仅支持真实数据源'
+        error: '真实决策详情需要启用真实数据源'
       });
       return;
     }
