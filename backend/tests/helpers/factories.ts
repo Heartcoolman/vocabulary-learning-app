@@ -16,7 +16,7 @@ export const UserFactory = {
     return prisma.user.create({
       data: {
         email: options.email ?? faker.internet.email(),
-        username: options.username ?? faker.internet.userName(),
+        username: options.username ?? faker.internet.username(),
         passwordHash: options.passwordHash ?? '$2b$10$test_hash',
         role: options.role ?? 'USER',
         rewardProfile: options.rewardProfile ?? 'standard'

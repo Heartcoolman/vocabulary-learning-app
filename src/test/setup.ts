@@ -62,11 +62,10 @@ vi.stubGlobal('fetch', mockFetch);
 
 // ==================== URL Mock ====================
 
-vi.stubGlobal('URL', {
-  ...URL,
-  createObjectURL: vi.fn(() => 'blob:mock-url'),
-  revokeObjectURL: vi.fn()
-});
+// Mock only the static methods, preserve the constructor
+const OriginalURL = globalThis.URL;
+vi.spyOn(OriginalURL, 'createObjectURL').mockReturnValue('blob:mock-url');
+vi.spyOn(OriginalURL, 'revokeObjectURL').mockImplementation(() => {});
 
 // ==================== Audio Mock ====================
 

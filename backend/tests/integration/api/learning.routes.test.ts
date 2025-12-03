@@ -7,15 +7,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 
-// Mock mastery learning service
-const mockMasteryLearningService = {
-  getWordsForMasteryMode: vi.fn(),
-  getNextWords: vi.fn(),
-  syncSessionProgress: vi.fn(),
-  ensureLearningSession: vi.fn(),
-  getSessionProgress: vi.fn(),
-  adjustWordsForUser: vi.fn()
-};
+// Use vi.hoisted to ensure mock is available after hoisting
+const { mockMasteryLearningService } = vi.hoisted(() => ({
+  mockMasteryLearningService: {
+    getWordsForMasteryMode: vi.fn(),
+    getNextWords: vi.fn(),
+    syncSessionProgress: vi.fn(),
+    ensureLearningSession: vi.fn(),
+    getSessionProgress: vi.fn(),
+    adjustWordsForUser: vi.fn()
+  }
+}));
 
 vi.mock('../../../src/services/mastery-learning.service', () => ({
   masteryLearningService: mockMasteryLearningService

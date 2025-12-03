@@ -105,7 +105,8 @@ describe('DecisionTooltip', () => {
       fireEvent.click(screen.getByText('为什么这样安排？'));
 
       expect(screen.getByText('40%')).toBeInTheDocument();
-      expect(screen.getByText('30%')).toBeInTheDocument();
+      // There are two factors with 30% percentage
+      expect(screen.getAllByText('30%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should show factor descriptions', () => {
@@ -198,13 +199,13 @@ describe('DecisionTooltip', () => {
     it('should apply red color for low confidence', () => {
       const lowConfidence = {
         ...mockExplanation,
-        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.3 }
+        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.25 }
       };
       render(<DecisionTooltip explanation={lowConfidence} />);
 
       fireEvent.click(screen.getByText('为什么这样安排？'));
 
-      const confidenceValue = screen.getByText('30%');
+      const confidenceValue = screen.getByText('25%');
       expect(confidenceValue.className).toContain('text-red-600');
     });
   });

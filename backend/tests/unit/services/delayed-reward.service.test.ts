@@ -6,38 +6,24 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-// Mock Prisma
-const mockPrisma = {
-  delayedReward: {
-    findMany: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    updateMany: vi.fn(),
-    delete: vi.fn(),
-    count: vi.fn()
-  },
-  wordLearningState: {
-    findUnique: vi.fn()
-  },
-  answerRecord: {
-    findMany: vi.fn()
-  },
-  $transaction: vi.fn((fn) => fn(mockPrisma))
-};
-
+// Mock must be defined inline without external variable references
 vi.mock('../../../src/config/database', () => ({
-  default: mockPrisma
-}));
-
-vi.mock('../../../src/services/cache.service', () => ({
-  cacheService: {
-    get: vi.fn(),
-    set: vi.fn(),
-    del: vi.fn()
+  default: {
+    rewardQueue: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn()
+    },
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn()
   }
 }));
 
+import prisma from '../../../src/config/database';
 import { DelayedRewardService } from '../../../src/services/delayed-reward.service';
 
 describe('DelayedRewardService', () => {
@@ -45,306 +31,148 @@ describe('DelayedRewardService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
     rewardService = new DelayedRewardService();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  // ==================== Create Pending Reward Tests ====================
-
-  describe('createPendingReward', () => {
+  describe('enqueueDelayedReward', () => {
     it('should create a pending reward record', async () => {
       const mockReward = {
         id: 'reward-1',
         userId: 'user-1',
-        wordId: 'word-1',
-        eventId: 'event-1',
+        sessionId: 'session-1',
         status: 'PENDING',
-        createdAt: new Date(),
-        dueAt: new Date(Date.now() + 86400000)
+        dueTs: new Date(Date.now() + 86400000),
+        reward: 0.5,
+        idempotencyKey: 'user-1:word-1:12345'
       };
 
-      mockPrisma.delayedReward.create.mockResolvedValue(mockReward);
+      (prisma.rewardQueue.create as any).mockResolvedValue(mockReward);
 
-      const result = await rewardService.createPendingReward({
+      const result = await rewardService.enqueueDelayedReward({
         userId: 'user-1',
-        wordId: 'word-1',
-        eventId: 'event-1',
-        dueAt: new Date(Date.now() + 86400000)
+        sessionId: 'session-1',
+        dueTs: new Date(Date.now() + 86400000),
+        reward: 0.5,
+        idempotencyKey: 'user-1:word-1:12345'
       });
 
       expect(result).toEqual(mockReward);
-      expect(mockPrisma.delayedReward.create).toHaveBeenCalledWith({
+      expect(prisma.rewardQueue.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: 'user-1',
-          wordId: 'word-1',
-          status: 'PENDING'
+          status: 'PENDING',
+          idempotencyKey: 'user-1:word-1:12345'
         })
       });
     });
 
-    it('should set default due time if not provided', async () => {
-      mockPrisma.delayedReward.create.mockResolvedValue({ id: 'reward-1' });
-
-      await rewardService.createPendingReward({
-        userId: 'user-1',
-        wordId: 'word-1',
-        eventId: 'event-1'
-      });
-
-      expect(mockPrisma.delayedReward.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          dueAt: expect.any(Date)
-        })
-      });
-    });
-  });
-
-  // ==================== Get Pending Rewards Tests ====================
-
-  describe('getPendingRewards', () => {
-    it('should return pending rewards for user', async () => {
-      const mockRewards = [
-        { id: 'reward-1', wordId: 'word-1', status: 'PENDING' },
-        { id: 'reward-2', wordId: 'word-2', status: 'PENDING' }
-      ];
-
-      mockPrisma.delayedReward.findMany.mockResolvedValue(mockRewards);
-
-      const result = await rewardService.getPendingRewards('user-1');
-
-      expect(result).toHaveLength(2);
-      expect(mockPrisma.delayedReward.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId: 'user-1',
-            status: 'PENDING'
-          }
-        })
-      );
-    });
-
-    it('should filter by status', async () => {
-      mockPrisma.delayedReward.findMany.mockResolvedValue([]);
-
-      await rewardService.getPendingRewards('user-1', 'PROCESSED');
-
-      expect(mockPrisma.delayedReward.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId: 'user-1',
-            status: 'PROCESSED'
-          }
-        })
-      );
-    });
-  });
-
-  // ==================== Get Due Rewards Tests ====================
-
-  describe('getDueRewards', () => {
-    it('should return rewards that are due', async () => {
-      const dueRewards = [
-        { id: 'reward-1', dueAt: new Date(Date.now() - 3600000) }
-      ];
-
-      mockPrisma.delayedReward.findMany.mockResolvedValue(dueRewards);
-
-      const result = await rewardService.getDueRewards();
-
-      expect(result).toHaveLength(1);
-      expect(mockPrisma.delayedReward.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            status: 'PENDING',
-            dueAt: { lte: expect.any(Date) }
-          }
-        })
-      );
-    });
-
-    it('should limit number of returned rewards', async () => {
-      mockPrisma.delayedReward.findMany.mockResolvedValue([]);
-
-      await rewardService.getDueRewards(50);
-
-      expect(mockPrisma.delayedReward.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          take: 50
-        })
-      );
-    });
-  });
-
-  // ==================== Process Reward Tests ====================
-
-  describe('processReward', () => {
-    it('should compute and update reward signal', async () => {
-      const mockReward = {
-        id: 'reward-1',
-        userId: 'user-1',
-        wordId: 'word-1',
-        eventId: 'event-1',
-        status: 'PENDING'
+    it('should return existing record on idempotency key conflict', async () => {
+      const existingReward = {
+        id: 'reward-existing',
+        idempotencyKey: 'user-1:word-1:12345'
       };
 
-      mockPrisma.delayedReward.findUnique.mockResolvedValue(mockReward);
-      mockPrisma.wordLearningState.findUnique.mockResolvedValue({
-        masteryLevel: 3,
-        consecutiveCorrect: 5
-      });
-      mockPrisma.answerRecord.findMany.mockResolvedValue([
-        { isCorrect: true },
-        { isCorrect: true },
-        { isCorrect: false }
-      ]);
-      mockPrisma.delayedReward.update.mockResolvedValue({
-        ...mockReward,
-        status: 'PROCESSED',
-        rewardSignal: 0.67
-      });
-
-      const result = await rewardService.processReward('reward-1');
-
-      expect(result.status).toBe('PROCESSED');
-      expect(result.rewardSignal).toBeDefined();
-    });
-
-    it('should handle reward not found', async () => {
-      mockPrisma.delayedReward.findUnique.mockResolvedValue(null);
-
-      await expect(rewardService.processReward('non-existent')).rejects.toThrow(
-        /not found/i
+      // Simulate P2002 unique constraint error using Prisma's error class
+      const { Prisma } = await import('@prisma/client');
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint violation',
+        { code: 'P2002', clientVersion: '5.0.0' }
       );
-    });
+      (prisma.rewardQueue.create as any).mockRejectedValue(prismaError);
+      (prisma.rewardQueue.findUnique as any).mockResolvedValue(existingReward);
 
-    it('should skip already processed rewards', async () => {
-      mockPrisma.delayedReward.findUnique.mockResolvedValue({
-        id: 'reward-1',
-        status: 'PROCESSED'
+      const result = await rewardService.enqueueDelayedReward({
+        userId: 'user-1',
+        dueTs: new Date(),
+        reward: 0.5,
+        idempotencyKey: 'user-1:word-1:12345'
       });
 
-      const result = await rewardService.processReward('reward-1');
-
-      expect(result.status).toBe('PROCESSED');
-      expect(mockPrisma.delayedReward.update).not.toHaveBeenCalled();
+      expect(result).toEqual(existingReward);
     });
   });
 
-  // ==================== Batch Process Tests ====================
-
-  describe('processDueRewards', () => {
-    it('should process all due rewards', async () => {
-      const dueRewards = [
-        { id: 'reward-1', userId: 'user-1', wordId: 'word-1', status: 'PENDING' },
-        { id: 'reward-2', userId: 'user-1', wordId: 'word-2', status: 'PENDING' }
+  describe('processPendingRewards', () => {
+    it('should process pending rewards with handler', async () => {
+      const mockTasks = [
+        { id: 'task-1', userId: 'user-1', status: 'PENDING', dueTs: new Date() }
       ];
 
-      mockPrisma.delayedReward.findMany.mockResolvedValue(dueRewards);
-      mockPrisma.delayedReward.findUnique.mockImplementation(({ where }) => {
-        return dueRewards.find(r => r.id === where.id);
+      (prisma.$transaction as any).mockImplementation(async (fn: any) => {
+        return mockTasks;
       });
-      mockPrisma.wordLearningState.findUnique.mockResolvedValue({ masteryLevel: 3 });
-      mockPrisma.answerRecord.findMany.mockResolvedValue([{ isCorrect: true }]);
-      mockPrisma.delayedReward.update.mockImplementation(({ where, data }) => ({
-        ...dueRewards.find(r => r.id === where.id),
-        ...data
-      }));
+      (prisma.rewardQueue.update as any).mockResolvedValue({ id: 'task-1', status: 'DONE' });
 
-      const results = await rewardService.processDueRewards();
+      const handler = vi.fn().mockResolvedValue(undefined);
 
-      expect(results.processed).toBe(2);
+      await rewardService.processPendingRewards(handler);
+
+      expect(handler).toHaveBeenCalledWith(mockTasks[0]);
     });
 
-    it('should handle errors gracefully', async () => {
-      mockPrisma.delayedReward.findMany.mockResolvedValue([
-        { id: 'reward-1', status: 'PENDING' }
-      ]);
-      mockPrisma.delayedReward.findUnique.mockRejectedValue(new Error('DB error'));
+    it('should do nothing when no pending rewards', async () => {
+      (prisma.$transaction as any).mockResolvedValue([]);
 
-      const results = await rewardService.processDueRewards();
+      const handler = vi.fn();
 
-      expect(results.failed).toBe(1);
-      expect(results.processed).toBe(0);
-    });
-  });
+      await rewardService.processPendingRewards(handler);
 
-  // ==================== Compute Reward Signal Tests ====================
-
-  describe('computeRewardSignal', () => {
-    it('should return positive signal for good retention', () => {
-      const signal = rewardService.computeRewardSignal({
-        correctCount: 8,
-        totalCount: 10,
-        masteryImprovement: 1,
-        timeElapsed: 86400000
-      });
-
-      expect(signal).toBeGreaterThan(0);
+      expect(handler).not.toHaveBeenCalled();
     });
 
-    it('should return negative signal for poor retention', () => {
-      const signal = rewardService.computeRewardSignal({
-        correctCount: 2,
-        totalCount: 10,
-        masteryImprovement: -1,
-        timeElapsed: 86400000
-      });
-
-      expect(signal).toBeLessThan(0);
-    });
-
-    it('should weight recent performance higher', () => {
-      const shortDelay = rewardService.computeRewardSignal({
-        correctCount: 5,
-        totalCount: 10,
-        masteryImprovement: 0,
-        timeElapsed: 3600000 // 1 hour
-      });
-
-      const longDelay = rewardService.computeRewardSignal({
-        correctCount: 5,
-        totalCount: 10,
-        masteryImprovement: 0,
-        timeElapsed: 604800000 // 1 week
-      });
-
-      // Long delay should have different weight
-      expect(Math.abs(shortDelay)).not.toBe(Math.abs(longDelay));
-    });
-
-    it('should bound signal to [-1, 1]', () => {
-      const extreme = rewardService.computeRewardSignal({
-        correctCount: 100,
-        totalCount: 100,
-        masteryImprovement: 5,
-        timeElapsed: 1000
-      });
-
-      expect(extreme).toBeLessThanOrEqual(1);
-      expect(extreme).toBeGreaterThanOrEqual(-1);
+    it('should handle missing handler gracefully', async () => {
+      await expect(
+        rewardService.processPendingRewards(null as any)
+      ).resolves.toBeUndefined();
     });
   });
 
-  // ==================== Cleanup Tests ====================
+  describe('getRewardStatus', () => {
+    it('should return rewards for session', async () => {
+      const mockRewards = [
+        { id: 'r1', sessionId: 'session-1', status: 'PENDING' },
+        { id: 'r2', sessionId: 'session-1', status: 'DONE' }
+      ];
 
-  describe('cleanupOldRewards', () => {
-    it('should delete old processed rewards', async () => {
-      mockPrisma.delayedReward.deleteMany = vi.fn().mockResolvedValue({ count: 10 });
+      (prisma.rewardQueue.findMany as any).mockResolvedValue(mockRewards);
 
-      const result = await rewardService.cleanupOldRewards(30);
+      const result = await rewardService.getRewardStatus('session-1');
 
-      expect(result.deleted).toBe(10);
-      expect(mockPrisma.delayedReward.deleteMany).toHaveBeenCalledWith({
-        where: {
-          status: 'PROCESSED',
-          processedAt: { lt: expect.any(Date) }
-        }
+      expect(result).toHaveLength(2);
+      expect(prisma.rewardQueue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { sessionId: 'session-1' }
+        })
+      );
+    });
+  });
+
+  describe('findRewards', () => {
+    it('should find rewards by filter', async () => {
+      const mockRewards = [
+        { id: 'r1', userId: 'user-1', status: 'PENDING' }
+      ];
+
+      (prisma.rewardQueue.findMany as any).mockResolvedValue(mockRewards);
+
+      const result = await rewardService.findRewards({
+        userId: 'user-1',
+        status: 'PENDING' as any
       });
+
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('exports', () => {
+    it('should export DelayedRewardService class', async () => {
+      const module = await import('../../../src/services/delayed-reward.service');
+      expect(module.DelayedRewardService).toBeDefined();
+    });
+
+    it('should export delayedRewardService singleton', async () => {
+      const module = await import('../../../src/services/delayed-reward.service');
+      expect(module.delayedRewardService).toBeDefined();
     });
   });
 });

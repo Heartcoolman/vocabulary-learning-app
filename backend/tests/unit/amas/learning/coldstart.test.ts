@@ -169,10 +169,10 @@ describe('ColdStartManager', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
 
         // Simulate correct answer with fast response
+        // Use recentResponseTime and recentErrorRate as expected by the implementation
         coldStart.update(defaultState, result.action, 1.0, {
-          isCorrect: true,
-          responseTime: 1000, // Fast
-          errorRate: 0.1
+          recentResponseTime: 1000, // Fast
+          recentErrorRate: 0.1
         });
       }
 
@@ -188,9 +188,8 @@ describe('ColdStartManager', () => {
         // Simulate moderate performance
         const isCorrect = i < 4; // 80% accuracy but slower
         coldStart.update(defaultState, result.action, isCorrect ? 1 : 0, {
-          isCorrect,
-          responseTime: 2500, // Moderate
-          errorRate: 0.25
+          recentResponseTime: 2500, // Moderate
+          recentErrorRate: 0.25
         });
       }
 
@@ -206,9 +205,8 @@ describe('ColdStartManager', () => {
         // Simulate struggling performance
         const isCorrect = i < 2; // 40% accuracy
         coldStart.update(defaultState, result.action, isCorrect ? 1 : 0, {
-          isCorrect,
-          responseTime: 5000, // Slow
-          errorRate: 0.5
+          recentResponseTime: 5000, // Slow
+          recentErrorRate: 0.5
         });
       }
 
@@ -385,7 +383,7 @@ describe('ColdStartManager', () => {
     });
 
     it('should check if cold start is complete', () => {
-      expect(coldStart.isComplete()).toBe(false);
+      expect(coldStart.isCompleted()).toBe(false);
 
       // Fast forward to normal
       for (let i = 0; i < 20; i++) {
@@ -394,7 +392,7 @@ describe('ColdStartManager', () => {
       }
 
       // May or may not be complete depending on threshold
-      expect(typeof coldStart.isComplete()).toBe('boolean');
+      expect(typeof coldStart.isCompleted()).toBe('boolean');
     });
   });
 

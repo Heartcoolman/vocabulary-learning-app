@@ -61,3 +61,8 @@ WARP.md
 phosphor-icons/
 phosphor-icons.zip
 public/phosphor-icons/
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/

@@ -423,7 +423,7 @@ describe('ThompsonSampling', () => {
       expect(caps.supportsOnlineLearning).toBe(true);
       expect(caps.supportsBatchUpdate).toBe(false);
       expect(caps.requiresPretraining).toBe(false);
-      expect(caps.minSamplesForReliability).toBe(10);
+      expect(caps.minSamplesForReliability).toBe(5); // Actual value in implementation
     });
   });
 

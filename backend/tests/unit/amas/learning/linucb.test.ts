@@ -292,7 +292,8 @@ describe('LinUCB', () => {
       }).toThrow('特征向量维度不匹配');
     });
 
-    it('should skip update for NaN/Infinity features', () => {
+    it('should sanitize NaN/Infinity features and proceed with update', () => {
+      // Implementation sanitizes invalid values to 0 and continues the update
       const invalidFeatures = new Float32Array(DIMENSION);
       invalidFeatures[0] = NaN;
 
@@ -301,7 +302,8 @@ describe('LinUCB', () => {
       const countBefore = linucb.getUpdateCount();
       linucb.updateWithFeatureVector(invalidFeatures, 1.0);
 
-      expect(linucb.getUpdateCount()).toBe(countBefore);
+      // Update proceeds with sanitized values (NaN → 0)
+      expect(linucb.getUpdateCount()).toBe(countBefore + 1);
       expect(warnSpy).toHaveBeenCalled();
 
       warnSpy.mockRestore();

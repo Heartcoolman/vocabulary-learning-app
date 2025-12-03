@@ -6,33 +6,49 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-// Mock Prisma
-const mockPrisma = {
-  answerRecord: {
-    findMany: vi.fn(),
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    createMany: vi.fn(),
-    count: vi.fn(),
-    aggregate: vi.fn(),
-    groupBy: vi.fn()
-  },
-  wordLearningState: {
-    upsert: vi.fn()
-  },
-  $transaction: vi.fn((fn) => fn(mockPrisma))
-};
-
+// Mock must be defined inline without external variable references
 vi.mock('../../../src/config/database', () => ({
-  default: mockPrisma
+  default: {
+    answerRecord: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      count: vi.fn(),
+      aggregate: vi.fn(),
+      groupBy: vi.fn()
+    },
+    word: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn()
+    },
+    wordBook: {
+      findMany: vi.fn()
+    },
+    learningSession: {
+      findUnique: vi.fn(),
+      create: vi.fn()
+    },
+    $transaction: vi.fn((fn: any) => {
+      if (typeof fn === 'function') {
+        const prisma = require('../../../src/config/database').default;
+        return fn(prisma);
+      }
+      return Promise.all(fn);
+    })
+  }
 }));
 
 vi.mock('../../../src/services/word-mastery.service', () => ({
   wordMasteryService: {
-    updateMastery: vi.fn().mockResolvedValue(undefined)
+    updateMastery: vi.fn().mockResolvedValue(undefined),
+    recordReview: vi.fn().mockResolvedValue(undefined),
+    batchRecordReview: vi.fn().mockResolvedValue(undefined)
   }
 }));
 
+import prisma from '../../../src/config/database';
 import { RecordService } from '../../../src/services/record.service';
 
 describe('RecordService', () => {
@@ -43,8 +59,6 @@ describe('RecordService', () => {
     recordService = new RecordService();
   });
 
-  // ==================== Get Records Tests ====================
-
   describe('getRecordsByUserId', () => {
     it('should return paginated records', async () => {
       const mockRecords = [
@@ -52,8 +66,8 @@ describe('RecordService', () => {
         { id: 'rec-2', userId: 'user-1', wordId: 'word-2', isCorrect: false }
       ];
 
-      mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
-      mockPrisma.answerRecord.count.mockResolvedValue(10);
+      (prisma.answerRecord.findMany as any).mockResolvedValue(mockRecords);
+      (prisma.answerRecord.count as any).mockResolvedValue(10);
 
       const result = await recordService.getRecordsByUserId('user-1', {
         page: 1,
@@ -66,26 +80,26 @@ describe('RecordService', () => {
     });
 
     it('should use default pagination when not provided', async () => {
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
-      mockPrisma.answerRecord.count.mockResolvedValue(0);
+      (prisma.answerRecord.findMany as any).mockResolvedValue([]);
+      (prisma.answerRecord.count as any).mockResolvedValue(0);
 
       await recordService.getRecordsByUserId('user-1');
 
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+      expect(prisma.answerRecord.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          take: 50, // default pageSize
+          take: 50,
           skip: 0
         })
       );
     });
 
     it('should cap page size at 100', async () => {
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
-      mockPrisma.answerRecord.count.mockResolvedValue(0);
+      (prisma.answerRecord.findMany as any).mockResolvedValue([]);
+      (prisma.answerRecord.count as any).mockResolvedValue(0);
 
       await recordService.getRecordsByUserId('user-1', { pageSize: 500 });
 
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+      expect(prisma.answerRecord.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 100
         })
@@ -93,183 +107,171 @@ describe('RecordService', () => {
     });
 
     it('should handle page number less than 1', async () => {
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
-      mockPrisma.answerRecord.count.mockResolvedValue(0);
+      (prisma.answerRecord.findMany as any).mockResolvedValue([]);
+      (prisma.answerRecord.count as any).mockResolvedValue(0);
 
       await recordService.getRecordsByUserId('user-1', { page: -5 });
 
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+      expect(prisma.answerRecord.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          skip: 0 // page 1
+          skip: 0
         })
       );
     });
   });
 
-  // ==================== Create Record Tests ====================
-
   describe('createRecord', () => {
-    const validRecord = {
-      userId: 'user-1',
+    const validRecordData = {
       wordId: 'word-1',
       isCorrect: true,
-      responseTimeMs: 2500,
+      responseTime: 2500,
       timestamp: Date.now()
     };
 
-    it('should create a new answer record', async () => {
-      const mockCreated = { id: 'rec-1', ...validRecord };
-      mockPrisma.answerRecord.create.mockResolvedValue(mockCreated);
+    beforeEach(() => {
+      (prisma.word.findUnique as any).mockResolvedValue({
+        id: 'word-1',
+        wordBook: { type: 'SYSTEM', userId: null }
+      });
+    });
 
-      const result = await recordService.createRecord(validRecord);
+    it('should create a new answer record', async () => {
+      const mockCreated = { id: 'rec-1', userId: 'user-1', ...validRecordData };
+      (prisma.answerRecord.create as any).mockResolvedValue(mockCreated);
+
+      const result = await recordService.createRecord('user-1', validRecordData);
 
       expect(result).toEqual(mockCreated);
-      expect(mockPrisma.answerRecord.create).toHaveBeenCalled();
+      expect(prisma.answerRecord.create).toHaveBeenCalled();
+    });
+
+    it('should throw error for non-existent word', async () => {
+      (prisma.word.findUnique as any).mockResolvedValue(null);
+
+      await expect(
+        recordService.createRecord('user-1', validRecordData)
+      ).rejects.toThrow('单词不存在');
+    });
+
+    it('should throw error for word from other users private wordbook', async () => {
+      (prisma.word.findUnique as any).mockResolvedValue({
+        id: 'word-1',
+        wordBook: { type: 'USER', userId: 'other-user' }
+      });
+
+      await expect(
+        recordService.createRecord('user-1', validRecordData)
+      ).rejects.toThrow('无权访问');
     });
 
     it('should reject timestamps too far in the future', async () => {
       const futureRecord = {
-        ...validRecord,
-        timestamp: Date.now() + 2 * 60 * 60 * 1000 // 2 hours in future
+        ...validRecordData,
+        timestamp: Date.now() + 2 * 60 * 60 * 1000
       };
 
-      await expect(recordService.createRecord(futureRecord)).rejects.toThrow(
-        /不能超过当前时间/
-      );
+      await expect(
+        recordService.createRecord('user-1', futureRecord)
+      ).rejects.toThrow(/不能超过当前时间/);
     });
 
     it('should reject timestamps too far in the past', async () => {
       const pastRecord = {
-        ...validRecord,
-        timestamp: Date.now() - 48 * 60 * 60 * 1000 // 48 hours ago
+        ...validRecordData,
+        timestamp: Date.now() - 48 * 60 * 60 * 1000
       };
 
-      await expect(recordService.createRecord(pastRecord)).rejects.toThrow(
-        /不能早于24小时/
-      );
+      await expect(
+        recordService.createRecord('user-1', pastRecord)
+      ).rejects.toThrow(/不能早于24小时/);
     });
   });
 
-  // ==================== Batch Create Tests ====================
+  describe('batchCreateRecords', () => {
+    beforeEach(() => {
+      (prisma.word.findMany as any).mockResolvedValue([
+        { id: 'word-1', wordBook: { type: 'SYSTEM', userId: null } },
+        { id: 'word-2', wordBook: { type: 'SYSTEM', userId: null } }
+      ]);
+    });
 
-  describe('createBatchRecords', () => {
     it('should create multiple records', async () => {
       const records = [
-        {
-          userId: 'user-1',
-          wordId: 'word-1',
-          isCorrect: true,
-          responseTimeMs: 2000,
-          timestamp: Date.now()
-        },
-        {
-          userId: 'user-1',
-          wordId: 'word-2',
-          isCorrect: false,
-          responseTimeMs: 3000,
-          timestamp: Date.now()
-        }
+        { wordId: 'word-1', isCorrect: true, responseTime: 2000, timestamp: Date.now() },
+        { wordId: 'word-2', isCorrect: false, responseTime: 3000, timestamp: Date.now() }
       ];
 
-      mockPrisma.answerRecord.createMany.mockResolvedValue({ count: 2 });
+      (prisma.answerRecord.createMany as any).mockResolvedValue({ count: 2 });
 
-      const result = await recordService.createBatchRecords(records);
+      const result = await recordService.batchCreateRecords('user-1', records);
 
       expect(result.count).toBe(2);
     });
 
     it('should reject batch larger than MAX_BATCH_SIZE', async () => {
       const largeRecords = Array.from({ length: 1500 }, (_, i) => ({
-        userId: 'user-1',
         wordId: `word-${i}`,
         isCorrect: true,
-        responseTimeMs: 2000,
+        responseTime: 2000,
         timestamp: Date.now()
       }));
 
-      await expect(recordService.createBatchRecords(largeRecords)).rejects.toThrow(
-        /批量操作/
-      );
+      await expect(
+        recordService.batchCreateRecords('user-1', largeRecords)
+      ).rejects.toThrow(/批量操作/);
+    });
+
+    it('should throw error when all words are inaccessible', async () => {
+      (prisma.word.findMany as any).mockResolvedValue([]);
+
+      const records = [
+        { wordId: 'word-1', isCorrect: true, responseTime: 2000, timestamp: Date.now() }
+      ];
+
+      await expect(
+        recordService.batchCreateRecords('user-1', records)
+      ).rejects.toThrow(/无权访问/);
     });
   });
 
-  // ==================== Statistics Tests ====================
-
   describe('getStatistics', () => {
     it('should return user learning statistics', async () => {
-      mockPrisma.answerRecord.count.mockResolvedValue(100);
-      mockPrisma.answerRecord.aggregate.mockResolvedValue({
-        _avg: { responseTimeMs: 2500 }
-      });
-      mockPrisma.answerRecord.groupBy.mockResolvedValue([
-        { isCorrect: true, _count: 75 },
-        { isCorrect: false, _count: 25 }
-      ]);
+      (prisma.wordBook.findMany as any).mockResolvedValue([{ id: 'wb-1' }]);
+      (prisma.word.count as any).mockResolvedValue(1000);
+      (prisma.answerRecord.count as any)
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(75);
+      (prisma.answerRecord.findMany as any).mockResolvedValue([]);
 
       const stats = await recordService.getStatistics('user-1');
 
-      expect(stats.totalAnswers).toBe(100);
-      expect(stats.avgResponseTime).toBe(2500);
+      expect(stats.totalWords).toBe(1000);
+      expect(stats.totalRecords).toBe(100);
+      expect(stats.correctRate).toBe(0.75);
     });
 
     it('should handle user with no records', async () => {
-      mockPrisma.answerRecord.count.mockResolvedValue(0);
-      mockPrisma.answerRecord.aggregate.mockResolvedValue({
-        _avg: { responseTimeMs: null }
-      });
-      mockPrisma.answerRecord.groupBy.mockResolvedValue([]);
+      (prisma.wordBook.findMany as any).mockResolvedValue([]);
+      (prisma.word.count as any).mockResolvedValue(0);
+      (prisma.answerRecord.count as any).mockResolvedValue(0);
+      (prisma.answerRecord.findMany as any).mockResolvedValue([]);
 
       const stats = await recordService.getStatistics('new-user');
 
-      expect(stats.totalAnswers).toBe(0);
+      expect(stats.totalRecords).toBe(0);
       expect(stats.correctRate).toBe(0);
     });
   });
 
-  // ==================== Recent Records Tests ====================
-
-  describe('getRecentRecords', () => {
-    it('should return records from specified time range', async () => {
-      const mockRecords = [
-        { id: 'rec-1', timestamp: new Date() }
-      ];
-      mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
-
-      const result = await recordService.getRecentRecords('user-1', 24);
-
-      expect(result).toEqual(mockRecords);
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            userId: 'user-1',
-            timestamp: expect.any(Object)
-          })
-        })
-      );
+  describe('exports', () => {
+    it('should export RecordService class', async () => {
+      const module = await import('../../../src/services/record.service');
+      expect(module.RecordService).toBeDefined();
     });
-  });
 
-  // ==================== Word Records Tests ====================
-
-  describe('getRecordsByWord', () => {
-    it('should return records for specific word', async () => {
-      const mockRecords = [
-        { id: 'rec-1', wordId: 'word-1', isCorrect: true },
-        { id: 'rec-2', wordId: 'word-1', isCorrect: false }
-      ];
-      mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
-
-      const result = await recordService.getRecordsByWord('user-1', 'word-1');
-
-      expect(result).toHaveLength(2);
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId: 'user-1',
-            wordId: 'word-1'
-          }
-        })
-      );
+    it('should export default singleton', async () => {
+      const module = await import('../../../src/services/record.service');
+      expect(module.default).toBeDefined();
     });
   });
 });

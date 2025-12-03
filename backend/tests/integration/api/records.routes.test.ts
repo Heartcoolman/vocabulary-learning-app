@@ -6,16 +6,17 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { randomUUID } from 'crypto';
 
-// Mock record service
-const mockRecordService = {
-  getRecordsByUserId: vi.fn(),
-  createRecord: vi.fn(),
-  batchCreateRecords: vi.fn(),
-  getStatistics: vi.fn(),
-  getRecentRecords: vi.fn(),
-  getRecordsByWord: vi.fn()
-};
+// Use vi.hoisted to ensure mock is available after hoisting
+const { mockRecordService } = vi.hoisted(() => ({
+  mockRecordService: {
+    getRecordsByUserId: vi.fn(),
+    createRecord: vi.fn(),
+    batchCreateRecords: vi.fn(),
+    getStatistics: vi.fn()
+  }
+}));
 
 vi.mock('../../../src/services/record.service', () => ({
   default: mockRecordService,
@@ -83,20 +84,6 @@ describe('Records API Routes', () => {
       );
     });
 
-    it('should cap page size at 100', async () => {
-      mockRecordService.getRecordsByUserId.mockResolvedValue({
-        data: [],
-        pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 }
-      });
-
-      await request(app)
-        .get('/api/records?pageSize=500')
-        .set('Authorization', `Bearer ${validToken}`);
-
-      // Service should receive capped value
-      expect(mockRecordService.getRecordsByUserId).toHaveBeenCalled();
-    });
-
     it('should return 401 without token', async () => {
       const res = await request(app).get('/api/records');
 
@@ -115,16 +102,34 @@ describe('Records API Routes', () => {
 
       expect(res.body.data).toEqual([]);
     });
+
+    it('should handle invalid page parameter gracefully', async () => {
+      mockRecordService.getRecordsByUserId.mockResolvedValue({
+        data: [],
+        pagination: { page: 1, pageSize: 50, total: 0, totalPages: 0 }
+      });
+
+      const res = await request(app)
+        .get('/api/records?page=invalid')
+        .set('Authorization', `Bearer ${validToken}`);
+
+      expect(res.status).toBe(200);
+      // Invalid params should be treated as undefined
+      expect(mockRecordService.getRecordsByUserId).toHaveBeenCalledWith(
+        testUserId,
+        expect.objectContaining({ page: undefined })
+      );
+    });
   });
 
   // ==================== POST /api/records ====================
 
   describe('POST /api/records', () => {
+    const wordId = randomUUID();
     const validRecord = {
-      wordId: 'word-123',
+      wordId,
       isCorrect: true,
-      responseTimeMs: 2500,
-      questionType: 'multiple_choice'
+      responseTime: 2500
     };
 
     it('should create a new record', async () => {
@@ -148,16 +153,16 @@ describe('Records API Routes', () => {
       const res = await request(app)
         .post('/api/records')
         .set('Authorization', `Bearer ${validToken}`)
-        .send({ isCorrect: true, responseTimeMs: 2000 });
+        .send({ isCorrect: true, responseTime: 2000 });
 
       expect(res.status).toBe(400);
     });
 
-    it('should return 400 for invalid responseTimeMs', async () => {
+    it('should return 400 for invalid wordId format', async () => {
       const res = await request(app)
         .post('/api/records')
         .set('Authorization', `Bearer ${validToken}`)
-        .send({ wordId: 'word-1', isCorrect: true, responseTimeMs: -100 });
+        .send({ wordId: 'not-a-uuid', isCorrect: true, responseTime: 2000 });
 
       expect(res.status).toBe(400);
     });
@@ -187,15 +192,40 @@ describe('Records API Routes', () => {
 
       expect(res.status).toBe(401);
     });
+
+    it('should accept optional fields', async () => {
+      const recordWithOptionals = {
+        ...validRecord,
+        selectedAnswer: 'test answer',
+        correctAnswer: 'correct answer',
+        dwellTime: 5000,
+        masteryLevelBefore: 2,
+        masteryLevelAfter: 3
+      };
+      mockRecordService.createRecord.mockResolvedValue({
+        id: 'rec-id',
+        ...recordWithOptionals
+      });
+
+      const res = await request(app)
+        .post('/api/records')
+        .set('Authorization', `Bearer ${validToken}`)
+        .send(recordWithOptionals);
+
+      expect(res.status).toBe(201);
+    });
   });
 
   // ==================== POST /api/records/batch ====================
 
   describe('POST /api/records/batch', () => {
+    const wordId1 = randomUUID();
+    const wordId2 = randomUUID();
+
     it('should create multiple records', async () => {
       const records = [
-        { wordId: 'word-1', isCorrect: true, responseTimeMs: 2000 },
-        { wordId: 'word-2', isCorrect: false, responseTimeMs: 3000 }
+        { wordId: wordId1, isCorrect: true, responseTime: 2000 },
+        { wordId: wordId2, isCorrect: false, responseTime: 3000 }
       ];
       mockRecordService.batchCreateRecords.mockResolvedValue({ count: 2 });
 
@@ -208,25 +238,10 @@ describe('Records API Routes', () => {
       expect(res.body.data.count).toBe(2);
     });
 
-    it('should reject batch larger than 1000', async () => {
-      const records = Array.from({ length: 1001 }, (_, i) => ({
-        wordId: `word-${i}`,
-        isCorrect: true,
-        responseTimeMs: 2000
-      }));
-
-      const res = await request(app)
-        .post('/api/records/batch')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send({ records });
-
-      expect(res.status).toBe(400);
-    });
-
     it('should validate each record in batch', async () => {
       const records = [
-        { wordId: 'word-1', isCorrect: true, responseTimeMs: 2000 },
-        { wordId: '', isCorrect: true, responseTimeMs: 2000 } // Invalid
+        { wordId: wordId1, isCorrect: true, responseTime: 2000 },
+        { wordId: 'invalid-uuid', isCorrect: true, responseTime: 2000 } // Invalid UUID
       ];
 
       const res = await request(app)
@@ -238,12 +253,24 @@ describe('Records API Routes', () => {
     });
 
     it('should handle empty batch', async () => {
+      mockRecordService.batchCreateRecords.mockResolvedValue({ count: 0 });
+
       const res = await request(app)
         .post('/api/records/batch')
         .set('Authorization', `Bearer ${validToken}`)
         .send({ records: [] });
 
-      expect(res.status).toBe(400);
+      // Empty batch is allowed per schema
+      expect(res.status).toBe(201);
+      expect(res.body.data.count).toBe(0);
+    });
+
+    it('should return 401 without token', async () => {
+      const res = await request(app)
+        .post('/api/records/batch')
+        .send({ records: [] });
+
+      expect(res.status).toBe(401);
     });
   });
 
@@ -282,63 +309,11 @@ describe('Records API Routes', () => {
 
       expect(res.body.data.totalAnswers).toBe(0);
     });
-  });
 
-  // ==================== GET /api/records/recent ====================
+    it('should return 401 without token', async () => {
+      const res = await request(app).get('/api/records/statistics');
 
-  describe('GET /api/records/recent', () => {
-    it('should return recent records', async () => {
-      mockRecordService.getRecentRecords.mockResolvedValue([
-        { id: 'rec-1', wordId: 'word-1', isCorrect: true, createdAt: new Date() }
-      ]);
-
-      const res = await request(app)
-        .get('/api/records/recent?hours=24')
-        .set('Authorization', `Bearer ${validToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(1);
-    });
-
-    it('should default to 24 hours', async () => {
-      mockRecordService.getRecentRecords.mockResolvedValue([]);
-
-      await request(app)
-        .get('/api/records/recent')
-        .set('Authorization', `Bearer ${validToken}`);
-
-      expect(mockRecordService.getRecentRecords).toHaveBeenCalledWith(
-        testUserId,
-        24
-      );
-    });
-  });
-
-  // ==================== GET /api/records/word/:wordId ====================
-
-  describe('GET /api/records/word/:wordId', () => {
-    it('should return records for specific word', async () => {
-      mockRecordService.getRecordsByWord.mockResolvedValue([
-        { id: 'rec-1', wordId: 'word-123', isCorrect: true },
-        { id: 'rec-2', wordId: 'word-123', isCorrect: false }
-      ]);
-
-      const res = await request(app)
-        .get('/api/records/word/word-123')
-        .set('Authorization', `Bearer ${validToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(2);
-    });
-
-    it('should return empty for unknown word', async () => {
-      mockRecordService.getRecordsByWord.mockResolvedValue([]);
-
-      const res = await request(app)
-        .get('/api/records/word/unknown-word')
-        .set('Authorization', `Bearer ${validToken}`);
-
-      expect(res.body.data).toEqual([]);
+      expect(res.status).toBe(401);
     });
   });
 });

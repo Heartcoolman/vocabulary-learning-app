@@ -7,16 +7,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 
-// Mock word state service
-const mockWordStateService = {
-  getWordState: vi.fn(),
-  batchGetWordStates: vi.fn(),
-  upsertWordState: vi.fn(),
-  deleteWordState: vi.fn(),
-  getDueWords: vi.fn(),
-  getWordsByState: vi.fn(),
-  getUserStats: vi.fn()
-};
+// Use vi.hoisted to ensure mock is available after hoisting
+const { mockWordStateService } = vi.hoisted(() => ({
+  mockWordStateService: {
+    getWordState: vi.fn(),
+    batchGetWordStates: vi.fn(),
+    upsertWordState: vi.fn(),
+    deleteWordState: vi.fn(),
+    getDueWords: vi.fn(),
+    getWordsByState: vi.fn(),
+    getUserStats: vi.fn()
+  }
+}));
 
 vi.mock('../../../src/services/word-state.service', () => ({
   wordStateService: mockWordStateService
