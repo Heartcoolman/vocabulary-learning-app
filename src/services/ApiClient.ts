@@ -548,7 +548,7 @@ class ApiClient {
   private onUnauthorizedCallback: (() => void) | null = null;
   private defaultTimeout: number = DEFAULT_TIMEOUT;
 
-  constructor(baseUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:3000') {
+  constructor(baseUrl: string = import.meta.env.VITE_API_URL || '') {
     this.baseUrl = baseUrl;
 
     // 从localStorage读取token并验证有效性
