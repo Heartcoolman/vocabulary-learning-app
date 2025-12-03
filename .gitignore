@@ -66,3 +66,7 @@ public/phosphor-icons/
 playwright-report/
 test-results/
 coverage/
+
+# Large test result files
+**/simulation-test-results*.txt
+**/integration-test-results*.txt
