@@ -6,10 +6,10 @@ import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
 import { LearningModeSelector } from '../components/LearningModeSelector';
-import { DecisionTooltip } from '../components/DecisionTooltip';
+import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
 import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
-import { Confetti, Books, CircleNotch, Clock, WarningCircle } from '../components/Icon';
+import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 
 
@@ -22,6 +22,7 @@ export default function LearningPage() {
   const [testOptions, setTestOptions] = useState<string[]>([]);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
 
   const {
     currentWord,
@@ -267,6 +268,16 @@ export default function LearningPage() {
                 <Lightbulb size={18} />
                 <span className="hidden sm:inline">AI建议</span>
               </button>
+              <button
+                onClick={() => setIsExplainabilityOpen(true)}
+                disabled={!latestAmasResult}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200 text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 disabled:hover:border-indigo-200"
+                aria-label="查看决策解释"
+                title={!latestAmasResult ? '请先回答问题以查看AMAS决策解释' : '为什么选这个词？'}
+              >
+                <Brain size={18} />
+                <span className="hidden sm:inline">决策透视</span>
+              </button>
             </div>
           </div>
           <WordCard
@@ -284,11 +295,11 @@ export default function LearningPage() {
           />
 
           {/* AMAS决策解释 */}
-          {latestAmasResult?.enhancedExplanation && showResult && (
+          {latestAmasResult?.explanation && showResult && (
             <div className="mt-4 p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">当前学习策略</span>
-                <DecisionTooltip explanation={latestAmasResult.enhancedExplanation} />
+                <p className="text-xs text-gray-600">{latestAmasResult.explanation}</p>
               </div>
             </div>
           )}
@@ -324,6 +335,12 @@ export default function LearningPage() {
         onClose={() => setIsSuggestionOpen(false)}
         result={latestAmasResult}
         onBreak={() => setIsSuggestionOpen(false)}
+      />
+
+      <ExplainabilityModal
+        isOpen={isExplainabilityOpen}
+        onClose={() => setIsExplainabilityOpen(false)}
+        latestDecision={latestAmasResult}
       />
     </div>
   );

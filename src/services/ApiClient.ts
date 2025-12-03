@@ -957,15 +957,6 @@ class ApiClient {
   }
 
   /**
-   * 获取所有学习记录（兼容旧代码，不推荐使用）
-   * @deprecated 请使用 getRecords 并处理分页
-   */
-  async getAllRecords(): Promise<AnswerRecord[]> {
-    const result = await this.getRecords({ pageSize: 100 });
-    return result.records;
-  }
-
-  /**
    * 保存答题记录
    */
   async createRecord(recordData: Omit<AnswerRecord, 'id'>): Promise<AnswerRecord> {
@@ -2504,6 +2495,92 @@ class ApiClient {
       );
     } catch (error) {
       console.error('持久化习惯画像失败:', error);
+      throw error;
+    }
+  }
+
+  // ==================== Explainability APIs ====================
+
+  /**
+   * 获取AMAS决策解释
+   * GET /api/amas/explain-decision
+   * @param decisionId 决策ID（可选，不传则使用最近一次决策）
+   */
+  async getAmasDecisionExplanation(decisionId?: string): Promise<import('../types/explainability').DecisionExplanation> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (decisionId) {
+        queryParams.append('decisionId', decisionId);
+      }
+      const query = queryParams.toString();
+
+      return await this.request<import('../types/explainability').DecisionExplanation>(
+        `/api/amas/explain-decision${query ? `?${query}` : ''}`
+      );
+    } catch (error) {
+      console.error('获取决策解释失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 运行反事实分析
+   * POST /api/amas/counterfactual
+   * @param input 反事实输入参数
+   */
+  async runCounterfactualAnalysis(input: import('../types/explainability').CounterfactualInput): Promise<import('../types/explainability').CounterfactualResult> {
+    try {
+      return await this.request<import('../types/explainability').CounterfactualResult>(
+        '/api/amas/counterfactual',
+        {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }
+      );
+    } catch (error) {
+      console.error('反事实分析失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取学习曲线数据
+   * GET /api/amas/learning-curve
+   * @param days 查询天数，默认30天
+   */
+  async getAmasLearningCurve(days: number = 30): Promise<import('../types/explainability').LearningCurveData> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('days', days.toString());
+
+      return await this.request<import('../types/explainability').LearningCurveData>(
+        `/api/amas/learning-curve?${queryParams.toString()}`
+      );
+    } catch (error) {
+      console.error('获取学习曲线失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取决策时间线
+   * GET /api/amas/decision-timeline
+   * @param limit 返回数量限制
+   * @param cursor 分页游标
+   */
+  async getDecisionTimeline(limit: number = 50, cursor?: string): Promise<import('../types/explainability').DecisionTimelineResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('limit', limit.toString());
+      if (cursor) {
+        queryParams.append('cursor', cursor);
+      }
+
+      return await this.request<import('../types/explainability').DecisionTimelineResponse>(
+        `/api/amas/decision-timeline?${queryParams.toString()}`
+      );
+    } catch (error) {
+      console.error('获取决策时间线失败:', error);
       throw error;
     }
   }

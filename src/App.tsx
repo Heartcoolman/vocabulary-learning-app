@@ -15,6 +15,7 @@ import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import BatchImportPage from './pages/BatchImportPage';
 import WordMasteryPage from './pages/WordMasteryPage';
+import HabitProfilePage from './pages/HabitProfilePage';
 // AMAS 增强功能页面
 import LearningTimePage from './pages/LearningTimePage';
 import TrendReportPage from './pages/TrendReportPage';
@@ -168,6 +169,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <WordMasteryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/habit-profile"
+              element={
+                <ProtectedRoute>
+                  <HabitProfilePage />
                 </ProtectedRoute>
               }
             />

@@ -1,10 +1,9 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Database, Activity } from 'lucide-react';
+import { User, Lock, Database, Activity, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/ApiClient';
 import StorageService from '../services/StorageService';
-import HabitProfileTab from '../components/HabitProfileTab';
 
 /**
  * 个人资料页面组件
@@ -377,8 +376,50 @@ export default function ProfilePage() {
           )}
 
           {activeTab === 'habit' && (
-            <div>
-              <HabitProfileTab />
+            <div className="space-y-6 max-w-2xl">
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-xl shadow-sm border border-indigo-100">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+                    <Activity size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">学习习惯分析</h2>
+                    <p className="text-gray-600 mb-4">
+                      深入了解您的学习节奏、偏好时段和动机模式。基于 AMAS 系统的实时数据分析，为您提供个性化的学习建议。
+                    </p>
+                    <button
+                      onClick={() => navigate('/habit-profile')}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+                    >
+                      查看完整分析
+                      <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 功能说明 */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">包含以下内容：</h3>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <span>生物钟类型分析（早鸟型 / 夜猫子型）</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <span>学习节奏评估（快节奏 / 慢节奏）</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <span>动机模式识别（学习动力来源分析）</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <span>学习热力图（活跃时段可视化）</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           )}
         </div>

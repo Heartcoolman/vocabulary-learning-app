@@ -650,5 +650,3 @@ pm2 logs danci-backend --lines 100
 ---
 
 **End of Runbook**
-
-For detailed technical implementation, see [week3-final-delivery-summary.md](./week3-final-delivery-summary.md).

@@ -111,13 +111,10 @@ npm run dev
 └── scripts/                # 部署脚本
 ```
 
-详细架构说明请查看 [ARCHITECTURE.md](./ARCHITECTURE.md)
-
 ## 文档
 
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构设计 |
 | [backend/API.md](./backend/API.md) | API 接口文档 |
 | [backend/DEPLOYMENT.md](./backend/DEPLOYMENT.md) | 部署指南 |
 | [backend/SETUP.md](./backend/SETUP.md) | 开发环境配置 |

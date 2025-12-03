@@ -347,7 +347,7 @@ curl https://api.danci.com/health
 
 ### B. 配置文件示例
 
-见文件: `docs/week3-operations-runbook.md`
+见文件: `operations-runbook.md`
 
 ### C. 监控Dashboard配置
 

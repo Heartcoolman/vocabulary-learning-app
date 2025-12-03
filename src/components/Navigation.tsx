@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar, Target } from './Icon';
+import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar, Target, UserCircle } from './Icon';
 import { fadeInVariants, g3SpringStandard } from '../utils/animations';
 
 /**
@@ -31,7 +31,7 @@ export default function Navigation() {
   };
 
   const isInsightsActive = () => {
-    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan', '/word-mastery'].includes(location.pathname);
+    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan', '/word-mastery', '/habit-profile'].includes(location.pathname);
   };
 
   const linkClass = (path: string) => {
@@ -174,6 +174,14 @@ export default function Navigation() {
                       >
                         <Target size={18} weight="bold" />
                         单词精通度
+                      </Link>
+                      <Link
+                        to="/habit-profile"
+                        className={dropdownLinkClass('/habit-profile')}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <UserCircle size={18} weight="bold" />
+                        习惯画像
                       </Link>
                     </motion.div>
                   )}

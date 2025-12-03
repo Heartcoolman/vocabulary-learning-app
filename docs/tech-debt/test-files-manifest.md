@@ -92,15 +92,15 @@
 
 ## 文档输出（3个文件）
 
-1. `TEST_REPORT.md`
+1. `test-report.md`
    - 完整测试报告
    - 包含：概述、统计、功能覆盖、问题建议、执行指南
 
-2. `TESTING_SUMMARY.md`
+2. `testing-summary.md`
    - 测试工作总结
    - 包含：清单、结构、技术亮点、关键成果
 
-3. `TEST_FILES_MANIFEST.md`
+3. `test-files-manifest.md`
    - 测试文件清单（本文档）
    - 包含：文件列表、大小、状态
 

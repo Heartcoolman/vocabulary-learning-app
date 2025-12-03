@@ -9,24 +9,18 @@ import type {
 
 export const explainabilityApi = {
   getDecisionExplanation: async (decisionId?: string): Promise<DecisionExplanation> => {
-    const params = decisionId ? { decisionId } : {};
-    const response = await apiClient.get<DecisionExplanation>('/amas/explain-decision', { params });
-    return response;
+    return await apiClient.getAmasDecisionExplanation(decisionId);
   },
 
   runCounterfactual: async (input: CounterfactualInput): Promise<CounterfactualResult> => {
-    const response = await apiClient.post<CounterfactualResult>('/amas/counterfactual', input);
-    return response;
+    return await apiClient.runCounterfactualAnalysis(input);
   },
 
   getLearningCurve: async (days: number = 30): Promise<LearningCurveData> => {
-    const response = await apiClient.get<LearningCurveData>('/amas/learning-curve', { params: { days } });
-    return response;
+    return await apiClient.getAmasLearningCurve(days);
   },
 
   getDecisionTimeline: async (limit: number = 50, cursor?: string): Promise<DecisionTimelineResponse> => {
-    const params = cursor ? { limit, cursor } : { limit };
-    const response = await apiClient.get<DecisionTimelineResponse>('/amas/decision-timeline', { params });
-    return response;
+    return await apiClient.getDecisionTimeline(limit, cursor);
   }
 };

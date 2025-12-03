@@ -2,14 +2,15 @@
  * 习惯画像路由
  * 提供用户学习习惯画像的API
  *
- * ⚠️ 状态: 后端已实现，前端UI待开发
- *
  * 修复问题: HabitProfile 表只读不写
  * - 新增会话结束端点，触发习惯画像持久化
  * - 新增习惯画像查询端点
  * - 新增从历史记录初始化端点
  *
- * TODO: 需要创建前端HabitProfilePage或集成到ProfilePage，添加ApiClient方法
+ * 前端组件: src/components/HabitProfileTab.tsx (集成在 ProfilePage)
+ * 独立页面: src/pages/HabitProfilePage.tsx
+ * 路由配置: App.tsx -> /habit-profile
+ * API方法: ApiClient.ts -> getHabitProfile, initializeHabitProfile, persistHabitProfile 等
  */
 
 import { Router } from 'express';

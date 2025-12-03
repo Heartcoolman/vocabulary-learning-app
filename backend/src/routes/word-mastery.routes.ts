@@ -1,8 +1,6 @@
 /**
  * 单词掌握度评估路由
  *
- * ⚠️ 状态: 后端已实现，前端UI待开发
- *
  * API端点:
  * - GET  /api/word-mastery/:wordId          获取单词掌握度评估
  * - POST /api/word-mastery/batch            批量获取掌握度评估
@@ -10,7 +8,9 @@
  * - GET  /api/word-mastery/stats            获取用户整体掌握统计
  * - GET  /api/word-mastery/:wordId/interval 预测最佳复习间隔
  *
- * TODO: 需要创建前端WordMasteryPage页面和对应的ApiClient方法
+ * 前端页面: src/pages/WordMasteryPage.tsx
+ * 路由配置: App.tsx -> /word-mastery
+ * API方法: ApiClient.ts -> getWordMasteryStats, batchProcessWordMastery 等
  */
 
 import { Router, Response, NextFunction } from 'express';

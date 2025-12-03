@@ -1,51 +1,128 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Award, BookOpen, Target } from 'lucide-react';
+import { ChartBar, Warning, MagnifyingGlass } from '@phosphor-icons/react';
 import apiClient from '../services/ApiClient';
-import ProgressBarChart from '../components/ProgressBarChart';
-import type { UserMasteryStats } from '../types/word-mastery';
+import type { UserMasteryStats, MasteryEvaluation } from '../types/word-mastery';
+import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
+import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
+
+interface WordWithMastery {
+  id: string;
+  spelling: string;
+  meanings: string;
+  mastery: MasteryEvaluation | null;
+}
+
+type FilterType = 'all' | 'mastered' | 'learning' | 'review';
 
 const WordMasteryPage: React.FC = () => {
-  const [stats, setStats] = useState<UserMasteryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<UserMasteryStats | null>(null);
+  const [words, setWords] = useState<WordWithMastery[]>([]);
+  const [filteredWords, setFilteredWords] = useState<WordWithMastery[]>([]);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadMasteryStats();
+    loadData();
   }, []);
 
-  const loadMasteryStats = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getWordMasteryStats();
-      setStats(data);
+
+      // Load stats
+      const statsData = await apiClient.getWordMasteryStats();
+      setStats(statsData);
+
+      // Load all words
+      const wordsData = await apiClient.getWords();
+
+      // Batch load mastery data
+      const wordIds = wordsData.map(w => w.id);
+      const batchSize = 100;
+      const masteryDataArray: MasteryEvaluation[] = [];
+
+      for (let i = 0; i < wordIds.length; i += batchSize) {
+        const batch = wordIds.slice(i, i + batchSize);
+        const batchMastery = await apiClient.batchProcessWordMastery(batch);
+        masteryDataArray.push(...batchMastery);
+      }
+
+      // Convert to map
+      const masteryMap: Record<string, MasteryEvaluation> = {};
+      masteryDataArray.forEach(m => {
+        masteryMap[m.wordId] = m;
+      });
+
+      // Combine words with mastery data
+      const wordsWithMastery: WordWithMastery[] = wordsData.map(word => ({
+        id: word.id,
+        spelling: word.spelling,
+        meanings: word.meanings.join('; '),
+        mastery: masteryMap[word.id] || null
+      }));
+
+      setWords(wordsWithMastery);
+      setFilteredWords(wordsWithMastery);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载掌握度数据失败');
+      setError('加载数据失败，请稍后重试');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    let result = [...words];
+
+    // Apply filter
+    if (filter !== 'all') {
+      result = result.filter(word => {
+        if (!word.mastery) return filter === 'learning';
+
+        switch (filter) {
+          case 'mastered':
+            return word.mastery.isLearned;
+          case 'learning':
+            return !word.mastery.isLearned && word.mastery.score >= 0.4;
+          case 'review':
+            return !word.mastery.isLearned && word.mastery.score < 0.4;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        word =>
+          word.spelling.toLowerCase().includes(query) ||
+          word.meanings.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredWords(result);
+  }, [filter, searchQuery, words]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
-  if (error || !stats) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '数据加载失败'}</p>
-          <button
-            onClick={loadMasteryStats}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <Warning size={48} className="mx-auto text-red-400 mb-4" />
+          <p className="text-gray-600">{error}</p>
+          <button onClick={loadData} className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg">
             重试
           </button>
         </div>
@@ -53,120 +130,129 @@ const WordMasteryPage: React.FC = () => {
     );
   }
 
-  const progressData = [
-    {
-      label: '已学会',
-      value: stats.masteredWords,
-      maxValue: stats.totalWords,
-      color: 'bg-green-500'
-    },
-    {
-      label: '学习中',
-      value: stats.learningWords,
-      maxValue: stats.totalWords,
-      color: 'bg-yellow-500'
-    },
-    {
-      label: '未开始',
-      value: stats.newWords,
-      maxValue: stats.totalWords,
-      color: 'bg-gray-400'
-    }
-  ];
-
-  const masteryRate = stats.totalWords > 0
-    ? ((stats.masteredWords / stats.totalWords) * 100).toFixed(1)
-    : '0.0';
+  const hasData = words.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-            <Award className="text-blue-600" size={32} />
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <ChartBar className="text-purple-500" weight="duotone" />
             单词掌握度分析
           </h1>
-          <p className="text-gray-600">追踪你的学习进度和掌握情况</p>
+          <p className="text-sm text-gray-500 mt-1">查看您的单词学习进度和记忆强度</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">总单词数</h3>
-              <BookOpen className="text-blue-500" size={20} />
+        {!hasData ? (
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+            <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ChartBar size={32} className="text-purple-400" />
             </div>
-            <p className="text-3xl font-bold text-gray-900">{stats.totalWords}</p>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">暂无单词数据</h3>
+            <p className="text-gray-500">请先添加单词书并开始学习</p>
           </div>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            {stats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <MasteryStatsCard
+                  label="已掌握"
+                  value={stats.masteredWords || 0}
+                  icon="mastered"
+                  color="green"
+                />
+                <MasteryStatsCard
+                  label="学习中"
+                  value={stats.learningWords || 0}
+                  icon="learning"
+                  color="blue"
+                />
+                <MasteryStatsCard
+                  label="需复习"
+                  value={stats.needReviewCount || 0}
+                  icon="review"
+                  color="orange"
+                />
+                <MasteryStatsCard
+                  label="总词汇量"
+                  value={stats.totalWords || words.length}
+                  icon="total"
+                  color="purple"
+                />
+              </div>
+            )}
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">已学会</h3>
-              <Award className="text-green-500" size={20} />
+            {/* Filters and Search */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Filter Tabs */}
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { value: 'all' as const, label: '全部' },
+                    { value: 'mastered' as const, label: '已掌握' },
+                    { value: 'learning' as const, label: '学习中' },
+                    { value: 'review' as const, label: '需复习' }
+                  ].map(tab => (
+                    <button
+                      key={tab.value}
+                      onClick={() => setFilter(tab.value)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        filter === tab.value
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search */}
+                <div className="flex-1 md:max-w-xs ml-auto">
+                  <div className="relative">
+                    <MagnifyingGlass
+                      size={20}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="搜索单词..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Results count */}
+              <div className="mt-4 text-sm text-gray-500">
+                共 {filteredWords.length} 个单词
+              </div>
             </div>
-            <p className="text-3xl font-bold text-green-600">{stats.masteredWords}</p>
-            <p className="text-sm text-gray-500 mt-1">{masteryRate}%</p>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">学习中</h3>
-              <TrendingUp className="text-yellow-500" size={20} />
-            </div>
-            <p className="text-3xl font-bold text-yellow-600">{stats.learningWords}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              {stats.totalWords > 0 ? ((stats.learningWords / stats.totalWords) * 100).toFixed(1) : 0}%
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">需要复习</h3>
-              <Target className="text-purple-500" size={20} />
-            </div>
-            <p className="text-3xl font-bold text-purple-600">{stats.needReviewCount}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">掌握度分布</h2>
-            <ProgressBarChart data={progressData} height={48} />
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">学习指标</h2>
+            {/* Word List */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">平均掌握度评分</span>
-                <span className="text-lg font-semibold text-gray-900">
-                  {(stats.averageScore * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">平均ACT-R提取概率</span>
-                <span className="text-lg font-semibold text-blue-600">
-                  {(stats.averageRecall * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">需要复习单词</span>
-                <span className="text-lg font-semibold text-orange-600">{stats.needReviewCount}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm text-gray-600">未学习单词</span>
-                <span className="text-lg font-semibold text-gray-600">{stats.newWords}</span>
-              </div>
+              {filteredWords.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+                  <p className="text-gray-500">没有找到匹配的单词</p>
+                </div>
+              ) : (
+                filteredWords.map(word => (
+                  <MasteryWordItem
+                    key={word.id}
+                    wordId={word.id}
+                    spelling={word.spelling}
+                    meanings={word.meanings}
+                    mastery={word.mastery}
+                  />
+                ))
+              )}
             </div>
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 关于掌握度分析</h4>
-          <p className="text-sm text-blue-700">
-            掌握度评分基于 AMAS 自适应学习算法，综合考虑 SRS 等级、ACT-R 提取概率和最近答题准确率。
-            ACT-R 提取概率反映了你能够回忆单词的可能性。系统会自动识别需要复习的单词并优先推送。
-          </p>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

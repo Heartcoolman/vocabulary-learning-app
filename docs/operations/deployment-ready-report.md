@@ -448,9 +448,7 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 
 ### B. 相关文档
 
-- [Week 3 Day 15 Code Review](./week3-day15-code-review.md)
-- [Deployment Checklist](./deployment-checklist.md)
-- [Adaptive Word Selection Plan](../ADAPTIVE_WORD_SELECTION_PLAN.md)
+- [Deployment Checklist](deployment-checklist.md)
 
 ### C. 数据库备份命令
 

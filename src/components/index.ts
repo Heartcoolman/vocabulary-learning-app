@@ -12,4 +12,4 @@ export { default as BatchImportModal } from './BatchImportModal';
 export { default as ProgressBarChart } from './ProgressBarChart';
 export { default as LineChart } from './LineChart';
 export { default as HabitHeatmap } from './HabitHeatmap';
-export { default as HabitProfileTab } from './HabitProfileTab';
+// HabitProfileTab - Deprecated: use /habit-profile standalone page instead

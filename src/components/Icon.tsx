@@ -91,6 +91,7 @@ export {
   IdentificationBadge,
   WarningCircle,
   Database,
+  UserCircle,
 } from '@phosphor-icons/react';
 
 // 图标别名
