@@ -73,32 +73,65 @@
 | Node.js 20+ | 运行时 |
 | Express | Web 框架 |
 | TypeScript | 类型安全 |
-| PostgreSQL 14+ | 数据库 |
+| PostgreSQL 15 + TimescaleDB | 数据库 |
+| Redis 7 | 缓存层 |
 | Prisma | ORM |
 | JWT + bcrypt | 认证加密 |
 | Zod | 数据验证 |
 | node-cron | 后台任务 |
+| Pino | 结构化日志 |
+
+### 测试
+| 技术 | 说明 |
+|------|------|
+| Vitest | 单元/集成测试 |
+| Playwright | E2E 测试 |
+| Testing Library | React 组件测试 |
+| Supertest | API 测试 |
+| MSW | Mock Service Worker |
 
 ## 快速开始
 
-### 环境要求
+### 方式一：Docker Compose（推荐）
+
+```bash
+# 启动所有服务（PostgreSQL + Redis + 后端 + 前端）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+```
+
+服务地址：
+- 前端：`http://localhost:5173`
+- 后端 API：`http://localhost:3000`
+- 数据库管理：`npx prisma studio`（需在 backend 目录执行）
+
+### 方式二：本地开发
+
+#### 环境要求
 - Node.js 20+
-- PostgreSQL 14+
+- PostgreSQL 15+
+- Redis 7+（可选，用于缓存）
 - npm 或 yarn
 
-### 后端启动
+#### 后端启动
 
 ```bash
 cd backend
 npm install
 cp .env.example .env  # 配置数据库连接
 npx prisma migrate dev
+npx prisma db seed     # 初始化种子数据
 npm run dev
 ```
 
 后端运行在 `http://localhost:3000`
 
-### 前端启动
+#### 前端启动
 
 ```bash
 npm install
@@ -113,9 +146,11 @@ npm run dev
 ```
 ├── src/                    # 前端源码
 │   ├── components/         # React 组件
+│   │   └── __tests__/      # 组件测试
 │   ├── pages/              # 页面组件
 │   │   ├── about/          # AMAS 仪表盘、模拟、统计
-│   │   └── admin/          # 管理后台页面
+│   │   ├── admin/          # 管理后台页面
+│   │   └── __tests__/      # 页面测试
 │   ├── services/           # 业务服务
 │   │   └── algorithms/     # 学习算法引擎
 │   ├── hooks/              # 自定义 Hooks
@@ -133,7 +168,13 @@ npm run dev
 │   │   ├── monitoring/     # 监控与告警
 │   │   ├── middleware/     # 中间件
 │   │   └── validators/     # 数据验证
+│   ├── tests/              # 后端测试
+│   │   ├── unit/           # 单元测试
+│   │   └── integration/    # 集成测试
 │   └── prisma/             # 数据库模型
+├── tests/                  # E2E 测试
+│   └── e2e/                # Playwright 测试用例
+├── docker/                 # Docker 配置
 ├── docs/                   # 项目文档
 │   ├── operations/         # 运维文档
 │   └── tech-debt/          # 技术债务追踪
@@ -176,20 +217,50 @@ npm run dev
 | [docs/AMAS_ARCHITECTURE.md](./docs/AMAS_ARCHITECTURE.md) | AMAS 架构蓝图 |
 | [docs/queue-optimization-design.md](./docs/queue-optimization-design.md) | 队列优化设计 |
 | [docs/monitoring-sampling-strategy.md](./docs/monitoring-sampling-strategy.md) | 监控采样策略 |
+| [docs/batch-import-guide.md](./docs/batch-import-guide.md) | 词库批量导入指南 |
+| [docs/operations/operations-runbook.md](./docs/operations/operations-runbook.md) | 运维手册 |
+| [docs/operations/deployment-checklist.md](./docs/operations/deployment-checklist.md) | 部署检查清单 |
 
 ## 开发命令
 
 ```bash
 # 前端
-npm run dev          # 开发服务器
-npm run build        # 生产构建
-npm test             # 运行测试
+npm run dev              # 开发服务器
+npm run build            # 生产构建
+npm test                 # 运行单元测试
+npm run test:watch       # 监听模式测试
+npm run test:coverage    # 测试覆盖率
+npm run test:e2e         # E2E 测试（无头模式）
+npm run test:e2e:ui      # E2E 测试（UI 模式）
 
 # 后端
 cd backend
-npm run dev          # 开发服务器
-npm run build        # 生产构建
-npx prisma studio    # 数据库管理界面
+npm run dev              # 开发服务器
+npm run build            # 生产构建
+npm test                 # 运行所有测试
+npm run test:unit        # 仅单元测试
+npm run test:integration # 仅集成测试
+npm run test:coverage    # 测试覆盖率
+npx prisma studio        # 数据库管理界面
+npx prisma db seed       # 运行种子脚本
+```
+
+## 测试覆盖
+
+| 层级 | 测试文件数 | 说明 |
+|------|-----------|------|
+| 前端单元测试 | 71 | Pages、Components、Hooks、Services |
+| 后端测试 | 107 | Unit + Integration（AMAS、Services、Routes） |
+| E2E 测试 | 8 | 用户流程全链路测试 |
+
+运行完整测试套件：
+
+```bash
+# 前端 + 后端单元测试
+npm test && cd backend && npm test
+
+# E2E 测试（需先启动后端）
+npm run test:e2e
 ```
 
 ## 许可证
