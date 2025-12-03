@@ -112,11 +112,15 @@ export class LLMClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as { error?: { message?: string } };
       throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      error?: { message?: string };
+    };
     const choice = data.choices?.[0];
 
     return {

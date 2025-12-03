@@ -347,9 +347,7 @@ export class RealAboutService {
           decisionSource: true,
           selectedAction: true,
           weightsSnapshot: true,
-          answerRecord: {
-            select: { userId: true }
-          }
+          answerRecordId: true
         }
       });
 
@@ -361,7 +359,7 @@ export class RealAboutService {
 
           return {
             decisionId: r.decisionId,
-            pseudoId: anonymizeUserId(r.answerRecord?.userId || r.decisionId),
+            pseudoId: anonymizeUserId(r.answerRecordId || r.decisionId),
             timestamp: r.timestamp.toISOString(),
             decisionSource: r.decisionSource,
             strategy: {
@@ -401,15 +399,7 @@ export class RealAboutService {
           decisionId: true,
           timestamp: true,
           decisionSource: true,
-          totalDurationMs: true,
-          pipelineStages: {
-            select: {
-              stage: true,
-              stageName: true,
-              status: true,
-              durationMs: true
-            }
-          }
+          totalDurationMs: true
         }
       });
 
@@ -480,19 +470,20 @@ export class RealAboutService {
   async getPacketTrace(packetId: string): Promise<PacketTrace> {
     try {
       const record = await this.prisma.decisionRecord.findFirst({
-        where: { decisionId: packetId },
-        include: {
-          pipelineStages: {
-            orderBy: { startedAt: 'asc' }
-          }
-        }
+        where: { decisionId: packetId }
       });
 
       if (!record) {
         return this.getDefaultPacketTrace(packetId);
       }
 
-      const stages: StageTrace[] = record.pipelineStages.map(s => ({
+      // 单独查询 pipeline stages
+      const pipelineStages = await this.prisma.pipelineStage.findMany({
+        where: { decisionRecordId: record.id },
+        orderBy: { startedAt: 'asc' }
+      });
+
+      const stages: StageTrace[] = pipelineStages.map(s => ({
         stage: String(this.stageTypeToNumber(s.stage)),
         stageName: s.stageName,
         nodeId: this.getNodeForStageType(s.stage),
@@ -586,25 +577,23 @@ export class RealAboutService {
 
     try {
       const record = await this.prisma.decisionRecord.findFirst({
-        where: { decisionId },
-        include: {
-          answerRecord: {
-            select: { userId: true }
-          },
-          pipelineStages: {
-            orderBy: { startedAt: 'asc' }
-          }
-        }
+        where: { decisionId }
       });
 
       if (!record) {
         return null;
       }
 
+      // 单独查询 pipeline stages
+      const pipelineStages = await this.prisma.pipelineStage.findMany({
+        where: { decisionRecordId: record.id },
+        orderBy: { startedAt: 'asc' }
+      });
+
       return {
         decisionId: record.decisionId,
         timestamp: record.timestamp.toISOString(),
-        pseudoId: anonymizeUserId(record.answerRecord?.userId || 'unknown'),
+        pseudoId: anonymizeUserId(record.answerRecordId || 'unknown'),
         decisionSource: record.decisionSource,
         coldstartPhase: record.coldstartPhase ?? undefined,
         confidence: record.confidence ?? 0,
@@ -613,7 +602,7 @@ export class RealAboutService {
         strategy: this.parseAction(record.selectedAction),
         weights: this.parseWeights(record.weightsSnapshot),
         memberVotes: this.parseMemberVotes(record.memberVotes),
-        pipeline: this.mapPipelineStages(record.pipelineStages)
+        pipeline: this.mapPipelineStages(pipelineStages)
       };
     } catch (error) {
       console.error('[RealAboutService] getDecisionDetail error:', error);

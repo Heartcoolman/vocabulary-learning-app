@@ -748,7 +748,7 @@ class AMASService {
         },
         create: {
           answerRecordId,
-          sessionId: sessionId ?? null,
+          sessionId: sessionId || `auto-${answerRecordId}`,
           featureVersion: featureVector.version,
           features: {
             values: featureVector.values,
