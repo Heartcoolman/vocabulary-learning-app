@@ -16,7 +16,8 @@ import {
     CaretLeft,
     CaretRight,
 } from '../../components/Icon';
-import { Flame, CaretDown, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { Flame, CaretDown, ArrowUp, ArrowDown, ListDashes } from '@phosphor-icons/react';
+import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
 
 interface FilterState {
     scoreRange?: 'low' | 'medium' | 'high';
@@ -51,6 +52,7 @@ export default function UserDetailPage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'overview' | 'records'>('overview');
 
     const handleExport = async (format: 'csv' | 'excel') => {
         if (!userId) return;
@@ -241,7 +243,42 @@ export default function UserDetailPage() {
                 </div>
             )}
 
-            {/* 统计卡片 */}
+            {/* 标签页导航 */}
+            <div className="flex border-b border-gray-200 mb-6">
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('overview')}
+                >
+                    <div className="flex items-center gap-2">
+                        <ChartBar size={18} />
+                        <span>统计概览</span>
+                    </div>
+                    {activeTab === 'overview' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'records' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('records')}
+                >
+                    <div className="flex items-center gap-2">
+                        <ListDashes size={18} />
+                        <span>学习记录</span>
+                    </div>
+                    {activeTab === 'records' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+            </div>
+
+            {/* 标签页内容 */}
+            {activeTab === 'overview' ? (
+                <>
+                    {/* 统计卡片 */}
             {statistics && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {/* 总学习单词数 */}
@@ -739,6 +776,10 @@ export default function UserDetailPage() {
                     </>
                 )}
             </div>
+                </>
+            ) : (
+                <LearningRecordsTab userId={userId || ''} />
+            )}
         </div>
     );
 }

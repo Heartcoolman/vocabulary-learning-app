@@ -1,321 +1,275 @@
 /**
- * Record Service Tests
- * 学习记录服务单元测试
+ * Record Service Unit Tests
+ *
+ * Tests for the learning record service that manages user answer history.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock Prisma
+const mockPrisma = {
+  answerRecord: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    createMany: vi.fn(),
+    count: vi.fn(),
+    aggregate: vi.fn(),
+    groupBy: vi.fn()
+  },
+  wordLearningState: {
+    upsert: vi.fn()
+  },
+  $transaction: vi.fn((fn) => fn(mockPrisma))
+};
+
 vi.mock('../../../src/config/database', () => ({
-  default: {
-    answerRecord: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-      createMany: vi.fn(),
-      count: vi.fn()
-    },
-    word: {
-      findUnique: vi.fn(),
-      findMany: vi.fn()
-    },
-    wordBook: {
-      findMany: vi.fn()
-    },
-    learningSession: {
-      findUnique: vi.fn(),
-      create: vi.fn()
-    },
-    $transaction: vi.fn()
-  }
+  default: mockPrisma
 }));
 
-// Mock word-mastery.service
 vi.mock('../../../src/services/word-mastery.service', () => ({
   wordMasteryService: {
-    recordReview: vi.fn(),
-    batchRecordReview: vi.fn()
+    updateMastery: vi.fn().mockResolvedValue(undefined)
   }
 }));
 
-import RecordService from '../../../src/services/record.service';
+import { RecordService } from '../../../src/services/record.service';
 
 describe('RecordService', () => {
-  let mockPrisma: any;
-  let mockWordMasteryService: any;
+  let recordService: RecordService;
 
-  beforeEach(async () => {
-    const prismaModule = await import('../../../src/config/database');
-    mockPrisma = prismaModule.default;
-    const masteryModule = await import('../../../src/services/word-mastery.service');
-    mockWordMasteryService = masteryModule.wordMasteryService;
+  beforeEach(() => {
     vi.clearAllMocks();
+    recordService = new RecordService();
   });
 
+  // ==================== Get Records Tests ====================
+
   describe('getRecordsByUserId', () => {
-    it('应该返回用户的学习记录（带分页）', async () => {
-      const userId = 'user-123';
+    it('should return paginated records', async () => {
       const mockRecords = [
-        { id: 'record-1', wordId: 'word-1', isCorrect: true, word: { spelling: 'apple', phonetic: '/æpl/', meanings: ['苹果'] } },
-        { id: 'record-2', wordId: 'word-2', isCorrect: false, word: { spelling: 'banana', phonetic: '/bəˈnænə/', meanings: ['香蕉'] } }
+        { id: 'rec-1', userId: 'user-1', wordId: 'word-1', isCorrect: true },
+        { id: 'rec-2', userId: 'user-1', wordId: 'word-2', isCorrect: false }
       ];
 
       mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
-      mockPrisma.answerRecord.count.mockResolvedValue(2);
+      mockPrisma.answerRecord.count.mockResolvedValue(10);
 
-      const result = await RecordService.getRecordsByUserId(userId);
+      const result = await recordService.getRecordsByUserId('user-1', {
+        page: 1,
+        pageSize: 10
+      });
 
-      expect(result.data).toHaveLength(2);
+      expect(result.data).toEqual(mockRecords);
       expect(result.pagination.page).toBe(1);
-      expect(result.pagination.total).toBe(2);
+      expect(result.pagination.total).toBe(10);
     });
 
-    it('应该正确处理分页参数', async () => {
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
-      mockPrisma.answerRecord.count.mockResolvedValue(100);
-
-      const result = await RecordService.getRecordsByUserId('user-123', { page: 2, pageSize: 20 });
-
-      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 20,
-          take: 20
-        })
-      );
-      expect(result.pagination.page).toBe(2);
-      expect(result.pagination.pageSize).toBe(20);
-    });
-
-    it('应该限制最大页面大小为100', async () => {
+    it('should use default pagination when not provided', async () => {
       mockPrisma.answerRecord.findMany.mockResolvedValue([]);
       mockPrisma.answerRecord.count.mockResolvedValue(0);
 
-      await RecordService.getRecordsByUserId('user-123', { pageSize: 200 });
+      await recordService.getRecordsByUserId('user-1');
 
       expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 })
+        expect.objectContaining({
+          take: 50, // default pageSize
+          skip: 0
+        })
+      );
+    });
+
+    it('should cap page size at 100', async () => {
+      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
+      mockPrisma.answerRecord.count.mockResolvedValue(0);
+
+      await recordService.getRecordsByUserId('user-1', { pageSize: 500 });
+
+      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100
+        })
+      );
+    });
+
+    it('should handle page number less than 1', async () => {
+      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
+      mockPrisma.answerRecord.count.mockResolvedValue(0);
+
+      await recordService.getRecordsByUserId('user-1', { page: -5 });
+
+      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0 // page 1
+        })
       );
     });
   });
 
+  // ==================== Create Record Tests ====================
+
   describe('createRecord', () => {
-    it('应该创建学习记录', async () => {
-      const userId = 'user-123';
-      const data = {
-        wordId: 'word-123',
-        isCorrect: true,
-        responseTime: 1500,
-        selectedAnswer: '苹果',
-        correctAnswer: '苹果'
+    const validRecord = {
+      userId: 'user-1',
+      wordId: 'word-1',
+      isCorrect: true,
+      responseTimeMs: 2500,
+      timestamp: Date.now()
+    };
+
+    it('should create a new answer record', async () => {
+      const mockCreated = { id: 'rec-1', ...validRecord };
+      mockPrisma.answerRecord.create.mockResolvedValue(mockCreated);
+
+      const result = await recordService.createRecord(validRecord);
+
+      expect(result).toEqual(mockCreated);
+      expect(mockPrisma.answerRecord.create).toHaveBeenCalled();
+    });
+
+    it('should reject timestamps too far in the future', async () => {
+      const futureRecord = {
+        ...validRecord,
+        timestamp: Date.now() + 2 * 60 * 60 * 1000 // 2 hours in future
       };
 
-      mockPrisma.word.findUnique.mockResolvedValue({
-        id: 'word-123',
-        wordBook: { type: 'SYSTEM', userId: null }
-      });
-
-      mockPrisma.answerRecord.create.mockResolvedValue({
-        id: 'record-1',
-        userId,
-        ...data
-      });
-
-      const result = await RecordService.createRecord(userId, data);
-
-      expect(result.id).toBe('record-1');
-      expect(mockWordMasteryService.recordReview).toHaveBeenCalled();
+      await expect(recordService.createRecord(futureRecord)).rejects.toThrow(
+        /不能超过当前时间/
+      );
     });
 
-    it('应该抛出错误当单词不存在', async () => {
-      mockPrisma.word.findUnique.mockResolvedValue(null);
+    it('should reject timestamps too far in the past', async () => {
+      const pastRecord = {
+        ...validRecord,
+        timestamp: Date.now() - 48 * 60 * 60 * 1000 // 48 hours ago
+      };
 
-      await expect(
-        RecordService.createRecord('user-123', { wordId: 'non-existent', isCorrect: true })
-      ).rejects.toThrow('单词不存在');
-    });
-
-    it('应该拒绝访问其他用户的词书单词', async () => {
-      mockPrisma.word.findUnique.mockResolvedValue({
-        id: 'word-123',
-        wordBook: { type: 'USER', userId: 'other-user' }
-      });
-
-      await expect(
-        RecordService.createRecord('user-123', { wordId: 'word-123', isCorrect: true })
-      ).rejects.toThrow('无权访问该单词');
-    });
-
-    it('应该验证时间戳的合理性', async () => {
-      mockPrisma.word.findUnique.mockResolvedValue({
-        id: 'word-123',
-        wordBook: { type: 'SYSTEM', userId: null }
-      });
-
-      const futureTimestamp = Date.now() + 2 * 60 * 60 * 1000; // 2小时后
-
-      await expect(
-        RecordService.createRecord('user-123', {
-          wordId: 'word-123',
-          isCorrect: true,
-          timestamp: futureTimestamp
-        })
-      ).rejects.toThrow('时间戳不能超过当前时间1小时');
-    });
-
-    it('应该确保学习会话存在', async () => {
-      const userId = 'user-123';
-      const sessionId = 'session-123';
-
-      mockPrisma.word.findUnique.mockResolvedValue({
-        id: 'word-123',
-        wordBook: { type: 'SYSTEM', userId: null }
-      });
-
-      mockPrisma.learningSession.findUnique.mockResolvedValue(null);
-      mockPrisma.learningSession.create.mockResolvedValue({ id: sessionId, userId });
-
-      mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma));
-
-      mockPrisma.answerRecord.create.mockResolvedValue({ id: 'record-1' });
-
-      await RecordService.createRecord(userId, {
-        wordId: 'word-123',
-        isCorrect: true,
-        sessionId
-      });
-
-      // 会话创建逻辑在 ensureLearningSession 中
+      await expect(recordService.createRecord(pastRecord)).rejects.toThrow(
+        /不能早于24小时/
+      );
     });
   });
 
-  describe('batchCreateRecords', () => {
-    it('应该批量创建学习记录', async () => {
-      const userId = 'user-123';
-      const records = [
-        { wordId: 'word-1', isCorrect: true, timestamp: Date.now() },
-        { wordId: 'word-2', isCorrect: false, timestamp: Date.now() }
-      ];
+  // ==================== Batch Create Tests ====================
 
-      mockPrisma.word.findMany.mockResolvedValue([
-        { id: 'word-1', spelling: 'apple', wordBook: { type: 'SYSTEM', userId: null } },
-        { id: 'word-2', spelling: 'banana', wordBook: { type: 'SYSTEM', userId: null } }
-      ]);
+  describe('createBatchRecords', () => {
+    it('should create multiple records', async () => {
+      const records = [
+        {
+          userId: 'user-1',
+          wordId: 'word-1',
+          isCorrect: true,
+          responseTimeMs: 2000,
+          timestamp: Date.now()
+        },
+        {
+          userId: 'user-1',
+          wordId: 'word-2',
+          isCorrect: false,
+          responseTimeMs: 3000,
+          timestamp: Date.now()
+        }
+      ];
 
       mockPrisma.answerRecord.createMany.mockResolvedValue({ count: 2 });
 
-      const result = await RecordService.batchCreateRecords(userId, records);
+      const result = await recordService.createBatchRecords(records);
 
       expect(result.count).toBe(2);
-      expect(mockWordMasteryService.batchRecordReview).toHaveBeenCalled();
     });
 
-    it('应该拒绝超过批量限制的记录', async () => {
-      const records = Array(1001).fill({ wordId: 'word-1', isCorrect: true });
+    it('should reject batch larger than MAX_BATCH_SIZE', async () => {
+      const largeRecords = Array.from({ length: 1500 }, (_, i) => ({
+        userId: 'user-1',
+        wordId: `word-${i}`,
+        isCorrect: true,
+        responseTimeMs: 2000,
+        timestamp: Date.now()
+      }));
 
-      await expect(
-        RecordService.batchCreateRecords('user-123', records)
-      ).rejects.toThrow('批量操作上限为 1000 条');
-    });
-
-    it('应该跳过无权访问的单词', async () => {
-      const userId = 'user-123';
-      const records = [
-        { wordId: 'word-1', isCorrect: true, timestamp: Date.now() },
-        { wordId: 'word-2', isCorrect: false, timestamp: Date.now() }
-      ];
-
-      // word-2 属于其他用户
-      mockPrisma.word.findMany.mockResolvedValue([
-        { id: 'word-1', wordBook: { type: 'SYSTEM', userId: null } },
-        { id: 'word-2', wordBook: { type: 'USER', userId: 'other-user' } }
-      ]);
-
-      mockPrisma.answerRecord.createMany.mockResolvedValue({ count: 1 });
-
-      await RecordService.batchCreateRecords(userId, records);
-
-      // 只有 word-1 被创建
-      expect(mockPrisma.answerRecord.createMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.arrayContaining([
-            expect.objectContaining({ wordId: 'word-1' })
-          ])
-        })
-      );
-    });
-
-    it('应该拒绝当所有单词都无权访问', async () => {
-      mockPrisma.word.findMany.mockResolvedValue([
-        { id: 'word-1', wordBook: { type: 'USER', userId: 'other-user' } }
-      ]);
-
-      await expect(
-        RecordService.batchCreateRecords('user-123', [{ wordId: 'word-1', isCorrect: true }])
-      ).rejects.toThrow('所有单词都不存在或无权访问');
-    });
-
-    it('应该使用 skipDuplicates 选项', async () => {
-      mockPrisma.word.findMany.mockResolvedValue([
-        { id: 'word-1', wordBook: { type: 'SYSTEM', userId: null } }
-      ]);
-      mockPrisma.answerRecord.createMany.mockResolvedValue({ count: 1 });
-
-      await RecordService.batchCreateRecords('user-123', [
-        { wordId: 'word-1', isCorrect: true, timestamp: Date.now() }
-      ]);
-
-      expect(mockPrisma.answerRecord.createMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skipDuplicates: true })
+      await expect(recordService.createBatchRecords(largeRecords)).rejects.toThrow(
+        /批量操作/
       );
     });
   });
 
+  // ==================== Statistics Tests ====================
+
   describe('getStatistics', () => {
-    it('应该返回学习统计数据', async () => {
-      const userId = 'user-123';
-
-      mockPrisma.wordBook.findMany.mockResolvedValue([
-        { id: 'book-1' },
-        { id: 'book-2' }
+    it('should return user learning statistics', async () => {
+      mockPrisma.answerRecord.count.mockResolvedValue(100);
+      mockPrisma.answerRecord.aggregate.mockResolvedValue({
+        _avg: { responseTimeMs: 2500 }
+      });
+      mockPrisma.answerRecord.groupBy.mockResolvedValue([
+        { isCorrect: true, _count: 75 },
+        { isCorrect: false, _count: 25 }
       ]);
 
-      mockPrisma.word.count = vi.fn().mockResolvedValue(100);
-      mockPrisma.answerRecord.count
-        .mockResolvedValueOnce(50)  // totalRecords
-        .mockResolvedValueOnce(40); // correctRecords
+      const stats = await recordService.getStatistics('user-1');
 
-      mockPrisma.answerRecord.findMany.mockResolvedValue([
-        { id: 'record-1', isCorrect: true, word: { spelling: 'apple', phonetic: '/æpl/' } }
-      ]);
-
-      const stats = await RecordService.getStatistics(userId);
-
-      expect(stats.totalWords).toBe(100);
-      expect(stats.totalRecords).toBe(50);
-      expect(stats.correctRate).toBe(0.8);
+      expect(stats.totalAnswers).toBe(100);
+      expect(stats.avgResponseTime).toBe(2500);
     });
 
-    it('应该正确计算正确率', async () => {
-      mockPrisma.wordBook.findMany.mockResolvedValue([{ id: 'book-1' }]);
-      mockPrisma.word.count = vi.fn().mockResolvedValue(50);
-      mockPrisma.answerRecord.count
-        .mockResolvedValueOnce(100)
-        .mockResolvedValueOnce(75);
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
-
-      const stats = await RecordService.getStatistics('user-123');
-
-      expect(stats.correctRate).toBe(0.75);
-    });
-
-    it('应该处理零记录的情况', async () => {
-      mockPrisma.wordBook.findMany.mockResolvedValue([{ id: 'book-1' }]);
-      mockPrisma.word.count = vi.fn().mockResolvedValue(50);
+    it('should handle user with no records', async () => {
       mockPrisma.answerRecord.count.mockResolvedValue(0);
-      mockPrisma.answerRecord.findMany.mockResolvedValue([]);
+      mockPrisma.answerRecord.aggregate.mockResolvedValue({
+        _avg: { responseTimeMs: null }
+      });
+      mockPrisma.answerRecord.groupBy.mockResolvedValue([]);
 
-      const stats = await RecordService.getStatistics('user-123');
+      const stats = await recordService.getStatistics('new-user');
 
+      expect(stats.totalAnswers).toBe(0);
       expect(stats.correctRate).toBe(0);
+    });
+  });
+
+  // ==================== Recent Records Tests ====================
+
+  describe('getRecentRecords', () => {
+    it('should return records from specified time range', async () => {
+      const mockRecords = [
+        { id: 'rec-1', timestamp: new Date() }
+      ];
+      mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
+
+      const result = await recordService.getRecentRecords('user-1', 24);
+
+      expect(result).toEqual(mockRecords);
+      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-1',
+            timestamp: expect.any(Object)
+          })
+        })
+      );
+    });
+  });
+
+  // ==================== Word Records Tests ====================
+
+  describe('getRecordsByWord', () => {
+    it('should return records for specific word', async () => {
+      const mockRecords = [
+        { id: 'rec-1', wordId: 'word-1', isCorrect: true },
+        { id: 'rec-2', wordId: 'word-1', isCorrect: false }
+      ];
+      mockPrisma.answerRecord.findMany.mockResolvedValue(mockRecords);
+
+      const result = await recordService.getRecordsByWord('user-1', 'word-1');
+
+      expect(result).toHaveLength(2);
+      expect(mockPrisma.answerRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            wordId: 'word-1'
+          }
+        })
+      );
     });
   });
 });

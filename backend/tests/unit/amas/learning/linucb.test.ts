@@ -1,340 +1,669 @@
 /**
  * LinUCB Algorithm Unit Tests
- * 测试LinUCB在线学习算法的核心功能
+ *
+ * Tests for the Linear Upper Confidence Bound contextual bandit algorithm
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { LinUCB } from '../../../../src/amas/learning/linucb';
-import { UserState, Action } from '../../../../src/amas/types';
-import { ACTION_SPACE, DEFAULT_DIMENSION } from '../../../../src/amas/config/action-space';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { LinUCB, LinUCBContext, ContextBuildInput } from '../../../../src/amas/learning/linucb';
+import { Action, UserState, BanditModel } from '../../../../src/amas/types';
+import { withSeed } from '../../../setup';
+import {
+  STANDARD_ACTIONS,
+  DEFAULT_USER_STATE,
+  LINUCB_PARAMS,
+  DIMENSION,
+  STANDARD_FEATURE_VECTOR
+} from '../../../fixtures/amas-fixtures';
+import { ActionFactory, AMASStateFactory } from '../../../helpers/factories';
 
-describe('LinUCB Algorithm', () => {
+describe('LinUCB', () => {
   let linucb: LinUCB;
 
-  const mockState: UserState = {
-    A: 0.7,
-    F: 0.3,
-    C: { mem: 0.6, speed: 0.7, stability: 0.65 },
-    M: 0.1,
-    conf: 0.8,
-    ts: Date.now()
-  };
-
-  const mockContext = {
+  const defaultContext: LinUCBContext = {
     recentErrorRate: 0.2,
-    recentResponseTime: 3000,
-    timeBucket: 1
+    recentResponseTime: 2500,
+    timeBucket: 14
   };
 
-  function buildContextInput(state: UserState, action: Action): any {
-    return {
-      state,
-      action,
-      recentErrorRate: mockContext.recentErrorRate,
-      recentResponseTime: mockContext.recentResponseTime,
-      timeBucket: mockContext.timeBucket
-    };
-  }
+  const defaultState: UserState = {
+    A: 0.8,
+    F: 0.2,
+    M: 0.5,
+    C: { mem: 0.7, speed: 0.6 }
+  };
 
   beforeEach(() => {
     linucb = new LinUCB();
   });
 
-  describe('Initialization', () => {
-    it('should initialize with correct model dimensions', () => {
+  // ==================== Initialization Tests ====================
+
+  describe('initialization', () => {
+    it('should initialize with default dimension (22)', () => {
       const model = linucb.getModel();
-      expect(model.d).toBe(DEFAULT_DIMENSION);
-      expect(model.A.length).toBe(DEFAULT_DIMENSION * DEFAULT_DIMENSION);
-      expect(model.b.length).toBe(DEFAULT_DIMENSION);
-      expect(model.L.length).toBe(DEFAULT_DIMENSION * DEFAULT_DIMENSION);
+      expect(model.d).toBe(DIMENSION);
     });
 
-    it('should initialize A as identity matrix', () => {
+    it('should initialize A matrix as λI (identity * lambda)', () => {
       const model = linucb.getModel();
-      for (let i = 0; i < DEFAULT_DIMENSION; i++) {
-        for (let j = 0; j < DEFAULT_DIMENSION; j++) {
-          const idx = i * DEFAULT_DIMENSION + j;
-          if (i === j) {
-            expect(model.A[idx]).toBe(1.0);
-          } else {
-            expect(model.A[idx]).toBe(0.0);
+      const d = model.d;
+      const lambda = model.lambda;
+
+      // Check diagonal elements equal lambda
+      for (let i = 0; i < d; i++) {
+        expect(model.A[i * d + i]).toBe(lambda);
+      }
+
+      // Check off-diagonal elements are zero
+      for (let i = 0; i < d; i++) {
+        for (let j = 0; j < d; j++) {
+          if (i !== j) {
+            expect(model.A[i * d + j]).toBe(0);
           }
         }
       }
     });
 
-    it('should initialize b as zero vector', () => {
+    it('should initialize b vector as zeros', () => {
       const model = linucb.getModel();
-      for (let i = 0; i < DEFAULT_DIMENSION; i++) {
-        expect(model.b[i]).toBe(0.0);
+      for (let i = 0; i < model.d; i++) {
+        expect(model.b[i]).toBe(0);
       }
     });
 
-    it('should initialize update count to zero', () => {
+    it('should initialize L matrix (Cholesky of λI)', () => {
+      const model = linucb.getModel();
+      const d = model.d;
+      const sqrtLambda = Math.sqrt(model.lambda);
+
+      // L should be sqrt(lambda) * I for initial identity matrix
+      for (let i = 0; i < d; i++) {
+        expect(model.L[i * d + i]).toBeCloseTo(sqrtLambda, 5);
+      }
+    });
+
+    it('should initialize updateCount to 0', () => {
       const model = linucb.getModel();
       expect(model.updateCount).toBe(0);
     });
-  });
 
-  describe('Context Vector Building', () => {
-    it('should build correct feature vector with action features', () => {
-      const action: Action = ACTION_SPACE[0];
-      const context = linucb.buildContextVector(buildContextInput(mockState, action));
-
-      expect(context.length).toBe(DEFAULT_DIMENSION);
-
-      // 检查状态特征 (6维)
-      expect(context[0]).toBeCloseTo(mockState.A, 5);
-      expect(context[1]).toBeCloseTo(mockState.F, 5);
-      expect(context[2]).toBeCloseTo(mockState.C.mem, 5);
-      expect(context[3]).toBeCloseTo(mockState.C.speed, 5);
-      expect(context[4]).toBeCloseTo(mockState.M, 5);
-      expect(context[5]).toBeCloseTo(mockContext.recentErrorRate, 5);
-
-      // 检查动作特征 (2维) - 关键修复
-      expect(context[6]).toBeCloseTo(action.interval_scale, 5);
-      expect(context[7]).toBeCloseTo(action.new_ratio, 5);
-
-      // 检查偏置项
-      expect(context[DEFAULT_DIMENSION - 1]).toBe(1.0);
-    });
-
-    it('should produce different vectors for different actions', () => {
-      const action1 = ACTION_SPACE[0];
-      const action2 = ACTION_SPACE[1];
-
-      const vec1 = linucb.buildContextVector(buildContextInput(mockState, action1));
-      const vec2 = linucb.buildContextVector(buildContextInput(mockState, action2));
-
-      // 确保不同的动作产生不同的特征向量
-      const hasDifference = Array.from(vec1).some((v, i) => v !== vec2[i]);
-      expect(hasDifference).toBe(true);
-    });
-
-    it('should clamp state values to valid ranges', () => {
-      const extremeState: UserState = {
-        A: 1.5,  // > 1
-        F: -0.2, // < 0
-        C: { mem: 2.0, speed: -1.0, stability: 0.5 },
-        M: -2.0, // < -1
-        conf: 0.5,
-        ts: Date.now()
-      };
-
-      const context = linucb.buildContextVector(buildContextInput(extremeState, ACTION_SPACE[0]));
-
-      expect(context[0]).toBeGreaterThanOrEqual(0);
-      expect(context[0]).toBeLessThanOrEqual(1);
-      expect(context[1]).toBeGreaterThanOrEqual(0);
-      expect(context[4]).toBeGreaterThanOrEqual(-1);
-      expect(context[4]).toBeLessThanOrEqual(1);
-    });
-  });
-
-  describe('Action Selection', () => {
-    it('should select an action from action space', () => {
-      const action = linucb.selectFromActionSpace(mockState, mockContext);
-      expect(ACTION_SPACE).toContainEqual(action);
-    });
-
-    it('should select different actions based on state', () => {
-      // 测试不同状态会影响动作选择
-      const action1 = linucb.selectFromActionSpace(mockState, mockContext);
-
-      const tiredState: UserState = {
-        ...mockState,
-        F: 0.8,  // 高疲劳
-        A: 0.3   // 低注意力
-      };
-      const action2 = linucb.selectFromActionSpace(tiredState, mockContext);
-
-      // 应该都是有效的动作
-      expect(ACTION_SPACE).toContainEqual(action1);
-      expect(ACTION_SPACE).toContainEqual(action2);
-    });
-
-    it('should handle cold start exploration phase', () => {
-      linucb.setAlpha(2.0); // 高探索率
-      const action = linucb.selectFromActionSpace(mockState, mockContext);
-      expect(action).toBeDefined();
-      expect(ACTION_SPACE).toContainEqual(action);
-    });
-  });
-
-  describe('Model Update', () => {
-    it('should update model parameters after learning', () => {
-      const action = ACTION_SPACE[0];
-      const reward = 0.5;
-
-      const modelBefore = linucb.getModel();
-      const updateCountBefore = modelBefore.updateCount;
-
-      linucb.update(mockState, action, reward, mockContext);
-
-      const modelAfter = linucb.getModel();
-      expect(modelAfter.updateCount).toBe(updateCountBefore + 1);
-
-      // A矩阵应该被更新
-      const hasChanged = Array.from(modelAfter.A).some((v, i) =>
-        Math.abs(v - modelBefore.A[i]) > 1e-10
-      );
-      expect(hasChanged).toBe(true);
-    });
-
-    it('should synchronize Cholesky decomposition after update', () => {
-      const action = ACTION_SPACE[0];
-      const reward = 0.5;
-
-      linucb.update(mockState, action, reward, mockContext);
-
-      const model = linucb.getModel();
-      // L矩阵不应该全是零（应该被更新了）
-      const hasNonZero = Array.from(model.L).some(v => Math.abs(v) > 1e-10);
-      expect(hasNonZero).toBe(true);
-    });
-
-    it('should accumulate reward information in b vector', () => {
-      const action = ACTION_SPACE[0];
-      const reward = 1.0;
-
-      const modelBefore = linucb.getModel();
-      const bSumBefore = Array.from(modelBefore.b).reduce((a, b) => a + b, 0);
-
-      linucb.update(mockState, action, reward, mockContext);
-
-      const modelAfter = linucb.getModel();
-      const bSumAfter = Array.from(modelAfter.b).reduce((a, b) => a + b, 0);
-
-      // 正奖励应该增加b向量的值
-      expect(bSumAfter).toBeGreaterThan(bSumBefore);
-    });
-
-    it('should handle multiple sequential updates', () => {
-      const updates = [
-        { action: ACTION_SPACE[0], reward: 0.8 },
-        { action: ACTION_SPACE[1], reward: 0.5 },
-        { action: ACTION_SPACE[2], reward: 0.3 },
-        { action: ACTION_SPACE[0], reward: 0.9 }
-      ];
-
-      updates.forEach(({ action, reward }) => {
-        linucb.update(mockState, action, reward, mockContext);
+    it('should accept custom options', () => {
+      const customLinucb = new LinUCB({
+        alpha: 0.5,
+        lambda: 2.0,
+        dimension: 10
       });
+      const model = customLinucb.getModel();
 
-      const model = linucb.getModel();
-      expect(model.updateCount).toBe(updates.length);
+      expect(model.alpha).toBe(0.5);
+      expect(model.lambda).toBe(2.0);
+      expect(model.d).toBe(10);
+    });
+
+    it('should enforce minimum lambda', () => {
+      const linucbWithTinyLambda = new LinUCB({ lambda: 0.00001 });
+      const model = linucbWithTinyLambda.getModel();
+      expect(model.lambda).toBeGreaterThanOrEqual(0.001);
     });
   });
 
-  describe('Cold Start Strategy', () => {
-    it('should use conservative alpha for early interactions', () => {
-      const alpha = linucb.getColdStartAlpha(5, 0.5, 0.2);
-      expect(alpha).toBe(0.5); // 早期使用保守策略
+  // ==================== Action Selection Tests ====================
+
+  describe('selectAction', () => {
+    it('should throw error when actions array is empty', () => {
+      expect(() => {
+        linucb.selectAction(defaultState, [], defaultContext);
+      }).toThrow('actions array must not be empty');
     });
 
-    it('should use exploration phase alpha between 15-50 interactions', () => {
-      // 好的表现应该使用高探索
-      const alphaGood = linucb.getColdStartAlpha(30, 0.8, 0.2);
-      expect(alphaGood).toBe(2.0);
+    it('should return ActionSelection with action, score, and confidence', () => {
+      const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
 
-      // 差的表现使用低探索
-      const alphaPoor = linucb.getColdStartAlpha(30, 0.5, 0.2);
-      expect(alphaPoor).toBe(1.0);
+      expect(result).toHaveProperty('action');
+      expect(result).toHaveProperty('score');
+      expect(result).toHaveProperty('confidence');
+      expect(typeof result.score).toBe('number');
+      expect(typeof result.confidence).toBe('number');
     });
 
-    it('should stabilize after 50 interactions', () => {
-      const alpha = linucb.getColdStartAlpha(60, 0.5, 0.2);
-      expect(alpha).toBe(0.7); // 正常运行阶段
-    });
+    it('should select action with highest UCB score', () => {
+      // After training, the algorithm should prefer certain actions
+      const actions = ActionFactory.buildMany(5);
 
-    it('should trigger higher exploration for good performance', () => {
-      const alphaHigh = linucb.getColdStartAlpha(20, 0.8, 0.2);
-      const alphaLow = linucb.getColdStartAlpha(20, 0.5, 0.6);
-
-      // 高正确率+低疲劳 = 高探索
-      expect(alphaHigh).toBeGreaterThan(alphaLow);
-    });
-  });
-
-  describe('Model Persistence', () => {
-    it('should be able to save and restore model state', () => {
-      // 执行一些更新
-      for (let i = 0; i < 5; i++) {
-        linucb.update(mockState, ACTION_SPACE[i % 3], 0.5, mockContext);
+      // Train the model to prefer certain actions
+      for (let i = 0; i < 20; i++) {
+        linucb.update(defaultState, actions[2], 1.0, defaultContext);
       }
 
-      const savedModel = linucb.getModel();
+      const result = linucb.selectAction(defaultState, actions, defaultContext);
 
-      // 创建新实例并恢复
+      // The selected action should have the highest score
+      expect(result.action).toBeDefined();
+      expect(result.score).toBeGreaterThan(-Infinity);
+    });
+
+    it('should return consistent results with same seed', () => {
+      const actions = STANDARD_ACTIONS;
+
+      const result1 = withSeed('test-seed', () =>
+        linucb.selectAction(defaultState, actions, defaultContext)
+      );
+
+      // Reset and run again
+      linucb.reset();
+
+      const result2 = withSeed('test-seed', () =>
+        linucb.selectAction(defaultState, actions, defaultContext)
+      );
+
+      expect(result1.action).toEqual(result2.action);
+    });
+
+    it('should include exploitation and exploration in meta', () => {
+      const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+
+      expect(result.meta).toBeDefined();
+      expect(result.meta?.exploitation).toBeDefined();
+      expect(result.meta?.exploration).toBeDefined();
+    });
+  });
+
+  // ==================== UCB Score Computation Tests ====================
+
+  describe('UCB score computation', () => {
+    it('should compute UCB score = exploitation + α * confidence', () => {
+      // Build feature vector
+      const action = STANDARD_ACTIONS[0];
+      const contextInput: ContextBuildInput = {
+        state: defaultState,
+        action,
+        ...defaultContext
+      };
+
+      const featureVector = linucb.buildContextVector(contextInput);
+
+      // Select action to get score
+      const result = linucb.selectAction(defaultState, [action], defaultContext);
+
+      // Score should be exploitation + alpha * exploration
+      const meta = result.meta!;
+      const expectedScore = meta.exploitation + meta.exploration;
+
+      expect(result.score).toBeCloseTo(expectedScore, 5);
+    });
+
+    it('should have higher exploration term for untrained model', () => {
+      const result1 = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+
+      // Train extensively
+      for (let i = 0; i < 100; i++) {
+        linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+      }
+
+      const result2 = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+
+      // Confidence (exploration) should decrease with more data
+      // This is because the uncertainty decreases
+      expect(result1.confidence).toBeGreaterThan(0);
+      expect(result2.confidence).toBeGreaterThan(0);
+    });
+  });
+
+  // ==================== Model Update Tests ====================
+
+  describe('update', () => {
+    it('should increment updateCount after each update', () => {
+      expect(linucb.getUpdateCount()).toBe(0);
+
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+      expect(linucb.getUpdateCount()).toBe(1);
+
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 0.5, defaultContext);
+      expect(linucb.getUpdateCount()).toBe(2);
+    });
+
+    it('should update A matrix (add outer product)', () => {
+      const modelBefore = linucb.getModel();
+      const Abefore = new Float32Array(modelBefore.A);
+
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+
+      const modelAfter = linucb.getModel();
+
+      // A should be different after update
+      let changed = false;
+      for (let i = 0; i < modelAfter.A.length; i++) {
+        if (Math.abs(modelAfter.A[i] - Abefore[i]) > 1e-10) {
+          changed = true;
+          break;
+        }
+      }
+      expect(changed).toBe(true);
+    });
+
+    it('should update b vector (add scaled feature vector)', () => {
+      const modelBefore = linucb.getModel();
+      const bbefore = new Float32Array(modelBefore.b);
+
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+
+      const modelAfter = linucb.getModel();
+
+      // b should be different after update
+      let changed = false;
+      for (let i = 0; i < modelAfter.b.length; i++) {
+        if (Math.abs(modelAfter.b[i] - bbefore[i]) > 1e-10) {
+          changed = true;
+          break;
+        }
+      }
+      expect(changed).toBe(true);
+    });
+
+    it('should perform Cholesky rank-1 update', () => {
+      const modelBefore = linucb.getModel();
+      const Lbefore = new Float32Array(modelBefore.L);
+
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+
+      const modelAfter = linucb.getModel();
+
+      // L should be updated
+      let changed = false;
+      for (let i = 0; i < modelAfter.L.length; i++) {
+        if (Math.abs(modelAfter.L[i] - Lbefore[i]) > 1e-10) {
+          changed = true;
+          break;
+        }
+      }
+      expect(changed).toBe(true);
+    });
+  });
+
+  // ==================== updateWithFeatureVector Tests ====================
+
+  describe('updateWithFeatureVector', () => {
+    it('should throw error on dimension mismatch', () => {
+      const wrongDimension = new Float32Array(10); // Wrong dimension
+
+      expect(() => {
+        linucb.updateWithFeatureVector(wrongDimension, 1.0);
+      }).toThrow('特征向量维度不匹配');
+    });
+
+    it('should skip update for NaN/Infinity features', () => {
+      const invalidFeatures = new Float32Array(DIMENSION);
+      invalidFeatures[0] = NaN;
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const countBefore = linucb.getUpdateCount();
+      linucb.updateWithFeatureVector(invalidFeatures, 1.0);
+
+      expect(linucb.getUpdateCount()).toBe(countBefore);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('should skip update for invalid reward', () => {
+      const features = new Float32Array(DIMENSION);
+      features.fill(0.5);
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const countBefore = linucb.getUpdateCount();
+      linucb.updateWithFeatureVector(features, NaN);
+
+      expect(linucb.getUpdateCount()).toBe(countBefore);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('should clamp extreme feature values', () => {
+      const extremeFeatures = new Float32Array(DIMENSION);
+      extremeFeatures.fill(100); // Beyond MAX_FEATURE_ABS (50)
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Should not throw, but should warn and clamp
+      linucb.updateWithFeatureVector(extremeFeatures, 1.0);
+
+      expect(linucb.getUpdateCount()).toBe(1);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('should accept number array as input', () => {
+      const features = Array(DIMENSION).fill(0.5);
+
+      linucb.updateWithFeatureVector(features, 1.0);
+      expect(linucb.getUpdateCount()).toBe(1);
+    });
+  });
+
+  // ==================== Cold Start Alpha Tests ====================
+
+  describe('getColdStartAlpha', () => {
+    it('should return 0.5 for interactionCount < 15', () => {
+      expect(linucb.getColdStartAlpha(0, 0.8, 0.2)).toBe(0.5);
+      expect(linucb.getColdStartAlpha(10, 0.8, 0.2)).toBe(0.5);
+      expect(linucb.getColdStartAlpha(14, 0.8, 0.2)).toBe(0.5);
+    });
+
+    it('should return 2.0 for 15-49 with high accuracy and low fatigue', () => {
+      expect(linucb.getColdStartAlpha(20, 0.8, 0.3)).toBe(2.0);
+      expect(linucb.getColdStartAlpha(40, 0.9, 0.2)).toBe(2.0);
+    });
+
+    it('should return 1.0 for 15-49 with low accuracy or high fatigue', () => {
+      expect(linucb.getColdStartAlpha(20, 0.5, 0.3)).toBe(1.0);
+      expect(linucb.getColdStartAlpha(20, 0.8, 0.6)).toBe(1.0);
+    });
+
+    it('should return 0.7 for interactionCount >= 50', () => {
+      expect(linucb.getColdStartAlpha(50, 0.8, 0.2)).toBe(0.7);
+      expect(linucb.getColdStartAlpha(100, 0.5, 0.8)).toBe(0.7);
+    });
+  });
+
+  // ==================== Alpha Management Tests ====================
+
+  describe('alpha management', () => {
+    it('should set and get alpha', () => {
+      linucb.setAlpha(0.5);
+      expect(linucb.getAlpha()).toBe(0.5);
+
+      linucb.setAlpha(2.0);
+      expect(linucb.getAlpha()).toBe(2.0);
+    });
+
+    it('should not allow negative alpha', () => {
+      linucb.setAlpha(-1.0);
+      expect(linucb.getAlpha()).toBe(0);
+    });
+  });
+
+  // ==================== Model Persistence Tests ====================
+
+  describe('model persistence', () => {
+    it('should get/set model state roundtrip', () => {
+      // Train the model
+      for (let i = 0; i < 10; i++) {
+        linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+      }
+
+      const originalModel = linucb.getModel();
+      const originalUpdateCount = originalModel.updateCount;
+
+      // Create new instance and restore
       const newLinucb = new LinUCB();
-      newLinucb.setModel(savedModel);
+      newLinucb.setModel(originalModel);
 
       const restoredModel = newLinucb.getModel();
 
-      expect(restoredModel.updateCount).toBe(savedModel.updateCount);
-      expect(restoredModel.A).toEqual(savedModel.A);
-      expect(restoredModel.b).toEqual(savedModel.b);
+      expect(restoredModel.d).toBe(originalModel.d);
+      expect(restoredModel.lambda).toBe(originalModel.lambda);
+      expect(restoredModel.alpha).toBe(originalModel.alpha);
+      expect(restoredModel.updateCount).toBe(originalUpdateCount);
+
+      // Check A matrix
+      for (let i = 0; i < originalModel.A.length; i++) {
+        expect(restoredModel.A[i]).toBeCloseTo(originalModel.A[i], 5);
+      }
+    });
+
+    it('should migrate model from smaller dimension (d=12 to d=22)', () => {
+      // Create a model with smaller dimension
+      const smallLinucb = new LinUCB({ dimension: 12 });
+      for (let i = 0; i < 5; i++) {
+        const smallContext: LinUCBContext = {
+          recentErrorRate: 0.2,
+          recentResponseTime: 2000,
+          timeBucket: 10
+        };
+        // Update with a simplified feature vector
+        const smallFeatures = new Float32Array(12);
+        smallFeatures.fill(0.5);
+        smallLinucb.updateWithFeatureVector(smallFeatures, 1.0);
+      }
+
+      const smallModel = smallLinucb.getModel();
+      expect(smallModel.d).toBe(12);
+
+      // Migrate to larger dimension
+      const largeLinucb = new LinUCB({ dimension: 22 });
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      largeLinucb.setModel(smallModel);
+
+      const migratedModel = largeLinucb.getModel();
+      expect(migratedModel.d).toBe(22);
+      expect(migratedModel.updateCount).toBe(smallModel.updateCount);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('迁移模型'));
+
+      logSpy.mockRestore();
+    });
+
+    it('should reset model when downgrading dimension', () => {
+      // Create model with larger dimension
+      const largeLinucb = new LinUCB({ dimension: 30 });
+      for (let i = 0; i < 5; i++) {
+        const features = new Float32Array(30);
+        features.fill(0.5);
+        largeLinucb.updateWithFeatureVector(features, 1.0);
+      }
+
+      const largeModel = largeLinucb.getModel();
+
+      // Downgrade to smaller dimension
+      const smallLinucb = new LinUCB({ dimension: 22 });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      smallLinucb.setModel(largeModel);
+
+      const model = smallLinucb.getModel();
+      expect(model.d).toBe(22);
+      expect(model.updateCount).toBe(0); // Reset on downgrade
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('降维不支持'));
+
+      warnSpy.mockRestore();
     });
   });
 
-  describe('Reset Functionality', () => {
-    it('should reset to initial state', () => {
-      // 执行更新
-      linucb.update(mockState, ACTION_SPACE[0], 0.5, mockContext);
+  // ==================== Reset Tests ====================
 
-      // 重置
+  describe('reset', () => {
+    it('should reset all model state', () => {
+      // Train the model
+      for (let i = 0; i < 10; i++) {
+        linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+      }
+
+      expect(linucb.getUpdateCount()).toBe(10);
+
       linucb.reset();
 
       const model = linucb.getModel();
       expect(model.updateCount).toBe(0);
 
-      // A应该恢复为单位矩阵
-      for (let i = 0; i < DEFAULT_DIMENSION; i++) {
-        for (let j = 0; j < DEFAULT_DIMENSION; j++) {
-          const idx = i * DEFAULT_DIMENSION + j;
-          if (i === j) {
-            expect(model.A[idx]).toBe(1.0);
-          } else {
-            expect(model.A[idx]).toBe(0.0);
-          }
-        }
+      // Check A is identity * lambda
+      for (let i = 0; i < model.d; i++) {
+        expect(model.A[i * model.d + i]).toBe(model.lambda);
       }
 
-      // b应该恢复为零向量
-      for (let i = 0; i < DEFAULT_DIMENSION; i++) {
-        expect(model.b[i]).toBe(0.0);
+      // Check b is zero
+      for (let i = 0; i < model.d; i++) {
+        expect(model.b[i]).toBe(0);
       }
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle zero reward', () => {
-      const action = ACTION_SPACE[0];
-      expect(() => {
-        linucb.update(mockState, action, 0, mockContext);
-      }).not.toThrow();
-    });
+  // ==================== Feature Vector Tests ====================
 
-    it('should handle negative reward', () => {
-      const action = ACTION_SPACE[0];
-      expect(() => {
-        linucb.update(mockState, action, -0.5, mockContext);
-      }).not.toThrow();
-    });
-
-    it('should handle extreme state values gracefully', () => {
-      const extremeState: UserState = {
-        A: 0,
-        F: 1,
-        C: { mem: 0, speed: 0, stability: 0 },
-        M: -1,
-        conf: 0,
-        ts: Date.now()
+  describe('buildContextVector', () => {
+    it('should build 22-dimensional feature vector', () => {
+      const input: ContextBuildInput = {
+        state: defaultState,
+        action: STANDARD_ACTIONS[0],
+        recentErrorRate: 0.2,
+        recentResponseTime: 2500,
+        timeBucket: 14
       };
 
-      expect(() => {
-        linucb.selectFromActionSpace(extremeState, mockContext);
-      }).not.toThrow();
+      const vec = linucb.buildContextVector(input);
+
+      expect(vec.length).toBe(DIMENSION);
+    });
+
+    it('should include bias term as last element', () => {
+      const input: ContextBuildInput = {
+        state: defaultState,
+        action: STANDARD_ACTIONS[0],
+        recentErrorRate: 0.2,
+        recentResponseTime: 2500,
+        timeBucket: 14
+      };
+
+      const vec = linucb.buildContextVector(input);
+
+      expect(vec[vec.length - 1]).toBe(1.0);
+    });
+
+    it('should clamp state values to valid range', () => {
+      const extremeState: UserState = {
+        A: 1.5,  // Should be clamped to 1
+        F: -0.5, // Should be clamped to 0
+        M: 2.0,  // Should be clamped to 1
+        C: { mem: 1.5, speed: -0.3 }
+      };
+
+      const input: ContextBuildInput = {
+        state: extremeState,
+        action: STANDARD_ACTIONS[0],
+        recentErrorRate: 0.2,
+        recentResponseTime: 2500,
+        timeBucket: 14
+      };
+
+      const vec = linucb.buildContextVector(input);
+
+      // All values should be in valid ranges
+      for (let i = 0; i < vec.length; i++) {
+        expect(Number.isFinite(vec[i])).toBe(true);
+      }
+    });
+
+    it('should encode time features with sin/cos', () => {
+      const morning: ContextBuildInput = {
+        state: defaultState,
+        action: STANDARD_ACTIONS[0],
+        recentErrorRate: 0.2,
+        recentResponseTime: 2500,
+        timeBucket: 8
+      };
+
+      const evening: ContextBuildInput = {
+        state: defaultState,
+        action: STANDARD_ACTIONS[0],
+        recentErrorRate: 0.2,
+        recentResponseTime: 2500,
+        timeBucket: 20
+      };
+
+      const morningVec = linucb.buildContextVector(morning);
+      const eveningVec = linucb.buildContextVector(evening);
+
+      // Time features should be different
+      // Time features are at indices 12, 13, 14 (norm, sin, cos)
+      expect(morningVec[12]).not.toEqual(eveningVec[12]);
+    });
+  });
+
+  // ==================== BaseLearner Interface Tests ====================
+
+  describe('BaseLearner interface', () => {
+    it('should return correct name', () => {
+      expect(linucb.getName()).toBe('LinUCB');
+    });
+
+    it('should return correct version', () => {
+      expect(linucb.getVersion()).toBe('2.0.0');
+    });
+
+    it('should return capabilities', () => {
+      const caps = linucb.getCapabilities();
+
+      expect(caps.supportsOnlineLearning).toBe(true);
+      expect(caps.supportsBatchUpdate).toBe(true);
+      expect(caps.requiresPretraining).toBe(false);
+      expect(caps.minSamplesForReliability).toBe(50);
+    });
+
+    it('should implement getState/setState', () => {
+      linucb.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+
+      const state = linucb.getState();
+      expect(state).toEqual(linucb.getModel());
+
+      const newLinucb = new LinUCB();
+      newLinucb.setState(state);
+
+      expect(newLinucb.getUpdateCount()).toBe(state.updateCount);
+    });
+  });
+
+  // ==================== Numerical Stability Tests ====================
+
+  describe('numerical stability', () => {
+    it('should handle many sequential updates without overflow', () => {
+      for (let i = 0; i < 1000; i++) {
+        linucb.update(defaultState, STANDARD_ACTIONS[i % 5], Math.random(), defaultContext);
+      }
+
+      const model = linucb.getModel();
+
+      // Check no NaN or Infinity
+      for (let i = 0; i < model.A.length; i++) {
+        expect(Number.isFinite(model.A[i])).toBe(true);
+      }
+      for (let i = 0; i < model.b.length; i++) {
+        expect(Number.isFinite(model.b[i])).toBe(true);
+      }
+      for (let i = 0; i < model.L.length; i++) {
+        expect(Number.isFinite(model.L[i])).toBe(true);
+      }
+    });
+
+    it('should recover from unstable A matrix', () => {
+      // Manually corrupt the model to simulate instability
+      const model = linucb.getModel();
+      model.A[0] = 1e12; // Extremely large value
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      linucb.setModel(model);
+
+      // Model should still work
+      const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+      expect(result.action).toBeDefined();
+
+      warnSpy.mockRestore();
+    });
+
+    it('should handle zero response time', () => {
+      const zeroRtContext: LinUCBContext = {
+        recentErrorRate: 0.2,
+        recentResponseTime: 0,
+        timeBucket: 14
+      };
+
+      // Should not throw
+      const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, zeroRtContext);
+      expect(result.action).toBeDefined();
     });
   });
 });

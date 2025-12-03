@@ -1293,7 +1293,1197 @@ interface ComponentHealth {
 
 ---
 
+## 学习队列相关
+
+### 获取学习单词
+
+**GET** `/api/learning/study-words`
+
+获取掌握模式的学习单词列表。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `targetCount` (number, optional): 目标掌握数量，默认使用用户配置，最大100
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "words": [...],
+    "targetCount": 10,
+    "currentMastered": 5
+  }
+}
+```
+
+---
+
+### 获取下一批学习单词
+
+**POST** `/api/learning/next-words`
+
+动态获取下一批学习单词（AMAS驱动的按需加载）。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "sessionId": "session-uuid",
+  "currentWordIds": ["word-1", "word-2"],
+  "masteredWordIds": ["word-3"],
+  "requestCount": 5
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "words": [...],
+    "isComplete": false,
+    "progress": { "mastered": 5, "target": 10 }
+  }
+}
+```
+
+---
+
+### 调整学习队列
+
+**POST** `/api/learning/adjust-words`
+
+根据用户状态动态调整学习单词难度。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "sessionId": "session-uuid",
+  "currentWordIds": ["word-1", "word-2"],
+  "masteredWordIds": ["word-3"],
+  "userState": { "fatigue": 0.3, "attention": 0.8, "motivation": 0.7 },
+  "recentPerformance": {
+    "accuracy": 0.75,
+    "avgResponseTime": 2500,
+    "consecutiveWrong": 0
+  },
+  "adjustReason": "periodic"
+}
+```
+
+**adjustReason 可选值**: `fatigue` | `struggling` | `excelling` | `periodic`
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "adjustments": {
+      "remove": ["word-1"],
+      "add": [{ "id": "word-4", "spelling": "example", "difficulty": 0.5 }]
+    },
+    "targetDifficulty": { "min": 0.3, "max": 0.6 },
+    "reason": "检测到用户疲劳，降低难度",
+    "nextCheckIn": 3
+  }
+}
+```
+
+---
+
+### 提交答题结果
+
+**POST** `/api/learning/submit-answer`
+
+提交单词答题结果，触发AMAS状态更新。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "sessionId": "session-uuid",
+  "wordId": "word-1",
+  "isCorrect": true,
+  "responseTime": 2500,
+  "dwellTime": 5000
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "isMastered": false,
+    "newState": { ... },
+    "suggestion": "保持当前节奏"
+  }
+}
+```
+
+---
+
+## AMAS 核心相关
+
+### 处理学习事件
+
+**POST** `/api/amas/process`
+
+处理单个学习事件，更新用户状态并获取策略建议。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "wordId": "word-1",
+  "isCorrect": true,
+  "responseTime": 2500,
+  "dwellTime": 5000,
+  "timestamp": 1701619200000,
+  "pauseCount": 0,
+  "switchCount": 0
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "strategy": {
+      "interval_scale": 1.0,
+      "new_ratio": 0.2,
+      "difficulty": "mid",
+      "batch_size": 8,
+      "hint_level": 1
+    },
+    "state": {
+      "A": 0.8,
+      "F": 0.2,
+      "M": 0.6,
+      "C": { "mem": 0.7, "speed": 0.8, "stability": 0.75 }
+    },
+    "suggestion": "状态良好，继续学习",
+    "shouldBreak": false
+  }
+}
+```
+
+---
+
+### 获取用户状态
+
+**GET** `/api/amas/state`
+
+获取当前用户的AMAS状态。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "A": 0.8,
+    "F": 0.2,
+    "M": 0.6,
+    "C": { "mem": 0.7, "speed": 0.8, "stability": 0.75 },
+    "conf": 0.9,
+    "ts": 1701619200000
+  }
+}
+```
+
+---
+
+### 获取学习时间推荐
+
+**GET** `/api/amas/time-recommend`
+
+获取基于用户历史数据的最佳学习时间推荐。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "bestHours": [9, 10, 14, 15],
+    "hourlyEfficiency": [...],
+    "recommendation": "建议在上午9-10点学习，此时您的效率最高"
+  }
+}
+```
+
+---
+
+### 获取趋势分析
+
+**GET** `/api/amas/trends`
+
+获取用户学习趋势分析报告。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `days` (number, optional): 分析天数，默认7天
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "accuracyTrend": "improving",
+    "responseTimeTrend": "stable",
+    "motivationTrend": "declining",
+    "suggestions": ["建议增加休息时间", "尝试更多样化的学习内容"]
+  }
+}
+```
+
+---
+
+### 获取状态历史
+
+**GET** `/api/amas/state-history`
+
+获取用户状态历史记录。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `period` (string): `7d` | `30d` | `90d`
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "period": "7d",
+    "history": [
+      { "date": "2024-12-01", "avgAttention": 0.8, "avgFatigue": 0.2, "avgMotivation": 0.7 }
+    ]
+  }
+}
+```
+
+---
+
+## AMAS 可解释性相关
+
+### 获取决策解释
+
+**GET** `/api/amas/explain-decision`
+
+获取特定决策的详细解释。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `decisionId` (string): 决策ID
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "decisionId": "dec-123",
+    "stateSnapshot": { "A": 0.8, "F": 0.2, "M": 0.6 },
+    "difficultyFactors": { "lengthFactor": 0.3, "accuracyFactor": 0.4 },
+    "explanation": "由于用户注意力较高且疲劳度低，选择中等难度策略"
+  }
+}
+```
+
+---
+
+### 获取学习曲线
+
+**GET** `/api/amas/learning-curve`
+
+获取用户学习曲线数据。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `wordId` (string, optional): 特定单词ID
+- `days` (number, optional): 天数，默认30
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "curve": [
+      { "date": "2024-12-01", "retention": 0.85, "reviewCount": 3 }
+    ],
+    "predictedRetention": 0.9
+  }
+}
+```
+
+---
+
+### 获取决策时间线
+
+**GET** `/api/amas/decision-timeline`
+
+获取决策历史时间线。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `limit` (number, optional): 数量限制，默认20
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "decisionId": "dec-123",
+      "timestamp": "2024-12-01T10:00:00Z",
+      "action": { "difficulty": "mid", "batch_size": 8 },
+      "triggerReason": "periodic"
+    }
+  ]
+}
+```
+
+---
+
+### 反事实分析
+
+**POST** `/api/amas/counterfactual`
+
+进行反事实分析，评估不同策略的可能结果。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "decisionId": "dec-123",
+  "alternativeAction": { "difficulty": "easy", "batch_size": 5 }
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "originalOutcome": { "accuracy": 0.8, "retention": 0.85 },
+    "counterfactualOutcome": { "accuracy": 0.9, "retention": 0.75 },
+    "analysis": "降低难度可能提高短期准确率，但长期记忆效果可能下降"
+  }
+}
+```
+
+---
+
+## 单词掌握度相关
+
+### 获取单词掌握度评估
+
+**GET** `/api/word-mastery/:wordId`
+
+获取单个单词的掌握度评估。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `userFatigue` (number, optional): 用户疲劳度 0-1
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "wordId": "word-1",
+    "rawScore": 0.75,
+    "confidence": 0.9,
+    "isLearned": true,
+    "components": {
+      "srsScore": 0.8,
+      "actrRecall": 0.7,
+      "recentAccuracy": 0.85
+    },
+    "suggestion": "已掌握，建议3天后复习"
+  }
+}
+```
+
+---
+
+### 批量获取掌握度评估
+
+**POST** `/api/word-mastery/batch`
+
+批量获取多个单词的掌握度评估。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "wordIds": ["word-1", "word-2", "word-3"],
+  "userFatigue": 0.3
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "evaluations": [
+      { "wordId": "word-1", "rawScore": 0.75, "isLearned": true },
+      { "wordId": "word-2", "rawScore": 0.45, "isLearned": false }
+    ]
+  }
+}
+```
+
+---
+
+### 获取复习历史轨迹
+
+**GET** `/api/word-mastery/:wordId/trace`
+
+获取单词的复习历史轨迹。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `limit` (number, optional): 数量限制，最大100
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "wordId": "word-1",
+    "trace": [
+      { "secondsAgo": 86400, "isCorrect": true },
+      { "secondsAgo": 259200, "isCorrect": false }
+    ],
+    "count": 2
+  }
+}
+```
+
+---
+
+### 获取用户掌握统计
+
+**GET** `/api/word-mastery/stats`
+
+获取用户整体掌握统计数据。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "totalWords": 500,
+    "masteredWords": 150,
+    "learningWords": 200,
+    "newWords": 150,
+    "averageScore": 0.65,
+    "averageRecall": 0.72,
+    "needReviewCount": 45
+  }
+}
+```
+
+---
+
+### 预测最佳复习间隔
+
+**GET** `/api/word-mastery/:wordId/interval`
+
+预测单词的最佳复习间隔。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `targetRecall` (number, optional): 目标回忆率 0-1，默认0.9
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "interval": 172800,
+    "humanReadable": "2天后"
+  }
+}
+```
+
+---
+
+## 习惯画像相关
+
+### 获取习惯画像
+
+**GET** `/api/habit-profile`
+
+获取用户学习习惯画像。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "chronotype": {
+      "peakHours": [9, 10, 14],
+      "type": "morning"
+    },
+    "learningStyle": {
+      "visual": 0.6,
+      "auditory": 0.3,
+      "kinesthetic": 0.1
+    },
+    "sessionPattern": {
+      "avgDuration": 1800,
+      "preferredBatchSize": 10
+    }
+  }
+}
+```
+
+---
+
+### 结束学习会话
+
+**POST** `/api/habit-profile/end-session`
+
+结束学习会话并持久化习惯画像。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "sessionId": "session-uuid"
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "message": "会话已结束，习惯画像已更新"
+}
+```
+
+---
+
+## 徽章相关
+
+### 获取用户徽章列表
+
+**GET** `/api/badges`
+
+获取用户已解锁的徽章列表。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "streak-7",
+      "name": "连续学习7天",
+      "category": "streak",
+      "unlockedAt": "2024-12-01T10:00:00Z",
+      "icon": "fire"
+    }
+  ]
+}
+```
+
+---
+
+### 检查并解锁徽章
+
+**POST** `/api/badges/check`
+
+检查并解锁符合条件的新徽章。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "newBadges": [
+      { "id": "accuracy-90", "name": "准确率达到90%" }
+    ]
+  }
+}
+```
+
+---
+
+## 学习计划相关
+
+### 获取学习计划
+
+**GET** `/api/plan`
+
+获取用户当前学习计划。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "dailyTarget": 20,
+    "weeklyMilestone": 100,
+    "currentProgress": {
+      "today": 15,
+      "thisWeek": 65
+    },
+    "wordBookAllocations": [
+      { "wordBookId": "wb-1", "dailyCount": 10 }
+    ]
+  }
+}
+```
+
+---
+
+### 更新学习计划
+
+**PUT** `/api/plan`
+
+更新用户学习计划。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "dailyTarget": 25,
+  "weeklyMilestone": 120
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+---
+
+## 监控告警相关
+
+### 获取活跃告警
+
+**GET** `/api/alerts/active`
+
+获取当前所有活跃告警。
+
+**响应** (200):
+```json
+{
+  "count": 1,
+  "alerts": [
+    {
+      "id": "alert-123",
+      "metric": "http.request.duration.p95",
+      "status": "firing",
+      "severity": "high",
+      "value": 1.5,
+      "threshold": 1.0,
+      "occurredAt": "2024-12-01T10:00:00Z",
+      "message": "请求延迟P95超过阈值"
+    }
+  ]
+}
+```
+
+---
+
+### 获取告警历史
+
+**GET** `/api/alerts/history`
+
+获取告警历史记录。
+
+**查询参数**:
+- `limit` (number, optional): 数量限制，默认100，最大200
+
+**响应** (200):
+```json
+{
+  "count": 50,
+  "alerts": [...]
+}
+```
+
+---
+
+## 统计展示相关 (About)
+
+### 获取统计概览
+
+**GET** `/api/about/stats/overview`
+
+获取AMAS系统统计概览（无需认证）。
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "source": "real",
+    "totalDecisions": 10000,
+    "avgLatency": 50,
+    "errorRate": 0.01
+  }
+}
+```
+
+---
+
+### 获取算法分布
+
+**GET** `/api/about/stats/algorithm-distribution`
+
+获取算法使用分布统计。
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "linucb": 0.6,
+    "thompson": 0.3,
+    "heuristic": 0.1
+  }
+}
+```
+
+---
+
+### 获取近期决策
+
+**GET** `/api/about/stats/recent-decisions`
+
+获取近期决策记录。
+
+**查询参数**:
+- `limit` (number, optional): 数量限制
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "decisionId": "dec-123",
+      "timestamp": "2024-12-01T10:00:00Z",
+      "algorithm": "linucb",
+      "outcome": "success"
+    }
+  ]
+}
+```
+
+---
+
+### 获取Prometheus指标
+
+**GET** `/api/about/metrics/prometheus`
+
+获取Prometheus格式的监控指标。
+
+**响应** (200):
+```
+# TYPE amas_decision_latency histogram
+amas_decision_latency_bucket{le="10"} 100
+amas_decision_latency_bucket{le="50"} 500
+...
+```
+
+---
+
+### 模拟决策
+
+**POST** `/api/about/simulate`
+
+模拟AMAS决策过程（用于演示）。
+
+**请求体**:
+```json
+{
+  "userState": { "A": 0.8, "F": 0.2, "M": 0.6 },
+  "recentPerformance": { "accuracy": 0.75 }
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "decision": { ... },
+    "pipeline": { ... },
+    "explanation": "..."
+  }
+}
+```
+
+---
+
+## 实验相关
+
+### 获取实验状态
+
+**GET** `/api/experiments/thompson-vs-linucb/status`
+
+获取Thompson vs LinUCB实验的状态和分析结果。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "status": "running",
+    "pValue": 0.03,
+    "effectSize": 0.15,
+    "isSignificant": true,
+    "winner": "thompson",
+    "recommendation": "建议采用Thompson Sampling",
+    "sampleSizes": [
+      { "variantId": "thompson", "sampleCount": 500 },
+      { "variantId": "linucb", "sampleCount": 480 }
+    ]
+  }
+}
+```
+
+---
+
+## 优化相关
+
+### 获取优化建议
+
+**GET** `/api/optimization/suggest`
+
+获取下一个推荐的超参数组合。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "params": {
+      "alpha": 0.7,
+      "explorationRate": 0.2
+    },
+    "paramSpace": { ... }
+  }
+}
+```
+
+---
+
+### 记录优化评估
+
+**POST** `/api/optimization/evaluate`
+
+记录参数评估结果。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**权限要求**: 管理员
+
+**请求体**:
+```json
+{
+  "params": { "alpha": 0.7 },
+  "value": 0.85
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "message": "评估结果已记录"
+}
+```
+
+---
+
+## 评估相关
+
+### 记录因果观察
+
+**POST** `/api/evaluation/causal/observe`
+
+记录因果推断观察数据。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**请求体**:
+```json
+{
+  "treatment": "strategy_a",
+  "outcome": 0.85,
+  "covariates": { "userLevel": "intermediate" }
+}
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "message": "观察已记录"
+}
+```
+
+---
+
+### 获取因果效应
+
+**GET** `/api/evaluation/causal/ate`
+
+获取平均处理效应（ATE）。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**查询参数**:
+- `treatment` (string): 处理组标识
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "ate": 0.12,
+    "confidence": [0.08, 0.16],
+    "sampleSize": 1000
+  }
+}
+```
+
+---
+
+## 词书相关
+
+### 获取词书列表
+
+**GET** `/api/wordbooks`
+
+获取用户可用的词书列表。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "wb-1",
+      "name": "四级词汇",
+      "wordCount": 4500,
+      "isSystem": true,
+      "progress": { "learned": 1500, "total": 4500 }
+    }
+  ]
+}
+```
+
+---
+
+### 获取词书详情
+
+**GET** `/api/wordbooks/:id`
+
+获取词书详细信息。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wb-1",
+    "name": "四级词汇",
+    "description": "大学英语四级核心词汇",
+    "wordCount": 4500,
+    "words": [...]
+  }
+}
+```
+
+---
+
+### 订阅词书
+
+**POST** `/api/wordbooks/:id/subscribe`
+
+订阅/添加词书到用户学习列表。
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应** (200):
+```json
+{
+  "success": true,
+  "message": "词书已添加"
+}
+```
+
+---
+
 ## 版本历史
+
+### v1.3.0 (2025-12-03)
+- 新增学习队列API文档（study-words, next-words, adjust-words, submit-answer）
+- 新增AMAS核心API文档（process, state, time-recommend, trends, state-history）
+- 新增AMAS可解释性API文档（explain-decision, learning-curve, decision-timeline, counterfactual）
+- 新增单词掌握度API文档（评估、批量评估、轨迹、统计、间隔预测）
+- 新增习惯画像API文档
+- 新增徽章API文档
+- 新增学习计划API文档
+- 新增监控告警API文档
+- 新增统计展示API文档（About系列）
+- 新增实验API文档（A/B测试）
+- 新增优化API文档（贝叶斯优化）
+- 新增评估API文档（因果推断）
+- 新增词书API文档
 
 ### v1.2.0 (2024-11-26)
 - 新增AMAS监控服务API文档

@@ -1,7 +1,7 @@
 # Week 3 Production Deployment Checklist
 
 **部署版本**: Week 3 - AMAS Monitoring System
-**目标日期**: 2024-12-03
+**目标日期**: 2025-12-03
 **部署负责人**: [填写]
 
 ---
@@ -364,4 +364,4 @@ curl https://api.danci.com/health
 ---
 
 *文档版本: 1.0*
-*最后更新: 2024-12-03*
+*最后更新: 2025-12-03*

@@ -1,7 +1,7 @@
 # Week 3 AMAS Monitoring System - Operations Runbook
 
 **Version**: 1.0
-**Last Updated**: 2024-12-03
+**Last Updated**: 2025-12-03
 **Owner**: Platform Engineering Team
 
 ## 1. System Overview

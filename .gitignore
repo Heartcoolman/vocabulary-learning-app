@@ -61,34 +61,3 @@ WARP.md
 phosphor-icons/
 phosphor-icons.zip
 public/phosphor-icons/
-
-# Test files - new auto-generated tests
-backend/tests/integration/routes/*.spec.ts
-backend/tests/unit/amas/common/
-backend/tests/unit/amas/decision/*.spec.ts
-backend/tests/unit/amas/engine/
-backend/tests/unit/amas/evaluation/*.spec.ts
-backend/tests/unit/amas/learning/*.spec.ts
-backend/tests/unit/amas/modeling/*.spec.ts
-backend/tests/unit/amas/monitoring/
-backend/tests/unit/amas/perception/
-backend/tests/unit/amas/versioning/
-backend/tests/unit/middleware/
-backend/tests/unit/services/*.spec.ts
-backend/tests/unit/validators/
-backend/tests/unit/workers/
-src/components/__tests__/
-src/hooks/__tests__/
-src/pages/__tests__/
-src/pages/about/__tests__/
-src/pages/admin/__tests__/
-src/services/__tests__/
-src/services/algorithms/__tests__/
-src/services/learning/__tests__/
-src/utils/__tests__/
-
-# Test outputs and reports
-*-test-results*.txt
-*-output.txt
-backend/tests/simulation/reports/
-backend/test-db-connection.ts

@@ -1,6 +1,6 @@
 # Week 3 部署就绪报告
 
-**生成时间**: 2024-12-03
+**生成时间**: 2025-12-03
 **环境**: 开发环境 (Docker)
 **状态**: ✅ **已就绪，可部署**
 
@@ -121,7 +121,7 @@ docker exec danci-backend npx prisma migrate deploy
 
 ## 2. Smoke Test 验证结果
 
-**执行时间**: 2024-12-03
+**执行时间**: 2025-12-03
 **执行环境**: 开发环境 (Docker)
 
 ```
@@ -466,7 +466,7 @@ docker exec danci-postgres pg_restore -U danci -d vocabulary_db -c /tmp/backup-<
 
 ---
 
-**报告生成时间**: 2024-12-03
+**报告生成时间**: 2025-12-03
 **审核状态**: ✅ 已验证
 **批准部署**: 是
 

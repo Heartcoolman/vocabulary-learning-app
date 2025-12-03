@@ -16,6 +16,8 @@ import ProfilePage from './pages/ProfilePage';
 import BatchImportPage from './pages/BatchImportPage';
 import WordMasteryPage from './pages/WordMasteryPage';
 import HabitProfilePage from './pages/HabitProfilePage';
+import TodayWordsPage from './pages/TodayWordsPage';
+import StudyProgressPage from './pages/StudyProgressPage';
 // AMAS 增强功能页面
 import LearningTimePage from './pages/LearningTimePage';
 import TrendReportPage from './pages/TrendReportPage';
@@ -127,6 +129,22 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/today-words"
+              element={
+                <ProtectedRoute>
+                  <TodayWordsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/progress"
+              element={
+                <ProtectedRoute>
+                  <StudyProgressPage />
                 </ProtectedRoute>
               }
             />

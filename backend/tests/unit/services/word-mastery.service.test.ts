@@ -1,359 +1,278 @@
 /**
- * Word Mastery Service Tests
- * 单词掌握度服务单元测试
+ * Word Mastery Service Unit Tests
+ *
+ * Tests for the word mastery service that tracks learning progress.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock Prisma
+const mockPrisma = {
+  wordLearningState: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    upsert: vi.fn(),
+    count: vi.fn()
+  },
+  answerRecord: {
+    findMany: vi.fn(),
+    count: vi.fn()
+  },
+  $transaction: vi.fn((fn) => fn(mockPrisma))
+};
+
 vi.mock('../../../src/config/database', () => ({
-  default: {
-    wordLearningState: {
-      findMany: vi.fn()
-    },
-    wordReviewTrace: {
-      findMany: vi.fn()
-    },
-    amasUserState: {
-      findUnique: vi.fn()
-    }
-  }
-}));
-
-// Mock AMAS modules - 使用 vi.hoisted 来提升 mock 对象定义
-const { mockEvaluator, mockTracker, mockActrModel } = vi.hoisted(() => ({
-  mockEvaluator: {
-    evaluate: vi.fn(),
-    batchEvaluate: vi.fn(),
-    updateConfig: vi.fn(),
-    getConfig: vi.fn()
-  },
-  mockTracker: {
-    recordReview: vi.fn(),
-    batchRecordReview: vi.fn(),
-    getReviewTrace: vi.fn(),
-    batchGetMemoryState: vi.fn()
-  },
-  mockActrModel: {
-    predictOptimalInterval: vi.fn()
-  }
-}));
-
-vi.mock('../../../src/amas/evaluation/word-mastery-evaluator', () => ({
-  WordMasteryEvaluator: function() { return mockEvaluator; }
-}));
-
-vi.mock('../../../src/amas/tracking/word-memory-tracker', () => ({
-  WordMemoryTracker: function() { return mockTracker; }
-}));
-
-vi.mock('../../../src/amas/modeling/actr-memory', () => ({
-  ACTRMemoryModel: function() { return mockActrModel; }
+  default: mockPrisma
 }));
 
 import { WordMasteryService } from '../../../src/services/word-mastery.service';
 
 describe('WordMasteryService', () => {
-  let service: WordMasteryService;
-  let mockPrisma: any;
+  let masteryService: WordMasteryService;
 
-  beforeEach(async () => {
-    const prismaModule = await import('../../../src/config/database');
-    mockPrisma = prismaModule.default;
+  beforeEach(() => {
     vi.clearAllMocks();
-    service = new WordMasteryService();
+    masteryService = new WordMasteryService();
   });
 
-  describe('evaluateWord', () => {
-    it('应该评估单个单词的掌握度', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
+  // ==================== Get Mastery Tests ====================
 
-      mockPrisma.amasUserState.findUnique.mockResolvedValue({ fatigue: 0.3 });
+  describe('getMastery', () => {
+    it('should return word mastery state', async () => {
+      const mockState = {
+        id: 'state-1',
+        userId: 'user-1',
+        wordId: 'word-1',
+        masteryLevel: 3,
+        consecutiveCorrect: 5,
+        lastReviewDate: new Date(),
+        nextReviewDate: new Date(Date.now() + 86400000)
+      };
 
-      // Mock evaluator
-      const mockEvaluation = {
-        wordId,
-        score: 0.75,
-        isLearned: false,
-        factors: {
-          actrRecall: 0.8,
-          accuracy: 0.85,
-          stability: 0.7
+      mockPrisma.wordLearningState.findUnique.mockResolvedValue(mockState);
+
+      const result = await masteryService.getMastery('user-1', 'word-1');
+
+      expect(result).toEqual(mockState);
+      expect(mockPrisma.wordLearningState.findUnique).toHaveBeenCalledWith({
+        where: {
+          unique_user_word: {
+            userId: 'user-1',
+            wordId: 'word-1'
+          }
         }
-      };
-      mockEvaluator.evaluate.mockResolvedValue(mockEvaluation);
-
-      const result = await service.evaluateWord(userId, wordId);
-
-      expect(result.wordId).toBe(wordId);
-      expect(result.score).toBe(0.75);
+      });
     });
 
-    it('应该使用提供的疲劳度值', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-      const userFatigue = 0.5;
+    it('should return null for untracked word', async () => {
+      mockPrisma.wordLearningState.findUnique.mockResolvedValue(null);
 
-      const mockEvaluation = {
-        wordId,
-        score: 0.6,
-        isLearned: false,
-        factors: { actrRecall: 0.7, accuracy: 0.8, stability: 0.6 }
-      };
-      mockEvaluator.evaluate.mockResolvedValue(mockEvaluation);
+      const result = await masteryService.getMastery('user-1', 'word-new');
 
-      await service.evaluateWord(userId, wordId, userFatigue);
-
-      expect(mockEvaluator.evaluate).toHaveBeenCalledWith(
-        userId,
-        wordId,
-        userFatigue
-      );
+      expect(result).toBeNull();
     });
   });
 
-  describe('batchEvaluateWords', () => {
-    it('应该批量评估多个单词的掌握度', async () => {
-      const userId = 'user-123';
-      const wordIds = ['word-1', 'word-2', 'word-3'];
+  // ==================== Update Mastery Tests ====================
 
-      mockPrisma.amasUserState.findUnique.mockResolvedValue({ fatigue: 0.2 });
+  describe('updateMastery', () => {
+    it('should increase mastery on correct answer', async () => {
+      const existingState = {
+        id: 'state-1',
+        userId: 'user-1',
+        wordId: 'word-1',
+        masteryLevel: 2,
+        consecutiveCorrect: 3,
+        currentInterval: 1
+      };
 
-      const mockEvaluations = wordIds.map(wordId => ({
-        wordId,
-        score: 0.7,
-        isLearned: false,
-        factors: { actrRecall: 0.75, accuracy: 0.8, stability: 0.65 }
-      }));
-      mockEvaluator.batchEvaluate.mockResolvedValue(mockEvaluations);
+      mockPrisma.wordLearningState.findUnique.mockResolvedValue(existingState);
+      mockPrisma.wordLearningState.update.mockResolvedValue({
+        ...existingState,
+        masteryLevel: 3,
+        consecutiveCorrect: 4
+      });
 
-      const results = await service.batchEvaluateWords(userId, wordIds);
+      const result = await masteryService.updateMastery('user-1', 'word-1', true);
 
-      expect(results).toHaveLength(3);
-      expect(mockEvaluator.batchEvaluate).toHaveBeenCalledWith(
-        userId,
-        wordIds,
-        0.2
-      );
+      expect(result.masteryLevel).toBe(3);
+      expect(result.consecutiveCorrect).toBe(4);
+    });
+
+    it('should reset consecutive count on incorrect answer', async () => {
+      const existingState = {
+        id: 'state-1',
+        userId: 'user-1',
+        wordId: 'word-1',
+        masteryLevel: 3,
+        consecutiveCorrect: 5,
+        currentInterval: 4
+      };
+
+      mockPrisma.wordLearningState.findUnique.mockResolvedValue(existingState);
+      mockPrisma.wordLearningState.update.mockResolvedValue({
+        ...existingState,
+        consecutiveCorrect: 0,
+        currentInterval: 1
+      });
+
+      const result = await masteryService.updateMastery('user-1', 'word-1', false);
+
+      expect(result.consecutiveCorrect).toBe(0);
+    });
+
+    it('should create new state for first review', async () => {
+      mockPrisma.wordLearningState.findUnique.mockResolvedValue(null);
+      mockPrisma.wordLearningState.create.mockResolvedValue({
+        id: 'new-state',
+        userId: 'user-1',
+        wordId: 'word-1',
+        masteryLevel: 1,
+        consecutiveCorrect: 1,
+        currentInterval: 1
+      });
+
+      const result = await masteryService.updateMastery('user-1', 'word-1', true);
+
+      expect(result.masteryLevel).toBe(1);
+      expect(mockPrisma.wordLearningState.create).toHaveBeenCalled();
     });
   });
 
-  describe('getUserMasteryStats', () => {
-    it('应该返回用户掌握度统计', async () => {
-      const userId = 'user-123';
+  // ==================== Get User Progress Tests ====================
 
+  describe('getUserProgress', () => {
+    it('should return overall user progress', async () => {
       mockPrisma.wordLearningState.findMany.mockResolvedValue([
-        { wordId: 'word-1', state: 'LEARNING', masteryLevel: 2 },
-        { wordId: 'word-2', state: 'REVIEWING', masteryLevel: 4 },
-        { wordId: 'word-3', state: 'NEW', masteryLevel: 0 }
+        { masteryLevel: 5 },
+        { masteryLevel: 3 },
+        { masteryLevel: 1 }
       ]);
+      mockPrisma.wordLearningState.count.mockResolvedValue(3);
 
-      mockPrisma.amasUserState.findUnique.mockResolvedValue({ fatigue: 0.1 });
+      const progress = await masteryService.getUserProgress('user-1');
 
-      const mockEvaluations = [
-        { wordId: 'word-1', score: 0.5, isLearned: false, factors: { actrRecall: 0.6 } },
-        { wordId: 'word-2', score: 0.8, isLearned: true, factors: { actrRecall: 0.9 } },
-        { wordId: 'word-3', score: 0.3, isLearned: false, factors: { actrRecall: 0.4 } }
-      ];
-      mockEvaluator.batchEvaluate.mockResolvedValue(mockEvaluations);
-
-      const stats = await service.getUserMasteryStats(userId);
-
-      expect(stats.totalWords).toBe(3);
-      expect(stats.masteredWords).toBe(1);
-      expect(stats.learningWords).toBe(2);
-      expect(stats.newWords).toBe(1);
+      expect(progress.totalWords).toBe(3);
+      expect(progress.masteredWords).toBe(1); // Level 5
+      expect(progress.learningWords).toBe(1); // Level 3
+      expect(progress.newWords).toBe(1); // Level 1
     });
 
-    it('应该返回空统计当用户没有学习记录', async () => {
+    it('should handle user with no progress', async () => {
+      mockPrisma.wordLearningState.findMany.mockResolvedValue([]);
+      mockPrisma.wordLearningState.count.mockResolvedValue(0);
+
+      const progress = await masteryService.getUserProgress('new-user');
+
+      expect(progress.totalWords).toBe(0);
+      expect(progress.masteredWords).toBe(0);
+    });
+  });
+
+  // ==================== Due Words Tests ====================
+
+  describe('getDueWords', () => {
+    it('should return words due for review', async () => {
+      const now = new Date();
+      const dueWords = [
+        { wordId: 'word-1', nextReviewDate: new Date(now.getTime() - 3600000) },
+        { wordId: 'word-2', nextReviewDate: new Date(now.getTime() - 7200000) }
+      ];
+
+      mockPrisma.wordLearningState.findMany.mockResolvedValue(dueWords);
+
+      const result = await masteryService.getDueWords('user-1', 10);
+
+      expect(result).toHaveLength(2);
+      expect(mockPrisma.wordLearningState.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-1',
+            nextReviewDate: { lte: expect.any(Date) }
+          }),
+          take: 10
+        })
+      );
+    });
+
+    it('should order by urgency (most overdue first)', async () => {
       mockPrisma.wordLearningState.findMany.mockResolvedValue([]);
 
-      const stats = await service.getUserMasteryStats('new-user');
+      await masteryService.getDueWords('user-1', 10);
 
-      expect(stats.totalWords).toBe(0);
-      expect(stats.masteredWords).toBe(0);
-      expect(stats.averageScore).toBe(0);
-    });
-  });
-
-  describe('recordReview', () => {
-    it('应该记录复习事件', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-      const event = {
-        timestamp: Date.now(),
-        isCorrect: true,
-        responseTime: 1500
-      };
-
-      mockTracker.recordReview.mockResolvedValue(undefined);
-
-      await service.recordReview(userId, wordId, event);
-
-      expect(mockTracker.recordReview).toHaveBeenCalledWith(
-        userId,
-        wordId,
-        event
+      expect(mockPrisma.wordLearningState.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { nextReviewDate: 'asc' }
+        })
       );
     });
   });
 
-  describe('batchRecordReview', () => {
-    it('应该批量记录复习事件', async () => {
-      const userId = 'user-123';
-      const events = [
-        { wordId: 'word-1', event: { timestamp: Date.now(), isCorrect: true, responseTime: 1000 } },
-        { wordId: 'word-2', event: { timestamp: Date.now(), isCorrect: false, responseTime: 2000 } }
+  // ==================== Interval Calculation Tests ====================
+
+  describe('calculateNextInterval', () => {
+    it('should increase interval on correct answer', () => {
+      const interval = masteryService.calculateNextInterval(1, true, 3);
+      expect(interval).toBeGreaterThan(1);
+    });
+
+    it('should reset interval on incorrect answer', () => {
+      const interval = masteryService.calculateNextInterval(7, false, 0);
+      expect(interval).toBe(1);
+    });
+
+    it('should factor in consecutive correct count', () => {
+      const lowConsecutive = masteryService.calculateNextInterval(2, true, 1);
+      const highConsecutive = masteryService.calculateNextInterval(2, true, 10);
+
+      expect(highConsecutive).toBeGreaterThan(lowConsecutive);
+    });
+
+    it('should cap maximum interval', () => {
+      const interval = masteryService.calculateNextInterval(100, true, 50);
+      expect(interval).toBeLessThanOrEqual(180); // 6 months max
+    });
+  });
+
+  // ==================== Mastery Level Tests ====================
+
+  describe('calculateMasteryLevel', () => {
+    it('should return level 1 for new words', () => {
+      const level = masteryService.calculateMasteryLevel(0, 0);
+      expect(level).toBe(1);
+    });
+
+    it('should increase level with consecutive correct', () => {
+      const level = masteryService.calculateMasteryLevel(5, 10);
+      expect(level).toBeGreaterThan(1);
+    });
+
+    it('should cap at level 5', () => {
+      const level = masteryService.calculateMasteryLevel(100, 200);
+      expect(level).toBeLessThanOrEqual(5);
+    });
+  });
+
+  // ==================== Batch Operations Tests ====================
+
+  describe('batch operations', () => {
+    it('should get mastery for multiple words', async () => {
+      const mockStates = [
+        { wordId: 'word-1', masteryLevel: 3 },
+        { wordId: 'word-2', masteryLevel: 5 }
       ];
 
-      mockTracker.batchRecordReview.mockResolvedValue(undefined);
+      mockPrisma.wordLearningState.findMany.mockResolvedValue(mockStates);
 
-      await service.batchRecordReview(userId, events);
-
-      expect(mockTracker.batchRecordReview).toHaveBeenCalledWith(userId, events);
-    });
-
-    it('应该跳过空事件列表', async () => {
-      mockTracker.batchRecordReview.mockClear();
-
-      await service.batchRecordReview('user-123', []);
-
-      expect(mockTracker.batchRecordReview).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getMemoryTrace', () => {
-    it('应该返回单词复习轨迹', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-      const now = Date.now();
-
-      mockPrisma.wordReviewTrace.findMany.mockResolvedValue([
-        { id: 'trace-1', timestamp: new Date(now - 1000), isCorrect: true, responseTime: 1500 },
-        { id: 'trace-2', timestamp: new Date(now - 60000), isCorrect: false, responseTime: 2500 }
-      ]);
-
-      const traces = await service.getMemoryTrace(userId, wordId);
-
-      expect(traces).toHaveLength(2);
-      expect(traces[0].isCorrect).toBe(true);
-      expect(traces[1].isCorrect).toBe(false);
-    });
-
-    it('应该限制返回数量', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-
-      mockPrisma.wordReviewTrace.findMany.mockResolvedValue([]);
-
-      await service.getMemoryTrace(userId, wordId, 10);
-
-      expect(mockPrisma.wordReviewTrace.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10 })
-      );
-    });
-
-    it('应该限制最大返回数量为100', async () => {
-      mockPrisma.wordReviewTrace.findMany.mockResolvedValue([]);
-
-      await service.getMemoryTrace('user-123', 'word-123', 200);
-
-      expect(mockPrisma.wordReviewTrace.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 })
-      );
-    });
-  });
-
-  describe('getWordMemoryState', () => {
-    it('应该返回单词记忆状态', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-
-      const mockState = {
-        wordId,
-        lastReview: Date.now(),
-        reviewCount: 5,
-        strength: 0.8
-      };
-
-      mockTracker.batchGetMemoryState.mockResolvedValue(
-        new Map([[wordId, mockState]])
+      const result = await masteryService.getMasteryBatch(
+        'user-1',
+        ['word-1', 'word-2', 'word-3']
       );
 
-      const state = await service.getWordMemoryState(userId, wordId);
-
-      expect(state).toEqual(mockState);
-    });
-
-    it('应该返回null当状态不存在', async () => {
-      mockTracker.batchGetMemoryState.mockResolvedValue(new Map());
-
-      const state = await service.getWordMemoryState('user-123', 'non-existent');
-
-      expect(state).toBeNull();
-    });
-  });
-
-  describe('predictInterval', () => {
-    it('应该预测最佳复习间隔', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-123';
-
-      const mockTrace = [
-        { timestamp: Date.now() - 86400000, isCorrect: true, responseTime: 1500 }
-      ];
-      mockTracker.getReviewTrace.mockResolvedValue(mockTrace);
-
-      const mockPrediction = {
-        optimalInterval: 172800, // 2 days in seconds
-        confidence: 0.85,
-        predictedRecall: 0.9
-      };
-      mockActrModel.predictOptimalInterval.mockReturnValue(mockPrediction);
-
-      const prediction = await service.predictInterval(userId, wordId);
-
-      expect(prediction.optimalInterval).toBe(172800);
-      expect(prediction.confidence).toBe(0.85);
-    });
-
-    it('应该使用指定的目标提取概率', async () => {
-      const targetRecall = 0.85;
-
-      mockTracker.getReviewTrace.mockResolvedValue([]);
-      mockActrModel.predictOptimalInterval.mockReturnValue({});
-
-      await service.predictInterval('user-123', 'word-123', targetRecall);
-
-      expect(mockActrModel.predictOptimalInterval).toHaveBeenCalledWith(
-        expect.anything(),
-        targetRecall
-      );
-    });
-  });
-
-  describe('updateEvaluatorConfig', () => {
-    it('应该更新评估器配置', () => {
-      const newConfig = { masteryThreshold: 0.9 };
-
-      service.updateEvaluatorConfig(newConfig);
-
-      expect(mockEvaluator.updateConfig).toHaveBeenCalledWith(newConfig);
-    });
-  });
-
-  describe('getEvaluatorConfig', () => {
-    it('应该返回当前评估器配置', () => {
-      const mockConfig = {
-        masteryThreshold: 0.85,
-        weights: { accuracy: 0.4, recall: 0.4, stability: 0.2 }
-      };
-      mockEvaluator.getConfig.mockReturnValue(mockConfig);
-
-      const config = service.getEvaluatorConfig();
-
-      expect(config).toEqual(mockConfig);
+      expect(result.size).toBe(2);
+      expect(result.get('word-1')?.masteryLevel).toBe(3);
     });
   });
 });

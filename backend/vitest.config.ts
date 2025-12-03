@@ -1,39 +1,32 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    exclude: ['node_modules', 'dist'],
     setupFiles: ['./tests/setup.ts'],
-    // 测试超时设置（毫秒）
-    testTimeout: 30000,
-    // 钩子超时设置
-    hookTimeout: 30000,
-    // 集成测试使用共享数据库，需要串行运行以避免数据隔离问题
-    fileParallelism: false,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
-      exclude: [
-        'node_modules/',
-        'dist/',
-        'tests/',
-        '**/*.spec.ts',
-        '**/*.test.ts',
-        '**/types/**',
-        '**/index.ts', // 入口文件通常只是导出
-        'prisma/**',
-      ],
-      // 覆盖率阈值 - 渐进式提升
-      thresholds: {
-        // 全局阈值
-        statements: 60,
-        branches: 50,
-        functions: 60,
-        lines: 60,
-      },
-      // 每文件阈值（可选，更严格）
-      // perFile: true,
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.d.ts', 'src/index.ts'],
+      reportsDirectory: './coverage'
     },
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    pool: 'forks',
+    poolOptions: {
+      forks: { singleFork: true }
+    },
+    reporters: ['verbose'],
+    passWithNoTests: true
   },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  }
 });

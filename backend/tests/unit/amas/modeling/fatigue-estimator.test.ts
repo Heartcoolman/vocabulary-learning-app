@@ -1,340 +1,332 @@
 /**
- * Fatigue Estimator Unit Tests
- * 测试疲劳度估算模型
+ * FatigueEstimator Unit Tests
+ *
+ * Tests for the fatigue estimation model that tracks user tiredness
+ * using exponential decay and capacity-based accumulation.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { FatigueEstimator, FatigueFeatures } from '../../../../src/amas/modeling/fatigue-estimator';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  FatigueEstimator,
+  FatigueFeatures
+} from '../../../../src/amas/modeling/fatigue-estimator';
 
 describe('FatigueEstimator', () => {
   let estimator: FatigueEstimator;
 
-  const normalFeatures: FatigueFeatures = {
-    error_rate_trend: 0,
-    rt_increase_rate: 0,
-    repeat_errors: 0
-  };
-
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-15T10:00:00Z'));
     estimator = new FatigueEstimator();
   });
 
-  describe('Initialization', () => {
-    it('should initialize with low fatigue', () => {
-      // 初次更新应该返回较低的疲劳值
-      const fatigue = estimator.update(normalFeatures);
-      expect(fatigue).toBeLessThan(0.3);
-      expect(fatigue).toBeGreaterThanOrEqual(0);
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // ==================== Initialization Tests ====================
+
+  describe('initialization', () => {
+    it('should initialize with default fatigue value of 0.1', () => {
+      expect(estimator.get()).toBe(0.1);
     });
 
-    it('should produce stable results for normal features', () => {
-      const fatigue1 = estimator.update(normalFeatures);
-      const fatigue2 = estimator.update(normalFeatures);
-      // 正常输入应该保持疲劳度稳定
-      expect(Math.abs(fatigue2 - fatigue1)).toBeLessThan(0.1);
+    it('should accept custom initial fatigue value', () => {
+      const custom = new FatigueEstimator(undefined, 0.5);
+      expect(custom.get()).toBe(0.5);
+    });
+
+    it('should clamp initial fatigue to [0.05, 1.0] range', () => {
+      const low = new FatigueEstimator(undefined, 0);
+      expect(low.get()).toBe(0.05);
+
+      const high = new FatigueEstimator(undefined, 1.5);
+      expect(high.get()).toBe(1.0);
     });
   });
 
-  describe('Fatigue Accumulation', () => {
-    it('should increase fatigue with rising error rate', () => {
-      const initialFatigue = estimator.update(normalFeatures);
+  // ==================== Update Tests ====================
 
-      const badFeatures: FatigueFeatures = {
-        error_rate_trend: 0.5,  // 显著的错误率上升
-        rt_increase_rate: 0.3,  // 配合响应时间增加
-        repeat_errors: 1
+  describe('update', () => {
+    it('should increase fatigue with high error rate trend', () => {
+      const initial = estimator.get();
+      const features: FatigueFeatures = {
+        error_rate_trend: 0.5,
+        rt_increase_rate: 0,
+        repeat_errors: 0,
+        breakMinutes: 0
       };
 
-      const newFatigue = estimator.update(badFeatures);
-      expect(newFatigue).toBeGreaterThan(initialFatigue);
+      const result = estimator.update(features);
+      expect(result).toBeGreaterThan(initial);
     });
 
     it('should increase fatigue with response time increase', () => {
-      const initialFatigue = estimator.update(normalFeatures);
-
-      const slowFeatures: FatigueFeatures = {
-        error_rate_trend: 0.2,
-        rt_increase_rate: 0.5,  // 显著的响应时间增加
-        repeat_errors: 1
+      const initial = estimator.get();
+      const features: FatigueFeatures = {
+        error_rate_trend: 0,
+        rt_increase_rate: 0.5,
+        repeat_errors: 0,
+        breakMinutes: 0
       };
 
-      const newFatigue = estimator.update(slowFeatures);
-      expect(newFatigue).toBeGreaterThan(initialFatigue);
+      const result = estimator.update(features);
+      expect(result).toBeGreaterThan(initial);
     });
 
-    it('should increase fatigue with repeated errors', () => {
-      const initialFatigue = estimator.update(normalFeatures);
-
-      const repeatFeatures: FatigueFeatures = {
+    it('should increase fatigue with repeat errors', () => {
+      const initial = estimator.get();
+      const features: FatigueFeatures = {
         error_rate_trend: 0,
         rt_increase_rate: 0,
-        repeat_errors: 3  // 重复错误
+        repeat_errors: 3,
+        breakMinutes: 0
       };
 
-      const newFatigue = estimator.update(repeatFeatures);
-      expect(newFatigue).toBeGreaterThan(initialFatigue);
+      const result = estimator.update(features);
+      expect(result).toBeGreaterThan(initial);
     });
 
-    it('should accumulate fatigue over multiple updates', () => {
-      const fatigues: number[] = [];
-      let currentTime = Date.now();
+    it('should decay fatigue with break time', () => {
+      // First accumulate some fatigue
+      estimator.update({
+        error_rate_trend: 0.8,
+        rt_increase_rate: 0.5,
+        repeat_errors: 5,
+        breakMinutes: 0
+      });
 
-      const badFeatures: FatigueFeatures = {
-        error_rate_trend: 0.4,
-        rt_increase_rate: 0.4,
-        repeat_errors: 2,
-        currentTime: currentTime,
-        breakMinutes: 0  // 无休息
-      };
+      const fatigued = estimator.get();
 
+      // Now take a break
+      const afterBreak = estimator.update({
+        error_rate_trend: 0,
+        rt_increase_rate: 0,
+        repeat_errors: 0,
+        breakMinutes: 10
+      });
+
+      expect(afterBreak).toBeLessThan(fatigued);
+    });
+
+    it('should reset fatigue to 0.1 after long break', () => {
+      // Accumulate fatigue
       for (let i = 0; i < 10; i++) {
-        // 每次小幅推进时间以避免衰减
-        currentTime += 10000; // 10秒
-        fatigues.push(estimator.update({...badFeatures, currentTime}));
+        estimator.update({
+          error_rate_trend: 0.5,
+          rt_increase_rate: 0.3,
+          repeat_errors: 2,
+          breakMinutes: 0
+        });
       }
 
-      // 疲劳度应该累积到高水平，触发休息建议阈值（HIGH_FATIGUE = 0.6）
-      // 使用剩余容量折扣后，连续极端负面学习会逐渐接近上限
-      expect(fatigues[9]).toBeGreaterThan(0.6); // 确保超过休息建议阈值
-      expect(fatigues[9]).toBeLessThanOrEqual(1.0); // 确保不超过理论上限
-    });
-  });
-
-  describe('Fatigue Decay', () => {
-    it('should decay fatigue during breaks', () => {
-      // 先累积疲劳
-      const tiredFeatures: FatigueFeatures = {
-        error_rate_trend: 0.2,
-        rt_increase_rate: 0.3,
-        repeat_errors: 2
-      };
-
-      for (let i = 0; i < 5; i++) {
-        estimator.update(tiredFeatures);
-      }
-
-      const fatigueBefore = estimator.update(normalFeatures);
-
-      // 模拟休息（通过时间流逝）
-      // 这里我们可以通过连续输入好的数据来模拟恢复
-      const recoveringFeatures: FatigueFeatures = {
-        error_rate_trend: -0.1,  // 错误率下降
-        rt_increase_rate: -0.1,  // 响应时间改善
-        repeat_errors: 0
-      };
-
-      let fatigueAfter = fatigueBefore;
-      for (let i = 0; i < 10; i++) {
-        fatigueAfter = estimator.update(recoveringFeatures);
-      }
-
-      // 疲劳度应该有所恢复
-      expect(fatigueAfter).toBeLessThanOrEqual(fatigueBefore);
-    });
-
-    it('should reset fatigue after long break', () => {
-      // 累积疲劳
-      const tiredFeatures: FatigueFeatures = {
-        error_rate_trend: 0.3,
-        rt_increase_rate: 0.3,
-        repeat_errors: 3
-      };
-
-      for (let i = 0; i < 5; i++) {
-        estimator.update(tiredFeatures);
-      }
-      const fatigueBefore = estimator.update(tiredFeatures);
-
-      // 重置（模拟长时间休息）
-      estimator.reset();
-
-      // 重置后疲劳度应该大幅降低
-      const fatigueAfter = estimator.update(normalFeatures);
-      expect(fatigueAfter).toBeLessThan(fatigueBefore);
-      expect(fatigueAfter).toBeLessThan(0.2);
-    });
-  });
-
-  describe('Value Constraints', () => {
-    it('should always return value in [0, 1]', () => {
-      const extremeFeatures: FatigueFeatures = {
-        error_rate_trend: 1.0,
-        rt_increase_rate: 1.0,
-        repeat_errors: 10
-      };
-
-      const fatigue = estimator.update(extremeFeatures);
-      expect(fatigue).toBeGreaterThanOrEqual(0);
-      expect(fatigue).toBeLessThanOrEqual(1);
-    });
-
-    it('should not produce NaN values', () => {
-      const fatigue = estimator.update(normalFeatures);
-      expect(isNaN(fatigue)).toBe(false);
-    });
-
-    it('should handle negative trends correctly', () => {
-      const improvingFeatures: FatigueFeatures = {
-        error_rate_trend: -0.2,  // 错误率下降
-        rt_increase_rate: -0.1,  // 响应时间缩短
-        repeat_errors: 0
-      };
-
-      const fatigue = estimator.update(improvingFeatures);
-      expect(fatigue).toBeGreaterThanOrEqual(0);
-      expect(fatigue).toBeLessThanOrEqual(1);
-    });
-  });
-
-  describe('Non-linear Accumulation', () => {
-    it('should show accelerated fatigue at higher levels', () => {
-      const fatigues: number[] = [];
-
-      const badFeatures: FatigueFeatures = {
-        error_rate_trend: 0.15,
-        rt_increase_rate: 0.15,
-        repeat_errors: 1
-      };
-
-      for (let i = 0; i < 20; i++) {
-        fatigues.push(estimator.update(badFeatures));
-      }
-
-      // 计算增量
-      const earlyIncrease = fatigues[5] - fatigues[0];
-      const lateIncrease = fatigues[19] - fatigues[14];
-
-      // 早期增长应该比后期慢（因为接近上限）
-      // 注意：这取决于具体的非线性函数
-    });
-  });
-
-  describe('Feature Weights', () => {
-    it('should weight different features appropriately', () => {
-      estimator.reset();
-      const f1 = estimator.update({
-        error_rate_trend: 0.3,
-        rt_increase_rate: 0,
-        repeat_errors: 0
-      });
-
-      estimator.reset();
-      const f2 = estimator.update({
-        error_rate_trend: 0,
-        rt_increase_rate: 0.3,
-        repeat_errors: 0
-      });
-
-      estimator.reset();
-      const f3 = estimator.update({
+      // Long break (default threshold is 120 minutes)
+      const afterLongBreak = estimator.update({
         error_rate_trend: 0,
         rt_increase_rate: 0,
-        repeat_errors: 1
+        repeat_errors: 0,
+        breakMinutes: 150
       });
 
-      // 所有特征都应该对疲劳度有贡献
-      expect(f1).toBeGreaterThan(0);
-      expect(f2).toBeGreaterThan(0);
-      expect(f3).toBeGreaterThan(0);
+      expect(afterLongBreak).toBe(0.1);
     });
-  });
 
-  describe('Sequential Patterns', () => {
-    it('should handle alternating good and bad performance', () => {
-      const fatigues: number[] = [];
+    it('should apply capacity-based discount at high fatigue', () => {
+      // Get to high fatigue first
+      const highFatigueEstimator = new FatigueEstimator(undefined, 0.8);
 
-      const goodFeatures: FatigueFeatures = {
-        error_rate_trend: -0.1,
-        rt_increase_rate: -0.1,
-        repeat_errors: 0
-      };
-
-      const badFeatures: FatigueFeatures = {
-        error_rate_trend: 0.2,
+      const increase1 = highFatigueEstimator.update({
+        error_rate_trend: 0.3,
         rt_increase_rate: 0.2,
-        repeat_errors: 1
-      };
+        repeat_errors: 1,
+        breakMinutes: 0
+      });
 
-      for (let i = 0; i < 10; i++) {
-        if (i % 2 === 0) {
-          fatigues.push(estimator.update(badFeatures));
-        } else {
-          fatigues.push(estimator.update(goodFeatures));
-        }
-      }
+      // At high fatigue, new fatigue should be harder to accumulate
+      const lowFatigueEstimator = new FatigueEstimator(undefined, 0.2);
+      const increase2 = lowFatigueEstimator.update({
+        error_rate_trend: 0.3,
+        rt_increase_rate: 0.2,
+        repeat_errors: 1,
+        breakMinutes: 0
+      });
 
-      // 交替好坏表现，疲劳度会累积但受好表现抑制
-      // 使用剩余容量折扣后，疲劳度会趋于某个平衡值
-      expect(fatigues[9]).toBeGreaterThan(0.3); // 确保有累积效果
-      expect(fatigues[9]).toBeLessThan(0.95); // 不会达到极端高值
+      // Low fatigue should increase more in absolute terms
+      const lowDelta = increase2 - 0.2;
+      const highDelta = increase1 - 0.8;
+
+      expect(lowDelta).toBeGreaterThan(highDelta);
     });
 
-    it('should show recovery trend after sustained good performance', () => {
-      // 先累积疲劳
-      const badFeatures: FatigueFeatures = {
-        error_rate_trend: 0.3,
-        rt_increase_rate: 0.3,
-        repeat_errors: 2
-      };
-
-      for (let i = 0; i < 5; i++) {
-        estimator.update(badFeatures);
+    it('should keep fatigue in [0.05, 1.0] range', () => {
+      // Extreme fatigue accumulation
+      for (let i = 0; i < 100; i++) {
+        estimator.update({
+          error_rate_trend: 1.0,
+          rt_increase_rate: 1.0,
+          repeat_errors: 10,
+          breakMinutes: 0
+        });
       }
 
-      const fatigueAtPeak = estimator.update(normalFeatures);
-
-      // 持续良好表现
-      const goodFeatures: FatigueFeatures = {
-        error_rate_trend: -0.1,
-        rt_increase_rate: -0.1,
-        repeat_errors: 0
-      };
-
-      const recoveryPath: number[] = [fatigueAtPeak];
-      for (let i = 0; i < 10; i++) {
-        recoveryPath.push(estimator.update(goodFeatures));
-      }
-
-      // 应该显示恢复趋势
-      const lastThree = recoveryPath.slice(-3);
-      const avgLast = lastThree.reduce((a, b) => a + b) / lastThree.length;
-      expect(avgLast).toBeLessThanOrEqual(fatigueAtPeak);
+      expect(estimator.get()).toBeLessThanOrEqual(1.0);
+      expect(estimator.get()).toBeGreaterThanOrEqual(0.05);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle zero features', () => {
-      const zeroFeatures: FatigueFeatures = {
-        error_rate_trend: 0,
+  // ==================== updateFromEvent Tests ====================
+
+  describe('updateFromEvent', () => {
+    it('should increase fatigue on incorrect answer', () => {
+      const initial = estimator.get();
+      estimator.updateFromEvent(false, 3000, 3000, false);
+      expect(estimator.get()).toBeGreaterThan(initial);
+    });
+
+    it('should increase fatigue on slow response', () => {
+      const initial = estimator.get();
+      estimator.updateFromEvent(true, 6000, 3000, false);
+      expect(estimator.get()).toBeGreaterThan(initial);
+    });
+
+    it('should increase fatigue more on repeat error', () => {
+      const estimator1 = new FatigueEstimator();
+      const estimator2 = new FatigueEstimator();
+
+      estimator1.updateFromEvent(false, 3000, 3000, false);
+      estimator2.updateFromEvent(false, 3000, 3000, true);
+
+      expect(estimator2.get()).toBeGreaterThan(estimator1.get());
+    });
+
+    it('should cap response time increase rate at 1.0', () => {
+      // Extremely slow response (10x baseline)
+      estimator.updateFromEvent(true, 32000, 3200, false);
+
+      // Should still be reasonable
+      expect(estimator.get()).toBeLessThan(0.5);
+    });
+  });
+
+  // ==================== Break Detection Tests ====================
+
+  describe('break detection', () => {
+    it('should indicate need for break when fatigue > 0.6', () => {
+      const highFatigue = new FatigueEstimator(undefined, 0.65);
+      expect(highFatigue.needsBreak()).toBe(true);
+
+      const lowFatigue = new FatigueEstimator(undefined, 0.5);
+      expect(lowFatigue.needsBreak()).toBe(false);
+    });
+
+    it('should indicate need for forced break when fatigue > 0.8', () => {
+      const veryHighFatigue = new FatigueEstimator(undefined, 0.85);
+      expect(veryHighFatigue.needsForcedBreak()).toBe(true);
+
+      const moderateFatigue = new FatigueEstimator(undefined, 0.75);
+      expect(moderateFatigue.needsForcedBreak()).toBe(false);
+    });
+  });
+
+  // ==================== Recovery Prediction Tests ====================
+
+  describe('recovery prediction', () => {
+    it('should predict lower fatigue after break', () => {
+      const estimator = new FatigueEstimator(undefined, 0.6);
+      const predicted = estimator.predictFatigueAfterBreak(30);
+
+      expect(predicted).toBeLessThan(0.6);
+    });
+
+    it('should compute required break time for target fatigue', () => {
+      const estimator = new FatigueEstimator(undefined, 0.7);
+      const breakTime = estimator.computeRequiredBreakTime(0.3);
+
+      expect(breakTime).toBeGreaterThan(0);
+    });
+  });
+
+  // ==================== State Management Tests ====================
+
+  describe('state management', () => {
+    it('should reset to default value', () => {
+      estimator.update({
+        error_rate_trend: 0.5,
+        rt_increase_rate: 0.3,
+        repeat_errors: 2,
+        breakMinutes: 0
+      });
+
+      estimator.reset();
+      expect(estimator.get()).toBe(0.1);
+    });
+
+    it('should reset to custom value', () => {
+      estimator.reset(0.5);
+      expect(estimator.get()).toBe(0.5);
+    });
+
+    it('should persist and restore state correctly', () => {
+      estimator.update({
+        error_rate_trend: 0.4,
+        rt_increase_rate: 0.2,
+        repeat_errors: 1,
+        breakMinutes: 0
+      });
+
+      const state = estimator.getState();
+      expect(state).toHaveProperty('F');
+      expect(state).toHaveProperty('lastUpdateTime');
+
+      const newEstimator = new FatigueEstimator();
+      newEstimator.setState(state);
+
+      expect(newEstimator.get()).toBe(estimator.get());
+    });
+  });
+
+  // ==================== Parameter Configuration Tests ====================
+
+  describe('parameter configuration', () => {
+    it('should allow setting custom parameters', () => {
+      estimator.setParams({
+        beta: 0.5,
+        gamma: 0.3,
+        delta: 0.2,
+        k: 0.01
+      });
+
+      // Should work without error
+      const result = estimator.update({
+        error_rate_trend: 0.3,
+        rt_increase_rate: 0.2,
+        repeat_errors: 1,
+        breakMinutes: 0
+      });
+
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should allow partial parameter updates', () => {
+      estimator.setParams({ beta: 0.8 });
+
+      const result = estimator.update({
+        error_rate_trend: 0.5,
         rt_increase_rate: 0,
-        repeat_errors: 0
-      };
+        repeat_errors: 0,
+        breakMinutes: 0
+      });
 
-      expect(() => {
-        estimator.update(zeroFeatures);
-      }).not.toThrow();
+      expect(result).toBeGreaterThan(0.1);
     });
+  });
 
-    it('should handle extreme positive values', () => {
-      const extremeFeatures: FatigueFeatures = {
-        error_rate_trend: 10.0,
-        rt_increase_rate: 10.0,
-        repeat_errors: 100
-      };
+  // ==================== Session Management Tests ====================
 
-      const fatigue = estimator.update(extremeFeatures);
-      expect(fatigue).toBeLessThanOrEqual(1.0);
-    });
-
-    it('should handle extreme negative values', () => {
-      const extremeFeatures: FatigueFeatures = {
-        error_rate_trend: -10.0,
-        rt_increase_rate: -10.0,
-        repeat_errors: 0
-      };
-
-      const fatigue = estimator.update(extremeFeatures);
-      expect(fatigue).toBeGreaterThanOrEqual(0);
+  describe('session management', () => {
+    it('should mark session end for recovery model', () => {
+      // Should not throw
+      expect(() => estimator.markSessionEnd()).not.toThrow();
     });
   });
 });

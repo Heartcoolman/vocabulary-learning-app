@@ -265,12 +265,25 @@ export interface AdminUsersResponse {
 
 /**
  * 用户学习数据（管理员）
+ * 与后端 admin.service.ts getUserLearningData 返回结构匹配
  */
 export interface UserLearningData {
-  user: User;
-  statistics: Statistics;
-  recentRecords: AnswerRecord[];
-  wordBooks: WordBook[];
+  user: {
+    id: string;
+    email: string;
+    username: string;
+  };
+  totalRecords: number;
+  correctRecords: number;
+  averageAccuracy: number;
+  totalWordsLearned: number;
+  recentRecords: Array<AnswerRecord & {
+    word: {
+      spelling: string;
+      phonetic: string;
+      meanings: string[];
+    };
+  }>;
 }
 
 /**

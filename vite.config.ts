@@ -35,12 +35,4 @@ export default defineConfig({
       '@phosphor-icons/react',
     ],
   },
-
-  // @ts-ignore - vitest 配置在 Vite 5.x 中需要特殊类型
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-    testTimeout: 30000,
-  },
 })
