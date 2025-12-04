@@ -128,7 +128,7 @@ export default function HistoryPage() {
 
         const [historyData, growthData, changesData] = await Promise.all([
           ApiClient.getStateHistory(dateRange),
-          ApiClient.getCognitiveGrowth(),
+          ApiClient.getCognitiveGrowth(dateRange),
           ApiClient.getSignificantChanges(dateRange)
         ]);
 
@@ -208,7 +208,7 @@ export default function HistoryPage() {
     };
   };
 
-  // 渲染状态历史折线图
+  // 渲染状态历史折线图 - 当数据>=3天时显示迷你折线图
   const renderStateChart = (
     data: StateHistoryPoint[],
     metric: keyof Omit<StateHistoryPoint, 'date' | 'trendState'>,
@@ -217,44 +217,110 @@ export default function HistoryPage() {
   ) => {
     if (!data || data.length === 0) return null;
 
-    const width = 100;
-    const height = 60;
-    const padding = 5;
-    const chartWidth = width - padding * 2;
-    const chartHeight = height - padding * 2;
-
     const values = data.map(d => d[metric] as number);
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-    const range = maxValue - minValue || 1;
+    const currentValue = values[values.length - 1];
+    const previousValue = values.length > 1 ? values[0] : currentValue;
+    const change = currentValue - previousValue;
 
-    // 处理单条数据的边界情况，避免除零异常
-    const points = data.map((d, i) => {
-      const x = data.length === 1
-        ? padding + chartWidth / 2  // 单点居中
-        : padding + (i / (data.length - 1)) * chartWidth;
-      const y = padding + chartHeight - ((d[metric] as number - minValue) / range) * chartHeight;
-      return `${x},${y}`;
-    }).join(' ');
+    // 疲劳度特殊处理：下降是好事
+    const isPositiveMetric = metric !== 'fatigue';
+    const isPositiveChange = isPositiveMetric ? change >= 0 : change <= 0;
+    const hasChange = values.length > 1 && Math.abs(change) > 0.001;
+
+    // 转换为百分比显示
+    const displayValue = (currentValue * 100).toFixed(0);
+
+    // 生成迷你折线图路径（仅当数据>=3天时）
+    const showMiniChart = values.length >= 3;
+    let miniChartPath = '';
+    if (showMiniChart) {
+      const minVal = Math.min(...values);
+      const maxVal = Math.max(...values);
+      const range = maxVal - minVal || 0.01; // 避免除以0
+      const chartWidth = 100;
+      const chartHeight = 24;
+      const padding = 2;
+
+      const points = values.map((v, i) => {
+        const x = padding + (i / (values.length - 1)) * (chartWidth - padding * 2);
+        const y = chartHeight - padding - ((v - minVal) / range) * (chartHeight - padding * 2);
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
+      });
+      miniChartPath = points.join(' ');
+    }
 
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">{label}</span>
-          <span className="text-sm text-gray-500">
-            {(values[values.length - 1] * 100).toFixed(0)}%
-          </span>
+      <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all">
+        {/* 标题和趋势箭头 */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-gray-500">{label}</span>
+          {hasChange && (
+            <span className={`text-sm font-semibold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}>
+              {change > 0 ? '↗' : '↘'}
+            </span>
+          )}
         </div>
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16">
-          <polyline
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={points}
+
+        {/* 主数值 - 大号显示 */}
+        <div className="text-center mb-3">
+          <span className="text-4xl font-bold" style={{ color }}>
+            {displayValue}
+          </span>
+          <span className="text-lg text-gray-400 ml-1">%</span>
+        </div>
+
+        {/* 迷你折线图（仅当数据>=3天时显示） */}
+        {showMiniChart && (
+          <div className="mb-3">
+            <svg
+              viewBox="-2 -2 104 28"
+              className="w-full h-6 overflow-visible"
+              preserveAspectRatio="none"
+            >
+              <path
+                d={miniChartPath}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.8"
+              />
+              {/* 起点和终点圆点 */}
+              {values.length > 0 && (() => {
+                const minVal = Math.min(...values);
+                const maxVal = Math.max(...values);
+                const range = maxVal - minVal || 0.01;
+                const chartWidth = 100;
+                const chartHeight = 24;
+                const padding = 2;
+
+                const startX = padding;
+                const startY = chartHeight - padding - ((values[0] - minVal) / range) * (chartHeight - padding * 2);
+                const endX = chartWidth - padding;
+                const endY = chartHeight - padding - ((values[values.length - 1] - minVal) / range) * (chartHeight - padding * 2);
+
+                return (
+                  <>
+                    <circle cx={startX} cy={startY} r="3" fill={color} opacity="0.5" />
+                    <circle cx={endX} cy={endY} r="3" fill={color} />
+                  </>
+                );
+              })()}
+            </svg>
+          </div>
+        )}
+
+        {/* 简洁的进度条 */}
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: `${Math.min(100, currentValue * 100)}%`,
+              backgroundColor: color
+            }}
           />
-        </svg>
+        </div>
       </div>
     );
   };
@@ -497,25 +563,22 @@ export default function HistoryPage() {
                 {/* 状态历史折线图 */}
                 {stateHistory.length > 0 && (
                   <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 mb-6 shadow-sm">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <ChartLine size={24} weight="duotone" color="#3b82f6" />
-                      状态历史趋势
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <ChartLine size={24} weight="duotone" color="#3b82f6" />
+                        状态历史趋势
+                      </h2>
+                      <span className="text-sm text-gray-400">
+                        {formatShortDate(stateHistory[0].date)} - {formatShortDate(stateHistory[stateHistory.length - 1].date)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                       {renderStateChart(stateHistory, 'attention', '#3b82f6', '注意力')}
                       {renderStateChart(stateHistory, 'motivation', '#22c55e', '动机')}
                       {renderStateChart(stateHistory, 'memory', '#a855f7', '记忆力')}
                       {renderStateChart(stateHistory, 'speed', '#f59e0b', '速度')}
                       {renderStateChart(stateHistory, 'stability', '#06b6d4', '稳定性')}
                       {renderStateChart(stateHistory, 'fatigue', '#ef4444', '疲劳度')}
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500 mt-4 pt-4 border-t border-gray-200">
-                      {stateHistory.length > 0 && (
-                        <>
-                          <span>{formatShortDate(stateHistory[0].date)}</span>
-                          <span>{formatShortDate(stateHistory[stateHistory.length - 1].date)}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                 )}

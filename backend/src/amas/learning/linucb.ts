@@ -506,15 +506,21 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
   /**
    * 计算UCB统计量（新方法，返回详细信息）
+   * 使用 Float64 进行高精度计算，提高数值稳定性
    */
   private computeUCBStats(x: Float32Array): {
     score: number;
     confidence: number;
     exploitation: number;
   } {
-    const theta = this.solveLinearSystem(this.model.L, this.model.b, this.model.d);
-    const exploitation = this.dotProduct(theta, x);
-    const confidence = this.computeConfidence(this.model.L, x);
+    // 转换为 Float64 进行高精度计算
+    const L64 = Float64Array.from(this.model.L);
+    const b64 = Float64Array.from(this.model.b);
+    const x64 = Float64Array.from(x);
+
+    const theta = this.solveLinearSystemHighPrecision(L64, b64, this.model.d);
+    const exploitation = this.dotProductHighPrecision(theta, x64);
+    const confidence = this.computeConfidenceHighPrecision(L64, x64);
     const score = exploitation + this.model.alpha * confidence;
 
     return { score, confidence, exploitation };
@@ -596,6 +602,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    * 修复问题#4: 不再原地修改输入矩阵A，而是先复制再处理
    *
    * 增强版：添加对称化处理和 SPD 失败回退，与math-utils实现对齐
+   * 优化：内部使用 Float64 进行高精度计算，最终转回 Float32 存储
    *
    * @param A 输入矩阵
    * @param d 维度
@@ -605,8 +612,8 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     // 使用传入的lambda或模型的lambda
     const effectiveLambda = Math.max(lambda ?? this.model.lambda, MIN_LAMBDA);
 
-    // 修复#4: 复制矩阵，避免原地修改输入
-    const matrix = new Float32Array(A);
+    // 使用 Float64 进行高精度计算
+    const matrix = Float64Array.from(A);
 
     // 对称化处理：确保 matrix 是对称矩阵
     for (let i = 0; i < d; i++) {
@@ -617,14 +624,14 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       }
     }
 
-    const L = new Float32Array(d * d);
+    const L64 = new Float64Array(d * d);
     const EPSILON = 1e-10;
 
     for (let i = 0; i < d; i++) {
       for (let j = 0; j <= i; j++) {
         let sum = matrix[i * d + j];
         for (let k = 0; k < j; k++) {
-          sum -= L[i * d + k] * L[j * d + k];
+          sum -= L64[i * d + k] * L64[j * d + k];
         }
 
         if (i === j) {
@@ -632,25 +639,26 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
           if (sum <= EPSILON || !Number.isFinite(sum)) {
             sum = effectiveLambda + EPSILON;
           }
-          L[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_COVARIANCE));
+          L64[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_COVARIANCE));
         } else {
           // 非对角元素 - 使用与math-utils一致的分母下界
-          const denom = Math.max(L[j * d + j], Math.sqrt(effectiveLambda));
-          L[i * d + j] = sum / denom;
+          const denom = Math.max(L64[j * d + j], Math.sqrt(effectiveLambda));
+          L64[i * d + j] = sum / denom;
         }
       }
     }
 
     // 校验结果有效性 - 添加幅度检查
-    for (let i = 0; i < L.length; i++) {
-      if (!Number.isFinite(L[i]) || Math.abs(L[i]) > Math.sqrt(MAX_COVARIANCE)) {
+    for (let i = 0; i < L64.length; i++) {
+      if (!Number.isFinite(L64[i]) || Math.abs(L64[i]) > Math.sqrt(MAX_COVARIANCE)) {
         // 分解失败，返回正则化单位矩阵
         amasLogger.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
         return this.initIdentityMatrix(d, effectiveLambda);
       }
     }
 
-    return L;
+    // 转换回 Float32 存储
+    return new Float32Array(L64);
   }
 
   /**
@@ -662,6 +670,89 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       sum += a[i] * b[i];
     }
     return sum;
+  }
+
+  /**
+   * 高精度点积（使用 Float64）
+   */
+  private dotProductHighPrecision(a: Float64Array, b: Float64Array): number {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) {
+      sum += a[i] * b[i];
+    }
+    return sum;
+  }
+
+  /**
+   * 高精度置信度计算 sqrt(x^T A^(-1) x)
+   * 使用 Float64 进行中间计算，提高数值稳定性
+   */
+  private computeConfidenceHighPrecision(L: Float64Array, x: Float64Array): number {
+    const d = this.model.d;
+    const y = new Float64Array(d);
+    const minDiag = MIN_RANK1_DIAG;
+
+    // Forward substitution: L y = x
+    for (let i = 0; i < d; i++) {
+      let sum = x[i];
+      for (let j = 0; j < i; j++) {
+        sum -= L[i * d + j] * y[j];
+      }
+      y[i] = sum / Math.max(L[i * d + i], minDiag);
+    }
+
+    // ||y||^2
+    let normSq = 0;
+    for (let i = 0; i < d; i++) {
+      normSq += y[i] * y[i];
+    }
+
+    const result = Math.sqrt(normSq);
+
+    // 校验数值有效性，防止 NaN/Infinity 传播
+    if (!Number.isFinite(result)) {
+      return 0;
+    }
+
+    return result;
+  }
+
+  /**
+   * 高精度线性方程组求解 (通过 Cholesky 分解)
+   * 使用 Float64 进行中间计算，提高数值稳定性
+   */
+  private solveLinearSystemHighPrecision(L: Float64Array, b: Float64Array, d: number): Float64Array {
+    const y = new Float64Array(d);
+    const x = new Float64Array(d);
+    const minDiag = MIN_RANK1_DIAG;
+
+    // Forward substitution: L y = b
+    for (let i = 0; i < d; i++) {
+      let sum = b[i];
+      for (let j = 0; j < i; j++) {
+        sum -= L[i * d + j] * y[j];
+      }
+      y[i] = sum / Math.max(L[i * d + i], minDiag);
+    }
+
+    // Backward substitution: L^T x = y
+    for (let i = d - 1; i >= 0; i--) {
+      let sum = y[i];
+      for (let j = i + 1; j < d; j++) {
+        sum -= L[j * d + i] * x[j];
+      }
+      x[i] = sum / Math.max(L[i * d + i], minDiag);
+    }
+
+    // 校验数值有效性，防止 NaN/Infinity 传播
+    for (let i = 0; i < d; i++) {
+      if (!Number.isFinite(x[i])) {
+        // 返回零向量作为安全回退
+        return new Float64Array(d);
+      }
+    }
+
+    return x;
   }
 
   /**

@@ -1,51 +1,68 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './components/ui';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import SyncIndicator from './components/SyncIndicator';
+
+// 核心页面 - 同步导入（首屏必需）
 import LearningPage from './pages/LearningPage';
-import VocabularyPage from './pages/VocabularyPage';
-import WordBookDetailPage from './pages/WordBookDetailPage';
-import StudySettingsPage from './pages/StudySettingsPage';
-import HistoryPage from './pages/HistoryPage';
-import StatisticsPage from './pages/StatisticsPage';
-import WordListPage from './pages/WordListPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
-import BatchImportPage from './pages/BatchImportPage';
-import WordMasteryPage from './pages/WordMasteryPage';
-import HabitProfilePage from './pages/HabitProfilePage';
-import TodayWordsPage from './pages/TodayWordsPage';
-import StudyProgressPage from './pages/StudyProgressPage';
-import LearningObjectivesPage from './pages/LearningObjectivesPage';
-// AMAS 增强功能页面
-import LearningTimePage from './pages/LearningTimePage';
-import TrendReportPage from './pages/TrendReportPage';
-import AchievementPage from './pages/AchievementPage';
-import BadgeGalleryPage from './pages/BadgeGalleryPage';
-import PlanPage from './pages/PlanPage';
-import LearningProfilePage from './pages/LearningProfilePage';
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagementPage from './pages/admin/UserManagementPage';
-import UserDetailPage from './pages/admin/UserDetailPage';
-import WordDetailPage from './pages/admin/WordDetailPage';
-import AdminWordBooks from './pages/admin/AdminWordBooks';
-import AlgorithmConfigPage from './pages/admin/AlgorithmConfigPage';
-import ConfigHistoryPage from './pages/admin/ConfigHistoryPage';
-import ExperimentDashboard from './pages/admin/ExperimentDashboard';
-import LogViewerPage from './pages/admin/LogViewerPage';
-import LogAlertsPage from './pages/admin/LogAlertsPage';
-import OptimizationDashboard from './pages/admin/OptimizationDashboard';
-import CausalInferencePage from './pages/admin/CausalInferencePage';
-// AMAS 公开展示页面
-import AboutLayout from './pages/about/AboutLayout';
-import AboutHomePage from './pages/about/AboutHomePage';
-import SimulationPage from './pages/about/SimulationPage';
-import DashboardPage from './pages/about/DashboardPage';
-import StatsPage from './pages/about/StatsPage';
+
+// 懒加载 - 其他用户页面
+const VocabularyPage = lazy(() => import('./pages/VocabularyPage'));
+const WordBookDetailPage = lazy(() => import('./pages/WordBookDetailPage'));
+const StudySettingsPage = lazy(() => import('./pages/StudySettingsPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
+const StatisticsPage = lazy(() => import('./pages/StatisticsPage'));
+const WordListPage = lazy(() => import('./pages/WordListPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const BatchImportPage = lazy(() => import('./pages/BatchImportPage'));
+const WordMasteryPage = lazy(() => import('./pages/WordMasteryPage'));
+const HabitProfilePage = lazy(() => import('./pages/HabitProfilePage'));
+const TodayWordsPage = lazy(() => import('./pages/TodayWordsPage'));
+const StudyProgressPage = lazy(() => import('./pages/StudyProgressPage'));
+const LearningObjectivesPage = lazy(() => import('./pages/LearningObjectivesPage'));
+
+// 懒加载 - AMAS 增强功能页面
+const LearningTimePage = lazy(() => import('./pages/LearningTimePage'));
+const TrendReportPage = lazy(() => import('./pages/TrendReportPage'));
+const AchievementPage = lazy(() => import('./pages/AchievementPage'));
+const BadgeGalleryPage = lazy(() => import('./pages/BadgeGalleryPage'));
+const PlanPage = lazy(() => import('./pages/PlanPage'));
+const LearningProfilePage = lazy(() => import('./pages/LearningProfilePage'));
+
+// 懒加载 - 管理员页面
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
+const UserDetailPage = lazy(() => import('./pages/admin/UserDetailPage'));
+const WordDetailPage = lazy(() => import('./pages/admin/WordDetailPage'));
+const AdminWordBooks = lazy(() => import('./pages/admin/AdminWordBooks'));
+const AlgorithmConfigPage = lazy(() => import('./pages/admin/AlgorithmConfigPage'));
+const ConfigHistoryPage = lazy(() => import('./pages/admin/ConfigHistoryPage'));
+const ExperimentDashboard = lazy(() => import('./pages/admin/ExperimentDashboard'));
+const LogViewerPage = lazy(() => import('./pages/admin/LogViewerPage'));
+const LogAlertsPage = lazy(() => import('./pages/admin/LogAlertsPage'));
+const OptimizationDashboard = lazy(() => import('./pages/admin/OptimizationDashboard'));
+const CausalInferencePage = lazy(() => import('./pages/admin/CausalInferencePage'));
+
+// 懒加载 - AMAS 公开展示页面（About）
+const AboutLayout = lazy(() => import('./pages/about/AboutLayout'));
+const AboutHomePage = lazy(() => import('./pages/about/AboutHomePage'));
+const SimulationPage = lazy(() => import('./pages/about/SimulationPage'));
+const DashboardPage = lazy(() => import('./pages/about/DashboardPage'));
+const StatsPage = lazy(() => import('./pages/about/StatsPage'));
+const SystemStatusPage = lazy(() => import('./pages/about/SystemStatusPage'));
+
+// 页面加载组件
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+);
 
 /**
  * AppContent - 应用主内容（需要在AuthProvider内部）
@@ -63,19 +80,44 @@ function AppContent() {
         {!isAboutRoute && <Navigation />}
         <main role="main" className={isAboutRoute ? '' : 'pt-[72px]'}>
           <Routes>
-            {/* 公开路由 */}
+            {/* 公开路由 - 核心页面（同步加载） */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
-            {/* AMAS 公开展示路由（无需登录） */}
-            <Route path="/about" element={<AboutLayout />}>
-              <Route index element={<AboutHomePage />} />
-              <Route path="simulation" element={<SimulationPage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="stats" element={<StatsPage />} />
+            {/* AMAS 公开展示路由（无需登录）- 懒加载 */}
+            <Route path="/about" element={
+              <Suspense fallback={<PageLoader />}>
+                <AboutLayout />
+              </Suspense>
+            }>
+              <Route index element={
+                <Suspense fallback={<PageLoader />}>
+                  <AboutHomePage />
+                </Suspense>
+              } />
+              <Route path="simulation" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SimulationPage />
+                </Suspense>
+              } />
+              <Route path="dashboard" element={
+                <Suspense fallback={<PageLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              } />
+              <Route path="stats" element={
+                <Suspense fallback={<PageLoader />}>
+                  <StatsPage />
+                </Suspense>
+              } />
+              <Route path="system-status" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SystemStatusPage />
+                </Suspense>
+              } />
             </Route>
 
-            {/* 受保护的路由 */}
+            {/* 受保护的路由 - 核心页面（同步加载） */}
             <Route
               path="/"
               element={
@@ -84,11 +126,15 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+
+            {/* 受保护的路由 - 懒加载页面 */}
             <Route
               path="/vocabulary"
               element={
                 <ProtectedRoute>
-                  <VocabularyPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <VocabularyPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -96,7 +142,9 @@ function AppContent() {
               path="/wordbooks/:id"
               element={
                 <ProtectedRoute>
-                  <WordBookDetailPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <WordBookDetailPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -104,7 +152,9 @@ function AppContent() {
               path="/study-settings"
               element={
                 <ProtectedRoute>
-                  <StudySettingsPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <StudySettingsPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -112,7 +162,9 @@ function AppContent() {
               path="/learning-objectives"
               element={
                 <ProtectedRoute>
-                  <LearningObjectivesPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <LearningObjectivesPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -120,7 +172,9 @@ function AppContent() {
               path="/history"
               element={
                 <ProtectedRoute>
-                  <HistoryPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <HistoryPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -128,7 +182,9 @@ function AppContent() {
               path="/statistics"
               element={
                 <ProtectedRoute>
-                  <StatisticsPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <StatisticsPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -136,7 +192,9 @@ function AppContent() {
               path="/word-list"
               element={
                 <ProtectedRoute>
-                  <WordListPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <WordListPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -144,7 +202,9 @@ function AppContent() {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <ProfilePage />
+                  <Suspense fallback={<PageLoader />}>
+                    <ProfilePage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -152,7 +212,9 @@ function AppContent() {
               path="/today-words"
               element={
                 <ProtectedRoute>
-                  <TodayWordsPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <TodayWordsPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -160,17 +222,21 @@ function AppContent() {
               path="/progress"
               element={
                 <ProtectedRoute>
-                  <StudyProgressPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <StudyProgressPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
 
-            {/* AMAS 增强功能路由 */}
+            {/* AMAS 增强功能路由 - 懒加载 */}
             <Route
               path="/learning-time"
               element={
                 <ProtectedRoute>
-                  <LearningTimePage />
+                  <Suspense fallback={<PageLoader />}>
+                    <LearningTimePage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -178,7 +244,9 @@ function AppContent() {
               path="/trend-report"
               element={
                 <ProtectedRoute>
-                  <TrendReportPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <TrendReportPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -186,7 +254,9 @@ function AppContent() {
               path="/achievements"
               element={
                 <ProtectedRoute>
-                  <AchievementPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <AchievementPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -194,7 +264,9 @@ function AppContent() {
               path="/badges"
               element={
                 <ProtectedRoute>
-                  <BadgeGalleryPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <BadgeGalleryPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -202,7 +274,9 @@ function AppContent() {
               path="/plan"
               element={
                 <ProtectedRoute>
-                  <PlanPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <PlanPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -210,7 +284,9 @@ function AppContent() {
               path="/word-mastery"
               element={
                 <ProtectedRoute>
-                  <WordMasteryPage />
+                  <Suspense fallback={<PageLoader />}>
+                    <WordMasteryPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -218,7 +294,9 @@ function AppContent() {
               path="/habit-profile"
               element={
                 <ProtectedRoute>
-                  <HabitProfilePage />
+                  <Suspense fallback={<PageLoader />}>
+                    <HabitProfilePage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -226,33 +304,89 @@ function AppContent() {
               path="/learning-profile"
               element={
                 <ProtectedRoute>
-                  <LearningProfilePage />
+                  <Suspense fallback={<PageLoader />}>
+                    <LearningProfilePage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
 
-            {/* 管理员后台路由 */}
+            {/* 管理员后台路由 - 懒加载 */}
             <Route
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <AdminLayout />
+                  <Suspense fallback={<PageLoader />}>
+                    <AdminLayout />
+                  </Suspense>
                 </ProtectedRoute>
               }
             >
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<UserManagementPage />} />
-              <Route path="users/:userId" element={<UserDetailPage />} />
-              <Route path="users/:userId/words" element={<WordDetailPage />} />
-              <Route path="wordbooks" element={<AdminWordBooks />} />
-              <Route path="batch-import" element={<BatchImportPage />} />
-              <Route path="algorithm-config" element={<AlgorithmConfigPage />} />
-              <Route path="config-history" element={<ConfigHistoryPage />} />
-              <Route path="experiments" element={<ExperimentDashboard />} />
-              <Route path="logs" element={<LogViewerPage />} />
-              <Route path="log-alerts" element={<LogAlertsPage />} />
-              <Route path="optimization" element={<OptimizationDashboard />} />
-              <Route path="causal-analysis" element={<CausalInferencePage />} />
+              <Route index element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminDashboard />
+                </Suspense>
+              } />
+              <Route path="users" element={
+                <Suspense fallback={<PageLoader />}>
+                  <UserManagementPage />
+                </Suspense>
+              } />
+              <Route path="users/:userId" element={
+                <Suspense fallback={<PageLoader />}>
+                  <UserDetailPage />
+                </Suspense>
+              } />
+              <Route path="users/:userId/words" element={
+                <Suspense fallback={<PageLoader />}>
+                  <WordDetailPage />
+                </Suspense>
+              } />
+              <Route path="wordbooks" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminWordBooks />
+                </Suspense>
+              } />
+              <Route path="batch-import" element={
+                <Suspense fallback={<PageLoader />}>
+                  <BatchImportPage />
+                </Suspense>
+              } />
+              <Route path="algorithm-config" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AlgorithmConfigPage />
+                </Suspense>
+              } />
+              <Route path="config-history" element={
+                <Suspense fallback={<PageLoader />}>
+                  <ConfigHistoryPage />
+                </Suspense>
+              } />
+              <Route path="experiments" element={
+                <Suspense fallback={<PageLoader />}>
+                  <ExperimentDashboard />
+                </Suspense>
+              } />
+              <Route path="logs" element={
+                <Suspense fallback={<PageLoader />}>
+                  <LogViewerPage />
+                </Suspense>
+              } />
+              <Route path="log-alerts" element={
+                <Suspense fallback={<PageLoader />}>
+                  <LogAlertsPage />
+                </Suspense>
+              } />
+              <Route path="optimization" element={
+                <Suspense fallback={<PageLoader />}>
+                  <OptimizationDashboard />
+                </Suspense>
+              } />
+              <Route path="causal-analysis" element={
+                <Suspense fallback={<PageLoader />}>
+                  <CausalInferencePage />
+                </Suspense>
+              } />
             </Route>
 
             {/* 404重定向 */}

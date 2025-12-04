@@ -499,6 +499,159 @@ export async function injectFault(request: FaultInjectionRequest): Promise<Fault
   return parseJsonResponse<FaultInjectionResponse>(response, '故障注入失败');
 }
 
+// ==================== 系统状态页面 API ====================
+
+/** Pipeline 层状态 */
+export interface PipelineLayerStatus {
+  id: string;
+  name: string;
+  nameCn: string;
+  processedCount: number;
+  avgLatencyMs: number;
+  successRate: number;
+  status: 'healthy' | 'degraded' | 'error';
+  lastProcessedAt: string | null;
+}
+
+/** Pipeline 状态响应 */
+export interface PipelineStatusResponse {
+  layers: PipelineLayerStatus[];
+  totalThroughput: number;
+  systemHealth: 'healthy' | 'degraded' | 'error';
+}
+
+/** 算法状态 */
+export interface AlgorithmStatus {
+  id: string;
+  name: string;
+  weight: number;
+  callCount: number;
+  avgLatencyMs: number;
+  explorationRate: number;
+  lastCalledAt: string | null;
+}
+
+/** 冷启动统计 */
+export interface ColdstartStats {
+  classifyCount: number;
+  exploreCount: number;
+  normalCount: number;
+  userTypeDistribution: { fast: number; stable: number; cautious: number };
+}
+
+/** 算法状态响应 */
+export interface AlgorithmStatusResponse {
+  algorithms: AlgorithmStatus[];
+  ensembleConsensusRate: number;
+  coldstartStats: ColdstartStats;
+}
+
+/** 用户状态分布 */
+export interface UserStateDistributions {
+  attention: { avg: number; low: number; medium: number; high: number; lowAlertCount: number };
+  fatigue: { avg: number; fresh: number; normal: number; tired: number; highAlertCount: number };
+  motivation: { avg: number; frustrated: number; neutral: number; motivated: number; lowAlertCount: number };
+  cognitive: { memory: number; speed: number; stability: number };
+}
+
+/** 最近推断记录 */
+export interface RecentInference {
+  id: string;
+  timestamp: string;
+  attention: number;
+  fatigue: number;
+  motivation: number;
+  confidence: number;
+}
+
+/** 模型参数 */
+export interface ModelParams {
+  attention: { beta: number; weights: Record<string, number> };
+  fatigue: { decayK: number; longBreakThreshold: number };
+  motivation: { rho: number; kappa: number; lambda: number };
+}
+
+/** 用户状态监控响应 */
+export interface UserStateStatusResponse {
+  distributions: UserStateDistributions;
+  recentInferences: RecentInference[];
+  modelParams: ModelParams;
+}
+
+/** 记忆强度分布 */
+export interface MemoryStrengthRange {
+  range: string;
+  count: number;
+  percentage: number;
+}
+
+/** 记忆状态响应 */
+export interface MemoryStatusResponse {
+  strengthDistribution: MemoryStrengthRange[];
+  urgentReviewCount: number;
+  soonReviewCount: number;
+  stableCount: number;
+  avgHalfLifeDays: number;
+  todayConsolidationRate: number;
+}
+
+/**
+ * 获取 Pipeline 各层实时运行状态
+ */
+export async function getPipelineLayerStatus(): Promise<PipelineStatusResponse> {
+  const response = await fetch(`${API_BASE}/system/pipeline-status`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<PipelineStatusResponse>(response, '获取 Pipeline 状态失败');
+}
+
+/**
+ * 获取算法实时运行状态
+ */
+export async function getAlgorithmStatus(): Promise<AlgorithmStatusResponse> {
+  const response = await fetch(`${API_BASE}/system/algorithm-status`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<AlgorithmStatusResponse>(response, '获取算法状态失败');
+}
+
+/**
+ * 获取用户状态分布实时监控数据
+ */
+export async function getUserStateStatus(): Promise<UserStateStatusResponse> {
+  const response = await fetch(`${API_BASE}/system/user-state-status`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<UserStateStatusResponse>(response, '获取用户状态监控数据失败');
+}
+
+/**
+ * 获取记忆状态分布
+ */
+export async function getMemoryStatus(): Promise<MemoryStatusResponse> {
+  const response = await fetch(`${API_BASE}/system/memory-status`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<MemoryStatusResponse>(response, '获取记忆状态失败');
+}
+
+/** 功能开关状态 */
+export interface FeatureFlagsStatus {
+  readEnabled: boolean;
+  writeEnabled: boolean;
+  flags: Record<string, boolean>;
+}
+
+/**
+ * 获取功能开关状态
+ */
+export async function getFeatureFlags(): Promise<FeatureFlagsStatus> {
+  const response = await fetch(`${API_BASE}/feature-flags`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<FeatureFlagsStatus>(response, '获取功能开关状态失败');
+}
+
 // 默认导出
 export default {
   simulate,
@@ -513,4 +666,10 @@ export default {
   getPipelineSnapshot,
   getPacketTrace,
   injectFault,
+  // 系统状态页面 API
+  getPipelineLayerStatus,
+  getAlgorithmStatus,
+  getUserStateStatus,
+  getMemoryStatus,
+  getFeatureFlags,
 };

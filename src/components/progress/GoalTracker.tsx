@@ -1,4 +1,4 @@
-import { Calendar, Target, TrendUp } from '../Icon';
+import { Calendar, Target, TrendUp, Confetti, Lightning } from '../Icon';
 
 interface GoalTrackerProps {
   dailyGoal: number;
@@ -15,8 +15,12 @@ export const GoalTracker = ({
   weeklyProgress,
   estimatedDaysToComplete,
 }: GoalTrackerProps) => {
-  const dailyPercentage = Math.min(100, Math.round((currentProgress / dailyGoal) * 100));
-  const weeklyPercentage = Math.min(100, Math.round((weeklyProgress / weeklyGoal) * 100));
+  const dailyPercentage = dailyGoal > 0
+    ? Math.min(100, Math.round((currentProgress / dailyGoal) * 100))
+    : 0;
+  const weeklyPercentage = weeklyGoal > 0
+    ? Math.min(100, Math.round((weeklyProgress / weeklyGoal) * 100))
+    : 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -59,9 +63,9 @@ export const GoalTracker = ({
           </div>
 
           {dailyPercentage >= 100 ? (
-            <p className="text-xs text-green-600 font-medium">🎉 太棒了！今日目标已完成！</p>
+            <p className="text-xs text-green-600 font-medium flex items-center gap-1"><Confetti size={14} weight="fill" /> 太棒了！今日目标已完成！</p>
           ) : dailyPercentage >= 80 ? (
-            <p className="text-xs text-blue-600 font-medium">💪 快完成了，继续加油！</p>
+            <p className="text-xs text-blue-600 font-medium flex items-center gap-1"><Lightning size={14} weight="fill" /> 快完成了，继续加油！</p>
           ) : (
             <p className="text-xs text-gray-500">
               还需学习 {dailyGoal - currentProgress} 个单词

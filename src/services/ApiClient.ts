@@ -2243,7 +2243,7 @@ class ApiClient {
    * 获取认知成长对比
    * Requirements: 5.3
    */
-  async getCognitiveGrowth(): Promise<{
+  async getCognitiveGrowth(range: import('../types/amas-enhanced').DateRangeOption = 30): Promise<{
     current: import('../types/amas-enhanced').CognitiveProfile;
     past: import('../types/amas-enhanced').CognitiveProfile;
     changes: {
@@ -2265,7 +2265,7 @@ class ApiClient {
         };
         period: number;
         periodLabel: string;
-      }>('/api/amas/growth');
+      }>(`/api/amas/growth?range=${range}`);
     } catch (error) {
       apiLogger.error({ err: error }, '获取认知成长失败');
       throw error;

@@ -6,6 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { StateRepository, ModelRepository } from '../engine';
 import { UserState, CognitiveProfile, HabitProfile, TrendState, BanditModel } from '../types';
+import { ColdStartStateData } from '../engine/engine-types';
 import { amasLogger } from '../../logger';
 
 // 获取 Prisma 实例
@@ -292,7 +293,8 @@ export class DatabaseStateRepository implements StateRepository {
     const habitProfile = record.habitProfile as unknown as HabitProfile | undefined;
     const trendState = record.trendState as TrendState | undefined;
 
-    return {
+    // 返回带有冷启动状态的用户状态（扩展类型）
+    const userState: UserState = {
       A: record.attention,
       F: record.fatigue,
       M: record.motivation,
@@ -302,6 +304,13 @@ export class DatabaseStateRepository implements StateRepository {
       T: trendState,
       ts: Number(record.lastUpdateTs)
     };
+
+    // 附加冷启动状态（通过类型扩展）
+    if (record.coldStartState) {
+      (userState as any).coldStartState = record.coldStartState as unknown as ColdStartStateData;
+    }
+
+    return userState;
   }
 
   async saveState(userId: string, state: UserState): Promise<void> {
@@ -321,7 +330,8 @@ export class DatabaseStateRepository implements StateRepository {
         cognitiveProfile: safeState.C as unknown as object,
         habitProfile: safeState.H as unknown as object | undefined,
         trendState: safeState.T,
-        lastUpdateTs: BigInt(safeState.ts)
+        lastUpdateTs: BigInt(safeState.ts),
+        coldStartState: (state as any).coldStartState ?? undefined
       },
       update: {
         attention: safeState.A,
@@ -331,7 +341,8 @@ export class DatabaseStateRepository implements StateRepository {
         cognitiveProfile: safeState.C as unknown as object,
         habitProfile: safeState.H as unknown as object | undefined,
         trendState: safeState.T,
-        lastUpdateTs: BigInt(safeState.ts)
+        lastUpdateTs: BigInt(safeState.ts),
+        coldStartState: (state as any).coldStartState ?? undefined
       }
     });
   }

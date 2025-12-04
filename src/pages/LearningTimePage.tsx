@@ -15,9 +15,10 @@ import {
   ChartBar,
   Sparkle,
   Coffee,
-  Lightbulb
+  Lightbulb,
+  Sun,
+  Moon
 } from '../components/Icon';
-import { Sun, Moon } from '@phosphor-icons/react';
 
 /**
  * LearningTimePage - 智能学习时机推荐页面
@@ -162,8 +163,8 @@ export default function LearningTimePage() {
                 )}
               </div>
               <div className="flex-1">
-                <h2 className={`text-xl font-bold ${goldenTime.isGolden ? 'text-yellow-700' : 'text-gray-700'}`}>
-                  {goldenTime.isGolden ? '🌟 黄金学习时间！' : '当前时间'}
+                <h2 className={`text-xl font-bold ${goldenTime.isGolden ? 'text-yellow-700' : 'text-gray-700'} flex items-center gap-1`}>
+                  {goldenTime.isGolden ? <><Sparkle size={20} weight="fill" className="text-yellow-500" /> 黄金学习时间！</> : '当前时间'}
                 </h2>
                 <p className={goldenTime.isGolden ? 'text-yellow-600' : 'text-gray-500'}>
                   {goldenTime.message}

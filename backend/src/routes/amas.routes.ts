@@ -19,6 +19,7 @@ import {
 } from '../validators/amas.validator';
 import { AuthRequest } from '../types';
 import { RewardStatus } from '@prisma/client';
+import { toFrontendState } from '../amas/utils/state-converter';
 
 const router = Router();
 
@@ -74,14 +75,7 @@ router.post('/process', authMiddleware, validateBody(processEventSchema), async 
         explanation: result.explanation,
         suggestion: result.suggestion,
         shouldBreak: result.shouldBreak,
-        state: {
-          attention: result.state.A,
-          fatigue: result.state.F,
-          motivation: result.state.M,
-          memory: result.state.C.mem,
-          speed: result.state.C.speed,
-          stability: result.state.C.stability
-        },
+        state: toFrontendState(result.state),
         // 多目标评估结果（当配置了学习目标时）
         objectiveEvaluation: result.objectiveEvaluation ? {
           metrics: result.objectiveEvaluation.metrics,
@@ -114,18 +108,7 @@ router.get('/state', authMiddleware, async (req: AuthRequest, res, next) => {
 
     res.json({
       success: true,
-      data: {
-        attention: state.A,
-        fatigue: state.F,
-        motivation: state.M,
-        // 展开认知维度字段以匹配前端UserState类型
-        memory: state.C.mem,
-        speed: state.C.speed,
-        stability: state.C.stability,
-        cognitive: state.C,
-        confidence: state.conf,
-        timestamp: state.ts
-      }
+      data: toFrontendState(state)
     });
   } catch (error) {
     next(error);

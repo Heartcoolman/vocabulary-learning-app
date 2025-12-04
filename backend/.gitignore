@@ -4,6 +4,7 @@ dist
 # 环境变量文件（排除示例文件）
 .env
 .env.local
+.env.remote
 .env.*.local
 .env.production
 .env.development

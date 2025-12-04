@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Pulse,
   ChartBar,
+  Cpu,
   SignIn
 } from '../../components/Icon';
 
@@ -20,6 +21,7 @@ const menuItems = [
   { path: '/about/simulation', label: '模拟演示', icon: SlidersHorizontal },
   { path: '/about/dashboard', label: '实时仪表盘', icon: Pulse },
   { path: '/about/stats', label: '统计大屏', icon: ChartBar },
+  { path: '/about/system-status', label: '系统状态', icon: Cpu },
 ];
 
 export default function AboutLayout() {

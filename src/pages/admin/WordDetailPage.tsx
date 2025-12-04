@@ -13,6 +13,7 @@ import {
     CheckCircle,
     XCircle,
     Warning,
+    WarningCircle,
 } from '../../components/Icon';
 import { Flag } from '@phosphor-icons/react';
 import { useToast } from '../../components/ui';
@@ -130,7 +131,7 @@ export default function WordDetailPage() {
         return (
             <div className="p-8">
                 <div className="text-center py-12">
-                    <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                    <WarningCircle size={64} weight="fill" className="text-red-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
                     <p className="text-gray-600 mb-6">{error}</p>
                     <button
@@ -374,9 +375,17 @@ export default function WordDetailPage() {
                     <div className="grid grid-cols-7 gap-2">
                         {heatmap.slice(-90).map((day) => {
                             const intensity = Math.min(day.activityLevel / 20, 1);
-                            const bgColor = intensity === 0
-                                ? 'bg-gray-100'
-                                : `bg-blue-${Math.ceil(intensity * 5) * 100}`;
+                            // 使用预定义颜色数组避免Tailwind JIT动态class问题
+                            const heatmapColors = [
+                                'bg-gray-100',  // intensity = 0
+                                'bg-blue-100',  // intensity <= 0.2
+                                'bg-blue-200',  // intensity <= 0.4
+                                'bg-blue-300',  // intensity <= 0.6
+                                'bg-blue-400',  // intensity <= 0.8
+                                'bg-blue-500',  // intensity <= 1.0
+                            ];
+                            const colorIndex = intensity === 0 ? 0 : Math.ceil(intensity * 5);
+                            const bgColor = heatmapColors[colorIndex];
 
                             return (
                                 <div

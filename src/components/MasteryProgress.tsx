@@ -1,3 +1,13 @@
+import { ReactNode } from 'react';
+import {
+  ChartBar,
+  CheckCircle,
+  Sparkle,
+  ArrowsClockwise,
+  Star,
+  Target
+} from '@phosphor-icons/react';
+
 export interface MasteryProgressProps {
   progress: {
     masteredCount: number;
@@ -9,49 +19,62 @@ export interface MasteryProgressProps {
   currentWordStatus?: 'new' | 'learning' | 'almost' | 'mastered';
   isCompleted?: boolean;
   className?: string;
+  headerActions?: ReactNode;
 }
 
 const STATUS_CONFIG = {
-  new: { label: '新词', emoji: '🆕', color: 'blue' },
-  learning: { label: '学习中', emoji: '🔄', color: 'orange' },
-  almost: { label: '即将掌握', emoji: '⭐', color: 'indigo' },
-  mastered: { label: '已掌握', emoji: '✅', color: 'green' }
+  new: { label: '新词', Icon: Sparkle, color: 'text-blue-500', bg: 'bg-blue-50' },
+  learning: { label: '学习中', Icon: ArrowsClockwise, color: 'text-orange-500', bg: 'bg-orange-50' },
+  almost: { label: '即将掌握', Icon: Star, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  mastered: { label: '已掌握', Icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' }
 } as const;
 
 export default function MasteryProgress({
   progress,
   currentWordStatus,
   isCompleted = false,
-  className = ''
+  className = '',
+  headerActions
 }: MasteryProgressProps) {
   const percentage = Math.min(100, Math.max(0,
     progress.targetCount > 0 ? (progress.masteredCount / progress.targetCount) * 100 : 0
   ));
 
   const status = currentWordStatus ? STATUS_CONFIG[currentWordStatus] : null;
+  const StatusIcon = status?.Icon;
 
   return (
     <div
-      className={`w-full bg-white rounded-lg shadow-sm border border-gray-100 p-4 ${className}`}
+      className={`w-full bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4 ${className}`}
       role="region"
       aria-label="掌握模式学习进度"
     >
+      {/* Header: Title + Actions */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📊</span>
-          <h3 className="font-semibold text-gray-800">
-            {isCompleted ? '学习目标达成' : '学习进度'}
-          </h3>
+        <div className="flex items-center gap-2.5">
+          <div className={`p-2 rounded-lg ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+            {isCompleted ? <CheckCircle size={20} weight="fill" /> : <ChartBar size={20} weight="fill" />}
+          </div>
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-gray-900">
+              {isCompleted ? '目标达成' : '学习进度'}
+            </h3>
+            <span className="text-sm text-gray-500 font-medium">
+              {Math.round(percentage)}%
+            </span>
+          </div>
         </div>
 
-        <div className={`text-lg font-bold ${
-          isCompleted ? 'text-green-600' : 'text-blue-600'
-        }`}>
-          {Math.round(percentage)}%
-        </div>
+        {/* Right Actions Toolbar */}
+        {headerActions && (
+          <div className="flex items-center gap-0.5">
+            {headerActions}
+          </div>
+        )}
       </div>
 
-      <div className="relative h-3 w-full bg-gray-100 rounded-full overflow-hidden mb-4">
+      {/* Progress Bar */}
+      <div className="relative h-2.5 w-full bg-gray-100 rounded-full overflow-hidden mb-3">
         <div
           className={`h-full transition-all duration-700 ease-out rounded-full ${
             isCompleted
@@ -63,38 +86,37 @@ export default function MasteryProgress({
           aria-valuenow={progress.masteredCount}
           aria-valuemin={0}
           aria-valuemax={progress.targetCount}
-          aria-label={`已掌握 ${progress.masteredCount} 个单词，共 ${progress.targetCount} 个目标，进度 ${Math.round(percentage)}%`}
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${
-              isCompleted ? 'bg-green-500' : 'bg-blue-500'
-            }`} />
-            已记住: <span className="font-medium text-gray-900">
-              {progress.masteredCount}/{progress.targetCount}词
-            </span>
+      {/* Footer Stats */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-4 text-gray-600">
+          <span className="flex items-center gap-1.5" title="已掌握/目标">
+            <Target size={16} className={isCompleted ? 'text-green-500' : 'text-blue-500'} />
+            <span className="font-medium text-gray-900">{progress.masteredCount}</span>
+            <span className="text-gray-400">/</span>
+            <span>{progress.targetCount}</span>
           </span>
-          <span className="w-px h-3 bg-gray-300" />
-          <span>
-            本次答题: <span className="font-medium text-gray-900">
-              {progress.totalQuestions}题
-            </span>
+
+          <span className="w-px h-4 bg-gray-200" />
+
+          <span className="flex items-center gap-1.5" title="本次答题数">
+            <span className="font-medium text-gray-900">{progress.totalQuestions}</span>
+            <span>题</span>
           </span>
         </div>
 
-        {status && !isCompleted && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 text-xs font-medium text-gray-700">
-            <span>{status.emoji}</span>
+        {status && StatusIcon && !isCompleted && (
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium ${status.bg} ${status.color}`}>
+            <StatusIcon size={14} weight="fill" />
             {status.label}
           </div>
         )}
 
         {isCompleted && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-50 text-xs font-medium text-green-700">
-            <span>✅</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-50 text-sm font-medium text-green-600">
+            <CheckCircle size={14} weight="fill" />
             完成
           </div>
         )}

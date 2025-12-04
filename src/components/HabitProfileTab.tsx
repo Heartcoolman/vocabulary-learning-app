@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, TrendUp, Calendar, ArrowClockwise, FloppyDisk, ArrowCounterClockwise } from './Icon';
+import { Clock, TrendUp, Calendar, ArrowClockwise, FloppyDisk, ArrowCounterClockwise, Lightbulb } from './Icon';
 import apiClient from '../services/ApiClient';
 import HabitHeatmap from './HabitHeatmap';
 import ChronotypeCard from './ChronotypeCard';
@@ -260,7 +260,7 @@ const HabitProfileTab: React.FC = () => {
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 关于习惯画像</h4>
+        <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-1"><Lightbulb size={16} weight="fill" className="text-blue-600" /> 关于习惯画像</h4>
         <p className="text-sm text-blue-700">
           系统会自动分析你的学习习惯，包括偏好的学习时段、每次学习时长和学习节奏。
           这些数据将帮助 AMAS 为你提供更个性化的学习建议。

@@ -364,7 +364,9 @@ export class WordBookService {
     }
 
     /**
-     * 批量导入单词到词书（主要用于管理员导入系统词书）
+     * 批量导入单词到词书（需要权限检查）
+     * - 用户词书：仅词书所有者可以导入
+     * - 系统词书：仅管理员可以导入
      */
     async batchImportWords(
         wordBookId: string,
@@ -374,8 +376,32 @@ export class WordBookService {
             meanings: string[];
             examples: string[];
             audioUrl?: string;
-        }>
+        }>,
+        userId: string,
+        isAdmin: boolean = false
     ) {
+        // 查询词书信息
+        const wordBook = await prisma.wordBook.findUnique({
+            where: { id: wordBookId },
+        });
+
+        if (!wordBook) {
+            throw new Error('词书不存在');
+        }
+
+        // 权限检查
+        if (wordBook.type === WordBookType.USER) {
+            // 用户词书：只有所有者可以批量导入
+            if (wordBook.userId !== userId) {
+                throw new Error('无权向此词书批量导入单词');
+            }
+        } else if (wordBook.type === WordBookType.SYSTEM) {
+            // 系统词书：只有管理员可以批量导入
+            if (!isAdmin) {
+                throw new Error('只有管理员可以向系统词书批量导入单词');
+            }
+        }
+
         // 使用事务确保批量创建单词和更新计数的原子性
         const result = await prisma.$transaction(async (tx) => {
             // 批量创建单词

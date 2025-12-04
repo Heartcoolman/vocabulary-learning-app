@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Word } from '../types/models';
-import { ArrowLeft, Star, Target, Clock, MagnifyingGlass, CheckCircle, Warning, ArrowClockwise } from '../components/Icon';
+import { ArrowLeft, Star, Target, Clock, MagnifyingGlass, CheckCircle, Warning, ArrowClockwise, WarningCircle } from '../components/Icon';
 import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
 import { useToast } from '../components/ui';
@@ -256,7 +256,7 @@ export default function WordListPage() {
     return (
       <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <WarningCircle size={64} weight="fill" className="text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button

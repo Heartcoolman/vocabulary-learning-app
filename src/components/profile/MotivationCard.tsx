@@ -1,5 +1,5 @@
 import React from 'react';
-import { Fire, TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
+import { Fire, TrendUp, TrendDown, Minus, Lightning, Coffee } from '@phosphor-icons/react';
 
 interface MotivationCardProps {
   streak: number;
@@ -15,10 +15,10 @@ export const MotivationCard: React.FC<MotivationCardProps> = ({ streak, level, t
   };
 
   const getLevelLabel = (l: number) => {
-    if (l >= 80) return '🔥 极高';
-    if (l >= 60) return '💪 旺盛';
-    if (l >= 40) return '😐 平稳';
-    return '😴 低迷';
+    if (l >= 80) return <span className="flex items-center gap-1"><Fire size={20} weight="fill" className="text-orange-500" /> 极高</span>;
+    if (l >= 60) return <span className="flex items-center gap-1"><Lightning size={20} weight="fill" className="text-yellow-500" /> 旺盛</span>;
+    if (l >= 40) return <span className="flex items-center gap-1"><Minus size={20} weight="bold" className="text-gray-400" /> 平稳</span>;
+    return <span className="flex items-center gap-1"><Coffee size={20} weight="duotone" className="text-gray-400" /> 低迷</span>;
   };
 
   return (

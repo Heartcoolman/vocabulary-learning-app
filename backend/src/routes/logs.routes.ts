@@ -10,6 +10,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { logger, createChildLogger } from '../logger';
+import { optionalAuthMiddleware } from '../middleware/auth.middleware';
+import { AuthRequest } from '../types';
 
 const router = Router();
 const frontendLogger = createChildLogger({ source: 'frontend' });
@@ -61,7 +63,7 @@ const LOG_METHODS: Record<LogLevel, keyof typeof frontendLogger> = {
  * POST /api/logs
  * 接收前端日志批量上报
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { logs } = BatchLogsSchema.parse(req.body);
 
@@ -81,6 +83,9 @@ router.post('/', async (req: Request, res: Response) => {
         frontendApp: entry.app,
         frontendEnv: entry.env,
         frontendModule: entry.module,
+        // 如果用户已认证，添加用户信息
+        userId: req.user?.id,
+        username: req.user?.username,
       };
 
       // 合并上下文

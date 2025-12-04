@@ -436,7 +436,16 @@ export class AMASEngine {
     }
 
     // 12. 持久化
-    await this.stateRepo.saveState(userId, state);
+    // 获取冷启动状态用于持久化
+    const coldStartState = models.coldStart ? {
+      phase: models.coldStart.getPhase(),
+      userType: models.coldStart.getUserType(),
+      probeIndex: models.coldStart.getState().probeIndex,
+      updateCount: models.coldStart.getUpdateCount(),
+      settledStrategy: models.coldStart.getSettledStrategy()
+    } : undefined;
+
+    await this.stateRepo.saveState(userId, { ...state, coldStartState } as UserState);
 
     if (timedOut?.value || signal?.aborted) {
       throw new Error('Operation cancelled');
@@ -597,6 +606,12 @@ export class AMASEngine {
     // 新用户：返回默认状态
     if (!state) {
       return this.modeling.createDefaultState();
+    }
+
+    // 恢复冷启动状态（如果存在）
+    if (state && (state as any).coldStartState) {
+      // 预先获取用户模型并恢复冷启动状态
+      this.isolation.getUserModels(userId, (state as any).coldStartState);
     }
 
     // 现有用户：检查是否需要处理回归用户状态衰减

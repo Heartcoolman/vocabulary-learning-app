@@ -75,14 +75,25 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res, next) => {
  * GET /api/amas/growth
  * 获取认知成长对比
  * Requirements: 5.3
- * 
+ *
+ * Query参数:
+ * - range: 日期范围（7/30/90天，默认30天）
+ *
  * 返回:
- * - 当前认知画像、30天前认知画像、变化值
+ * - 当前认知画像、指定天数前认知画像、变化值
  */
 router.get('/growth', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const growth = await stateHistoryService.getCognitiveGrowth(userId);
+    const rangeParam = parseInt(req.query.range as string) || 30;
+
+    // 验证范围参数
+    const validRanges: DateRangeOption[] = [7, 30, 90];
+    const range: DateRangeOption = validRanges.includes(rangeParam as DateRangeOption)
+      ? (rangeParam as DateRangeOption)
+      : 30;
+
+    const growth = await stateHistoryService.getCognitiveGrowth(userId, range);
 
     // 计算变化百分比
     const calculateChangePercent = (current: number, past: number): number => {

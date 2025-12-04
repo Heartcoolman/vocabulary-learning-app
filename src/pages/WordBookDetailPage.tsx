@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import AudioService from '../services/AudioService';
@@ -254,20 +255,10 @@ export default function WordBookDetailPage() {
                         {isUserBook && (
                             <button
                                 onClick={() => setShowAddWord(true)}
-                                className="
-                                    px-6 py-3 
-                                    bg-blue-500 text-white 
-                                    rounded-lg 
-                                    font-medium
-                                    hover:bg-blue-600 
-                                    transition-all duration-200 
-                                    hover:scale-105 active:scale-95
-                                    focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                                    shadow-sm hover:shadow-md
-                                "
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all shadow-sm hover:shadow-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                 aria-label="添加新单词"
                             >
-                                <Plus size={18} weight="bold" className="mr-2" />
+                                <Plus size={18} weight="bold" />
                                 添加单词
                             </button>
                         )}
@@ -284,20 +275,10 @@ export default function WordBookDetailPage() {
                             {isUserBook && (
                                 <button
                                     onClick={() => setShowAddWord(true)}
-                                    className="
-                                        px-8 py-4 
-                                        bg-blue-500 text-white 
-                                        rounded-lg 
-                                        font-medium
-                                        hover:bg-blue-600 
-                                        transition-all duration-200 
-                                        hover:scale-105 active:scale-95
-                                        focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                                        shadow-lg hover:shadow-xl
-                                    "
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                     aria-label="添加第一个单词"
                                 >
-                                    <Plus size={20} weight="bold" className="mr-2" />
+                                    <Plus size={20} weight="bold" />
                                     添加第一个单词
                                 </button>
                             )}
@@ -306,7 +287,7 @@ export default function WordBookDetailPage() {
                         <>
                             {/* 网格布局 */}
                             <div
-                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8"
                                 role="grid"
                                 aria-label="单词列表"
                             >
@@ -316,43 +297,35 @@ export default function WordBookDetailPage() {
                                         onClick={() => handleWordClick(word)}
                                         role="gridcell"
                                         aria-label={`单词: ${word.spelling}, ${word.phonetic}`}
-                                        className="
-                                            group p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl 
-                                            shadow-sm hover:shadow-xl hover:scale-[1.03]
-                                            cursor-pointer transition-all duration-300
-                                            flex flex-col justify-between min-h-[200px]
-                                            hover:border-blue-400 hover:bg-white/95
-                                            focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
-                                            animate-g3-fade-in
-                                        "
+                                        className="group p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-lg hover:scale-[1.02] cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-white/95 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 animate-g3-fade-in"
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     >
-                                        <div className="flex-1 space-y-4">
+                                        <div className="space-y-3">
                                             {/* 单词拼写 */}
-                                            <h3 className="text-2xl font-bold text-gray-900 text-center group-hover:text-blue-600 transition-colors duration-200">
+                                            <h3 className="text-xl font-bold text-gray-900 text-center group-hover:text-blue-600 transition-colors">
                                                 {word.spelling}
                                             </h3>
 
                                             {/* 音标 */}
                                             <div className="flex items-center justify-center">
-                                                <span className="text-base text-gray-600 font-medium bg-gray-100 px-4 py-1.5 rounded-full">
+                                                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                                                     /{word.phonetic}/
                                                 </span>
                                             </div>
 
                                             {/* 释义列表 */}
-                                            <div className="text-sm text-gray-700 space-y-2 pt-2">
+                                            <div className="text-sm text-gray-600 space-y-1.5 pt-1">
                                                 {word.meanings.slice(0, 2).map((meaning, idx) => (
                                                     <div key={idx} className="flex items-start gap-2">
                                                         <span className="flex-shrink-0 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
                                                             {idx + 1}
                                                         </span>
-                                                        <span className="flex-1 line-clamp-1 pt-0.5">{meaning}</span>
+                                                        <span className="flex-1 line-clamp-1">{meaning}</span>
                                                     </div>
                                                 ))}
                                                 {word.meanings.length > 2 && (
-                                                    <div className="text-blue-600 font-medium text-center text-xs pt-1">
-                                                        +{word.meanings.length - 2} 个释义
+                                                    <div className="text-blue-500 text-xs text-center pt-1">
+                                                        +{word.meanings.length - 2} 更多
                                                     </div>
                                                 )}
                                             </div>
@@ -364,16 +337,10 @@ export default function WordBookDetailPage() {
                                                     e.stopPropagation();
                                                     openDeleteConfirm(word.id, word.spelling);
                                                 }}
-                                                className="
-                                                    mt-4 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 
-                                                    rounded-lg transition-all duration-200 
-                                                    hover:scale-105 active:scale-95
-                                                    font-medium border border-red-200 hover:border-red-300
-                                                    flex items-center justify-center gap-1
-                                                "
+                                                className="mt-4 w-full px-3 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-medium flex items-center justify-center gap-1"
                                                 aria-label={`删除单词 ${word.spelling}`}
                                             >
-                                                <Trash size={16} weight="bold" />
+                                                <Trash size={14} weight="bold" />
                                                 删除
                                             </button>
                                         )}
@@ -398,13 +365,7 @@ export default function WordBookDetailPage() {
                                         <button
                                             onClick={() => handlePageChange(currentPage - 1)}
                                             disabled={currentPage === 1}
-                                            className="
-                                                px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium
-                                                hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed 
-                                                transition-all duration-200 hover:scale-105 active:scale-95
-                                                focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-                                                disabled:hover:scale-100
-                                            "
+                                            className="h-10 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:hover:scale-100 flex items-center"
                                             aria-label="上一页"
                                         >
                                             <ArrowLeft size={16} weight="bold" className="mr-1" />
@@ -449,13 +410,7 @@ export default function WordBookDetailPage() {
                                         <button
                                             onClick={() => handlePageChange(currentPage + 1)}
                                             disabled={currentPage === totalPages}
-                                            className="
-                                                px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium
-                                                hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed 
-                                                transition-all duration-200 hover:scale-105 active:scale-95
-                                                focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-                                                disabled:hover:scale-100
-                                            "
+                                            className="h-10 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:hover:scale-100 flex items-center"
                                             aria-label="下一页"
                                         >
                                             下一页
@@ -467,72 +422,72 @@ export default function WordBookDetailPage() {
                         </>
                     )}
 
-                    {/* 单词详情对话框 */}
-                    {showWordDetail && selectedWord && (
+                    {/* 单词详情对话框 - 使用 Portal 渲染到 body */}
+                    {showWordDetail && selectedWord && createPortal(
                         <div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6"
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="word-detail-title"
                         >
-                            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-g3-slide-up">
+                            {/* 背景遮罩 */}
+                            <div
+                                className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                                onClick={() => setShowWordDetail(false)}
+                            />
+
+                            {/* 弹窗内容 */}
+                            <div className="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-hidden animate-g3-slide-up border border-gray-200/60">
                                 {/* 关闭按钮 */}
                                 <button
                                     onClick={() => setShowWordDetail(false)}
-                                    className="
-                                ml-auto mb-4 w-10 h-10 rounded-full hover:bg-gray-200 
-                                flex items-center justify-center transition-all
-                                hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-                            "
+                                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 z-10"
                                     aria-label="关闭对话框"
                                 >
-                                    <span className="text-gray-600 text-2xl">×</span>
+                                    <span className="text-gray-500 text-xl font-light">×</span>
                                 </button>
 
-                                {/* 单词和发音 */}
-                                <div className="text-center mb-12">
-                                    <div className="flex items-center justify-center mb-4">
-                                        <h3
-                                            id="word-detail-title"
-                                            className="text-8xl font-bold text-gray-900"
-                                        >
-                                            {selectedWord.spelling}
-                                        </h3>
-                                        <button
-                                            onClick={() => handlePronounceDetail(selectedWord.spelling)}
-                                            disabled={isPronouncing}
-                                            className={`
-                                        ml-6 w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 
-                                        shadow-lg hover:shadow-xl flex items-center justify-center
-                                        transition-all group
-                                        focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                                        disabled:cursor-not-allowed
-                                        ${isPronouncing ? 'animate-pulse' : 'hover:scale-110 active:scale-95'}
-                                    `}
-                                            aria-label={isPronouncing ? '正在播放发音' : `播放 ${selectedWord.spelling} 的发音`}
-                                            aria-pressed={isPronouncing}
-                                        >
-                                            <SpeakerHigh size={28} weight="fill" className="text-white group-hover:animate-pulse" />
-                                        </button>
+                                {/* 主内容区 */}
+                                <div className="p-8 overflow-y-auto max-h-[85vh]">
+                                    {/* 单词和发音 */}
+                                    <div className="text-center mb-8">
+                                        <div className="flex items-center justify-center gap-4 mb-3">
+                                            <h3
+                                                id="word-detail-title"
+                                                className="text-5xl md:text-6xl font-bold text-gray-900"
+                                            >
+                                                {selectedWord.spelling}
+                                            </h3>
+                                            <button
+                                                onClick={() => handlePronounceDetail(selectedWord.spelling)}
+                                                disabled={isPronouncing}
+                                                className={`w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 shadow-lg hover:shadow-xl flex items-center justify-center transition-all focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed ${isPronouncing ? 'animate-pulse' : 'hover:scale-110 active:scale-95'}`}
+                                                aria-label={isPronouncing ? '正在播放发音' : `播放 ${selectedWord.spelling} 的发音`}
+                                                aria-pressed={isPronouncing}
+                                            >
+                                                <SpeakerHigh size={28} weight="fill" className="text-white" />
+                                            </button>
+                                        </div>
+                                        <span className="inline-block text-xl md:text-2xl text-gray-500 bg-gray-100 px-5 py-2 rounded-full">
+                                            /{selectedWord.phonetic}/
+                                        </span>
                                     </div>
-                                    <p className="text-3xl text-gray-400">/{selectedWord.phonetic}/</p>
-                                </div>
 
-                                {/* 分隔线 */}
-                                <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-8"></div>
+                                    {/* 分隔线 */}
+                                    <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-6" />
 
-                                {/* 释义和例句 - 左右布局 */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {/* 释义 */}
-                                    <div>
-                                        <h4 className="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4">
+                                    <div className="mb-6">
+                                        <h4 className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
                                             释义
                                         </h4>
-                                        <div className="space-y-3">
+                                        <div className="space-y-2">
                                             {selectedWord.meanings.map((meaning, idx) => (
-                                                <div key={idx} className="flex items-baseline">
-                                                    <span className="text-blue-500 font-bold text-lg mr-4">{idx + 1}.</span>
-                                                    <span className="text-gray-900 text-xl">{meaning}</span>
+                                                <div key={idx} className="flex items-start gap-3">
+                                                    <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <span className="text-gray-800 text-lg leading-relaxed pt-0.5">{meaning}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -541,14 +496,14 @@ export default function WordBookDetailPage() {
                                     {/* 例句 */}
                                     {selectedWord.examples.length > 0 && selectedWord.examples[0] && (
                                         <div>
-                                            <h4 className="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4">
+                                            <h4 className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
                                                 例句
                                             </h4>
-                                            <div className="space-y-4">
-                                                {selectedWord.examples.map((example, idx) => (
+                                            <div className="space-y-3">
+                                                {selectedWord.examples.filter(e => e).map((example, idx) => (
                                                     <blockquote
                                                         key={idx}
-                                                        className="border-l-4 border-blue-500 pl-6 py-2 italic text-gray-700"
+                                                        className="border-l-3 border-blue-400 pl-4 py-2 text-gray-600 italic bg-blue-50/50 rounded-r-lg"
                                                     >
                                                         {example}
                                                     </blockquote>
@@ -558,18 +513,29 @@ export default function WordBookDetailPage() {
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </div>,
+                        document.body
                     )}
 
-                    {/* 添加单词对话框 */}
-                    {showAddWord && (
+                    {/* 添加单词对话框 - 使用 Portal 渲染到 body */}
+                    {showAddWord && createPortal(
                         <div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="add-word-title"
                         >
-                            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-g3-slide-up">
+                            {/* 背景遮罩 */}
+                            <div
+                                className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                                onClick={() => {
+                                    setShowAddWord(false);
+                                    setNewWord({ spelling: '', phonetic: '', meanings: [''], examples: [''] });
+                                }}
+                            />
+
+                            {/* 弹窗内容 */}
+                            <div className="relative bg-white rounded-2xl p-8 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-g3-slide-up border border-gray-200/60">
                                 <h2
                                     id="add-word-title"
                                     className="text-3xl font-bold text-gray-900 mb-6"
@@ -714,7 +680,8 @@ export default function WordBookDetailPage() {
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </div>,
+                        document.body
                     )}
                 </main>
 

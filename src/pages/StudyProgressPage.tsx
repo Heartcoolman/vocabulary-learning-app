@@ -2,7 +2,7 @@ import { ProgressOverviewCard } from '../components/dashboard/ProgressOverviewCa
 import { useStudyProgress } from '../hooks/useStudyProgress';
 import { useExtendedProgress } from '../hooks/useExtendedProgress';
 import { useAuth } from '../contexts/AuthContext';
-import { TrendUp, Activity, WarningCircle, Calendar, CircleNotch } from '../components/Icon';
+import { TrendUp, Activity, WarningCircle, Calendar, CircleNotch, Fire, Confetti, Lightning } from '../components/Icon';
 import { MilestoneCard } from '../components/progress/MilestoneCard';
 import { GoalTracker } from '../components/progress/GoalTracker';
 import { MasteryDistributionChart } from '../components/progress/MasteryDistributionChart';
@@ -113,7 +113,7 @@ export default function StudyProgressPage() {
                   <div className="text-6xl font-bold text-amber-600">
                     {extendedProgress.learningStreak}
                   </div>
-                  <div className="absolute -right-8 top-0 text-3xl">🔥</div>
+                  <div className="absolute -right-8 top-0"><Fire size={32} weight="fill" className="text-orange-500" /></div>
                 </div>
                 <p className="text-lg text-gray-600 mt-4">连续学习天数</p>
               </div>
@@ -121,16 +121,16 @@ export default function StudyProgressPage() {
               <div className="mt-6 space-y-3">
                 {extendedProgress.learningStreak >= 7 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-800 font-medium">
-                      🎉 太棒了！你已经连续学习 {extendedProgress.learningStreak} 天了！
+                    <p className="text-sm text-amber-800 font-medium flex items-center gap-1">
+                      <Confetti size={16} weight="fill" className="text-amber-600" /> 太棒了！你已经连续学习 {extendedProgress.learningStreak} 天了！
                     </p>
                   </div>
                 )}
 
                 {extendedProgress.learningStreak < 7 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800 font-medium">
-                      💪 再坚持 {7 - extendedProgress.learningStreak} 天，达成一周学习目标！
+                    <p className="text-sm text-blue-800 font-medium flex items-center gap-1">
+                      <Lightning size={16} weight="fill" className="text-blue-600" /> 再坚持 {7 - extendedProgress.learningStreak} 天，达成一周学习目标！
                     </p>
                   </div>
                 )}

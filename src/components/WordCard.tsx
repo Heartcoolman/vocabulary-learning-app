@@ -55,7 +55,7 @@ export default function WordCard({
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex flex-col items-center justify-center space-y-5 py-10 px-8 md:py-16 md:px-12 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
+      className="flex flex-col items-center justify-center space-y-4 py-8 px-8 md:py-10 md:px-12 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
     >
@@ -110,7 +110,7 @@ export default function WordCard({
       {/* 例句 */}
       <motion.p
         variants={fadeInVariants}
-        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8"
+        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-3"
         role="region"
         aria-label="例句"
       >

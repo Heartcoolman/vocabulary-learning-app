@@ -219,8 +219,9 @@ class StateHistoryService {
    * @param state 用户状态
    */
   async saveStateSnapshot(userId: string, state: UserState): Promise<void> {
+    // 使用 UTC 时间作为日期基准，确保与 PostgreSQL 的 Date 类型一致
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const existing = await prisma.userStateHistory.findUnique({
       where: {
@@ -331,15 +332,15 @@ class StateHistoryService {
    * 获取认知成长对比
    * Requirements: 5.3
    *
-   * Property 17: 对比当前和30天前的认知画像
+   * Property 17: 对比当前和指定天数前的认知画像
    *
    * @param userId 用户ID
+   * @param period 对比周期（天数），默认30天
    * @returns 认知成长结果（包含 hasData 标志区分真实数据和默认值）
    */
-  async getCognitiveGrowth(userId: string): Promise<CognitiveGrowthResult> {
-    const period = 30;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - period);
+  async getCognitiveGrowth(userId: string, period: DateRangeOption = 30): Promise<CognitiveGrowthResult> {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - period);
 
     // 获取当前状态（最近一条记录）
     const currentRecord = await prisma.userStateHistory.findFirst({
@@ -347,11 +348,11 @@ class StateHistoryService {
       orderBy: { date: 'desc' }
     });
 
-    // 获取30天前的状态
+    // 获取指定天数前的状态
     const pastRecord = await prisma.userStateHistory.findFirst({
       where: {
         userId,
-        date: { lte: thirtyDaysAgo }
+        date: { lte: pastDate }
       },
       orderBy: { date: 'desc' }
     });
@@ -485,7 +486,7 @@ class StateHistoryService {
     date: Date
   ): Promise<StateHistoryItem | null> {
     const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    targetDate.setUTCHours(0, 0, 0, 0);
 
     const record = await prisma.userStateHistory.findUnique({
       where: {

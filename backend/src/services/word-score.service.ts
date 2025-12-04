@@ -251,8 +251,15 @@ export class WordScoreService {
     userId: string,
     updates: Array<{ wordId: string; data: Partial<WordScore> }>
   ): Promise<void> {
-    // 先验证所有单词的访问权限
-    await Promise.all(updates.map(({ wordId }) => this.assertWordAccessible(userId, wordId)));
+    const wordIds = [...new Set(updates.map(u => u.wordId))];
+
+    // 批量验证权限（单次查询替代N次查询）
+    const accessibleIds = await this.getAccessibleWordIds(userId, wordIds);
+
+    const inaccessibleWords = wordIds.filter(id => !accessibleIds.has(id));
+    if (inaccessibleWords.length > 0) {
+      throw new Error(`无权访问以下单词: ${inaccessibleWords.join(', ')}`);
+    }
 
     // 使用事务批量更新
     await prisma.$transaction(
@@ -346,6 +353,25 @@ export class WordScoreService {
    */
   clearAllCache(): void {
     cacheService.deletePattern('word_score*');
+  }
+
+  /**
+   * 批量检查用户可访问的单词ID（用于解决N+1查询问题）
+   */
+  private async getAccessibleWordIds(userId: string, wordIds: string[]): Promise<Set<string>> {
+    const words = await prisma.word.findMany({
+      where: {
+        id: { in: wordIds },
+        wordBook: {
+          OR: [
+            { type: 'SYSTEM' },
+            { userId: userId }
+          ]
+        }
+      },
+      select: { id: true }
+    });
+    return new Set(words.map(w => w.id));
   }
 
   /**

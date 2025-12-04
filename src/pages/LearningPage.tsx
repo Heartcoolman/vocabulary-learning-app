@@ -120,6 +120,16 @@ export default function LearningPage() {
     setShowTodayWords(false); // 隐藏今日推荐卡片，开始学习
   }, []);
 
+  // 答题后自动切换到下一词
+  useEffect(() => {
+    if (showResult) {
+      const timer = setTimeout(() => {
+        handleNext();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showResult, handleNext]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -249,52 +259,47 @@ export default function LearningPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <div className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto">
-        <div className="w-full space-y-6">
+      <div className="flex-1 flex flex-col items-center justify-center p-3 w-full max-w-4xl mx-auto">
+        <div className="w-full space-y-3">
           {/* 今日推荐卡片 - 仅在未开始学习时显示 */}
           {showTodayWords && !currentWord && !isLoading && allWords.length > 0 && (
             <TodayWordsCard onStartLearning={handleStartLearningFromToday} />
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-1">
-              <MasteryProgress
-                progress={progress}
-                isCompleted={isCompleted}
-              />
-            </div>
-            <div className="flex gap-2 sm:gap-3">
-              <LearningModeSelector />
-              <button
-                onClick={() => setIsStatusOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 text-sm font-medium shadow-sm"
-                aria-label="查看状态监控"
-              >
-                <ChartPie size={18} weight="bold" />
-                <span className="hidden sm:inline">状态监控</span>
-              </button>
-              <button
-                onClick={() => setIsSuggestionOpen(true)}
-                disabled={!latestAmasResult}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-200"
-                aria-label="查看AI建议"
-                title={!latestAmasResult ? '请先回答问题以获取AI建议' : ''}
-              >
-                <Lightbulb size={18} weight="bold" />
-                <span className="hidden sm:inline">AI建议</span>
-              </button>
-              <button
-                onClick={() => setIsExplainabilityOpen(true)}
-                disabled={!latestAmasResult}
-                className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200 text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 disabled:hover:border-indigo-200"
-                aria-label="查看决策解释"
-                title={!latestAmasResult ? '请先回答问题以查看AMAS决策解释' : '为什么选这个词？'}
-              >
-                <Brain size={18} />
-                <span className="hidden sm:inline">决策透视</span>
-              </button>
-            </div>
-          </div>
+          {/* 学习进度面板 - 集成工具栏 */}
+          <MasteryProgress
+            progress={progress}
+            isCompleted={isCompleted}
+            headerActions={
+              <>
+                <div className="h-4 w-px bg-gray-200 mx-1" />
+                <LearningModeSelector minimal />
+                <button
+                  onClick={() => setIsStatusOpen(true)}
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="状态监控"
+                >
+                  <ChartPie size={20} />
+                </button>
+                <button
+                  onClick={() => setIsSuggestionOpen(true)}
+                  disabled={!latestAmasResult}
+                  className="p-2 text-gray-500 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-30"
+                  title={!latestAmasResult ? '暂无建议' : 'AI 建议'}
+                >
+                  <Lightbulb size={20} weight={latestAmasResult ? 'fill' : 'regular'} />
+                </button>
+                <button
+                  onClick={() => setIsExplainabilityOpen(true)}
+                  disabled={!latestAmasResult}
+                  className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-30"
+                  title="决策透视"
+                >
+                  <Brain size={20} />
+                </button>
+              </>
+            }
+          />
           <WordCard
             word={currentWord}
             onPronounce={handlePronounce}
@@ -308,34 +313,20 @@ export default function LearningPage() {
             selectedAnswer={selectedAnswer}
             showResult={showResult}
           />
+        </div>
+      </div>
 
-          {/* AMAS决策解释 */}
-          {latestAmasResult?.explanation && showResult && (
-            <div className="mt-4 p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">当前学习策略</span>
-                <p className="text-xs text-gray-600">{latestAmasResult.explanation}</p>
-              </div>
-            </div>
-          )}
-
-          {showResult && (
-            <div className="flex justify-center pb-4">
-              <button
-                onClick={handleNext}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleNext();
-                  }
-                }}
-                className="px-8 py-3 bg-blue-500 text-white rounded-lg text-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
-                autoFocus
-              >
-                下一词 (Enter)
-              </button>
-            </div>
-          )}
+      {/* AMAS决策解释 - 固定在底部，不影响布局 */}
+      <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl px-3 transition-all duration-500 ease-out ${
+        showResult ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+      }`}>
+        <div className="p-3 bg-white/95 backdrop-blur-sm border border-blue-200 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700">当前学习策略</span>
+            <p className="text-sm text-gray-600">
+              {latestAmasResult?.explanation || '分析中...'}
+            </p>
+          </div>
         </div>
       </div>
 

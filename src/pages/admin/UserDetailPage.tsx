@@ -15,6 +15,7 @@ import {
     MagnifyingGlass,
     CaretLeft,
     CaretRight,
+    WarningCircle,
 } from '../../components/Icon';
 import { Flame, CaretDown, ArrowUp, ArrowDown, ListDashes, Brain, Download, CalendarBlank, ChartLine, Lightning } from '@phosphor-icons/react';
 import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
@@ -343,7 +344,7 @@ export default function UserDetailPage() {
         return (
             <div className="p-8">
                 <div className="text-center py-12">
-                    <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                    <WarningCircle size={64} weight="fill" className="text-red-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
                     <p className="text-gray-600 mb-6">{error}</p>
                     <button
@@ -905,31 +906,23 @@ export default function UserDetailPage() {
                                                 );
                                             })
                                             .map((page, index, array) => {
-                                                if (
-                                                    index > 0 &&
-                                                    page - array[index - 1] > 1
-                                                ) {
-                                                    return (
-                                                        <span
-                                                            key={`ellipsis-${page}`}
-                                                            className="px-2 text-gray-400"
-                                                        >
-                                                            ...
-                                                        </span>
-                                                    );
-                                                }
+                                                const showEllipsis = index > 0 && page - array[index - 1] > 1;
                                                 return (
-                                                    <button
-                                                        key={page}
-                                                        onClick={() => handlePageChange(page)}
-                                                        className={`px-4 py-2 rounded-lg transition-all ${
-                                                            page === pagination.page
-                                                                ? 'bg-blue-500 text-white'
-                                                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                                        }`}
-                                                    >
-                                                        {page}
-                                                    </button>
+                                                    <span key={page} className="contents">
+                                                        {showEllipsis && (
+                                                            <span className="px-2 text-gray-400">...</span>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handlePageChange(page)}
+                                                            className={`px-4 py-2 rounded-lg transition-all ${
+                                                                page === pagination.page
+                                                                    ? 'bg-blue-500 text-white'
+                                                                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {page}
+                                                        </button>
+                                                    </span>
                                                 );
                                             })}
                                     </div>

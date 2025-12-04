@@ -85,6 +85,67 @@ class MockAudio {
 
 vi.stubGlobal('Audio', MockAudio);
 
+// ==================== Speech Synthesis Mock ====================
+
+class MockSpeechSynthesisUtterance {
+  text: string;
+  lang = '';
+  rate = 1;
+  pitch = 1;
+  volume = 1;
+  voice = null;
+  onend: (() => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+  onstart: (() => void) | null = null;
+  onpause: (() => void) | null = null;
+  onresume: (() => void) | null = null;
+  onmark: (() => void) | null = null;
+  onboundary: (() => void) | null = null;
+
+  constructor(text: string = '') {
+    this.text = text;
+  }
+}
+
+vi.stubGlobal('SpeechSynthesisUtterance', MockSpeechSynthesisUtterance);
+
+// Create persistent mock functions that won't lose their implementation on clearAllMocks
+const speechSynthesisSpeakImpl = (utterance: MockSpeechSynthesisUtterance) => {
+  // Simulate successful speech by triggering onend
+  queueMicrotask(() => {
+    if (utterance.onend) utterance.onend();
+  });
+};
+
+const mockSpeechSynthesisSpeak = vi.fn(speechSynthesisSpeakImpl);
+const mockSpeechSynthesisCancel = vi.fn();
+
+const mockSpeechSynthesis = {
+  speak: mockSpeechSynthesisSpeak,
+  cancel: mockSpeechSynthesisCancel,
+  pause: vi.fn(),
+  resume: vi.fn(),
+  getVoices: vi.fn().mockReturnValue([]),
+  speaking: false,
+  pending: false,
+  paused: false,
+  onvoiceschanged: null,
+};
+
+// Set on both window and global
+Object.defineProperty(window, 'speechSynthesis', {
+  value: mockSpeechSynthesis,
+  writable: true,
+  configurable: true,
+});
+
+vi.stubGlobal('speechSynthesis', mockSpeechSynthesis);
+
+// Export for tests to restore default behavior
+export const resetSpeechSynthesisMock = () => {
+  mockSpeechSynthesisSpeak.mockImplementation(speechSynthesisSpeakImpl);
+};
+
 // ==================== IntersectionObserver Mock ====================
 
 const intersectionObserverMock = vi.fn().mockImplementation(() => ({

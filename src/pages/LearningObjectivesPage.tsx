@@ -6,33 +6,35 @@
 import React, { useState, useEffect } from 'react';
 import ApiClient from '../services/ApiClient';
 import { LearningObjectives, LearningObjectiveMode } from '../types/learning-objectives';
+import { NotePencil, Books, Globe, Gear } from '../components/Icon';
+import { IconProps } from '@phosphor-icons/react';
 
 interface ModeConfig {
   label: string;
   description: string;
-  icon: string;
+  Icon: React.ComponentType<IconProps>;
 }
 
 const MODE_CONFIGS: Record<LearningObjectiveMode, ModeConfig> = {
   exam: {
     label: '考试模式',
     description: '提升准确率，适合备考冲刺',
-    icon: '📝'
+    Icon: NotePencil
   },
   daily: {
     label: '日常模式',
     description: '平衡学习，适合长期记忆',
-    icon: '📚'
+    Icon: Books
   },
   travel: {
     label: '旅行模式',
     description: '快速学习，适合时间有限',
-    icon: '✈️'
+    Icon: Globe
   },
   custom: {
     label: '自定义模式',
     description: '自定义配置，灵活调整',
-    icon: '⚙️'
+    Icon: Gear
   }
 };
 
@@ -130,7 +132,9 @@ export const LearningObjectivesPage: React.FC = () => {
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>学习模式</h2>
         <div style={styles.modeGrid}>
-          {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => (
+          {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => {
+            const { Icon } = MODE_CONFIGS[mode];
+            return (
             <button
               key={mode}
               onClick={() => handleModeChange(mode)}
@@ -140,11 +144,12 @@ export const LearningObjectivesPage: React.FC = () => {
                 ...(objectives.mode === mode ? styles.modeCardActive : {})
               }}
             >
-              <div style={styles.modeIcon}>{MODE_CONFIGS[mode].icon}</div>
+              <div style={styles.modeIcon}><Icon size={48} weight="duotone" /></div>
               <div style={styles.modeLabel}>{MODE_CONFIGS[mode].label}</div>
               <div style={styles.modeDescription}>{MODE_CONFIGS[mode].description}</div>
             </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -290,8 +295,10 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'scale(1.05)'
   },
   modeIcon: {
-    fontSize: '48px',
-    marginBottom: '12px'
+    marginBottom: '12px',
+    display: 'flex',
+    justifyContent: 'center',
+    color: '#2196f3'
   },
   modeLabel: {
     fontSize: '16px',

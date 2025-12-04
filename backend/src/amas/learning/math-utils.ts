@@ -48,6 +48,8 @@ export interface Rank1UpdateResult {
  * 算法参考: Gill, Golub, Murray, and Saunders (1974)
  * "Methods for Modifying Matrix Factorizations"
  *
+ * 优化：内部使用 Float64 进行高精度计算，最终转回 Float32 存储
+ *
  * @param L 现有Cholesky因子 (d×d, 下三角存储, 行优先)
  * @param x 增量向量 (d维)
  * @param d 维度
@@ -75,9 +77,9 @@ export function choleskyRank1Update(
     return { L: new Float32Array(L ?? []), success: false };
   }
 
-  // 创建工作副本（避免修改原始数据）
-  const next = new Float32Array(L);
-  const w = new Float32Array(d);
+  // 使用 Float64 进行高精度计算
+  const next64 = Float64Array.from(L);
+  const w = new Float64Array(d);
 
   // 复制并验证x向量
   for (let i = 0; i < d; i++) {
@@ -87,7 +89,7 @@ export function choleskyRank1Update(
 
   // Rank-1更新主循环
   for (let k = 0; k < d; k++) {
-    const Lkk = next[k * d + k];
+    const Lkk = next64[k * d + k];
     const xk = w[k];
 
     // 检查当前对角元素有效性
@@ -119,11 +121,11 @@ export function choleskyRank1Update(
     }
 
     // 更新对角元素
-    next[k * d + k] = r;
+    next64[k * d + k] = r;
 
     // 更新第k列下方的元素
     for (let i = k + 1; i < d; i++) {
-      const Lik = next[i * d + k];
+      const Lik = next64[i * d + k];
       const xi = w[i];
 
       // 应用Givens旋转
@@ -141,14 +143,14 @@ export function choleskyRank1Update(
         return { L: new Float32Array(L), success: false };
       }
 
-      next[i * d + k] = updatedLik;
+      next64[i * d + k] = updatedLik;
       w[i] = updatedXi;
     }
   }
 
   // 最终对角线完整性检查
   for (let i = 0; i < d; i++) {
-    const diag = next[i * d + i];
+    const diag = next64[i * d + i];
     if (
       !Number.isFinite(diag) ||
       diag < safeMinDiag ||
@@ -159,13 +161,15 @@ export function choleskyRank1Update(
     }
   }
 
-  return { L: next, success: true };
+  // 转换回 Float32 存储
+  return { L: new Float32Array(next64), success: true };
 }
 
 /**
  * 完整Cholesky分解 (用于初始化或回退)
  *
  * 分解: A = LL^T，其中L是下三角矩阵
+ * 优化：内部使用 Float64 进行高精度计算，最终转回 Float32 存储
  *
  * @param A 对称正定矩阵 (d×d, 行优先存储)
  * @param d 维度
@@ -183,8 +187,8 @@ export function choleskyDecompose(
     return initIdentityMatrix(d, safeLambda);
   }
 
-  // 复制并对称化
-  const matrix = new Float32Array(A);
+  // 使用 Float64 进行高精度计算并对称化
+  const matrix = Float64Array.from(A);
   for (let i = 0; i < d; i++) {
     for (let j = i + 1; j < d; j++) {
       const avg = (matrix[i * d + j] + matrix[j * d + i]) / 2;
@@ -193,14 +197,14 @@ export function choleskyDecompose(
     }
   }
 
-  const L = new Float32Array(d * d);
+  const L64 = new Float64Array(d * d);
 
   for (let i = 0; i < d; i++) {
     for (let j = 0; j <= i; j++) {
       let sum = matrix[i * d + j];
 
       for (let k = 0; k < j; k++) {
-        sum -= L[i * d + k] * L[j * d + k];
+        sum -= L64[i * d + k] * L64[j * d + k];
       }
 
       if (i === j) {
@@ -209,24 +213,25 @@ export function choleskyDecompose(
           // 使用正则化修复
           sum = safeLambda + EPSILON;
         }
-        L[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_MAGNITUDE));
+        L64[i * d + j] = Math.sqrt(Math.min(Math.max(sum, EPSILON), MAX_MAGNITUDE));
       } else {
         // 非对角元素
-        const denom = Math.max(L[j * d + j], Math.sqrt(safeLambda));
-        L[i * d + j] = sum / denom;
+        const denom = Math.max(L64[j * d + j], Math.sqrt(safeLambda));
+        L64[i * d + j] = sum / denom;
       }
     }
   }
 
   // 验证结果
-  for (let i = 0; i < L.length; i++) {
-    if (!Number.isFinite(L[i]) || Math.abs(L[i]) > MAX_MAGNITUDE) {
+  for (let i = 0; i < L64.length; i++) {
+    if (!Number.isFinite(L64[i]) || Math.abs(L64[i]) > MAX_MAGNITUDE) {
       amasLogger.warn('[math-utils] Cholesky分解失败，返回正则化单位矩阵');
       return initIdentityMatrix(d, safeLambda);
     }
   }
 
-  return L;
+  // 转换回 Float32 存储
+  return new Float32Array(L64);
 }
 
 /**
@@ -235,6 +240,8 @@ export function choleskyDecompose(
  * 给定L使得A = LL^T，求解x:
  * 1. Forward substitution: Ly = b
  * 2. Backward substitution: L^T x = y
+ *
+ * 优化：内部使用 Float64 进行高精度计算，最终转回 Float32 存储
  *
  * @param L Cholesky因子 (d×d)
  * @param b 右侧向量 (d维)
@@ -246,42 +253,47 @@ export function solveCholesky(
   b: Float32Array,
   d: number
 ): Float32Array {
-  const y = new Float32Array(d);
-  const x = new Float32Array(d);
+  // 使用 Float64 进行高精度计算
+  const L64 = Float64Array.from(L);
+  const b64 = Float64Array.from(b);
+  const y = new Float64Array(d);
+  const x64 = new Float64Array(d);
 
   // Forward substitution: Ly = b
   for (let i = 0; i < d; i++) {
-    let sum = b[i];
+    let sum = b64[i];
     for (let j = 0; j < i; j++) {
-      sum -= L[i * d + j] * y[j];
+      sum -= L64[i * d + j] * y[j];
     }
-    y[i] = sum / Math.max(L[i * d + i], EPSILON);
+    y[i] = sum / Math.max(L64[i * d + i], EPSILON);
   }
 
   // Backward substitution: L^T x = y
   for (let i = d - 1; i >= 0; i--) {
     let sum = y[i];
     for (let j = i + 1; j < d; j++) {
-      sum -= L[j * d + i] * x[j];
+      sum -= L64[j * d + i] * x64[j];
     }
-    x[i] = sum / Math.max(L[i * d + i], EPSILON);
+    x64[i] = sum / Math.max(L64[i * d + i], EPSILON);
   }
 
   // 验证结果
   for (let i = 0; i < d; i++) {
-    if (!Number.isFinite(x[i])) {
+    if (!Number.isFinite(x64[i])) {
       amasLogger.warn('[math-utils] 求解失败，返回零向量');
       return new Float32Array(d);
     }
   }
 
-  return x;
+  // 转换回 Float32 存储
+  return new Float32Array(x64);
 }
 
 /**
  * 计算 sqrt(x^T A^(-1) x) (用于UCB置信区间)
  *
  * 使用Cholesky因子高效计算，避免显式求逆
+ * 优化：内部使用 Float64 进行高精度计算
  *
  * @param L Cholesky因子
  * @param x 向量
@@ -293,15 +305,18 @@ export function computeConfidenceWidth(
   x: Float32Array,
   d: number
 ): number {
-  const y = new Float32Array(d);
+  // 使用 Float64 进行高精度计算
+  const L64 = Float64Array.from(L);
+  const x64 = Float64Array.from(x);
+  const y = new Float64Array(d);
 
   // Forward substitution: Ly = x
   for (let i = 0; i < d; i++) {
-    let sum = x[i];
+    let sum = x64[i];
     for (let j = 0; j < i; j++) {
-      sum -= L[i * d + j] * y[j];
+      sum -= L64[i * d + j] * y[j];
     }
-    y[i] = sum / Math.max(L[i * d + i], EPSILON);
+    y[i] = sum / Math.max(L64[i * d + i], EPSILON);
   }
 
   // ||y||^2 = x^T A^(-1) x

@@ -267,6 +267,28 @@ export interface WordMasteryDecision {
 }
 
 /**
+ * 冷启动状态持久化数据
+ */
+export interface ColdStartStateData {
+  /** 当前阶段 */
+  phase: 'classify' | 'explore' | 'normal';
+  /** 用户类型分类 */
+  userType: 'fast' | 'stable' | 'cautious' | null;
+  /** 当前探测索引 */
+  probeIndex: number;
+  /** 更新计数 */
+  updateCount: number;
+  /** 收敛后的策略 */
+  settledStrategy: {
+    interval_scale: number;
+    new_ratio: number;
+    difficulty: 'easy' | 'mid' | 'hard';
+    batch_size: number;
+    hint_level: number;
+  } | null;
+}
+
+/**
  * 处理结果
  */
 export interface ProcessResult {

@@ -89,7 +89,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
                 fill={isCorrect ? '#10b981' : '#ef4444'}
                 stroke="white"
                 strokeWidth="2"
-                className="hover:r-6 transition-all cursor-pointer"
+                className="transition-transform origin-center hover:scale-150 cursor-pointer"
               >
                 <title>
                   {formatDate(p.data.timestamp)}: {isCorrect ? '正确' : '错误'} ({p.data.responseTime.toFixed(1)}s)

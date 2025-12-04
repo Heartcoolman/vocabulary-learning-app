@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, SunHorizon, TrendUp } from './Icon';
+import { Sun, Moon, SunHorizon, TrendUp, Sparkle } from './Icon';
 
 export type ChronotypeCategory = 'morning' | 'evening' | 'intermediate';
 
@@ -131,8 +131,8 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data }) => {
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                    <div className="bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-                      {hour}:00 {isPeak ? '✨ 黄金时间' : ''}
+                    <div className="bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap flex items-center gap-1">
+                      {hour}:00 {isPeak ? <><Sparkle size={12} weight="fill" /> 黄金时间</> : ''}
                     </div>
                   </div>
                 </motion.div>

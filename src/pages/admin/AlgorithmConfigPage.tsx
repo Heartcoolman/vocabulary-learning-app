@@ -554,7 +554,7 @@ function PriorityWeightsSection({ weights, defaultWeights, onChange }: PriorityW
           </span>
         </div>
         {!isValid && (
-          <p className="text-xs text-red-600 mt-1">⚠️ 权重总和必须等于 100%</p>
+          <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><Warning size={12} weight="bold" /> 权重总和必须等于 100%</p>
         )}
       </div>
 
@@ -771,7 +771,7 @@ function ScoreWeightsSection({ weights, defaultWeights, onChange }: ScoreWeights
           </span>
         </div>
         {!isValid && (
-          <p className="text-xs text-red-600 mt-1">⚠️ 权重总和必须等于 100%</p>
+          <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><Warning size={12} weight="bold" /> 权重总和必须等于 100%</p>
         )}
       </div>
 

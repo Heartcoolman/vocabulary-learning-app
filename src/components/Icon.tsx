@@ -115,3 +115,6 @@ export {
 
 // 图标别名
 export { SlidersHorizontal as Sliders, User as UserFocus, Pulse as Activity } from '@phosphor-icons/react';
+
+// 系统状态页面额外图标
+export { UsersThree as Users, Gauge, ToggleLeft, ToggleRight } from '@phosphor-icons/react';

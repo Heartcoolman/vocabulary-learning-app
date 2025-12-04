@@ -17,7 +17,11 @@ const MODE_ICONS: Record<string, React.ReactNode> = {
   relaxed: <Coffee size={20} weight="fill" />
 };
 
-export const LearningModeSelector: React.FC = () => {
+interface LearningModeSelectorProps {
+  minimal?: boolean;
+}
+
+export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ minimal = false }) => {
   const toast = useToast();
   const [currentMode, setCurrentMode] = useState('standard');
   const [modes, setModes] = useState<ModeOption[]>([]);
@@ -61,14 +65,22 @@ export const LearningModeSelector: React.FC = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="btn-secondary flex items-center gap-2"
+        className={minimal
+          ? 'p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors'
+          : 'btn-ghost flex items-center gap-1.5 px-2 py-1.5 text-sm'
+        }
         aria-label="选择学习模式"
+        title="切换学习模式"
       >
         {MODE_ICONS[currentMode]}
-        <span className="hidden sm:inline">学习模式</span>
-        <span className="text-xs text-gray-500">
-          {modes.find(m => m.id === currentMode)?.name}
-        </span>
+        {!minimal && (
+          <>
+            <span className="hidden sm:inline">模式</span>
+            <span className="text-xs text-gray-500">
+              {modes.find(m => m.id === currentMode)?.name}
+            </span>
+          </>
+        )}
       </button>
 
       <AnimatePresence>

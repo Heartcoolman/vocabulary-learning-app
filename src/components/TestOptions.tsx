@@ -94,7 +94,7 @@ export default function TestOptions({
       variants={staggerContainerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-wrap justify-center gap-3 px-4 py-8 w-full"
+      className="flex flex-wrap justify-center gap-3 px-4 py-5 w-full"
       role="group"
       aria-label="测试选项"
     >
@@ -115,7 +115,7 @@ export default function TestOptions({
           whileTap={!showResult ? { scale: 0.95 } : undefined}
           transition={g3SpringSnappy}
           className={`
-            flex-1 min-w-[100px] sm:min-w-[120px] max-w-[180px] px-4 sm:px-6 py-3 rounded-lg text-base md:text-lg font-medium
+            flex-1 min-w-[120px] sm:min-w-[140px] max-w-[200px] px-5 py-3 rounded-lg text-base md:text-lg font-medium
             ${getButtonStyle(option)}
             ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
             disabled:cursor-not-allowed

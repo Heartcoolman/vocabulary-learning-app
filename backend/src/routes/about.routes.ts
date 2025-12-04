@@ -670,6 +670,166 @@ router.post('/pipeline/inject-fault', authMiddleware, adminMiddleware, rateLimit
   }
 });
 
+// ==================== 系统状态页面 API ====================
+
+/**
+ * GET /api/about/system/pipeline-status
+ * 获取 Pipeline 各层实时运行状态
+ */
+router.get('/system/pipeline-status', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const status = await getRealAboutService().getPipelineLayerStatus();
+      res.json({
+        success: true,
+        data: status,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          layers: [
+            { id: 'PERCEPTION', name: 'Perception', nameCn: '感知层', processedCount: 1234, avgLatencyMs: 5, successRate: 0.99, status: 'healthy', lastProcessedAt: new Date().toISOString() },
+            { id: 'MODELING', name: 'Modeling', nameCn: '建模层', processedCount: 1234, avgLatencyMs: 8, successRate: 0.98, status: 'healthy', lastProcessedAt: new Date().toISOString() },
+            { id: 'LEARNING', name: 'Learning', nameCn: '学习层', processedCount: 1234, avgLatencyMs: 12, successRate: 0.97, status: 'healthy', lastProcessedAt: new Date().toISOString() },
+            { id: 'DECISION', name: 'Decision', nameCn: '决策层', processedCount: 1234, avgLatencyMs: 6, successRate: 0.99, status: 'healthy', lastProcessedAt: new Date().toISOString() },
+            { id: 'EVALUATION', name: 'Evaluation', nameCn: '评估层', processedCount: 800, avgLatencyMs: 15, successRate: 0.95, status: 'healthy', lastProcessedAt: new Date().toISOString() },
+            { id: 'OPTIMIZATION', name: 'Optimization', nameCn: '优化层', processedCount: 50, avgLatencyMs: 100, successRate: 1.0, status: 'healthy', lastProcessedAt: new Date().toISOString() }
+          ],
+          totalThroughput: 4.12,
+          systemHealth: 'healthy'
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取 Pipeline 状态失败');
+  }
+});
+
+/**
+ * GET /api/about/system/algorithm-status
+ * 获取各算法实时运行状态
+ */
+router.get('/system/algorithm-status', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const status = await getRealAboutService().getAlgorithmStatus();
+      res.json({
+        success: true,
+        data: status,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          algorithms: [
+            { id: 'thompson', name: 'Thompson Sampling', weight: 0.25, callCount: 320, avgLatencyMs: 8, explorationRate: 0.15, lastCalledAt: new Date().toISOString() },
+            { id: 'linucb', name: 'LinUCB', weight: 0.40, callCount: 512, avgLatencyMs: 12, explorationRate: 0.12, lastCalledAt: new Date().toISOString() },
+            { id: 'actr', name: 'ACT-R Memory', weight: 0.25, callCount: 320, avgLatencyMs: 6, explorationRate: 0.08, lastCalledAt: new Date().toISOString() },
+            { id: 'heuristic', name: 'Heuristic Rules', weight: 0.10, callCount: 128, avgLatencyMs: 2, explorationRate: 0.05, lastCalledAt: new Date().toISOString() }
+          ],
+          ensembleConsensusRate: 0.82,
+          coldstartStats: {
+            classifyCount: 15,
+            exploreCount: 8,
+            normalCount: 1200,
+            userTypeDistribution: { fast: 0.35, stable: 0.45, cautious: 0.20 }
+          }
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取算法状态失败');
+  }
+});
+
+/**
+ * GET /api/about/system/user-state-status
+ * 获取用户状态分布实时监控数据
+ */
+router.get('/system/user-state-status', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const status = await getRealAboutService().getUserStateStatus();
+      res.json({
+        success: true,
+        data: status,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          distributions: {
+            attention: { avg: 0.65, low: 0.15, medium: 0.55, high: 0.30, lowAlertCount: 3 },
+            fatigue: { avg: 0.35, fresh: 0.40, normal: 0.45, tired: 0.15, highAlertCount: 2 },
+            motivation: { avg: 0.25, frustrated: 0.10, neutral: 0.50, motivated: 0.40, lowAlertCount: 1 },
+            cognitive: { memory: 0.60, speed: 0.55, stability: 0.70 }
+          },
+          recentInferences: [
+            { id: 'a1b2c3d4', timestamp: new Date().toISOString(), attention: 0.72, fatigue: 0.28, motivation: 0.45, confidence: 0.88 },
+            { id: 'e5f6g7h8', timestamp: new Date(Date.now() - 30000).toISOString(), attention: 0.58, fatigue: 0.42, motivation: 0.15, confidence: 0.82 }
+          ],
+          modelParams: {
+            attention: { beta: 0.85, weights: { rt_mean: 0.25, rt_cv: 0.35, pause: 0.15, focus_loss: 0.5 } },
+            fatigue: { decayK: 0.08, longBreakThreshold: 30 },
+            motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 }
+          }
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取用户状态监控数据失败');
+  }
+});
+
+/**
+ * GET /api/about/system/memory-status
+ * 获取记忆状态分布
+ */
+router.get('/system/memory-status', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const status = await getRealAboutService().getMemoryStatus();
+      res.json({
+        success: true,
+        data: status,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          strengthDistribution: [
+            { range: '0-20%', count: 150, percentage: 7.5 },
+            { range: '20-40%', count: 300, percentage: 15.0 },
+            { range: '40-60%', count: 600, percentage: 30.0 },
+            { range: '60-80%', count: 650, percentage: 32.5 },
+            { range: '80-100%', count: 300, percentage: 15.0 }
+          ],
+          urgentReviewCount: 45,
+          soonReviewCount: 120,
+          stableCount: 1835,
+          avgHalfLifeDays: 3.2,
+          todayConsolidationRate: 78.5
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取记忆状态失败');
+  }
+});
+
 // ==================== 监控与诊断 API ====================
 
 /**

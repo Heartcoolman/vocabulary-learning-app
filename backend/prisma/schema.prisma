@@ -292,6 +292,7 @@ model AmasUserState {
   cognitiveProfile Json     @default("{\"mem\": 0.5, \"speed\": 0.5, \"stability\": 0.5}")
   habitProfile     Json?
   trendState       String?
+  coldStartState   Json?    // 冷启动状态：{phase, userType, probeIndex, updateCount, settledStrategy}
   lastUpdateTs     BigInt   @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

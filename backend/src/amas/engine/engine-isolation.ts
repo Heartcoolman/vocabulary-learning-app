@@ -17,7 +17,7 @@ import { HeuristicLearner } from '../learning/heuristic';
 import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
 import { getFeatureFlags } from '../config/feature-flags';
-import { DecisionModel, UserModels } from './engine-types';
+import { DecisionModel, UserModels, ColdStartStateData } from './engine-types';
 
 /**
  * 用户隔离管理器
@@ -49,7 +49,7 @@ export class IsolationManager {
    *
    * 每个用户拥有独立的建模层实例，避免跨用户状态污染
    */
-  getUserModels(userId: string): UserModels {
+  getUserModels(userId: string, coldStartState?: ColdStartStateData): UserModels {
     let models = this.userModels.get(userId);
     if (!models) {
       const flags = getFeatureFlags();
@@ -77,7 +77,7 @@ export class IsolationManager {
           ? this.cloneTrendAnalyzer()
           : null,
         coldStart: flags.enableColdStartManager
-          ? this.cloneColdStartManager()
+          ? this.cloneColdStartManager(coldStartState)
           : null,
         thompson: flags.enableThompsonSampling
           ? this.cloneThompsonSampling()
@@ -110,29 +110,37 @@ export class IsolationManager {
    * 防止同一用户的并发请求导致 Lost Update
    * 注意：前一个请求的异常会被吞掉，不会传播给后续请求
    */
-  async withUserLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
-    // 获取当前用户的锁（如果不存在则为已完成的Promise）
+  async withUserLock<T>(userId: string, fn: () => Promise<T>, timeoutMs: number = 30000): Promise<T> {
     const previousLock = this.userLocks.get(userId) ?? Promise.resolve();
 
-    // 创建新的锁门控
     let releaseLock: () => void;
     const currentLock = new Promise<void>((resolve) => {
       releaseLock = resolve;
     });
 
-    // 设置当前锁：吞掉前一个锁的异常，避免传播给后续请求
     const chainedLock = previousLock.catch(() => {}).then(() => currentLock);
     this.userLocks.set(userId, chainedLock);
 
-    // 等待之前的锁释放（吞掉异常）
-    await previousLock.catch(() => {});
+    // 创建超时Promise
+    const createTimeout = () => new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`用户锁超时 (${userId}): 操作超过 ${timeoutMs}ms`)), timeoutMs);
+    });
+
+    // 等待前一个锁释放（带超时）
+    try {
+      await Promise.race([previousLock.catch(() => {}), createTimeout()]);
+    } catch (error) {
+      releaseLock!();
+      if (this.userLocks.get(userId) === chainedLock) {
+        this.userLocks.delete(userId);
+      }
+      throw error;
+    }
 
     try {
-      return await fn();
+      return await Promise.race([fn(), createTimeout()]);
     } finally {
-      // 释放锁
       releaseLock!();
-      // 清理已完成的锁
       if (this.userLocks.get(userId) === chainedLock) {
         this.userLocks.delete(userId);
       }
@@ -246,8 +254,19 @@ export class IsolationManager {
   /**
    * 克隆 ColdStartManager
    */
-  private cloneColdStartManager(): ColdStartManager {
-    return new ColdStartManager();
+  private cloneColdStartManager(savedState?: ColdStartStateData): ColdStartManager {
+    const manager = new ColdStartManager();
+    if (savedState) {
+      manager.setState({
+        phase: savedState.phase,
+        userType: savedState.userType,
+        probeIndex: savedState.probeIndex,
+        results: [],  // 探测结果不需要持久化
+        settledStrategy: savedState.settledStrategy,
+        updateCount: savedState.updateCount
+      });
+    }
+    return manager;
   }
 
   /**
