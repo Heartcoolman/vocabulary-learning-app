@@ -8,9 +8,3 @@ export * from './causal-inference';
 
 // 延迟奖励聚合器
 export * from './delayed-reward-aggregator';
-
-// 离线重放评估
-export * from './offline-replay';
-
-// A/B测试平台
-export * from './ab-testing';

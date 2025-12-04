@@ -36,7 +36,6 @@ import {
   DEFAULT_DIMENSION
 } from '../config/action-space';
 import { getRewardProfile } from '../config/reward-profiles';
-import { algorithmRouter } from './algorithm-router';
 import { telemetry } from '../common/telemetry';
 import prisma from '../../config/database';
 import {
@@ -480,18 +479,6 @@ export class AMASEngine {
     // 构建可序列化的特征向量
     // Optimization #1: 使用finalContextVec（基于alignedAction重建）
     const persistableFeatureVector = this.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
-
-    // 15. 记录A/B测试指标（异步，不阻塞）
-    try {
-      algorithmRouter.recordMetrics(userId, {
-        reward,
-        accuracy: rawEvent.isCorrect ? 1 : 0,
-        duration: elapsed
-      });
-    } catch (err) {
-      // 静默失败，不影响主流程
-      this.logger?.warn('Failed to record A/B metrics', { userId, error: err });
-    }
 
     return {
       strategy: finalStrategy,

@@ -738,10 +738,13 @@ export class RealAboutService {
       const last7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
       // 获取答题准确率
-      const accuracyResult = await this.prisma.answerRecord.aggregate({
-        where: { timestamp: { gte: last7Days } },
-        _avg: { isCorrect: true }
+      const correctCount = await this.prisma.answerRecord.count({
+        where: { timestamp: { gte: last7Days }, isCorrect: true }
       });
+      const totalCount = await this.prisma.answerRecord.count({
+        where: { timestamp: { gte: last7Days } }
+      });
+      const currentAccuracy = totalCount > 0 ? correctCount / totalCount : 0;
 
       // 获取推理耗时统计
       const latencyStats = await this.prisma.decisionRecord.aggregate({
@@ -763,7 +766,6 @@ export class RealAboutService {
 
       // 计算基线准确率（假设无系统帮助时为 70%）
       const baselineAccuracy = 0.70;
-      const currentAccuracy = (accuracyResult._avg as any)?.isCorrect ?? 0;
       const improvement = currentAccuracy > 0 ? ((currentAccuracy - baselineAccuracy) / baselineAccuracy) * 100 : 0;
 
       return {

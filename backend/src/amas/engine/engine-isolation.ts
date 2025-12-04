@@ -18,7 +18,6 @@ import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
 import { getFeatureFlags } from '../config/feature-flags';
 import { DecisionModel, UserModels } from './engine-types';
-import { algorithmRouter } from './algorithm-router';
 
 /**
  * 用户隔离管理器
@@ -55,14 +54,13 @@ export class IsolationManager {
     if (!models) {
       const flags = getFeatureFlags();
 
-      // 根据A/B测试路由选择算法，或使用功能开关
+      // 根据功能开关选择算法
       let bandit: DecisionModel;
       if (flags.enableEnsemble) {
         bandit = this.cloneEnsemble();
       } else {
-        // A/B测试: Thompson vs LinUCB
-        const algorithm = algorithmRouter.selectAlgorithm(userId);
-        bandit = algorithmRouter.createLearner(algorithm);
+        // 默认使用 LinUCB
+        bandit = this.cloneLinUCB();
       }
 
       // 为新用户创建独立的模型实例

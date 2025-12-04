@@ -145,25 +145,6 @@ export {
   defaultDelayedRewardAggregator
 } from './evaluation/delayed-reward-aggregator';
 
-export {
-  ABTestEngine,
-  ABTestConfig,
-  ABVariant,
-  ABMetrics,
-  SignificanceTestResult,
-  ABTestResult,
-  createABTestEngine
-} from './evaluation/ab-testing';
-
-export {
-  OfflineReplayEvaluator,
-  HistoricalRecord,
-  PolicyEvaluator,
-  EvaluationResult,
-  SegmentStats,
-  ComparisonResult
-} from './evaluation/offline-replay';
-
 // ==================== 优化层 ====================
 export {
   BayesianOptimizer,
