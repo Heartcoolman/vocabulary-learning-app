@@ -13,6 +13,22 @@ const wordStateUpdateSchema = z.object({
     consecutiveWrong: z.number().int().min(0).optional(),
 }).strict();
 
+// 兼容测试用 schema
+export const updateStateSchema = z.object({
+    wordId: z.string().uuid(),
+    masteryLevel: z.number().min(0).max(1).optional(),
+    reviewCount: z.number().int().min(0).optional(),
+    state: z.enum(['NEW', 'LEARNING', 'REVIEWING', 'MASTERED']).optional(),
+});
+
+export const getStateSchema = z.object({
+    wordId: z.string().uuid(),
+});
+
+export const batchGetSchema = z.object({
+    wordIds: z.array(z.string().uuid()).min(1),
+});
+
 /**
  * 验证单词学习状态更新请求
  */

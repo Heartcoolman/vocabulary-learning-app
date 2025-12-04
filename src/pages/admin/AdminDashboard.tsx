@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient, { AdminStatistics } from '../../services/ApiClient';
 import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar, CircleNotch, Warning } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -21,7 +22,7 @@ export default function AdminDashboard() {
             const data = await apiClient.adminGetStatistics();
             setStats(data);
         } catch (err) {
-            console.error('加载统计数据失败:', err);
+            adminLogger.error({ err }, '加载统计数据失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
 
     if (isLoading) {
         return (
-            <div className="p-8 min-h-[400px] flex items-center justify-center animate-fade-in">
+            <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -41,7 +42,7 @@ export default function AdminDashboard() {
 
     if (error || !stats) {
         return (
-            <div className="p-8 min-h-[400px] flex items-center justify-center animate-fade-in">
+            <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center max-w-md" role="alert" aria-live="assertive">
                     <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>

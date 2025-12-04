@@ -25,6 +25,8 @@ export class AppError extends Error {
   }
 }
 
+import { logger } from './logger';
+
 /**
  * 错误处理器
  */
@@ -33,7 +35,7 @@ export class ErrorHandler {
    * 处理错误并返回用户友好的消息
    */
   static handle(error: unknown): string {
-    console.error('Error occurred:', error);
+    logger.error({ err: error }, '错误发生');
 
     if (error instanceof AppError) {
       return error.userMessage;

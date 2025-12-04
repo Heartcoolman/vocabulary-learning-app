@@ -1,12 +1,15 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import apiClient from '../../services/ApiClient';
-import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch } from '../../components/Icon';
+import apiClient, { User } from '../../services/ApiClient';
+import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch, FileText } from '../../components/Icon';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 export default function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const toast = useToast();
+    const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -20,12 +23,12 @@ export default function AdminLayout() {
 
             // 前端权限校验：只有管理员可以访问管理后台
             if (userData.role !== 'ADMIN') {
-                alert('需要管理员权限');
+                toast.error('需要管理员权限');
                 navigate('/');
                 return;
             }
         } catch (err) {
-            console.error('获取用户信息失败:', err);
+            adminLogger.error({ err }, '获取用户信息失败');
             navigate('/login');
         } finally {
             setIsLoading(false);
@@ -34,7 +37,7 @@ export default function AdminLayout() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -49,12 +52,13 @@ export default function AdminLayout() {
         { path: '/admin/wordbooks', label: '系统词库', icon: Books },
         { path: '/admin/algorithm-config', label: '算法配置', icon: Gear },
         { path: '/admin/config-history', label: '配置历史', icon: Clock },
+        { path: '/admin/logs', label: '系统日志', icon: FileText },
     ];
 
     return (
         <div className="flex min-h-screen bg-gray-50">
             {/* 侧边栏 */}
-            <aside className="w-64 bg-white border-r border-gray-200">
+            <aside className="w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200/60">
                 <div className="p-6 border-b border-gray-200">
                     <h1 className="text-xl font-bold text-gray-900">管理后台</h1>
                     {user && (
@@ -75,7 +79,7 @@ export default function AdminLayout() {
                                 to={item.path}
                                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-lg
-                  transition-all duration-200
+                  transition-all duration-200 hover:scale-105 active:scale-95
                   ${isActive
                                         ? 'bg-blue-50 text-blue-600 font-medium'
                                         : 'text-gray-700 hover:bg-gray-100'

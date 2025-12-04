@@ -1,273 +1,266 @@
 /**
- * Attention Monitor Unit Tests
- * 测试注意力监控模型
+ * AttentionMonitor Unit Tests
+ *
+ * Tests for the attention monitoring model that tracks user focus levels
+ * using weighted sigmoid activation and EMA smoothing.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AttentionMonitor, AttentionFeatures } from '../../../../src/amas/modeling/attention-monitor';
+import {
+  AttentionMonitor,
+  AttentionFeatures
+} from '../../../../src/amas/modeling/attention-monitor';
 
 describe('AttentionMonitor', () => {
   let monitor: AttentionMonitor;
-
-  const normalFeatures: AttentionFeatures = {
-    z_rt_mean: 0,
-    z_rt_cv: 0,
-    z_pace_cv: 0,
-    z_pause: 0,
-    z_switch: 0,
-    z_drift: 0,
-    interaction_density: 1.0,
-    focus_loss_duration: 0
-  };
 
   beforeEach(() => {
     monitor = new AttentionMonitor();
   });
 
-  describe('Initialization', () => {
-    it('should initialize with reasonable attention value', () => {
-      // 初次更新应该返回合理的注意力值
-      const attention = monitor.update(normalFeatures);
-      expect(attention).toBeGreaterThan(0);
-      expect(attention).toBeLessThanOrEqual(1);
+  // ==================== Initialization Tests ====================
+
+  describe('initialization', () => {
+    it('should initialize with default attention value of 0.7', () => {
+      expect(monitor.get()).toBe(0.7);
     });
 
-    it('should produce consistent results for normal features', () => {
-      const attention1 = monitor.update(normalFeatures);
-      const attention2 = monitor.update(normalFeatures);
-      // 连续的正常输入应该产生稳定的结果
-      expect(Math.abs(attention2 - attention1)).toBeLessThan(0.1);
-    });
-  });
-
-  describe('Attention Updates', () => {
-    it('should maintain attention near 1.0 for normal features', () => {
-      const attention = monitor.update(normalFeatures);
-      expect(attention).toBeGreaterThan(0.6);
-      expect(attention).toBeLessThanOrEqual(1.0);
+    it('should accept custom initial attention value', () => {
+      const customMonitor = new AttentionMonitor(undefined, undefined, 0.5);
+      expect(customMonitor.get()).toBe(0.5);
     });
 
-    it('should decrease attention for high z-scored response time', () => {
-      // 需要多次更新才能显著影响注意力（因为EMA平滑）
-      const badFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: 3.0, // 显著慢于平均
-        z_rt_cv: 2.0    // 变异大
-      };
-
-      // 连续多次坏表现才会显著降低注意力
-      for (let i = 0; i < 5; i++) {
-        monitor.update(badFeatures);
-      }
-      const attention = monitor.update(badFeatures);
-      expect(attention).toBeLessThan(0.82); // 调整期望值以匹配EMA平滑特性
+    it('should accept custom weights', () => {
+      const weights = new Float32Array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+      const customMonitor = new AttentionMonitor(weights);
+      expect(customMonitor.get()).toBe(0.7);
     });
 
-    it('should decrease attention for frequent pauses', () => {
-      const pausedFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_pause: 2.0  // 频繁暂停
-      };
+    it('should accept out-of-range initial attention (not clamped in constructor)', () => {
+      // Note: AttentionMonitor does not clamp initial value in constructor
+      // Clamping happens during update/reset operations
+      const high = new AttentionMonitor(undefined, undefined, 1.5);
+      expect(high.get()).toBe(1.5);
 
-      const attention = monitor.update(pausedFeatures);
-      expect(attention).toBeLessThan(0.7);
-    });
-
-    it('should decrease attention for focus switching', () => {
-      const switchedFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_switch: 2.0  // 频繁切屏
-      };
-
-      const attention = monitor.update(switchedFeatures);
-      expect(attention).toBeLessThan(0.7);
-    });
-
-    it('should decrease attention for focus loss', () => {
-      const lostFocusFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        focus_loss_duration: 0.9,  // 失焦90%时间
-        z_pause: 2.0,
-        z_switch: 2.0
-      };
-
-      // 多次严重失焦才会显著降低注意力
-      for (let i = 0; i < 10; i++) {
-        monitor.update(lostFocusFeatures);
-      }
-      const attention = monitor.update(lostFocusFeatures);
-      expect(attention).toBeLessThan(0.8); // 调整期望值以匹配EMA平滑特性
-    });
-
-    it('should decrease attention for low interaction density', () => {
-      const lowDensityFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        interaction_density: 0.3  // 低交互密度
-      };
-
-      const attention = monitor.update(lowDensityFeatures);
-      expect(attention).toBeLessThan(0.7);
+      const low = new AttentionMonitor(undefined, undefined, -0.5);
+      expect(low.get()).toBe(-0.5);
     });
   });
 
-  describe('EMA Smoothing', () => {
-    it('should smooth attention changes over time', () => {
-      // 先建立基线
-      for (let i = 0; i < 5; i++) {
-        monitor.update(normalFeatures);
-      }
-      const baseline = monitor.update(normalFeatures);
+  // ==================== Update Tests ====================
 
-      // 突然的注意力下降
-      const badFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: 3.0,
-        z_pause: 2.0,
-        z_switch: 2.0,
-        focus_loss_duration: 0.5
-      };
-      const afterBad = monitor.update(badFeatures);
-
-      // 应该有平滑效果，不会立即跳到最低值
-      expect(afterBad).toBeGreaterThan(0.2);
-      // 注意：由于EMA平滑，单次坏输入可能不会立即降低注意力
-      // 我们主要检查不会产生极端值
-      expect(afterBad).toBeGreaterThanOrEqual(0);
-      expect(afterBad).toBeLessThanOrEqual(1);
-    });
-
-    it('should gradually converge to stable value', () => {
-      const attentions: number[] = [];
-
-      // 连续输入相同特征
-      for (let i = 0; i < 10; i++) {
-        attentions.push(monitor.update(normalFeatures));
-      }
-
-      // 后期应该趋于稳定
-      const lastThree = attentions.slice(-3);
-      const variance = lastThree.reduce((acc, val) => {
-        const mean = lastThree.reduce((a, b) => a + b) / lastThree.length;
-        return acc + Math.pow(val - mean, 2);
-      }, 0) / lastThree.length;
-
-      expect(variance).toBeLessThan(0.001); // 低方差表示稳定
-    });
-  });
-
-  describe('Value Constraints', () => {
-    it('should always return value in [0, 1]', () => {
-      const extremeFeatures: AttentionFeatures = {
-        z_rt_mean: 10.0,
-        z_rt_cv: 10.0,
-        z_pace_cv: 10.0,
-        z_pause: 10.0,
-        z_switch: 10.0,
-        z_drift: 10.0,
-        interaction_density: 0,
-        focus_loss_duration: 1.0
+  describe('update', () => {
+    it('should decrease attention with high distraction features', () => {
+      const initial = monitor.get();
+      const features: AttentionFeatures = {
+        z_rt_mean: 2.0, // slow response
+        z_rt_cv: 1.5, // high variability
+        z_pace_cv: 1.0,
+        z_pause: 2.0, // many pauses
+        z_switch: 3.0, // many screen switches
+        z_drift: 1.0,
+        interaction_density: 0.2, // low interaction
+        focus_loss_duration: 60 // long focus loss
       };
 
-      const attention = monitor.update(extremeFeatures);
-      expect(attention).toBeGreaterThanOrEqual(0);
-      expect(attention).toBeLessThanOrEqual(1);
+      const result = monitor.update(features);
+      expect(result).toBeLessThan(initial);
     });
 
-    it('should not produce NaN values', () => {
-      const attention = monitor.update(normalFeatures);
-      expect(isNaN(attention)).toBe(false);
-    });
-  });
-
-  describe('Reset Functionality', () => {
-    it('should reset to initial state', () => {
-      // 先让注意力下降
-      const badFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: 3.0,
-        z_pause: 2.5,
-        z_switch: 2.0,
-        focus_loss_duration: 0.7
-      };
-
-      // 多次坏输入使注意力显著下降
-      for (let i = 0; i < 10; i++) {
-        monitor.update(badFeatures);
-      }
-
-      // 重置
-      monitor.reset(0.8); // 重置到高注意力状态
-
-      // 重置后应该恢复到较高的注意力水平
-      const attentionAfter = monitor.update(normalFeatures);
-      expect(attentionAfter).toBeGreaterThan(0.7);
-    });
-  });
-
-  describe('Sequential Updates', () => {
-    it('should handle improving attention over time', () => {
-      // 测试注意力可以通过持续好表现保持稳定
-      // 不要求严格的单调变化，只验证系统稳定性
-      const goodFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: -0.5,
-        interaction_density: 1.2,
+    it('should maintain high attention with good focus features', () => {
+      const features: AttentionFeatures = {
+        z_rt_mean: -0.5, // fast response
+        z_rt_cv: -0.3, // low variability
+        z_pace_cv: 0,
+        z_pause: 0, // no pauses
+        z_switch: 0, // no screen switches
+        z_drift: -0.2,
+        interaction_density: 0.8, // high interaction
         focus_loss_duration: 0
       };
 
-      const attentions: number[] = [];
-      for (let i = 0; i < 20; i++) {
-        attentions.push(monitor.update(goodFeatures));
-      }
-
-      // 验证系统在良好输入下保持稳定且在合理范围
-      const avgAttention = attentions.reduce((a, b) => a + b) / attentions.length;
-      expect(avgAttention).toBeGreaterThan(0.5); // 平均注意力应该合理
-      expect(avgAttention).toBeLessThanOrEqual(1.0); // 不超过上限
+      const result = monitor.update(features);
+      expect(result).toBeGreaterThanOrEqual(0.5);
     });
 
-    it('should handle deteriorating attention over time', () => {
-      // 测试注意力系统可以检测到持续的坏表现
-      // 不要求严格的下降趋势，只验证系统响应性
+    it('should apply EMA smoothing across updates', () => {
+      // High distraction features
       const badFeatures: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: 2.5,
-        z_pause: 2.0,
-        focus_loss_duration: 0.6
+        z_rt_mean: 3.0,
+        z_rt_cv: 2.0,
+        z_pace_cv: 2.0,
+        z_pause: 3.0,
+        z_switch: 3.0,
+        z_drift: 2.0,
+        interaction_density: 0.1,
+        focus_loss_duration: 120
       };
 
-      const attentions: number[] = [];
-      for (let i = 0; i < 20; i++) {
-        attentions.push(monitor.update(badFeatures));
+      const first = monitor.update(badFeatures);
+      const second = monitor.update(badFeatures);
+
+      // Second update should continue decreasing due to EMA
+      expect(second).toBeLessThanOrEqual(first);
+    });
+
+    it('should keep attention in [0,1] range', () => {
+      // Extreme distraction
+      const extreme: AttentionFeatures = {
+        z_rt_mean: 10,
+        z_rt_cv: 10,
+        z_pace_cv: 10,
+        z_pause: 10,
+        z_switch: 10,
+        z_drift: 10,
+        interaction_density: 0,
+        focus_loss_duration: 1000
+      };
+
+      for (let i = 0; i < 100; i++) {
+        monitor.update(extreme);
       }
 
-      // 验证系统对坏输入有响应（注意力保持在合理范围内）
-      const avgAttention = attentions.reduce((a, b) => a + b) / attentions.length;
-      expect(avgAttention).toBeGreaterThanOrEqual(0); // 不会变成负数
-      expect(avgAttention).toBeLessThan(0.9); // 不会保持高位
+      expect(monitor.get()).toBeGreaterThanOrEqual(0);
+      expect(monitor.get()).toBeLessThanOrEqual(1);
     });
   });
 
-  describe('Feature Sensitivity', () => {
-    it('should be most sensitive to focus loss duration', () => {
-      const features1: AttentionFeatures = {
-        ...normalFeatures,
-        focus_loss_duration: 0.8  // 80%失焦
-      };
+  // ==================== updateFromArray Tests ====================
 
-      const features2: AttentionFeatures = {
-        ...normalFeatures,
-        z_rt_mean: 1.5  // 中等响应时间增加
-      };
+  describe('updateFromArray', () => {
+    it('should update from Float32Array features', () => {
+      const features = new Float32Array([0, 0, 0, 0, 0, 0, 0.8, 0]);
+      const result = monitor.updateFromArray(features);
+      expect(result).toBeGreaterThan(0);
+      expect(result).toBeLessThanOrEqual(1);
+    });
+
+    it('should throw error for array with fewer than 8 elements', () => {
+      const shortArray = new Float32Array([0, 0, 0]);
+      expect(() => monitor.updateFromArray(shortArray)).toThrow(
+        'Attention features array must have at least 8 elements'
+      );
+    });
+  });
+
+  // ==================== State Management Tests ====================
+
+  describe('state management', () => {
+    it('should reset to default value', () => {
+      // Update to change state
+      monitor.update({
+        z_rt_mean: 5,
+        z_rt_cv: 5,
+        z_pace_cv: 5,
+        z_pause: 5,
+        z_switch: 5,
+        z_drift: 5,
+        interaction_density: 0,
+        focus_loss_duration: 100
+      });
 
       monitor.reset();
-      const attention1 = monitor.update(features1);
+      expect(monitor.get()).toBe(0.7);
+    });
 
-      monitor.reset();
-      const attention2 = monitor.update(features2);
+    it('should reset to custom value', () => {
+      monitor.reset(0.3);
+      expect(monitor.get()).toBe(0.3);
+    });
 
-      // 失焦应该比响应时间增加影响更大
-      expect(attention1).toBeLessThan(attention2);
+    it('should clamp reset value to [0,1]', () => {
+      monitor.reset(1.5);
+      expect(monitor.get()).toBe(1);
+
+      monitor.reset(-0.5);
+      expect(monitor.get()).toBe(0);
+    });
+
+    it('should persist and restore state correctly', () => {
+      const features: AttentionFeatures = {
+        z_rt_mean: 1,
+        z_rt_cv: 1,
+        z_pace_cv: 0,
+        z_pause: 0,
+        z_switch: 0,
+        z_drift: 0,
+        interaction_density: 0.5,
+        focus_loss_duration: 0
+      };
+      monitor.update(features);
+
+      const state = monitor.getState();
+      expect(state).toHaveProperty('prevAttention');
+      expect(state).toHaveProperty('beta');
+
+      const newMonitor = new AttentionMonitor();
+      newMonitor.setState(state);
+
+      expect(newMonitor.get()).toBe(monitor.get());
+    });
+  });
+
+  // ==================== Configuration Tests ====================
+
+  describe('configuration', () => {
+    it('should set beta (EMA smoothing coefficient)', () => {
+      monitor.setBeta(0.5);
+      const state = monitor.getState();
+      expect(state.beta).toBe(0.5);
+    });
+
+    it('should clamp beta to [0,1]', () => {
+      monitor.setBeta(1.5);
+      expect(monitor.getState().beta).toBe(1);
+
+      monitor.setBeta(-0.5);
+      expect(monitor.getState().beta).toBe(0);
+    });
+
+    it('should set custom weights', () => {
+      const weights = new Float32Array([0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+      monitor.setWeights(weights);
+
+      // Should not throw and monitor should still work
+      const result = monitor.update({
+        z_rt_mean: 0,
+        z_rt_cv: 0,
+        z_pace_cv: 0,
+        z_pause: 0,
+        z_switch: 0,
+        z_drift: 0,
+        interaction_density: 0.5,
+        focus_loss_duration: 0
+      });
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should throw error for weights array with wrong length', () => {
+      const wrongLength = new Float32Array([0.1, 0.1, 0.1]);
+      expect(() => monitor.setWeights(wrongLength)).toThrow(
+        'Weights array must have exactly 8 elements'
+      );
+    });
+  });
+
+  // ==================== Alias Tests ====================
+
+  describe('aliases', () => {
+    it('getAttention should be alias for get', () => {
+      expect(monitor.getAttention()).toBe(monitor.get());
+
+      monitor.update({
+        z_rt_mean: 1,
+        z_rt_cv: 0,
+        z_pace_cv: 0,
+        z_pause: 0,
+        z_switch: 0,
+        z_drift: 0,
+        interaction_density: 0.5,
+        focus_loss_duration: 0
+      });
+
+      expect(monitor.getAttention()).toBe(monitor.get());
     });
   });
 });

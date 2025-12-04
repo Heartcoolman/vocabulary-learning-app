@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ConfigHistory } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 import { Clock, MagnifyingGlass, ArrowCounterClockwise } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 /**
  * 配置历史页面
@@ -30,13 +31,18 @@ export default function ConfigHistoryPage() {
       const records = await configService.getConfigHistory();
       setHistory(records);
     } catch (error) {
-      console.error('加载配置历史失败:', error);
+      adminLogger.error({ err: error }, '加载配置历史失败');
     } finally {
       setIsLoading(false);
     }
   };
 
   const applyFilters = () => {
+    // 防御性检查：确保 history 是数组
+    if (!Array.isArray(history)) {
+      setFilteredHistory([]);
+      return;
+    }
     let filtered = [...history];
 
     // 按时间筛选
@@ -72,7 +78,7 @@ export default function ConfigHistoryPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto animate-g3-fade-in">
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">

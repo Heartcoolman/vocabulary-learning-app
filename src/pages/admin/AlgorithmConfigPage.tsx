@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { AlgorithmConfig } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
-import { 
-  Gear, 
-  ArrowCounterClockwise, 
-  FloppyDisk, 
+import {
+  Gear,
+  ArrowCounterClockwise,
+  FloppyDisk,
   Warning,
   CheckCircle,
   Plus,
   Trash,
   CircleNotch
 } from '../../components/Icon';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 /**
  * 算法配置页面（管理员）
  * 允许管理员查看和修改所有学习算法参数
  */
 export default function AlgorithmConfigPage() {
+  const toast = useToast();
   const [config, setConfig] = useState<AlgorithmConfig | null>(null);
   const [defaultConfig, setDefaultConfig] = useState<AlgorithmConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +44,7 @@ export default function AlgorithmConfigPage() {
       const defaultCfg = configService.getDefaultConfig();
       setDefaultConfig(defaultCfg);
     } catch (error) {
-      console.error('加载配置失败:', error);
+      adminLogger.error({ err: error }, '加载算法配置失败');
     } finally {
       setIsLoading(false);
     }
@@ -70,8 +73,8 @@ export default function AlgorithmConfigPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('保存配置失败:', error);
-      alert('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      adminLogger.error({ err: error, config }, '保存算法配置失败');
+      toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setIsSaving(false);
     }
@@ -88,8 +91,8 @@ export default function AlgorithmConfigPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('重置配置失败:', error);
-      alert('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      adminLogger.error({ err: error }, '重置算法配置失败');
+      toast.error('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setIsSaving(false);
     }
@@ -97,7 +100,7 @@ export default function AlgorithmConfigPage() {
 
   if (isLoading || !config || !defaultConfig) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600" role="status" aria-live="polite">加载配置中...</p>
@@ -107,7 +110,7 @@ export default function AlgorithmConfigPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto animate-g3-fade-in">
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
@@ -219,7 +222,7 @@ export default function AlgorithmConfigPage() {
       {/* 重置确认对话框 */}
       {showResetConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-slide-up">
+          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-g3-slide-up">
             <div className="text-center mb-6">
               <Warning size={64} weight="duotone" className="text-yellow-500 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-900 mb-2">确认重置</h3>
@@ -267,7 +270,6 @@ function ReviewIntervalsSection({ intervals, defaultIntervals, onChange }: Revie
 
   const removeInterval = (index: number) => {
     if (intervals.length <= 1) {
-      alert('至少需要保留一个复习间隔');
       return;
     }
     onChange(intervals.filter((_, i) => i !== index));

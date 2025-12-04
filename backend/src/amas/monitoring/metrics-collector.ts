@@ -6,6 +6,7 @@
 import { telemetry } from '../common/telemetry';
 import { MetricValue } from './alert-engine';
 import { DEFAULT_SLO, SLOConfig } from './alert-config';
+import { monitorLogger } from '../../logger';
 
 /**
  * 指标统计
@@ -100,7 +101,7 @@ export class MetricsCollector {
       this.collectMetrics();
     }, this.collectionInterval);
 
-    console.log(`[MetricsCollector] Started (interval: ${this.collectionInterval}ms)`);
+    monitorLogger.info({ interval: this.collectionInterval }, 'Started');
   }
 
   /**
@@ -110,7 +111,7 @@ export class MetricsCollector {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = undefined;
-      console.log('[MetricsCollector] Stopped');
+      monitorLogger.info('Stopped');
     }
   }
 
@@ -140,16 +141,20 @@ export class MetricsCollector {
 
   /**
    * 记录降级
+   * 降级也计入总请求数（作为一种特殊的成功响应）
    */
   recordDegradation(): void {
     this.degradationCounts++;
+    this.successCounts++;  // 降级视为成功响应（只是降级了）
   }
 
   /**
    * 记录超时
+   * 超时计入总请求数（作为一种错误）
    */
   recordTimeout(): void {
     this.timeoutCounts++;
+    this.errorCounts++;  // 超时视为错误
   }
 
   /**

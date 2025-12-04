@@ -10,6 +10,7 @@
  */
 
 import pino, { Logger, LoggerOptions, DestinationStream } from 'pino';
+import { Writable } from 'stream';
 
 // ==================== 配置常量 ====================
 
@@ -31,6 +32,16 @@ const REDACT_PATHS = [
   '*.accessToken',
   '*.refreshToken',
   '*.secret',
+  '*.apiKey',
+  '*.apikey',
+  '*.privateKey',
+  '*.privatekey',
+  '*.creditCard',
+  '*.creditcard',
+  'req.query.token',
+  'req.query.apiKey',
+  '*.credentials',
+  '*.sessionId',
 ];
 
 // ==================== 环境检测 ====================
@@ -146,17 +157,19 @@ function buildLoggerOptions(): LoggerOptions {
 }
 
 /**
- * 构建开发环境的美化传输
+ * 构建日志传输
  */
-function buildDevTransport(): DestinationStream | undefined {
-  // 生产环境和测试环境不使用美化输出
-  if (IS_PRODUCTION || IS_TEST) {
+function buildTransport(): DestinationStream | undefined {
+  // 测试环境不使用特殊传输
+  if (IS_TEST) {
     return undefined;
   }
 
-  // 开发环境使用 pino-pretty 美化输出
-  try {
-    return pino.transport({
+  const targets: pino.TransportTargetOptions[] = [];
+
+  // 开发环境添加 pino-pretty 美化输出
+  if (!IS_PRODUCTION) {
+    targets.push({
       target: 'pino-pretty',
       options: {
         colorize: true,
@@ -166,17 +179,117 @@ function buildDevTransport(): DestinationStream | undefined {
         messageFormat: '{msg}',
       },
     });
-  } catch {
-    // 如果 pino-pretty 不可用，回退到标准输出
-    console.warn('[Logger] pino-pretty not available, falling back to JSON output');
+  } else {
+    // 生产环境输出到 stdout
+    targets.push({
+      target: 'pino/file',
+      options: { destination: 1 }, // stdout
+    });
+  }
+
+  try {
+    return pino.transport({ targets });
+  } catch (err) {
+    console.warn('[Logger] Failed to create transport, falling back to JSON output:', err);
     return undefined;
   }
+}
+
+// ==================== PostgreSQL 日志写入 ====================
+
+/** Pino 级别数字到 LogLevel 枚举的映射 */
+const PINO_LEVEL_TO_LOG_LEVEL: Record<number, string> = {
+  10: 'TRACE',
+  20: 'DEBUG',
+  30: 'INFO',
+  40: 'WARN',
+  50: 'ERROR',
+  60: 'FATAL',
+};
+
+/** 延迟加载的日志存储服务 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _logStorageService: any = null;
+
+async function getLogStorageService() {
+  if (!_logStorageService) {
+    try {
+      const module = await import('../services/log-storage.service');
+      _logStorageService = module.logStorageService;
+    } catch {
+      // 服务未就绪时静默忽略
+    }
+  }
+  return _logStorageService;
+}
+
+/**
+ * 创建 PostgreSQL 日志写入流
+ * 将 Pino JSON 日志解析并写入数据库
+ */
+function createPgWriteStream(): Writable {
+  return new Writable({
+    objectMode: false,
+    write(chunk: Buffer, _encoding, callback) {
+      try {
+        const line = chunk.toString().trim();
+        if (!line) {
+          callback();
+          return;
+        }
+
+        const entry = JSON.parse(line);
+        const level = PINO_LEVEL_TO_LOG_LEVEL[entry.level] || 'INFO';
+
+        // 异步写入数据库，不阻塞日志流
+        getLogStorageService().then(service => {
+          if (service) {
+            service.writeLog({
+              level,
+              message: entry.msg || '',
+              module: entry.module,
+              source: 'BACKEND',
+              context: entry,
+              error: entry.err,
+              requestId: entry.requestId,
+              userId: entry.userId,
+              app: entry.app || APP_NAME,
+              env: entry.env || NODE_ENV,
+              timestamp: entry.time ? new Date(entry.time) : new Date(),
+            });
+          }
+        }).catch(() => {
+          // 写入失败时静默忽略
+        });
+
+        callback();
+      } catch {
+        // 解析失败时静默忽略
+        callback();
+      }
+    },
+  });
 }
 
 // ==================== 创建日志器实例 ====================
 
 /** 基线日志器 */
-export const logger: Logger = pino(buildLoggerOptions(), buildDevTransport());
+const transport = buildTransport();
+const pgStream = IS_TEST ? undefined : createPgWriteStream();
+
+// 创建多目标写入（控制台 + PostgreSQL）
+let destination: DestinationStream | undefined;
+if (transport && pgStream) {
+  // 使用 pino.multistream 同时写入多个目标
+  destination = pino.multistream([
+    { stream: transport },
+    { stream: pgStream },
+  ]);
+} else {
+  destination = transport;
+}
+
+export const logger: Logger = pino(buildLoggerOptions(), destination);
 
 // ==================== 子日志器工厂 ====================
 
@@ -244,6 +357,24 @@ export const dbLogger = createChildLogger({ module: 'database' });
 
 /** 缓存模块日志器 */
 export const cacheLogger = createChildLogger({ module: 'cache' });
+
+/** 启动流程日志器 */
+export const startupLogger = createChildLogger({ module: 'startup' });
+
+/** CLI/脚本日志器 */
+export const cliLogger = createChildLogger({ module: 'cli' });
+
+/** 监控模块日志器 */
+export const monitorLogger = createChildLogger({ module: 'monitor' });
+
+/** 路由模块日志器 */
+export const routeLogger = createChildLogger({ module: 'route' });
+
+/** 服务层日志器 */
+export const serviceLogger = createChildLogger({ module: 'service' });
+
+/** Worker 日志器 */
+export const workerLogger = createChildLogger({ module: 'worker' });
 
 // ==================== 日志级别快捷方法 ====================
 

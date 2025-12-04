@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
+import { learningLogger } from '../utils/logger';
 import {
   StateHistoryPoint,
   SignificantChange,
@@ -137,7 +138,7 @@ export default function HistoryPage() {
           setSignificantChanges(changesData.changes);
         }
       } catch (err) {
-        console.error('加载状态历史失败:', err);
+        learningLogger.error({ err }, '加载状态历史失败');
       } finally {
         if (mounted) setIsLoadingState(false);
       }
@@ -227,8 +228,11 @@ export default function HistoryPage() {
     const maxValue = Math.max(...values);
     const range = maxValue - minValue || 1;
 
+    // 处理单条数据的边界情况，避免除零异常
     const points = data.map((d, i) => {
-      const x = padding + (i / (data.length - 1)) * chartWidth;
+      const x = data.length === 1
+        ? padding + chartWidth / 2  // 单点居中
+        : padding + (i / (data.length - 1)) * chartWidth;
       const y = padding + chartHeight - ((d[metric] as number - minValue) / range) * chartHeight;
       return `${x},${y}`;
     }).join(' ');
@@ -307,7 +311,7 @@ export default function HistoryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -318,7 +322,7 @@ export default function HistoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" aria-hidden="true" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
@@ -336,7 +340,7 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">学习历史</h1>
           <p className="text-gray-600">追踪你的学习进度，掌握每个单词</p>
@@ -589,7 +593,7 @@ export default function HistoryPage() {
         {viewMode === 'words' && (
           <>
             {stats.length === 0 ? (
-              <div className="text-center py-16 animate-slide-up">
+              <div className="text-center py-16 animate-g3-slide-up">
                 <BookOpen className="mx-auto mb-6 animate-pulse" size={96} weight="thin" color="#9ca3af" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">还没有学习记录</h2>
                 <p className="text-gray-600 mb-8">开始学习单词后，这里会显示你的学习统计</p>
@@ -727,7 +731,7 @@ export default function HistoryPage() {
 
                 {/* 单词卡片网格 */}
                 {currentStats.length === 0 ? (
-                  <div className="text-center py-12 animate-fade-in">
+                  <div className="text-center py-12 animate-g3-fade-in">
                     <MagnifyingGlass className="mx-auto mb-4" size={80} weight="thin" color="#9ca3af" />
                     <p className="text-gray-600 text-lg">没有找到符合条件的单词</p>
                   </div>
@@ -739,7 +743,7 @@ export default function HistoryPage() {
                         return (
                           <div
                             key={stat.wordId}
-                            className={`group relative bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border hover:shadow-lg transition-all duration-200 hover:scale-105 animate-fade-in ${mastery.border}`}
+                            className={`group relative bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border hover:shadow-lg transition-all duration-200 hover:scale-105 animate-g3-fade-in ${mastery.border}`}
                             style={{ animationDelay: `${index * 30}ms` }}
                           >
                             {/* 掌握程度标签 */}

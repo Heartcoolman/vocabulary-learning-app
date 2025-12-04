@@ -1,14 +1,23 @@
 import { useEffect, useRef } from 'react';
-import { Word } from '../types/models';
+import { motion } from 'framer-motion';
 import { Star, Clock, Target, SpeakerHigh } from './Icon';
+import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
+
+interface WordCardWord {
+  id: string;
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+  examples: string[];
+}
 
 interface WordCardProps {
-  word: Word;
+  word: WordCardWord;
   onPronounce: () => void;
   isPronouncing: boolean;
-  masteryLevel?: number; // 掌握程度 (0-5级)
-  wordScore?: number; // 单词得分 (0-100)
-  nextReviewDate?: string; // 下次复习时间
+  masteryLevel?: number;
+  wordScore?: number;
+  nextReviewDate?: string;
 }
 
 /**
@@ -28,8 +37,10 @@ export default function WordCard({
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // 按空格键播放发音
-      if (e.code === 'Space' && !isPronouncing && document.activeElement?.tagName !== 'INPUT') {
+      // 按空格键播放发音（排除表单控件，避免与原生行为冲突）
+      const activeTag = document.activeElement?.tagName || '';
+      const isFormControl = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(activeTag);
+      if (e.code === 'Space' && !isPronouncing && !isFormControl) {
         e.preventDefault();
         onPronounce();
       }
@@ -40,13 +51,16 @@ export default function WordCard({
   }, [onPronounce, isPronouncing]);
 
   return (
-    <div 
-      className="flex flex-col items-center justify-center space-y-5 py-10 px-8 md:py-16 md:px-12 animate-slide-up bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={slideUpVariants}
+      className="flex flex-col items-center justify-center space-y-5 py-10 px-8 md:py-16 md:px-12 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
     >
       {/* 发音按钮 */}
-      <button
+      <motion.button
         ref={pronounceButtonRef}
         onClick={onPronounce}
         onKeyDown={(e) => {
@@ -56,11 +70,14 @@ export default function WordCard({
           }
         }}
         disabled={isPronouncing}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        transition={g3SpringSnappy}
         className={`
-          relative w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 
-          flex items-center justify-center transition-all duration-200
+          relative w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600
+          flex items-center justify-center
           shadow-lg hover:shadow-xl
-          ${isPronouncing ? 'animate-pulse' : 'hover:scale-110 active:scale-95'}
+          ${isPronouncing ? 'animate-pulse' : ''}
           disabled:cursor-not-allowed
           focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
         `}
@@ -69,37 +86,43 @@ export default function WordCard({
         title="播放发音 (空格键)"
       >
         <SpeakerHigh size={28} weight="fill" className="text-white" aria-hidden="true" />
-      </button>
+      </motion.button>
 
       {/* 单词拼写 */}
-      <h2 
-        className="text-5xl md:text-6xl font-bold text-gray-900 animate-fade-in"
+      <motion.h2
+        variants={fadeInVariants}
+        className="text-5xl md:text-6xl font-bold text-gray-900"
         role="heading"
         aria-level={2}
       >
         {word.spelling}
-      </h2>
+      </motion.h2>
 
-      {/* 音标 */}
-      <p 
-        className="text-2xl md:text-3xl text-gray-600 animate-fade-in"
+      {/* 音标 - 圆形背景 */}
+      <motion.span
+        variants={fadeInVariants}
+        className="text-2xl md:text-3xl text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full"
         aria-label={`音标: ${word.phonetic}`}
       >
         /{word.phonetic}/
-      </p>
+      </motion.span>
 
       {/* 例句 */}
-      <p 
-        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8 animate-fade-in"
+      <motion.p
+        variants={fadeInVariants}
+        className="text-lg md:text-xl text-gray-700 text-center max-w-4xl mt-8"
         role="region"
         aria-label="例句"
       >
-        {word.examples[0]}
-      </p>
+        {word.examples && word.examples.length > 0 ? word.examples[0] : '暂无例句'}
+      </motion.p>
 
       {/* 学习状态信息 */}
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
-        <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 animate-fade-in">
+        <motion.div
+          variants={fadeInVariants}
+          className="mt-8 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/60"
+        >
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}
             {masteryLevel !== undefined && (
@@ -144,8 +167,8 @@ export default function WordCard({
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

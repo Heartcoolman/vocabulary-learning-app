@@ -24,12 +24,31 @@ import badgeRoutes from './routes/badge.routes';
 import planRoutes from './routes/plan.routes';
 import stateHistoryRoutes from './routes/state-history.routes';
 import habitProfileRoutes from './routes/habit-profile.routes';
+import evaluationRoutes from './routes/evaluation.routes';
+import optimizationRoutes from './routes/optimization.routes';
+import aboutRoutes from './routes/about.routes';
+import wordMasteryRoutes from './routes/word-mastery.routes';
+import learningRoutes from './routes/learning.routes';
+import amasExplainRoutes from './routes/amas-explain.routes';
+import alertsRoutes from './routes/alerts.routes';
+import experimentsRoutes from './routes/experiments.routes';
+import profileRoutes from './routes/profile.routes';
+import learningObjectivesRoutes from './routes/learning-objectives.routes';
+import logsRoutes from './routes/logs.routes';
+import logViewerRoutes from './routes/log-viewer.routes';
 
 
 const app = express();
 
-// 反向代理场景下启用真实 IP，保证限流/日志准确
-app.set('trust proxy', 1);
+// 反向代理配置：仅在明确配置且受控反代后面时启用
+// 攻击者可伪造 X-Forwarded-For 绕过限流，因此默认禁用
+if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
+  const proxyValue = env.TRUST_PROXY === 'true' ? 1 : parseInt(env.TRUST_PROXY, 10) || false;
+  if (proxyValue) {
+    app.set('trust proxy', proxyValue);
+    logger.info({ trustProxy: proxyValue }, 'Trust proxy enabled');
+  }
+}
 
 // 请求日志 - 前置以捕获所有请求（包括解析失败的请求）
 // 注入 requestId 并启用结构化日志
@@ -80,41 +99,49 @@ app.use(
   })
 );
 
-// 速率限制
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 500, // 限制500个请求（从100放宽到500）
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      error: '请求过于频繁，请稍后再试',
-      code: 'TOO_MANY_REQUESTS'
-    });
-  },
-});
-app.use('/api/', limiter);
+// 速率限制（测试环境禁用）
+if (process.env.NODE_ENV !== 'test') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15分钟
+    max: 500, // 限制500个请求（从100放宽到500）
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        success: false,
+        error: '请求过于频繁，请稍后再试',
+        code: 'TOO_MANY_REQUESTS'
+      });
+    },
+  });
+  app.use('/api/', limiter);
 
-// 针对登录/注册的更严格限流，缓解暴力破解
-const authLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5分钟
-  max: 30, // 限制30个请求
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      error: '认证请求过于频繁，请稍后再试',
-      code: 'TOO_MANY_AUTH_REQUESTS'
-    });
-  },
-});
-app.use('/api/auth', authLimiter);
+  // 针对登录/注册的更严格限流，缓解暴力破解
+  const authLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 30, // 限制30个请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        success: false,
+        error: '认证请求过于频繁，请稍后再试',
+        code: 'TOO_MANY_AUTH_REQUESTS'
+      });
+    },
+  });
+  app.use('/api/auth', authLimiter);
+}
 
 // 解析JSON并限制请求体大小（防止大包攻击）
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
+
+// HTTP 请求监控（采样）
+if (process.env.NODE_ENV !== 'test') {
+  const { metricsMiddleware } = require('./middleware/metrics.middleware');
+  app.use(metricsMiddleware);
+}
 
 // 健康检查（包含数据库连接验证）
 app.get('/health', async (req, res) => {
@@ -156,6 +183,18 @@ app.use('/api/badges', badgeRoutes);
 app.use('/api/plan', planRoutes);
 app.use('/api/amas', stateHistoryRoutes);
 app.use('/api/habit-profile', habitProfileRoutes);
+app.use('/api/evaluation', evaluationRoutes);
+app.use('/api/optimization', optimizationRoutes);
+app.use('/api/experiments', experimentsRoutes);
+app.use('/api/about', aboutRoutes);
+app.use('/api/word-mastery', wordMasteryRoutes);
+app.use('/api/learning', learningRoutes);
+app.use('/api/amas', amasExplainRoutes);
+app.use('/api/alerts', alertsRoutes);
+app.use('/api/learning-objectives', learningObjectivesRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api/admin/logs', logViewerRoutes);
+app.use(profileRoutes); // Profile routes already include /api prefix
 
 
 // 404处理

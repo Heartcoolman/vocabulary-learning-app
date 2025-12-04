@@ -1,5 +1,7 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
+import { wordMasteryService } from './word-mastery.service';
+import { serviceLogger } from '../logger';
 
 /** 最大批量操作大小 */
 const MAX_BATCH_SIZE = 1000;
@@ -142,9 +144,23 @@ export class RecordService {
       createData.timestamp = validateTimestamp(data.timestamp);
     }
 
-    return await prisma.answerRecord.create({
+    const record = await prisma.answerRecord.create({
       data: createData,
     });
+
+    // 同步记录到 WordReviewTrace 用于掌握度评估
+    try {
+      await wordMasteryService.recordReview(userId, data.wordId, {
+        timestamp: data.timestamp ?? Date.now(),
+        isCorrect: data.isCorrect,
+        responseTime: data.responseTime ?? 0
+      });
+    } catch (error) {
+      // 记录失败不阻断主流程，仅警告
+      serviceLogger.warn({ userId, wordId: data.wordId, error }, '同步复习轨迹失败');
+    }
+
+    return record;
   }
 
   async batchCreateRecords(userId: string, records: CreateRecordDto[]) {
@@ -158,14 +174,19 @@ export class RecordService {
     // 检查是否有记录缺少时间戳，如果有则警告但不阻止
     const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
     if (recordsWithoutTimestamp.length > 0) {
-      console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
+      serviceLogger.warn(
+        { count: recordsWithoutTimestamp.length },
+        '部分记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性'
+      );
     }
 
-    // 验证所有时间戳的合理性
+    // 验证所有时间戳的合理性并缓存验证后的日期对象
+    const validatedTimestamps = new Map<number, Date>();
     for (const record of records) {
       if (record.timestamp) {
         try {
-          validateTimestamp(record.timestamp);
+          const validatedDate = validateTimestamp(record.timestamp);
+          validatedTimestamps.set(record.timestamp, validatedDate);
         } catch (error) {
           throw new Error(`记录时间戳无效 (wordId=${record.wordId}): ${(error as Error).message}`);
         }
@@ -205,10 +226,10 @@ export class RecordService {
     // 如果有部分记录因权限被跳过，记录警告
     const skippedCount = records.length - validRecords.length;
     if (skippedCount > 0) {
-      console.warn(`跳过了 ${skippedCount} 条无权访问的学习记录`);
+      serviceLogger.warn({ skippedCount }, '跳过了部分无权访问的学习记录');
     }
 
-    console.log(`准备创建 ${validRecords.length} 条学习记录（数据库自动跳过重复）`);
+    serviceLogger.info({ count: validRecords.length }, '准备创建学习记录（数据库自动跳过重复）');
 
     // 收集所有有效的 sessionId 并确保对应的 LearningSession 存在
     const sessionIds = [...new Set(validRecords.map(r => r.sessionId).filter((id): id is string => !!id))];
@@ -218,15 +239,17 @@ export class RecordService {
 
     // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
     // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
-    return await prisma.answerRecord.createMany({
+    const result = await prisma.answerRecord.createMany({
       data: validRecords.map(record => ({
         userId,
         wordId: record.wordId,
         selectedAnswer: record.selectedAnswer ?? '',
         correctAnswer: record.correctAnswer ?? '',
         isCorrect: record.isCorrect,
-        // 如果有客户端时间戳则使用，否则使用服务端当前时间
-        timestamp: record.timestamp ? new Date(record.timestamp) : new Date(),
+        // 复用已验证的时间戳，避免二次创建Date对象产生不一致
+        timestamp: record.timestamp
+          ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
+          : new Date(),
         responseTime: record.responseTime,
         dwellTime: record.dwellTime,
         sessionId: record.sessionId,
@@ -236,6 +259,24 @@ export class RecordService {
 
       skipDuplicates: true, // 数据库层面跳过重复记录，基于 unique_user_word_timestamp 唯一约束
     });
+
+    // 批量同步到 WordReviewTrace 用于掌握度评估
+    try {
+      const reviewEvents = validRecords.map(record => ({
+        wordId: record.wordId,
+        event: {
+          timestamp: record.timestamp ?? Date.now(),
+          isCorrect: record.isCorrect,
+          responseTime: record.responseTime ?? 0
+        }
+      }));
+      await wordMasteryService.batchRecordReview(userId, reviewEvents);
+    } catch (error) {
+      // 记录失败不阻断主流程，仅警告
+      serviceLogger.warn({ userId, error }, '批量同步复习轨迹失败');
+    }
+
+    return result;
   }
 
   async getStatistics(userId: string) {
@@ -304,8 +345,9 @@ export class RecordService {
         if (existing) {
           // 会话已存在，校验用户归属
           if (existing.userId !== userId) {
-            console.warn(
-              `[RecordService] 学习会话用户不匹配: sessionId=${sessionId}, expected=${userId}, actual=${existing.userId}`
+            serviceLogger.warn(
+              { sessionId, expectedUserId: userId, actualUserId: existing.userId },
+              '学习会话用户不匹配'
             );
             throw new Error(`Session ${sessionId} belongs to different user`);
           }
@@ -339,7 +381,7 @@ export class RecordService {
         return;
       }
       // 其他错误仅记录，不阻断主流程
-      console.warn(`[RecordService] 确保学习会话失败: sessionId=${sessionId}`, error);
+      serviceLogger.warn({ sessionId, error }, '确保学习会话失败');
     }
   }
 }

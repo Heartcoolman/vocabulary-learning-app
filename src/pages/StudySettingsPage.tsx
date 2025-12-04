@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
 import { CircleNotch } from '../components/Icon';
+import { useToast } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 export default function StudySettingsPage() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
     const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
     const [dailyCount, setDailyCount] = useState(20);
@@ -33,7 +36,7 @@ export default function StudySettingsPage() {
             setSelectedBookIds(configData.selectedWordBookIds || []);
             setDailyCount(configData.dailyWordCount || 20);
         } catch (err) {
-            console.error('加载数据失败:', err);
+            uiLogger.error({ err }, '加载学习设置数据失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -70,10 +73,10 @@ export default function StudySettingsPage() {
             });
 
             // 保存成功后返回学习页面（根路径）
-            alert('学习设置已保存！');
+            toast.success('学习设置已保存');
             navigate('/');
         } catch (err) {
-            console.error('保存失败:', err);
+            uiLogger.error({ err, selectedBookIds, dailyCount }, '保存学习设置失败');
             setError(err instanceof Error ? err.message : '保存失败');
         } finally {
             setIsSaving(false);
@@ -82,7 +85,7 @@ export default function StudySettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -93,7 +96,7 @@ export default function StudySettingsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">学习设置</h1>
 
                 {error && (

@@ -5,6 +5,8 @@ import { Word } from '../types/models';
 import { ArrowLeft, Star, Target, Clock, MagnifyingGlass, CheckCircle, Warning, ArrowClockwise } from '../components/Icon';
 import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
+import { useToast } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 interface WordWithState extends Word {
   masteryLevel: number;
@@ -24,6 +26,7 @@ type SortOrder = 'asc' | 'desc';
 export default function WordListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [words, setWords] = useState<WordWithState[]>([]);
   const [filteredWords, setFilteredWords] = useState<WordWithState[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +110,7 @@ export default function WordListPage() {
       setWords(wordsWithState);
       setIsLoading(false);
     } catch (err) {
-      console.error('加载单词列表失败:', err);
+      uiLogger.error({ err }, '加载单词列表失败');
       setError('加载单词列表失败');
       setIsLoading(false);
     }
@@ -212,8 +215,8 @@ export default function WordListPage() {
       setSelectedWord(null);
       setConfirmAction(null);
     } catch (err) {
-      console.error('调整单词状态失败:', err);
-      alert('调整失败，请重试');
+      uiLogger.error({ err, wordId: selectedWord.id, action: confirmAction }, '调整单词状态失败');
+      toast.error('调整失败，请重试');
     } finally {
       setIsAdjusting(false);
     }
@@ -240,7 +243,7 @@ export default function WordListPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
           <p className="text-gray-600">正在加载单词列表...</p>
@@ -251,7 +254,7 @@ export default function WordListPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4">
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
@@ -268,7 +271,7 @@ export default function WordListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 animate-g3-fade-in">
       <div className="max-w-6xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8 flex items-center justify-between">
@@ -450,8 +453,8 @@ export default function WordListPage() {
 
         {/* 确认对话框 */}
         {showConfirmDialog && selectedWord && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full animate-slide-up">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 animate-g3-fade-in">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full animate-g3-slide-up">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">
                 确认操作
               </h3>

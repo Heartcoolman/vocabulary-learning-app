@@ -5,7 +5,7 @@ import { UpdatePasswordDto, UserStatistics } from '../types';
 const SALT_ROUNDS = 10;
 
 export class UserService {
-  async getUserById(userId: string) {
+  async getUserById(userId: string, options?: { throwIfMissing?: boolean }) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -13,12 +13,13 @@ export class UserService {
         email: true,
         username: true,
         role: true,
+        rewardProfile: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    if (!user) {
+    if (!user && options?.throwIfMissing) {
       throw new Error('用户不存在');
     }
 
@@ -91,6 +92,56 @@ export class UserService {
       correctCount: correctRecords,
       accuracy: Math.round(accuracy * 100) / 100,
     };
+  }
+
+  /**
+   * 兼容 *.spec.ts：更新用户基本信息
+   */
+  async updateUser(userId: string, data: Partial<{ username: string; email: string }>) {
+    return prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+  }
+
+  /**
+   * 兼容 *.spec.ts：用户数据统计（简版）
+   */
+  async getUserStats(userId: string) {
+    const repo: any = (prisma as any).learningRecord ?? (prisma as any).answerRecord ?? prisma.answerRecord;
+    const totalRecords = await repo.count({ where: { userId } });
+    const aggregate = await repo.aggregate({
+      where: { userId },
+      _avg: { responseTime: true },
+    });
+
+    return {
+      totalRecords,
+      avgResponseTime: aggregate?._avg?.responseTime ?? null,
+    };
+  }
+
+  /**
+   * 更新用户奖励配置（学习模式）
+   */
+  async updateRewardProfile(userId: string, profileId: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { rewardProfile: profileId } as any,
+    });
+  }
+
+  /**
+   * 兼容 *.spec.ts：删除用户（及相关数据的简单事务）
+   */
+  async deleteUser(userId: string) {
+    await prisma.$transaction([
+      prisma.answerRecord.deleteMany({ where: { userId } }),
+      prisma.wordLearningState.deleteMany({ where: { userId } }),
+      prisma.wordScore.deleteMany({ where: { userId } }),
+      prisma.learningSession.deleteMany({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
   }
 }
 

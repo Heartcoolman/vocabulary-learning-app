@@ -2,21 +2,27 @@ version: '3.8'
 
 services:
   postgres-test:
-    image: postgres:15-alpine
-    container_name: vocab-test-db
+    image: postgres:15
+    container_name: danci-postgres-test
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: vocabulary_db_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: vocabulary_test
     ports:
-      - "5433:5432"
-    volumes:
-      - test-db-data:/var/lib/postgresql/data
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data:rw
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ['CMD-SHELL', 'pg_isready -U test_user -d vocabulary_test']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
 
-volumes:
-  test-db-data:
+  redis-test:
+    image: redis:7-alpine
+    container_name: danci-redis-test
+    ports:
+      - '6380:6379'
+    command: redis-server --appendonly no --save ""

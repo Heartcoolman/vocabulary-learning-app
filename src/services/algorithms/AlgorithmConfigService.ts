@@ -1,5 +1,6 @@
 import { AlgorithmConfig, ConfigHistory } from '../../types/models';
 import StorageService from '../StorageService';
+import { learningLogger } from '../../utils/logger';
 
 /**
  * 配置验证结果
@@ -37,7 +38,7 @@ export class AlgorithmConfigService {
       this.currentConfig = this.getDefaultConfig();
       return this.currentConfig;
     } catch (error) {
-      console.error('加载配置失败，使用默认配置:', error);
+      learningLogger.error({ err: error }, '加载配置失败，使用默认配置');
       this.currentConfig = this.getDefaultConfig();
       return this.currentConfig;
     }
@@ -85,7 +86,7 @@ export class AlgorithmConfigService {
       this.currentConfig = newConfig;
       return newConfig;
     } catch (error) {
-      console.error('保存配置到后端失败:', error);
+      learningLogger.error({ err: error }, '保存配置到后端失败');
       throw error;
     }
   }
@@ -105,7 +106,7 @@ export class AlgorithmConfigService {
       this.currentConfig = { ...defaultConfig, id: currentConfig.id };
       return this.currentConfig;
     } catch (error) {
-      console.error('重置配置到后端失败:', error);
+      learningLogger.error({ err: error }, '重置配置到后端失败');
       throw error;
     }
   }
@@ -126,7 +127,7 @@ export class AlgorithmConfigService {
       
       return history;
     } catch (error) {
-      console.error('获取配置历史失败:', error);
+      learningLogger.error({ err: error }, '获取配置历史失败');
       
       // 如果从后端加载失败，返回本地缓存
       const sortedHistory = [...this.configHistory].sort((a, b) => b.timestamp - a.timestamp);

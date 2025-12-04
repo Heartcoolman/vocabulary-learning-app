@@ -242,6 +242,20 @@ router.delete(
 
 // =============== 系统词库管理 ===============
 
+// 获取系统词库列表
+router.get('/wordbooks', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const wordBooks = await adminService.getSystemWordBooks();
+
+        res.json({
+            success: true,
+            data: wordBooks,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // 创建系统词库
 router.post(
     '/wordbooks',
@@ -485,6 +499,59 @@ router.get('/statistics', async (req: AuthRequest, res: Response, next) => {
         res.json({
             success: true,
             data: stats,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ==================== AMAS 决策查询 ====================
+
+// 获取用户决策列表
+router.get('/users/:id/decisions', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const { id } = req.params;
+        const {
+            page = '1',
+            pageSize = '20',
+            startDate,
+            endDate,
+            decisionSource,
+            minConfidence,
+            sortBy = 'timestamp',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const data = await adminService.getUserDecisions(id, {
+            page: parseInt(page as string),
+            pageSize: Math.min(parseInt(pageSize as string), 100),
+            startDate: startDate as string,
+            endDate: endDate as string,
+            decisionSource: decisionSource as string,
+            minConfidence: minConfidence ? parseFloat(minConfidence as string) : undefined,
+            sortBy: sortBy as 'timestamp' | 'confidence' | 'duration',
+            sortOrder: sortOrder as 'asc' | 'desc'
+        });
+
+        res.json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 获取决策详情
+router.get('/users/:id/decisions/:decisionId', async (req: AuthRequest, res: Response, next) => {
+    try {
+        const { id, decisionId } = req.params;
+
+        const data = await adminService.getDecisionDetail(id, decisionId);
+
+        res.json({
+            success: true,
+            data
         });
     } catch (error) {
         next(error);

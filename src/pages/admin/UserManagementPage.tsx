@@ -12,6 +12,7 @@ import {
     Clock,
     CircleNotch,
 } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 interface PaginationInfo {
     page: number;
@@ -52,7 +53,7 @@ export default function UserManagementPage() {
             setUsers(response.users);
             setPagination(response.pagination);
         } catch (err) {
-            console.error('加载用户列表失败:', err);
+            adminLogger.error({ err, page: pagination.page, search: searchQuery }, '加载用户列表失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -107,7 +108,7 @@ export default function UserManagementPage() {
     if (isLoading && users.length === 0) {
         return (
             <div className="p-8">
-                <div className="flex items-center justify-center min-h-[400px] animate-fade-in">
+                <div className="flex items-center justify-center min-h-[400px] animate-g3-fade-in">
                     <div className="text-center">
                         <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                         <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -118,7 +119,7 @@ export default function UserManagementPage() {
     }
 
     return (
-        <div className="p-8 animate-fade-in">
+        <div className="p-8 animate-g3-fade-in">
             {/* 页面标题 */}
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">

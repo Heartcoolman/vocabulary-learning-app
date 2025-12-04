@@ -1,0 +1,47 @@
+# ============================================
+# 开发环境 - 仅启动数据库服务
+# 用法: docker compose -f docker-compose.dev.yml up -d
+# ============================================
+
+services:
+  # PostgreSQL + TimescaleDB
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: danci-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: danci
+      POSTGRES_PASSWORD: danci_dev_2024
+      POSTGRES_DB: vocabulary_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U danci -d vocabulary_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: danci-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+    name: danci-postgres-dev-data
+  redis_dev_data:
+    name: danci-redis-dev-data

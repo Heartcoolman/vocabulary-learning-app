@@ -1,7 +1,7 @@
 /**
  * 习惯画像服务
  * 负责计算和持久化用户学习习惯画像
- * 
+ *
  * 修复问题: HabitProfile 表只读不写
  * - 使用 HabitRecognizer 计算习惯画像
  * - 在学习事件中记录时间偏好
@@ -10,6 +10,7 @@
 
 import prisma from '../config/database';
 import { HabitRecognizer, HabitProfile } from '../amas/modeling/habit-recognizer';
+import { serviceLogger } from '../logger';
 
 // 用户习惯识别器实例缓存 (内存中保持状态累积)
 const userRecognizers = new Map<string, HabitRecognizer>();
@@ -27,6 +28,117 @@ function getRecognizer(userId: string): HabitRecognizer {
 }
 
 class HabitProfileService {
+  /**
+   * 获取用户习惯画像（兼容测试）
+   */
+  async getProfile(userId: string) {
+    const profile = await prisma.habitProfile.findUnique({
+      where: { userId }
+    });
+
+    if (!profile) {
+      return {
+        userId,
+        preferredTimes: [],
+        avgSessionDuration: 0,
+        consistency: 0
+      };
+    }
+
+    const timePref: any = profile.timePref || {};
+    return {
+      userId: profile.userId,
+      preferredTimes: timePref.preferredTimes || timePref.slots || [],
+      avgSessionDuration: timePref.avgSessionDuration || profile.rhythmPref || 0,
+      consistency: timePref.consistency ?? 0
+    };
+  }
+
+  /**
+   * 基于会话数据更新习惯画像（兼容测试）
+   */
+  async updateProfile(userId: string) {
+    const sessions = (await prisma.learningSession.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'desc' }
+    })) ?? [];
+
+    if (!sessions.length) {
+      return this.getProfile(userId);
+    }
+
+    // 计算首选时间段（小时）和平均时长
+    const hourCounts = new Map<number, number>();
+    const durations: number[] = [];
+
+    for (const session of sessions) {
+      const start =
+        (session as any).startTime ||
+        (session as any).startedAt ||
+        new Date();
+      const duration =
+        (session as any).duration ??
+        ((session as any).endedAt
+          ? new Date((session as any).endedAt).getTime() -
+            new Date(start).getTime()
+          : (session as any).sessionDuration ?? 0);
+
+      const hour = new Date(start).getHours();
+      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      if (duration && Number.isFinite(duration)) {
+        durations.push(duration);
+      }
+    }
+
+    const sortedHours = Array.from(hourCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([hour]) => hour)
+      .slice(0, 3);
+
+    const avgSessionDuration =
+      durations.length > 0
+        ? durations.reduce((a, b) => a + b, 0) / durations.length
+        : 0;
+
+    const payload = {
+      preferredTimes: sortedHours,
+      avgSessionDuration,
+      consistency: Math.min(1, sessions.length / 30)
+    };
+
+    const saved = await prisma.habitProfile.upsert({
+      where: { userId },
+      update: {
+        timePref: payload,
+        updatedAt: new Date()
+      },
+      create: {
+        userId,
+        timePref: payload,
+        rhythmPref: {}
+      }
+    });
+
+    return {
+      userId: saved.userId,
+      preferredTimes: payload.preferredTimes,
+      avgSessionDuration: payload.avgSessionDuration,
+      consistency: payload.consistency
+    };
+  }
+
+  /**
+   * 获取推荐学习时间（兼容测试）
+   */
+  async getRecommendedTimes(userId: string): Promise<number[]> {
+    const profile = await this.getProfile(userId);
+    if (profile.preferredTimes && profile.preferredTimes.length > 0) {
+      return profile.preferredTimes;
+    }
+    // 默认推荐上午、下午和晚间
+    return [9, 14, 20];
+  }
+
   /**
    * 记录学习时间事件（每次答题时调用）
    * @param userId 用户ID
@@ -74,8 +186,9 @@ class HabitProfileService {
 
       // 只有当样本数足够时才持久化
       if (profile.samples.timeEvents < 10) {
-        console.log(
-          `[HabitProfile] 样本不足，跳过持久化: userId=${userId}, timeEvents=${profile.samples.timeEvents}`
+        serviceLogger.info(
+          { userId, timeEvents: profile.samples.timeEvents },
+          '习惯画像样本不足，跳过持久化'
         );
         return false;
       }
@@ -94,12 +207,17 @@ class HabitProfileService {
         }
       });
 
-      console.log(
-        `[HabitProfile] 已持久化: userId=${userId}, timeEvents=${profile.samples.timeEvents}, preferredSlots=${profile.preferredTimeSlots.join(',')}`
+      serviceLogger.info(
+        {
+          userId,
+          timeEvents: profile.samples.timeEvents,
+          preferredSlots: profile.preferredTimeSlots.join(',')
+        },
+        '习惯画像已持久化'
       );
       return true;
     } catch (error) {
-      console.error(`[HabitProfile] 持久化失败: userId=${userId}`, error);
+      serviceLogger.error({ userId, error }, '习惯画像持久化失败');
       return false;
     }
   }
@@ -163,11 +281,12 @@ class HabitProfileService {
         recognizer.updateBatchSize(timestamps.length);
       }
 
-      console.log(
-        `[HabitProfile] 从历史记录初始化完成: userId=${userId}, records=${records.length}, sessions=${sessionGroups.size}`
+      serviceLogger.info(
+        { userId, recordCount: records.length, sessionCount: sessionGroups.size },
+        '从历史记录初始化习惯画像完成'
       );
     } catch (error) {
-      console.error(`[HabitProfile] 初始化失败: userId=${userId}`, error);
+      serviceLogger.error({ userId, error }, '习惯画像初始化失败');
     }
   }
 
@@ -187,3 +306,4 @@ class HabitProfileService {
 }
 
 export const habitProfileService = new HabitProfileService();
+export default habitProfileService;

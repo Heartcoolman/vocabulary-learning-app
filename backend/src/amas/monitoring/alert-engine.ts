@@ -11,6 +11,7 @@ import {
   ALERT_RULES,
   DEFAULT_ALERT_CHANNELS
 } from './alert-config';
+import { monitorLogger } from '../../logger';
 
 /**
  * 告警事件
@@ -216,7 +217,7 @@ export class AlertEngine {
     // 发送告警
     this.sendAlert(alert);
 
-    console.log(`🔥 Alert fired: ${alert.message}`);
+    monitorLogger.warn({ alertId: alert.id, message: alert.message, severity: alert.severity }, 'Alert fired');
 
     return alert;
   }
@@ -232,7 +233,7 @@ export class AlertEngine {
     // 发送解决通知
     this.sendAlert(alert);
 
-    console.log(`✅ Alert resolved: ${alert.ruleName}`);
+    monitorLogger.info({ alertId: alert.id, ruleName: alert.ruleName }, 'Alert resolved');
   }
 
   /**
@@ -261,10 +262,10 @@ export class AlertEngine {
           break;
         // 其他通道可扩展
         default:
-          console.warn(`Unknown channel type: ${channel.type}`);
+          monitorLogger.warn({ channelType: channel.type }, 'Unknown channel type');
       }
     } catch (error) {
-      console.error(`Failed to send alert to ${channel.name}:`, error);
+      monitorLogger.error({ err: error, channelName: channel.name }, 'Failed to send alert');
     }
   }
 
@@ -272,12 +273,16 @@ export class AlertEngine {
    * 发送到控制台
    */
   private sendToConsole(alert: Alert): void {
-    const emoji = alert.status === 'firing' ? '🔥' : '✅';
-    const color = this.getSeverityColor(alert.severity);
-    console.log(
-      `${emoji} [${alert.severity}] ${alert.status.toUpperCase()}: ${alert.message}`,
-      color
-    );
+    const logData = {
+      severity: alert.severity,
+      status: alert.status,
+      message: alert.message
+    };
+    if (alert.status === 'firing') {
+      monitorLogger.warn(logData, 'Console alert');
+    } else {
+      monitorLogger.info(logData, 'Console alert');
+    }
   }
 
   /**
@@ -305,7 +310,7 @@ export class AlertEngine {
       headers: config.headers || { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).catch(error => {
-      console.error('Webhook send failed:', error);
+      monitorLogger.error({ err: error, url: config.url }, 'Webhook send failed');
     });
   }
 

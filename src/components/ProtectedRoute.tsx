@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   // 加载中显示加载状态
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen bg-white flex items-center justify-center animate-g3-fade-in">
         <div className="text-center" role="status" aria-live="polite">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">正在验证身份...</p>

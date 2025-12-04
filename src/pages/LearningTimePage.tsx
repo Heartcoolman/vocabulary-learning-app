@@ -99,7 +99,7 @@ export default function LearningTimePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center">
           <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
           <p className="text-gray-600">正在分析学习时间偏好...</p>
@@ -110,7 +110,7 @@ export default function LearningTimePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
@@ -128,7 +128,7 @@ export default function LearningTimePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in">
+      <div className="max-w-6xl mx-auto px-4 py-8 animate-g3-fade-in">
         {/* 页面标题 */}
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">

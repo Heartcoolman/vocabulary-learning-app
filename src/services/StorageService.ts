@@ -10,6 +10,7 @@ import {
   WordState
 } from '../types/models';
 import ApiClient from './ApiClient';
+import { storageLogger } from '../utils/logger';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -36,6 +37,13 @@ class StorageService {
    * 初始化服务，从云端加载缓存数据
    */
   async init(): Promise<void> {
+    // 检查是否有认证令牌，未认证时跳过初始化
+    if (!ApiClient.getToken()) {
+      this.wordCache = [];
+      this.cacheTimestamp = null;
+      return;
+    }
+
     try {
       // 从云端加载数据并初始化缓存
       await this.refreshCacheFromCloud();
@@ -45,7 +53,7 @@ class StorageService {
         error: null,
       });
     } catch (error) {
-      console.error('初始化失败:', error);
+      storageLogger.error({ err: error }, '初始化失败');
       // 初始化失败不阻断应用启动，使用空缓存
       this.wordCache = [];
       this.cacheTimestamp = null;
@@ -100,6 +108,11 @@ class StorageService {
    * 此方法仅用于从云端拉取最新数据刷新本地缓存。
    */
   async syncToCloud(): Promise<void> {
+    // 检查是否有认证令牌，未认证时跳过同步
+    if (!ApiClient.getToken()) {
+      return;
+    }
+
     if (this.syncStatus.isSyncing) return;
     this.updateSyncStatus({ isSyncing: true, error: null });
     try {
@@ -137,7 +150,7 @@ class StorageService {
     try {
       return await this.refreshCacheFromCloud();
     } catch (error) {
-      console.error('获取单词失败:', error);
+      storageLogger.error({ err: error }, '获取单词失败');
       // 如果有缓存数据则返回缓存，否则抛出错误让上层处理
       if (this.wordCache.length > 0) {
         return this.wordCache;
@@ -210,7 +223,7 @@ class StorageService {
       const result = await ApiClient.getRecords({ pageSize: 100 });
       return result.records.filter((r) => r.wordId === wordId);
     } catch (error) {
-      console.error('获取答题记录失败:', error);
+      storageLogger.error({ err: error }, '获取答题记录失败');
       return [];
     }
   }
@@ -250,7 +263,7 @@ class StorageService {
         wordStats,
       };
     } catch (error) {
-      console.error('获取学习统计失败:', error);
+      storageLogger.error({ err: error }, '获取学习统计失败');
       return {
         totalWords: 0,
         studiedWords: 0,
@@ -279,7 +292,7 @@ class StorageService {
       const state = await ApiClient.getWordLearningState(wordId);
       return state;
     } catch (error) {
-      console.error('获取单词学习状态失败:', error);
+      storageLogger.error({ err: error }, '获取单词学习状态失败');
       return null;
     }
   }
@@ -291,7 +304,7 @@ class StorageService {
     try {
       await ApiClient.saveWordLearningState(state);
     } catch (error) {
-      console.error('保存单词学习状态失败:', error);
+      storageLogger.error({ err: error }, '保存单词学习状态失败');
       throw error;
     }
   }
@@ -300,11 +313,15 @@ class StorageService {
    * 批量获取单词学习状态
    */
   async getWordLearningStates(_userId: string, wordIds: string[]): Promise<WordLearningState[]> {
+    // 空数组直接返回，避免无效请求
+    if (!wordIds || wordIds.length === 0) {
+      return [];
+    }
     try {
       const states = await ApiClient.getWordLearningStates(wordIds);
       return states;
     } catch (error) {
-      console.error('批量获取单词学习状态失败:', error);
+      storageLogger.error({ err: error }, '批量获取单词学习状态失败');
       return [];
     }
   }
@@ -317,7 +334,7 @@ class StorageService {
       const states = await ApiClient.getWordsByState(state);
       return states;
     } catch (error) {
-      console.error('按状态获取单词失败:', error);
+      storageLogger.error({ err: error }, '按状态获取单词失败');
       return [];
     }
   }
@@ -330,7 +347,7 @@ class StorageService {
       const states = await ApiClient.getDueWords();
       return states;
     } catch (error) {
-      console.error('获取到期单词失败:', error);
+      storageLogger.error({ err: error }, '获取到期单词失败');
       return [];
     }
   }
@@ -345,7 +362,7 @@ class StorageService {
       const score = await ApiClient.getWordScore(wordId);
       return score;
     } catch (error) {
-      console.error('获取单词得分失败:', error);
+      storageLogger.error({ err: error }, '获取单词得分失败');
       return null;
     }
   }
@@ -357,7 +374,7 @@ class StorageService {
     try {
       await ApiClient.saveWordScore(score);
     } catch (error) {
-      console.error('保存单词得分失败:', error);
+      storageLogger.error({ err: error }, '保存单词得分失败');
       throw error;
     }
   }
@@ -370,7 +387,7 @@ class StorageService {
       const scores = await ApiClient.getWordScores(wordIds);
       return scores;
     } catch (error) {
-      console.error('批量获取单词得分失败:', error);
+      storageLogger.error({ err: error }, '批量获取单词得分失败');
       return [];
     }
   }
@@ -387,7 +404,7 @@ class StorageService {
       const scores = await ApiClient.getWordsByScoreRange(minScore, maxScore);
       return scores;
     } catch (error) {
-      console.error('按得分范围获取单词失败:', error);
+      storageLogger.error({ err: error }, '按得分范围获取单词失败');
       return [];
     }
   }
@@ -402,7 +419,7 @@ class StorageService {
       const config = await ApiClient.getAlgorithmConfig();
       return config;
     } catch (error) {
-      console.error('获取算法配置失败:', error);
+      storageLogger.error({ err: error }, '获取算法配置失败');
       return null;
     }
   }
@@ -418,7 +435,7 @@ class StorageService {
     try {
       await ApiClient.updateAlgorithmConfig(configId, config, changeReason);
     } catch (error) {
-      console.error('更新算法配置失败:', error);
+      storageLogger.error({ err: error }, '更新算法配置失败');
       throw error;
     }
   }
@@ -430,7 +447,7 @@ class StorageService {
     try {
       await ApiClient.resetAlgorithmConfig(configId);
     } catch (error) {
-      console.error('重置算法配置失败:', error);
+      storageLogger.error({ err: error }, '重置算法配置失败');
       throw error;
     }
   }
@@ -443,7 +460,7 @@ class StorageService {
       const history = await ApiClient.getConfigHistory(_limit);
       return history;
     } catch (error) {
-      console.error('获取配置历史失败:', error);
+      storageLogger.error({ err: error }, '获取配置历史失败');
       return [];
     }
   }
@@ -469,7 +486,7 @@ class StorageService {
         masteryLevelAfter: _record.masteryLevelAfter,
       });
     } catch (error) {
-      console.error('保存扩展答题记录失败:', error);
+      storageLogger.error({ err: error }, '保存扩展答题记录失败');
       throw error;
     }
   }

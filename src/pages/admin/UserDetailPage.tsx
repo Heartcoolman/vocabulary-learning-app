@@ -16,7 +16,11 @@ import {
     CaretLeft,
     CaretRight,
 } from '../../components/Icon';
-import { Flame, CaretDown, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { Flame, CaretDown, ArrowUp, ArrowDown, ListDashes, Brain } from '@phosphor-icons/react';
+import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
+import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 interface FilterState {
     scoreRange?: 'low' | 'medium' | 'high';
@@ -30,6 +34,7 @@ interface FilterState {
 export default function UserDetailPage() {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
+    const toast = useToast();
 
     const [statistics, setStatistics] = useState<UserDetailedStatistics | null>(null);
     const [words, setWords] = useState<UserWordDetail[]>([]);
@@ -51,6 +56,7 @@ export default function UserDetailPage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'decisions'>('overview');
 
     const handleExport = async (format: 'csv' | 'excel') => {
         if (!userId) return;
@@ -59,8 +65,8 @@ export default function UserDetailPage() {
             setIsExporting(true);
             await apiClient.adminExportUserWords(userId, format);
         } catch (err) {
-            console.error('导出失败:', err);
-            alert('导出失败，请重试');
+            adminLogger.error({ err, userId, format }, '导出用户单词失败');
+            toast.error('导出失败，请重试');
         } finally {
             setIsExporting(false);
         }
@@ -89,7 +95,7 @@ export default function UserDetailPage() {
             const data = await apiClient.adminGetUserStatistics(userId);
             setStatistics(data);
         } catch (err) {
-            console.error('加载用户统计失败:', err);
+            adminLogger.error({ err, userId }, '加载用户统计失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoadingStats(false);
@@ -111,7 +117,7 @@ export default function UserDetailPage() {
             setWords(response.words);
             setPagination(response.pagination);
         } catch (err) {
-            console.error('加载单词列表失败:', err);
+            adminLogger.error({ err, userId, filters }, '加载用户单词列表失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoadingWords(false);
@@ -214,7 +220,7 @@ export default function UserDetailPage() {
     }
 
     return (
-        <div className="p-8 animate-fade-in">
+        <div className="p-8 animate-g3-fade-in">
             {/* 返回按钮 */}
             <button
                 onClick={() => navigate('/admin/users')}
@@ -241,7 +247,56 @@ export default function UserDetailPage() {
                 </div>
             )}
 
-            {/* 统计卡片 */}
+            {/* 标签页导航 */}
+            <div className="flex border-b border-gray-200 mb-6">
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('overview')}
+                >
+                    <div className="flex items-center gap-2">
+                        <ChartBar size={18} />
+                        <span>统计概览</span>
+                    </div>
+                    {activeTab === 'overview' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'records' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('records')}
+                >
+                    <div className="flex items-center gap-2">
+                        <ListDashes size={18} />
+                        <span>学习记录</span>
+                    </div>
+                    {activeTab === 'records' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'decisions' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('decisions')}
+                >
+                    <div className="flex items-center gap-2">
+                        <Brain size={18} />
+                        <span>决策分析</span>
+                    </div>
+                    {activeTab === 'decisions' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+            </div>
+
+            {/* 标签页内容 */}
+            {activeTab === 'overview' ? (
+                <>
+                    {/* 统计卡片 */}
             {statistics && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {/* 总学习单词数 */}
@@ -739,6 +794,12 @@ export default function UserDetailPage() {
                     </>
                 )}
             </div>
+                </>
+            ) : activeTab === 'records' ? (
+                <LearningRecordsTab userId={userId || ''} />
+            ) : (
+                <AMASDecisionsTab userId={userId || ''} />
+            )}
         </div>
     );
 }

@@ -3,6 +3,8 @@
  * 用于监控和告警
  */
 
+import { amasLogger } from '../../logger';
+
 /**
  * 遥测事件类型
  */
@@ -32,18 +34,15 @@ export interface Telemetry {
  */
 class ConsoleTelemetry implements Telemetry {
   record(event: TelemetryEvent, data: Record<string, any>): void {
-    console.log(`[Telemetry] ${event}:`, JSON.stringify(data));
+    amasLogger.debug({ event, ...data }, '[Telemetry] record');
   }
 
   increment(event: TelemetryEvent, labels?: Record<string, string>): void {
-    console.log(`[Telemetry] ${event} +1`, labels ? JSON.stringify(labels) : '');
+    amasLogger.debug({ event, labels }, '[Telemetry] increment');
   }
 
   histogram(event: TelemetryEvent, value: number, labels?: Record<string, string>): void {
-    console.log(
-      `[Telemetry] ${event} = ${value}`,
-      labels ? JSON.stringify(labels) : ''
-    );
+    amasLogger.debug({ event, value, labels }, '[Telemetry] histogram');
   }
 }
 
@@ -66,7 +65,7 @@ class AggregateTelemetry implements Telemetry {
 
   record(event: TelemetryEvent, data: Record<string, any>): void {
     // 可扩展:发送到外部监控系统
-    console.log(`[Telemetry] ${event}:`, JSON.stringify(data));
+    amasLogger.debug({ event, ...data }, '[Telemetry] record');
   }
 
   increment(event: TelemetryEvent, labels?: Record<string, string>): void {

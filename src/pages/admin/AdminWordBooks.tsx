@@ -1,18 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Upload, Edit2 } from 'lucide-react';
 import apiClient from '../../services/ApiClient';
 import { Books, CircleNotch } from '../../components/Icon';
+import { BatchImportModal } from '../../components';
+import { WordBook } from '../../types/models';
+import { useToast, ConfirmModal } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 export default function AdminWordBooks() {
     const navigate = useNavigate();
-    const [wordBooks, setWordBooks] = useState<any[]>([]);
+    const toast = useToast();
+    const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [editingBook, setEditingBook] = useState<WordBook | null>(null);
     const [newBook, setNewBook] = useState({
         name: '',
         description: '',
     });
+    const [editBook, setEditBook] = useState({
+        name: '',
+        description: '',
+    });
+    const [importModal, setImportModal] = useState<{ isOpen: boolean; wordBookId: string; wordBookName: string }>({
+        isOpen: false,
+        wordBookId: '',
+        wordBookName: '',
+    });
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; name: string }>({
+        isOpen: false,
+        id: '',
+        name: '',
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         loadWordBooks();
@@ -22,10 +45,11 @@ export default function AdminWordBooks() {
         try {
             setIsLoading(true);
             setError(null);
-            const data = await apiClient.getSystemWordBooks();
+            // 使用管理员接口获取所有系统词库（包括非公开的）
+            const data = await apiClient.adminGetSystemWordBooks();
             setWordBooks(data);
         } catch (err) {
-            console.error('加载系统词库失败:', err);
+            adminLogger.error({ err }, '加载系统词库失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -34,7 +58,7 @@ export default function AdminWordBooks() {
 
     const handleCreateBook = async () => {
         if (!newBook.name.trim()) {
-            alert('请输入词库名称');
+            toast.warning('请输入词库名称');
             return;
         }
 
@@ -42,24 +66,58 @@ export default function AdminWordBooks() {
             await apiClient.adminCreateSystemWordBook(newBook);
             setShowCreateDialog(false);
             setNewBook({ name: '', description: '' });
+            toast.success('词库创建成功');
             loadWordBooks();
         } catch (err) {
-            console.error('创建系统词库失败:', err);
-            alert(err instanceof Error ? err.message : '创建失败');
+            adminLogger.error({ err, wordBook: newBook }, '创建系统词库失败');
+            toast.error(err instanceof Error ? err.message : '创建失败');
         }
     };
 
-    const handleDeleteBook = async (id: string, name: string) => {
-        if (!confirm(`确定要删除系统词库"${name}"吗？这将删除所有相关单词。`)) {
+    const handleEditClick = (book: WordBook) => {
+        setEditingBook(book);
+        setEditBook({
+            name: book.name,
+            description: book.description || '',
+        });
+        setShowEditDialog(true);
+    };
+
+    const handleUpdateBook = async () => {
+        if (!editingBook || !editBook.name.trim()) {
+            toast.warning('请输入词库名称');
             return;
         }
 
         try {
-            await apiClient.adminDeleteSystemWordBook(id);
+            await apiClient.updateWordBook(editingBook.id, editBook);
+            setShowEditDialog(false);
+            setEditingBook(null);
+            setEditBook({ name: '', description: '' });
+            toast.success('词库更新成功');
             loadWordBooks();
         } catch (err) {
-            console.error('删除系统词库失败:', err);
-            alert(err instanceof Error ? err.message : '删除失败');
+            adminLogger.error({ err, wordBookId: editingBook.id, updates: editBook }, '更新系统词库失败');
+            toast.error(err instanceof Error ? err.message : '更新失败');
+        }
+    };
+
+    const openDeleteConfirm = (id: string, name: string) => {
+        setDeleteConfirm({ isOpen: true, id, name });
+    };
+
+    const handleDeleteBook = async () => {
+        setIsDeleting(true);
+        try {
+            await apiClient.adminDeleteSystemWordBook(deleteConfirm.id);
+            toast.success('词库已删除');
+            loadWordBooks();
+        } catch (err) {
+            adminLogger.error({ err, wordBookId: deleteConfirm.id }, '删除系统词库失败');
+            toast.error(err instanceof Error ? err.message : '删除失败');
+        } finally {
+            setIsDeleting(false);
+            setDeleteConfirm({ isOpen: false, id: '', name: '' });
         }
     };
 
@@ -122,19 +180,37 @@ export default function AdminWordBooks() {
                                 {book.wordCount} 个单词
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-col gap-2">
                                 <button
                                     onClick={() => navigate(`/wordbooks/${book.id}`)}
-                                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+                                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
                                 >
                                     查看详情
                                 </button>
-                                <button
-                                    onClick={() => handleDeleteBook(book.id, book.name)}
-                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95"
-                                >
-                                    删除
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleEditClick(book)}
+                                        className="flex-1 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-1"
+                                        title="编辑词库"
+                                    >
+                                        <Edit2 size={16} />
+                                        编辑
+                                    </button>
+                                    <button
+                                        onClick={() => setImportModal({ isOpen: true, wordBookId: book.id, wordBookName: book.name })}
+                                        className="flex-1 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-1"
+                                        title="批量导入单词"
+                                    >
+                                        <Upload size={16} />
+                                        导入
+                                    </button>
+                                    <button
+                                        onClick={() => openDeleteConfirm(book.id, book.name)}
+                                        className="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95"
+                                    >
+                                        删除
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -144,7 +220,7 @@ export default function AdminWordBooks() {
             {/* 创建对话框 */}
             {showCreateDialog && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-wordbook-title">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-slide-up">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
                         <h2 id="create-wordbook-title" className="text-2xl font-bold text-gray-900 mb-6">
                             创建系统词库
                         </h2>
@@ -197,6 +273,86 @@ export default function AdminWordBooks() {
                     </div>
                 </div>
             )}
+
+            {/* 编辑对话框 */}
+            {showEditDialog && editingBook && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-wordbook-title">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
+                        <h2 id="edit-wordbook-title" className="text-2xl font-bold text-gray-900 mb-6">
+                            编辑词库信息
+                        </h2>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                词库名称 *
+                            </label>
+                            <input
+                                type="text"
+                                value={editBook.name}
+                                onChange={(e) => setEditBook({ ...editBook, name: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                placeholder="例如：TOEFL 核心词汇"
+                            />
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                描述
+                            </label>
+                            <textarea
+                                value={editBook.description}
+                                onChange={(e) =>
+                                    setEditBook({ ...editBook, description: e.target.value })
+                                }
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                rows={3}
+                                placeholder="简单描述这个词库..."
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleUpdateBook}
+                                className="flex-1 px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+                            >
+                                保存
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEditDialog(false);
+                                    setEditingBook(null);
+                                    setEditBook({ name: '', description: '' });
+                                }}
+                                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                            >
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <BatchImportModal
+                isOpen={importModal.isOpen}
+                onClose={() => setImportModal({ isOpen: false, wordBookId: '', wordBookName: '' })}
+                wordBookId={importModal.wordBookId}
+                onImportSuccess={() => {
+                    loadWordBooks();
+                }}
+            />
+
+            {/* 删除确认弹窗 */}
+            <ConfirmModal
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
+                onConfirm={handleDeleteBook}
+                title="删除系统词库"
+                message={`确定要删除系统词库"${deleteConfirm.name}"吗？这将删除所有相关单词。`}
+                confirmText="删除"
+                cancelText="取消"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

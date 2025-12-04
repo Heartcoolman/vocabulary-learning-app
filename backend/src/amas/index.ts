@@ -10,6 +10,8 @@ export * from './types';
 
 // ==================== 配置 ====================
 export * from './config/action-space';
+export * from './config/feature-flags';
+export { UserParamsManager } from './config/user-params';
 
 // ==================== 感知层 ====================
 export {
@@ -44,13 +46,50 @@ export {
   defaultMotivationTracker
 } from './modeling/motivation-tracker';
 
+export { TrendAnalyzer, TrendState } from './modeling/trend-analyzer';
+
+export {
+  ACTRMemoryModel,
+  ACTRContext,
+  ACTRState
+} from './modeling/actr-memory';
+
 // ==================== 学习层 ====================
+export {
+  BaseLearner,
+  BaseLearnerContext,
+  ActionSelection,
+  LearnerCapabilities
+} from './learning/base-learner';
+
 export {
   LinUCB,
   ContextBuildInput,
   LinUCBOptions,
   defaultLinUCB
 } from './learning/linucb';
+
+export {
+  ColdStartManager,
+  ColdStartState
+} from './learning/coldstart';
+
+export {
+  ThompsonSampling,
+  ThompsonContext,
+  ThompsonSamplingState
+} from './learning/thompson-sampling';
+
+export {
+  HeuristicLearner,
+  HeuristicContext,
+  HeuristicState
+} from './learning/heuristic';
+
+export {
+  ThompsonExploreHookImpl,
+  createThompsonExploreHook
+} from './learning/thompson-explore-hook';
 
 // ==================== 决策层 ====================
 export {
@@ -78,6 +117,64 @@ export {
   generateShortExplanation,
   generateSuggestion
 } from './decision/explain';
+
+export {
+  EnsembleLearningFramework,
+  EnsembleContext,
+  EnsembleState,
+  EnsembleWeights,
+  EnsembleMember
+} from './decision/ensemble';
+
+// ==================== 评估层 ====================
+export {
+  CausalInference,
+  CausalEstimate,
+  CausalObservation,
+  CausalInferenceConfig,
+  CausalInferenceState,
+  defaultCausalInference
+} from './evaluation/causal-inference';
+
+export {
+  DelayedRewardAggregator,
+  RewardSchedule,
+  DelayedRewardEvent,
+  AggregatedResult,
+  DelayedRewardState,
+  defaultDelayedRewardAggregator
+} from './evaluation/delayed-reward-aggregator';
+
+export {
+  ABTestEngine,
+  ABTestConfig,
+  ABVariant,
+  ABMetrics,
+  SignificanceTestResult,
+  ABTestResult,
+  createABTestEngine
+} from './evaluation/ab-testing';
+
+export {
+  OfflineReplayEvaluator,
+  HistoricalRecord,
+  PolicyEvaluator,
+  EvaluationResult,
+  SegmentStats,
+  ComparisonResult
+} from './evaluation/offline-replay';
+
+// ==================== 优化层 ====================
+export {
+  BayesianOptimizer,
+  BayesianOptimizerConfig,
+  BayesianOptimizerState,
+  ParamBound,
+  AcquisitionType,
+  Observation,
+  Posterior,
+  defaultBayesianOptimizer
+} from './optimization/bayesian-optimizer';
 
 // ==================== 引擎 ====================
 export {

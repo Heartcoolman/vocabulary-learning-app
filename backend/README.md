@@ -4,16 +4,54 @@
 
 ## 功能特性
 
+### 基础功能
 - ✅ 用户注册和登录
 - ✅ JWT令牌认证
 - ✅ 密码加密（bcrypt）
 - ✅ 单词管理（CRUD）
+- ✅ 词书管理（系统/用户词书）
 - ✅ 学习记录追踪
 - ✅ 用户统计信息
 - ✅ 数据验证（Zod）
 - ✅ 安全防护（Helmet, CORS, 速率限制）
 - ✅ 请求日志
 - ✅ 统一错误处理
+
+### AMAS 智能学习系统
+- ✅ 自适应学习算法（LinUCB + Thompson Sampling）
+- ✅ 四维状态监测（注意力、疲劳度、认知能力、动机）
+- ✅ 动态队列优化（四因子难度模型）
+- ✅ 学习时间推荐（基于历史数据分析）
+- ✅ 趋势分析报告
+- ✅ 决策可解释性（学习曲线、反事实分析）
+- ✅ 延迟奖励机制
+
+### 单词掌握度评估
+- ✅ ACT-R 记忆模型集成
+- ✅ 掌握度评估（SRS + ACT-R + 近期表现）
+- ✅ 最佳复习间隔预测
+- ✅ 复习历史轨迹追踪
+
+### 用户画像
+- ✅ 习惯画像（生物钟、学习风格）
+- ✅ 认知能力画像（记忆力、速度、稳定性）
+- ✅ 状态历史追踪（7/30/90天）
+
+### 监控与告警
+- ✅ Prometheus 指标收集
+- ✅ 告警引擎（阈值/趋势告警）
+- ✅ Webhook 通知
+
+### 实验与优化
+- ✅ A/B 测试系统
+- ✅ 贝叶斯超参数优化
+- ✅ 因果推断评估
+
+### 管理功能
+- ✅ 用户管理（列表、统计、导出）
+- ✅ 词库管理（批量导入）
+- ✅ 算法配置（在线调参）
+- ✅ 配置历史追踪
 
 ## 技术栈
 
@@ -101,23 +139,52 @@ backend/
 ├── prisma/
 │   └── schema.prisma          # 数据库模型定义
 ├── src/
+│   ├── amas/                  # AMAS 智能学习算法
+│   │   ├── engine.ts          # 核心引擎
+│   │   ├── modeling/          # 状态建模（注意力、疲劳、动机、认知）
+│   │   ├── learning/          # 学习算法（LinUCB、Thompson Sampling）
+│   │   ├── decision/          # 决策引擎（策略映射、安全约束）
+│   │   ├── evaluation/        # 评估与优化（掌握度、延迟奖励）
+│   │   └── services/          # 决策记录、AMAS服务
 │   ├── config/
 │   │   ├── database.ts        # 数据库连接
-│   │   └── env.ts             # 环境变量配置
+│   │   ├── env.ts             # 环境变量配置
+│   │   └── amas-feature-flags.ts # AMAS特性开关
 │   ├── middleware/
 │   │   ├── auth.middleware.ts # 认证中间件
+│   │   ├── admin.middleware.ts # 管理员中间件
 │   │   ├── error.middleware.ts# 错误处理中间件
+│   │   ├── metrics.middleware.ts # 监控指标中间件
 │   │   └── logger.middleware.ts# 日志中间件
+│   ├── monitoring/            # 监控与告警
+│   │   ├── amas-metrics.ts    # Prometheus指标收集
+│   │   ├── alert-engine.ts    # 告警引擎
+│   │   └── monitoring-service.ts # 监控服务
 │   ├── routes/
 │   │   ├── auth.routes.ts     # 认证路由
 │   │   ├── user.routes.ts     # 用户路由
 │   │   ├── word.routes.ts     # 单词路由
-│   │   └── record.routes.ts   # 学习记录路由
+│   │   ├── record.routes.ts   # 学习记录路由
+│   │   ├── amas.routes.ts     # AMAS核心路由
+│   │   ├── learning.routes.ts # 学习队列路由
+│   │   ├── word-mastery.routes.ts # 单词掌握度路由
+│   │   ├── habit-profile.routes.ts # 习惯画像路由
+│   │   ├── alerts.routes.ts   # 告警路由
+│   │   ├── about.routes.ts    # 统计展示路由
+│   │   ├── experiments.routes.ts # A/B测试路由
+│   │   └── optimization.routes.ts # 优化路由
 │   ├── services/
 │   │   ├── auth.service.ts    # 认证服务
 │   │   ├── user.service.ts    # 用户服务
 │   │   ├── word.service.ts    # 单词服务
-│   │   └── record.service.ts  # 学习记录服务
+│   │   ├── record.service.ts  # 学习记录服务
+│   │   ├── amas.service.ts    # AMAS服务
+│   │   ├── mastery-learning.service.ts # 掌握模式学习服务
+│   │   ├── word-mastery.service.ts # 单词掌握度服务
+│   │   ├── habit-profile.service.ts # 习惯画像服务
+│   │   ├── about.service.ts   # 统计展示服务
+│   │   ├── optimization.service.ts # 贝叶斯优化服务
+│   │   └── explainability.service.ts # 可解释性服务
 │   ├── types/
 │   │   └── index.ts           # TypeScript类型定义
 │   ├── validators/
@@ -126,6 +193,10 @@ backend/
 │   │   └── record.validator.ts# 记录验证
 │   ├── app.ts                 # Express应用配置
 │   └── index.ts               # 服务器入口
+├── tests/                     # 测试文件
+│   ├── unit/                  # 单元测试
+│   ├── integration/           # 集成测试
+│   └── load/                  # 负载测试
 ├── .env.example               # 环境变量示例
 ├── .gitignore
 ├── package.json

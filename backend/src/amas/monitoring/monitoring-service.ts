@@ -10,6 +10,7 @@ import {
   HealthStatus
 } from './metrics-collector';
 import { SLOConfig, DEFAULT_SLO } from './alert-config';
+import { monitorLogger } from '../../logger';
 
 /**
  * 监控服务配置
@@ -56,12 +57,12 @@ export class MonitoringService {
    */
   start(): void {
     if (!this.config.enabled) {
-      console.log('[MonitoringService] Disabled by config');
+      monitorLogger.debug('Disabled by config');
       return;
     }
 
     if (this.running) {
-      console.warn('[MonitoringService] Already running');
+      monitorLogger.warn('Already running');
       return;
     }
 
@@ -74,7 +75,7 @@ export class MonitoringService {
     }, this.config.evaluationIntervalMs);
 
     this.running = true;
-    console.log('[MonitoringService] Started');
+    monitorLogger.info('Started');
   }
 
   /**
@@ -93,7 +94,7 @@ export class MonitoringService {
     }
 
     this.running = false;
-    console.log('[MonitoringService] Stopped');
+    monitorLogger.info('Stopped');
   }
 
   /**
@@ -185,10 +186,10 @@ export class MonitoringService {
       const firedAlerts = this.alertEngine.evaluateMetrics(metrics);
 
       if (firedAlerts.length > 0) {
-        console.log(`[MonitoringService] ${firedAlerts.length} alerts fired`);
+        monitorLogger.info({ count: firedAlerts.length }, 'Alerts fired');
       }
     } catch (error) {
-      console.error('[MonitoringService] Alert evaluation failed:', error);
+      monitorLogger.error({ err: error }, 'Alert evaluation failed');
     }
   }
 

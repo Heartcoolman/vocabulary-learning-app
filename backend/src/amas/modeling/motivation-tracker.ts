@@ -114,6 +114,13 @@ export class MotivationTracker {
   }
 
   /**
+   * 兼容别名
+   */
+  getMotivation(): number {
+    return this.get();
+  }
+
+  /**
    * 重置模型状态
    */
   reset(value: number = 0): void {

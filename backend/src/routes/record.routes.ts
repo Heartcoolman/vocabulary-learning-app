@@ -47,6 +47,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 批量保存答题记录
+// 管理员UI: src/pages/BatchImportPage.tsx (路由: /admin/batch-import)
 router.post('/batch', async (req: AuthRequest, res: Response, next) => {
   try {
     const { records } = batchCreateRecordsSchema.parse(req.body);

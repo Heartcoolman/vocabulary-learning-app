@@ -1,6 +1,6 @@
-import { 
-  WordLearningState, 
-  WordScore, 
+import {
+  WordLearningState,
+  WordScore,
   AnswerRecord,
   AlgorithmConfig,
   WordState
@@ -10,6 +10,7 @@ import { WordScoreCalculator } from './WordScoreCalculator';
 import { PriorityQueueScheduler } from './PriorityQueueScheduler';
 import { AdaptiveDifficultyEngine } from './AdaptiveDifficultyEngine';
 import { WordStateManager, WordStateStorage } from './WordStateManager';
+import { learningLogger } from '../../utils/logger';
 
 /**
  * 学习会话信息
@@ -362,7 +363,7 @@ export class SpacedRepetitionService {
       const score = await this.storage.loadScore?.(userId, wordId);
       return score || null;
     } catch (error) {
-      console.error('获取单词得分失败:', error);
+      learningLogger.error({ err: error }, '获取单词得分失败');
       return null;
     }
   }
@@ -466,7 +467,7 @@ export class SpacedRepetitionService {
     const updatedState = await this.stateManager.updateState(userId, wordId, updates);
 
     // 记录手动调整日志（用于审计）
-    console.log('[SRS] 手动标记为已掌握:', {
+    learningLogger.info( {
       userId,
       wordId,
       reason: reason || '未提供原因',
@@ -506,7 +507,7 @@ export class SpacedRepetitionService {
     const updatedState = await this.stateManager.updateState(userId, wordId, updates);
 
     // 记录手动调整日志（用于审计）
-    console.log('[SRS] 手动标记为需要练习:', {
+    learningLogger.info( {
       userId,
       wordId,
       reason: reason || '未提供原因',
@@ -534,7 +535,7 @@ export class SpacedRepetitionService {
     const newState = await this.stateManager.initializeWordState(userId, wordId);
 
     // 记录手动调整日志（用于审计）
-    console.log('[SRS] 手动重置学习进度:', {
+    learningLogger.info( {
       userId,
       wordId,
       reason: reason || '未提供原因',
@@ -582,7 +583,7 @@ export class SpacedRepetitionService {
         
         results.push(updatedState);
       } catch (error) {
-        console.error(`批量更新单词 ${wordId} 失败:`, error);
+        learningLogger.error({ err: error, wordId }, '批量更新单词失败');
         // 继续处理其他单词
       }
     }

@@ -6,6 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { StateRepository, ModelRepository } from '../engine';
 import { UserState, CognitiveProfile, HabitProfile, TrendState, BanditModel } from '../types';
+import { amasLogger } from '../../logger';
 
 // 获取 Prisma 实例
 let prisma: PrismaClient;
@@ -51,15 +52,15 @@ function serializeBanditModel(model: BanditModel): object {
   let L = model.L;
 
   if (hasInvalidValues(A)) {
-    console.warn('[AMAS] 序列化时发现 A 矩阵包含无效值，已清理');
+    amasLogger.warn('[AMAS] 序列化时发现 A 矩阵包含无效值，已清理');
     A = sanitizeArray(A);
   }
   if (hasInvalidValues(b)) {
-    console.warn('[AMAS] 序列化时发现 b 向量包含无效值，已清理');
+    amasLogger.warn('[AMAS] 序列化时发现 b 向量包含无效值，已清理');
     b = sanitizeArray(b);
   }
   if (L && hasInvalidValues(L)) {
-    console.warn('[AMAS] 序列化时发现 L 矩阵包含无效值，已清理');
+    amasLogger.warn('[AMAS] 序列化时发现 L 矩阵包含无效值，已清理');
     L = sanitizeArray(L);
   }
 
@@ -144,14 +145,14 @@ function choleskyDecompose(A: Float32Array, d: number, lambda: number = 1.0): Fl
     // 最终检查：确保所有元素都是有限数
     for (let i = 0; i < L.length; i++) {
       if (!Number.isFinite(L[i])) {
-        console.warn(`[AMAS] Cholesky分解后仍有无效值，位置: ${i}`);
+        amasLogger.warn({ position: i }, '[AMAS] Cholesky分解后仍有无效值');
         return null;
       }
     }
 
     return L;
   } catch (error) {
-    console.warn(`[AMAS] Cholesky分解异常:`, error);
+    amasLogger.warn({ err: error }, '[AMAS] Cholesky分解异常');
     return null;
   }
 }
@@ -186,7 +187,7 @@ function deserializeBanditModel(data: { A: number[]; b: number[]; L?: number[]; 
 
   // 校验A/b数组长度，长度不匹配时回退到初始状态
   if (data.A.length !== d * d) {
-    console.warn(`[AMAS] 模型A矩阵长度不匹配: expected=${d * d}, got=${data.A.length}，回退到初始状态`);
+    amasLogger.warn({ expected: d * d, got: data.A.length }, '[AMAS] 模型A矩阵长度不匹配，回退到初始状态');
     return {
       A: createRegularizedIdentity(d, lambda),
       b: new Float32Array(d),
@@ -198,7 +199,7 @@ function deserializeBanditModel(data: { A: number[]; b: number[]; L?: number[]; 
     };
   }
   if (data.b.length !== d) {
-    console.warn(`[AMAS] 模型b向量长度不匹配: expected=${d}, got=${data.b.length}，回退到初始状态`);
+    amasLogger.warn({ expected: d, got: data.b.length }, '[AMAS] 模型b向量长度不匹配，回退到初始状态');
     return {
       A: createRegularizedIdentity(d, lambda),
       b: new Float32Array(d),
@@ -224,13 +225,13 @@ function deserializeBanditModel(data: { A: number[]; b: number[]; L?: number[]; 
     L = new Float32Array(cleanL);
   } else {
     // 重新对A进行Cholesky分解，确保L与A同步
-    console.log(`[AMAS] 重新计算Cholesky分解: L缺失或长度不匹配`);
+    amasLogger.debug('[AMAS] 重新计算Cholesky分解: L缺失或长度不匹配');
     const choleskyResult = choleskyDecompose(A, d);
     if (choleskyResult) {
       L = choleskyResult;
     } else {
       // Cholesky分解失败，回退到正则化单位矩阵
-      console.warn(`[AMAS] Cholesky分解失败，使用正则化单位矩阵`);
+      amasLogger.warn('[AMAS] Cholesky分解失败，使用正则化单位矩阵');
       L = createRegularizedIdentity(d, lambda);
     }
   }

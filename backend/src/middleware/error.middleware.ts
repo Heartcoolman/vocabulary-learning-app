@@ -67,6 +67,7 @@ function inferAppError(message: string): AppError {
     message.includes('令牌') ||
     message.includes('密码错误') ||
     message.includes('邮箱或密码') ||
+    message.includes('尚未注册') ||
     message.includes('认证') ||
     message.includes('会话')
   ) {

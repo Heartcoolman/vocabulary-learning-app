@@ -296,3 +296,74 @@ export interface ComparisonResult {
 export function createOfflineEvaluator(): OfflineReplayEvaluator {
   return new OfflineReplayEvaluator();
 }
+
+/**
+ * 兼容测试的轻量级离线重放类
+ */
+export class OfflineReplay {
+  private trajectories: Array<{
+    userId: string;
+    timestamp: number;
+    state: UserState;
+    action: StrategyParams;
+    reward: number;
+    actionProbability?: number;
+  }> = [];
+
+  recordTrajectory(trajectory: {
+    userId: string;
+    timestamp: number;
+    state: UserState;
+    action: StrategyParams;
+    reward: number;
+    actionProbability?: number;
+  }): void {
+    this.trajectories.push(trajectory);
+  }
+
+  getTrajectoryCount(): number {
+    return this.trajectories.length;
+  }
+
+  evaluate(policy: (state: UserState) => StrategyParams): {
+    estimatedValue: number;
+  } {
+    if (!this.trajectories.length) {
+      return { estimatedValue: 0 };
+    }
+
+    const rewards = this.trajectories.map(t => {
+      const suggested = policy(t.state);
+      const match = this.actionsMatch(suggested, t.action);
+      return match ? t.reward : t.reward * 0.5;
+    });
+
+    const estimatedValue =
+      rewards.reduce((sum, r) => sum + r, 0) / rewards.length;
+
+    return { estimatedValue };
+  }
+
+  importanceWeightedEstimate(policyProb: (action: StrategyParams) => number): number {
+    if (!this.trajectories.length) return 0;
+    const weights = this.trajectories.map(t => {
+      const pi = policyProb(t.action);
+      const behavior = (t.actionProbability ?? pi) || 1;
+      return (t.reward * pi) / Math.max(behavior, 1e-6);
+    });
+    return weights.reduce((s, w) => s + w, 0) / weights.length;
+  }
+
+  reset(): void {
+    this.trajectories = [];
+  }
+
+  private actionsMatch(a: StrategyParams, b: StrategyParams): boolean {
+    return (
+      Math.abs(a.interval_scale - b.interval_scale) < 0.1 &&
+      Math.abs(a.new_ratio - b.new_ratio) < 0.05 &&
+      a.difficulty === b.difficulty &&
+      a.hint_level === b.hint_level
+    );
+  }
+}

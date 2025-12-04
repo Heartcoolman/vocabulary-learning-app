@@ -16,10 +16,13 @@ import {
     CircleNotch,
     Warning
 } from '../components/Icon';
+import { useToast, ConfirmModal } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 export default function WordBookDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const toast = useToast();
     const [wordBook, setWordBook] = useState<WordBook | null>(null);
     const [words, setWords] = useState<Word[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +32,12 @@ export default function WordBookDetailPage() {
     const [selectedWord, setSelectedWord] = useState<Word | null>(null);
     const [showWordDetail, setShowWordDetail] = useState(false);
     const [isPronouncing, setIsPronouncing] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; wordId: string; spelling: string }>({
+        isOpen: false,
+        wordId: '',
+        spelling: '',
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const wordsPerPage = 20;
 
@@ -60,7 +69,7 @@ export default function WordBookDetailPage() {
             setWords(wordsData);
             setCurrentPage(1); // 重置到第一页
         } catch (err) {
-            console.error('加载词书详情失败:', err);
+            uiLogger.error({ err, wordBookId: id }, '加载词书详情失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -69,7 +78,7 @@ export default function WordBookDetailPage() {
 
     const handleAddWord = async () => {
         if (!newWord.spelling || !newWord.phonetic) {
-            alert('请填写单词拼写和音标');
+            toast.warning('请填写单词拼写和音标');
             return;
         }
 
@@ -82,25 +91,31 @@ export default function WordBookDetailPage() {
                 meanings: [''],
                 examples: [''],
             });
+            toast.success('单词添加成功');
             loadWordBookDetail();
         } catch (err) {
-            console.error('添加单词失败:', err);
-            alert(err instanceof Error ? err.message : '添加失败');
+            uiLogger.error({ err, word: newWord, wordBookId: id }, '添加单词失败');
+            toast.error(err instanceof Error ? err.message : '添加失败');
         }
     };
 
-    const handleDeleteWord = async (wordId: string, spelling: string) => {
-        if (!confirm(`确定要删除单词"${spelling}"吗？`)) {
-            return;
-        }
+    const openDeleteConfirm = (wordId: string, spelling: string) => {
+        setDeleteConfirm({ isOpen: true, wordId, spelling });
+    };
 
+    const handleDeleteWord = async () => {
+        setIsDeleting(true);
         try {
-            await apiClient.removeWordFromWordBook(id!, wordId);
-            setCurrentPage(1); // 重置到第一页
+            await apiClient.removeWordFromWordBook(id!, deleteConfirm.wordId);
+            setCurrentPage(1);
+            toast.success('单词已删除');
             loadWordBookDetail();
         } catch (err) {
-            console.error('删除单词失败:', err);
-            alert(err instanceof Error ? err.message : '删除失败');
+            uiLogger.error({ err, wordId: deleteConfirm.wordId, wordBookId: id }, '删除单词失败');
+            toast.error(err instanceof Error ? err.message : '删除失败');
+        } finally {
+            setIsDeleting(false);
+            setDeleteConfirm({ isOpen: false, wordId: '', spelling: '' });
         }
     };
 
@@ -130,7 +145,7 @@ export default function WordBookDetailPage() {
             setIsPronouncing(true);
             await AudioService.playPronunciation(word);
         } catch (err) {
-            console.error('播放发音失败:', err);
+            uiLogger.error({ err, word }, '播放发音失败');
         } finally {
             setIsPronouncing(false);
         }
@@ -158,7 +173,7 @@ export default function WordBookDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center">
                     <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
                     <p className="text-gray-600" role="status" aria-live="polite">正在加载...</p>
@@ -169,7 +184,7 @@ export default function WordBookDetailPage() {
 
     if (error || !wordBook) {
         return (
-            <div className="min-h-screen flex items-center justify-center animate-fade-in">
+            <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
                 <div className="text-center max-w-md px-4" role="alert" aria-live="assertive">
                     <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
@@ -189,7 +204,7 @@ export default function WordBookDetailPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
                 {/* 头部 */}
                 <header className="mb-8">
                     <nav className="mb-6">
@@ -262,7 +277,7 @@ export default function WordBookDetailPage() {
                 {/* 单词网格 */}
                 <main>
                     {words.length === 0 ? (
-                        <div className="text-center py-16 animate-slide-up">
+                        <div className="text-center py-16 animate-g3-slide-up">
                             <BookOpen className="mx-auto mb-6 animate-pulse" size={96} weight="thin" color="#9ca3af" />
                             <h2 className="text-2xl font-bold text-gray-900 mb-3">这个词书还没有单词</h2>
                             <p className="text-gray-600 mb-8">开始添加单词，构建你的个性化词库吧</p>
@@ -308,7 +323,7 @@ export default function WordBookDetailPage() {
                                             flex flex-col justify-between min-h-[200px]
                                             hover:border-blue-400 hover:bg-white/95
                                             focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
-                                            animate-fade-in
+                                            animate-g3-fade-in
                                         "
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     >
@@ -347,7 +362,7 @@ export default function WordBookDetailPage() {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDeleteWord(word.id, word.spelling);
+                                                    openDeleteConfirm(word.id, word.spelling);
                                                 }}
                                                 className="
                                                     mt-4 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 
@@ -460,7 +475,7 @@ export default function WordBookDetailPage() {
                             aria-modal="true"
                             aria-labelledby="word-detail-title"
                         >
-                            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up">
+                            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-g3-slide-up">
                                 {/* 关闭按钮 */}
                                 <button
                                     onClick={() => setShowWordDetail(false)}
@@ -554,7 +569,7 @@ export default function WordBookDetailPage() {
                             aria-modal="true"
                             aria-labelledby="add-word-title"
                         >
-                            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-slide-up">
+                            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-g3-slide-up">
                                 <h2
                                     id="add-word-title"
                                     className="text-3xl font-bold text-gray-900 mb-6"
@@ -702,6 +717,19 @@ export default function WordBookDetailPage() {
                         </div>
                     )}
                 </main>
+
+                {/* 删除确认弹窗 */}
+                <ConfirmModal
+                    isOpen={deleteConfirm.isOpen}
+                    onClose={() => setDeleteConfirm({ isOpen: false, wordId: '', spelling: '' })}
+                    onConfirm={handleDeleteWord}
+                    title="删除单词"
+                    message={`确定要删除单词"${deleteConfirm.spelling}"吗？`}
+                    confirmText="删除"
+                    cancelText="取消"
+                    variant="danger"
+                    isLoading={isDeleting}
+                />
             </div>
         </div>
     );

@@ -162,24 +162,48 @@ export class StudyConfigService {
         const needNewCount = config.dailyWordCount - dueCount;
 
         if (needNewCount > 0) {
-            newWords = await prisma.word.findMany({
-                where: {
-                    wordBookId: { in: accessibleIds },
-                    id: { notIn: learnedWordIds }
-                },
-                orderBy:
-                    config.studyMode === 'random'
-                        ? { createdAt: 'desc' }
-                        : { createdAt: 'asc' },
-                take: needNewCount,
-            });
+            if (config.studyMode === 'random') {
+                // 随机模式：使用 PostgreSQL 原生随机排序
+                newWords = await prisma.$queryRaw<Array<{
+                    id: string;
+                    spelling: string;
+                    phonetic: string;
+                    meanings: string[];
+                    examples: string[];
+                    audioUrl: string | null;
+                    wordBookId: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>>`
+                    SELECT * FROM "words"
+                    WHERE "wordBookId" = ANY(${accessibleIds})
+                      AND id NOT IN (SELECT unnest(${learnedWordIds}::text[]))
+                    ORDER BY RANDOM()
+                    LIMIT ${needNewCount}
+                `;
+            } else {
+                // 顺序模式：按创建时间排序
+                newWords = await prisma.word.findMany({
+                    where: {
+                        wordBookId: { in: accessibleIds },
+                        id: { notIn: learnedWordIds }
+                    },
+                    orderBy: { createdAt: 'asc' },
+                    take: needNewCount,
+                });
+            }
         }
 
-        // 3. 合并：到期复习词 + 新词
-        const words = [
-            ...dueStates.slice(0, dueCount).map(d => d.word),
-            ...newWords
-        ];
+        // 3. 合并：到期复习词 + 新词，并添加 isNew 标记
+        const dueWords = dueStates.slice(0, dueCount).map(d => ({
+            ...d.word,
+            isNew: false  // 复习词不是新词
+        }));
+        const newWordsWithFlag = newWords.map(w => ({
+            ...w,
+            isNew: true  // 新词
+        }));
+        const words = [...dueWords, ...newWordsWithFlag];
 
         // 计算学习进度
         const today = new Date();
@@ -241,13 +265,16 @@ export class StudyConfigService {
     async getStudyProgress(userId: string) {
         const config = await this.getUserStudyConfig(userId);
 
+        const emptyProgress = {
+            todayStudied: 0,
+            todayTarget: config.dailyWordCount,
+            totalStudied: 0,
+            correctRate: 0,
+            weeklyTrend: [0, 0, 0, 0, 0, 0, 0],
+        };
+
         if (config.selectedWordBookIds.length === 0) {
-            return {
-                todayStudied: 0,
-                todayTarget: config.dailyWordCount,
-                totalStudied: 0,
-                correctRate: 0,
-            };
+            return emptyProgress;
         }
 
         // 安全校验：验证词书权限
@@ -265,12 +292,7 @@ export class StudyConfigService {
         const accessibleIds = accessibleWordBooks.map(wb => wb.id);
 
         if (accessibleIds.length === 0) {
-            return {
-                todayStudied: 0,
-                todayTarget: config.dailyWordCount,
-                totalStudied: 0,
-                correctRate: 0,
-            };
+            return emptyProgress;
         }
 
         // 计算今日学习进度
@@ -315,12 +337,51 @@ export class StudyConfigService {
         const correctCount = allRecords.filter(r => r.isCorrect).length;
         const correctRate = allRecords.length > 0 ? Math.round((correctCount / allRecords.length) * 100) : 0;
 
+        // 计算 7 日趋势数据
+        const weeklyTrend = await this.getWeeklyTrend(userId, accessibleIds);
+
         return {
             todayStudied: todayRecords.length,
             todayTarget: config.dailyWordCount,
             totalStudied: totalStudiedRecords.length,
             correctRate,
+            weeklyTrend,
         };
+    }
+
+    /**
+     * 获取最近 7 天每日学习单词数
+     */
+    private async getWeeklyTrend(userId: string, accessibleIds: string[]): Promise<number[]> {
+        const trend: number[] = [];
+        const now = new Date();
+
+        for (let i = 6; i >= 0; i--) {
+            const dayStart = new Date(now);
+            dayStart.setDate(now.getDate() - i);
+            dayStart.setHours(0, 0, 0, 0);
+
+            const dayEnd = new Date(dayStart);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const dayRecords = await prisma.answerRecord.groupBy({
+                by: ['wordId'],
+                where: {
+                    userId,
+                    timestamp: {
+                        gte: dayStart,
+                        lte: dayEnd,
+                    },
+                    word: {
+                        wordBookId: { in: accessibleIds },
+                    },
+                },
+            });
+
+            trend.push(dayRecords.length);
+        }
+
+        return trend;
     }
 }
 

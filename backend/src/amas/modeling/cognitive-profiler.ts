@@ -126,14 +126,26 @@ export class CognitiveProfiler {
 
   /**
    * 获取当前融合的认知能力画像
+   * 当 sampleCount=0 时，直接返回 C_long（初始值或恢复的值）
    */
   get(): CognitiveProfile {
+    // 无样本时直接返回长期值（支持初始化和状态恢复场景）
+    if (this.sampleCount === 0) {
+      return { ...this.C_long };
+    }
     const lambda = 1 - Math.exp(-this.sampleCount / this.k0);
     return {
       mem: clamp01(lambda * this.C_long.mem + (1 - lambda) * 0.5),
       speed: clamp01(lambda * this.C_long.speed + (1 - lambda) * 0.5),
       stability: clamp01(lambda * this.C_long.stability + (1 - lambda) * 0.5)
     };
+  }
+
+  /**
+   * 兼容别名
+   */
+  getProfile(): CognitiveProfile {
+    return this.get();
   }
 
   /**

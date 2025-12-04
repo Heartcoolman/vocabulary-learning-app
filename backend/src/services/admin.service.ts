@@ -10,10 +10,11 @@ export class AdminService {
     async getAllUsers(options?: {
         page?: number;
         pageSize?: number;
+        limit?: number;
         search?: string;
     }) {
         const page = options?.page || 1;
-        const pageSize = options?.pageSize || 20;
+        const pageSize = options?.pageSize || options?.limit || 20;
         const skip = (page - 1) * pageSize;
 
         const where = options?.search
@@ -41,6 +42,20 @@ export class AdminService {
             }),
             prisma.user.count({ where }),
         ]);
+
+        // 空结果早期返回
+        if (users.length === 0) {
+            return {
+                users: [],
+                total,
+                pagination: {
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.ceil(total / pageSize),
+                },
+            };
+        }
 
         // 批量获取所有用户的统计数据（避免 N+1 查询）
         const userIds = users.map(u => u.id);
@@ -104,6 +119,7 @@ export class AdminService {
 
         return {
             users: usersWithStats,
+            total,
             pagination: {
                 page,
                 pageSize,
@@ -179,7 +195,19 @@ export class AdminService {
     }
 
     /**
-     * 创建系统词库
+     * 获取所有系统词库列表
+     */
+    async getSystemWordBooks() {
+        const wordBooks = await prisma.wordBook.findMany({
+            where: { type: WordBookType.SYSTEM },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return wordBooks;
+    }
+
+    /**
+     * 创建系统��库
      */
     async createSystemWordBook(data: {
         name: string;
@@ -379,6 +407,33 @@ export class AdminService {
             totalWords,
             totalRecords,
         };
+    }
+
+    /**
+     * 兼容 *.spec.ts：系统统计简版
+     */
+    async getSystemStats() {
+        const stats = await this.getStatistics();
+        return {
+            totalUsers: stats.totalUsers,
+            totalWords: stats.totalWords,
+            totalWordBooks: stats.totalWordBooks,
+            totalRecords: stats.totalRecords,
+        };
+    }
+
+    /**
+     * 兼容 *.spec.ts：封禁用户（通过清除会话实现软封禁）
+     */
+    async banUser(userId: string) {
+        await prisma.session.deleteMany({ where: { userId } });
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { role: UserRole.USER },
+        });
+
+        return { ...updatedUser, banned: true };
     }
 
     /**
@@ -1138,6 +1193,281 @@ export class AdminService {
         });
 
         return flags;
+    }
+
+    // ==================== AMAS 决策查询 ====================
+
+    /**
+     * 获取用户决策列表（分页 + 筛选）
+     */
+    async getUserDecisions(userId: string, options: {
+        page: number;
+        pageSize: number;
+        startDate?: string;
+        endDate?: string;
+        decisionSource?: string;
+        minConfidence?: number;
+        sortBy?: 'timestamp' | 'confidence' | 'duration';
+        sortOrder?: 'asc' | 'desc';
+    }) {
+        const skip = (options.page - 1) * options.pageSize;
+        const sortBy = options.sortBy || 'timestamp';
+        const sortOrder = options.sortOrder || 'desc';
+
+        const whereConditions: any = {};
+
+        if (options.startDate) {
+            whereConditions.timestamp = { ...whereConditions.timestamp, gte: new Date(options.startDate) };
+        }
+        if (options.endDate) {
+            whereConditions.timestamp = { ...whereConditions.timestamp, lte: new Date(options.endDate) };
+        }
+        if (options.decisionSource) {
+            whereConditions.decisionSource = options.decisionSource;
+        }
+        if (options.minConfidence !== undefined) {
+            whereConditions.confidence = { gte: options.minConfidence };
+        }
+
+        const [decisions, total] = await Promise.all([
+            prisma.decisionRecord.findMany({
+                where: {
+                    answerRecordId: {
+                        in: (await prisma.answerRecord.findMany({
+                            where: { userId },
+                            select: { id: true }
+                        })).map(r => r.id)
+                    },
+                    ...whereConditions
+                },
+                select: {
+                    id: true,
+                    decisionId: true,
+                    timestamp: true,
+                    decisionSource: true,
+                    confidence: true,
+                    reward: true,
+                    totalDurationMs: true,
+                    selectedAction: true,
+                },
+                orderBy: sortBy === 'timestamp'
+                    ? { timestamp: sortOrder as any }
+                    : sortBy === 'confidence'
+                    ? { confidence: sortOrder as any }
+                    : { totalDurationMs: sortOrder as any },
+                skip,
+                take: options.pageSize,
+            }),
+            prisma.decisionRecord.count({
+                where: {
+                    answerRecordId: {
+                        in: (await prisma.answerRecord.findMany({
+                            where: { userId },
+                            select: { id: true }
+                        })).map(r => r.id)
+                    },
+                    ...whereConditions
+                }
+            })
+        ]);
+
+        const formattedDecisions = decisions.map(d => ({
+            decisionId: d.decisionId,
+            timestamp: d.timestamp.toISOString(),
+            decisionSource: d.decisionSource,
+            confidence: d.confidence,
+            reward: d.reward,
+            totalDurationMs: d.totalDurationMs,
+            strategy: this.extractStrategyFromAction(d.selectedAction)
+        }));
+
+        const statistics = await this.calculateDecisionStatistics(userId, {
+            startDate: options.startDate,
+            endDate: options.endDate
+        });
+
+        return {
+            decisions: formattedDecisions,
+            pagination: {
+                page: options.page,
+                pageSize: options.pageSize,
+                total,
+                totalPages: Math.ceil(total / options.pageSize)
+            },
+            statistics
+        };
+    }
+
+    /**
+     * 获取决策详情
+     */
+    async getDecisionDetail(userId: string, decisionId: string) {
+        const answerRecordIds = (await prisma.answerRecord.findMany({
+            where: { userId },
+            select: { id: true }
+        })).map(r => r.id);
+
+        const decision = await prisma.decisionRecord.findFirst({
+            where: {
+                decisionId,
+                answerRecordId: { in: answerRecordIds }
+            }
+        });
+
+        if (!decision) {
+            throw new Error('决策记录不存在');
+        }
+
+        const [insight, stages, answerRecord] = await Promise.all([
+            prisma.decisionInsight.findUnique({
+                where: { decisionId: decision.decisionId }
+            }),
+            prisma.pipelineStage.findMany({
+                where: { decisionRecordId: decision.id },
+                orderBy: { stage: 'asc' }
+            }),
+            decision.answerRecordId ? prisma.answerRecord.findFirst({
+                where: { id: decision.answerRecordId },
+                include: {
+                    word: {
+                        select: { spelling: true }
+                    }
+                }
+            }) : null
+        ]);
+
+        return {
+            decision: {
+                decisionId: decision.decisionId,
+                timestamp: decision.timestamp.toISOString(),
+                decisionSource: decision.decisionSource,
+                coldstartPhase: decision.coldstartPhase,
+                confidence: decision.confidence,
+                reward: decision.reward,
+                totalDurationMs: decision.totalDurationMs,
+                selectedAction: decision.selectedAction,
+                weightsSnapshot: decision.weightsSnapshot || {},
+                memberVotes: this.parseMemberVotes(decision.memberVotes)
+            },
+            insight: insight ? {
+                stateSnapshot: insight.stateSnapshot,
+                difficultyFactors: insight.difficultyFactors,
+                triggers: insight.triggers
+            } : undefined,
+            pipeline: stages.map(s => ({
+                stage: s.stage,
+                stageName: s.stageName,
+                status: s.status,
+                durationMs: s.durationMs,
+                startedAt: s.startedAt.toISOString(),
+                endedAt: s.endedAt?.toISOString(),
+                inputSummary: s.inputSummary,
+                outputSummary: s.outputSummary,
+                metadata: s.metadata,
+                errorMessage: s.errorMessage
+            })),
+            context: answerRecord ? {
+                answerRecord: {
+                    wordId: answerRecord.wordId,
+                    wordSpelling: answerRecord.word?.spelling || '',
+                    isCorrect: answerRecord.isCorrect,
+                    responseTime: answerRecord.responseTime
+                },
+                sessionId: decision.sessionId
+            } : undefined
+        };
+    }
+
+    /**
+     * 计算决策统计
+     */
+    private async calculateDecisionStatistics(userId: string, options: {
+        startDate?: string;
+        endDate?: string;
+    }) {
+        const whereConditions: any = {};
+
+        if (options.startDate) {
+            whereConditions.timestamp = { ...whereConditions.timestamp, gte: new Date(options.startDate) };
+        }
+        if (options.endDate) {
+            whereConditions.timestamp = { ...whereConditions.timestamp, lte: new Date(options.endDate) };
+        }
+
+        const answerRecordIds = (await prisma.answerRecord.findMany({
+            where: { userId },
+            select: { id: true }
+        })).map(r => r.id);
+
+        const decisions = await prisma.decisionRecord.findMany({
+            where: {
+                answerRecordId: { in: answerRecordIds },
+                ...whereConditions
+            },
+            select: {
+                decisionSource: true,
+                confidence: true,
+                reward: true
+            }
+        });
+
+        if (decisions.length === 0) {
+            return {
+                totalDecisions: 0,
+                averageConfidence: 0,
+                averageReward: 0,
+                decisionSourceDistribution: {}
+            };
+        }
+
+        const totalDecisions = decisions.length;
+        const sumConfidence = decisions.reduce((sum, d) => sum + d.confidence, 0);
+        const rewardsWithValues = decisions.filter(d => d.reward !== null);
+        const sumReward = rewardsWithValues.reduce((sum, d) => sum + (d.reward || 0), 0);
+
+        const sourceDistribution: Record<string, number> = {};
+        decisions.forEach(d => {
+            sourceDistribution[d.decisionSource] = (sourceDistribution[d.decisionSource] || 0) + 1;
+        });
+
+        return {
+            totalDecisions,
+            averageConfidence: sumConfidence / totalDecisions,
+            averageReward: rewardsWithValues.length > 0 ? sumReward / rewardsWithValues.length : 0,
+            decisionSourceDistribution: sourceDistribution
+        };
+    }
+
+    /**
+     * 从 selectedAction JSON 提取策略信息
+     */
+    private extractStrategyFromAction(action: any) {
+        if (!action || typeof action !== 'object') {
+            return { difficulty: 'normal', batch_size: 10 };
+        }
+
+        return {
+            difficulty: action.difficulty || 'normal',
+            batch_size: action.batch_size || 10,
+            interval_scale: action.interval_scale,
+            new_ratio: action.new_ratio,
+            hint_level: action.hint_level
+        };
+    }
+
+    /**
+     * 解析成员投票 JSON
+     */
+    private parseMemberVotes(votes: any) {
+        if (!votes || typeof votes !== 'object') {
+            return [];
+        }
+
+        return Object.entries(votes).map(([member, vote]) => ({
+            member,
+            vote,
+            weight: typeof vote === 'object' && vote !== null ? (vote as any).weight : 0
+        }));
     }
 }
 

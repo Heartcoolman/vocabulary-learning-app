@@ -84,6 +84,18 @@ export interface LearningEventInput {
 }
 
 /**
+ * 单词掌握判定结果（从后端返回）
+ */
+export interface WordMasteryDecision {
+  /** 是否已掌握 */
+  isMastered: boolean;
+  /** 判定置信度 [0,1] */
+  confidence: number;
+  /** 建议重复次数 */
+  suggestedRepeats: number;
+}
+
+/**
  * AMAS处理结果
  */
 export interface AmasProcessResult {
@@ -99,6 +111,8 @@ export interface AmasProcessResult {
   suggestion?: string;
   /** 是否建议休息 */
   shouldBreak?: boolean;
+  /** 单词掌握判定（后端计算，用于掌握度学习模式） */
+  wordMasteryDecision?: WordMasteryDecision;
 }
 
 /**
@@ -126,4 +140,52 @@ export interface BatchProcessResult {
   finalStrategy: LearningStrategy;
   /** 最终状态 */
   finalState?: UserState;
+}
+
+// ========== 队列动态调整相关类型 ==========
+
+export type AdjustReason = 'fatigue' | 'struggling' | 'excelling' | 'periodic';
+
+/**
+ * 学习单词调整参数
+ */
+export interface AdjustWordsParams {
+  sessionId: string;
+  currentWordIds: string[];
+  masteredWordIds: string[];
+  userState?: {
+    fatigue: number;
+    attention: number;
+    motivation: number;
+  };
+  recentPerformance: {
+    accuracy: number;
+    avgResponseTime: number;
+    consecutiveWrong: number;
+  };
+  adjustReason: AdjustReason;
+}
+
+/**
+ * 学习单词调整响应
+ */
+export interface AdjustWordsResponse {
+  adjustments: {
+    remove: string[];
+    add: Array<{
+      id: string;
+      spelling: string;
+      phonetic: string;
+      meanings: string[];
+      examples: string[];
+      audioUrl?: string;
+      isNew: boolean;
+      difficulty: number;
+    }>;
+  };
+  targetDifficulty: {
+    min: number;
+    max: number;
+  };
+  reason: string;
 }

@@ -5,6 +5,8 @@
  * 提供轻量级的指标收集，支持后续升级到Prometheus
  */
 
+import prisma from '../config/database';
+
 // ==================== 指标类型定义 ====================
 
 interface CounterMetric {
@@ -169,6 +171,20 @@ getOrCreateHistogram(
   [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
 );
 
+// 学习队列调整耗时
+getOrCreateHistogram(
+  'queue_adjustment_duration_seconds',
+  '学习队列动态调整耗时（秒）',
+  [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]
+);
+
+// 难度计算耗时
+getOrCreateHistogram(
+  'difficulty_computation_time_seconds',
+  '单词难度批量计算耗时（秒）',
+  [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1]
+);
+
 // ==================== 便捷函数 ====================
 
 /**
@@ -197,6 +213,20 @@ export function updateRewardQueueLength(length: number): void {
  */
 export function recordRewardProcessingDuration(durationSeconds: number): void {
   observeHistogram('amas_reward_processing_duration_seconds', durationSeconds);
+}
+
+/**
+ * 记录队列调整耗时
+ */
+export function recordQueueAdjustmentDuration(durationSeconds: number): void {
+  observeHistogram('queue_adjustment_duration_seconds', durationSeconds);
+}
+
+/**
+ * 记录难度计算耗时
+ */
+export function recordDifficultyComputationTime(durationSeconds: number): void {
+  observeHistogram('difficulty_computation_time_seconds', durationSeconds);
 }
 
 // ==================== 指标导出 ====================
@@ -299,3 +329,122 @@ export function resetAllMetrics(): void {
     histogram.count = 0;
   });
 }
+
+// ==================== 测试兼容方法 ====================
+
+/**
+ * 记录指标（通用方法，用于测试兼容）
+ */
+export function recordMetric(name: string, value: number, timestamp?: Date): void {
+  setGauge(name, value);
+}
+
+/**
+ * 获取指标数据（用于测试兼容）
+ */
+export function getMetrics(name: string, range?: { start: Date; end: Date }): Array<{ timestamp: Date; value: number }> {
+  const gauge = gauges.get(name);
+  if (gauge) {
+    return [{ timestamp: new Date(), value: gauge.value }];
+  }
+  return [];
+}
+
+/**
+ * 获取聚合指标（用于测试兼容）
+ */
+export function getAggregatedMetrics(name: string): { avg: number; min: number; max: number; count: number } {
+  const gauge = gauges.get(name);
+  const value = gauge ? gauge.value : 0;
+  return {
+    avg: value,
+    min: value,
+    max: value,
+    count: gauge ? 1 : 0,
+  };
+}
+
+// 为面向Prisma的服务准备的别名
+const legacyRecordMetric = recordMetric;
+const legacyGetMetrics = getMetrics;
+const legacyGetAggregatedMetrics = getAggregatedMetrics;
+
+export class MetricsService {
+  /**
+   * 记录指标（优先使用数据库，回退到内存指标）
+   */
+  async recordMetric(name: string, value: number, timestamp: Date = new Date()) {
+    const prismaAny = prisma as any;
+    if (prismaAny.metric?.create) {
+      return prismaAny.metric.create({
+        data: { name, value, timestamp }
+      });
+    }
+    legacyRecordMetric(name, value, timestamp);
+    return { name, value, timestamp };
+  }
+
+  /**
+   * 获取指定时间范围的指标
+   */
+  async getMetrics(
+    name: string,
+    range?: { start: Date; end: Date }
+  ): Promise<Array<{ timestamp: Date; value: number }>> {
+    const prismaAny = prisma as any;
+    if (prismaAny.metric?.findMany) {
+      const records = await prismaAny.metric.findMany({
+        where: {
+          name,
+          ...(range
+            ? {
+                timestamp: {
+                  gte: range.start,
+                  lte: range.end
+                }
+              }
+            : {})
+        },
+        orderBy: { timestamp: 'asc' }
+      });
+      return records;
+    }
+    return legacyGetMetrics(name, range);
+  }
+
+  /**
+   * 获取聚合指标
+   */
+  async getAggregatedMetrics(name: string): Promise<{
+    avg: number;
+    min: number;
+    max: number;
+    count: number;
+  }> {
+    const prismaAny = prisma as any;
+    if (prismaAny.metric?.aggregate) {
+      const result = await prismaAny.metric.aggregate({
+        where: { name },
+        _avg: { value: true },
+        _min: { value: true },
+        _max: { value: true },
+        _count: { value: true },
+        _sum: { value: true }
+      });
+      const count =
+        (result as any)._count?.value ??
+        (result as any)._count ??
+        0;
+      return {
+        avg: result._avg?.value ?? 0,
+        min: result._min?.value ?? 0,
+        max: result._max?.value ?? 0,
+        count
+      };
+    }
+    return legacyGetAggregatedMetrics(name);
+  }
+}
+
+export const metricsService = new MetricsService();
+export default metricsService;

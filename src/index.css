@@ -3,20 +3,114 @@
 @tailwind utilities;
 
 :root {
+  /* ========================================
+   * 字体系统
+   * 优先使用系统原生字体，确保最佳渲染
+   * ======================================== */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
-  line-height: 1.5;
+  line-height: 1.6;
   font-weight: 400;
+  letter-spacing: -0.01em;
 
+  /* 色彩方案 */
   color-scheme: light;
-  color: #333333;
-  background-color: #ffffff;
+  color: #1f2937;
+  background-color: #fafbfc;
 
+  /* 字体渲染优化 */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+
+  /* ========================================
+   * 排版尺度系统
+   * 基于 1.25 的比例尺度
+   * ======================================== */
+  --text-xs: 0.75rem;     /* 12px - 辅助说明 */
+  --text-sm: 0.875rem;    /* 14px - 次要内容 */
+  --text-base: 1rem;      /* 16px - 正文 */
+  --text-lg: 1.125rem;    /* 18px - 强调正文 */
+  --text-xl: 1.25rem;     /* 20px - 小标题 */
+  --text-2xl: 1.5rem;     /* 24px - 标题 */
+  --text-3xl: 1.875rem;   /* 30px - 页面标题 */
+  --text-4xl: 2.25rem;    /* 36px - 大标题 */
+
+  /* 行高规范 */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* 字重规范 */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ========================================
+   * G3 阴影令牌
+   * 与 Tailwind 配置对齐，便于统一管理
+   * ======================================== */
+  --g3-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --g3-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --g3-shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.08), 0 16px 48px rgba(0, 0, 0, 0.08);
+
+  /* 按钮阴影层级 */
+  --g3-shadow-button-rest: 0 2px 6px rgba(0, 0, 0, 0.06);
+  --g3-shadow-button-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --g3-shadow-button-active: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* ========================================
+   * 渐变色彩系统
+   * 基于蓝色主题，增强深度和活力
+   * ======================================== */
+
+  /* 主色渐变 - 用于主要按钮 */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+
+  /* 玻璃态渐变 - 用于卡片背景 */
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(249, 250, 251, 0.85) 100%);
+
+  /* 微光渐变 - 用于高光效果 */
+  --gradient-shine: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+
+  /* 发音按钮专用渐变 */
+  --gradient-pronounce: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-pronounce-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+
+  /* ========================================
+   * G3 动画曲线系统
+   * 基于 HyperOS/MIUI 的自然触感设计
+   * ======================================== */
+
+  /* G3 缓动函数 - Cubic Bezier 近似 */
+  --ease-g3-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-g3-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-g3-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* G3 缓动函数 - Linear 高精度近似
+   * 基于 cubic-bezier(0.2, 0, 0, 1) 的 5% 等距采样
+   * 最大误差约 1.6%，视觉上等同于真实 G3 曲线 */
+  --ease-g3-standard-linear: linear(
+    0 0%, 0.0285 5%, 0.1562 10%, 0.3506 15%, 0.5 20%,
+    0.6072 25%, 0.6881 30%, 0.7514 35%, 0.8023 40%, 0.8438 45%,
+    0.8778 50%, 0.9059 55%, 0.9291 60%, 0.948 65%, 0.9633 70%,
+    0.9755 75%, 0.9849 80%, 0.9918 85%, 0.9965 90%, 0.9991 95%, 1 100%
+  );
+
+  /* G3 动画时长 Token - 符合人眼感知的时间阶梯
+   * 梯度约 60-80ms，专用于 G3 动画系统 */
+  --g3-duration-instant: 120ms;  /* 瞬时反馈：按钮点击、图标切换 */
+  --g3-duration-fast: 180ms;     /* 快速过渡：悬停状态、小组件 */
+  --g3-duration-normal: 240ms;   /* 标准动画：淡入淡出、状态变化 */
+  --g3-duration-slow: 320ms;     /* 强调动画：卡片展开、进度条 */
+  --g3-duration-slower: 480ms;   /* 大型过渡：模态框、页面切换 */
 }
 
 body {
@@ -34,14 +128,12 @@ body {
   box-sizing: border-box;
 }
 
-/* 自定义动画 */
+/* ========================================
+ * 自定义动画 - 旧版（保持向后兼容）
+ * ======================================== */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
@@ -66,6 +158,7 @@ body {
   }
 }
 
+/* 旧版动画类（向后兼容） */
 .animate-fade-in {
   animation: fadeIn 300ms ease-out;
 }
@@ -81,6 +174,79 @@ body {
   border-radius: inherit;
   background: currentColor;
   animation: pulse-ring 1s ease-out infinite;
+}
+
+/* ========================================
+ * G3 动画关键帧 - 新版高级动画
+ * 使用 translate3d 启用 GPU 加速
+ * ======================================== */
+
+/* G3 淡入 - 极轻微的向上位移，营造"浮现"感 */
+@keyframes g3FadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* G3 向上滑入 - 三阶段平滑过渡 */
+@keyframes g3SlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(0, -2px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* G3 缩放弹入 - 带轻微过冲的弹性效果 */
+@keyframes g3ScaleIn {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.92, 0.92, 1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale3d(1.02, 1.02, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+/* G3 淡出 - 快速响应的退出动画 */
+@keyframes g3FadeOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+/* G3 模态框背景 - 渐进模糊效果 */
+@keyframes g3BackdropIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
 }
 
 /* 焦点样式优化 */
@@ -108,4 +274,544 @@ body {
 .page-transition-exit-active {
   opacity: 0;
   transition: opacity 200ms ease-in;
+}
+
+/* ========================================
+ * 质感增强 - 组件样式层
+ * 提供统一的按钮、卡片、骨架屏等质感样式
+ * ======================================== */
+
+@layer components {
+  /* ----------------------------------------
+   * 主要按钮样式
+   * 使用场景：CTA、提交、确认等核心操作
+   * 包含渐变背景、内高光、光泽流动效果
+   * ---------------------------------------- */
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center px-4 py-2 font-medium text-white;
+    @apply rounded-button overflow-hidden;
+    @apply transition-all duration-g3-fast ease-g3;
+    background: var(--gradient-primary);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 2px 6px rgba(0, 0, 0, 0.06);
+  }
+
+  /* 动态光泽效果 */
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-shine);
+    opacity: 0;
+    transition: opacity var(--g3-duration-fast) var(--ease-g3-standard);
+    pointer-events: none;
+  }
+
+  .btn-primary:hover:not(:disabled)::before {
+    opacity: 1;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    @apply -translate-y-0.5;
+    background: var(--gradient-primary-hover);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 4px 12px rgba(37, 99, 235, 0.3),
+      0 2px 6px rgba(0, 0, 0, 0.1);
+    filter: brightness(1.05) saturate(1.1);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    @apply translate-y-0;
+    transform: scale(0.98);
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.15),
+      0 1px 3px rgba(0, 0, 0, 0.08);
+    filter: brightness(0.95);
+  }
+
+  .btn-primary:focus-visible {
+    @apply outline-none;
+    box-shadow:
+      0 0 0 3px rgba(59, 130, 246, 0.15),
+      0 0 0 6px rgba(59, 130, 246, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    background: #94a3b8;
+    box-shadow: none;
+    filter: none;
+  }
+
+  /* ----------------------------------------
+   * 次要按钮样式
+   * 使用场景：取消、返回、辅助操作
+   * 玻璃态背景 + 微妙边框
+   * ---------------------------------------- */
+  .btn-secondary {
+    @apply relative inline-flex items-center justify-center px-4 py-2 font-medium;
+    @apply text-gray-700 rounded-button overflow-hidden;
+    @apply border border-gray-200/80;
+    @apply shadow-soft;
+    @apply transition-all duration-g3-fast ease-g3;
+    background: var(--gradient-glass);
+  }
+
+  .btn-secondary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(0, 0, 0, 0.02) 100%);
+    opacity: 0;
+    transition: opacity var(--g3-duration-fast) var(--ease-g3-standard);
+  }
+
+  .btn-secondary:hover:not(:disabled)::before {
+    opacity: 1;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    @apply border-gray-300/80 shadow-elevated;
+    @apply -translate-y-0.5;
+  }
+
+  .btn-secondary:active:not(:disabled) {
+    @apply shadow-button-active translate-y-0;
+    transform: scale(0.98);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .btn-secondary:focus-visible {
+    @apply outline-none;
+    box-shadow:
+      0 0 0 3px rgba(107, 114, 128, 0.1),
+      0 0 0 6px rgba(107, 114, 128, 0.05);
+  }
+
+  .btn-secondary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    @apply shadow-none border-gray-200;
+    background: #f3f4f6;
+  }
+
+  /* ----------------------------------------
+   * 幽灵按钮样式
+   * 使用场景：轻量级操作、文字链接风格
+   * ---------------------------------------- */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-3 py-1.5 font-medium;
+    @apply text-gray-600 bg-transparent rounded-button;
+    @apply transition-all duration-g3-fast ease-g3;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    @apply text-gray-900 bg-gray-100/80;
+  }
+
+  .btn-ghost:active:not(:disabled) {
+    @apply bg-gray-200/80;
+    transform: scale(0.98);
+  }
+
+  .btn-ghost:focus-visible {
+    @apply outline-none ring-2 ring-gray-300 ring-offset-1;
+  }
+
+  /* ----------------------------------------
+   * 发音按钮样式（核心交互元素）
+   * 立体渐变 + 多层阴影 + 涟漪动画
+   * ---------------------------------------- */
+  .btn-pronounce {
+    @apply relative w-14 h-14 rounded-full;
+    @apply flex items-center justify-center;
+    @apply transition-all duration-g3-normal ease-g3;
+    @apply focus:outline-none;
+    background: var(--gradient-pronounce);
+    box-shadow:
+      inset 0 -2px 4px rgba(0, 0, 0, 0.15),
+      inset 0 2px 2px rgba(255, 255, 255, 0.25),
+      0 4px 12px rgba(59, 130, 246, 0.3),
+      0 8px 24px rgba(59, 130, 246, 0.15);
+  }
+
+  /* 顶部光泽 */
+  .btn-pronounce::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    left: 15%;
+    right: 15%;
+    height: 30%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+    border-radius: 50%;
+    filter: blur(4px);
+    pointer-events: none;
+  }
+
+  .btn-pronounce:hover:not(:disabled) {
+    background: var(--gradient-pronounce-hover);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow:
+      inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+      inset 0 2px 2px rgba(255, 255, 255, 0.3),
+      0 6px 16px rgba(59, 130, 246, 0.4),
+      0 12px 32px rgba(59, 130, 246, 0.2);
+  }
+
+  .btn-pronounce:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow:
+      inset 0 3px 6px rgba(0, 0, 0, 0.25),
+      0 2px 8px rgba(59, 130, 246, 0.2);
+  }
+
+  .btn-pronounce:focus-visible {
+    animation: focusPulse 0.6s var(--ease-g3-standard) infinite alternate;
+  }
+
+  .btn-pronounce:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    background: #94a3b8;
+    box-shadow: none;
+  }
+
+  /* 播放中的涟漪效果 */
+  .btn-pronounce.is-playing::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 2px solid rgba(59, 130, 246, 0.6);
+    border-radius: 50%;
+    animation: rippleWave 1.2s var(--ease-g3-standard) infinite;
+  }
+
+  /* ----------------------------------------
+   * 质感卡片样式
+   * 多层阴影 + 顶部光带 + 悬浮效果
+   * ---------------------------------------- */
+  .card-elevated {
+    @apply relative rounded-card;
+    @apply bg-white border border-gray-100/50;
+    @apply transition-all duration-g3-normal ease-g3;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      0 4px 12px rgba(0, 0, 0, 0.05),
+      0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .card-elevated:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.05),
+      0 8px 24px rgba(0, 0, 0, 0.08),
+      0 16px 48px rgba(0, 0, 0, 0.08);
+  }
+
+  /* 卡片顶部高光效果 */
+  .card-elevated::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
+    @apply pointer-events-none;
+  }
+
+  /* ----------------------------------------
+   * 毛玻璃卡片样式
+   * 细腻渐变背景 + 适度模糊 + 环境光
+   * ---------------------------------------- */
+  .card-glass {
+    @apply relative rounded-card overflow-hidden;
+    @apply border border-white/40;
+    @apply shadow-elevated;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(249, 250, 251, 0.82) 100%);
+    backdrop-filter: blur(10px) saturate(1.2);
+  }
+
+  /* 顶部环境光 */
+  .card-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 30%);
+    pointer-events: none;
+  }
+
+  /* 底部微妙分割线 */
+  .card-glass::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.06) 50%, transparent 100%);
+  }
+
+  .card-glass:hover {
+    @apply shadow-floating;
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+  }
+
+  /* ----------------------------------------
+   * 骨架屏基础样式
+   * 加载占位符动画
+   * ---------------------------------------- */
+  .skeleton {
+    @apply relative overflow-hidden;
+    @apply bg-gray-200/60 rounded-badge;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    @apply bg-shimmer;
+    @apply animate-shimmer;
+  }
+
+  /* 骨架屏卡片预设 */
+  .skeleton-card {
+    @apply rounded-card p-4 space-y-3;
+    @apply bg-white shadow-soft border border-gray-100/50;
+  }
+
+  .skeleton-line {
+    @apply skeleton h-4 rounded-badge;
+  }
+
+  .skeleton-line-short {
+    @apply skeleton h-4 w-2/3 rounded-badge;
+  }
+
+  .skeleton-circle {
+    @apply skeleton rounded-full;
+  }
+
+  /* 静态骨架屏（无动画） */
+  .skeleton-static {
+    @apply relative overflow-hidden;
+    @apply bg-gray-200/70 rounded-badge;
+  }
+
+  /* ----------------------------------------
+   * 输入框增强样式
+   * ---------------------------------------- */
+  .input-enhanced {
+    @apply w-full px-4 py-2.5;
+    @apply bg-gray-50/50 border border-gray-200/80 rounded-input;
+    @apply text-gray-900 placeholder-gray-400;
+    @apply transition-all duration-g3-fast ease-g3;
+  }
+
+  .input-enhanced:hover:not(:disabled):not(:focus) {
+    @apply border-gray-300 bg-gray-50/80;
+  }
+
+  .input-enhanced:focus {
+    @apply outline-none border-blue-400 bg-white;
+    @apply ring-2 ring-blue-100;
+  }
+
+  .input-enhanced:disabled {
+    @apply opacity-50 cursor-not-allowed bg-gray-100;
+  }
+
+  /* ----------------------------------------
+   * 排版工具类
+   * 提供语义化的文字样式
+   * ---------------------------------------- */
+  .text-display {
+    @apply text-4xl font-bold tracking-tight;
+    line-height: var(--leading-tight);
+  }
+
+  .text-heading {
+    @apply text-2xl font-semibold tracking-tight;
+    line-height: var(--leading-snug);
+  }
+
+  .text-subheading {
+    @apply text-lg font-medium;
+    line-height: var(--leading-snug);
+  }
+
+  .text-body {
+    @apply text-base font-normal;
+    line-height: var(--leading-relaxed);
+  }
+
+  .text-caption {
+    @apply text-sm text-gray-500;
+    line-height: var(--leading-normal);
+  }
+
+  .text-label {
+    @apply text-xs font-medium uppercase tracking-wider text-gray-500;
+  }
+
+  /* ----------------------------------------
+   * 文字截断工具
+   * ---------------------------------------- */
+  .text-truncate {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .text-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .text-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ----------------------------------------
+   * 链接样式
+   * ---------------------------------------- */
+  .link {
+    @apply text-blue-600 font-medium;
+    @apply transition-colors duration-g3-fast ease-g3;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 2px;
+  }
+
+  .link:hover {
+    @apply text-blue-700;
+    text-decoration-color: currentColor;
+  }
+
+  .link:focus-visible {
+    @apply outline-none ring-2 ring-blue-400 ring-offset-1 rounded-sm;
+  }
+
+  /* ----------------------------------------
+   * 状态反馈动画类
+   * 用于答题正确/错误等场景
+   * ---------------------------------------- */
+  .feedback-success {
+    animation: successPulse 0.6s var(--ease-g3-standard);
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .feedback-error {
+    animation: errorShake 0.4s var(--ease-g3-standard);
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  /* 文字渐变效果（用于标题装饰） */
+  .text-gradient {
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 文字渐变蓝色变体 */
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ========================================
+ * 质感增强动画关键帧
+ * ======================================== */
+
+/* 焦点脉冲动画 */
+@keyframes focusPulse {
+  from {
+    box-shadow:
+      inset 0 -2px 4px rgba(0, 0, 0, 0.15),
+      inset 0 2px 2px rgba(255, 255, 255, 0.25),
+      0 0 0 3px rgba(59, 130, 246, 0.3),
+      0 0 0 6px rgba(59, 130, 246, 0.15);
+  }
+  to {
+    box-shadow:
+      inset 0 -2px 4px rgba(0, 0, 0, 0.15),
+      inset 0 2px 2px rgba(255, 255, 255, 0.25),
+      0 0 0 3px rgba(59, 130, 246, 0.5),
+      0 0 0 8px rgba(59, 130, 246, 0.25);
+  }
+}
+
+/* 涟漪波纹动画 */
+@keyframes rippleWave {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* 成功反馈脉冲 */
+@keyframes successPulse {
+  0%, 100% {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* 错误抖动反馈 */
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* ========================================
+ * 无障碍：减少动画偏好
+ * 为 prefers-reduced-motion 用户禁用/简化动画
+ * ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 骨架屏在减少动画模式下使用静态背景 */
+  .skeleton::after {
+    animation: none !important;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  /* 发音按钮禁用涟漪和焦点动画 */
+  .btn-pronounce:focus-visible,
+  .btn-pronounce.is-playing::after {
+    animation: none !important;
+  }
+
+  .btn-pronounce:focus-visible {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  }
+
+  /* 禁用按钮光泽动画 */
+  .btn-primary::before,
+  .btn-secondary::before {
+    display: none;
+  }
 }

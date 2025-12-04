@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-/**
- * 分页参数限制常量
- */
+// 分页限制常量
 export const PAGINATION_LIMITS = {
   MIN_PAGE: 1,
   MAX_PAGE_SIZE: 100,
@@ -10,100 +8,75 @@ export const PAGINATION_LIMITS = {
 } as const;
 
 /**
- * 通用分页参数验证 Schema
- * - page: 最小值 1
- * - pageSize: 最小值 1，最大值 100
+ * 通用 UUID 验证
+ */
+export const uuidSchema = z.string().uuid('无效的UUID格式');
+
+/**
+ * 分页查询 schema
  */
 export const paginationSchema = z.object({
-  page: z
-    .string()
-    .optional()
-    .transform((val) => {
-      const num = val ? parseInt(val, 10) : PAGINATION_LIMITS.MIN_PAGE;
-      return Math.max(PAGINATION_LIMITS.MIN_PAGE, num);
-    }),
-  pageSize: z
-    .string()
-    .optional()
-    .transform((val) => {
-      const num = val ? parseInt(val, 10) : PAGINATION_LIMITS.DEFAULT_PAGE_SIZE;
-      return Math.min(
-        PAGINATION_LIMITS.MAX_PAGE_SIZE,
-        Math.max(1, num)
-      );
-    }),
+  page: z.coerce.number().int().min(PAGINATION_LIMITS.MIN_PAGE).default(PAGINATION_LIMITS.MIN_PAGE),
+  limit: z.coerce.number().int().min(1).max(PAGINATION_LIMITS.MAX_PAGE_SIZE).default(PAGINATION_LIMITS.DEFAULT_PAGE_SIZE),
+  pageSize: z.coerce.number().int().min(1).max(PAGINATION_LIMITS.MAX_PAGE_SIZE).optional(),
 });
 
 /**
- * 搜索参数验证 Schema
- */
-export const searchSchema = z.object({
-  search: z
-    .string()
-    .optional()
-    .transform((val) => val?.trim() || undefined),
-});
-
-/**
- * 排序方向验证
- */
-export const sortOrderSchema = z.enum(['asc', 'desc']).default('desc');
-
-/**
- * 通用 ID 参数验证（UUID 格式）
- */
-export const idParamSchema = z.object({
-  id: z.string().uuid('无效的ID格式'),
-});
-
-/**
- * 用户ID参数验证
- */
-export const userIdParamSchema = z.object({
-  userId: z.string().uuid('无效的用户ID格式'),
-});
-
-/**
- * 单词ID参数验证
- */
-export const wordIdParamSchema = z.object({
-  wordId: z.string().uuid('无效的单词ID格式'),
-});
-
-/**
- * 组合用户ID和单词ID参数验证
- */
-export const userWordParamsSchema = z.object({
-  userId: z.string().uuid('无效的用户ID格式'),
-  wordId: z.string().uuid('无效的单词ID格式'),
-});
-
-/**
- * 通用 limit 参数验证
+ * 限制数量 schema
  */
 export const limitSchema = z.object({
   limit: z
     .string()
     .optional()
     .transform((val) => {
-      const num = val ? parseInt(val, 10) : 50;
+      const num = val ? parseInt(val, 10) : PAGINATION_LIMITS.DEFAULT_PAGE_SIZE;
       return Math.min(PAGINATION_LIMITS.MAX_PAGE_SIZE, Math.max(1, num));
     }),
 });
 
 /**
- * 日期范围验证 Schema
+ * 搜索关键词 schema
  */
-export const dateRangeSchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+export const searchSchema = z.object({
+  search: z.string().optional(),
 });
 
 /**
- * 组合分页和搜索的 Schema
+ * 日期范围 schema
  */
-export const paginatedSearchSchema = paginationSchema.merge(searchSchema);
+export const dateRangeSchema = z.object({
+  start: z.string().optional(),
+  end: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
 
-export type PaginationParams = z.infer<typeof paginationSchema>;
-export type SearchParams = z.infer<typeof searchSchema>;
-export type PaginatedSearchParams = z.infer<typeof paginatedSearchSchema>;
+/**
+ * 排序顺序 schema
+ */
+export const sortOrderSchema = z.object({
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+});
+
+/**
+ * 用户ID参数 schema
+ */
+export const userIdParamSchema = z.object({
+  userId: uuidSchema,
+});
+
+/**
+ * 通用 ID 参数 schema
+ */
+export const idParamSchema = z.object({
+  id: uuidSchema,
+});
+
+/**
+ * 用户-单词组合参数 schema
+ */
+export const userWordParamsSchema = z.object({
+  userId: uuidSchema,
+  wordId: uuidSchema,
+});

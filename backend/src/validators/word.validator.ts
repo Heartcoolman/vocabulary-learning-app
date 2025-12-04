@@ -17,3 +17,8 @@ export const updateWordSchema = z.object({
   examples: z.array(z.string()).optional(),
   audioUrl: z.union([z.string(), z.null()]).optional(),
 });
+
+// 兼容测试：校验单词ID
+export const wordIdSchema = z.object({
+  id: z.string().uuid()
+});

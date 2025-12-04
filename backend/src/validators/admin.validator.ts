@@ -1,67 +1,71 @@
 import { z } from 'zod';
-import { paginationSchema, searchSchema, limitSchema, sortOrderSchema } from './common.validator';
+import {
+  paginationSchema as basePaginationSchema,
+  searchSchema,
+  limitSchema,
+  userIdParamSchema
+} from './common.validator';
+
+export const paginationSchema = basePaginationSchema;
+export const userIdSchema = userIdParamSchema;
 
 /**
- * 管理员获取用户列表参数验证
+ * 管理员获取用户列表 schema
  */
-export const adminGetUsersSchema = paginationSchema.merge(searchSchema);
+export const adminGetUsersSchema = basePaginationSchema.merge(searchSchema);
 
 /**
- * 用户单词列表筛选条件
+ * 管理员获取用户单词 schema
  */
-export const adminUserWordsSchema = paginationSchema.extend({
+export const adminUserWordsSchema = basePaginationSchema.extend({
   scoreRange: z.enum(['low', 'medium', 'high']).optional(),
-  masteryLevel: z
-    .string()
-    .optional()
-    .transform((val) => {
-      if (!val) return undefined;
-      const num = parseInt(val, 10);
-      return num >= 0 && num <= 5 ? num : undefined;
-    }),
-  minAccuracy: z
-    .string()
-    .optional()
-    .transform((val) => {
-      if (!val) return undefined;
-      const num = parseFloat(val);
-      return num >= 0 && num <= 100 ? num : undefined;
-    }),
+  masteryLevel: z.coerce.number().int().min(0).max(5).optional(),
+  minAccuracy: z.coerce.number().min(0).max(100).optional(),
   state: z.enum(['new', 'learning', 'reviewing', 'mastered']).optional(),
   sortBy: z.enum(['score', 'accuracy', 'reviewCount', 'lastReview']).optional(),
-  sortOrder: sortOrderSchema,
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 /**
- * 学习数据查询参数
+ * 管理员获取用户学习数据 schema
  */
 export const adminLearningDataSchema = limitSchema;
 
 /**
- * 学习热力图查询参数
+ * 管理员获取用户热力图 schema
  */
 export const adminHeatmapSchema = z.object({
-  days: z
-    .string()
-    .optional()
-    .transform((val) => {
-      const num = val ? parseInt(val, 10) : 90;
-      return Math.min(365, Math.max(1, num)); // 最多365天
-    }),
+  days: z.coerce.number().int().min(1).max(365).default(90),
 });
 
 /**
- * 单词历史查询参数
+ * 管理员获取单词历史 schema
  */
 export const adminWordHistorySchema = limitSchema;
 
 /**
- * 修改用户角色请求体验证
+ * 更新用户角色 schema
  */
 export const updateUserRoleSchema = z.object({
   role: z.enum(['USER', 'ADMIN'], {
     errorMap: () => ({ message: '无效的角色，必须是 USER 或 ADMIN' }),
   }),
+});
+
+export const updateRoleSchema = updateUserRoleSchema;
+
+/**
+ * 管理员获取用户学习记录 schema
+ */
+export const adminUserRecordsSchema = basePaginationSchema.extend({
+  userId: userIdParamSchema.shape.userId,
+});
+
+/**
+ * 管理员获取用户词书 schema
+ */
+export const adminUserWordBooksSchema = basePaginationSchema.extend({
+  userId: userIdParamSchema.shape.userId,
 });
 
 /**
@@ -115,10 +119,3 @@ export const flagAnomalySchema = z.object({
 export const exportFormatSchema = z.object({
   format: z.enum(['csv', 'excel']).default('csv'),
 });
-
-export type AdminGetUsersParams = z.infer<typeof adminGetUsersSchema>;
-export type AdminUserWordsParams = z.infer<typeof adminUserWordsSchema>;
-export type UpdateUserRoleBody = z.infer<typeof updateUserRoleSchema>;
-export type CreateSystemWordBookBody = z.infer<typeof createSystemWordBookSchema>;
-export type BatchAddWordsBody = z.infer<typeof batchAddWordsSchema>;
-export type FlagAnomalyBody = z.infer<typeof flagAnomalySchema>;

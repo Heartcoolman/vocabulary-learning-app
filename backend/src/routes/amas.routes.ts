@@ -81,7 +81,14 @@ router.post('/process', authMiddleware, validateBody(processEventSchema), async 
           memory: result.state.C.mem,
           speed: result.state.C.speed,
           stability: result.state.C.stability
-        }
+        },
+        // 多目标评估结果（当配置了学习目标时）
+        objectiveEvaluation: result.objectiveEvaluation ? {
+          metrics: result.objectiveEvaluation.metrics,
+          constraintsSatisfied: result.objectiveEvaluation.constraintsSatisfied,
+          constraintViolations: result.objectiveEvaluation.constraintViolations
+        } : undefined,
+        multiObjectiveAdjusted: result.multiObjectiveAdjusted
       }
     });
   } catch (error) {
@@ -193,6 +200,8 @@ router.get('/phase', authMiddleware, async (req: AuthRequest, res, next) => {
  * POST /api/amas/batch-process
  * 批量处理历史事件（用于数据导入）
  * 限制：单次最多处理100条事件
+ *
+ * 前端API: ApiClient.batchProcessEvents()
  */
 router.post('/batch-process', authMiddleware, validateBody(batchProcessSchema), async (req: AuthRequest, res, next) => {
   try {

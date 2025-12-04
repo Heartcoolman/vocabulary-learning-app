@@ -51,7 +51,7 @@ export default function AmasSuggestion({ result, onBreak }: AmasSuggestionProps)
         isBreakSuggestion
           ? 'bg-orange-50/80 border-orange-200/60'
           : 'bg-blue-50/80 border-blue-200/60'
-      } backdrop-blur-sm border rounded-xl shadow-sm transition-all duration-200 animate-fade-in`}
+      } backdrop-blur-sm border rounded-xl shadow-sm transition-all duration-200 animate-g3-fade-in`}
       role="alert"
       aria-live="polite"
     >

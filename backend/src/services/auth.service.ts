@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import prisma from '../config/database';
 import { env } from '../config/env';
 import { RegisterDto, LoginDto } from '../types';
+import { AppError } from '../middleware/error.middleware';
+import { authLogger } from '../logger';
 
 // 从 prisma.$transaction 推断事务客户端类型
 type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -49,7 +51,7 @@ export class AuthService {
       });
 
       if (existingUser) {
-        throw new Error('该邮箱已被注册');
+        throw AppError.conflict('该邮箱已被注册');
       }
 
       // 加密密码
@@ -90,14 +92,14 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new Error('邮箱或密码错误');
+        throw AppError.unauthorized('该邮箱尚未注册');
       }
 
       // 验证密码
       const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
 
       if (!isPasswordValid) {
-        throw new Error('邮箱或密码错误');
+        throw AppError.unauthorized('密码错误');
       }
 
       // 生成令牌
@@ -136,7 +138,7 @@ export class AuthService {
           algorithms: ['HS256'],
         }) as { userId: string };
       } catch (jwtError) {
-        console.error('[Auth] JWT 验证失败:', jwtError instanceof Error ? jwtError.message : jwtError);
+        authLogger.error({ error: jwtError instanceof Error ? jwtError.message : jwtError }, 'JWT 验证失败');
         throw new Error('JWT验证失败');
       }
 
@@ -147,17 +149,17 @@ export class AuthService {
       });
 
       if (!session) {
-        console.error('[Auth] Session 不存在, hashedToken:', hashedToken.substring(0, 16) + '...');
+        authLogger.error({ hashedToken: hashedToken.substring(0, 16) + '...' }, 'Session 不存在');
         throw new Error('会话不存在');
       }
 
       if (session.expiresAt < new Date()) {
-        console.error('[Auth] Session 已过期:', session.expiresAt);
+        authLogger.error({ expiresAt: session.expiresAt }, 'Session 已过期');
         throw new Error('会话已过期');
       }
 
       if (session.userId !== decoded.userId) {
-        console.error('[Auth] Session userId 不匹配:', session.userId, '!=', decoded.userId);
+        authLogger.error({ sessionUserId: session.userId, decodedUserId: decoded.userId }, 'Session userId 不匹配');
         throw new Error('会话用户不匹配');
       }
 
@@ -175,7 +177,7 @@ export class AuthService {
       });
 
       if (!user) {
-        console.error('[Auth] 用户不存在:', decoded.userId);
+        authLogger.error({ userId: decoded.userId }, '用户不存在');
         throw new Error('用户不存在');
       }
 

@@ -3,7 +3,7 @@
  * 可解释性生成器
  */
 
-import { DecisionExplanation, StrategyParams, UserState } from '../types';
+import { DecisionExplanation, StrategyParams, UserState, Action } from '../types';
 import {
   MIN_ATTENTION,
   HIGH_FATIGUE,
@@ -17,6 +17,30 @@ interface Contribution {
   value: number;
   impact: string;
   percentage: number;
+}
+
+export interface FactorContribution {
+  factor: string;
+  value: number;
+  impact: 'positive' | 'negative' | 'neutral';
+  percentage: number;
+  description: string;
+}
+
+export interface EnhancedExplanation {
+  text: string;
+  primaryReason: string;
+  factorContributions: FactorContribution[];
+  algorithmInfo: {
+    algorithm: 'linucb' | 'thompson' | 'ensemble' | 'coldstart';
+    confidence: number;
+    phase?: string;
+  };
+  alternativeActions?: Array<{
+    action: Action;
+    score: number;
+    reason: string;
+  }>;
 }
 
 // ==================== 解释生成函数 ====================
@@ -231,4 +255,188 @@ export function generateSuggestion(state: UserState): string | null {
     return '检测到注意力下降，已减少内容帮助你集中精力。';
   }
   return null;
+}
+
+// ==================== 增强可解释性功能 ====================
+
+/**
+ * 生成增强的决策解释（包含详细因素分析）
+ */
+export function generateEnhancedExplanation(
+  state: UserState,
+  oldParams: StrategyParams,
+  newParams: StrategyParams,
+  decisionContext: {
+    algorithm: string;
+    confidence?: number;
+    phase?: string;
+    topActions?: Array<{ action: Action; score: number }>;
+  }
+): EnhancedExplanation {
+  const factors = analyzeFactorContributions(state, oldParams, newParams);
+  const primaryReason = identifyPrimaryReason(factors);
+  const text = generateExplanation(state, oldParams, newParams);
+
+  return {
+    text,
+    primaryReason,
+    factorContributions: factors,
+    algorithmInfo: {
+      algorithm: decisionContext.algorithm as any,
+      confidence: decisionContext.confidence || 0.5,
+      phase: decisionContext.phase
+    },
+    alternativeActions: decisionContext.topActions?.slice(0, 3).map((a, i) => ({
+      action: a.action,
+      score: a.score,
+      reason: generateAlternativeReason(a.action, newParams, i)
+    }))
+  };
+}
+
+/**
+ * 分析因素贡献度
+ */
+function analyzeFactorContributions(
+  state: UserState,
+  oldParams: StrategyParams,
+  newParams: StrategyParams
+): FactorContribution[] {
+  const factors: FactorContribution[] = [];
+
+  // 注意力因素
+  if (state.A < 0.4) {
+    factors.push({
+      factor: '注意力',
+      value: state.A,
+      impact: 'negative',
+      percentage: 30,
+      description: `注意力较低 (${(state.A * 100).toFixed(0)}%)，降低了学习难度`
+    });
+  } else if (state.A > 0.8) {
+    factors.push({
+      factor: '注意力',
+      value: state.A,
+      impact: 'positive',
+      percentage: 15,
+      description: `注意力集中 (${(state.A * 100).toFixed(0)}%)，可以挑战更难内容`
+    });
+  }
+
+  // 疲劳因素
+  if (state.F > 0.6) {
+    factors.push({
+      factor: '疲劳度',
+      value: state.F,
+      impact: 'negative',
+      percentage: 25,
+      description: `疲劳度较高 (${(state.F * 100).toFixed(0)}%)，减少了单词数量`
+    });
+  }
+
+  // 动机因素
+  if (state.M < -0.2) {
+    factors.push({
+      factor: '学习动力',
+      value: state.M,
+      impact: 'negative',
+      percentage: 20,
+      description: `动力下降 (${((state.M + 1) * 50).toFixed(0)}%)，增加了提示级别`
+    });
+  } else if (state.M > 0.5) {
+    factors.push({
+      factor: '学习动力',
+      value: state.M,
+      impact: 'positive',
+      percentage: 15,
+      description: `动力充沛 (${((state.M + 1) * 50).toFixed(0)}%)，可以挑战更难内容`
+    });
+  }
+
+  // 时间因素
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour <= 9) {
+    factors.push({
+      factor: '时段',
+      value: hour,
+      impact: 'positive',
+      percentage: 10,
+      description: '早晨时段，认知效率较高'
+    });
+  } else if (hour >= 22 || hour <= 5) {
+    factors.push({
+      factor: '时段',
+      value: hour,
+      impact: 'negative',
+      percentage: 15,
+      description: '深夜时段，建议减少学习强度'
+    });
+  }
+
+  // 记忆力因素
+  if (state.C.mem < 0.5) {
+    factors.push({
+      factor: '记忆水平',
+      value: state.C.mem,
+      impact: 'negative',
+      percentage: 18,
+      description: `记忆水平较低 (${(state.C.mem * 100).toFixed(0)}%)，增加复习频率`
+    });
+  } else if (state.C.mem > 0.8) {
+    factors.push({
+      factor: '记忆水平',
+      value: state.C.mem,
+      impact: 'positive',
+      percentage: 12,
+      description: `记忆水平优秀 (${(state.C.mem * 100).toFixed(0)}%)，可延长复习间隔`
+    });
+  }
+
+  // 按百分比排序
+  factors.sort((a, b) => b.percentage - a.percentage);
+
+  return factors.slice(0, 5); // 最多返回前5个因素
+}
+
+/**
+ * 识别主要原因
+ */
+function identifyPrimaryReason(factors: FactorContribution[]): string {
+  if (factors.length === 0) {
+    return '系统维持当前策略，继续观察学习状态';
+  }
+
+  const primary = factors[0];
+  return primary.description;
+}
+
+/**
+ * 生成替代方案的原因说明
+ */
+function generateAlternativeReason(
+  action: Action,
+  currentAction: StrategyParams,
+  rank: number
+): string {
+  if (rank === 0) {
+    return '最接近的备选方案';
+  }
+
+  const reasons: string[] = [];
+
+  if (action.difficulty !== currentAction.difficulty) {
+    reasons.push(`难度${action.difficulty === 'hard' ? '更高' : '更低'}`);
+  }
+
+  if (action.batch_size > currentAction.batch_size) {
+    reasons.push('更多单词');
+  } else if (action.batch_size < currentAction.batch_size) {
+    reasons.push('更少单词');
+  }
+
+  if (action.hint_level !== currentAction.hint_level) {
+    reasons.push(`提示级别${action.hint_level > currentAction.hint_level ? '更高' : '更低'}`);
+  }
+
+  return reasons.join('，') || '其他策略组合';
 }
