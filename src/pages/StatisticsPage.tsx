@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ChartBar, Target, CheckCircle, Clock, TrendUp, ArrowLeft, CircleNotch } from '../components/Icon';
+import { ChartBar, Target, CheckCircle, Clock, TrendUp, ArrowLeft, CircleNotch, Warning } from '../components/Icon';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
 import { learningLogger } from '../utils/logger';
@@ -169,11 +169,11 @@ export default function StatisticsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md px-4">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => navigate('/learning')}
+            onClick={() => navigate('/')}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
           >
             返回学习

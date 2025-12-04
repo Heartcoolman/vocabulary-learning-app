@@ -2,8 +2,7 @@ import { ProgressOverviewCard } from '../components/dashboard/ProgressOverviewCa
 import { useStudyProgress } from '../hooks/useStudyProgress';
 import { useExtendedProgress } from '../hooks/useExtendedProgress';
 import { useAuth } from '../contexts/AuthContext';
-import { TrendingUp, Activity, AlertCircle, Calendar } from 'lucide-react';
-import { CircleNotch } from '../components/Icon';
+import { TrendUp, Activity, WarningCircle, Calendar, CircleNotch } from '../components/Icon';
 import { MilestoneCard } from '../components/progress/MilestoneCard';
 import { GoalTracker } from '../components/progress/GoalTracker';
 import { MasteryDistributionChart } from '../components/progress/MasteryDistributionChart';
@@ -42,7 +41,7 @@ export default function StudyProgressPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 max-w-md w-full text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <WarningCircle className="w-12 h-12 text-red-500 mx-auto mb-4" weight="bold" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">无法加载进度数据</h2>
           <p className="text-gray-600 mb-6">{error || '获取数据时发生错误'}</p>
           <button
@@ -80,7 +79,7 @@ export default function StudyProgressPage() {
         {isFullyLoaded && extendedProgress && (
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-blue-500" />
+              <TrendUp className="w-6 h-6 text-blue-500" weight="bold" />
               学习里程碑
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -105,7 +104,7 @@ export default function StudyProgressPage() {
             {/* 学习连胜统计 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <Activity className="w-6 h-6 text-amber-500" />
+                <Activity className="w-6 h-6 text-amber-500" weight="bold" />
                 学习连胜
               </h3>
 
@@ -169,7 +168,7 @@ export default function StudyProgressPage() {
         {isFullyLoaded && monthlyChartData.length > 0 && (
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-purple-500" />
+              <Calendar className="w-6 h-6 text-purple-500" weight="bold" />
               30天学习趋势
             </h3>
             <LineChart
@@ -187,7 +186,7 @@ export default function StudyProgressPage() {
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-500" />
+                <TrendUp className="w-5 h-5 text-blue-500" weight="bold" />
                 7日学习活动
               </h3>
             </div>
@@ -216,7 +215,7 @@ export default function StudyProgressPage() {
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-500" />
+                <Activity className="w-5 h-5 text-emerald-500" weight="bold" />
                 学习效率
               </h3>
             </div>

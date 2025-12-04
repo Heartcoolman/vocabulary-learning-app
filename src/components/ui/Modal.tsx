@@ -140,14 +140,14 @@ export function ConfirmModal({
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {cancelText}
         </button>
         <button
           onClick={handleConfirm}
           disabled={isLoading}
-          className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors disabled:opacity-50 focus:ring-2 focus:ring-offset-2 ${variantStyles[variant]}`}
+          className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-offset-2 ${variantStyles[variant]}`}
         >
           {isLoading ? '处理中...' : confirmText}
         </button>
@@ -185,7 +185,7 @@ export function AlertModal({
       <p className="text-gray-600 mb-6">{message}</p>
       <button
         onClick={onClose}
-        className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition-colors ${alertVariantStyles[variant]}`}
+        className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-offset-2 ${alertVariantStyles[variant]}`}
       >
         {buttonText}
       </button>

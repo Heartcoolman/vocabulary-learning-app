@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Edit2 } from 'lucide-react';
+import { UploadSimple, NotePencil } from '../../components/Icon';
 import apiClient from '../../services/ApiClient';
 import { Books, CircleNotch } from '../../components/Icon';
 import { BatchImportModal } from '../../components';
 import { WordBook } from '../../types/models';
-import { useToast, ConfirmModal } from '../../components/ui';
+import { useToast, ConfirmModal, Modal } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 
 export default function AdminWordBooks() {
@@ -194,7 +194,7 @@ export default function AdminWordBooks() {
                                         className="flex-1 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-1"
                                         title="编辑词库"
                                     >
-                                        <Edit2 size={16} />
+                                        <NotePencil size={16} weight="bold" />
                                         编辑
                                     </button>
                                     <button
@@ -202,7 +202,7 @@ export default function AdminWordBooks() {
                                         className="flex-1 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-1"
                                         title="批量导入单词"
                                     >
-                                        <Upload size={16} />
+                                        <UploadSimple size={16} weight="bold" />
                                         导入
                                     </button>
                                     <button
@@ -219,119 +219,118 @@ export default function AdminWordBooks() {
             )}
 
             {/* 创建对话框 */}
-            {showCreateDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-wordbook-title">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
-                        <h2 id="create-wordbook-title" className="text-2xl font-bold text-gray-900 mb-6">
-                            创建系统词库
-                        </h2>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                词库名称 *
-                            </label>
-                            <input
-                                type="text"
-                                value={newBook.name}
-                                onChange={(e) => setNewBook({ ...newBook, name: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                placeholder="例如：TOEFL 核心词汇"
-                            />
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                描述
-                            </label>
-                            <textarea
-                                value={newBook.description}
-                                onChange={(e) =>
-                                    setNewBook({ ...newBook, description: e.target.value })
-                                }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                rows={3}
-                                placeholder="简单描述这个词库..."
-                            />
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleCreateBook}
-                                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
-                            >
-                                创建
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowCreateDialog(false);
-                                    setNewBook({ name: '', description: '' });
-                                }}
-                                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                            >
-                                取消
-                            </button>
-                        </div>
-                    </div>
+            <Modal
+                isOpen={showCreateDialog}
+                onClose={() => {
+                    setShowCreateDialog(false);
+                    setNewBook({ name: '', description: '' });
+                }}
+                title="创建系统词库"
+            >
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        词库名称 *
+                    </label>
+                    <input
+                        type="text"
+                        value={newBook.name}
+                        onChange={(e) => setNewBook({ ...newBook, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        placeholder="例如：TOEFL 核心词汇"
+                    />
                 </div>
-            )}
+
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        描述
+                    </label>
+                    <textarea
+                        value={newBook.description}
+                        onChange={(e) =>
+                            setNewBook({ ...newBook, description: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        rows={3}
+                        placeholder="简单描述这个词库..."
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleCreateBook}
+                        className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+                    >
+                        创建
+                    </button>
+                    <button
+                        onClick={() => {
+                            setShowCreateDialog(false);
+                            setNewBook({ name: '', description: '' });
+                        }}
+                        className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                    >
+                        取消
+                    </button>
+                </div>
+            </Modal>
 
             {/* 编辑对话框 */}
-            {showEditDialog && editingBook && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-wordbook-title">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
-                        <h2 id="edit-wordbook-title" className="text-2xl font-bold text-gray-900 mb-6">
-                            编辑词库信息
-                        </h2>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                词库名称 *
-                            </label>
-                            <input
-                                type="text"
-                                value={editBook.name}
-                                onChange={(e) => setEditBook({ ...editBook, name: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                                placeholder="例如：TOEFL 核心词汇"
-                            />
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                描述
-                            </label>
-                            <textarea
-                                value={editBook.description}
-                                onChange={(e) =>
-                                    setEditBook({ ...editBook, description: e.target.value })
-                                }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                                rows={3}
-                                placeholder="简单描述这个词库..."
-                            />
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleUpdateBook}
-                                className="flex-1 px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
-                            >
-                                保存
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowEditDialog(false);
-                                    setEditingBook(null);
-                                    setEditBook({ name: '', description: '' });
-                                }}
-                                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                            >
-                                取消
-                            </button>
-                        </div>
-                    </div>
+            <Modal
+                isOpen={showEditDialog && editingBook !== null}
+                onClose={() => {
+                    setShowEditDialog(false);
+                    setEditingBook(null);
+                    setEditBook({ name: '', description: '' });
+                }}
+                title="编辑词库信息"
+            >
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        词库名称 *
+                    </label>
+                    <input
+                        type="text"
+                        value={editBook.name}
+                        onChange={(e) => setEditBook({ ...editBook, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="例如：TOEFL 核心词汇"
+                    />
                 </div>
-            )}
+
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        描述
+                    </label>
+                    <textarea
+                        value={editBook.description}
+                        onChange={(e) =>
+                            setEditBook({ ...editBook, description: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        rows={3}
+                        placeholder="简单描述这个词库..."
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleUpdateBook}
+                        className="flex-1 px-6 py-3 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+                    >
+                        保存
+                    </button>
+                    <button
+                        onClick={() => {
+                            setShowEditDialog(false);
+                            setEditingBook(null);
+                            setEditBook({ name: '', description: '' });
+                        }}
+                        className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                    >
+                        取消
+                    </button>
+                </div>
+            </Modal>
 
             <BatchImportModal
                 isOpen={importModal.isOpen}

@@ -4,7 +4,7 @@ import { staggerContainerVariants, staggerItemVariants, g3SpringSnappy } from '.
 
 interface TestOptionsProps {
   options: string[];
-  correctAnswer: string;
+  correctAnswers: string[];  // 支持多个正确答案（多义词）
   onSelect: (selected: string) => void;
   selectedAnswer?: string;
   showResult: boolean;
@@ -16,7 +16,7 @@ interface TestOptionsProps {
  */
 export default function TestOptions({
   options,
-  correctAnswer,
+  correctAnswers,
   onSelect,
   selectedAnswer,
   showResult,
@@ -52,8 +52,8 @@ export default function TestOptions({
       return 'bg-gray-100 hover:bg-gray-200 text-gray-900';
     }
 
-    // 显示结果时的样式
-    const isCorrect = option === correctAnswer;
+    // 显示结果时的样式 - 支持多个正确答案
+    const isCorrect = correctAnswers.includes(option);
     const isSelected = option === selectedAnswer;
 
     if (isSelected && isCorrect) {
@@ -73,7 +73,7 @@ export default function TestOptions({
 
   const getAriaLabel = (option: string, index: number) => {
     const keyHint = !showResult ? ` 按 ${index + 1} 键选择` : '';
-    const isCorrect = option === correctAnswer;
+    const isCorrect = correctAnswers.includes(option);
     const isSelected = option === selectedAnswer;
 
     if (showResult) {
@@ -94,7 +94,7 @@ export default function TestOptions({
       variants={staggerContainerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-nowrap justify-center gap-3 px-4 py-8 w-full"
+      className="flex flex-wrap justify-center gap-3 px-4 py-8 w-full"
       role="group"
       aria-label="测试选项"
     >
@@ -115,7 +115,7 @@ export default function TestOptions({
           whileTap={!showResult ? { scale: 0.95 } : undefined}
           transition={g3SpringSnappy}
           className={`
-            flex-1 min-w-[120px] max-w-[180px] px-6 py-3 rounded-lg text-base md:text-lg font-medium
+            flex-1 min-w-[100px] sm:min-w-[120px] max-w-[180px] px-4 sm:px-6 py-3 rounded-lg text-base md:text-lg font-medium
             ${getButtonStyle(option)}
             ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
             disabled:cursor-not-allowed

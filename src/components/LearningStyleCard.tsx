@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Headphones, HandMetal, BrainCircuit, Sparkles } from 'lucide-react';
+import { Eye, Headphones, Hand, Brain, Sparkle } from './Icon';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
 
@@ -47,7 +47,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
       case 'kinesthetic':
         return {
           label: '动觉型 (Kinesthetic)',
-          icon: HandMetal,
+          icon: Hand,
           desc: '通过互动和操作学习最有效。建议多参与拼写测试和互动小游戏。',
           color: 'text-rose-600',
           bg: 'bg-rose-50'
@@ -55,7 +55,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
       default:
         return {
           label: '混合型 (Mixed)',
-          icon: BrainCircuit,
+          icon: Brain,
           desc: '你能灵活运用多种感官进行学习。结合视听动多种方式可达到最佳效果。',
           color: 'text-violet-600',
           bg: 'bg-violet-50'
@@ -70,7 +70,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const metrics = [
     { label: '视觉', key: 'visual', score: profile.scores.visual, icon: Eye, color: 'bg-sky-500' },
     { label: '听觉', key: 'auditory', score: profile.scores.auditory, icon: Headphones, color: 'bg-emerald-500' },
-    { label: '动觉', key: 'kinesthetic', score: profile.scores.kinesthetic, icon: HandMetal, color: 'bg-rose-500' },
+    { label: '动觉', key: 'kinesthetic', score: profile.scores.kinesthetic, icon: Hand, color: 'bg-rose-500' },
   ];
 
   // Calculate max for scaling (relative width)
@@ -87,7 +87,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`p-3 rounded-xl ${config.bg} ${config.color}`}>
-              <MainIcon size={24} />
+              <MainIcon size={24} weight="duotone" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">{config.label}</h3>
@@ -104,7 +104,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
             <div key={m.key} className="relative">
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="flex items-center gap-2 text-gray-600">
-                  <m.icon size={14} className="opacity-70" /> {m.label}
+                  <m.icon size={14} weight="bold" className="opacity-70" /> {m.label}
                 </span>
                 <span className="font-medium text-gray-900">{(m.score * 100).toFixed(0)}</span>
               </div>
@@ -123,7 +123,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
 
       <div className="mt-auto bg-gray-50/80 p-4 border-t border-gray-100">
         <div className="flex gap-3">
-          <Sparkles className="text-yellow-500 shrink-0 mt-0.5" size={16} />
+          <Sparkle className="text-yellow-500 shrink-0 mt-0.5" size={16} weight="duotone" />
           <p className="text-sm text-gray-600 leading-snug">
             <span className="font-medium text-gray-900">建议：</span>
             {config.desc}

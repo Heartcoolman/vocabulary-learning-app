@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Sunrise, TrendingUp } from 'lucide-react';
+import { Sun, Moon, SunHorizon, TrendUp } from './Icon';
 
 export type ChronotypeCategory = 'morning' | 'evening' | 'intermediate';
 
@@ -32,7 +32,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data }) => {
       case 'morning':
         return {
           label: '早起鸟 (Morning Lark)',
-          icon: Sunrise,
+          icon: SunHorizon,
           color: 'text-amber-600',
           bg: 'bg-amber-100',
           gradient: 'from-amber-500 to-orange-400',
@@ -75,12 +75,12 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data }) => {
       <div className="p-6 border-b border-gray-50 flex justify-between items-start">
         <div className="flex items-center gap-3">
           <div className={`p-3 rounded-xl ${config.bg} ${config.color}`}>
-            <Icon size={24} />
+            <Icon size={24} weight="duotone" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900">{config.label}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              <TrendingUp size={14} />
+              <TrendUp size={14} weight="bold" />
               <span>置信度: {(profile.confidence * 100).toFixed(0)}%</span>
 
               {/* Confidence Bar */}

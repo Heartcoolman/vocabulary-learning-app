@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Database, Activity, ArrowRight } from 'lucide-react';
+import { User, Lock, Database, Pulse, ArrowRight } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/ApiClient';
 import StorageService from '../services/StorageService';
@@ -113,7 +113,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">请先登录</h2>
           <p className="text-gray-600 mb-6">登录后即可查看个人资料</p>
@@ -132,11 +132,11 @@ export default function ProfilePage() {
     { id: 'profile' as const, label: '基本信息', icon: User },
     { id: 'password' as const, label: '修改密码', icon: Lock },
     { id: 'cache' as const, label: '数据管理', icon: Database },
-    { id: 'habit' as const, label: '学习习惯', icon: Activity },
+    { id: 'habit' as const, label: '学习习惯', icon: Pulse },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
         {/* 页面标题 */}
         <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
@@ -160,7 +160,7 @@ export default function ProfilePage() {
                   `}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
                 >
-                  <Icon size={18} />
+                  <Icon size={18} weight="bold" />
                   {tab.label}
                 </button>
               );
@@ -381,7 +381,7 @@ export default function ProfilePage() {
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-xl shadow-sm border border-indigo-100">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
-                    <Activity size={24} className="text-white" />
+                    <Pulse size={24} weight="bold" className="text-white" />
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">学习习惯分析</h2>
@@ -393,14 +393,14 @@ export default function ProfilePage() {
                       className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
                     >
                       查看完整分析
-                      <ArrowRight size={18} />
+                      <ArrowRight size={18} weight="bold" />
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* 功能说明 */}
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200/60">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">包含以下内容：</h3>
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-center gap-2">

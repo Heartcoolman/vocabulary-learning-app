@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../services/ApiClient';
 import { learningLogger } from '../utils/logger';
-import { Clock, Brain, Zap, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, Brain, Lightning, WarningCircle, ArrowClockwise } from '../components/Icon';
 
 interface ChronotypeData {
   category: 'morning' | 'evening' | 'intermediate';
@@ -107,7 +107,7 @@ const LearningProfilePage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin">
-            <Zap className="w-8 h-8 text-blue-500" />
+            <Lightning className="w-8 h-8 text-blue-500" weight="bold" />
           </div>
           <p className="text-gray-600">正在加载学习档案...</p>
         </div>
@@ -120,7 +120,7 @@ const LearningProfilePage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
           <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-500" />
+            <WarningCircle className="w-6 h-6 text-red-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">加载失败</h2>
           </div>
           <p className="text-gray-600 mb-6">{error}</p>
@@ -128,7 +128,7 @@ const LearningProfilePage: React.FC = () => {
             onClick={handleRetry}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
           >
-            <RefreshCw className="w-4 h-4" />
+            <ArrowClockwise className="w-4 h-4" weight="bold" />
             重新加载
           </button>
         </div>
@@ -149,7 +149,7 @@ const LearningProfilePage: React.FC = () => {
         {chronotype && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <Clock className="w-6 h-6 text-amber-500" />
+              <Clock className="w-6 h-6 text-amber-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">生物钟分析</h2>
             </div>
 
@@ -238,7 +238,7 @@ const LearningProfilePage: React.FC = () => {
         {learningStyle && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <Brain className="w-6 h-6 text-blue-500" />
+              <Brain className="w-6 h-6 text-blue-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">学习风格分析</h2>
             </div>
 
@@ -333,7 +333,7 @@ const LearningProfilePage: React.FC = () => {
         {/* 认知能力提示卡片 */}
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-3">
-            <Zap className="w-6 h-6 text-purple-500" />
+            <Lightning className="w-6 h-6 text-purple-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">个性化学习建议</h2>
           </div>
           <div className="space-y-2 text-sm text-gray-700">

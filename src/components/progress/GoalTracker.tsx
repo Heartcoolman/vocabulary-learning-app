@@ -1,4 +1,4 @@
-import { Calendar, Target, TrendingUp } from 'lucide-react';
+import { Calendar, Target, TrendUp } from '../Icon';
 
 interface GoalTrackerProps {
   dailyGoal: number;
@@ -21,7 +21,7 @@ export const GoalTracker = ({
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        <Target className="w-6 h-6 text-blue-500" />
+        <Target className="w-6 h-6 text-blue-500" weight="duotone" />
         学习目标追踪
       </h3>
 
@@ -30,7 +30,7 @@ export const GoalTracker = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-500" />
+              <Calendar className="w-4 h-4 text-blue-500" weight="bold" />
               <span className="text-sm font-medium text-gray-700">每日目标</span>
             </div>
             <span className="text-sm font-bold text-blue-600">
@@ -73,7 +73,7 @@ export const GoalTracker = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-purple-500" />
+              <TrendUp className="w-4 h-4 text-purple-500" weight="bold" />
               <span className="text-sm font-medium text-gray-700">本周目标</span>
             </div>
             <span className="text-sm font-bold text-purple-600">
@@ -104,7 +104,7 @@ export const GoalTracker = ({
           <div className="pt-4 border-t border-gray-100">
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-indigo-600" />
+                <Calendar className="w-4 h-4 text-indigo-600" weight="bold" />
                 <span className="text-sm font-semibold text-gray-900">完成预测</span>
               </div>
               <p className="text-sm text-gray-700">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, TrendingUp, Calendar, RefreshCw, Save, RotateCcw } from 'lucide-react';
+import { Clock, TrendUp, Calendar, ArrowClockwise, FloppyDisk, ArrowCounterClockwise } from './Icon';
 import apiClient from '../services/ApiClient';
 import HabitHeatmap from './HabitHeatmap';
 import ChronotypeCard from './ChronotypeCard';
@@ -101,7 +101,7 @@ const HabitProfileTab: React.FC = () => {
             onClick={loadHabitProfile}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
           >
-            <RefreshCw size={16} />
+            <ArrowClockwise size={16} weight="bold" />
             重试
           </button>
         </div>
@@ -121,7 +121,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Clock className="text-blue-600" size={24} />
+              <Clock className="text-blue-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">学习时长</h3>
           </div>
@@ -138,7 +138,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="text-green-600" size={24} />
+              <TrendUp className="text-green-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">学习节奏</h3>
           </div>
@@ -155,7 +155,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <Calendar className="text-purple-600" size={24} />
+              <Calendar className="text-purple-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">数据样本</h3>
           </div>
@@ -233,9 +233,9 @@ const HabitProfileTab: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {actionLoading === 'save' ? (
-              <RefreshCw size={16} className="animate-spin" />
+              <ArrowClockwise size={16} weight="bold" className="animate-spin" />
             ) : (
-              <Save size={16} />
+              <FloppyDisk size={16} weight="bold" />
             )}
             保存习惯画像
           </button>
@@ -246,9 +246,9 @@ const HabitProfileTab: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {actionLoading === 'init' ? (
-              <RefreshCw size={16} className="animate-spin" />
+              <ArrowClockwise size={16} weight="bold" className="animate-spin" />
             ) : (
-              <RotateCcw size={16} />
+              <ArrowCounterClockwise size={16} weight="bold" />
             )}
             从历史重建
           </button>

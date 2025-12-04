@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle,
-  AlertCircle,
-  Upload,
+  WarningCircle,
+  UploadSimple,
   FileText,
-  Loader2,
+  CircleNotch,
   BookOpen,
   X
-} from 'lucide-react';
+} from '../components/Icon';
 import apiClient from '../services/ApiClient';
 import { FileUpload } from '../components';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
@@ -136,7 +136,7 @@ export default function BatchImportPage() {
                       `}
                     >
                       {isCompleted ? (
-                        <CheckCircle className="h-5 w-5 text-white" aria-hidden="true" />
+                        <CheckCircle className="h-5 w-5 text-white" weight="fill" aria-hidden="true" />
                       ) : (
                         <span className={`text-sm font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-500'}`}>
                           {step.id}
@@ -172,7 +172,7 @@ export default function BatchImportPage() {
               className="p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
               aria-label="Go back"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={20} weight="bold" />
             </button>
             <h1 className="text-xl font-bold text-gray-900">批量导入单词</h1>
           </div>
@@ -188,7 +188,7 @@ export default function BatchImportPage() {
             <div className="p-8 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="text-center mb-4">
                 <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <BookOpen className="w-8 h-8 text-blue-600" />
+                  <BookOpen className="w-8 h-8 text-blue-600" weight="bold" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">选择目标词书</h2>
                 <p className="text-gray-500 mt-2">请选择您要将单词导入到哪个词书中</p>
@@ -196,7 +196,7 @@ export default function BatchImportPage() {
 
               {isLoading ? (
                 <div className="flex justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                  <CircleNotch className="w-8 h-8 text-blue-500 animate-spin" weight="bold" />
                 </div>
               ) : importError ? (
                 <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-red-700 text-center">
@@ -242,7 +242,7 @@ export default function BatchImportPage() {
             <div className="p-8 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="text-center mb-2">
                 <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <Upload className="w-8 h-8 text-blue-600" />
+                  <UploadSimple className="w-8 h-8 text-blue-600" weight="bold" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">上传数据文件</h2>
                 <p className="text-gray-500 mt-2">支持 CSV 或 JSON 格式的数据文件</p>
@@ -251,7 +251,7 @@ export default function BatchImportPage() {
               <div className="max-w-xl mx-auto w-full space-y-6">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
                   <p className="font-semibold flex items-center gap-2 mb-2">
-                    <FileText size={16} />
+                    <FileText size={16} weight="bold" />
                     文件格式要求:
                   </p>
                   <ul className="list-disc list-inside space-y-1 ml-1 opacity-90">
@@ -305,7 +305,7 @@ export default function BatchImportPage() {
               <div className="flex-1 overflow-y-auto p-6">
                 {validationErrors.length > 0 ? (
                   <div className="bg-red-50 border border-red-100 rounded-lg p-6 text-center">
-                    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <WarningCircle className="w-12 h-12 text-red-500 mx-auto mb-4" weight="bold" />
                     <h3 className="text-lg font-medium text-red-900 mb-2">数据校验失败</h3>
                     <p className="text-red-600 mb-4">发现 {validationErrors.length} 个错误，请修正后重新上传</p>
                     <div className="text-left bg-white rounded border border-red-200 p-4 max-h-60 overflow-y-auto">
@@ -367,7 +367,7 @@ export default function BatchImportPage() {
                   disabled={validationErrors.length > 0 || parsedData.length === 0 || isLoading}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm"
                 >
-                  {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isLoading && <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />}
                   {isLoading ? '导入中...' : '确认导入'}
                 </button>
               </div>
@@ -378,15 +378,15 @@ export default function BatchImportPage() {
             <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
               {importError ? (
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
-                  <X className="w-10 h-10 text-red-600" />
+                  <X className="w-10 h-10 text-red-600" weight="bold" />
                 </div>
               ) : failedCount === 0 ? (
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
+                  <CheckCircle className="w-10 h-10 text-green-600" weight="bold" />
                 </div>
               ) : (
                 <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
-                  <AlertCircle className="w-10 h-10 text-amber-600" />
+                  <WarningCircle className="w-10 h-10 text-amber-600" weight="bold" />
                 </div>
               )}
 
@@ -414,7 +414,7 @@ export default function BatchImportPage() {
                   onClick={handleReset}
                   className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors min-w-[120px]"
                 >
-                  继续导���
+                  继续导入
                 </button>
                 <button
                   onClick={() => navigate(-1)}

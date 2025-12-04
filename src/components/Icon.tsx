@@ -52,12 +52,16 @@ export {
   SortAscending,
   SortDescending,
   Flag,
+  Lock,
   // AMAS 相关图标
   Coffee,
   Lightbulb,
   PushPin,
   Question,
   Compass,
+  Headphones,
+  Hand,
+  SunHorizon,
   // AMAS 增强功能图标
   Sun,
   Moon,
@@ -99,7 +103,15 @@ export {
   Funnel,
   Desktop,
   DeviceMobile,
+  // Admin 页面图标
+  UploadSimple,
+  NotePencil,
+  ArrowsClockwise,
+  Scales,
+  DownloadSimple,
+  PencilSimple,
+  DotsThreeVertical,
 } from '@phosphor-icons/react';
 
 // 图标别名
-export { SlidersHorizontal as Sliders, User as UserFocus } from '@phosphor-icons/react';
+export { SlidersHorizontal as Sliders, User as UserFocus, Pulse as Activity } from '@phosphor-icons/react';

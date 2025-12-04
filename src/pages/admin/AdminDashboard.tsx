@@ -4,6 +4,7 @@ import apiClient, { AdminStatistics } from '../../services/ApiClient';
 import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar, CircleNotch, Warning, CheckCircle, Pulse, Gear, Brain, ArrowClockwise, Lightning } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
+import { ConfirmModal, AlertModal } from '../../components/ui';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -18,6 +19,15 @@ export default function AdminDashboard() {
     const [amasError, setAmasError] = useState<string | null>(null);
     const [isResetting, setIsResetting] = useState(false);
     const [isBatchProcessing] = useState(false);
+
+    // 对话框状态
+    const [resetConfirm, setResetConfirm] = useState(false);
+    const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' | 'warning' | 'info' }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
 
     useEffect(() => {
         loadStatistics();
@@ -53,26 +63,26 @@ export default function AdminDashboard() {
     };
 
     const handleResetAmas = async () => {
-        if (!confirm('确定要重置AMAS状态吗？这将清除用户的所有AMAS学习历史。')) {
-            return;
-        }
+        setResetConfirm(true);
+    };
 
+    const confirmResetAmas = async () => {
+        setResetConfirm(false);
         try {
             setIsResetting(true);
             await apiClient.resetAmasState();
-            alert('AMAS状态已重置');
+            setAlertModal({ isOpen: true, title: '操作成功', message: 'AMAS状态已重置', variant: 'success' });
             await loadAmasStrategy();
         } catch (err) {
             adminLogger.error({ err }, '重置AMAS状态失败');
-            alert(err instanceof Error ? err.message : '重置失败');
+            setAlertModal({ isOpen: true, title: '操作失败', message: err instanceof Error ? err.message : '重置失败', variant: 'error' });
         } finally {
             setIsResetting(false);
         }
     };
 
     const handleBatchProcessEvents = async () => {
-        alert('批量处理事件功能需要在后端实现具体的事件来源逻辑。');
-        // 这里可以添加批量处理的实现
+        setAlertModal({ isOpen: true, title: '功能提示', message: '批量处理事件功能需要在后端实现具体的事件来源逻辑。', variant: 'info' });
     };
 
     // 计算系统健康度
@@ -393,7 +403,7 @@ export default function AdminDashboard() {
                             <p className="text-gray-600 mb-4">{amasError}</p>
                             <button
                                 onClick={loadAmasStrategy}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                             >
                                 重试
                             </button>
@@ -434,7 +444,7 @@ export default function AdminDashboard() {
                                 <button
                                     onClick={loadAmasStrategy}
                                     disabled={isAmasLoading}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                 >
                                     <ArrowClockwise size={18} weight="bold" />
                                     刷新策略
@@ -442,7 +452,7 @@ export default function AdminDashboard() {
                                 <button
                                     onClick={handleResetAmas}
                                     disabled={isResetting}
-                                    className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
                                 >
                                     {isResetting ? (
                                         <>
@@ -459,7 +469,7 @@ export default function AdminDashboard() {
                                 <button
                                     onClick={handleBatchProcessEvents}
                                     disabled={isBatchProcessing}
-                                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                                 >
                                     {isBatchProcessing ? (
                                         <>
@@ -530,6 +540,28 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* 重置确认对话框 */}
+            <ConfirmModal
+                isOpen={resetConfirm}
+                onClose={() => setResetConfirm(false)}
+                onConfirm={confirmResetAmas}
+                title="重置 AMAS 状态"
+                message="确定要重置AMAS状态吗？这将清除用户的所有AMAS学习历史。"
+                confirmText="确认重置"
+                cancelText="取消"
+                variant="warning"
+                isLoading={isResetting}
+            />
+
+            {/* 提示对话框 */}
+            <AlertModal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                message={alertModal.message}
+                variant={alertModal.variant}
+            />
         </div>
     );
 }

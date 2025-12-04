@@ -1,5 +1,5 @@
 import React, { useState, useRef, DragEvent, ChangeEvent, KeyboardEvent } from 'react';
-import { Upload, X, FileText, AlertCircle } from 'lucide-react';
+import { UploadSimple, X, FileText, WarningCircle } from './Icon';
 
 interface FileUploadProps {
   onFileSelect: (file: File | null) => void;
@@ -171,8 +171,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
           `}
         >
           <div className={`p-3 rounded-full mb-4 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
-            <Upload
+            <UploadSimple
               className={`w-6 h-6 ${isDragging ? 'text-blue-600' : 'text-gray-500'}`}
+              weight="bold"
               aria-hidden="true"
             />
           </div>
@@ -188,7 +189,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       ) : (
         <div className="relative bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="p-3 bg-blue-50 rounded-lg">
-            <FileText className="w-6 h-6 text-blue-600" />
+            <FileText className="w-6 h-6 text-blue-600" weight="duotone" />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -208,7 +209,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             aria-label="Remove file"
             title="删除文件"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" weight="bold" />
           </button>
         </div>
       )}
@@ -219,7 +220,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           role="alert"
           aria-live="polite"
         >
-          <AlertCircle className="w-4 h-4 shrink-0" />
+          <WarningCircle className="w-4 h-4 shrink-0" weight="bold" />
           <span>{error}</span>
         </div>
       )}

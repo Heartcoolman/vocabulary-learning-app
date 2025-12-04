@@ -2,25 +2,27 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Activity,
-  RefreshCw,
-  Settings,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle2,
-  BarChart3,
+  ArrowsClockwise,
+  Gear,
+  TrendUp,
+  WarningCircle,
+  CheckCircle,
+  ChartBar,
   Target,
   Play,
-  RotateCcw,
-  Zap,
+  ArrowCounterClockwise,
+  Lightning,
   Clock,
   Database,
   Info,
   ArrowUp,
   ArrowDown,
   Minus,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react';
+  CaretDown,
+  CaretUp,
+  Lightbulb,
+  Trophy
+} from '../../components/Icon';
 import apiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
 
@@ -62,14 +64,14 @@ interface OptimizationDiagnostics {
 
 const LoadingSpinner = () => (
   <div className="min-h-[400px] flex items-center justify-center">
-    <RefreshCw className="animate-spin text-blue-500" size={32} />
+    <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
   </div>
 );
 
 const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
   <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
     <div className="text-center max-w-md" role="alert" aria-live="assertive">
-      <AlertCircle size={64} className="mx-auto mb-4 text-red-500" />
+      <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
       <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
       <p className="text-gray-600 mb-6">{error}</p>
       <button
@@ -96,14 +98,14 @@ const MetricCard = ({ label, value, icon: Icon, trend, subtext }: {
   >
     <div className="flex justify-between items-start mb-2">
       <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
-        <Icon size={20} />
+        <Icon size={20} weight="duotone" />
       </div>
       {trend && (
         <span className={`text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 ${
           trend === 'positive' ? 'bg-green-100 text-green-700' :
           trend === 'negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
         }`}>
-          {trend === 'positive' ? <ArrowUp size={12} /> : trend === 'negative' ? <ArrowDown size={12} /> : <Minus size={12} />}
+          {trend === 'positive' ? <ArrowUp size={12} weight="bold" /> : trend === 'negative' ? <ArrowDown size={12} weight="bold" /> : <Minus size={12} weight="bold" />}
           {trend === 'positive' ? '优化中' : trend === 'negative' ? '需调整' : '稳定'}
         </span>
       )}
@@ -147,7 +149,7 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
   if (history.length === 0) {
     return (
       <div className="text-center text-gray-400 py-12">
-        <Database size={48} className="mx-auto mb-4 opacity-50" />
+        <Database size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
         <p>暂无历史数据</p>
       </div>
     );
@@ -311,7 +313,7 @@ export default function OptimizationDashboard() {
     { id: 'suggestion', label: '优化建议', icon: Lightbulb },
     { id: 'history', label: '优化历史', icon: Clock },
     { id: 'best', label: '最佳参数', icon: Target },
-    { id: 'control', label: '优化控制', icon: Settings },
+    { id: 'control', label: '优化控制', icon: Gear },
     { id: 'diagnostics', label: '诊断信息', icon: Activity }
   ] as const;
 
@@ -322,7 +324,7 @@ export default function OptimizationDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <Zap className="text-amber-500" />
+            <Lightning className="text-amber-500" weight="duotone" />
             优化分析仪表盘
           </h1>
           <p className="text-gray-500 mt-1">
@@ -334,7 +336,7 @@ export default function OptimizationDashboard() {
           className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
           title="刷新数据"
         >
-          <RefreshCw size={18} />
+          <ArrowsClockwise size={18} weight="bold" />
         </button>
       </div>
 
@@ -356,13 +358,13 @@ export default function OptimizationDashboard() {
         <MetricCard
           label="参数空间维度"
           value={suggestion ? Object.keys(suggestion.paramSpace).length : 0}
-          icon={BarChart3}
+          icon={ChartBar}
           subtext="贝叶斯优化探索的参数数量"
         />
         <MetricCard
           label="优化状态"
           value={history.length >= 10 ? "收敛中" : "探索中"}
-          icon={TrendingUp}
+          icon={TrendUp}
           trend={history.length >= 10 ? 'positive' : 'neutral'}
           subtext={`建议至少 20 次评估`}
         />
@@ -385,7 +387,7 @@ export default function OptimizationDashboard() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={18} weight={isActive ? 'bold' : 'regular'} />
                 {tab.label}
               </button>
             );
@@ -401,7 +403,7 @@ export default function OptimizationDashboard() {
               className="space-y-6"
             >
               <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <Info size={20} className="text-blue-600 shrink-0 mt-0.5" />
+                <Info size={20} className="text-blue-600 shrink-0 mt-0.5" weight="bold" />
                 <div className="text-sm text-blue-800">
                   <p className="font-medium mb-1">下一个推荐参数组合</p>
                   <p className="text-blue-700">
@@ -426,7 +428,7 @@ export default function OptimizationDashboard() {
                   {/* Evaluation Input */}
                   <div className="mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <CheckCircle2 size={20} className="text-green-600" />
+                      <CheckCircle size={20} className="text-green-600" weight="bold" />
                       记录评估结果
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
@@ -457,7 +459,7 @@ export default function OptimizationDashboard() {
 
               {!suggestion && (
                 <div className="text-center text-gray-400 py-12">
-                  <AlertCircle size={48} className="mx-auto mb-4 opacity-50" />
+                  <WarningCircle size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无优化建议</p>
                 </div>
               )}
@@ -472,7 +474,7 @@ export default function OptimizationDashboard() {
               className="space-y-6"
             >
               <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                <Clock size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <Clock size={20} className="text-amber-600 shrink-0 mt-0.5" weight="bold" />
                 <div className="text-sm text-amber-800">
                   <p className="font-medium mb-1">历史评估记录</p>
                   <p className="text-amber-700">
@@ -518,7 +520,7 @@ export default function OptimizationDashboard() {
               className="space-y-6"
             >
               <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-100 rounded-lg">
-                <Target size={20} className="text-green-600 shrink-0 mt-0.5" />
+                <Target size={20} className="text-green-600 shrink-0 mt-0.5" weight="bold" />
                 <div className="text-sm text-green-800">
                   <p className="font-medium mb-1">当前最佳参数配置</p>
                   <p className="text-green-700">
@@ -553,7 +555,7 @@ export default function OptimizationDashboard() {
 
               {!bestParams?.params && (
                 <div className="text-center text-gray-400 py-12">
-                  <Target size={48} className="mx-auto mb-4 opacity-50" />
+                  <Target size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无最佳参数</p>
                 </div>
               )}
@@ -568,7 +570,7 @@ export default function OptimizationDashboard() {
               className="space-y-6"
             >
               <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-100 rounded-lg">
-                <Settings size={20} className="text-purple-600 shrink-0 mt-0.5" />
+                <Gear size={20} className="text-purple-600 shrink-0 mt-0.5" weight="bold" />
                 <div className="text-sm text-purple-800">
                   <p className="font-medium mb-1">优化器控制面板</p>
                   <p className="text-purple-700">
@@ -582,7 +584,7 @@ export default function OptimizationDashboard() {
                 <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                      <Play size={24} />
+                      <Play size={24} weight="fill" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">触发优化</h3>
@@ -602,7 +604,7 @@ export default function OptimizationDashboard() {
                 <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-red-50 rounded-lg text-red-600">
-                      <RotateCcw size={24} />
+                      <ArrowCounterClockwise size={24} weight="bold" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">重置优化器</h3>
@@ -629,7 +631,7 @@ export default function OptimizationDashboard() {
               className="space-y-6"
             >
               <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <Activity size={20} className="text-gray-600 shrink-0 mt-0.5" />
+                <Activity size={20} className="text-gray-600 shrink-0 mt-0.5" weight="bold" />
                 <div className="text-sm text-gray-800">
                   <p className="font-medium mb-1">优化器诊断信息</p>
                   <p className="text-gray-600">
@@ -645,7 +647,7 @@ export default function OptimizationDashboard() {
                     className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                   >
                     <span className="font-medium text-gray-900">查看详细信息</span>
-                    {expandedDiagnostics ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    {expandedDiagnostics ? <CaretUp size={20} weight="bold" /> : <CaretDown size={20} weight="bold" />}
                   </button>
 
                   {expandedDiagnostics && (
@@ -660,7 +662,7 @@ export default function OptimizationDashboard() {
 
               {!diagnostics && (
                 <div className="text-center text-gray-400 py-12">
-                  <Activity size={48} className="mx-auto mb-4 opacity-50" />
+                  <Activity size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无诊断信息</p>
                 </div>
               )}
@@ -671,7 +673,3 @@ export default function OptimizationDashboard() {
     </div>
   );
 }
-
-// Helper icon component (if lucide-react doesn't have Lightbulb, fallback to Info)
-const Lightbulb = Info;
-const Trophy = Target;

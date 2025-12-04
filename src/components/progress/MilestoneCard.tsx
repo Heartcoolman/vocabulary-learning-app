@@ -1,4 +1,4 @@
-import { Trophy, Star, Target, Zap } from 'lucide-react';
+import { Trophy, Star, Target, Lightning } from '../Icon';
 
 export interface Milestone {
   id: string;
@@ -19,7 +19,7 @@ const iconMap = {
   trophy: Trophy,
   star: Star,
   target: Target,
-  zap: Zap,
+  zap: Lightning,
 };
 
 const colorMap: Record<string, { bg: string; border: string; text: string; progress: string }> = {

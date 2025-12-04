@@ -1,4 +1,4 @@
-import { Trophy, Target, BookOpen } from 'lucide-react';
+import { Trophy, Target, BookOpen } from '../../components/Icon';
 import { StudyProgressData } from '../../hooks/useStudyProgress';
 
 interface ProgressOverviewCardProps {
@@ -47,7 +47,7 @@ export const ProgressOverviewCard = ({ data }: ProgressOverviewCardProps) => {
           </div>
           <div className="mt-4 text-center">
             <h3 className="font-bold text-gray-900 flex items-center justify-center gap-2">
-              <Target className="w-4 h-4 text-blue-500" />
+              <Target className="w-4 h-4 text-blue-500" weight="bold" />
               今日目标
             </h3>
             <p className="text-sm text-gray-500">
@@ -60,7 +60,7 @@ export const ProgressOverviewCard = ({ data }: ProgressOverviewCardProps) => {
           <div className="bg-indigo-50 rounded-xl p-6 flex flex-col justify-between h-32 border border-indigo-100 group hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-white rounded-lg shadow-sm">
-                <BookOpen className="w-5 h-5 text-indigo-600" />
+                <BookOpen className="w-5 h-5 text-indigo-600" weight="bold" />
               </div>
               <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">累计</span>
             </div>
@@ -73,7 +73,7 @@ export const ProgressOverviewCard = ({ data }: ProgressOverviewCardProps) => {
           <div className="bg-amber-50 rounded-xl p-6 flex flex-col justify-between h-32 border border-amber-100 group hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-white rounded-lg shadow-sm">
-                <Trophy className="w-5 h-5 text-amber-600" />
+                <Trophy className="w-5 h-5 text-amber-600" weight="bold" />
               </div>
               <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">准确率</span>
             </div>

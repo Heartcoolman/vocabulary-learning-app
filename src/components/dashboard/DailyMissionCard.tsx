@@ -1,4 +1,4 @@
-import { Target, Clock, Zap, Play, CheckCircle } from 'lucide-react';
+import { Target, Clock, Lightning, Play, CheckCircle } from '../../components/Icon';
 
 interface DailyMissionCardProps {
   totalWords: number;
@@ -28,7 +28,7 @@ export const DailyMissionCard = ({
           <div className="flex justify-between items-start mb-6">
             <div>
               <h3 className="text-2xl font-bold flex items-center gap-2">
-                <Target className="w-6 h-6 text-blue-200" />
+                <Target className="w-6 h-6 text-blue-200" weight="duotone" />
                 今日学习任务
               </h3>
               <p className="text-blue-100 mt-1 font-medium">
@@ -37,7 +37,7 @@ export const DailyMissionCard = ({
             </div>
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full shadow-inner border border-white/10">
-                <Zap className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                <Lightning className="w-4 h-4 text-yellow-300 fill-yellow-300" weight="fill" />
                 <span className="font-bold text-lg">{correctRate}%</span>
                 <span className="text-xs font-medium text-blue-50 uppercase tracking-wide">正确率</span>
               </div>
@@ -77,7 +77,7 @@ export const DailyMissionCard = ({
 
         <div className="flex items-center justify-between mb-6 text-gray-500 text-sm font-medium">
           <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg">
-            <Clock className="w-4 h-4 text-gray-400" />
+            <Clock className="w-4 h-4 text-gray-400" weight="bold" />
             <span>预计 ~{estimatedTime} 分钟</span>
           </div>
           <div className="text-gray-600">
@@ -95,9 +95,9 @@ export const DailyMissionCard = ({
           }`}
         >
           {isCompleted ? (
-            <><CheckCircle className="w-5 h-5" /> 今日任务已完成</>
+            <><CheckCircle className="w-5 h-5" weight="bold" /> 今日任务已完成</>
           ) : (
-            <><Play className="w-5 h-5 fill-current" /> {todayStudied > 0 ? '继续学习' : '开始学习'}</>
+            <><Play className="w-5 h-5 fill-current" weight="fill" /> {todayStudied > 0 ? '继续学习' : '开始学习'}</>
           )}
         </button>
       </div>

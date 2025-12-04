@@ -1,6 +1,5 @@
 ﻿import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChartPie, Lightbulb } from 'lucide-react';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
@@ -10,7 +9,7 @@ import ExplainabilityModal from '../components/explainability/ExplainabilityModa
 import TodayWordsCard from '../components/learning/TodayWordsCard';
 import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
-import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain } from '../components/Icon';
+import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain, ChartPie, Lightbulb } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { learningLogger } from '../utils/logger';
 import { Word } from '../types/models';
@@ -271,7 +270,7 @@ export default function LearningPage() {
                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 text-sm font-medium shadow-sm"
                 aria-label="查看状态监控"
               >
-                <ChartPie size={18} />
+                <ChartPie size={18} weight="bold" />
                 <span className="hidden sm:inline">状态监控</span>
               </button>
               <button
@@ -281,7 +280,7 @@ export default function LearningPage() {
                 aria-label="查看AI建议"
                 title={!latestAmasResult ? '请先回答问题以获取AI建议' : ''}
               >
-                <Lightbulb size={18} />
+                <Lightbulb size={18} weight="bold" />
                 <span className="hidden sm:inline">AI建议</span>
               </button>
               <button
@@ -304,7 +303,7 @@ export default function LearningPage() {
 
           <TestOptions
             options={testOptions}
-            correctAnswer={currentWord.meanings[0]}
+            correctAnswers={currentWord.meanings}
             onSelect={handleSelectAnswer}
             selectedAnswer={selectedAnswer}
             showResult={showResult}

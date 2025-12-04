@@ -2,21 +2,21 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Activity,
-  Users,
-  Scale,
+  UsersThree,
+  Scales,
   Target,
-  CheckCircle2,
-  AlertCircle,
+  CheckCircle,
+  WarningCircle,
   XCircle,
-  RefreshCw,
+  ArrowsClockwise,
   Trophy,
   ArrowRight,
-  TrendingUp,
-  Beaker,
+  TrendUp,
+  Flask,
   Plus,
-  BarChart3,
-  Settings
-} from 'lucide-react';
+  ChartBar,
+  Gear
+} from '../../components/Icon';
 import apiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
 
@@ -66,14 +66,14 @@ interface CreateExperimentForm {
 const StatusBadge = ({ status }: { status: ExperimentStatus['status'] }) => {
   const config = {
     running: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Activity, label: '运行中 (Running)' },
-    completed: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: CheckCircle2, label: '已完成 (Completed)' },
+    completed: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: CheckCircle, label: '已完成 (Completed)' },
     stopped: { color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle, label: '已停止 (Stopped)' },
   };
   const { color, icon: Icon, label } = config[status];
 
   return (
     <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${color}`}>
-      <Icon size={14} />
+      <Icon size={14} weight="bold" />
       {label}
     </span>
   );
@@ -87,7 +87,7 @@ const MetricCard = ({ label, value, subtext, icon: Icon, trend }: any) => (
   >
     <div className="flex justify-between items-start mb-2">
       <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
-        <Icon size={20} />
+        <Icon size={20} weight="duotone" />
       </div>
       {trend && (
         <span className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -217,7 +217,7 @@ const CreateExperimentModal = ({
       >
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Plus className="text-blue-600" />
+            <Plus className="text-blue-600" weight="bold" />
             创建新实验
           </h2>
         </div>
@@ -340,7 +340,7 @@ export default function ExperimentDashboard() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <RefreshCw className="animate-spin text-blue-500" size={32} />
+        <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
       </div>
     );
   }
@@ -349,7 +349,7 @@ export default function ExperimentDashboard() {
     return (
       <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
         <div className="text-center max-w-md" role="alert" aria-live="assertive">
-          <AlertCircle size={64} className="mx-auto mb-4 text-red-500" />
+          <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
           <p className="text-gray-600 mb-6">{error || '无法加载实验数据'}</p>
           <button
@@ -385,7 +385,7 @@ export default function ExperimentDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <Beaker className="text-indigo-600" />
+            <Flask className="text-indigo-600" weight="duotone" />
             A/B 测试仪表盘: Bandit 算法优化
           </h1>
           <p className="text-gray-500 mt-1">
@@ -397,7 +397,7 @@ export default function ExperimentDashboard() {
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-            <Plus size={18} />
+            <Plus size={18} weight="bold" />
             创建实验
           </button>
           <StatusBadge status={data.status} />
@@ -406,7 +406,7 @@ export default function ExperimentDashboard() {
             className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
             title="刷新数据"
           >
-            <RefreshCw size={18} />
+            <ArrowsClockwise size={18} weight="bold" />
           </button>
         </div>
       </div>
@@ -416,14 +416,14 @@ export default function ExperimentDashboard() {
         <MetricCard
           label="P-Value (显著性)"
           value={data.pValue.toFixed(4)}
-          icon={Scale}
+          icon={Scales}
           subtext={data.isSignificant ? "Result is statistically significant" : "Result is NOT significant yet"}
           trend={data.isSignificant ? 'positive' : 'neutral'}
         />
         <MetricCard
           label="Effect Size (提升幅度)"
           value={`${(data.effectSize * 100).toFixed(1)}%`}
-          icon={TrendingUp}
+          icon={TrendUp}
           subtext="Relative improvement over baseline"
           trend={data.effectSize > 0 ? 'positive' : 'negative'}
         />
@@ -440,7 +440,7 @@ export default function ExperimentDashboard() {
         <MetricCard
           label="Total Samples (总样本)"
           value={totalSamples.toLocaleString()}
-          icon={Users}
+          icon={UsersThree}
           subtext={`${controlSamples} (C) vs ${treatmentSamples} (T)`}
         />
       </div>
@@ -494,7 +494,7 @@ export default function ExperimentDashboard() {
                 </div>
                 {data.effectSize > 0 && (
                   <div className="mt-3 inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded">
-                    <TrendingUp size={12} />
+                    <TrendUp size={12} weight="bold" />
                     Leading by {(data.effectSize * 100).toFixed(1)}%
                   </div>
                 )}
@@ -512,11 +512,11 @@ export default function ExperimentDashboard() {
               <h3 className="font-semibold text-gray-800">置信区间分析 (95% Confidence Interval)</h3>
               {data.isSignificant ? (
                 <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center gap-1">
-                  <CheckCircle2 size={14} /> 统计显著
+                  <CheckCircle size={14} weight="bold" /> 统计显著
                 </span>
               ) : (
                 <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm font-medium rounded-full flex items-center gap-1">
-                  <AlertCircle size={14} /> 尚未显著
+                  <WarningCircle size={14} weight="bold" /> 尚未显著
                 </span>
               )}
             </div>
@@ -553,7 +553,7 @@ export default function ExperimentDashboard() {
               {data.winner && (
                 <div className="p-4 bg-green-50 border border-green-100 rounded-lg flex gap-4 items-start">
                   <div className="p-2 bg-green-100 rounded-full text-green-600 shrink-0">
-                    <Trophy size={24} />
+                    <Trophy size={24} weight="fill" />
                   </div>
                   <div>
                     <h4 className="font-bold text-green-900">Winner: {data.winner === 'treatment_thompson' ? 'Thompson Sampling' : 'LinUCB'}</h4>
@@ -572,7 +572,7 @@ export default function ExperimentDashboard() {
                 <div className="flex gap-3 mt-6 pt-4 border-t border-indigo-100/50">
                   <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2 shadow-sm transition-all hover:shadow hover:-translate-y-0.5">
                     Adopt Winner
-                    <ArrowRight size={16} />
+                    <ArrowRight size={16} weight="bold" />
                   </button>
                   <button className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors">
                     Archive Report
@@ -585,7 +585,7 @@ export default function ExperimentDashboard() {
           {/* 5. 数据收集状态与实时追踪 */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <BarChart3 size={20} />
+              <ChartBar size={20} weight="bold" />
               数据收集状态
             </h3>
 
@@ -668,7 +668,7 @@ export default function ExperimentDashboard() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
           <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-            <Settings size={20} />
+            <Gear size={20} weight="bold" />
             统计分析参数
           </h3>
           <span className="text-xs text-gray-500">基于贝叶斯统计与频率派方法</span>

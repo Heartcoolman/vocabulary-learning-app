@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
 import { Books, CircleNotch } from '../components/Icon';
-import { useToast } from '../components/ui';
+import { useToast, Modal } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 
@@ -230,60 +230,60 @@ export default function VocabularyPage() {
       )}
 
       {/* 创建词书对话框 */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="create-book-title">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl animate-g3-slide-up">
-            <h2 id="create-book-title" className="text-2xl font-bold text-gray-900 mb-6">
-              创建新词书
-            </h2>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                词书名称 *
-              </label>
-              <input
-                type="text"
-                value={newBookName}
-                onChange={(e) => setNewBookName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="例如：考研核心词汇"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                描述（可选）
-              </label>
-              <textarea
-                value={newBookDesc}
-                onChange={(e) => setNewBookDesc(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                placeholder="简单描述这个词书的用途..."
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreateBook}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
-              >
-                创建
-              </button>
-              <button
-                onClick={() => {
-                  setShowCreateDialog(false);
-                  setNewBookName('');
-                  setNewBookDesc('');
-                }}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                取消
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={showCreateDialog}
+        onClose={() => {
+          setShowCreateDialog(false);
+          setNewBookName('');
+          setNewBookDesc('');
+        }}
+        title="创建新词书"
+      >
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            词书名称 *
+          </label>
+          <input
+            type="text"
+            value={newBookName}
+            onChange={(e) => setNewBookName(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="例如：考研核心词汇"
+          />
         </div>
-      )}
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            描述（可选）
+          </label>
+          <textarea
+            value={newBookDesc}
+            onChange={(e) => setNewBookDesc(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={3}
+            placeholder="简单描述这个词书的用途..."
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleCreateBook}
+            className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl"
+          >
+            创建
+          </button>
+          <button
+            onClick={() => {
+              setShowCreateDialog(false);
+              setNewBookName('');
+              setNewBookDesc('');
+            }}
+            className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            取消
+          </button>
+        </div>
+      </Modal>
 
       {/* 删除确认弹窗 */}
       <ConfirmModal
