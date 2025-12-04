@@ -2770,6 +2770,22 @@ class ApiClient {
   }
 
   /**
+   * 获取因果推断诊断信息 (管理员)
+   * GET /api/evaluation/causal/diagnostics
+   */
+  async getCausalDiagnostics(): Promise<{
+    mean: number;
+    std: number;
+    median: number;
+    treatmentMean: number;
+    controlMean: number;
+    overlap: number;
+    auc: number;
+  }> {
+    return this.request('/api/evaluation/causal/diagnostics');
+  }
+
+  /**
    * 获取用户的 A/B 测试变体分配
    * GET /api/evaluation/variant/:experimentId
    */

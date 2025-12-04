@@ -24,7 +24,9 @@ import LearningObjectivesPage from './pages/LearningObjectivesPage';
 import LearningTimePage from './pages/LearningTimePage';
 import TrendReportPage from './pages/TrendReportPage';
 import AchievementPage from './pages/AchievementPage';
+import BadgeGalleryPage from './pages/BadgeGalleryPage';
 import PlanPage from './pages/PlanPage';
+import LearningProfilePage from './pages/LearningProfilePage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -35,6 +37,9 @@ import AlgorithmConfigPage from './pages/admin/AlgorithmConfigPage';
 import ConfigHistoryPage from './pages/admin/ConfigHistoryPage';
 import ExperimentDashboard from './pages/admin/ExperimentDashboard';
 import LogViewerPage from './pages/admin/LogViewerPage';
+import LogAlertsPage from './pages/admin/LogAlertsPage';
+import OptimizationDashboard from './pages/admin/OptimizationDashboard';
+import CausalInferencePage from './pages/admin/CausalInferencePage';
 // AMAS 公开展示页面
 import AboutLayout from './pages/about/AboutLayout';
 import AboutHomePage from './pages/about/AboutHomePage';
@@ -186,6 +191,14 @@ function AppContent() {
               }
             />
             <Route
+              path="/badges"
+              element={
+                <ProtectedRoute>
+                  <BadgeGalleryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/plan"
               element={
                 <ProtectedRoute>
@@ -209,6 +222,14 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/learning-profile"
+              element={
+                <ProtectedRoute>
+                  <LearningProfilePage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* 管理员后台路由 */}
             <Route
@@ -229,6 +250,9 @@ function AppContent() {
               <Route path="config-history" element={<ConfigHistoryPage />} />
               <Route path="experiments" element={<ExperimentDashboard />} />
               <Route path="logs" element={<LogViewerPage />} />
+              <Route path="log-alerts" element={<LogAlertsPage />} />
+              <Route path="optimization" element={<OptimizationDashboard />} />
+              <Route path="causal-analysis" element={<CausalInferencePage />} />
             </Route>
 
             {/* 404重定向 */}

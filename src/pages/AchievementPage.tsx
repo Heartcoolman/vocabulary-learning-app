@@ -278,8 +278,15 @@ export default function AchievementPage() {
           </div>
         </div>
 
-        {/* 检查新徽章按钮 */}
-        <div className="mb-6 flex justify-end">
+        {/* 操作按钮 */}
+        <div className="mb-6 flex justify-end gap-3">
+          <button
+            onClick={() => navigate('/badges')}
+            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2"
+          >
+            <Trophy size={18} weight="bold" />
+            查看所有成就
+          </button>
           <button
             onClick={checkForNewBadges}
             disabled={isCheckingBadges}

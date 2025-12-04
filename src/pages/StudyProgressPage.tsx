@@ -1,13 +1,31 @@
 import { ProgressOverviewCard } from '../components/dashboard/ProgressOverviewCard';
 import { useStudyProgress } from '../hooks/useStudyProgress';
-import { TrendingUp, Activity, AlertCircle } from 'lucide-react';
+import { useExtendedProgress } from '../hooks/useExtendedProgress';
+import { useAuth } from '../contexts/AuthContext';
+import { TrendingUp, Activity, AlertCircle, Calendar } from 'lucide-react';
 import { CircleNotch } from '../components/Icon';
+import { MilestoneCard } from '../components/progress/MilestoneCard';
+import { GoalTracker } from '../components/progress/GoalTracker';
+import { MasteryDistributionChart } from '../components/progress/MasteryDistributionChart';
+import LineChart from '../components/LineChart';
 
 export default function StudyProgressPage() {
+  const { user } = useAuth();
   const { progress, loading, error, refresh } = useStudyProgress();
+  const { progress: extendedProgress, loading: extendedLoading } = useExtendedProgress(user?.id);
 
   const weeklyTrend = progress?.weeklyTrend ?? [0, 0, 0, 0, 0, 0, 0];
   const maxTrend = Math.max(...weeklyTrend, 1);
+
+  // 准备月度趋势数据用于图表
+  const monthlyChartData = extendedProgress?.monthlyTrend.map((value, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (29 - index));
+    return {
+      date: `${date.getMonth() + 1}/${date.getDate()}`,
+      value,
+    };
+  }) ?? [];
 
   if (loading) {
     return (
@@ -38,9 +56,11 @@ export default function StudyProgressPage() {
     );
   }
 
+  const isFullyLoaded = !loading && !extendedLoading;
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">学习进度</h1>
@@ -51,9 +71,117 @@ export default function StudyProgressPage() {
           </div>
         </div>
 
+        {/* 基础进度概览 */}
         <section>
           <ProgressOverviewCard data={progress} />
         </section>
+
+        {/* 学习里程碑 */}
+        {isFullyLoaded && extendedProgress && (
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-blue-500" />
+              学习里程碑
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {extendedProgress.milestones.map(milestone => (
+                <MilestoneCard key={milestone.id} milestone={milestone} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 目标追踪 */}
+        {isFullyLoaded && extendedProgress && (
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <GoalTracker
+              dailyGoal={extendedProgress.todayTarget}
+              currentProgress={extendedProgress.todayStudied}
+              weeklyGoal={extendedProgress.weeklyTarget}
+              weeklyProgress={extendedProgress.weeklyProgress}
+              estimatedDaysToComplete={extendedProgress.estimatedDaysToComplete}
+            />
+
+            {/* 学习连胜统计 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Activity className="w-6 h-6 text-amber-500" />
+                学习连胜
+              </h3>
+
+              <div className="text-center py-6">
+                <div className="inline-block relative">
+                  <div className="text-6xl font-bold text-amber-600">
+                    {extendedProgress.learningStreak}
+                  </div>
+                  <div className="absolute -right-8 top-0 text-3xl">🔥</div>
+                </div>
+                <p className="text-lg text-gray-600 mt-4">连续学习天数</p>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {extendedProgress.learningStreak >= 7 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm text-amber-800 font-medium">
+                      🎉 太棒了！你已经连续学习 {extendedProgress.learningStreak} 天了！
+                    </p>
+                  </div>
+                )}
+
+                {extendedProgress.learningStreak < 7 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 font-medium">
+                      💪 再坚持 {7 - extendedProgress.learningStreak} 天，达成一周学习目标！
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>目标：7 天连续学习</span>
+                  <span className="font-semibold text-amber-600">
+                    {Math.min(100, Math.round((extendedProgress.learningStreak / 7) * 100))}%
+                  </span>
+                </div>
+
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-amber-400 to-amber-600 h-2 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, (extendedProgress.learningStreak / 7) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 掌握度分布 */}
+        {isFullyLoaded && extendedProgress && (
+          <section>
+            <MasteryDistributionChart
+              distribution={extendedProgress.masteryDistribution}
+            />
+          </section>
+        )}
+
+        {/* 月度学习趋势 */}
+        {isFullyLoaded && monthlyChartData.length > 0 && (
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-purple-500" />
+              30天学习趋势
+            </h3>
+            <LineChart
+              data={monthlyChartData}
+              yAxisLabel="学习单词数"
+              height={280}
+            />
+            <p className="text-sm text-gray-500 text-center mt-4">
+              过去30天的每日学习单词数量变化
+            </p>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

@@ -4,6 +4,7 @@ import apiClient from '../services/ApiClient';
 import type { UserMasteryStats, MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
 import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
+import { WordMasteryDetailModal } from '../components/word-mastery/WordMasteryDetailModal';
 import { learningLogger } from '../utils/logger';
 
 interface WordWithMastery {
@@ -23,6 +24,8 @@ const WordMasteryPage: React.FC = () => {
   const [filteredWords, setFilteredWords] = useState<WordWithMastery[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -108,6 +111,16 @@ const WordMasteryPage: React.FC = () => {
 
     setFilteredWords(result);
   }, [filter, searchQuery, words]);
+
+  const handleWordClick = (wordId: string) => {
+    setSelectedWordId(wordId);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedWordId(null);
+  };
 
   if (loading) {
     return (
@@ -242,19 +255,29 @@ const WordMasteryPage: React.FC = () => {
                 </div>
               ) : (
                 filteredWords.map(word => (
-                  <MasteryWordItem
-                    key={word.id}
-                    wordId={word.id}
-                    spelling={word.spelling}
-                    meanings={word.meanings}
-                    mastery={word.mastery}
-                  />
+                  <div key={word.id} onClick={() => handleWordClick(word.id)} className="cursor-pointer">
+                    <MasteryWordItem
+                      wordId={word.id}
+                      spelling={word.spelling}
+                      meanings={word.meanings}
+                      mastery={word.mastery}
+                    />
+                  </div>
                 ))
               )}
             </div>
           </>
         )}
       </div>
+
+      {/* 单词详情模态框 */}
+      {selectedWordId && (
+        <WordMasteryDetailModal
+          wordId={selectedWordId}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 };

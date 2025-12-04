@@ -11,6 +11,7 @@ interface BatchImportModalProps {
   onClose: () => void;
   wordBookId: string;
   onImportSuccess: (importedCount: number) => void;
+  isAdminMode?: boolean; // 是否为管理员模式
 }
 
 type ImportStep = 'upload' | 'preview' | 'importing' | 'result';
@@ -19,7 +20,8 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
   isOpen,
   onClose,
   wordBookId,
-  onImportSuccess
+  onImportSuccess,
+  isAdminMode = false
 }) => {
   const [step, setStep] = useState<ImportStep>('upload');
   const [parsedData, setParsedData] = useState<WordImportData[]>([]);
@@ -74,19 +76,30 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
     let isCancelled = false;
 
     try {
-      const response = await apiClient.batchImportWords(wordBookId, parsedData);
+      // 根据是否为管理员模式选择相应的 API
+      const response = isAdminMode
+        ? await apiClient.adminBatchAddWordsToSystemWordBook(wordBookId, parsedData)
+        : await apiClient.batchImportWords(wordBookId, parsedData);
 
       if (isCancelled) return;
 
-      setImportedCount(response.imported);
-      setFailedCount(response.failed);
+      // 处理响应
+      if (Array.isArray(response)) {
+        // adminBatchAddWordsToSystemWordBook 返回导入的单词数组
+        setImportedCount(response.length);
+        setFailedCount(0);
+      } else {
+        // batchImportWords 返回 { imported, failed, errors? } 对象
+        setImportedCount(response.imported);
+        setFailedCount(response.failed);
 
-      if (response.errors && response.errors.length > 0) {
-        setErrors(prev => [...prev, ...response.errors!]);
+        if (response.errors && response.errors.length > 0) {
+          setErrors(prev => [...prev, ...response.errors!]);
+        }
       }
 
-      if (response.imported > 0) {
-         onImportSuccess(response.imported);
+      if (Array.isArray(response) ? response.length > 0 : response.imported > 0) {
+         onImportSuccess(Array.isArray(response) ? response.length : response.imported);
       }
 
       setStep('result');

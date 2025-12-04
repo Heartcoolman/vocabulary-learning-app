@@ -25,10 +25,10 @@ interface LogAlertRule {
   description?: string;
   enabled: boolean;
   levels: LogLevel[];
-  modulePattern?: string;
+  module?: string;
   messagePattern?: string;
   threshold: number;
-  timeWindowMinutes: number;
+  windowMinutes: number;
   webhookUrl: string;
   cooldownMinutes: number;
   createdAt: string;
@@ -43,10 +43,10 @@ interface RuleFormData {
   description: string;
   enabled: boolean;
   levels: LogLevel[];
-  modulePattern: string;
+  module: string;
   messagePattern: string;
   threshold: number;
-  timeWindowMinutes: number;
+  windowMinutes: number;
   webhookUrl: string;
   cooldownMinutes: number;
 }
@@ -70,10 +70,10 @@ export default function LogAlertsPage() {
     description: '',
     enabled: true,
     levels: ['ERROR', 'FATAL'],
-    modulePattern: '',
+    module: '',
     messagePattern: '',
     threshold: 5,
-    timeWindowMinutes: 5,
+    windowMinutes: 5,
     webhookUrl: '',
     cooldownMinutes: 30,
   });
@@ -254,10 +254,10 @@ export default function LogAlertsPage() {
       description: rule.description || '',
       enabled: rule.enabled,
       levels: rule.levels,
-      modulePattern: rule.modulePattern || '',
+      module: rule.module || '',
       messagePattern: rule.messagePattern || '',
       threshold: rule.threshold,
-      timeWindowMinutes: rule.timeWindowMinutes,
+      windowMinutes: rule.windowMinutes,
       webhookUrl: rule.webhookUrl,
       cooldownMinutes: rule.cooldownMinutes,
     });
@@ -291,7 +291,7 @@ export default function LogAlertsPage() {
       return false;
     }
 
-    if (formData.timeWindowMinutes <= 0) {
+    if (formData.windowMinutes <= 0) {
       toast.error('时间窗口必须大于 0');
       return false;
     }
@@ -325,10 +325,10 @@ export default function LogAlertsPage() {
       description: '',
       enabled: true,
       levels: ['ERROR', 'FATAL'],
-      modulePattern: '',
+      module: '',
       messagePattern: '',
       threshold: 5,
-      timeWindowMinutes: 5,
+      windowMinutes: 5,
       webhookUrl: '',
       cooldownMinutes: 30,
     });
@@ -432,10 +432,10 @@ export default function LogAlertsPage() {
                     </div>
 
                     {/* 模块匹配 */}
-                    {rule.modulePattern && (
+                    {rule.module && (
                       <div>
                         <span className="text-sm font-medium text-gray-700">模块匹配</span>
-                        <p className="text-sm text-gray-600 mt-1 font-mono">{rule.modulePattern}</p>
+                        <p className="text-sm text-gray-600 mt-1 font-mono">{rule.module}</p>
                       </div>
                     )}
 
@@ -451,7 +451,7 @@ export default function LogAlertsPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-700">触发阈值</span>
                       <p className="text-sm text-gray-600 mt-1">
-                        {rule.threshold} 次 / {rule.timeWindowMinutes} 分钟
+                        {rule.threshold} 次 / {rule.windowMinutes} 分钟
                       </p>
                     </div>
 
@@ -665,8 +665,8 @@ function RuleFormModal({
             </label>
             <input
               type="text"
-              value={formData.modulePattern}
-              onChange={(e) => setFormData({ ...formData, modulePattern: e.target.value })}
+              value={formData.module}
+              onChange={(e) => setFormData({ ...formData, module: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
               placeholder="例如：amas.*（留空表示匹配所有模块）"
             />
@@ -709,8 +709,8 @@ function RuleFormModal({
               <input
                 type="number"
                 min="1"
-                value={formData.timeWindowMinutes}
-                onChange={(e) => setFormData({ ...formData, timeWindowMinutes: parseInt(e.target.value) || 1 })}
+                value={formData.windowMinutes}
+                onChange={(e) => setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

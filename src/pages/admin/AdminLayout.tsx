@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient, { User } from '../../services/ApiClient';
-import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch, FileText } from '../../components/Icon';
+import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch, FileText, Bell, Target, Brain } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 
@@ -52,7 +52,10 @@ export default function AdminLayout() {
         { path: '/admin/wordbooks', label: '系统词库', icon: Books },
         { path: '/admin/algorithm-config', label: '算法配置', icon: Gear },
         { path: '/admin/config-history', label: '配置历史', icon: Clock },
+        { path: '/admin/optimization', label: '优化分析', icon: Target },
+        { path: '/admin/causal-analysis', label: '因果分析', icon: Brain },
         { path: '/admin/logs', label: '系统日志', icon: FileText },
+        { path: '/admin/log-alerts', label: '告警规则', icon: Bell },
     ];
 
     return (

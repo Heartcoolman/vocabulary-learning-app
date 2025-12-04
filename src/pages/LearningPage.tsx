@@ -7,11 +7,13 @@ import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
 import { LearningModeSelector } from '../components/LearningModeSelector';
 import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
+import TodayWordsCard from '../components/learning/TodayWordsCard';
 import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { learningLogger } from '../utils/logger';
+import { Word } from '../types/models';
 
 
 export default function LearningPage() {
@@ -24,6 +26,7 @@ export default function LearningPage() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
+  const [showTodayWords, setShowTodayWords] = useState(true);
 
   const {
     currentWord,
@@ -109,7 +112,14 @@ export default function LearningPage() {
 
   const handleRestart = useCallback(async () => {
     await resetSession();
+    setShowTodayWords(true); // 重新显示今日推荐卡片
   }, [resetSession]);
+
+  // 处理从今日推荐卡片开始学习
+  const handleStartLearningFromToday = useCallback((words: Word[]) => {
+    learningLogger.info({ wordCount: words.length }, '从今日推荐开始学习');
+    setShowTodayWords(false); // 隐藏今日推荐卡片，开始学习
+  }, []);
 
   if (isLoading) {
     return (
@@ -242,6 +252,11 @@ export default function LearningPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto">
         <div className="w-full space-y-6">
+          {/* 今日推荐卡片 - 仅在未开始学习时显示 */}
+          {showTodayWords && !currentWord && !isLoading && allWords.length > 0 && (
+            <TodayWordsCard onStartLearning={handleStartLearningFromToday} />
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
               <MasteryProgress

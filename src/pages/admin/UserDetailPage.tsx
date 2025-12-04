@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient, {
     UserDetailedStatistics,
@@ -16,11 +16,12 @@ import {
     CaretLeft,
     CaretRight,
 } from '../../components/Icon';
-import { Flame, CaretDown, ArrowUp, ArrowDown, ListDashes, Brain } from '@phosphor-icons/react';
+import { Flame, CaretDown, ArrowUp, ArrowDown, ListDashes, Brain, Download, CalendarBlank, ChartLine, Lightning } from '@phosphor-icons/react';
 import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
 import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+import { useLearningData } from '../../hooks/useLearningData';
 
 interface FilterState {
     scoreRange?: 'low' | 'medium' | 'high';
@@ -56,7 +57,10 @@ export default function UserDetailPage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'decisions'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'decisions' | 'analytics'>('overview');
+
+    // 使用 useLearningData hook 获取学习数据
+    const { data: learningData, loading: learningDataLoading } = useLearningData(userId || '', 100);
 
     const handleExport = async (format: 'csv' | 'excel') => {
         if (!userId) return;
@@ -188,6 +192,140 @@ export default function UserDetailPage() {
         return colors[state] || 'bg-gray-100 text-gray-700';
     };
 
+    // 计算学习分析数据
+    const analyticsData = useMemo(() => {
+        if (!learningData || !learningData.recentRecords || learningData.recentRecords.length === 0) {
+            return null;
+        }
+
+        const records = learningData.recentRecords;
+
+        // 1. 30天学习活动热力图数据
+        const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (29 - i));
+            return date.toISOString().split('T')[0];
+        });
+
+        const heatmapData = last30Days.map(date => {
+            const dayRecords = records.filter(r => {
+                const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+                return recordDate === date;
+            });
+            return {
+                date,
+                count: dayRecords.length,
+                accuracy: dayRecords.length > 0
+                    ? dayRecords.filter(r => r.isCorrect).length / dayRecords.length
+                    : 0
+            };
+        });
+
+        // 2. 学习时段分布（按小时统计）
+        const hourDistribution = Array(24).fill(0);
+        records.forEach(r => {
+            const hour = new Date(r.timestamp).getHours();
+            hourDistribution[hour]++;
+        });
+
+        // 找出最活跃的时段
+        const maxHourCount = Math.max(...hourDistribution);
+        const peakHours = hourDistribution
+            .map((count, hour) => ({ hour, count }))
+            .filter(h => h.count === maxHourCount && h.count > 0)
+            .map(h => h.hour);
+
+        // 3. 准确率趋势（按天）
+        const dailyAccuracyTrend = last30Days.map(date => {
+            const dayRecords = records.filter(r => {
+                const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+                return recordDate === date;
+            });
+            return {
+                date,
+                accuracy: dayRecords.length > 0
+                    ? (dayRecords.filter(r => r.isCorrect).length / dayRecords.length) * 100
+                    : null
+            };
+        }).filter(d => d.accuracy !== null);
+
+        // 4. 响应时间统计
+        const responseTimes = records
+            .filter(r => r.responseTime && r.responseTime > 0)
+            .map(r => r.responseTime || 0);
+
+        const avgResponseTime = responseTimes.length > 0
+            ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length / 1000 // 转换为秒
+            : 0;
+
+        // 5. 学习模式识别
+        const morningRecords = records.filter(r => {
+            const hour = new Date(r.timestamp).getHours();
+            return hour >= 6 && hour < 12;
+        });
+        const afternoonRecords = records.filter(r => {
+            const hour = new Date(r.timestamp).getHours();
+            return hour >= 12 && hour < 18;
+        });
+        const eveningRecords = records.filter(r => {
+            const hour = new Date(r.timestamp).getHours();
+            return hour >= 18 && hour < 24;
+        });
+        const nightRecords = records.filter(r => {
+            const hour = new Date(r.timestamp).getHours();
+            return hour >= 0 && hour < 6;
+        });
+
+        const learningPattern = {
+            morning: morningRecords.length,
+            afternoon: afternoonRecords.length,
+            evening: eveningRecords.length,
+            night: nightRecords.length,
+        };
+
+        const maxPattern = Math.max(...Object.values(learningPattern));
+        const preferredTime = Object.entries(learningPattern).find(
+            ([_, count]) => count === maxPattern
+        )?.[0] || 'unknown';
+
+        // 6. 薄弱环节识别（错误率高的单词）
+        const wordErrorMap = new Map<string, { total: number; errors: number; word: any }>();
+        records.forEach(r => {
+            if (!wordErrorMap.has(r.wordId)) {
+                wordErrorMap.set(r.wordId, { total: 0, errors: 0, word: r.word });
+            }
+            const stats = wordErrorMap.get(r.wordId)!;
+            stats.total++;
+            if (!r.isCorrect) {
+                stats.errors++;
+            }
+        });
+
+        const weakWords = Array.from(wordErrorMap.entries())
+            .map(([wordId, stats]) => ({
+                wordId,
+                spelling: stats.word.spelling,
+                phonetic: stats.word.phonetic,
+                total: stats.total,
+                errors: stats.errors,
+                errorRate: stats.errors / stats.total
+            }))
+            .filter(w => w.total >= 3) // 至少学习3次
+            .sort((a, b) => b.errorRate - a.errorRate)
+            .slice(0, 10); // 取前10个
+
+        return {
+            heatmapData,
+            hourDistribution,
+            peakHours,
+            dailyAccuracyTrend,
+            avgResponseTime,
+            learningPattern,
+            preferredTime,
+            weakWords,
+        };
+    }, [learningData]);
+
     if (isLoadingStats && !statistics) {
         return (
             <div className="p-8">
@@ -288,6 +426,20 @@ export default function UserDetailPage() {
                         <span>决策分析</span>
                     </div>
                     {activeTab === 'decisions' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                    )}
+                </button>
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                        activeTab === 'analytics' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('analytics')}
+                >
+                    <div className="flex items-center gap-2">
+                        <ChartLine size={18} />
+                        <span>学习分析</span>
+                    </div>
+                    {activeTab === 'analytics' && (
                         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
                     )}
                 </button>
@@ -797,8 +949,282 @@ export default function UserDetailPage() {
                 </>
             ) : activeTab === 'records' ? (
                 <LearningRecordsTab userId={userId || ''} />
-            ) : (
+            ) : activeTab === 'decisions' ? (
                 <AMASDecisionsTab userId={userId || ''} />
+            ) : (
+                /* 学习分析标签页 */
+                <div className="space-y-6">
+                    {learningDataLoading ? (
+                        <div className="flex items-center justify-center min-h-[400px]">
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+                                <p className="text-gray-600">加载学习数据中...</p>
+                            </div>
+                        </div>
+                    ) : !analyticsData ? (
+                        <div className="p-12 text-center bg-white border border-gray-200 rounded-xl">
+                            <CalendarBlank size={64} weight="thin" className="text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500 text-lg">暂无学习数据</p>
+                            <p className="text-gray-400 text-sm mt-2">用户尚未开始学习</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* 学习概况卡片 */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* 平均响应时间 */}
+                                <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <Lightning size={32} weight="duotone" className="text-yellow-500" />
+                                    </div>
+                                    <div className="text-3xl font-bold text-gray-900 mb-1">
+                                        {analyticsData.avgResponseTime.toFixed(1)}s
+                                    </div>
+                                    <div className="text-sm text-gray-600">平均响应时间</div>
+                                </div>
+
+                                {/* 学习偏好时段 */}
+                                <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <Clock size={32} weight="duotone" className="text-indigo-500" />
+                                    </div>
+                                    <div className="text-3xl font-bold text-gray-900 mb-1">
+                                        {analyticsData.preferredTime === 'morning' && '上午'}
+                                        {analyticsData.preferredTime === 'afternoon' && '下午'}
+                                        {analyticsData.preferredTime === 'evening' && '傍晚'}
+                                        {analyticsData.preferredTime === 'night' && '深夜'}
+                                        {analyticsData.preferredTime === 'unknown' && '未知'}
+                                    </div>
+                                    <div className="text-sm text-gray-600">学习偏好时段</div>
+                                </div>
+
+                                {/* 最活跃时段 */}
+                                <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <Flame size={32} weight="duotone" className="text-orange-500" />
+                                    </div>
+                                    <div className="text-3xl font-bold text-gray-900 mb-1">
+                                        {analyticsData.peakHours.length > 0
+                                            ? `${analyticsData.peakHours[0]}:00`
+                                            : '-'}
+                                    </div>
+                                    <div className="text-sm text-gray-600">最活跃时段</div>
+                                </div>
+                            </div>
+
+                            {/* 30天学习活动热力图 */}
+                            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                    <CalendarBlank size={24} weight="duotone" className="text-blue-500" />
+                                    30天学习活动热力图
+                                </h2>
+                                <div className="grid grid-cols-10 gap-2">
+                                    {analyticsData.heatmapData.map((day, index) => {
+                                        const maxCount = Math.max(...analyticsData.heatmapData.map(d => d.count));
+                                        const intensity = maxCount > 0 ? day.count / maxCount : 0;
+                                        const bgColor = day.count === 0
+                                            ? 'bg-gray-100'
+                                            : intensity > 0.7
+                                            ? 'bg-green-600'
+                                            : intensity > 0.4
+                                            ? 'bg-green-400'
+                                            : 'bg-green-200';
+
+                                        return (
+                                            <div
+                                                key={index}
+                                                className={`aspect-square ${bgColor} rounded transition-all hover:scale-110`}
+                                                title={`${day.date}: ${day.count}次学习, 正确率${(day.accuracy * 100).toFixed(0)}%`}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center gap-2 mt-4 text-sm text-gray-500">
+                                    <span>少</span>
+                                    <div className="flex gap-1">
+                                        <div className="w-4 h-4 bg-gray-100 rounded" />
+                                        <div className="w-4 h-4 bg-green-200 rounded" />
+                                        <div className="w-4 h-4 bg-green-400 rounded" />
+                                        <div className="w-4 h-4 bg-green-600 rounded" />
+                                    </div>
+                                    <span>多</span>
+                                </div>
+                            </div>
+
+                            {/* 学习时段分布 */}
+                            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">24小时学习时段分布</h2>
+                                <div className="h-64 flex items-end gap-1">
+                                    {analyticsData.hourDistribution.map((count, hour) => {
+                                        const maxCount = Math.max(...analyticsData.hourDistribution);
+                                        const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                                        const isPeak = analyticsData.peakHours.includes(hour);
+
+                                        return (
+                                            <div
+                                                key={hour}
+                                                className="flex-1 flex flex-col items-center gap-1"
+                                                title={`${hour}:00 - ${count}次学习`}
+                                            >
+                                                <div
+                                                    className={`w-full rounded-t transition-all ${
+                                                        isPeak
+                                                            ? 'bg-gradient-to-t from-orange-500 to-orange-400'
+                                                            : 'bg-gradient-to-t from-blue-500 to-blue-400'
+                                                    } hover:opacity-80`}
+                                                    style={{ height: `${height}%` }}
+                                                />
+                                                {hour % 3 === 0 && (
+                                                    <span className="text-xs text-gray-500">{hour}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* 准确率趋势 */}
+                            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">每日准确率趋势</h2>
+                                <div className="h-64 flex items-end gap-2">
+                                    {analyticsData.dailyAccuracyTrend.map((point, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex-1 flex flex-col items-center gap-1"
+                                            title={`${point.date}: ${point.accuracy?.toFixed(1)}%`}
+                                        >
+                                            <div
+                                                className={`w-full rounded-t transition-all ${
+                                                    (point.accuracy || 0) >= 80
+                                                        ? 'bg-gradient-to-t from-green-500 to-green-400'
+                                                        : (point.accuracy || 0) >= 60
+                                                        ? 'bg-gradient-to-t from-yellow-500 to-yellow-400'
+                                                        : 'bg-gradient-to-t from-red-500 to-red-400'
+                                                } hover:opacity-80`}
+                                                style={{ height: `${point.accuracy}%` }}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-4 text-center">
+                                    最近 {analyticsData.dailyAccuracyTrend.length} 天
+                                </p>
+                            </div>
+
+                            {/* 学习模式分析 */}
+                            <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">学习模式分析</h2>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="p-4 bg-blue-50 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-blue-600 mb-1">
+                                            {analyticsData.learningPattern.morning}
+                                        </div>
+                                        <div className="text-sm text-gray-600">上午 (6-12点)</div>
+                                    </div>
+                                    <div className="p-4 bg-green-50 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-green-600 mb-1">
+                                            {analyticsData.learningPattern.afternoon}
+                                        </div>
+                                        <div className="text-sm text-gray-600">下午 (12-18点)</div>
+                                    </div>
+                                    <div className="p-4 bg-orange-50 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-orange-600 mb-1">
+                                            {analyticsData.learningPattern.evening}
+                                        </div>
+                                        <div className="text-sm text-gray-600">傍晚 (18-24点)</div>
+                                    </div>
+                                    <div className="p-4 bg-purple-50 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-purple-600 mb-1">
+                                            {analyticsData.learningPattern.night}
+                                        </div>
+                                        <div className="text-sm text-gray-600">深夜 (0-6点)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 薄弱环节识别 */}
+                            {analyticsData.weakWords.length > 0 && (
+                                <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                        <Target size={24} weight="duotone" className="text-red-500" />
+                                        薄弱环节识别
+                                    </h2>
+                                    <div className="space-y-3">
+                                        {analyticsData.weakWords.map((word, index) => (
+                                            <div
+                                                key={word.wordId}
+                                                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="text-lg font-semibold text-gray-400">
+                                                        #{index + 1}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium text-gray-900">
+                                                            {word.spelling}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">
+                                                            {word.phonetic}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-6">
+                                                    <div className="text-center">
+                                                        <div className="text-sm text-gray-500">学习次数</div>
+                                                        <div className="font-semibold text-gray-900">
+                                                            {word.total}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-sm text-gray-500">错误次数</div>
+                                                        <div className="font-semibold text-red-600">
+                                                            {word.errors}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-sm text-gray-500">错误率</div>
+                                                        <div
+                                                            className={`font-bold ${
+                                                                word.errorRate >= 0.7
+                                                                    ? 'text-red-600'
+                                                                    : word.errorRate >= 0.5
+                                                                    ? 'text-orange-600'
+                                                                    : 'text-yellow-600'
+                                                            }`}
+                                                        >
+                                                            {(word.errorRate * 100).toFixed(0)}%
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 导出学习报告按钮 */}
+                            <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                            导出学习报告
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            导出包含学习轨迹、行为分析和效果评估的完整报告
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleExport('excel')}
+                                        disabled={isExporting}
+                                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Download size={20} weight="bold" />
+                                        <span>{isExporting ? '导出中...' : '导出报告'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             )}
         </div>
     );

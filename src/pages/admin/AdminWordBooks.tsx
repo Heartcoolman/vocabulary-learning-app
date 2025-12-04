@@ -90,7 +90,8 @@ export default function AdminWordBooks() {
         }
 
         try {
-            await apiClient.updateWordBook(editingBook.id, editBook);
+            // 使用管理员专用的更新接口
+            await apiClient.adminUpdateSystemWordBook(editingBook.id, editBook);
             setShowEditDialog(false);
             setEditingBook(null);
             setEditBook({ name: '', description: '' });
@@ -339,6 +340,7 @@ export default function AdminWordBooks() {
                 onImportSuccess={() => {
                     loadWordBooks();
                 }}
+                isAdminMode={true}
             />
 
             {/* 删除确认弹窗 */}

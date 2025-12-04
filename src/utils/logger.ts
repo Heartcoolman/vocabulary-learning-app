@@ -419,7 +419,7 @@ if (typeof window !== 'undefined') {
 
 // ==================== 导出类型和工具函数 ====================
 
-export type { LogLevel, LogEntry, LoggerConfig };
+export type { LogEntry, LoggerConfig };
 export { Logger };
 
 /**

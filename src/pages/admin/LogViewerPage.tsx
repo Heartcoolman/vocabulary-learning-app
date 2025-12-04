@@ -12,7 +12,6 @@ import {
     WarningCircle,
     XCircle,
 } from '../../components/Icon';
-import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 
 // 日志级别类型
@@ -61,8 +60,6 @@ interface FilterState {
 }
 
 export default function LogViewerPage() {
-    const toast = useToast();
-
     // 状态管理
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [stats, setStats] = useState<LogStats | null>(null);

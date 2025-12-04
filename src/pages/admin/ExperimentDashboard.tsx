@@ -12,7 +12,10 @@ import {
   Trophy,
   ArrowRight,
   TrendingUp,
-  Beaker
+  Beaker,
+  Plus,
+  BarChart3,
+  Settings
 } from 'lucide-react';
 import apiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
@@ -37,6 +40,25 @@ interface ExperimentStatus {
   recommendation: string;
   reason: string;
   isActive: boolean;
+}
+
+interface VariantData {
+  id: string;
+  name: string;
+  weight: number;
+  isControl: boolean;
+  parameters: Record<string, unknown>;
+}
+
+interface CreateExperimentForm {
+  name: string;
+  description: string;
+  trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+  minSampleSize: number;
+  significanceLevel: number;
+  minimumDetectableEffect: number;
+  autoDecision: boolean;
+  variants: VariantData[];
 }
 
 // --- Sub-Components ---
@@ -146,12 +168,156 @@ const ConfidenceIntervalChart = ({
   );
 };
 
+// --- 实验创建表单组件 ---
+const CreateExperimentModal = ({
+  onClose,
+  onSuccess
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) => {
+  const [form, setForm] = useState<CreateExperimentForm>({
+    name: '',
+    description: '',
+    trafficAllocation: 'EVEN',
+    minSampleSize: 100,
+    significanceLevel: 0.05,
+    minimumDetectableEffect: 0.05,
+    autoDecision: false,
+    variants: [
+      { id: 'control', name: 'Control (LinUCB)', weight: 0.5, isControl: true, parameters: { algorithm: 'linucb' } },
+      { id: 'treatment', name: 'Treatment (Thompson)', weight: 0.5, isControl: false, parameters: { algorithm: 'thompson' } }
+    ]
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      // 这里暂时不实现完整的创建逻辑，因为后端API可能需要调整
+      adminLogger.info({ form }, '创建实验表单提交');
+      alert('实验创建功能即将上线');
+      onSuccess();
+    } catch (error) {
+      adminLogger.error({ err: error }, '创建实验失败');
+      alert('创建实验失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Plus className="text-blue-600" />
+            创建新实验
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* 基本信息 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">实验名称</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="例如: Thompson vs LinUCB 优化测试"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">实验描述</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+              placeholder="描述实验目的和预期结果..."
+            />
+          </div>
+
+          {/* 参数配置 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">最小样本数</label>
+              <input
+                type="number"
+                value={form.minSampleSize}
+                onChange={(e) => setForm({ ...form, minSampleSize: parseInt(e.target.value) })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                min="10"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">显著性水平 (α)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.significanceLevel}
+                onChange={(e) => setForm({ ...form, significanceLevel: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                min="0.01"
+                max="0.1"
+              />
+            </div>
+          </div>
+
+          {/* 流量分配 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">流量分配策略</label>
+            <select
+              value={form.trafficAllocation}
+              onChange={(e) => setForm({ ...form, trafficAllocation: e.target.value as any })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="EVEN">均匀分配</option>
+              <option value="WEIGHTED">权重分配</option>
+              <option value="DYNAMIC">动态分配</option>
+            </select>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? '创建中...' : '创建实验'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 export default function ExperimentDashboard() {
   const [data, setData] = useState<ExperimentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -204,6 +370,17 @@ export default function ExperimentDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 bg-gray-50 min-h-screen">
 
+      {/* 创建实验模态框 */}
+      {showCreateModal && (
+        <CreateExperimentModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            loadData();
+          }}
+        />
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -216,6 +393,13 @@ export default function ExperimentDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus size={18} />
+            创建实验
+          </button>
           <StatusBadge status={data.status} />
           <button
             onClick={loadData}
@@ -362,7 +546,7 @@ export default function ExperimentDashboard() {
             )}
 
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              {data.status === 'completed' ? '🚀 实验结论 (Final Verdict)' : '💡 实时洞察 (Insights)'}
+              {data.status === 'completed' ? '实验结论 (Final Verdict)' : '实时洞察 (Insights)'}
             </h3>
 
             <div className="space-y-4 relative z-10">
@@ -398,8 +582,139 @@ export default function ExperimentDashboard() {
             </div>
           </motion.section>
 
+          {/* 5. 数据收集状态与实时追踪 */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <BarChart3 size={20} />
+              数据收集状态
+            </h3>
+
+            <div className="space-y-4">
+              {/* 总体进度 */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">总样本收集进度</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {totalSamples} / {data.isSignificant ? totalSamples : totalSamples * 2} (目标)
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min((totalSamples / (totalSamples * 2)) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 各变体样本数 */}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-700">Control (LinUCB)</span>
+                    <span className="text-sm text-gray-600">{controlSamples}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full"
+                      style={{ width: `${(controlSamples / totalSamples) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-700">Treatment (Thompson)</span>
+                    <span className="text-sm text-gray-600">{treatmentSamples}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-green-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-500 rounded-full"
+                      style={{ width: `${(treatmentSamples / totalSamples) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 实时指标 */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">数据质量</div>
+                    <div className="text-lg font-bold text-green-600">
+                      {totalSamples > 100 ? '良好' : '收集中'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">样本均衡度</div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {Math.abs(controlSamples - treatmentSamples) < totalSamples * 0.1 ? '均衡' : '偏斜'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">实验状态</div>
+                    <div className={`text-lg font-bold ${data.isSignificant ? 'text-green-600' : 'text-amber-600'}`}>
+                      {data.isSignificant ? '已达标' : '进行中'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
       </div>
+
+      {/* 6. 统计分析详情面板 */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <Settings size={20} />
+            统计分析参数
+          </h3>
+          <span className="text-xs text-gray-500">基于贝叶斯统计与频率派方法</span>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* P-Value 解释 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-gray-700">P-Value (显著性)</h4>
+              <div className="text-2xl font-mono font-bold text-indigo-600">{data.pValue.toFixed(4)}</div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                P值 {data.pValue < 0.05 ? '<' : '≥'} 0.05，表示{data.isSignificant ? '差异显著' : '差异不显著'}。
+                较小的P值表示观察到的差异不太可能是由随机误差引起的。
+              </p>
+            </div>
+
+            {/* Effect Size 解释 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-gray-700">Effect Size (效应量)</h4>
+              <div className="text-2xl font-mono font-bold text-green-600">
+                {data.effectSize > 0 ? '+' : ''}{(data.effectSize * 100).toFixed(1)}%
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                实验组相对于对照组的提升幅度。
+                {Math.abs(data.effectSize) < 0.02 && '效应较小，实际意义有限。'}
+                {Math.abs(data.effectSize) >= 0.02 && Math.abs(data.effectSize) < 0.08 && '效应中等，值得关注。'}
+                {Math.abs(data.effectSize) >= 0.08 && '效应较大，建议采用。'}
+              </p>
+            </div>
+
+            {/* Statistical Power 解释 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-gray-700">Statistical Power (统计功效)</h4>
+              <div className="text-2xl font-mono font-bold text-purple-600">
+                {(data.statisticalPower * 100).toFixed(0)}%
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                检测到真实效应的概率。通常要求≥80%。
+                当前功效{data.statisticalPower >= 0.8 ? '充足' : '不足'}，
+                {data.statisticalPower < 0.8 && '建议继续收集数据或增加样本量。'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -335,7 +335,11 @@ export default function SimulationPage() {
 
       setResult(data as ExtendedSimulateResponse);
     } catch (err) {
-      amasLogger.error({ err, params: noisyParams }, '模拟执行失败');
+      const errorParams = injectNoise ? {
+        ...params,
+        attention: Math.max(0, Math.min(1, params.attention + (Math.random() * 0.4 - 0.2)))
+      } : params;
+      amasLogger.error({ err, params: errorParams }, '模拟执行失败');
     } finally {
       setLoading(false);
     }

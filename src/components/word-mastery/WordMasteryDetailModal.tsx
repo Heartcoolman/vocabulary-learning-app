@@ -1,0 +1,425 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import {
+  X,
+  Clock,
+  Fire,
+  ChartLine,
+  Warning,
+  CheckCircle,
+  CircleNotch,
+  Lightbulb,
+} from '../Icon';
+import { Modal } from '../ui/Modal';
+import { MemoryTraceChart } from './MemoryTraceChart';
+import apiClient from '../../services/ApiClient';
+import { learningLogger } from '../../utils/logger';
+import type {
+  MasteryEvaluation,
+  ReviewTraceRecord,
+  WordMasteryIntervalResponse,
+} from '../../types/word-mastery';
+
+interface WordMasteryDetailModalProps {
+  wordId: string;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface WordDetailData {
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+  mastery: MasteryEvaluation | null;
+  trace: ReviewTraceRecord[];
+  interval: WordMasteryIntervalResponse | null;
+}
+
+/**
+ * 单词掌握度详情模态框
+ * 显示单词的详细学习轨迹、掌握度评估和复习建议
+ */
+export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
+  wordId,
+  isOpen,
+  onClose,
+}) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<WordDetailData | null>(null);
+
+  useEffect(() => {
+    if (isOpen && wordId) {
+      loadDetailData();
+    }
+  }, [isOpen, wordId]);
+
+  const loadDetailData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 并发加载所有数据
+      const [wordData, masteryData, traceData, intervalData] = await Promise.all([
+        // 通过 getLearnedWords 获取单词基本信息（假设单词在已学习列表中）
+        apiClient.getLearnedWords().then(words => words.find(w => w.id === wordId)),
+        // 获取掌握度评估
+        apiClient.getWordMasteryDetail(wordId).catch(() => null),
+        // 获取学习轨迹
+        apiClient.getWordMasteryTrace(wordId).catch(() => ({ wordId, trace: [], count: 0 })),
+        // 获取复习间隔预测
+        apiClient.getWordMasteryInterval(wordId).catch(() => null),
+      ]);
+
+      if (!wordData) {
+        setError('未找到该单词信息');
+        return;
+      }
+
+      setData({
+        spelling: wordData.spelling,
+        phonetic: wordData.phonetic,
+        meanings: wordData.meanings,
+        mastery: masteryData,
+        trace: traceData.trace,
+        interval: intervalData,
+      });
+    } catch (err) {
+      setError('加载数据失败，请稍后重试');
+      learningLogger.error({ err, wordId }, '加载单词详情失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMasteryLevel = (mastery: MasteryEvaluation | null): {
+    label: string;
+    color: string;
+    bgColor: string;
+    icon: React.ReactNode;
+  } => {
+    if (!mastery) {
+      return {
+        label: '未学习',
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-100',
+        icon: <Warning size={20} className="text-gray-500" />,
+      };
+    }
+
+    if (mastery.isLearned) {
+      return {
+        label: '已掌握',
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+        icon: <CheckCircle size={20} className="text-green-600" weight="fill" />,
+      };
+    }
+
+    if (mastery.score >= 0.7) {
+      return {
+        label: '熟练',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        icon: <Fire size={20} className="text-blue-600" weight="fill" />,
+      };
+    }
+
+    if (mastery.score >= 0.4) {
+      return {
+        label: '学习中',
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-100',
+        icon: <ChartLine size={20} className="text-yellow-600" />,
+      };
+    }
+
+    return {
+      label: '需复习',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100',
+      icon: <Clock size={20} className="text-orange-600" />,
+    };
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16">
+          <CircleNotch size={48} className="text-purple-500 animate-spin mb-4" />
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      );
+    }
+
+    if (error || !data) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Warning size={48} className="text-red-400 mb-4" />
+          <p className="text-gray-600 mb-4">{error || '加载失败'}</p>
+          <button
+            onClick={loadDetailData}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+          >
+            重试
+          </button>
+        </div>
+      );
+    }
+
+    const level = getMasteryLevel(data.mastery);
+
+    return (
+      <div className="space-y-6">
+        {/* 单词头部信息 */}
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{data.spelling}</h2>
+              <p className="text-gray-600 mb-3">{data.phonetic}</p>
+              <div className="space-y-2">
+                {data.meanings.map((meaning, idx) => (
+                  <p key={idx} className="text-gray-700">
+                    {idx + 1}. {meaning}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${level.bgColor}`}>
+              {level.icon}
+              <span className={`font-semibold ${level.color}`}>{level.label}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 掌握度评估 */}
+        {data.mastery && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-xl p-6 border border-gray-200"
+          >
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <ChartLine size={24} className="text-purple-500" />
+              掌握度评估
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div>
+                <p className="text-sm text-gray-500 mb-2">综合得分</p>
+                <div className="space-y-2">
+                  <p className="text-2xl font-bold text-purple-600">
+                    {Math.round(data.mastery.score * 100)}
+                  </p>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all"
+                      style={{ width: `${data.mastery.score * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">置信度</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {Math.round(data.mastery.confidence * 100)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">SRS等级</p>
+                <p className="text-2xl font-bold text-green-600">{data.mastery.factors.srsLevel}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">近期准确率</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {Math.round(data.mastery.factors.recentAccuracy * 100)}%
+                </p>
+              </div>
+            </div>
+
+            {/* 详细因素 */}
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <p className="text-sm font-semibold text-gray-700 mb-3">评估因素</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">ACT-R 提取概率</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full"
+                        style={{ width: `${data.mastery.factors.actrRecall * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700 w-12 text-right">
+                      {Math.round(data.mastery.factors.actrRecall * 100)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">用户疲劳度</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-red-500 rounded-full"
+                        style={{ width: `${data.mastery.factors.userFatigue * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700 w-12 text-right">
+                      {Math.round(data.mastery.factors.userFatigue * 100)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 建议 */}
+            {data.mastery.suggestion && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg flex items-start gap-3">
+                <Lightbulb size={20} className="text-blue-500 mt-0.5 flex-shrink-0" weight="fill" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900 mb-1">学习建议</p>
+                  <p className="text-sm text-blue-700">{data.mastery.suggestion}</p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* 学习轨迹图表 */}
+        {data.trace.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl p-6 border border-gray-200"
+          >
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Fire size={24} className="text-orange-500" weight="fill" />
+              学习轨迹
+            </h3>
+            <div className="mb-4">
+              <p className="text-sm text-gray-500">
+                共 {data.trace.length} 次复习记录
+              </p>
+            </div>
+            <MemoryTraceChart trace={data.trace} />
+          </motion.div>
+        )}
+
+        {/* 评估结果历史 */}
+        {data.trace.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-xl p-6 border border-gray-200"
+          >
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Clock size={24} className="text-blue-500" />
+              评估历史
+            </h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {data.trace.slice(0, 10).map((record) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {record.isCorrect ? (
+                      <CheckCircle size={20} className="text-green-500" weight="fill" />
+                    ) : (
+                      <X size={20} className="text-red-500" weight="bold" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">
+                        {record.isCorrect ? '回答正确' : '回答错误'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(record.timestamp).toLocaleString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">
+                      {record.responseTime ? `${(record.responseTime / 1000).toFixed(1)}s` : '-'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {data.trace.length > 10 && (
+              <p className="text-xs text-gray-400 mt-3 text-center">
+                显示最近 10 条记录，共 {data.trace.length} 条
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* 复习建议 */}
+        {data.interval && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100"
+          >
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Clock size={24} className="text-blue-500" />
+              复习建议
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-white rounded-lg">
+                <p className="text-xs text-gray-500 mb-2">最小间隔</p>
+                <p className="text-lg font-bold text-gray-700">
+                  {data.interval.humanReadable.min}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-300">
+                <p className="text-xs text-blue-600 font-semibold mb-2">最佳间隔</p>
+                <p className="text-lg font-bold text-blue-600">
+                  {data.interval.humanReadable.optimal}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg">
+                <p className="text-xs text-gray-500 mb-2">最大间隔</p>
+                <p className="text-lg font-bold text-gray-700">
+                  {data.interval.humanReadable.max}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-white rounded-lg">
+              <p className="text-sm text-gray-600">
+                目标提取概率：
+                <span className="font-semibold text-gray-800 ml-1">
+                  {Math.round(data.interval.interval.targetRecall * 100)}%
+                </span>
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* 空状态 */}
+        {!data.mastery && data.trace.length === 0 && (
+          <div className="bg-gray-50 rounded-xl p-12 text-center">
+            <Warning size={48} className="mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600">该单词暂无学习记录</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="xl">
+      <div className="max-h-[80vh] overflow-y-auto">
+        {renderContent()}
+      </div>
+    </Modal>
+  );
+};
