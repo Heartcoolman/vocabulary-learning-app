@@ -583,8 +583,10 @@ async function main() {
   console.log(`✅ 添加 ${userWords.length} 个单词到用户词库`);
 
   // 为测试用户创建学习配置
-  await prisma.userStudyConfig.create({
-    data: {
+  await prisma.userStudyConfig.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
       userId: user.id,
       selectedWordBookIds: [cet4WordBook.id, userWordBook.id],
       dailyWordCount: 20,
@@ -592,6 +594,46 @@ async function main() {
     },
   });
   console.log('✅ 创建用户学习配置');
+
+  // 创建默认算法配置
+  await prisma.algorithmConfig.upsert({
+    where: { name: 'default' },
+    update: {},
+    create: {
+      name: 'default',
+      description: '默认学习算法配置',
+      reviewIntervals: [1, 3, 7, 14, 30, 60, 120],
+      consecutiveCorrectThreshold: 5,
+      consecutiveWrongThreshold: 3,
+      difficultyAdjustmentInterval: 1,
+      priorityWeightNewWord: 40,
+      priorityWeightErrorRate: 30,
+      priorityWeightOverdueTime: 20,
+      priorityWeightWordScore: 10,
+      scoreWeightAccuracy: 40,
+      scoreWeightSpeed: 30,
+      scoreWeightStability: 20,
+      scoreWeightProficiency: 10,
+      speedThresholdExcellent: 3000,
+      speedThresholdGood: 5000,
+      speedThresholdAverage: 10000,
+      speedThresholdSlow: 10000,
+      newWordRatioDefault: 0.3,
+      newWordRatioHighAccuracy: 0.5,
+      newWordRatioLowAccuracy: 0.1,
+      newWordRatioHighAccuracyThreshold: 0.85,
+      newWordRatioLowAccuracyThreshold: 0.65,
+      masteryThresholds: {
+        level1: 20,
+        level2: 40,
+        level3: 60,
+        level4: 80,
+        level5: 95,
+      },
+      isDefault: true,
+    },
+  });
+  console.log('✅ 创建默认算法配置');
 
   // 种子徽章数据（传递 prisma 实例以复用连接）
   await seedBadges(prisma);
@@ -602,6 +644,7 @@ async function main() {
   console.log(`- 词库数: ${await prisma.wordBook.count()}`);
   console.log(`- 单词数: ${await prisma.word.count()}`);
   console.log(`- 学习配置: ${await prisma.userStudyConfig.count()}`);
+  console.log(`- 算法配置: ${await prisma.algorithmConfig.count()}`);
   console.log(`- 徽章定义: ${await prisma.badgeDefinition.count()}`);
 }
 

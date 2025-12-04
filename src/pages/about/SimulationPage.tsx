@@ -35,6 +35,7 @@ import {
   fadeInVariants,
   staggerContainerVariants,
 } from '../../utils/animations';
+import { amasLogger } from '../../utils/logger';
 
 // ==================== Types & Config ====================
 
@@ -334,7 +335,7 @@ export default function SimulationPage() {
 
       setResult(data as ExtendedSimulateResponse);
     } catch (err) {
-      console.error(err);
+      amasLogger.error({ err, params: noisyParams }, '模拟执行失败');
     } finally {
       setLoading(false);
     }

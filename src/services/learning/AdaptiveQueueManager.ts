@@ -4,6 +4,7 @@
  */
 
 import { AdjustReason } from '../../types/amas';
+import { learningLogger } from '../../utils/logger';
 
 export interface RecentPerformance {
   accuracy: number;
@@ -58,13 +59,13 @@ export class AdaptiveQueueManager {
 
     // 1. 紧急检查：连续错误 (struggling)
     if (this.consecutiveWrong >= this.CONSECUTIVE_WRONG_THRESHOLD) {
-      console.log(`[AdaptiveQueue] 触发调整: 连续错误${this.consecutiveWrong}次`);
+      learningLogger.info({ consecutiveWrong: this.consecutiveWrong }, '触发调整: 连续错误');
       return { should: true, reason: 'struggling', suggestedDifficulty: 'easier' };
     }
 
     // 2. 紧急检查：疲劳度过高 (fatigue)
     if (userState && userState.fatigue > this.FATIGUE_THRESHOLD) {
-      console.log(`[AdaptiveQueue] 触发调整: 疲劳度${(userState.fatigue * 100).toFixed(0)}%`);
+      learningLogger.info({ fatigue: userState.fatigue }, '触发调整: 疲劳度过高');
       return { should: true, reason: 'fatigue', suggestedDifficulty: 'easier' };
     }
 
@@ -92,7 +93,7 @@ export class AdaptiveQueueManager {
         suggestedDifficulty = 'harder';
       }
 
-      console.log(
+      learningLogger.info(
         `[AdaptiveQueue] 触发调整: ${reason} (间隔:${dynamicInterval}, 趋势:${trend.direction}, 难度建议:${suggestedDifficulty || 'none'})`
       );
 

@@ -115,10 +115,12 @@ model AnswerRecord {
   @@index([userId])
   @@index([wordId])
   @@index([sessionId])
-  @@index([userId, timestamp])
+  @@index([userId, timestamp], map: "idx_answer_records_user_time")
   @@index([wordId, timestamp])
   @@index([userId, isCorrect])
   @@index([sessionId, timestamp])
+  @@index([userId, wordId, isCorrect]) // 优化：单词正确率统计查询
+  @@index([userId, timestamp(sort: Desc)], map: "idx_answer_records_user_time_desc") // 优化：最近答题记录查询
   @@map("answer_records")
 }
 
@@ -163,6 +165,7 @@ model WordLearningState {
   currentInterval    Int       @default(1)
   consecutiveCorrect Int       @default(0)
   consecutiveWrong   Int       @default(0)
+  halfLife           Float     @default(1.0) // 个性化半衰期（天），基于用户表现动态调整
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -176,6 +179,8 @@ model WordLearningState {
   @@index([userId, state])
   @@index([userId, masteryLevel])
   @@index([userId, nextReviewDate])
+  @@index([userId, nextReviewDate, state]) // 优化：到期复习词筛选
+  @@index([userId, halfLife]) // 优化：按半衰期排序的复习优先级
   @@map("word_learning_states")
 }
 
@@ -710,4 +715,132 @@ enum PipelineStageStatus {
   SUCCESS
   FAILED
   SKIPPED
+}
+
+/// 多目标优化框架 - 用户学习目标配置
+model UserLearningObjectives {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  mode      String   @default("daily")  // 'exam' | 'daily' | 'travel' | 'custom'
+
+  // 主要目标
+  primaryObjective String @default("accuracy")
+
+  // 约束条件
+  minAccuracy      Float?
+  maxDailyTime     Int?    // 分钟
+  targetRetention  Float?
+
+  // 权重配置
+  weightShortTerm  Float   @default(0.4)
+  weightLongTerm   Float   @default(0.4)
+  weightEfficiency Float   @default(0.2)
+
+  // 元数据
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_learning_objectives")
+}
+
+/// 多目标优化框架 - 目标历史追踪（用于A/B测试）
+model ObjectiveHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  objectiveId String
+
+  // 切换原因
+  reason      String   // 'manual' | 'auto_adjust' | 'experiment'
+
+  // 效果数据
+  beforeMetrics Json   // 切换前的学习指标
+  afterMetrics  Json   // 切换后的学习指标
+
+  timestamp   DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@map("objective_history")
+}
+
+// ==================== 日志可视化系统 ====================
+
+/// 系统日志存储表
+model SystemLog {
+  id        String    @id @default(uuid())
+  level     LogLevel
+  message   String
+  module    String?
+  source    LogSource @default(BACKEND)
+
+  // 结构化数据
+  context   Json?
+  error     Json?     // { message, stack, name, code }
+
+  // 请求追踪
+  requestId String?
+  userId    String?
+
+  // 客户端信息（前端日志）
+  clientIp  String?
+  userAgent String?
+
+  // 元数据
+  app       String    @default("danci")
+  env       String    @default("production")
+
+  timestamp DateTime  @default(now())
+
+  @@index([timestamp])
+  @@index([level])
+  @@index([module])
+  @@index([source])
+  @@index([userId])
+  @@index([requestId])
+  @@index([timestamp, level])
+  @@map("system_logs")
+}
+
+/// 日志告警规则
+model LogAlertRule {
+  id             String     @id @default(uuid())
+  name           String
+  description    String?
+  enabled        Boolean    @default(true)
+
+  // 触发条件
+  levels         LogLevel[] // 匹配的日志级别
+  module         String?    // 匹配的模块（可选）
+  messagePattern String?    // 消息正则匹配（可选）
+
+  // 触发阈值
+  threshold      Int        // 触发数量阈值
+  windowMinutes  Int        // 时间窗口（分钟）
+
+  // 通知配置
+  webhookUrl     String?
+
+  // 冷却
+  cooldownMinutes Int       @default(30)
+  lastTriggeredAt DateTime?
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("log_alert_rules")
+}
+
+/// 日志级别枚举
+enum LogLevel {
+  TRACE
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
+/// 日志来源枚举
+enum LogSource {
+  BACKEND
+  FRONTEND
 }

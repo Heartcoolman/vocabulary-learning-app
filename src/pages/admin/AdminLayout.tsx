@@ -1,11 +1,14 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient, { User } from '../../services/ApiClient';
-import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch } from '../../components/Icon';
+import { ChartBar, UsersThree, Books, ArrowLeft, Gear, Clock, CircleNotch, FileText } from '../../components/Icon';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 export default function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
+    const toast = useToast();
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -20,12 +23,12 @@ export default function AdminLayout() {
 
             // 前端权限校验：只有管理员可以访问管理后台
             if (userData.role !== 'ADMIN') {
-                alert('需要管理员权限');
+                toast.error('需要管理员权限');
                 navigate('/');
                 return;
             }
         } catch (err) {
-            console.error('获取用户信息失败:', err);
+            adminLogger.error({ err }, '获取用户信息失败');
             navigate('/login');
         } finally {
             setIsLoading(false);
@@ -49,6 +52,7 @@ export default function AdminLayout() {
         { path: '/admin/wordbooks', label: '系统词库', icon: Books },
         { path: '/admin/algorithm-config', label: '算法配置', icon: Gear },
         { path: '/admin/config-history', label: '配置历史', icon: Clock },
+        { path: '/admin/logs', label: '系统日志', icon: FileText },
     ];
 
     return (

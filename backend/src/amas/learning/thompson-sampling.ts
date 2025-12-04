@@ -21,6 +21,7 @@ import {
   BaseLearnerContext,
   LearnerCapabilities
 } from './base-learner';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -270,15 +271,13 @@ export class ThompsonSampling
    */
   setState(state: ThompsonSamplingState): void {
     if (!state) {
-      console.warn('[ThompsonSampling] 无效状态，跳过恢复');
+      amasLogger.warn('[ThompsonSampling] 无效状态，跳过恢复');
       return;
     }
 
     // 版本兼容性检查
     if (state.version !== ThompsonSampling.VERSION) {
-      console.log(
-        `[ThompsonSampling] 版本迁移: ${state.version} → ${ThompsonSampling.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: ThompsonSampling.VERSION }, '[ThompsonSampling] 版本迁移');
     }
 
     // 先验参数一致性检查
@@ -291,12 +290,12 @@ export class ThompsonSampling
     const betaDelta = this.priorBeta - (state.priorBeta ?? this.priorBeta);
 
     if (priorMismatch) {
-      console.warn(
-        `[ThompsonSampling] 先验参数不匹配: ` +
-          `状态(α=${state.priorAlpha}, β=${state.priorBeta}) vs ` +
-          `实例(α=${this.priorAlpha}, β=${this.priorBeta})。` +
-          `将按差额调整已存储参数。`
-      );
+      amasLogger.warn({
+        stateAlpha: state.priorAlpha,
+        stateBeta: state.priorBeta,
+        instanceAlpha: this.priorAlpha,
+        instanceBeta: this.priorBeta
+      }, '[ThompsonSampling] 先验参数不匹配，将按差额调整已存储参数');
     }
 
     // 带数值校验和先验差额调整的克隆
@@ -601,7 +600,7 @@ export class ThompsonSampling
 
     // 递归深度保护
     if (depth >= MAX_GAMMA_RECURSION) {
-      console.warn('[ThompsonSampling] Gamma采样递归深度超限，返回期望值');
+      amasLogger.warn('[ThompsonSampling] Gamma采样递归深度超限，返回期望值');
       return shape; // 返回期望值作为回退
     }
 
@@ -640,7 +639,7 @@ export class ThompsonSampling
     }
 
     // 超出迭代次数，返回期望值
-    console.warn('[ThompsonSampling] Gamma采样迭代超限，返回期望值');
+    amasLogger.warn('[ThompsonSampling] Gamma采样迭代超限，返回期望值');
     return shape;
   }
 

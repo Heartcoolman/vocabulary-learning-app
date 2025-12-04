@@ -10,6 +10,7 @@ import difficultyCacheService from './difficulty-cache.service';
 import { recordDifficultyComputationTime, recordQueueAdjustmentDuration } from './metrics.service';
 import { amasService } from './amas.service';
 import { StrategyParams } from '../amas';
+import { logger } from '../logger';
 
 // ========== 队列调整相关类型 ==========
 
@@ -109,7 +110,7 @@ class MasteryLearningService {
     // 初始只获取少量单词（按需加载模式）
     const initialBatchSize = MasteryLearningService.INITIAL_BATCH_SIZE;
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 获取掌握模式单词: userId=${userId}, ` +
       `target=${target}, initialBatch=${initialBatchSize}, ` +
       `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`
@@ -145,7 +146,7 @@ class MasteryLearningService {
 
     const excludeIds = [...new Set([...currentWordIds, ...masteredWordIds])];
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 动态获取下一批单词: userId=${userId}, sessionId=${sessionId}, ` +
       `count=${batchSize}, excludeCount=${excludeIds.length}, ` +
       `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`
@@ -198,7 +199,7 @@ class MasteryLearningService {
       [...excludeIds, ...reviewWords.map(w => w.id)]
     );
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 选词结果: 复习词=${reviewWords.length}, 新词=${newWords.length}, ` +
       `难度范围=[${difficultyRange.min.toFixed(2)}, ${difficultyRange.max.toFixed(2)}]`
     );
@@ -435,7 +436,7 @@ class MasteryLearningService {
         take: count,
         orderBy: { createdAt: 'asc' }
       });
-      console.log(`[MasteryLearning] 补充了${additionalWords.length}个新词（顺序模式）`);
+      logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（顺序模式）`);
       return additionalWords;
     } else {
       // 随机模式：获取更多单词后随机选取
@@ -451,17 +452,17 @@ class MasteryLearningService {
         createdAt: Date;
         updatedAt: Date;
       }>>`
-        SELECT w.* FROM "Word" w
+        SELECT w.* FROM "words" w
         WHERE w."wordBookId" = ANY(${config.selectedWordBookIds})
           AND w.id NOT IN (SELECT unnest(${excludeWordIds}::text[]))
           AND NOT EXISTS (
-            SELECT 1 FROM "LearningState" ls
+            SELECT 1 FROM "word_learning_states" ls
             WHERE ls."wordId" = w.id AND ls."userId" = ${userId}
           )
         ORDER BY RANDOM()
         LIMIT ${count}
       `;
-      console.log(`[MasteryLearning] 补充了${additionalWords.length}个新词（随机模式）`);
+      logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（随机模式）`);
       return additionalWords;
     }
   }
@@ -481,7 +482,7 @@ class MasteryLearningService {
       totalQuestions: number;
     }
   ) {
-    console.log(
+    logger.debug(
       `[MasteryLearning] 同步会话进度: sessionId=${sessionId}, ` +
       `mastered=${progress.actualMasteryCount}, questions=${progress.totalQuestions}`
     );
@@ -498,12 +499,9 @@ class MasteryLearningService {
         }
       });
 
-      console.log(`[MasteryLearning] 会话进度同步成功: sessionId=${sessionId}`);
+      logger.debug(`[MasteryLearning] 会话进度同步成功: sessionId=${sessionId}`);
     } catch (error) {
-      console.error(
-        `[MasteryLearning] 会话进度同步失败: sessionId=${sessionId}`,
-        error
-      );
+      logger.error({ err: error, sessionId }, '[MasteryLearning] 会话进度同步失败');
       throw error;
     }
   }
@@ -559,7 +557,7 @@ class MasteryLearningService {
       }
     });
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 创建新会话: sessionId=${session.id}, ` +
       `target=${targetMasteryCount}`
     );
@@ -621,7 +619,7 @@ class MasteryLearningService {
       adjustReason
     } = req;
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 调整队列: userId=${userId}, sessionId=${sessionId}, ` +
       `reason=${adjustReason}, currentWords=${currentWordIds.length}`
     );
@@ -640,7 +638,7 @@ class MasteryLearningService {
       targetDifficulty
     };
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 目标难度范围: [${targetDifficulty.min.toFixed(2)}, ${targetDifficulty.max.toFixed(2)}]`
     );
 
@@ -667,7 +665,7 @@ class MasteryLearningService {
 
     // 5. 降级处理：如果候选词不足，扩大难度范围
     if (candidates.length < desiredAddCount) {
-      console.log(
+      logger.debug(
         `[MasteryLearning] 候选词不足(${candidates.length}/${desiredAddCount})，扩大难度范围`
       );
       const expandedRange = { min: 0, max: 1 };
@@ -681,7 +679,7 @@ class MasteryLearningService {
 
     const reasonText = this.getAdjustReasonText(adjustReason, userState, recentPerformance);
 
-    console.log(
+    logger.debug(
       `[MasteryLearning] 调整结果: remove=${remove.length}, add=${candidates.length}`
     );
 
@@ -779,7 +777,7 @@ class MasteryLearningService {
     if (pendingIds.length === 0) {
       const elapsedSeconds = Number(process.hrtime.bigint() - started) / 1e9;
       recordDifficultyComputationTime(elapsedSeconds);
-      console.log(
+      logger.debug(
         `[MasteryLearning] batchComputeDifficulty cache-only total=${wordIds.length}, ` +
         `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`
       );
@@ -846,12 +844,12 @@ class MasteryLearningService {
       Object.entries(computed).map(([wordId, difficulty]) =>
         difficultyCacheService.setCached(wordId, userId, difficulty)
       )
-    ).catch(err => console.warn('[MasteryLearning] Cache write failed:', err.message));
+    ).catch(err => logger.warn('[MasteryLearning] Cache write failed:', err.message));
 
     const finalResult = { ...cached, ...computed };
     const elapsedSeconds = Number(process.hrtime.bigint() - started) / 1e9;
     recordDifficultyComputationTime(elapsedSeconds);
-    console.log(
+    logger.debug(
       `[MasteryLearning] batchComputeDifficulty total=${wordIds.length}, ` +
       `cacheHits=${cacheHits}, computed=${pendingIds.length}, ` +
       `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`
@@ -890,7 +888,7 @@ class MasteryLearningService {
     if (config.studyMode === 'random') {
       candidateWords = await prisma.$queryRaw<typeof candidateWords>`
         SELECT w.id, w.spelling, w.phonetic, w.meanings, w.examples, w."audioUrl"
-        FROM "Word" w
+        FROM "words" w
         WHERE w."wordBookId" = ANY(${config.selectedWordBookIds})
           AND w.id NOT IN (SELECT unnest(${excludeIds}::text[]))
         ORDER BY RANDOM()

@@ -175,8 +175,4 @@ describe('CacheService', () => {
     });
   });
 
-  describe('mset', () => {
-    // mset method is not implemented in CacheService
-    it.todo('should set multiple values');
-  });
 });

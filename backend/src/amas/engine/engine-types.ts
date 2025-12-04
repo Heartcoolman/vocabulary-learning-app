@@ -238,6 +238,20 @@ export interface ProcessOptions {
   answerRecordId?: string;
   /** 学习会话ID */
   sessionId?: string;
+  /** 学习目标配置 */
+  learningObjectives?: import('../types').LearningObjectives;
+  /** 会话统计数据 */
+  sessionStats?: {
+    accuracy: number;
+    avgResponseTime: number;
+    retentionRate: number;
+    reviewSuccessRate: number;
+    memoryStability: number;
+    wordsPerMinute: number;
+    timeUtilization: number;
+    cognitiveLoad: number;
+    sessionDuration: number;
+  };
 }
 
 /**
@@ -276,6 +290,10 @@ export interface ProcessResult {
   featureVector?: PersistableFeatureVector;
   /** 单词掌握判定 (用于掌握度学习模式) */
   wordMasteryDecision?: WordMasteryDecision;
+  /** 多目标评估结果 (当配置了学习目标时) */
+  objectiveEvaluation?: import('../types').ObjectiveEvaluation;
+  /** 多目标优化是否触发了策略调整 */
+  multiObjectiveAdjusted?: boolean;
 }
 
 // ==================== 工具函数 ====================

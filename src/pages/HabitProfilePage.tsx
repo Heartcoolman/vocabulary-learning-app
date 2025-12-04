@@ -6,8 +6,11 @@ import { RhythmCard } from '../components/profile/RhythmCard';
 import { MotivationCard } from '../components/profile/MotivationCard';
 import { HabitHeatmap } from '../components/profile/HabitHeatmap';
 import { ChartBar, ArrowsClockwise, FloppyDisk, Warning } from '@phosphor-icons/react';
+import { useToast } from '../components/ui';
+import { learningLogger } from '../utils/logger';
 
 const HabitProfilePage: React.FC = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<HabitProfileResponse | null>(null);
@@ -21,7 +24,7 @@ const HabitProfilePage: React.FC = () => {
       setProfileData(profile);
     } catch (err) {
       setError('加载习惯数据失败，请稍后重试');
-      console.error(err);
+      learningLogger.error({ err }, '加载习惯数据失败');
     } finally {
       setLoading(false);
     }
@@ -37,7 +40,7 @@ const HabitProfilePage: React.FC = () => {
       await apiClient.initializeHabitProfile();
       await fetchData();
     } catch (err) {
-      alert('初始化失败');
+      toast.error('初始化失败');
     } finally {
       setIsRefetching(false);
     }
@@ -47,10 +50,10 @@ const HabitProfilePage: React.FC = () => {
     try {
       setIsSaving(true);
       await apiClient.persistHabitProfile();
-      alert('保存成功！');
+      toast.success('保存成功');
       fetchData();
     } catch (err) {
-      alert('保存失败');
+      toast.error('保存失败');
     } finally {
       setIsSaving(false);
     }

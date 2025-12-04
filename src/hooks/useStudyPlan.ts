@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/ApiClient';
 import { Word } from '../types/models';
+import { learningLogger } from '../utils/logger';
 
 export interface StudyPlan {
   words: Word[];
@@ -30,7 +31,7 @@ export const useStudyPlan = () => {
 
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch study plan:', err);
+      learningLogger.error({ err }, '获取今日学习计划失败');
       setError('无法加载今日学习计划，请检查网络连接。');
     } finally {
       setLoading(false);

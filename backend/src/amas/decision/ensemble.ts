@@ -51,6 +51,7 @@ import {
   HeuristicState
 } from '../learning/heuristic';
 import { ACTION_SPACE, getActionIndex } from '../config/action-space';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -159,11 +160,23 @@ const INITIAL_WEIGHTS: EnsembleWeights = {
 /** 权重下限（防止被完全淘汰） */
 const MIN_WEIGHT = 0.05;
 
-/** 权重学习率 */
-const WEIGHT_LEARNING_RATE = 0.25;
+/** 基础权重学习率 */
+const BASE_LEARNING_RATE = 0.25;
 
 /** 分数缩放因子（用于tanh归一化） */
 const SCORE_SCALE = 2.0;
+
+/** 自适应学习率配置 */
+const ADAPTIVE_LR_CONFIG = {
+  /** 最小学习率 */
+  minLR: 0.1,
+  /** 最大学习率 */
+  maxLR: 0.5,
+  /** 衰减系数（控制随更新次数衰减的速度） */
+  decayK: 100,
+  /** 发散度加成系数 */
+  divergenceBoost: 0.5
+};
 
 // ==================== 实现 ====================
 
@@ -202,6 +215,10 @@ export class EnsembleLearningFramework
 
   /** 上一次决策置信度（用于轨迹记录） */
   private lastConfidence: number | undefined;
+
+  /** 最近奖励历史（用于计算发散度） */
+  private recentRewards: number[] = [];
+  private readonly REWARD_HISTORY_SIZE = 10;
 
   // ==================== BaseLearner接口实现 ====================
 
@@ -324,15 +341,13 @@ export class EnsembleLearningFramework
    */
   setState(state: EnsembleState): void {
     if (!state) {
-      console.warn('[EnsembleLearningFramework] 无效状态，跳过恢复');
+      amasLogger.warn('[EnsembleLearningFramework] 无效状态，跳过恢复');
       return;
     }
 
     // 版本检查
     if (state.version !== EnsembleLearningFramework.VERSION) {
-      console.log(
-        `[EnsembleLearningFramework] 版本迁移: ${state.version} → ${EnsembleLearningFramework.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: EnsembleLearningFramework.VERSION }, '[EnsembleLearningFramework] 版本迁移');
     }
 
     // 恢复权重（带校验和归一化）
@@ -373,6 +388,7 @@ export class EnsembleLearningFramework
     this.lastDecisions = {};
     this.lastVotes = undefined;
     this.lastConfidence = undefined;
+    this.recentRewards = [];
 
     this.coldStart.reset();
     this.linucb.reset();
@@ -410,6 +426,17 @@ export class EnsembleLearningFramework
    */
   getWeights(): EnsembleWeights {
     return { ...this.weights };
+  }
+
+  /**
+   * 设置权重（用于测试和手动调整）
+   * 会自动归一化权重
+   */
+  setWeights(weights: Partial<EnsembleWeights>): void {
+    this.weights = this.normalizeWeights({
+      ...this.weights,
+      ...weights
+    });
   }
 
   /**
@@ -461,25 +488,25 @@ export class EnsembleLearningFramework
     try {
       decisions.linucb = this.linucb.selectAction(state, actions, ctx.linucb);
     } catch (e) {
-      console.warn('[EnsembleLearningFramework] LinUCB决策失败:', e);
+      amasLogger.warn({ err: e }, '[EnsembleLearningFramework] LinUCB决策失败');
     }
 
     try {
       decisions.thompson = this.thompson.selectAction(state, actions, ctx.thompson);
     } catch (e) {
-      console.warn('[EnsembleLearningFramework] Thompson决策失败:', e);
+      amasLogger.warn({ err: e }, '[EnsembleLearningFramework] Thompson决策失败');
     }
 
     try {
       decisions.actr = this.actr.selectAction(state, actions, ctx.actr);
     } catch (e) {
-      console.warn('[EnsembleLearningFramework] ACT-R决策失败:', e);
+      amasLogger.warn({ err: e }, '[EnsembleLearningFramework] ACT-R决策失败');
     }
 
     try {
       decisions.heuristic = this.heuristic.selectAction(state, actions, ctx.heuristic);
     } catch (e) {
-      console.warn('[EnsembleLearningFramework] Heuristic决策失败:', e);
+      amasLogger.warn({ err: e }, '[EnsembleLearningFramework] Heuristic决策失败');
     }
 
     return decisions;
@@ -594,10 +621,40 @@ export class EnsembleLearningFramework
   }
 
   /**
+   * 计算自适应学习率
+   *
+   * 策略：
+   * - 初期探索（高学习率），后期稳定（低学习率）
+   * - 奖励发散度高时提高学习率以快速适应
+   */
+  private computeAdaptiveLR(): number {
+    const { minLR, maxLR, decayK, divergenceBoost } = ADAPTIVE_LR_CONFIG;
+
+    // 基于更新次数的衰减因子
+    const decayFactor = Math.exp(-this.updateCount / decayK);
+
+    // 计算奖励发散度（最近奖励的标准差）
+    let divergence = 0;
+    if (this.recentRewards.length >= 2) {
+      const mean = this.recentRewards.reduce((a, b) => a + b, 0) / this.recentRewards.length;
+      const variance = this.recentRewards.reduce((sum, r) => sum + (r - mean) ** 2, 0) / this.recentRewards.length;
+      divergence = Math.sqrt(variance);
+    }
+
+    // 发散度加成：发散度高时提高学习率
+    const divergenceMultiplier = 1 + divergence * divergenceBoost;
+
+    // 最终学习率 = 基础 * 衰减 * 发散度加成，限制在[minLR, maxLR]范围
+    const lr = BASE_LEARNING_RATE * (0.3 + 0.7 * decayFactor) * divergenceMultiplier;
+    return this.clamp(lr, minLR, maxLR);
+  }
+
+  /**
    * 更新集成权重
    *
    * 指数加权更新: w' = w * exp(η * gradient)
    *
+   * 优化: 使用自适应学习率，初期快速探索，后期稳定收敛
    * 修复: 对缺席/异常成员应用衰减惩罚，避免权重被保留
    * 并使用与aggregateDecisions一致的归一化权重基准
    */
@@ -605,6 +662,15 @@ export class EnsembleLearningFramework
     if (Object.keys(this.lastDecisions).length === 0) {
       return;
     }
+
+    // 记录奖励历史（用于计算发散度）
+    this.recentRewards.push(reward);
+    if (this.recentRewards.length > this.REWARD_HISTORY_SIZE) {
+      this.recentRewards.shift();
+    }
+
+    // 计算自适应学习率
+    const adaptiveLR = this.computeAdaptiveLR();
 
     // 计算实际参与成员的总权重（与aggregateDecisions保持一致）
     const members: EnsembleMember[] = ['thompson', 'linucb', 'actr', 'heuristic'];
@@ -644,8 +710,8 @@ export class EnsembleLearningFramework
       // 使用归一化权重作为基准计算梯度影响
       const gradient = reward * aligned * (0.5 + confidence / 2);
 
-      // 指数加权更新（基于原始权重，但梯度考虑了归一化贡献）
-      const raw = currentWeight * Math.exp(WEIGHT_LEARNING_RATE * gradient * normalizedWeight);
+      // 指数加权更新（使用自适应学习率）
+      const raw = currentWeight * Math.exp(adaptiveLR * gradient * normalizedWeight);
       updated[member] = Math.max(MIN_WEIGHT, raw);
     }
 

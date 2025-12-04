@@ -18,6 +18,7 @@ import {
 import { g3SpringSnappy } from '@/utils/animations';
 import { FAULT_OPTIONS } from './constants';
 import type { FaultInjectionRequest, FaultInjectionResponse } from './types';
+import { amasLogger } from '@/utils/logger';
 
 interface ControlPanelProps {
   isPaused: boolean;
@@ -42,7 +43,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       const result = await onInjectFault({ faultType });
       setLastInjection(result);
     } catch (error) {
-      console.error('故障注入失败:', error);
+      amasLogger.error({ err: error, faultType }, '故障注入失败');
     } finally {
       setIsInjecting(false);
     }

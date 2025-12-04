@@ -12,6 +12,7 @@ import {
     Clock,
     CircleNotch,
 } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 interface PaginationInfo {
     page: number;
@@ -52,7 +53,7 @@ export default function UserManagementPage() {
             setUsers(response.users);
             setPagination(response.pagination);
         } catch (err) {
-            console.error('加载用户列表失败:', err);
+            adminLogger.error({ err, page: pagination.page, search: searchQuery }, '加载用户列表失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);

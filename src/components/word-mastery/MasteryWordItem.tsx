@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MasteryEvaluation, ReviewTraceRecord, WordMasteryIntervalResponse } from '../../types/word-mastery';
 import { MemoryTraceChart } from './MemoryTraceChart';
 import apiClient from '../../services/ApiClient';
+import { learningLogger } from '../../utils/logger';
 
 interface MasteryWordItemProps {
   wordId: string;
@@ -34,7 +35,7 @@ export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
         setTrace(traceData.trace); // Extract trace array from WordMasteryTrace response
         setNextReview(intervalData);
       } catch (err) {
-        console.error('Failed to load word details:', err);
+        learningLogger.error({ err, wordId }, '加载单词详情失败');
       } finally {
         setLoading(false);
       }

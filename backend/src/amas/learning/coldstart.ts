@@ -25,7 +25,8 @@ import {
   CLASSIFY_PHASE_THRESHOLD,
   EXPLORE_PHASE_THRESHOLD,
   DEFAULT_STRATEGY,
-  COLD_START_STRATEGY
+  COLD_START_STRATEGY,
+  EARLY_STOP_CONFIG
 } from '../config/action-space';
 import {
   ActionSelection,
@@ -34,6 +35,7 @@ import {
   LearnerCapabilities
 } from './base-learner';
 import { globalStatsService } from '../cold-start/global-stats';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -94,57 +96,71 @@ interface ClassificationThresholds {
 // ==================== 常量 ====================
 
 /**
- * 5个探测动作设计
+ * 3个高区分度探测动作设计（优化版）
  *
- * 每个动作针对特定维度:
- * 1. 极易模式: 测试基础能力下限
- * 2. 标准模式: 测试正常学习能力
- * 3. 挑战模式: 测试能力上限
- * 4. 高负载: 测试疲劳耐受度
- * 5. 短间隔: 测试遗忘曲线
+ * 设计原理：
+ * - 每个探测针对最大化信息增益的维度组合
+ * - 3个探测覆盖：基础能力、能力上限、提示依赖度
+ * - 配合贝叶斯早停，可在2-3题内完成用户分类
  */
 const PROBE_ACTIONS: Action[] = [
-  // 极易模式：低难度、低负载、高提示
-  {
-    interval_scale: 0.5,
-    new_ratio: 0.1,
-    difficulty: 'easy',
-    batch_size: 5,
-    hint_level: 2
-  },
-  // 标准模式：中等难度、标准配置
+  // 1. 基线测试：标准难度，无提示，测独立能力
   {
     interval_scale: 1.0,
     new_ratio: 0.2,
     difficulty: 'mid',
     batch_size: 8,
-    hint_level: 1
+    hint_level: 0
   },
-  // 挑战模式：高难度、无提示
+  // 2. 挑战测试：高难度+高新词比，测能力上限
   {
     interval_scale: 1.2,
-    new_ratio: 0.4,
+    new_ratio: 0.35,
     difficulty: 'hard',
-    batch_size: 12,
+    batch_size: 10,
     hint_level: 0
   },
-  // 高负载：大批量、长间隔
+  // 3. 支持测试：低难度+强提示，测提示依赖度和基础下限
   {
-    interval_scale: 1.5,
-    new_ratio: 0.3,
-    difficulty: 'mid',
-    batch_size: 16,
-    hint_level: 0
-  },
-  // 短间隔：测试遗忘曲线
-  {
-    interval_scale: 0.5,
-    new_ratio: 0.3,
-    difficulty: 'mid',
-    batch_size: 8,
-    hint_level: 1
+    interval_scale: 0.8,
+    new_ratio: 0.15,
+    difficulty: 'easy',
+    batch_size: 6,
+    hint_level: 2
   }
 ];
+
+/**
+ * 默认用户类型先验概率（贝叶斯分类用）
+ * 如果有全局统计数据，会优先使用全局统计推导的先验
+ */
+const DEFAULT_USER_TYPE_PRIORS: Record<UserType, number> = {
+  fast: 0.25,
+  stable: 0.50,
+  cautious: 0.25
+};
+
+/**
+ * 各用户类型在各探测下的期望表现
+ * 格式: [正确率期望, 正确率标准差, RT期望(ms), RT标准差(ms)]
+ */
+const PROBE_EXPECTATIONS: Record<UserType, Array<[number, number, number, number]>> = {
+  fast: [
+    [0.85, 0.10, 1200, 400],
+    [0.75, 0.12, 1500, 500],
+    [0.95, 0.05, 800, 300]
+  ],
+  stable: [
+    [0.70, 0.12, 2000, 600],
+    [0.55, 0.15, 2500, 700],
+    [0.90, 0.08, 1500, 500]
+  ],
+  cautious: [
+    [0.50, 0.15, 3000, 800],
+    [0.35, 0.15, 3500, 900],
+    [0.80, 0.10, 2500, 700]
+  ]
+};
 
 /** 默认分类阈值 */
 const DEFAULT_THRESHOLDS: ClassificationThresholds = {
@@ -181,8 +197,59 @@ export class ColdStartManager
   /** 内部状态 */
   private state: ColdStartState = this.createInitialState();
 
+  /** 用户类型先验概率（支持全局统计覆盖） */
+  private userTypePriors: Record<UserType, number> = { ...DEFAULT_USER_TYPE_PRIORS };
+
+  /** 全局统计是否已初始化 */
+  private globalStatsInitialized = false;
+
   constructor(thresholds?: Partial<ClassificationThresholds>) {
     this.thresholds = { ...DEFAULT_THRESHOLDS, ...thresholds };
+    // 异步初始化全局统计先验
+    this.initGlobalPriors().catch(err => {
+      amasLogger.warn({ err }, '[ColdStartManager] 无法加载全局统计先验');
+    });
+  }
+
+  /**
+   * 初始化全局统计先验
+   */
+  private async initGlobalPriors(): Promise<void> {
+    try {
+      const stats = await globalStatsService.computeGlobalStats();
+      if (stats.sampleSize > 0) {
+        this.userTypePriors = {
+          fast: stats.userTypePriors.fast,
+          stable: stats.userTypePriors.stable,
+          cautious: stats.userTypePriors.cautious
+        };
+        this.globalStatsInitialized = true;
+      }
+    } catch {
+      // 使用默认先验
+    }
+  }
+
+  /**
+   * 手动设置全局统计先验（用于测试或外部初始化）
+   */
+  setGlobalPriors(priors: Record<UserType, number>): void {
+    const total = priors.fast + priors.stable + priors.cautious;
+    if (total > 0) {
+      this.userTypePriors = {
+        fast: priors.fast / total,
+        stable: priors.stable / total,
+        cautious: priors.cautious / total
+      };
+      this.globalStatsInitialized = true;
+    }
+  }
+
+  /**
+   * 检查全局统计是否已初始化
+   */
+  isGlobalStatsInitialized(): boolean {
+    return this.globalStatsInitialized;
   }
 
   // ==================== BaseLearner接口实现 ====================
@@ -303,7 +370,7 @@ export class ColdStartManager
    */
   setState(state: ColdStartState): void {
     if (!state) {
-      console.warn('[ColdStartManager] 无效状态，跳过恢复');
+      amasLogger.warn('[ColdStartManager] 无效状态，跳过恢复');
       return;
     }
 
@@ -412,6 +479,27 @@ export class ColdStartManager
     return 1;
   }
 
+  /**
+   * 获取贝叶斯后验概率（用于调试和可视化）
+   */
+  getPosteriors(): Record<UserType, number> {
+    return this.computePosteriors();
+  }
+
+  /**
+   * 获取探测动作总数
+   */
+  getProbeCount(): number {
+    return PROBE_ACTIONS.length;
+  }
+
+  /**
+   * 检查是否可以早停
+   */
+  canEarlyStop(): boolean {
+    return this.shouldEarlyStop();
+  }
+
   // ==================== 私有方法 ====================
 
   /**
@@ -461,10 +549,108 @@ export class ColdStartManager
   private handleClassifyPhase(): void {
     this.state.probeIndex += 1;
 
-    // 完成所有探测后执行分类
-    if (this.state.probeIndex >= PROBE_ACTIONS.length) {
-      this.classifyUser();
+    // 检查贝叶斯早停条件
+    if (this.shouldEarlyStop()) {
+      this.classifyUserBayesian();
       this.state.phase = 'explore';
+      return;
+    }
+
+    // 完成所有探测后执行贝叶斯分类
+    if (this.state.probeIndex >= PROBE_ACTIONS.length) {
+      this.classifyUserBayesian();
+      this.state.phase = 'explore';
+    }
+  }
+
+  /**
+   * 判断是否应该提前停止分类（贝叶斯早停）
+   */
+  private shouldEarlyStop(): boolean {
+    if (this.state.probeIndex < EARLY_STOP_CONFIG.minProbes) {
+      return false;
+    }
+    const posteriors = this.computePosteriors();
+    const maxPosterior = Math.max(...Object.values(posteriors));
+    return maxPosterior >= EARLY_STOP_CONFIG.confidenceThreshold;
+  }
+
+  /**
+   * 计算各用户类型的后验概率（贝叶斯推断）
+   * 使用实例的 userTypePriors（支持全局统计覆盖）
+   */
+  private computePosteriors(): Record<UserType, number> {
+    const userTypes: UserType[] = ['fast', 'stable', 'cautious'];
+    const logPosteriors: Record<UserType, number> = {
+      fast: Math.log(this.userTypePriors.fast),
+      stable: Math.log(this.userTypePriors.stable),
+      cautious: Math.log(this.userTypePriors.cautious)
+    };
+
+    const probeResults = this.state.results.slice(0, this.state.probeIndex);
+
+    for (let i = 0; i < probeResults.length && i < PROBE_ACTIONS.length; i++) {
+      const result = probeResults[i];
+      for (const userType of userTypes) {
+        const expectations = PROBE_EXPECTATIONS[userType][i];
+        if (!expectations) continue;
+        const [accMean, accStd, rtMean, rtStd] = expectations;
+        const observedAcc = result.isCorrect ? 1 : 0;
+        const accLikelihood = this.gaussianLogLikelihood(observedAcc, accMean, accStd);
+        const rtLikelihood = this.gaussianLogLikelihood(result.responseTime, rtMean, rtStd);
+        logPosteriors[userType] += accLikelihood + rtLikelihood;
+      }
+    }
+
+    const maxLog = Math.max(...Object.values(logPosteriors));
+    let sumExp = 0;
+    for (const userType of userTypes) {
+      sumExp += Math.exp(logPosteriors[userType] - maxLog);
+    }
+    const logNormalizer = maxLog + Math.log(sumExp);
+
+    const posteriors: Record<UserType, number> = { fast: 0, stable: 0, cautious: 0 };
+    for (const userType of userTypes) {
+      posteriors[userType] = Math.exp(logPosteriors[userType] - logNormalizer);
+    }
+    return posteriors;
+  }
+
+  /**
+   * 高斯分布对数似然
+   */
+  private gaussianLogLikelihood(x: number, mean: number, std: number): number {
+    const variance = std * std;
+    const diff = x - mean;
+    return -0.5 * (diff * diff) / variance;
+  }
+
+  /**
+   * 基于贝叶斯后验的用户分类
+   */
+  private classifyUserBayesian(): void {
+    const posteriors = this.computePosteriors();
+    let bestType: UserType = 'stable';
+    let maxPosterior = 0;
+
+    for (const [userType, posterior] of Object.entries(posteriors) as [UserType, number][]) {
+      if (posterior > maxPosterior) {
+        maxPosterior = posterior;
+        bestType = userType;
+      }
+    }
+
+    this.state.userType = bestType;
+    switch (bestType) {
+      case 'fast':
+        this.state.settledStrategy = this.buildFastStrategy();
+        break;
+      case 'stable':
+        this.state.settledStrategy = this.buildStableStrategy();
+        break;
+      case 'cautious':
+        this.state.settledStrategy = this.buildCautiousStrategy();
+        break;
     }
   }
 

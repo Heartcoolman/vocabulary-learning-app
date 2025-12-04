@@ -5,9 +5,12 @@ import apiClient from '../../services/ApiClient';
 import { Books, CircleNotch } from '../../components/Icon';
 import { BatchImportModal } from '../../components';
 import { WordBook } from '../../types/models';
+import { useToast, ConfirmModal } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 export default function AdminWordBooks() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -27,6 +30,12 @@ export default function AdminWordBooks() {
         wordBookId: '',
         wordBookName: '',
     });
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; name: string }>({
+        isOpen: false,
+        id: '',
+        name: '',
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         loadWordBooks();
@@ -40,7 +49,7 @@ export default function AdminWordBooks() {
             const data = await apiClient.adminGetSystemWordBooks();
             setWordBooks(data);
         } catch (err) {
-            console.error('加载系统词库失败:', err);
+            adminLogger.error({ err }, '加载系统词库失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -49,7 +58,7 @@ export default function AdminWordBooks() {
 
     const handleCreateBook = async () => {
         if (!newBook.name.trim()) {
-            alert('请输入词库名称');
+            toast.warning('请输入词库名称');
             return;
         }
 
@@ -57,10 +66,11 @@ export default function AdminWordBooks() {
             await apiClient.adminCreateSystemWordBook(newBook);
             setShowCreateDialog(false);
             setNewBook({ name: '', description: '' });
+            toast.success('词库创建成功');
             loadWordBooks();
         } catch (err) {
-            console.error('创建系统词库失败:', err);
-            alert(err instanceof Error ? err.message : '创建失败');
+            adminLogger.error({ err, wordBook: newBook }, '创建系统词库失败');
+            toast.error(err instanceof Error ? err.message : '创建失败');
         }
     };
 
@@ -75,7 +85,7 @@ export default function AdminWordBooks() {
 
     const handleUpdateBook = async () => {
         if (!editingBook || !editBook.name.trim()) {
-            alert('请输入词库名称');
+            toast.warning('请输入词库名称');
             return;
         }
 
@@ -84,24 +94,30 @@ export default function AdminWordBooks() {
             setShowEditDialog(false);
             setEditingBook(null);
             setEditBook({ name: '', description: '' });
+            toast.success('词库更新成功');
             loadWordBooks();
         } catch (err) {
-            console.error('更新系统词库失败:', err);
-            alert(err instanceof Error ? err.message : '更新失败');
+            adminLogger.error({ err, wordBookId: editingBook.id, updates: editBook }, '更新系统词库失败');
+            toast.error(err instanceof Error ? err.message : '更新失败');
         }
     };
 
-    const handleDeleteBook = async (id: string, name: string) => {
-        if (!confirm(`确定要删除系统词库"${name}"吗？这将删除所有相关单词。`)) {
-            return;
-        }
+    const openDeleteConfirm = (id: string, name: string) => {
+        setDeleteConfirm({ isOpen: true, id, name });
+    };
 
+    const handleDeleteBook = async () => {
+        setIsDeleting(true);
         try {
-            await apiClient.adminDeleteSystemWordBook(id);
+            await apiClient.adminDeleteSystemWordBook(deleteConfirm.id);
+            toast.success('词库已删除');
             loadWordBooks();
         } catch (err) {
-            console.error('删除系统词库失败:', err);
-            alert(err instanceof Error ? err.message : '删除失败');
+            adminLogger.error({ err, wordBookId: deleteConfirm.id }, '删除系统词库失败');
+            toast.error(err instanceof Error ? err.message : '删除失败');
+        } finally {
+            setIsDeleting(false);
+            setDeleteConfirm({ isOpen: false, id: '', name: '' });
         }
     };
 
@@ -189,7 +205,7 @@ export default function AdminWordBooks() {
                                         导入
                                     </button>
                                     <button
-                                        onClick={() => handleDeleteBook(book.id, book.name)}
+                                        onClick={() => openDeleteConfirm(book.id, book.name)}
                                         className="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95"
                                     >
                                         删除
@@ -323,6 +339,19 @@ export default function AdminWordBooks() {
                 onImportSuccess={() => {
                     loadWordBooks();
                 }}
+            />
+
+            {/* 删除确认弹窗 */}
+            <ConfirmModal
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
+                onConfirm={handleDeleteBook}
+                title="删除系统词库"
+                message={`确定要删除系统词库"${deleteConfirm.name}"吗？这将删除所有相关单词。`}
+                confirmText="删除"
+                cancelText="取消"
+                variant="danger"
+                isLoading={isDeleting}
             />
         </div>
     );

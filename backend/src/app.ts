@@ -33,6 +33,9 @@ import amasExplainRoutes from './routes/amas-explain.routes';
 import alertsRoutes from './routes/alerts.routes';
 import experimentsRoutes from './routes/experiments.routes';
 import profileRoutes from './routes/profile.routes';
+import learningObjectivesRoutes from './routes/learning-objectives.routes';
+import logsRoutes from './routes/logs.routes';
+import logViewerRoutes from './routes/log-viewer.routes';
 
 
 const app = express();
@@ -188,6 +191,9 @@ app.use('/api/word-mastery', wordMasteryRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/amas', amasExplainRoutes);
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/learning-objectives', learningObjectivesRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api/admin/logs', logViewerRoutes);
 app.use(profileRoutes); // Profile routes already include /api prefix
 
 

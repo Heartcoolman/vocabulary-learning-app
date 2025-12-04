@@ -5,6 +5,7 @@ import HabitHeatmap from './HabitHeatmap';
 import ChronotypeCard from './ChronotypeCard';
 import LearningStyleCard from './LearningStyleCard';
 import type { HabitProfile } from '../types/habit-profile';
+import { learningLogger } from '../utils/logger';
 
 const HabitProfileTab: React.FC = () => {
   const [profile, setProfile] = useState<HabitProfile | null>(null);
@@ -40,7 +41,7 @@ const HabitProfileTab: React.FC = () => {
       const data = await apiClient.getCognitiveProfile();
       setCognitiveProfile(data);
     } catch (err) {
-      console.warn('Failed to load cognitive profile:', err);
+      learningLogger.warn({ err }, '加载认知画像失败');
       // Don't set error - cognitive profile is optional/supplementary
       setCognitiveProfile(null);
     }

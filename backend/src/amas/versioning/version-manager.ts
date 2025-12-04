@@ -12,6 +12,7 @@ import {
   CanaryStatus,
   ModelMetrics
 } from './types';
+import { amasLogger } from '../../logger';
 
 /**
  * 版本管理器
@@ -92,8 +93,7 @@ export class VersionManager {
       throw new Error(`Target version ${options.targetVersionId} not found`);
     }
 
-    console.log(`[VersionManager] Rolling back to version ${targetVersion.version}`);
-    console.log(`[VersionManager] Reason: ${options.reason}`);
+    amasLogger.info({ version: targetVersion.version, reason: options.reason }, '[VersionManager] Rolling back');
 
     if (options.immediate !== false) {
       // 立即激活目标版本
@@ -108,7 +108,7 @@ export class VersionManager {
 
     // 记录回滚事件 (可扩展: 发送通知)
     if (options.notifyChannels && options.notifyChannels.length > 0) {
-      console.log(`[VersionManager] Notifying channels: ${options.notifyChannels.join(', ')}`);
+      amasLogger.info({ channels: options.notifyChannels }, '[VersionManager] Notifying channels');
     }
   }
 
@@ -139,9 +139,7 @@ export class VersionManager {
       baselineMetrics: { ...activeVersion.metrics }
     };
 
-    console.log(
-      `[VersionManager] Started canary for version ${version.version} at ${config.trafficPercentage * 100}% traffic`
-    );
+    amasLogger.info({ version: version.version, trafficPercent: config.trafficPercentage * 100 }, '[VersionManager] Started canary');
   }
 
   /**
@@ -192,16 +190,16 @@ export class VersionManager {
       // 激活灰度版本
       await this.registry.activate(this.canaryStatus.config.versionId);
       this.canaryStatus.status = 'success';
-      console.log(`[VersionManager] Canary deployment successful`);
+      amasLogger.info('[VersionManager] Canary deployment successful');
     } else {
       // 回滚
       this.canaryStatus.status = 'failed';
-      console.log(`[VersionManager] Canary deployment failed`);
+      amasLogger.warn('[VersionManager] Canary deployment failed');
 
       if (this.canaryStatus.config.autoRollback) {
         const activeVersion = await this.registry.getActive();
         if (activeVersion) {
-          console.log(`[VersionManager] Auto-rolling back to ${activeVersion.version}`);
+          amasLogger.info({ version: activeVersion.version }, '[VersionManager] Auto-rolling back');
         }
       }
     }

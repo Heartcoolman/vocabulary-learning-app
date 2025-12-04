@@ -29,6 +29,7 @@ import {
   addScaledVector,
   hasInvalidValues
 } from './math-utils';
+import { amasLogger } from '../../logger';
 
 // 数值稳定常量
 const MIN_LAMBDA = 1e-3;
@@ -263,13 +264,13 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     // 验证特征向量的数值有效性
     if (hasInvalidValues(x)) {
-      console.warn('[LinUCB] 特征向量包含无效值，跳过更新');
+      amasLogger.warn('[LinUCB] 特征向量包含无效值，跳过更新');
       return;
     }
 
     // 验证奖励值的有效性
     if (!Number.isFinite(reward)) {
-      console.warn('[LinUCB] 奖励值无效，跳过更新');
+      amasLogger.warn('[LinUCB] 奖励值无效，跳过更新');
       return;
     }
 
@@ -315,7 +316,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     if (needsFullRecompute) {
       // A矩阵不稳定，需要完整重算Cholesky
-      console.warn('[LinUCB] 检测到A矩阵不稳定，执行完整Cholesky分解');
+      amasLogger.warn('[LinUCB] 检测到A矩阵不稳定，执行完整Cholesky分解');
       const sanitizedA = this.sanitizeCovariance(A, d, lambda);
       this.model.A = sanitizedA;
       this.model.L = this.choleskyDecompose(sanitizedA, d, lambda);
@@ -325,7 +326,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
       if (!updateResult.success) {
         // 增量更新失败，回退到完整分解
-        console.warn('[LinUCB] Rank-1更新失败，回退到完整Cholesky分解');
+        amasLogger.warn('[LinUCB] Rank-1更新失败，回退到完整Cholesky分解');
         const sanitizedA = this.sanitizeCovariance(A, d, lambda);
         this.model.A = sanitizedA;
         this.model.L = this.choleskyDecompose(sanitizedA, d, lambda);
@@ -398,7 +399,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     // 如果模型维度不匹配,自动扩展 (d=12 → d=22)
     if (model.d !== targetD) {
-      console.log(`[LinUCB] 迁移模型: d=${model.d} → d=${targetD}`);
+      amasLogger.debug({ from: model.d, to: targetD }, '[LinUCB] 迁移模型维度');
       this.model = this.expandModel(model, targetD, effectiveLambda);
       return;
     }
@@ -644,7 +645,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     for (let i = 0; i < L.length; i++) {
       if (!Number.isFinite(L[i]) || Math.abs(L[i]) > Math.sqrt(MAX_COVARIANCE)) {
         // 分解失败，返回正则化单位矩阵
-        console.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
+        amasLogger.warn('[LinUCB] Cholesky分解失败，回退到正则化单位矩阵');
         return this.initIdentityMatrix(d, effectiveLambda);
       }
     }
@@ -675,7 +676,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     // 防御: 如果降维(sourceD > targetD),直接重置为新维度的单位矩阵
     if (sourceD > targetD) {
-      console.warn(`[LinUCB] 降维不支持: d=${sourceD} → d=${targetD},重置模型`);
+      amasLogger.warn({ from: sourceD, to: targetD }, '[LinUCB] 降维不支持，重置模型');
       return {
         d: targetD,
         lambda,
@@ -736,7 +737,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     }
 
     if (clipped) {
-      console.warn('[LinUCB] 特征向量存在异常幅度，已裁剪处理');
+      amasLogger.warn('[LinUCB] 特征向量存在异常幅度，已裁剪处理');
     }
 
     return bounded;
@@ -788,7 +789,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     }
 
     if (corrected) {
-      console.warn('[LinUCB] 协方差矩阵存在异常值，已矫正后重分解');
+      amasLogger.warn('[LinUCB] 协方差矩阵存在异常值，已矫正后重分解');
     }
 
     return safe;

@@ -4,6 +4,7 @@
  */
 
 import { getRedisClient } from '../config/redis';
+import { cacheLogger } from '../logger';
 
 const DEFAULT_TTL = 300; // 5分钟默认过期
 
@@ -34,7 +35,7 @@ class RedisCacheService {
       const data = await redis.get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.warn('[RedisCache] get error:', (error as Error).message);
+      cacheLogger.warn({ key, error: (error as Error).message }, 'Redis get 操作失败');
       return null;
     }
   }
@@ -46,7 +47,7 @@ class RedisCacheService {
       await redis.setex(key, ttl, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.warn('[RedisCache] set error:', (error as Error).message);
+      cacheLogger.warn({ key, ttl, error: (error as Error).message }, 'Redis set 操作失败');
       return false;
     }
   }
@@ -58,7 +59,7 @@ class RedisCacheService {
       await redis.del(key);
       return true;
     } catch (error) {
-      console.warn('[RedisCache] del error:', (error as Error).message);
+      cacheLogger.warn({ key, error: (error as Error).message }, 'Redis del 操作失败');
       return false;
     }
   }
@@ -73,7 +74,7 @@ class RedisCacheService {
       }
       return keys.length;
     } catch (error) {
-      console.warn('[RedisCache] delByPrefix error:', (error as Error).message);
+      cacheLogger.warn({ prefix, error: (error as Error).message }, 'Redis delByPrefix 操作失败');
       return 0;
     }
   }

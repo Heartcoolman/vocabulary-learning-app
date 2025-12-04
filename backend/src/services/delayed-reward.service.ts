@@ -11,6 +11,7 @@
 
 import { RewardQueue, RewardStatus, Prisma } from '@prisma/client';
 import prisma from '../config/database';
+import { serviceLogger } from '../logger';
 
 /** 批量处理大小 */
 const BATCH_SIZE = 50;
@@ -81,7 +82,7 @@ export class DelayedRewardService {
    */
   async processPendingRewards(handler: ApplyRewardHandler): Promise<void> {
     if (!handler) {
-      console.error('[DelayedReward] handler is required but not provided');
+      serviceLogger.error('handler is required but not provided');
       return;
     }
     const now = new Date();

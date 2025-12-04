@@ -1,4 +1,5 @@
 import { Word, AnswerRecord, WordBook, StudyConfig } from '../types/models';
+import { apiLogger } from '../utils/logger';
 
 /**
  * JWT解码后的payload结构
@@ -227,6 +228,7 @@ export interface StudyProgress {
   todayTarget: number;
   totalStudied: number;
   correctRate: number;
+  weeklyTrend: number[];
 }
 
 /**
@@ -557,7 +559,7 @@ class ApiClient {
     if (storedToken) {
       // 检查token是否已过期
       if (isTokenExpired(storedToken)) {
-        console.warn('存储的token已过期，已自动清除');
+        apiLogger.warn('存储的token已过期，已自动清除');
         localStorage.removeItem('auth_token');
         this.token = null;
       } else {
@@ -862,10 +864,19 @@ class ApiClient {
   // ==================== 单词相关 ====================
 
   /**
-   * 获取用户的所有单词
+   * 获取用户的所有单词（基于选择的词书）
    */
   async getWords(): Promise<Word[]> {
     const apiWords = await this.request<ApiWord[]>('/api/words');
+    return apiWords.map(convertApiWord);
+  }
+
+  /**
+   * 获取用户学过的单词（有学习记录的）
+   * 用于掌握度分析页面
+   */
+  async getLearnedWords(): Promise<Word[]> {
+    const apiWords = await this.request<ApiWord[]>('/api/words/learned');
     return apiWords.map(convertApiWord);
   }
 
@@ -1407,7 +1418,7 @@ class ApiClient {
         return null;
       }
       // 其他错误重新抛出，让调用方处理
-      console.error('获取单词学习状态失败:', error);
+      apiLogger.error({ err: error, wordId }, '获取单词学习状态失败');
       throw error;
     }
   }
@@ -1438,7 +1449,7 @@ class ApiClient {
         return [];
       }
       // 其他错误重新抛出
-      console.error('批量获取单词学习状态失败:', error);
+      apiLogger.error({ err: error }, '批量获取单词学习状态失败');
       throw error;
     }
   }
@@ -1480,7 +1491,7 @@ class ApiClient {
         body: JSON.stringify(body),
       });
     } catch (error) {
-      console.error('保存单词学习状态失败:', error);
+      apiLogger.error({ err: error }, '保存单词学习状态失败');
       throw error;
     }
   }
@@ -1493,7 +1504,7 @@ class ApiClient {
       const states = await this.request<ApiWordLearningState[]>('/api/word-states/due/list');
       return states.map(convertLearningStateDates);
     } catch (error) {
-      console.error('获取到期单词失败:', error);
+      apiLogger.error({ err: error }, '获取到期单词失败');
       return [];
     }
   }
@@ -1506,7 +1517,7 @@ class ApiClient {
       const states = await this.request<ApiWordLearningState[]>(`/api/word-states/by-state/${state}`);
       return states.map(convertLearningStateDates);
     } catch (error) {
-      console.error('按状态获取单词失败:', error);
+      apiLogger.error({ err: error }, '按状态获取单词失败');
       return [];
     }
   }
@@ -1521,7 +1532,7 @@ class ApiClient {
       const score = await this.request<ApiWordScore>(`/api/word-scores/${wordId}`);
       return score ? convertWordScoreDates(score) : null;
     } catch (error) {
-      console.error('获取单词得分失败:', error);
+      apiLogger.error({ err: error }, '获取单词得分失败');
       return null;
     }
   }
@@ -1537,7 +1548,7 @@ class ApiClient {
       });
       return scores.map(convertWordScoreDates);
     } catch (error) {
-      console.error('批量获取单词得分失败:', error);
+      apiLogger.error({ err: error }, '批量获取单词得分失败');
       return [];
     }
   }
@@ -1554,7 +1565,7 @@ class ApiClient {
         body: JSON.stringify(allowedFields),
       });
     } catch (error) {
-      console.error('保存单词得分失败:', error);
+      apiLogger.error({ err: error }, '保存单词得分失败');
       throw error;
     }
   }
@@ -1567,7 +1578,7 @@ class ApiClient {
       const scores = await this.request<ApiWordScore[]>(`/api/word-scores/range?minScore=${minScore}&maxScore=${maxScore}`);
       return scores.map(convertWordScoreDates);
     } catch (error) {
-      console.error('按得分范围获取单词失败:', error);
+      apiLogger.error({ err: error }, '按得分范围获取单词失败');
       throw error;
     }
   }
@@ -1667,7 +1678,7 @@ class ApiClient {
       const raw = await this.request<ApiAlgorithmConfig>('/api/algorithm-config');
       return this.normalizeAlgorithmConfig(raw);
     } catch (error) {
-      console.error('获取算法配置失败:', error);
+      apiLogger.error({ err: error }, '获取算法配置失败');
       throw error;
     }
   }
@@ -1688,7 +1699,7 @@ class ApiClient {
       });
       return this.normalizeAlgorithmConfig(raw);
     } catch (error) {
-      console.error('更新算法配置失败:', error);
+      apiLogger.error({ err: error }, '更新算法配置失败');
       throw error;
     }
   }
@@ -1704,7 +1715,7 @@ class ApiClient {
       });
       return this.normalizeAlgorithmConfig(raw);
     } catch (error) {
-      console.error('重置算法配置失败:', error);
+      apiLogger.error({ err: error }, '重置算法配置失败');
       throw error;
     }
   }
@@ -1726,7 +1737,7 @@ class ApiClient {
         timestamp: new Date(h.timestamp).getTime(),
       }));
     } catch (error) {
-      console.error('获取配置历史失败:', error);
+      apiLogger.error({ err: error }, '获取配置历史失败');
       throw error;
     }
   }
@@ -1740,7 +1751,7 @@ class ApiClient {
         method: 'DELETE',
       });
     } catch (error) {
-      console.error('删除单词学习状态失败:', error);
+      apiLogger.error({ err: error }, '删除单词学习状态失败');
       throw error;
     }
   }
@@ -1857,7 +1868,7 @@ class ApiClient {
         body: JSON.stringify(eventData),
       });
     } catch (error) {
-      console.error('处理学习事件失败:', error);
+      apiLogger.error({ err: error }, '处理学习事件失败');
       throw error;
     }
   }
@@ -1873,7 +1884,7 @@ class ApiClient {
         // 状态未初始化，返回null
         return null;
       }
-      console.error('获取AMAS状态失败:', error);
+      apiLogger.error({ err: error }, '获取AMAS状态失败');
       throw error;
     }
   }
@@ -1889,7 +1900,7 @@ class ApiClient {
         // 策略未初始化，返回null
         return null;
       }
-      console.error('获取AMAS策略失败:', error);
+      apiLogger.error({ err: error }, '获取AMAS策略失败');
       throw error;
     }
   }
@@ -1903,7 +1914,7 @@ class ApiClient {
         method: 'POST',
       });
     } catch (error) {
-      console.error('重置AMAS状态失败:', error);
+      apiLogger.error({ err: error }, '重置AMAS状态失败');
       throw error;
     }
   }
@@ -1915,7 +1926,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas').ColdStartPhaseInfo>('/api/amas/phase');
     } catch (error) {
-      console.error('获取冷启动阶段失败:', error);
+      apiLogger.error({ err: error }, '获取冷启动阶段失败');
       throw error;
     }
   }
@@ -1932,7 +1943,7 @@ class ApiClient {
         body: JSON.stringify({ events }),
       });
     } catch (error) {
-      console.error('批量处理事件失败:', error);
+      apiLogger.error({ err: error }, '批量处理事件失败');
       throw error;
     }
   }
@@ -1946,7 +1957,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').TimePreferenceResponse>('/api/amas/time-preferences');
     } catch (error) {
-      console.error('获取时间偏好失败:', error);
+      apiLogger.error({ err: error }, '获取时间偏好失败');
       throw error;
     }
   }
@@ -1959,7 +1970,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').GoldenTimeResult & { message: string }>('/api/amas/golden-time');
     } catch (error) {
-      console.error('获取黄金时间失败:', error);
+      apiLogger.error({ err: error }, '获取黄金时间失败');
       throw error;
     }
   }
@@ -1972,7 +1983,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').TrendInfo & { stateDescription: string }>('/api/amas/trend');
     } catch (error) {
-      console.error('获取趋势状态失败:', error);
+      apiLogger.error({ err: error }, '获取趋势状态失败');
       throw error;
     }
   }
@@ -2009,7 +2020,7 @@ class ApiClient {
         totalDays: number;
       }>(`/api/amas/trend/history?days=${days}`);
     } catch (error) {
-      console.error('获取趋势历史失败:', error);
+      apiLogger.error({ err: error }, '获取趋势历史失败');
       throw error;
     }
   }
@@ -2022,7 +2033,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').TrendReport>('/api/amas/trend/report');
     } catch (error) {
-      console.error('获取趋势报告失败:', error);
+      apiLogger.error({ err: error }, '获取趋势报告失败');
       throw error;
     }
   }
@@ -2035,7 +2046,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').InterventionResult>('/api/amas/trend/intervention');
     } catch (error) {
-      console.error('获取干预建议失败:', error);
+      apiLogger.error({ err: error }, '获取干预建议失败');
       throw error;
     }
   }
@@ -2048,7 +2059,7 @@ class ApiClient {
     try {
       return await this.request<{ badges: import('../types/amas-enhanced').Badge[]; count: number }>('/api/badges');
     } catch (error) {
-      console.error('获取用户徽章失败:', error);
+      apiLogger.error({ err: error }, '获取用户徽章失败');
       throw error;
     }
   }
@@ -2070,7 +2081,7 @@ class ApiClient {
         unlockedCount: number;
       }>('/api/badges/all');
     } catch (error) {
-      console.error('获取所有徽章失败:', error);
+      apiLogger.error({ err: error }, '获取所有徽章失败');
       throw error;
     }
   }
@@ -2083,7 +2094,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }>(`/api/badges/${badgeId}`);
     } catch (error) {
-      console.error('获取徽章详情失败:', error);
+      apiLogger.error({ err: error }, '获取徽章详情失败');
       throw error;
     }
   }
@@ -2096,7 +2107,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').BadgeProgress>(`/api/badges/${badgeId}/progress`);
     } catch (error) {
-      console.error('获取徽章进度失败:', error);
+      apiLogger.error({ err: error }, '获取徽章进度失败');
       throw error;
     }
   }
@@ -2117,7 +2128,7 @@ class ApiClient {
         message: string;
       }>('/api/badges/check', { method: 'POST' });
     } catch (error) {
-      console.error('检查徽章失败:', error);
+      apiLogger.error({ err: error }, '检查徽章失败');
       throw error;
     }
   }
@@ -2135,7 +2146,7 @@ class ApiClient {
       if (error instanceof ApiError && error.isNotFound) {
         return null;
       }
-      console.error('获取学习计划失败:', error);
+      apiLogger.error({ err: error }, '获取学习计划失败');
       throw error;
     }
   }
@@ -2151,7 +2162,7 @@ class ApiClient {
         body: JSON.stringify(options || {}),
       });
     } catch (error) {
-      console.error('生成学习计划失败:', error);
+      apiLogger.error({ err: error }, '生成学习计划失败');
       throw error;
     }
   }
@@ -2164,7 +2175,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/amas-enhanced').PlanProgress & { status: string }>('/api/plan/progress');
     } catch (error) {
-      console.error('获取计划进度失败:', error);
+      apiLogger.error({ err: error }, '获取计划进度失败');
       throw error;
     }
   }
@@ -2180,7 +2191,7 @@ class ApiClient {
         body: JSON.stringify({ reason }),
       });
     } catch (error) {
-      console.error('调整学习计划失败:', error);
+      apiLogger.error({ err: error }, '调整学习计划失败');
       throw error;
     }
   }
@@ -2223,7 +2234,7 @@ class ApiClient {
         totalRecords: number;
       }>(`/api/amas/history?range=${range}`);
     } catch (error) {
-      console.error('获取状态历史失败:', error);
+      apiLogger.error({ err: error }, '获取状态历史失败');
       throw error;
     }
   }
@@ -2256,7 +2267,7 @@ class ApiClient {
         periodLabel: string;
       }>('/api/amas/growth');
     } catch (error) {
-      console.error('获取认知成长失败:', error);
+      apiLogger.error({ err: error }, '获取认知成长失败');
       throw error;
     }
   }
@@ -2279,7 +2290,7 @@ class ApiClient {
         summary: string;
       }>(`/api/amas/changes?range=${range}`);
     } catch (error) {
-      console.error('获取显著变化失败:', error);
+      apiLogger.error({ err: error }, '获取显著变化失败');
       throw error;
     }
   }
@@ -2294,7 +2305,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/word-mastery').UserMasteryStats>('/api/word-mastery/stats');
     } catch (error) {
-      console.error('获取单词精通度统计失败:', error);
+      apiLogger.error({ err: error }, '获取单词精通度统计失败');
       throw error;
     }
   }
@@ -2330,7 +2341,7 @@ class ApiClient {
         body: JSON.stringify({ wordIds, userFatigue }),
       });
     } catch (error) {
-      console.error('批量处理单词精通度失败:', error);
+      apiLogger.error({ err: error }, '批量处理单词精通度失败');
       throw error;
     }
   }
@@ -2364,7 +2375,7 @@ class ApiClient {
         `/api/word-mastery/${wordId}${query ? `?${query}` : ''}`
       );
     } catch (error) {
-      console.error('获取单词精通度详情失败:', error);
+      apiLogger.error({ err: error }, '获取单词精通度详情失败');
       throw error;
     }
   }
@@ -2398,7 +2409,7 @@ class ApiClient {
         `/api/word-mastery/${wordId}/trace${query ? `?${query}` : ''}`
       );
     } catch (error) {
-      console.error('获取单词学习轨迹失败:', error);
+      apiLogger.error({ err: error }, '获取单词学习轨迹失败');
       throw error;
     }
   }
@@ -2432,7 +2443,7 @@ class ApiClient {
         `/api/word-mastery/${wordId}/interval${query ? `?${query}` : ''}`
       );
     } catch (error) {
-      console.error('获取复习间隔预测失败:', error);
+      apiLogger.error({ err: error }, '获取复习间隔预测失败');
       throw error;
     }
   }
@@ -2448,7 +2459,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/habit-profile').HabitProfileResponse>('/api/habit-profile');
     } catch (error) {
-      console.error('获取习惯画像失败:', error);
+      apiLogger.error({ err: error }, '获取习惯画像失败');
       throw error;
     }
   }
@@ -2465,7 +2476,7 @@ class ApiClient {
         { method: 'POST' }
       );
     } catch (error) {
-      console.error('初始化习惯画像失败:', error);
+      apiLogger.error({ err: error }, '初始化习惯画像失败');
       throw error;
     }
   }
@@ -2490,7 +2501,7 @@ class ApiClient {
         }
       );
     } catch (error) {
-      console.error('结束学习会话失败:', error);
+      apiLogger.error({ err: error }, '结束学习会话失败');
       throw error;
     }
   }
@@ -2507,7 +2518,7 @@ class ApiClient {
         { method: 'POST' }
       );
     } catch (error) {
-      console.error('持久化习惯画像失败:', error);
+      apiLogger.error({ err: error }, '持久化习惯画像失败');
       throw error;
     }
   }
@@ -2531,7 +2542,7 @@ class ApiClient {
         `/api/amas/explain-decision${query ? `?${query}` : ''}`
       );
     } catch (error) {
-      console.error('获取决策解释失败:', error);
+      apiLogger.error({ err: error }, '获取决策解释失败');
       throw error;
     }
   }
@@ -2551,7 +2562,7 @@ class ApiClient {
         }
       );
     } catch (error) {
-      console.error('反事实分析失败:', error);
+      apiLogger.error({ err: error }, '反事实分析失败');
       throw error;
     }
   }
@@ -2570,7 +2581,7 @@ class ApiClient {
         `/api/amas/learning-curve?${queryParams.toString()}`
       );
     } catch (error) {
-      console.error('获取学习曲线失败:', error);
+      apiLogger.error({ err: error }, '获取学习曲线失败');
       throw error;
     }
   }
@@ -2593,7 +2604,7 @@ class ApiClient {
         `/api/amas/decision-timeline?${queryParams.toString()}`
       );
     } catch (error) {
-      console.error('获取决策时间线失败:', error);
+      apiLogger.error({ err: error }, '获取决策时间线失败');
       throw error;
     }
   }
@@ -2627,7 +2638,7 @@ class ApiClient {
         }
       );
     } catch (error) {
-      console.error('批量导入单词失败:', error);
+      apiLogger.error({ err: error }, '批量导入单词失败');
       throw error;
     }
   }
@@ -2905,6 +2916,134 @@ class ApiClient {
     };
   }> {
     return this.request('/api/users/profile/cognitive');
+  }
+
+  // ==================== Learning Objectives ====================
+
+  /**
+   * 获取用户学习目标配置
+   * GET /api/learning-objectives
+   */
+  async getLearningObjectives() {
+    return this.request<{
+      userId: string;
+      mode: 'exam' | 'daily' | 'travel' | 'custom';
+      primaryObjective: 'accuracy' | 'retention' | 'efficiency';
+      minAccuracy?: number;
+      maxDailyTime?: number;
+      targetRetention?: number;
+      weightShortTerm: number;
+      weightLongTerm: number;
+      weightEfficiency: number;
+    }>('/api/learning-objectives');
+  }
+
+  /**
+   * 更新学习目标配置
+   * PUT /api/learning-objectives
+   */
+  async updateLearningObjectives(objectives: {
+    mode: 'exam' | 'daily' | 'travel' | 'custom';
+    primaryObjective: 'accuracy' | 'retention' | 'efficiency';
+    minAccuracy?: number;
+    maxDailyTime?: number;
+    targetRetention?: number;
+    weightShortTerm: number;
+    weightLongTerm: number;
+    weightEfficiency: number;
+  }) {
+    return this.request('/api/learning-objectives', {
+      method: 'PUT',
+      body: JSON.stringify(objectives),
+    });
+  }
+
+  /**
+   * 切换学习模式
+   * POST /api/learning-objectives/switch-mode
+   */
+  async switchLearningMode(mode: 'exam' | 'daily' | 'travel' | 'custom', reason?: string) {
+    return this.request('/api/learning-objectives/switch-mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode, reason }),
+    });
+  }
+
+  /**
+   * 获取模式建议
+   * GET /api/learning-objectives/suggestions
+   */
+  async getLearningObjectiveSuggestions() {
+    return this.request<{
+      currentMode: 'exam' | 'daily' | 'travel' | 'custom';
+      suggestedModes: Array<{
+        mode: 'exam' | 'daily' | 'travel' | 'custom';
+        reason: string;
+        config: any;
+      }>;
+    }>('/api/learning-objectives/suggestions');
+  }
+
+  /**
+   * 获取目标切换历史
+   * GET /api/learning-objectives/history
+   */
+  async getLearningObjectiveHistory(limit: number = 10) {
+    return this.request<
+      Array<{
+        timestamp: string;
+        reason: string;
+        beforeMode: string;
+        afterMode: string;
+      }>
+    >(`/api/learning-objectives/history?limit=${limit}`);
+  }
+
+  /**
+   * 删除学习目标配置
+   * DELETE /api/learning-objectives
+   */
+  async deleteLearningObjectives() {
+    return this.request('/api/learning-objectives', {
+      method: 'DELETE',
+    });
+  }
+
+  // ==================== Admin AMAS Decisions ====================
+
+  /**
+   * 获取用户决策列表
+   * GET /api/admin/users/:userId/decisions
+   */
+  async adminGetUserDecisions(userId: string, params: {
+    page: number;
+    pageSize: number;
+    startDate?: string;
+    endDate?: string;
+    decisionSource?: string;
+    minConfidence?: number;
+    sortBy?: 'timestamp' | 'confidence' | 'duration';
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const query = new URLSearchParams();
+    query.append('page', params.page.toString());
+    query.append('pageSize', params.pageSize.toString());
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+    if (params.decisionSource) query.append('decisionSource', params.decisionSource);
+    if (params.minConfidence !== undefined) query.append('minConfidence', params.minConfidence.toString());
+    if (params.sortBy) query.append('sortBy', params.sortBy);
+    if (params.sortOrder) query.append('sortOrder', params.sortOrder);
+
+    return this.request(`/api/admin/users/${userId}/decisions?${query.toString()}`);
+  }
+
+  /**
+   * 获取决策详情
+   * GET /api/admin/users/:userId/decisions/:decisionId
+   */
+  async adminGetDecisionDetail(userId: string, decisionId: string) {
+    return this.request(`/api/admin/users/${userId}/decisions/${decisionId}`);
   }
 }
 

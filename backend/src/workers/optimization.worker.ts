@@ -10,6 +10,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { optimizationService } from '../services/optimization.service';
 import { isBayesianOptimizerEnabled } from '../amas/config/feature-flags';
+import { workerLogger } from '../logger';
 
 /** 优化周期运行状态 */
 let isRunning = false;
@@ -23,7 +24,7 @@ async function runOptimizationCycle(): Promise<void> {
   }
 
   if (isRunning) {
-    console.log('[optimization-worker] 优化周期正在运行中，跳过本次执行');
+    workerLogger.info('优化周期正在运行中，跳过本次执行');
     return;
   }
 
@@ -31,35 +32,47 @@ async function runOptimizationCycle(): Promise<void> {
   const startTime = Date.now();
 
   try {
-    console.log('[optimization-worker] 开始执行优化周期');
+    workerLogger.info('开始执行优化周期');
 
     const result = await optimizationService.runOptimizationCycle();
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     if (result.evaluated) {
-      console.log(
-        `[optimization-worker] 优化周期完成: duration=${duration}s, ` +
-          `suggested=${JSON.stringify(result.suggested)}, evaluated=true`
+      workerLogger.info(
+        {
+          duration,
+          suggested: result.suggested,
+          evaluated: true
+        },
+        '优化周期完成'
       );
 
       // 输出当前最优参数
       const best = optimizationService.getBestParams();
       if (best) {
-        console.log(
-          `[optimization-worker] 当前最优参数: params=${JSON.stringify(best.params)}, ` +
-            `value=${best.value.toFixed(4)}`
+        workerLogger.info(
+          {
+            params: best.params,
+            value: best.value
+          },
+          '当前最优参数'
         );
       }
     } else {
-      console.log(
-        `[optimization-worker] 优化周期完成: duration=${duration}s, ` +
-          `suggested=${JSON.stringify(result.suggested)}, evaluated=false (数据不足)`
+      workerLogger.info(
+        {
+          duration,
+          suggested: result.suggested,
+          evaluated: false,
+          reason: '数据不足'
+        },
+        '优化周期完成'
       );
     }
   } catch (error) {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.error(`[optimization-worker] 优化周期失败: duration=${duration}s`, error);
+    workerLogger.error({ err: error, duration }, '优化周期失败');
   } finally {
     isRunning = false;
   }
@@ -76,19 +89,19 @@ export function startOptimizationWorker(
   schedule = '0 3 * * *'
 ): ScheduledTask | null {
   if (!isBayesianOptimizerEnabled()) {
-    console.log('[optimization-worker] 贝叶斯优化器未启用，跳过Worker启动');
+    workerLogger.info('贝叶斯优化器未启用，跳过Worker启动');
     return null;
   }
 
-  console.log(`[optimization-worker] 启动优化Worker, schedule="${schedule}"`);
+  workerLogger.info({ schedule }, '启动优化Worker');
 
   const task = cron.schedule(schedule, () => {
     runOptimizationCycle().catch(err => {
-      console.error('[optimization-worker] 未捕获的错误', err);
+      workerLogger.error({ err }, '未捕获的错误');
     });
   });
 
-  console.log('[optimization-worker] 优化Worker已启动');
+  workerLogger.info('优化Worker已启动');
 
   return task;
 }

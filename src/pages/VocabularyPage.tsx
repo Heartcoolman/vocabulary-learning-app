@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
 import { Books, CircleNotch } from '../components/Icon';
+import { useToast } from '../components/ui';
+import { ConfirmModal } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 /**
  * VocabularyPage - 词库管理页面（重构为词书列表）
  */
 export default function VocabularyPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'system' | 'user'>('system');
   const [systemBooks, setSystemBooks] = useState<WordBook[]>([]);
   const [userBooks, setUserBooks] = useState<WordBook[]>([]);
@@ -17,6 +21,14 @@ export default function VocabularyPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBookName, setNewBookName] = useState('');
   const [newBookDesc, setNewBookDesc] = useState('');
+
+  // 删除确认弹窗状态
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; name: string }>({
+    isOpen: false,
+    id: '',
+    name: '',
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadWordBooks();
@@ -35,7 +47,7 @@ export default function VocabularyPage() {
       setSystemBooks(system);
       setUserBooks(user);
     } catch (err) {
-      console.error('加载词书失败:', err);
+      uiLogger.error({ err }, '加载词书列表失败');
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setIsLoading(false);
@@ -44,7 +56,7 @@ export default function VocabularyPage() {
 
   const handleCreateBook = async () => {
     if (!newBookName.trim()) {
-      alert('请输入词书名称');
+      toast.warning('请输入词书名称');
       return;
     }
 
@@ -57,24 +69,30 @@ export default function VocabularyPage() {
       setShowCreateDialog(false);
       setNewBookName('');
       setNewBookDesc('');
+      toast.success('词书创建成功');
       loadWordBooks();
     } catch (err) {
-      console.error('创建词书失败:', err);
-      alert(err instanceof Error ? err.message : '创建失败');
+      uiLogger.error({ err, name: newBookName }, '创建词书失败');
+      toast.error(err instanceof Error ? err.message : '创建失败');
     }
   };
 
-  const handleDeleteBook = async (id: string, name: string) => {
-    if (!confirm(`确定要删除词书"${name}"吗？这将删除词书中的所有单词。`)) {
-      return;
-    }
+  const openDeleteConfirm = (id: string, name: string) => {
+    setDeleteConfirm({ isOpen: true, id, name });
+  };
 
+  const handleDeleteBook = async () => {
+    setIsDeleting(true);
     try {
-      await apiClient.deleteWordBook(id);
+      await apiClient.deleteWordBook(deleteConfirm.id);
+      toast.success('词书已删除');
       loadWordBooks();
     } catch (err) {
-      console.error('删除词书失败:', err);
-      alert(err instanceof Error ? err.message : '删除失败');
+      uiLogger.error({ err, wordBookId: deleteConfirm.id }, '删除词书失败');
+      toast.error(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirm({ isOpen: false, id: '', name: '' });
     }
   };
 
@@ -121,7 +139,7 @@ export default function VocabularyPage() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteBook(book.id, book.name);
+              openDeleteConfirm(book.id, book.name);
             }}
             className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200"
           >
@@ -266,6 +284,19 @@ export default function VocabularyPage() {
           </div>
         </div>
       )}
+
+      {/* 删除确认弹窗 */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, id: '', name: '' })}
+        onConfirm={handleDeleteBook}
+        title="删除词书"
+        message={`确定要删除词书"${deleteConfirm.name}"吗？这将删除词书中的所有单词。`}
+        confirmText="删除"
+        cancelText="取消"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

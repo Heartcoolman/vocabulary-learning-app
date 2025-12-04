@@ -15,12 +15,15 @@ import {
     Warning,
 } from '../../components/Icon';
 import { Flag } from '@phosphor-icons/react';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 export default function WordDetailPage() {
     const { userId } = useParams<{ userId: string }>();
     const [searchParams] = useSearchParams();
     const wordId = searchParams.get('wordId');
     const navigate = useNavigate();
+    const toast = useToast();
 
     const [history, setHistory] = useState<WordLearningHistory | null>(null);
     const [scoreHistory, setScoreHistory] = useState<WordScoreHistory | null>(null);
@@ -61,7 +64,7 @@ export default function WordDetailPage() {
             setHeatmap(heatmapData);
             setFlags(flagsData);
         } catch (err) {
-            console.error('加载数据失败:', err);
+            adminLogger.error({ err, userId, wordId }, '加载单词学习详情失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoadingHistory(false);
@@ -85,8 +88,8 @@ export default function WordDetailPage() {
             setFlagReason('');
             setFlagNotes('');
         } catch (err) {
-            console.error('标记失败:', err);
-            alert(err instanceof Error ? err.message : '标记失败');
+            adminLogger.error({ err, userId, wordId, flagReason }, '标记异常记录失败');
+            toast.error(err instanceof Error ? err.message : '标记失败');
         } finally {
             setIsFlagging(false);
         }

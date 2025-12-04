@@ -3,6 +3,8 @@
  * Word Queue Manager for Mastery-Based Learning
  */
 
+import { learningLogger } from '../../utils/logger';
+
 export interface WordItem {
   id: string;
   spelling: string;
@@ -105,13 +107,13 @@ export class WordQueueManager {
 
     // 1. 检查完成条件：达成目标
     if (this.masteredWords.size >= this.config.targetMasteryCount) {
-      console.log('[WordQueue] 已达成目标掌握数');
+      learningLogger.info('已达成目标掌握数');
       return { word: null, isCompleted: true, completionReason: 'mastery_achieved' };
     }
 
     // 2. 检查最大题目数
     if (this.totalQuestions >= this.config.maxTotalQuestions) {
-      console.log('[WordQueue] 已达到最大题目数限制');
+      learningLogger.info('已达到最大题目数限制');
       return { word: null, isCompleted: true, completionReason: 'question_limit' };
     }
 
@@ -141,7 +143,7 @@ export class WordQueueManager {
         this.updateRecentlyShown(newWord.id);
       }
 
-      console.log(
+      learningLogger.info(
         `[WordQueue] 补充新词到活跃队列: ${newWord.spelling}, ` +
         `active=${this.activeWords.size}, pending=${this.pendingWords.length}`
       );
@@ -157,7 +159,7 @@ export class WordQueueManager {
         this.updateRecentlyShown(forcePick);
       }
 
-      console.log('[WordQueue] 强制选择活跃队列中的词');
+      learningLogger.debug('强制选择活跃队列中的词');
 
       return { word: this.getWordItem(forcePick), isCompleted: false };
     }
@@ -200,7 +202,7 @@ export class WordQueueManager {
         if (progress.attempts >= this.config.maxAttemptsPerWord) {
           if (!peek) {
             // 只有非peek模式才执行状态修改
-            console.warn(
+            learningLogger.warn(
               `[WordQueue] 单词${wordId}已达最大尝试次数${this.config.maxAttemptsPerWord}, ` +
               `自动标记为掌握`
             );
@@ -266,7 +268,7 @@ export class WordQueueManager {
         this.activeWords.delete(wordId);
         this.masteredWords.add(wordId);
 
-        console.log(
+        learningLogger.info(
           `[WordQueue] 单词已掌握: ${this.getWordItem(wordId)?.spelling}, ` +
           `correct=${progress.correctCount}, attempts=${progress.attempts}, ` +
           `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`
@@ -278,7 +280,7 @@ export class WordQueueManager {
       progress.wrongCount++;
       progress.consecutiveCorrect = 0; // 重置连续正确
 
-      console.log(
+      learningLogger.info(
         `[WordQueue] 答错: ${this.getWordItem(wordId)?.spelling}, ` +
         `wrong=${progress.wrongCount}, attempts=${progress.attempts}`
       );
@@ -298,7 +300,7 @@ export class WordQueueManager {
   ): boolean {
     // 优先使用AMAS判定
     if (amasDecision && amasDecision.confidence > 0.7) {
-      console.log(
+      learningLogger.info(
         `[WordQueue] 使用AMAS判定: isMastered=${amasDecision.isMastered}, ` +
         `confidence=${amasDecision.confidence.toFixed(2)}`
       );
@@ -396,12 +398,12 @@ export class WordQueueManager {
    */
   skipWord(wordId: string): boolean {
     if (!this.activeWords.has(wordId)) {
-      console.warn(`[WordQueue] 跳过失败: 单词${wordId}不在活跃队列`);
+      learningLogger.warn(`[WordQueue] 跳过失败: 单词${wordId}不在活跃队列`);
       return false;
     }
 
     this.activeWords.delete(wordId);
-    console.log(`[WordQueue] 跳过单词: ${this.getWordItem(wordId)?.spelling}`);
+    learningLogger.info(`[WordQueue] 跳过单词: ${this.getWordItem(wordId)?.spelling}`);
     return true;
   }
 
@@ -435,7 +437,7 @@ export class WordQueueManager {
     this.recentlyShown = [...state.recentlyShown];
     this.totalQuestions = state.totalQuestions;
 
-    console.log(
+    learningLogger.info(
       `[WordQueue] 状态已恢复: active=${this.activeWords.size}, ` +
       `mastered=${this.masteredWords.size}, pending=${this.pendingWords.length}`
     );
@@ -470,7 +472,7 @@ export class WordQueueManager {
       for (const id of adjustments.remove) {
         if (this.activeWords.has(id)) {
           this.activeWords.delete(id);
-          console.log(`[WordQueue] 移除活跃单词: ${this.getWordItem(id)?.spelling}`);
+          learningLogger.info(`[WordQueue] 移除活跃单词: ${this.getWordItem(id)?.spelling}`);
         }
       }
     }
@@ -491,7 +493,7 @@ export class WordQueueManager {
           this.pendingWords.unshift(word);
         }
       }
-      console.log(`[WordQueue] 添加了 ${adjustments.add.length} 个新词`);
+      learningLogger.info(`[WordQueue] 添加了 ${adjustments.add.length} 个新词`);
     }
   }
 

@@ -30,6 +30,7 @@ import {
   ActionSelection,
   LearnerCapabilities
 } from '../learning/base-learner';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -62,6 +63,18 @@ export interface ACTROptions {
 }
 
 /**
+ * 认知能力配置（用于个性化衰减率计算）
+ */
+export interface CognitiveProfile {
+  /** 记忆力因子 [0, 1]，高值表示记忆力好 */
+  mem?: number;
+  /** 速度因子 [0, 1]，高值表示处理速度快 */
+  speed?: number;
+  /** 稳定性因子 [0, 1]，高值表示记忆稳定 */
+  stability?: number;
+}
+
+/**
  * ACT-R上下文（扩展基础上下文）
  */
 export interface ACTRContext extends BaseLearnerContext {
@@ -69,6 +82,8 @@ export interface ACTRContext extends BaseLearnerContext {
   trace: ReviewTrace[];
   /** 目标回忆概率（用于计算最优间隔） */
   targetProbability?: number;
+  /** 用户认知能力配置（用于个性化衰减率） */
+  cognitiveProfile?: CognitiveProfile;
 }
 
 /**
@@ -189,6 +204,45 @@ export class ACTRMemoryModel
   // ==================== BaseLearner接口实现 ====================
 
   /**
+   * 计算个性化衰减率
+   *
+   * 根据用户的认知能力配置动态调整衰减率：
+   * - 记忆力好（mem高）→ 衰减慢
+   * - 速度快（speed高）→ 略快衰减（快速处理可能意味着更浅的编码）
+   * - 稳定性高（stability高）→ 衰减更稳定（向默认值收敛）
+   *
+   * 参考: Pavlik & Anderson (2008) 个体差异模型
+   */
+  computePersonalizedDecay(cogProfile?: CognitiveProfile): number {
+    if (!cogProfile) {
+      return this.decay;
+    }
+
+    const baseDec = this.decay;
+
+    // 记忆力因子：记忆力好→衰减慢（降低衰减率）
+    // mem=0.5为中性，mem=1时衰减率降低30%
+    const memFactor = 1 - (cogProfile.mem ?? 0.5) * 0.3;
+
+    // 速度因子：速度快→略快衰减（处理过快可能编码较浅）
+    // speed=0.5为中性，speed=1时衰减率提高20%
+    const speedFactor = 1 + (cogProfile.speed ?? 0.5) * 0.2;
+
+    // 稳定性阻尼：稳定性高时，个性化调整的幅度减小，向默认值收敛
+    const stability = cogProfile.stability ?? 0.5;
+    const dampingFactor = 0.3 + stability * 0.7; // 稳定性1时阻尼为1（完全使用默认）
+
+    // 计算个性化衰减率
+    const personalizedDecay = baseDec * memFactor * speedFactor;
+
+    // 应用阻尼：高稳定性用户使用更接近默认值的衰减率
+    const finalDecay = baseDec * dampingFactor + personalizedDecay * (1 - dampingFactor);
+
+    // 限制在合理范围 [0.3, 0.7]
+    return this.clamp(finalDecay, 0.3, 0.7);
+  }
+
+  /**
    * 选择动作
    *
    * 策略: 根据回忆概率选择难度
@@ -204,7 +258,9 @@ export class ACTRMemoryModel
       throw new Error('[ACTRMemoryModel] 动作列表不能为空');
     }
 
-    const result = this.computeFullActivation(context.trace);
+    // 使用个性化衰减率
+    const personalizedDecay = this.computePersonalizedDecay(context.cognitiveProfile);
+    const result = this.computeFullActivationWithDecay(context.trace, personalizedDecay);
     const prob = result.recallProbability;
 
     // 按难度排序（从易到难）
@@ -270,7 +326,7 @@ export class ACTRMemoryModel
    */
   setState(state: ACTRState): void {
     if (!state) {
-      console.warn('[ACTRMemoryModel] 无效状态，跳过恢复');
+      amasLogger.warn('[ACTRMemoryModel] 无效状态，跳过恢复');
       return;
     }
 
@@ -356,6 +412,14 @@ export class ACTRMemoryModel
    * 错误复习的贡献会被惩罚（乘以ERROR_PENALTY因子）
    */
   computeFullActivation(trace: ReviewTrace[]): ActivationResult {
+    return this.computeFullActivationWithDecay(trace, this.decay);
+  }
+
+  /**
+   * 计算完整激活度信息（支持自定义衰减率）
+   * 用于个性化衰减率场景
+   */
+  computeFullActivationWithDecay(trace: ReviewTrace[], decay: number): ActivationResult {
     if (!trace || trace.length === 0) {
       return {
         baseActivation: -Infinity,
@@ -369,7 +433,7 @@ export class ACTRMemoryModel
       const t = Math.max(secondsAgo, MIN_TIME);
       // 错误复习应用惩罚因子（isCorrect未定义视为正确，向后兼容）
       const weight = isCorrect === false ? ERROR_PENALTY : 1.0;
-      sum += weight * Math.pow(t, -this.decay);
+      sum += weight * Math.pow(t, -decay);
     }
 
     if (sum <= 0 || !Number.isFinite(sum)) {

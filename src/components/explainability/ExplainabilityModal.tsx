@@ -8,6 +8,7 @@ import CounterfactualPanel from './CounterfactualPanel';
 import { AmasProcessResult } from '../../types/amas';
 import { DecisionExplanation, LearningCurvePoint, AlgorithmWeights, DecisionFactor } from '../../types/explainability';
 import { explainabilityApi } from '../../services/explainabilityApi';
+import { amasLogger } from '../../utils/logger';
 
 interface ExplainabilityModalProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
             setCurveData([]);
           }
         } catch (err) {
-          console.error('加载解释数据失败:', err);
+          amasLogger.error({ err }, '加载解释数据失败');
           setError('加载数据失败，请稍后重试');
         } finally {
           setLoading(false);

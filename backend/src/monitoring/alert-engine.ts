@@ -20,6 +20,7 @@ import {
   ThresholdRule,
   TrendRule
 } from './alert-rules';
+import { monitorLogger } from '../logger';
 
 export type AlertLifecycleStatus = 'pending' | 'firing' | 'resolved';
 
@@ -106,7 +107,7 @@ class WebhookNotifier {
     // Fire webhooks concurrently to avoid slow endpoint blocking others
     const promises = targets.map(async target => {
       if (!this.consumeToken()) {
-        console.warn('[AlertEngine] Webhook rate limited, skipping notification');
+        monitorLogger.warn('Webhook rate limited, skipping notification');
         return;
       }
 
@@ -116,7 +117,7 @@ class WebhookNotifier {
       try {
         await this.sendWithRetry(target.url, payload);
       } catch (error) {
-        console.error(`[AlertEngine] Failed to send alert to ${target.kind} webhook`, error);
+        monitorLogger.error({ err: error, kind: target.kind }, 'Failed to send alert to webhook');
       }
     });
 

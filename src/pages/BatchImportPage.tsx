@@ -14,6 +14,7 @@ import apiClient from '../services/ApiClient';
 import { FileUpload } from '../components';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
 import { WordBook } from '../types/models';
+import { adminLogger } from '../utils/logger';
 
 const STEPS = [
   { id: 1, name: '选择词书' },
@@ -47,7 +48,7 @@ export default function BatchImportPage() {
           setSelectedBookId(books[0].id);
         }
       } catch (err) {
-        console.error('Failed to fetch wordbooks', err);
+        adminLogger.error({ err }, '获取词书列表失败');
         setImportError('无法加载词书列表，请稍后重试');
       } finally {
         setIsLoading(false);

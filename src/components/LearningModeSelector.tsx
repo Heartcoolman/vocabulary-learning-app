@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Lightning, Coffee } from '@phosphor-icons/react';
 import ApiClient from '../services/ApiClient';
+import { useToast } from './ui';
+import { uiLogger } from '../utils/logger';
 
 interface ModeOption {
   id: string;
@@ -16,6 +18,7 @@ const MODE_ICONS: Record<string, React.ReactNode> = {
 };
 
 export const LearningModeSelector: React.FC = () => {
+  const toast = useToast();
   const [currentMode, setCurrentMode] = useState('standard');
   const [modes, setModes] = useState<ModeOption[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -31,7 +34,7 @@ export const LearningModeSelector: React.FC = () => {
       setCurrentMode(result.currentProfile);
       setModes(result.availableProfiles);
     } catch (error) {
-      console.error('Failed to load reward profile:', error);
+      uiLogger.error({ err: error }, '加载奖励配置失败');
     }
   };
 
@@ -47,8 +50,8 @@ export const LearningModeSelector: React.FC = () => {
       setCurrentMode(modeId);
       setIsOpen(false);
     } catch (error) {
-      console.error('Failed to update reward profile:', error);
-      alert('切换学习模式失败，请重试');
+      uiLogger.error({ err: error, modeId }, '更新奖励配置失败');
+      toast.error('切换学习模式失败，请重试');
     } finally {
       setIsLoading(false);
     }

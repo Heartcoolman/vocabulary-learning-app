@@ -60,7 +60,11 @@ export const HARD_ACTION: Action = STANDARD_ACTIONS[4];
 
 // ==================== Feature Vectors ====================
 
+/** Full expert dimension (22) - used when enableProgressive=false */
 export const DIMENSION = 22;
+
+/** Initial dimension with progressive features enabled (10) */
+export const INITIAL_DIMENSION = 10;
 
 export const DEFAULT_FEATURE_LABELS = [
   'errorRate',
@@ -188,11 +192,11 @@ export const INCORRECT_EVENT = {
 // ==================== Cold Start Thresholds ====================
 
 export const COLD_START_THRESHOLDS = {
-  CLASSIFY_COUNT: 5,
-  EXPLORE_THRESHOLD: 10,
-  NORMAL_THRESHOLD: 15,
-  FAST_USER: { minAccuracy: 0.8, maxResponseTime: 2000 },
-  STABLE_USER: { minAccuracy: 0.6, maxResponseTime: 4000 },
+  CLASSIFY_COUNT: 7,        // 7 probe actions in implementation
+  EXPLORE_THRESHOLD: 20,    // Matches EXPLORE_PHASE_THRESHOLD
+  NORMAL_THRESHOLD: 20,
+  FAST_USER: { minAccuracy: 0.8, maxResponseTime: 1500, maxErrorRate: 0.2 },
+  STABLE_USER: { minAccuracy: 0.6, maxResponseTime: 3000, maxErrorRate: 0.35 },
   CAUTIOUS_USER: { minAccuracy: 0, maxResponseTime: Infinity }
 };
 

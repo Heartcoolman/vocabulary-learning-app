@@ -11,6 +11,7 @@ import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
+import { learningLogger } from '../utils/logger';
 
 
 export default function LearningPage() {
@@ -65,7 +66,7 @@ export default function LearningPage() {
       );
       setTestOptions(options);
     } catch (e) {
-      console.warn('[LearningPage] 生成选项失败，使用备用方案:', e);
+      learningLogger.warn({ err: e, wordId: currentWord.id }, '生成测试选项失败，使用备用方案');
       setTestOptions([currentWord.meanings[0]]);
     }
 
@@ -80,7 +81,7 @@ export default function LearningPage() {
       setIsPronouncing(true);
       await AudioService.playPronunciation(currentWord.spelling);
     } catch (err) {
-      console.error('播放发音失败:', err);
+      learningLogger.error({ err, word: currentWord.spelling }, '播放发音失败');
     } finally {
       setIsPronouncing(false);
     }
@@ -155,7 +156,7 @@ export default function LearningPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => navigate('/wordbooks')}
+              onClick={() => navigate('/vocabulary')}
               className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200"
             >
               选择词书

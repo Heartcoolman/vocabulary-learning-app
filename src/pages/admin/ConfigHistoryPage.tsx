@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ConfigHistory } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 import { Clock, MagnifyingGlass, ArrowCounterClockwise } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 /**
  * 配置历史页面
@@ -30,7 +31,7 @@ export default function ConfigHistoryPage() {
       const records = await configService.getConfigHistory();
       setHistory(records);
     } catch (error) {
-      console.error('加载配置历史失败:', error);
+      adminLogger.error({ err: error }, '加载配置历史失败');
     } finally {
       setIsLoading(false);
     }

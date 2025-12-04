@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
 import { wordMasteryService } from './word-mastery.service';
+import { serviceLogger } from '../logger';
 
 /** 最大批量操作大小 */
 const MAX_BATCH_SIZE = 1000;
@@ -156,7 +157,7 @@ export class RecordService {
       });
     } catch (error) {
       // 记录失败不阻断主流程，仅警告
-      console.warn('[RecordService] 同步复习轨迹失败:', error);
+      serviceLogger.warn({ userId, wordId: data.wordId, error }, '同步复习轨迹失败');
     }
 
     return record;
@@ -173,7 +174,10 @@ export class RecordService {
     // 检查是否有记录缺少时间戳，如果有则警告但不阻止
     const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
     if (recordsWithoutTimestamp.length > 0) {
-      console.warn(`警告：${recordsWithoutTimestamp.length} 条记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性。`);
+      serviceLogger.warn(
+        { count: recordsWithoutTimestamp.length },
+        '部分记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性'
+      );
     }
 
     // 验证所有时间戳的合理性并缓存验证后的日期对象
@@ -222,10 +226,10 @@ export class RecordService {
     // 如果有部分记录因权限被跳过，记录警告
     const skippedCount = records.length - validRecords.length;
     if (skippedCount > 0) {
-      console.warn(`跳过了 ${skippedCount} 条无权访问的学习记录`);
+      serviceLogger.warn({ skippedCount }, '跳过了部分无权访问的学习记录');
     }
 
-    console.log(`准备创建 ${validRecords.length} 条学习记录（数据库自动跳过重复）`);
+    serviceLogger.info({ count: validRecords.length }, '准备创建学习记录（数据库自动跳过重复）');
 
     // 收集所有有效的 sessionId 并确保对应的 LearningSession 存在
     const sessionIds = [...new Set(validRecords.map(r => r.sessionId).filter((id): id is string => !!id))];
@@ -269,7 +273,7 @@ export class RecordService {
       await wordMasteryService.batchRecordReview(userId, reviewEvents);
     } catch (error) {
       // 记录失败不阻断主流程，仅警告
-      console.warn('[RecordService] 批量同步复习轨迹失败:', error);
+      serviceLogger.warn({ userId, error }, '批量同步复习轨迹失败');
     }
 
     return result;
@@ -341,8 +345,9 @@ export class RecordService {
         if (existing) {
           // 会话已存在，校验用户归属
           if (existing.userId !== userId) {
-            console.warn(
-              `[RecordService] 学习会话用户不匹配: sessionId=${sessionId}, expected=${userId}, actual=${existing.userId}`
+            serviceLogger.warn(
+              { sessionId, expectedUserId: userId, actualUserId: existing.userId },
+              '学习会话用户不匹配'
             );
             throw new Error(`Session ${sessionId} belongs to different user`);
           }
@@ -376,7 +381,7 @@ export class RecordService {
         return;
       }
       // 其他错误仅记录，不阻断主流程
-      console.warn(`[RecordService] 确保学习会话失败: sessionId=${sessionId}`, error);
+      serviceLogger.warn({ sessionId, error }, '确保学习会话失败');
     }
   }
 }

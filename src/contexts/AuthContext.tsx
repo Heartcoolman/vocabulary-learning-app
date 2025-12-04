@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import apiClient, { User } from '../services/ApiClient';
 import StorageService from '../services/StorageService';
+import { authLogger } from '../utils/logger';
 
 /**
  * 认证上下文类型
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
     } catch (error) {
-      console.error('加载用户信息失败:', error);
+      authLogger.error({ err: error }, '加载用户信息失败');
       if (!isMounted()) return; // 组件已卸载，停止后续操作
 
       apiClient.clearToken();
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
     } catch (error) {
-      console.error('登录失败:', error);
+      authLogger.error({ err: error, email }, '用户登录失败');
       throw error;
     }
   };
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
     } catch (error) {
-      console.error('注册失败:', error);
+      authLogger.error({ err: error, email, username }, '用户注册失败');
       throw error;
     }
   };
@@ -127,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiClient.logout();
     } catch (error) {
-      console.error('退出登录失败:', error);
+      authLogger.error({ err: error }, '退出登录失败');
     } finally {
       apiClient.clearToken();
       setUser(null);

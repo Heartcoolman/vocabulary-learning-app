@@ -113,8 +113,6 @@ describe('TimeRecommendService', () => {
       expect(module.timeRecommendService).toBeDefined();
     });
 
-    // Class is not exported, only singleton instance
-    it.todo('should export TimeRecommendService class');
   });
 
   describe('type definitions', () => {

@@ -4,6 +4,7 @@ import apiClient from '../services/ApiClient';
 import type { UserMasteryStats, MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
 import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
+import { learningLogger } from '../utils/logger';
 
 interface WordWithMastery {
   id: string;
@@ -36,8 +37,8 @@ const WordMasteryPage: React.FC = () => {
       const statsData = await apiClient.getWordMasteryStats();
       setStats(statsData);
 
-      // Load all words
-      const wordsData = await apiClient.getWords();
+      // Load learned words only (words with learning records)
+      const wordsData = await apiClient.getLearnedWords();
 
       // Batch load mastery data
       const wordIds = wordsData.map(w => w.id);
@@ -68,7 +69,7 @@ const WordMasteryPage: React.FC = () => {
       setFilteredWords(wordsWithMastery);
     } catch (err) {
       setError('加载数据失败，请稍后重试');
-      console.error(err);
+      learningLogger.error({ err }, '加载单词掌握度数据失败');
     } finally {
       setLoading(false);
     }
@@ -149,8 +150,8 @@ const WordMasteryPage: React.FC = () => {
             <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <ChartBar size={32} className="text-purple-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-800 mb-2">暂无单词数据</h3>
-            <p className="text-gray-500">请先添加单词书并开始学习</p>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">暂无学习记录</h3>
+            <p className="text-gray-500">开始学习后，这里会显示你的单词掌握度分析</p>
           </div>
         ) : (
           <>

@@ -117,8 +117,9 @@ setInterval(() => {
 }, 60 * 1000);
 
 /**
- * 数据访问中间件：GET 路由公开访问，无论真实/虚拟数据源
- * 写入接口通过各自路由的 authMiddleware 单独保护
+ * 数据访问中间件
+ * About 页面为公开展示页面，无需认证
+ * 真实数据源返回的是脱敏/聚合后的统计数据
  */
 function realDataProtection(_req: Request, _res: Response, next: NextFunction): void {
   next();
@@ -354,6 +355,105 @@ router.get('/stats/state-distribution', realDataProtection, async (_req: Request
     });
   } catch (error) {
     handleError(res, error, '获取状态分布失败');
+  }
+});
+
+/**
+ * GET /api/about/stats/performance
+ * 获取系统性能指标（准确率、推理耗时、因果效应等）
+ */
+router.get('/stats/performance', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const metrics = await getRealAboutService().getPerformanceMetrics();
+      res.json({
+        success: true,
+        data: metrics,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          globalAccuracy: 85.2,
+          accuracyImprovement: 12.4,
+          avgInferenceMs: 12,
+          p99InferenceMs: 45,
+          causalATE: 0.18,
+          causalConfidence: 0.95
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取性能指标失败');
+  }
+});
+
+/**
+ * GET /api/about/stats/optimization-events
+ * 获取优化事件日志
+ */
+router.get('/stats/optimization-events', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const events = await getRealAboutService().getOptimizationEvents();
+      res.json({
+        success: true,
+        data: events,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: [
+          {
+            id: '1',
+            type: 'bayesian',
+            title: '超参数自动调优',
+            description: 'Thompson 采样 Beta 分布参数优化完成',
+            timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+            impact: '+2.3% 探索效率'
+          }
+        ],
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取优化事件失败');
+  }
+});
+
+/**
+ * GET /api/about/stats/mastery-radar
+ * 获取群体掌握度雷达数据
+ */
+router.get('/stats/mastery-radar', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const radar = await getRealAboutService().getMasteryRadar();
+      res.json({
+        success: true,
+        data: radar,
+        source: 'real'
+      });
+    } else {
+      // 虚拟数据
+      res.json({
+        success: true,
+        data: {
+          speed: 0.8,
+          stability: 0.6,
+          complexity: 0.7,
+          consistency: 0.9
+        },
+        source: 'virtual'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取掌握度雷达数据失败');
   }
 });
 

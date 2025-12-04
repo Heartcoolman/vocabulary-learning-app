@@ -6,6 +6,7 @@
 
 import prisma from '../config/database';
 import { AppError } from '../middleware/error.middleware';
+import { serviceLogger } from '../logger';
 
 // ============================================
 // 类型定义
@@ -440,7 +441,7 @@ class PlanGeneratorService {
       }
     });
 
-    console.log(`[PlanGenerator] 计划已调整: userId=${userId}, reason=${reason}, newTarget=${newDailyTarget}`);
+    serviceLogger.info({ userId, reason, newTarget: newDailyTarget }, '学习计划已调整');
 
     return this.mapPlanToResult(updatedPlan);
   }

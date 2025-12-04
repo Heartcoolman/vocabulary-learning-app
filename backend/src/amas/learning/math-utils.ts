@@ -14,6 +14,8 @@
  * 增量方法: 直接更新L' from L 只需O(d²)
  */
 
+import { amasLogger } from '../../logger';
+
 // ==================== 常量 ====================
 
 /** 数值稳定性：最小正数 */
@@ -69,7 +71,7 @@ export function choleskyRank1Update(
     L.length < d * d ||
     x.length < d
   ) {
-    console.warn('[math-utils] choleskyRank1Update: 无效输入');
+    amasLogger.warn('[math-utils] choleskyRank1Update: 无效输入');
     return { L: new Float32Array(L ?? []), success: false };
   }
 
@@ -94,7 +96,7 @@ export function choleskyRank1Update(
       Lkk < safeMinDiag ||
       Math.abs(Lkk) > MAX_MAGNITUDE
     ) {
-      console.warn(`[math-utils] 对角元素无效: L[${k},${k}]=${Lkk}`);
+      amasLogger.warn({ k, Lkk }, '[math-utils] 对角元素无效');
       return { L: new Float32Array(L), success: false };
     }
 
@@ -103,7 +105,7 @@ export function choleskyRank1Update(
     const r = Math.hypot(Lkk, xk);
 
     if (!Number.isFinite(r) || r < safeMinDiag || r > MAX_MAGNITUDE) {
-      console.warn(`[math-utils] 新对角元素无效: r=${r}`);
+      amasLogger.warn({ r }, '[math-utils] 新对角元素无效');
       return { L: new Float32Array(L), success: false };
     }
 
@@ -112,7 +114,7 @@ export function choleskyRank1Update(
     const s = xk / Lkk; // sin-like
 
     if (!Number.isFinite(c) || !Number.isFinite(s) || Math.abs(c) < EPSILON) {
-      console.warn('[math-utils] Givens旋转参数无效');
+      amasLogger.warn('[math-utils] Givens旋转参数无效');
       return { L: new Float32Array(L), success: false };
     }
 
@@ -135,7 +137,7 @@ export function choleskyRank1Update(
         Math.abs(updatedLik) > MAX_MAGNITUDE ||
         Math.abs(updatedXi) > MAX_MAGNITUDE
       ) {
-        console.warn(`[math-utils] 更新产生无效值: L[${i},${k}]=${updatedLik}`);
+        amasLogger.warn({ i, k, updatedLik }, '[math-utils] 更新产生无效值');
         return { L: new Float32Array(L), success: false };
       }
 
@@ -152,7 +154,7 @@ export function choleskyRank1Update(
       diag < safeMinDiag ||
       Math.abs(diag) > MAX_MAGNITUDE
     ) {
-      console.warn(`[math-utils] 最终对角元素无效: L[${i},${i}]=${diag}`);
+      amasLogger.warn({ i, diag }, '[math-utils] 最终对角元素无效');
       return { L: new Float32Array(L), success: false };
     }
   }
@@ -219,7 +221,7 @@ export function choleskyDecompose(
   // 验证结果
   for (let i = 0; i < L.length; i++) {
     if (!Number.isFinite(L[i]) || Math.abs(L[i]) > MAX_MAGNITUDE) {
-      console.warn('[math-utils] Cholesky分解失败，返回正则化单位矩阵');
+      amasLogger.warn('[math-utils] Cholesky分解失败，返回正则化单位矩阵');
       return initIdentityMatrix(d, safeLambda);
     }
   }
@@ -268,7 +270,7 @@ export function solveCholesky(
   // 验证结果
   for (let i = 0; i < d; i++) {
     if (!Number.isFinite(x[i])) {
-      console.warn('[math-utils] 求解失败，返回零向量');
+      amasLogger.warn('[math-utils] 求解失败，返回零向量');
       return new Float32Array(d);
     }
   }

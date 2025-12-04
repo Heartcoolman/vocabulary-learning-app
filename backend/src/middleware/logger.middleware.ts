@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { routeLogger } from '../logger';
 
 export function loggerMiddleware(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
@@ -6,9 +7,12 @@ export function loggerMiddleware(req: Request, res: Response, next: NextFunction
 
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(
-      `[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
-    );
+    routeLogger.info({
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration
+    }, 'HTTP 请求');
   });
 
   next();

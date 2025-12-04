@@ -24,6 +24,8 @@
  * 其中 r = ||x - x'|| / l
  */
 
+import { amasLogger } from '../../logger';
+
 // ==================== 类型定义 ====================
 
 /**
@@ -472,14 +474,12 @@ export class BayesianOptimizer {
    */
   setState(state: BayesianOptimizerState): void {
     if (!state) {
-      console.warn('[BayesianOptimizer] 无效状态，跳过恢复');
+      amasLogger.warn('[BayesianOptimizer] 无效状态，跳过恢复');
       return;
     }
 
     if (state.version !== BayesianOptimizer.VERSION) {
-      console.log(
-        `[BayesianOptimizer] 版本迁移: ${state.version} → ${BayesianOptimizer.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: BayesianOptimizer.VERSION }, '[BayesianOptimizer] 版本迁移');
     }
 
     this.observations = (state.observations ?? []).map(o => ({
@@ -506,7 +506,7 @@ export class BayesianOptimizer {
         params: [...this.observations[maxIdx].params],
         value: maxValue
       };
-      console.log('[BayesianOptimizer] 从观测数据重建best');
+      amasLogger.debug('[BayesianOptimizer] 从观测数据重建best');
     }
 
     this.evaluationCount = state.evaluationCount ?? 0;
@@ -601,7 +601,7 @@ export class BayesianOptimizer {
     }
 
     if (!validDecomp) {
-      console.warn('[BayesianOptimizer] Cholesky分解失败，增加jitter重试');
+      amasLogger.warn('[BayesianOptimizer] Cholesky分解失败，增加jitter重试');
       // 增加jitter重试
       for (let i = 0; i < n; i++) {
         K[i * n + i] += 1e-4;

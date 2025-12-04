@@ -20,6 +20,8 @@
  * - 支持策略A/B比较验证
  */
 
+import { amasLogger } from '../../logger';
+
 // ==================== 类型定义 ====================
 
 /**
@@ -581,14 +583,12 @@ export class CausalInference {
    */
   setState(state: CausalInferenceState): void {
     if (!state) {
-      console.warn('[CausalInference] 无效状态，跳过恢复');
+      amasLogger.warn('[CausalInference] 无效状态，跳过恢复');
       return;
     }
 
     if (state.version !== CausalInference.VERSION) {
-      console.log(
-        `[CausalInference] 版本迁移: ${state.version} → ${CausalInference.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: CausalInference.VERSION }, '[CausalInference] 版本迁移');
     }
 
     this.observations = (state.observations ?? []).map(o => ({
@@ -805,7 +805,7 @@ export class CausalInference {
 
     if (estimates.length < 10) {
       // 样本不足时返回NaN提示不可信
-      console.warn('[CausalInference] Bootstrap样本不足，SE估计不可靠');
+      amasLogger.warn('[CausalInference] Bootstrap样本不足，SE估计不可靠');
       return NaN;
     }
 

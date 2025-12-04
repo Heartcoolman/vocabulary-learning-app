@@ -15,6 +15,7 @@ import {
   Beaker
 } from 'lucide-react';
 import apiClient from '../../services/ApiClient';
+import { adminLogger } from '../../utils/logger';
 
 // --- Types (Matching Backend) ---
 
@@ -159,7 +160,7 @@ export default function ExperimentDashboard() {
       const result = await apiClient.getExperimentStatus('thompson-vs-linucb');
       setData(result);
     } catch (e: any) {
-      console.error("Failed to load experiment data", e);
+      adminLogger.error({ err: e }, '加载实验数据失败');
       setError(e?.message || '加载实验数据失败');
     } finally {
       setLoading(false);

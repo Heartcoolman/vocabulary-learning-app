@@ -316,3 +316,90 @@ export type UserType = 'fast' | 'stable' | 'cautious';
  * 冷启动阶段
  */
 export type ColdStartPhase = 'classify' | 'explore' | 'normal';
+
+// ==================== 学习目标类型 ====================
+
+/**
+ * 学习目标模式
+ */
+export type LearningObjectiveMode = 'exam' | 'daily' | 'travel' | 'custom';
+
+/**
+ * 学习目标配置
+ */
+export interface LearningObjectives {
+  /** 用户ID */
+  userId: string;
+  /** 学习模式 */
+  mode: LearningObjectiveMode;
+  /** 主要目标 */
+  primaryObjective: 'accuracy' | 'retention' | 'efficiency';
+  /** 最低准确率要求 */
+  minAccuracy?: number;
+  /** 每日最大学习时间(分钟) */
+  maxDailyTime?: number;
+  /** 目标记忆保持率 */
+  targetRetention?: number;
+  /** 短期记忆权重 */
+  weightShortTerm: number;
+  /** 长期记忆权重 */
+  weightLongTerm: number;
+  /** 效率权重 */
+  weightEfficiency: number;
+}
+
+/**
+ * 多目标指标
+ */
+export interface MultiObjectiveMetrics {
+  /** 短期记忆得分 */
+  shortTermScore: number;
+  /** 长期记忆得分 */
+  longTermScore: number;
+  /** 效率得分 */
+  efficiencyScore: number;
+  /** 聚合得分 */
+  aggregatedScore: number;
+  /** 时间戳 */
+  ts: number;
+}
+
+/**
+ * 约束违规项
+ */
+export interface ConstraintViolation {
+  /** 约束名称 */
+  constraint: string;
+  /** 期望值 */
+  expected: number;
+  /** 实际值 */
+  actual: number;
+}
+
+/**
+ * 策略调整建议
+ */
+export interface StrategyAdjustment {
+  /** 参数名 */
+  param: string;
+  /** 当前值 */
+  currentValue: number;
+  /** 建议值 */
+  suggestedValue: number;
+  /** 调整原因 */
+  reason: string;
+}
+
+/**
+ * 目标评估结果
+ */
+export interface ObjectiveEvaluation {
+  /** 多目标指标 */
+  metrics: MultiObjectiveMetrics;
+  /** 约束是否满足 */
+  constraintsSatisfied: boolean;
+  /** 约束违规列表 */
+  constraintViolations: ConstraintViolation[];
+  /** 建议的策略调整 */
+  suggestedAdjustments?: Partial<StrategyParams>;
+}

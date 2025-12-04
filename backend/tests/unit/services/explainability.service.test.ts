@@ -216,8 +216,5 @@ describe('ExplainabilityService', () => {
       const module = await import('../../../src/services/explainability.service');
       expect(module.explainabilityService).toBeDefined();
     });
-
-    // ExplainabilityService class is not exported as a named export
-    it.todo('should export ExplainabilityService class');
   });
 });

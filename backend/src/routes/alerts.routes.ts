@@ -4,12 +4,21 @@
  * Provides endpoints for monitoring system to expose alert state:
  * - GET /alerts/active: Currently firing alerts
  * - GET /alerts/history: Recent alert events
+ *
+ * Note: Requires admin authentication
  */
 
 import { Router } from 'express';
 import { alertMonitoringService } from '../monitoring/monitoring-service';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { adminMiddleware } from '../middleware/admin.middleware';
+import { routeLogger } from '../logger';
 
 const router = Router();
+
+// 所有告警路由需要管理员权限
+router.use(authMiddleware);
+router.use(adminMiddleware);
 
 /**
  * GET /alerts/active
@@ -23,7 +32,7 @@ router.get('/active', (req, res) => {
       alerts: activeAlerts
     });
   } catch (error) {
-    console.error('[AlertAPI] Failed to get active alerts:', error);
+    routeLogger.error({ err: error }, 'Failed to get active alerts');
     res.status(500).json({ error: 'Failed to retrieve active alerts' });
   }
 });
@@ -42,7 +51,7 @@ router.get('/history', (req, res) => {
       alerts: history
     });
   } catch (error) {
-    console.error('[AlertAPI] Failed to get alert history:', error);
+    routeLogger.error({ err: error }, 'Failed to get alert history');
     res.status(500).json({ error: 'Failed to retrieve alert history' });
   }
 });

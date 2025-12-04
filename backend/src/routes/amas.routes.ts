@@ -81,7 +81,14 @@ router.post('/process', authMiddleware, validateBody(processEventSchema), async 
           memory: result.state.C.mem,
           speed: result.state.C.speed,
           stability: result.state.C.stability
-        }
+        },
+        // 多目标评估结果（当配置了学习目标时）
+        objectiveEvaluation: result.objectiveEvaluation ? {
+          metrics: result.objectiveEvaluation.metrics,
+          constraintsSatisfied: result.objectiveEvaluation.constraintsSatisfied,
+          constraintViolations: result.objectiveEvaluation.constraintViolations
+        } : undefined,
+        multiObjectiveAdjusted: result.multiObjectiveAdjusted
       }
     });
   } catch (error) {

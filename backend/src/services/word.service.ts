@@ -8,27 +8,25 @@ import { CreateWordDto, UpdateWordDto } from '../types';
 export class WordService {
   /**
    * @deprecated 使用 WordBookService.getWordBookWords() 代替
-   * 通过用户ID获取单词 - 现在返回用户所有词书的单词
+   * 通过用户ID获取单词 - 只返回用户选择学习的词书中的单词
    */
   async getWordsByUserId(userId: string) {
-    // 获取用户的所有词书
-    const userWordBooks = await prisma.wordBook.findMany({
-      where: {
-        OR: [
-          { type: 'SYSTEM' },
-          { type: 'USER', userId: userId },
-        ],
-      },
-      select: { id: true },
+    // 获取用户的学习配置，查看选择了哪些词书
+    const studyConfig = await prisma.userStudyConfig.findUnique({
+      where: { userId },
+      select: { selectedWordBookIds: true },
     });
 
-    const wordBookIds = userWordBooks.map((wb) => wb.id);
+    // 如果用户没有配置或没有选择任何词书，返回空数组
+    if (!studyConfig || studyConfig.selectedWordBookIds.length === 0) {
+      return [];
+    }
 
-    // 返回这些词书中的所有单词
+    // 只返回用户选择的词书中的单词
     return await prisma.word.findMany({
       where: {
         wordBookId: {
-          in: wordBookIds,
+          in: studyConfig.selectedWordBookIds,
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -45,6 +43,35 @@ export class WordService {
     return await prisma.word.findMany({
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * 获取用户学过的单词（有学习状态记录的）
+   * 用于掌握度分析页面，只显示用户真正学习过的单词
+   */
+  async getLearnedWordsByUserId(userId: string) {
+    // 查询有学习状态记录的单词
+    const learningStates = await prisma.wordLearningState.findMany({
+      where: { userId },
+      select: {
+        wordId: true,
+        word: {
+          select: {
+            id: true,
+            spelling: true,
+            phonetic: true,
+            meanings: true,
+            examples: true,
+            audioUrl: true,
+            wordBookId: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // 提取单词信息
+    return learningStates.map((state) => state.word);
   }
 
   /**

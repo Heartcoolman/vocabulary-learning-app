@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 /**
  * 音频服务 - 处理单词发音播放
  * 使用 Web Audio API 和 HTML5 Audio
@@ -45,7 +47,7 @@ class AudioService {
         await this.playWithSpeechSynthesis(word);
       }
     } catch (error) {
-      console.error('Error playing pronunciation:', error);
+      logger.error({ err: error }, '发音播放失败');
       throw new Error('发音播放失败');
     }
   }
@@ -143,7 +145,7 @@ class AudioService {
 
         // 监听加载错误
         audio.addEventListener('error', () => {
-          console.warn(`预加载音频失败: ${word}`);
+          logger.warn({ word }, '预加载音频失败');
           this.preloadQueue.delete(word);
         }, { once: true });
 
@@ -151,7 +153,7 @@ class AudioService {
         audio.load();
       }
     } catch (error) {
-      console.error('Error preloading audio:', error);
+      logger.error({ err: error }, '预加载音频失败');
       this.preloadQueue.delete(word);
       // 预加载失败不影响主流程
     }

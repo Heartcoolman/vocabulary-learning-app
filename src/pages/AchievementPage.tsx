@@ -22,6 +22,7 @@ import {
   X,
   Info
 } from '../components/Icon';
+import { uiLogger } from '../utils/logger';
 
 /**
  * AchievementPage - 成就与徽章页面
@@ -80,7 +81,7 @@ export default function AchievementPage() {
         await loadBadges();
       }
     } catch (err) {
-      console.error('检查徽章失败:', err);
+      uiLogger.error({ err }, '检查徽章失败');
     } finally {
       setIsCheckingBadges(false);
     }
@@ -92,7 +93,7 @@ export default function AchievementPage() {
       const progress = await ApiClient.getBadgeProgress(badgeId);
       setBadgeProgress(progress);
     } catch (err) {
-      console.error('加载徽章进度失败:', err);
+      uiLogger.error({ err, badgeId }, '加载徽章进度失败');
       setBadgeProgress(null);
     }
   };

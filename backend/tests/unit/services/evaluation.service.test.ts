@@ -101,14 +101,6 @@ describe('EvaluationService', () => {
         expect(result).toBeDefined();
       });
 
-      // Feature flag mocking requires module reset which is complex in Vitest
-      it.todo('should return null when causal inference disabled');
-
-      // Treatment validation not implemented in current version  
-      it.todo('should reject invalid treatment values');
-
-      // Outcome validation not implemented in current version
-      it.todo('should reject outcome out of range');
     });
 
     describe('estimateStrategyEffect', () => {
@@ -120,9 +112,6 @@ describe('EvaluationService', () => {
           expect(result.ate).toBeDefined();
         }
       });
-
-      // Feature flag mocking requires module reset
-      it.todo('should return null when disabled');
     });
 
     describe('compareStrategies', () => {
@@ -188,9 +177,6 @@ describe('EvaluationService', () => {
 
         expect(result).toBeDefined();
       });
-
-      // Feature flag mocking requires module reset
-      it.todo('should throw when AB testing disabled');
 
       it('should require at least two variants', async () => {
         await expect(

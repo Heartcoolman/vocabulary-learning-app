@@ -5,6 +5,8 @@ import { Word } from '../types/models';
 import { ArrowLeft, Star, Target, Clock, MagnifyingGlass, CheckCircle, Warning, ArrowClockwise } from '../components/Icon';
 import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
+import { useToast } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 interface WordWithState extends Word {
   masteryLevel: number;
@@ -24,6 +26,7 @@ type SortOrder = 'asc' | 'desc';
 export default function WordListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [words, setWords] = useState<WordWithState[]>([]);
   const [filteredWords, setFilteredWords] = useState<WordWithState[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +110,7 @@ export default function WordListPage() {
       setWords(wordsWithState);
       setIsLoading(false);
     } catch (err) {
-      console.error('加载单词列表失败:', err);
+      uiLogger.error({ err }, '加载单词列表失败');
       setError('加载单词列表失败');
       setIsLoading(false);
     }
@@ -212,8 +215,8 @@ export default function WordListPage() {
       setSelectedWord(null);
       setConfirmAction(null);
     } catch (err) {
-      console.error('调整单词状态失败:', err);
-      alert('调整失败，请重试');
+      uiLogger.error({ err, wordId: selectedWord.id, action: confirmAction }, '调整单词状态失败');
+      toast.error('调整失败，请重试');
     } finally {
       setIsAdjusting(false);
     }

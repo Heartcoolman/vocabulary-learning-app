@@ -92,6 +92,13 @@ export {
   WarningCircle,
   Database,
   UserCircle,
+  List,
+  Bell,
+  Pencil,
+  Bug,
+  Funnel,
+  Desktop,
+  DeviceMobile,
 } from '@phosphor-icons/react';
 
 // 图标别名

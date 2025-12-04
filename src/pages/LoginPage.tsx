@@ -159,14 +159,14 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* 返回首页链接 */}
+        {/* 了解更多链接 */}
         <div className="mt-4 text-center">
           <Link
-            to="/"
+            to="/about"
             className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
           >
             <ArrowLeft size={14} weight="bold" />
-            返回首页
+            了解更多
           </Link>
         </div>
       </div>

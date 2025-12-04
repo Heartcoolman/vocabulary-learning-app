@@ -1,4 +1,5 @@
 import { Word } from '../types/models';
+import { storageLogger } from '../utils/logger';
 
 /**
  * 初始词库数据 - 20个常用英语单词
@@ -200,9 +201,9 @@ export async function initializeVocabulary(storageService: any): Promise<void> {
       for (const word of initialWords) {
         await storageService.addWord(word);
       }
-      console.log('初始词库已导入');
+      storageLogger.info({ count: initialWords.length }, '初始词库已导入');
     }
   } catch (error) {
-    console.error('初始化词库失败:', error);
+    storageLogger.error({ err: error }, '初始化词库失败');
   }
 }

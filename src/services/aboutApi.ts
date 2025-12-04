@@ -87,6 +87,34 @@ export interface OverviewStats {
   timestamp: string;
 }
 
+/** 性能指标 */
+export interface PerformanceMetrics {
+  globalAccuracy: number;
+  accuracyImprovement: number;
+  avgInferenceMs: number;
+  p99InferenceMs: number;
+  causalATE: number;
+  causalConfidence: number;
+}
+
+/** 优化事件 */
+export interface OptimizationEvent {
+  id: string;
+  type: 'bayesian' | 'ab_test' | 'causal';
+  title: string;
+  description: string;
+  timestamp: string;
+  impact: string;
+}
+
+/** 掌握度雷达数据 */
+export interface MasteryRadarData {
+  speed: number;
+  stability: number;
+  complexity: number;
+  consistency: number;
+}
+
 /** 算法分布 */
 export interface AlgorithmDistribution {
   thompson: number;
@@ -340,6 +368,36 @@ export async function getAlgorithmDistribution(): Promise<AlgorithmDistribution>
 }
 
 /**
+ * 获取性能指标
+ */
+export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
+  const response = await fetch(`${API_BASE}/stats/performance`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<PerformanceMetrics>(response, '获取性能指标失败');
+}
+
+/**
+ * 获取优化事件日志
+ */
+export async function getOptimizationEvents(): Promise<OptimizationEvent[]> {
+  const response = await fetch(`${API_BASE}/stats/optimization-events`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<OptimizationEvent[]>(response, '获取优化事件失败');
+}
+
+/**
+ * 获取掌握度雷达数据
+ */
+export async function getMasteryRadar(): Promise<MasteryRadarData> {
+  const response = await fetch(`${API_BASE}/stats/mastery-radar`, {
+    headers: buildHeaders()
+  });
+  return parseJsonResponse<MasteryRadarData>(response, '获取掌握度雷达失败');
+}
+
+/**
  * 获取状态分布
  */
 export async function getStateDistribution(): Promise<StateDistribution> {
@@ -446,6 +504,9 @@ export default {
   simulate,
   getOverviewStats,
   getAlgorithmDistribution,
+  getPerformanceMetrics,
+  getOptimizationEvents,
+  getMasteryRadar,
   getStateDistribution,
   getRecentDecisions,
   getDecisionDetail,

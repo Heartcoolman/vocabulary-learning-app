@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Flask, ArrowRight, CheckCircle, WarningCircle, CircleNotch } from '@phosphor-icons/react';
 import { explainabilityApi } from '../../services/explainabilityApi';
 import type { CounterfactualResult } from '../../types/explainability';
+import { amasLogger } from '../../utils/logger';
 
 interface CounterfactualPanelProps {
   currentWordId: string;
@@ -31,7 +32,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
       });
       setResult(response);
     } catch (err) {
-      console.error('反事实分析失败:', err);
+      amasLogger.error({ err, decisionId, overrides }, '反事实分析失败');
       setError('分析失败，请稍后重试');
     } finally {
       setIsSimulating(false);

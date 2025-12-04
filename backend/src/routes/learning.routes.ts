@@ -7,6 +7,7 @@ import { Router, Response } from 'express';
 import { masteryLearningService } from '../services/mastery-learning.service';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { AuthRequest } from '../types';
+import { routeLogger } from '../logger';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.get('/study-words', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('[Learning Routes] 获取学习单词失败:', error);
+    routeLogger.error({ err: error }, '获取学习单词失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '获取学习单词失败'
@@ -103,7 +104,7 @@ router.post('/next-words', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('[Learning Routes] 动态获取单词失败:', error);
+    routeLogger.error({ err: error }, '动态获取单词失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '获取下一批单词失败'
@@ -161,7 +162,7 @@ router.post('/sync-progress', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { synced: true } });
   } catch (error) {
-    console.error('[Learning Routes] 同步进度失败:', error);
+    routeLogger.error({ err: error }, '同步进度失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '同步进度失败'
@@ -204,7 +205,7 @@ router.post('/session', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { sessionId: newSessionId } });
   } catch (error) {
-    console.error('[Learning Routes] 创建会话失败:', error);
+    routeLogger.error({ err: error }, '创建会话失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '创建会话失败'
@@ -229,7 +230,7 @@ router.get('/session/:sessionId', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: progress });
   } catch (error) {
-    console.error('[Learning Routes] 获取会话进度失败:', error);
+    routeLogger.error({ err: error }, '获取会话进度失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '获取会话进度失败'
@@ -330,7 +331,7 @@ router.post('/adjust-words', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('[Learning Routes] 调整队列失败:', error);
+    routeLogger.error({ err: error }, '调整队列失败');
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : '调整队列失败'

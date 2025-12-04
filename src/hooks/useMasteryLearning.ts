@@ -4,6 +4,7 @@ import { AdaptiveQueueManager } from '../services/learning/AdaptiveQueueManager'
 import apiClient from '../services/ApiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { AmasProcessResult, AdjustReason } from '../types/amas';
+import { learningLogger } from '../utils/logger';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -94,10 +95,10 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       if (currentSessionIdRef.current && sessionStartTimeRef.current > 0) {
         apiClient.endHabitSession(currentSessionIdRef.current)
           .then(() => {
-            console.log('[useMasteryLearning] 习惯追踪会话已结束');
+            learningLogger.info('习惯追踪会话已结束');
           })
           .catch(error => {
-            console.warn('[useMasteryLearning] 结束习惯追踪失败:', error);
+            learningLogger.warn({ err: error }, '结束习惯追踪失败');
           });
 
         sessionStartTimeRef.current = 0;
@@ -121,7 +122,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
     } catch (e) {
-      console.error('[useMasteryLearning] 保存会话缓存失败:', e);
+      learningLogger.error({ err: e }, '保存会话缓存失败');
     }
   }, [targetMasteryCount, user?.id]);
 
@@ -136,7 +137,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         totalQuestions: currentProgress.totalQuestions
       });
     } catch (error) {
-      console.error('[useMasteryLearning] 同步进度失败:', error);
+      learningLogger.error({ err: error }, '同步进度失败');
     }
   }, []);
 
@@ -163,11 +164,11 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
           queueManagerRef.current.applyAdjustments(response.adjustments);
           saveSessionToCache();
           adaptiveManagerRef.current.resetCounter();
-          console.log(`[useMasteryLearning] 队列已调整: ${reason}, 原因: ${response.reason}`);
+          learningLogger.info({ reason, responseReason: response.reason }, '队列已调整');
         }
       })
       .catch(err => {
-        console.warn('[useMasteryLearning] 队列调整失败:', err);
+        learningLogger.warn({ err }, '队列调整失败');
       });
   }, [latestAmasResult, saveSessionToCache]);
 
@@ -205,10 +206,10 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
           audioUrl: w.audioUrl || undefined
         }))]);
         saveSessionToCache();
-        console.log(`[useMasteryLearning] 按需补充${result.words.length}个单词: ${result.reason}`);
+        learningLogger.info({ count: result.words.length, reason: result.reason }, '按需补充单词');
       }
     } catch (err) {
-      console.warn('[useMasteryLearning] 按需加载单词失败:', err);
+      learningLogger.warn({ err }, '按需加载单词失败');
     } finally {
       isFetchingRef.current = false;
     }
@@ -238,7 +239,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
             if (isUserMismatch) {
               // 用户不匹配，清除缓存
-              console.log('[useMasteryLearning] 用户不匹配，清除缓存');
+              learningLogger.info('用户不匹配，清除缓存');
               localStorage.removeItem(STORAGE_KEY);
             } else if (!isExpired && isSameSession && cache.queueState?.words?.length > 0) {
               configRef.current = {
@@ -261,12 +262,12 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
               setHasRestoredSession(true);
               restored = true;
 
-              console.log('[useMasteryLearning] 成功恢复会话:', cache.sessionId);
+              learningLogger.info({ sessionId: cache.sessionId }, '成功恢复会话');
             } else if (isExpired || !isSameSession) {
               localStorage.removeItem(STORAGE_KEY);
             }
           } catch (e) {
-            console.error('[useMasteryLearning] 解析缓存失败:', e);
+            learningLogger.error({ err: e }, '解析缓存失败');
             localStorage.removeItem(STORAGE_KEY);
           }
         }
@@ -279,8 +280,9 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
           // 使用后端返回的targetCount，确保前后端一致
           const serverTargetCount = wordsResponse.meta.targetCount;
           if (serverTargetCount !== initialTargetCount) {
-            console.log(
-              `[useMasteryLearning] 使用服务端targetCount: ${serverTargetCount} (前端传入: ${initialTargetCount})`
+            learningLogger.info(
+              { serverTargetCount, clientTargetCount: initialTargetCount },
+              '使用服务端targetCount'
             );
             setTargetMasteryCount(serverTargetCount);
           }
@@ -309,9 +311,13 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
           adaptiveManagerRef.current = new AdaptiveQueueManager();
 
-          console.log(
-            `[useMasteryLearning] 创建新会话: ${currentSessionIdRef.current}, ` +
-            `获取${wordsResponse.words.length}个单词, 目标=${serverTargetCount}`
+          learningLogger.info(
+            {
+              sessionId: currentSessionIdRef.current,
+              wordCount: wordsResponse.words.length,
+              target: serverTargetCount
+            },
+            '创建新会话'
           );
         }
 
@@ -321,7 +327,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         }
 
       } catch (error) {
-        console.error('[useMasteryLearning] 初始化失败:', error);
+        learningLogger.error({ err: error }, '初始化失败');
         if (isMountedRef.current) {
           setError(error instanceof Error ? error.message : '初始化失败，请刷新重试');
         }
@@ -349,76 +355,149 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     }
   }, [progress.activeCount, progress.pendingCount, isLoading, isCompleted, fetchMoreWords]);
 
+  // 重试队列：存储失败的AMAS请求
+  const retryQueueRef = useRef<Array<{
+    wordId: string;
+    isCorrect: boolean;
+    responseTime: number;
+    timestamp: number;
+    retryCount: number;
+  }>>([]);
+
+  // 处理重试队列
+  const processRetryQueue = useCallback(async () => {
+    if (retryQueueRef.current.length === 0) return;
+
+    const item = retryQueueRef.current[0];
+    if (item.retryCount >= 3) {
+      // 超过重试次数，丢弃
+      retryQueueRef.current.shift();
+      learningLogger.warn({ wordId: item.wordId }, 'AMAS请求重试次数超限，已丢弃');
+      return;
+    }
+
+    try {
+      await apiClient.processLearningEvent({
+        wordId: item.wordId,
+        isCorrect: item.isCorrect,
+        responseTime: item.responseTime,
+        sessionId: currentSessionIdRef.current,
+        timestamp: item.timestamp
+      });
+      // 成功，移除队列
+      retryQueueRef.current.shift();
+    } catch {
+      // 失败，增加重试次数
+      item.retryCount += 1;
+    }
+  }, []);
+
+  // 定期处理重试队列
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (retryQueueRef.current.length > 0) {
+        processRetryQueue();
+      }
+    }, 5000); // 每5秒重试一次
+
+    return () => clearInterval(interval);
+  }, [processRetryQueue]);
+
   const submitAnswer = useCallback(async (isCorrect: boolean, responseTime: number) => {
     if (!queueManagerRef.current || !currentWord) return;
 
-    try {
-      setError(null); // 清除之前的错误
-      try {
-        const amasResult = await apiClient.processLearningEvent({
-          wordId: currentWord.id,
-          isCorrect,
-          responseTime,
-          sessionId: currentSessionIdRef.current,
-          timestamp: Date.now()
-        });
+    setError(null);
+    const timestamp = Date.now();
+    const wordId = currentWord.id;
 
-        if (!isMountedRef.current) return;
+    // ============ 乐观更新：立即更新本地状态 ============
+    // 使用本地判定逻辑快速响应用户
+    const localMasteryDecision = {
+      isMastered: isCorrect && responseTime < 3000, // 快速正确响应视为掌握信号
+      confidence: isCorrect ? 0.6 : 0.3,
+      suggestedRepeats: isCorrect ? 1 : 3
+    };
 
-        setLatestAmasResult(amasResult);
+    // 立即更新队列状态（乐观）
+    queueManagerRef.current.recordAnswer(
+      wordId,
+      isCorrect,
+      responseTime,
+      localMasteryDecision
+    );
 
-        queueManagerRef.current.recordAnswer(
-          currentWord.id,
-          isCorrect,
-          responseTime,
-          amasResult.wordMasteryDecision
-        );
-      } catch (e) {
-        console.warn('[useMasteryLearning] AMAS调用失败,使用本地判定:', e);
+    // 立即更新UI显示
+    const newProgress = queueManagerRef.current.getProgress();
+    setProgress(newProgress);
 
-        if (!isMountedRef.current) return;
+    // 立即保存缓存
+    saveSessionToCache();
 
-        setLatestAmasResult(null);
-        queueManagerRef.current.recordAnswer(
-          currentWord.id,
-          isCorrect,
-          responseTime,
-          undefined
-        );
-      }
+    // 自适应队列检查（使用上一次的AMAS状态，如果有的话）
+    if (adaptiveManagerRef.current) {
+      const { should, reason } = adaptiveManagerRef.current.onAnswerSubmitted(
+        isCorrect,
+        responseTime,
+        latestAmasResult?.state ? {
+          fatigue: latestAmasResult.state.fatigue,
+          attention: latestAmasResult.state.attention,
+          motivation: latestAmasResult.state.motivation
+        } : undefined
+      );
 
-      // 自适应队列检查
-      if (adaptiveManagerRef.current) {
-        const { should, reason } = adaptiveManagerRef.current.onAnswerSubmitted(
-          isCorrect,
-          responseTime,
-          latestAmasResult?.state ? {
-            fatigue: latestAmasResult.state.fatigue,
-            attention: latestAmasResult.state.attention,
-            motivation: latestAmasResult.state.motivation
-          } : undefined
-        );
-
-        if (should && reason) {
-          triggerQueueAdjustment(reason);
-        }
-      }
-
-      // 不立即更新到下一题，等待用户点击"下一题"按钮
-      saveSessionToCache();
-
-      syncCounterRef.current += 1;
-      if (syncCounterRef.current >= SYNC_INTERVAL) {
-        syncProgress();
-        syncCounterRef.current = 0;
-      }
-
-    } catch (error) {
-      console.error('[useMasteryLearning] 提交答案失败:', error);
-      if (isMountedRef.current) {
-        setError(error instanceof Error ? error.message : '提交答案失败，请重试');
+      if (should && reason) {
+        triggerQueueAdjustment(reason);
       }
     }
+
+    // 同步计数
+    syncCounterRef.current += 1;
+    if (syncCounterRef.current >= SYNC_INTERVAL) {
+      syncProgress();
+      syncCounterRef.current = 0;
+    }
+
+    // ============ 异步同步到服务器（不阻塞UI） ============
+    apiClient.processLearningEvent({
+      wordId,
+      isCorrect,
+      responseTime,
+      sessionId: currentSessionIdRef.current,
+      timestamp
+    })
+      .then(amasResult => {
+        if (!isMountedRef.current) return;
+
+        // 更新AMAS结果供后续使用
+        setLatestAmasResult(amasResult);
+
+        // 如果服务端判定与本地不同，可选择更新
+        // 这里我们保持乐观更新的结果，但记录差异
+        if (amasResult.wordMasteryDecision?.isMastered !== localMasteryDecision.isMastered) {
+          learningLogger.debug(
+            {
+              local: localMasteryDecision.isMastered,
+              server: amasResult.wordMasteryDecision?.isMastered
+            },
+            '服务端判定与本地不同'
+          );
+        }
+      })
+      .catch(e => {
+        learningLogger.warn({ err: e }, 'AMAS异步调用失败，已入队重试');
+
+        if (!isMountedRef.current) return;
+
+        // 入队重试
+        retryQueueRef.current.push({
+          wordId,
+          isCorrect,
+          responseTime,
+          timestamp,
+          retryCount: 0
+        });
+      });
+
   }, [currentWord, saveSessionToCache, syncProgress, latestAmasResult, triggerQueueAdjustment]);
 
   const advanceToNext = useCallback(() => {

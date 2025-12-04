@@ -9,10 +9,24 @@ const router = Router();
 // 所有单词路由都需要认证
 router.use(authMiddleware);
 
-// 获取用户的所有单词
+// 获取用户的所有单词（基于选择的词书）
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const words = await wordService.getWordsByUserId(req.user!.id);
+
+    res.json({
+      success: true,
+      data: words,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取用户学过的单词（有学习记录的）
+router.get('/learned', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const words = await wordService.getLearnedWordsByUserId(req.user!.id);
 
     res.json({
       success: true,

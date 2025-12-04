@@ -8,6 +8,7 @@ import { ABTestEngine } from '../evaluation/ab-testing';
 import { LinUCB } from '../learning/linucb';
 import { ThompsonSampling } from '../learning/thompson-sampling';
 import { THOMPSON_VS_LINUCB_EXPERIMENT } from '../experiments/thompson-vs-linucb';
+import { amasLogger } from '../../logger';
 
 export type AlgorithmType = 'linucb' | 'thompson';
 
@@ -119,7 +120,7 @@ export class AlgorithmRouter {
       });
     } catch (error) {
       // 静默失败，不影响主流程
-      console.warn('Failed to record A/B test metrics:', error);
+      amasLogger.warn({ err: error }, 'Failed to record A/B test metrics');
     }
   }
 

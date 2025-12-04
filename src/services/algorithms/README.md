@@ -28,7 +28,7 @@
   - `AnswerRecord` - 添加了新字段
 - 存储服务扩展：
   - 位置：`src/services/StorageService.ts`
-  - 添加了状态、得分、配置的 CRUD 方法占位符（待后端 API 实现）
+  - 实现了状态、得分、配置的 CRUD 方法，通过后端 API 完成数据持久化
 
 ### 2. 核心算法引擎实现 ✅
 

@@ -22,6 +22,7 @@ import {
   recordBackpressure,
   recordBackpressureTimeout
 } from '../../monitoring/amas-metrics';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -91,11 +92,11 @@ export class DecisionRecorderService {
     } catch (error) {
       // 背压超时，记录告警并丢弃此 trace
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('[DecisionRecorder] Backpressure timeout, dropping trace', {
+      amasLogger.error({
         decisionId: trace.decisionId,
         error: errorMsg,
         queueSize: this.queue.length
-      });
+      }, '[DecisionRecorder] Backpressure timeout, dropping trace');
       recordBackpressureTimeout();
       return; // 丢弃 trace，避免阻塞调用方
     }
@@ -173,19 +174,19 @@ export class DecisionRecorderService {
     // 所有重试均失败，记录失败指标
     recordWriteFailure(lastError?.message);
 
-    console.error('[DecisionRecorder] Failed to persist decision after retries', {
+    amasLogger.error({
       decisionId: trace.decisionId,
       error: lastError?.message
-    });
+    }, '[DecisionRecorder] Failed to persist decision after retries');
 
     try {
       // 尝试标记为失败
       await this.markAsFailed(trace.decisionId, trace.answerRecordId, lastError?.message);
     } catch (markError) {
-      console.error('[DecisionRecorder] Failed to mark decision as failed', {
+      amasLogger.error({
         decisionId: trace.decisionId,
         error: markError
-      });
+      }, '[DecisionRecorder] Failed to mark decision as failed');
     }
   }
 
@@ -408,10 +409,10 @@ export class DecisionRecorderService {
         }
       });
     } catch (error) {
-      console.error('[DecisionRecorder] Failed to write decision insight', {
+      amasLogger.error({
         decisionId: trace.decisionId,
         error
-      });
+      }, '[DecisionRecorder] Failed to write decision insight');
     }
   }
 

@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
 import { WordBook } from '../types/models';
 import { CircleNotch } from '../components/Icon';
+import { useToast } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 export default function StudySettingsPage() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
     const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
     const [dailyCount, setDailyCount] = useState(20);
@@ -33,7 +36,7 @@ export default function StudySettingsPage() {
             setSelectedBookIds(configData.selectedWordBookIds || []);
             setDailyCount(configData.dailyWordCount || 20);
         } catch (err) {
-            console.error('加载数据失败:', err);
+            uiLogger.error({ err }, '加载学习设置数据失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -70,10 +73,10 @@ export default function StudySettingsPage() {
             });
 
             // 保存成功后返回学习页面（根路径）
-            alert('学习设置已保存！');
+            toast.success('学习设置已保存');
             navigate('/');
         } catch (err) {
-            console.error('保存失败:', err);
+            uiLogger.error({ err, selectedBookIds, dailyCount }, '保存学习设置失败');
             setError(err instanceof Error ? err.message : '保存失败');
         } finally {
             setIsSaving(false);

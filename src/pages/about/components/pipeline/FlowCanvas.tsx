@@ -20,6 +20,7 @@ import type {
   FaultInjectionRequest,
   FaultInjectionResponse,
 } from './types';
+import { amasLogger } from '@/utils/logger';
 
 interface FlowCanvasProps {
   snapshot: PipelineSnapshot | null;
@@ -82,7 +83,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         const trace = await onFetchTrace('latest');
         setSelectedTrace(trace);
       } catch (error) {
-        console.error('获取轨迹失败:', error);
+        amasLogger.error({ err: error, nodeId: node.id }, '获取轨迹失败');
       }
     }
   }, [onFetchTrace]);

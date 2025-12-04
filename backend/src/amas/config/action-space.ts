@@ -45,12 +45,22 @@ export const FEATURE_VERSION = 2;
 
 // ==================== 冷启动阈值 ====================
 
-/** 分类阶段交互次数 */
-export const CLASSIFY_PHASE_THRESHOLD = 15;
-/** 探索阶段交互次数 (5次classify + 15次explore = 20次后进入normal) */
-export const EXPLORE_PHASE_THRESHOLD = 20;
+/** 分类阶段交互次数（优化后：3个探测即可分类） */
+export const CLASSIFY_PHASE_THRESHOLD = 5;
+/** 探索阶段交互次数（优化后：3次classify + 5次explore = 8次后进入normal） */
+export const EXPLORE_PHASE_THRESHOLD = 8;
 /** 分类触发交互次数 */
-export const CLASSIFY_TRIGGER = 12;
+export const CLASSIFY_TRIGGER = 3;
+
+/** 贝叶斯早停配置 */
+export const EARLY_STOP_CONFIG = {
+  /** 置信度阈值：后验概率超过此值时提前结束分类 */
+  confidenceThreshold: 0.85,
+  /** 最少探测次数：至少完成这么多探测才能早停 */
+  minProbes: 2,
+  /** 强证据倍数：单次探测结果与预期偏差超过此倍数时增加权重 */
+  strongEvidenceMultiplier: 1.5
+};
 
 // ==================== 模型参数 ====================
 

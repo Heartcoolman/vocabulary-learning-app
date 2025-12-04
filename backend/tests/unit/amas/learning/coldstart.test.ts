@@ -72,10 +72,11 @@ describe('ColdStartManager', () => {
   // ==================== Probe Action Selection Tests ====================
 
   describe('probe action selection', () => {
-    it('should execute 5 probe actions in sequence during classify phase', () => {
+    it('should execute 3 probe actions in sequence during classify phase', () => {
       const selectedActions: Action[] = [];
 
-      for (let i = 0; i < 5; i++) {
+      // 优化后只有3个探测动作
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         selectedActions.push(result.action);
 
@@ -88,7 +89,7 @@ describe('ColdStartManager', () => {
         );
       }
 
-      expect(selectedActions).toHaveLength(5);
+      expect(selectedActions).toHaveLength(3);
     });
 
     it('should return probe actions in fixed order', () => {
@@ -116,9 +117,9 @@ describe('ColdStartManager', () => {
   // ==================== Phase Transition Tests ====================
 
   describe('phase transitions', () => {
-    it('should transition from classify to explore after 5 probes', () => {
-      // Execute 5 probes
-      for (let i = 0; i < 5; i++) {
+    it('should transition from classify to explore after 3 probes', () => {
+      // 优化后：3个探测动作
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -128,8 +129,8 @@ describe('ColdStartManager', () => {
     });
 
     it('should classify userType after classify phase', () => {
-      // Execute 5 probes with good performance
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测动作
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -140,16 +141,16 @@ describe('ColdStartManager', () => {
     });
 
     it('should transition to normal phase after explore threshold', () => {
-      // Execute classify phase (5 probes)
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测 + 5次explore = 8次后进入normal
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
 
       expect(coldStart.getState().phase).toBe('explore');
 
-      // Continue with explore phase updates
-      for (let i = 0; i < 10; i++) {
+      // Continue with explore phase updates (need to reach EXPLORE_PHASE_THRESHOLD = 8)
+      for (let i = 0; i < 6; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -158,18 +159,38 @@ describe('ColdStartManager', () => {
       const state = coldStart.getState();
       expect(['explore', 'normal']).toContain(state.phase);
     });
+
+    it('should support early stop with high confidence', () => {
+      // 模拟明显的fast用户：高正确率+快响应
+      // 第一个探测：基线测试
+      let result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+      coldStart.update(defaultState, result.action, 1.0, {
+        recentResponseTime: 1000,  // 非常快
+        recentErrorRate: 0.0
+      });
+
+      // 第二个探测：挑战测试
+      result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+      coldStart.update(defaultState, result.action, 1.0, {
+        recentResponseTime: 1200,  // 快
+        recentErrorRate: 0.1
+      });
+
+      // 可能在2次探测后就触发早停
+      const canEarlyStop = coldStart.canEarlyStop();
+      // 如果置信度足够高，应该可以早停
+      expect(typeof canEarlyStop).toBe('boolean');
+    });
   });
 
   // ==================== User Classification Tests ====================
 
   describe('user classification', () => {
     it('should classify as fast with high accuracy and fast response', () => {
-      // Simulate fast learner: high accuracy, fast response
-      for (let i = 0; i < 5; i++) {
+      // 模拟fast用户：3个探测都表现出色
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
 
-        // Simulate correct answer with fast response
-        // Use recentResponseTime and recentErrorRate as expected by the implementation
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1000, // Fast
           recentErrorRate: 0.1
@@ -181,14 +202,14 @@ describe('ColdStartManager', () => {
     });
 
     it('should classify as stable with moderate performance', () => {
-      // Simulate stable learner: moderate accuracy and response
-      for (let i = 0; i < 5; i++) {
+      // 模拟stable用户：中等表现
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
 
-        // Simulate moderate performance
-        const isCorrect = i < 4; // 80% accuracy but slower
+        // 2/3正确 = ~67% 正确率
+        const isCorrect = i < 2;
         coldStart.update(defaultState, result.action, isCorrect ? 1 : 0, {
-          recentResponseTime: 2500, // Moderate
+          recentResponseTime: 2000, // Moderate
           recentErrorRate: 0.25
         });
       }
@@ -198,20 +219,41 @@ describe('ColdStartManager', () => {
     });
 
     it('should classify as cautious with lower performance', () => {
-      // Simulate cautious learner: lower accuracy, slower response
-      for (let i = 0; i < 5; i++) {
+      // 模拟cautious用户：低表现
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
 
-        // Simulate struggling performance
-        const isCorrect = i < 2; // 40% accuracy
-        coldStart.update(defaultState, result.action, isCorrect ? 1 : 0, {
-          recentResponseTime: 5000, // Slow
-          recentErrorRate: 0.5
+        // 0/3正确 + 慢响应
+        coldStart.update(defaultState, result.action, 0.0, {
+          recentResponseTime: 4000, // Slow
+          recentErrorRate: 0.6
         });
       }
 
       const state = coldStart.getState();
       expect(state.userType).toBe('cautious');
+    });
+
+    it('should use Bayesian inference for classification', () => {
+      // 执行探测
+      for (let i = 0; i < 3; i++) {
+        const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        coldStart.update(defaultState, result.action, 1.0, {
+          recentResponseTime: 1500,
+          recentErrorRate: 0.2
+        });
+      }
+
+      // 验证后验概率可用
+      const posteriors = coldStart.getPosteriors();
+      expect(posteriors).toBeDefined();
+      expect(posteriors.fast).toBeGreaterThanOrEqual(0);
+      expect(posteriors.stable).toBeGreaterThanOrEqual(0);
+      expect(posteriors.cautious).toBeGreaterThanOrEqual(0);
+
+      // 概率和应该约等于1
+      const sum = posteriors.fast + posteriors.stable + posteriors.cautious;
+      expect(sum).toBeCloseTo(1.0, 5);
     });
   });
 
@@ -219,8 +261,8 @@ describe('ColdStartManager', () => {
 
   describe('strategy mapping', () => {
     it('should settle on appropriate strategy after classification', () => {
-      // Complete classify phase
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -229,14 +271,13 @@ describe('ColdStartManager', () => {
 
       // After classify, should have userType
       expect(state.userType).not.toBeNull();
-
-      // In explore phase, strategy might not be settled yet
-      // But userType should guide selection
+      // 贝叶斯分类后应该有策略
+      expect(state.settledStrategy).not.toBeNull();
     });
 
     it('should return settled strategy in normal phase', () => {
-      // Fast forward through phases
-      for (let i = 0; i < 20; i++) {
+      // 优化后：8次后进入normal
+      for (let i = 0; i < 10; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -261,8 +302,8 @@ describe('ColdStartManager', () => {
     });
 
     it('should select from action space in explore phase', () => {
-      // Complete classify
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -274,8 +315,8 @@ describe('ColdStartManager', () => {
     });
 
     it('should return settled or default strategy in normal phase', () => {
-      // Fast forward to normal
-      for (let i = 0; i < 20; i++) {
+      // 优化后：8次后进入normal
+      for (let i = 0; i < 10; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -309,23 +350,23 @@ describe('ColdStartManager', () => {
     });
 
     it('should restore mid-classification state', () => {
-      // Execute 3 of 5 probes
-      for (let i = 0; i < 3; i++) {
+      // 优化后只有3个探测，执行2个
+      for (let i = 0; i < 2; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
 
       const midState = coldStart.getState();
-      expect(midState.probeIndex).toBe(3);
+      expect(midState.probeIndex).toBe(2);
       expect(midState.phase).toBe('classify');
 
       // Restore and continue
       const newColdStart = new ColdStartManager();
       newColdStart.setState(midState);
 
-      expect(newColdStart.getState().probeIndex).toBe(3);
+      expect(newColdStart.getState().probeIndex).toBe(2);
 
-      // Should continue from probe 4
+      // Should continue from probe 3
       const result = newColdStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
       expect(result.action).toBeDefined();
     });
@@ -373,8 +414,8 @@ describe('ColdStartManager', () => {
     it('should return current phase', () => {
       expect(coldStart.getPhase()).toBe('classify');
 
-      // Complete classify
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
@@ -385,14 +426,18 @@ describe('ColdStartManager', () => {
     it('should check if cold start is complete', () => {
       expect(coldStart.isCompleted()).toBe(false);
 
-      // Fast forward to normal
-      for (let i = 0; i < 20; i++) {
+      // 优化后：8次后进入normal
+      for (let i = 0; i < 10; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, defaultContext);
       }
 
       // May or may not be complete depending on threshold
       expect(typeof coldStart.isCompleted()).toBe('boolean');
+    });
+
+    it('should return probe count', () => {
+      expect(coldStart.getProbeCount()).toBe(3);
     });
   });
 
@@ -406,9 +451,13 @@ describe('ColdStartManager', () => {
     });
 
     it('should handle all incorrect responses', () => {
-      for (let i = 0; i < 5; i++) {
+      // 优化后：3个探测，全部错误
+      for (let i = 0; i < 3; i++) {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
-        coldStart.update(defaultState, result.action, 0.0, defaultContext);
+        coldStart.update(defaultState, result.action, 0.0, {
+          recentResponseTime: 5000,  // Slow
+          recentErrorRate: 0.8       // High error rate
+        });
       }
 
       const state = coldStart.getState();

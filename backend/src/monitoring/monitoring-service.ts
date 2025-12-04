@@ -21,6 +21,7 @@ import {
   DEFAULT_EVALUATION_JITTER_MS
 } from './alert-rules';
 import { amasMetrics } from './amas-metrics';
+import { monitorLogger } from '../logger';
 
 interface HistogramStats {
   avg: number;
@@ -84,7 +85,7 @@ export class MonitoringService {
    */
   start(): void {
     if (!this.enabled) {
-      console.log('[MonitoringService] Alerting disabled by config');
+      monitorLogger.info('Alerting disabled by config');
       return;
     }
     if (this.running) return;
@@ -95,7 +96,7 @@ export class MonitoringService {
     this.timer = setInterval(() => this.scheduleEvaluation(), this.intervalMs);
     if (this.timer.unref) this.timer.unref();
 
-    console.log(`[MonitoringService] Alert loop started (${this.intervalMs}ms interval)`);
+    monitorLogger.info({ interval: this.intervalMs }, 'Alert loop started');
   }
 
   /**
@@ -111,7 +112,7 @@ export class MonitoringService {
       this.timer = undefined;
     }
     this.lastSnapshot = undefined;
-    console.log('[MonitoringService] Alert loop stopped');
+    monitorLogger.info('Alert loop stopped');
   }
 
   /**
@@ -145,10 +146,10 @@ export class MonitoringService {
           const changes = this.engine.evaluate(frame);
 
           if (changes.length > 0) {
-            console.log(`[MonitoringService] ${changes.length} alert state change(s) processed`);
+            monitorLogger.info({ count: changes.length }, 'Alert state change(s) processed');
           }
         } catch (error) {
-          console.error('[MonitoringService] Alert evaluation failed', error);
+          monitorLogger.error({ err: error }, 'Alert evaluation failed');
         } finally {
           this.evaluating = false;
         }
@@ -202,7 +203,7 @@ export class MonitoringService {
       (raw.http.total < this.lastSnapshot.http.total ||
         raw.db.slowQueryTotal < this.lastSnapshot.db.slowQueryTotal)
     ) {
-      console.log('[MonitoringService] Counter reset detected, resetting baseline');
+      monitorLogger.info('Counter reset detected, resetting baseline');
       this.lastSnapshot = raw;
     } else {
       this.lastSnapshot = raw;

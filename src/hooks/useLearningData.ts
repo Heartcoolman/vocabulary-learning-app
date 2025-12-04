@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient, { UserLearningData } from '../services/ApiClient';
+import { adminLogger } from '../utils/logger';
 
 interface UseLearningDataReturn {
   data: UserLearningData | null;
@@ -27,7 +28,7 @@ export const useLearningData = (userId: string, limit: number = 50): UseLearning
       const response = await apiClient.adminGetUserLearningData(userId, limit);
       setData(response);
     } catch (err) {
-      console.error('Failed to fetch user learning data:', err);
+      adminLogger.error({ err, userId, limit }, '获取用户学习数据失败');
       setError(err instanceof Error ? err.message : '获取学习记录失败');
     } finally {
       setLoading(false);

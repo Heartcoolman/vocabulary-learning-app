@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  Word, 
-  LearningSession, 
+import {
+  Word,
+  LearningSession,
   AnswerRecord,
   WordLearningState,
   WordScore,
@@ -11,6 +11,7 @@ import StorageService from './StorageService';
 import ApiClient from './ApiClient';
 import { SpacedRepetitionService } from './algorithms/SpacedRepetitionService';
 import { WordStateStorage } from './algorithms/WordStateManager';
+import { learningLogger } from '../utils/logger';
 
 /**
  * 存储适配器 - 将 StorageService 适配为 WordStateStorage 接口
@@ -42,7 +43,7 @@ class StorageAdapter implements WordStateStorage {
       
       // 缓存会在下次获取时重新加载
     } catch (error) {
-      console.error('删除单词学习状态失败:', error);
+      learningLogger.error({ err: error }, '删除单词学习状态失败');
       throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
@@ -190,7 +191,7 @@ class LearningService {
           );
         }
       } catch (error) {
-        console.error('初始化间隔重复服务失败:', error);
+        learningLogger.error({ err: error }, '初始化间隔重复服务失败');
       }
     }
 
@@ -249,7 +250,7 @@ class LearningService {
       // 结束间隔重复会话
       if (this.srService) {
         this.srService.endSession().catch(error => {
-          console.error('结束间隔重复会话失败:', error);
+          learningLogger.error({ err: error }, '结束间隔重复会话失败');
         });
       }
       
@@ -337,7 +338,7 @@ class LearningService {
 
         // 答题结果已处理
       } catch (error) {
-        console.error('更新单词状态失败:', error);
+        learningLogger.error({ err: error }, '更新单词状态失败');
         // 失败不阻断学习流程
       }
     }
@@ -347,7 +348,7 @@ class LearningService {
       // 使用扩展版本保存答题记录（包含新字段）
       await StorageService.saveAnswerRecordExtended(record);
     } catch (error) {
-      console.error('保存学习记录失败:', error);
+      learningLogger.error({ err: error }, '保存学习记录失败');
       // 记录失败不阻断学习流程
     }
 
@@ -391,7 +392,7 @@ class LearningService {
       // 结束间隔重复会话
       if (this.srService) {
         this.srService.endSession().catch(error => {
-          console.error('结束间隔重复会话失败:', error);
+          learningLogger.error({ err: error }, '结束间隔重复会话失败');
         });
       }
       
@@ -530,7 +531,7 @@ class LearningService {
 
     // 极端情况警告：只有一个选项（完全没有干扰项）
     if (actualDistractorCount === 0) {
-      console.warn(`[LearningService] 单词 "${correctWord.spelling}" 无法生成干扰项，词库可能过小`);
+      learningLogger.warn({ word: correctWord.spelling }, '单词无法生成干扰项，词库可能过小');
       // 此时返回只有正确答案的选项，UI层应处理此情况
     }
 
@@ -639,7 +640,7 @@ class LearningService {
         this.srService.clearUserCache(userId);
       }
     } catch (error) {
-      console.error('删除单词学习状态失败:', error);
+      learningLogger.error({ err: error }, '删除单词学习状态失败');
       throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }

@@ -23,6 +23,7 @@
  */
 
 import { PersistableFeatureVector } from '../types';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -150,9 +151,7 @@ export class DelayedRewardAggregator {
     // 验证权重和为1
     const totalWeight = schedule.reduce((sum, s) => sum + s.weight, 0);
     if (Math.abs(totalWeight - 1.0) > 0.01) {
-      console.warn(
-        `[DelayedRewardAggregator] 权重和为${totalWeight}，建议为1.0`
-      );
+      amasLogger.warn({ totalWeight }, '[DelayedRewardAggregator] 权重和建议为1.0');
     }
 
     this.schedule = schedule;
@@ -206,9 +205,7 @@ export class DelayedRewardAggregator {
 
     // 队列容量保护
     if (this.queue.length > MAX_QUEUE_SIZE) {
-      console.warn(
-        `[DelayedRewardAggregator] 队列超过${MAX_QUEUE_SIZE}，移除最旧事件`
-      );
+      amasLogger.warn({ maxSize: MAX_QUEUE_SIZE }, '[DelayedRewardAggregator] 队列超限，移除最旧事件');
       this.queue = this.queue.slice(-MAX_QUEUE_SIZE);
     }
 
@@ -353,15 +350,13 @@ export class DelayedRewardAggregator {
    */
   setState(state: DelayedRewardState): void {
     if (!state) {
-      console.warn('[DelayedRewardAggregator] 无效状态，跳过恢复');
+      amasLogger.warn('[DelayedRewardAggregator] 无效状态，跳过恢复');
       return;
     }
 
     // 版本检查
     if (state.version !== DelayedRewardAggregator.VERSION) {
-      console.log(
-        `[DelayedRewardAggregator] 版本迁移: ${state.version} → ${DelayedRewardAggregator.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: DelayedRewardAggregator.VERSION }, '[DelayedRewardAggregator] 版本迁移');
     }
 
     // 恢复队列（带验证）

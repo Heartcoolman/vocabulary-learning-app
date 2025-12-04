@@ -3,6 +3,8 @@
  * 支持流量分配、统计显著性检验和自动化决策
  */
 
+import { amasLogger } from '../../logger';
+
 /**
  * A/B测试实验配置
  */
@@ -158,7 +160,7 @@ export class ABTestEngine {
     }
 
     experiment.status = 'running';
-    console.log(`[ABTest] Started experiment: ${experiment.name}`);
+    amasLogger.info({ experimentName: experiment.name }, '[ABTest] Started experiment');
   }
 
   /**
@@ -411,9 +413,11 @@ export class ABTestEngine {
 
     if (deploy) {
       const result = this.analyzeExperiment(experimentId);
-      console.log(`[ABTest] Completed experiment: ${experiment.name}`);
-      console.log(`[ABTest] Winner: ${result.winner || 'None'}`);
-      console.log(`[ABTest] Recommendation: ${result.recommendation}`);
+      amasLogger.info({
+        experimentName: experiment.name,
+        winner: result.winner || 'None',
+        recommendation: result.recommendation
+      }, '[ABTest] Completed experiment');
     }
   }
 
@@ -428,7 +432,7 @@ export class ABTestEngine {
 
     experiment.status = 'aborted';
     experiment.endedAt = new Date();
-    console.log(`[ABTest] Aborted experiment: ${experiment.name}. Reason: ${reason}`);
+    amasLogger.info({ experimentName: experiment.name, reason }, '[ABTest] Aborted experiment');
   }
 
   /**

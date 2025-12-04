@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { cacheService, CacheTTL, CacheKeys } from './cache.service';
 import { stateHistoryService } from './state-history.service';
+import { serviceLogger } from '../logger';
 
 export interface DifficultyFactors {
   length: number;
@@ -135,10 +136,13 @@ class ExplainabilityService {
         }
       });
     } catch (dbError) {
-      console.warn('[Explainability] DB query failed, falling back to computation', {
-        decisionId: targetId,
-        error: dbError instanceof Error ? dbError.message : String(dbError)
-      });
+      serviceLogger.warn(
+        {
+          decisionId: targetId,
+          error: dbError instanceof Error ? dbError.message : String(dbError)
+        },
+        'DB query failed, falling back to computation'
+      );
       dbInsight = null;
     }
 
@@ -149,10 +153,13 @@ class ExplainabilityService {
       };
 
       if (!isValidObject(dbInsight.stateSnapshot)) {
-        console.error('[Explainability] Invalid stateSnapshot type, falling back', {
-          decisionId: targetId,
-          type: typeof dbInsight.stateSnapshot
-        });
+        serviceLogger.error(
+          {
+            decisionId: targetId,
+            type: typeof dbInsight.stateSnapshot
+          },
+          'Invalid stateSnapshot type, falling back'
+        );
       } else {
         const insightData = {
           stateSnapshot: dbInsight.stateSnapshot,

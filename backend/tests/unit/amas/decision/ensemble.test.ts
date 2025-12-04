@@ -397,10 +397,33 @@ describe('EnsembleLearningFramework', () => {
       expect(weights.heuristic).toBeDefined();
     });
 
-    // setWeights method is not implemented in EnsembleLearningFramework
-    it.todo('should allow setting individual learner weights');
+    it('should allow setting individual learner weights', () => {
+      const originalWeights = ensemble.getWeights();
 
-    it.todo('should normalize weights after setting');
+      // Set a specific learner weight
+      ensemble.setWeights({ linucb: 0.5 });
+
+      const newWeights = ensemble.getWeights();
+
+      // linucb weight should be higher relative to others
+      expect(newWeights.linucb).toBeGreaterThan(originalWeights.linucb);
+    });
+
+    it('should normalize weights after setting', () => {
+      // Set weights that don't sum to 1
+      ensemble.setWeights({
+        thompson: 0.4,
+        linucb: 0.4,
+        actr: 0.3,
+        heuristic: 0.3
+      });
+
+      const weights = ensemble.getWeights();
+      const sum = weights.thompson + weights.linucb + weights.actr + weights.heuristic;
+
+      // Weights should be normalized to sum to 1
+      expect(sum).toBeCloseTo(1.0, 5);
+    });
   });
 
   // ==================== Fallback Behavior Tests ====================

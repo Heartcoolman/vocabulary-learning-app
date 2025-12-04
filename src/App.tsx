@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './components/ui';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import SyncIndicator from './components/SyncIndicator';
@@ -18,6 +19,7 @@ import WordMasteryPage from './pages/WordMasteryPage';
 import HabitProfilePage from './pages/HabitProfilePage';
 import TodayWordsPage from './pages/TodayWordsPage';
 import StudyProgressPage from './pages/StudyProgressPage';
+import LearningObjectivesPage from './pages/LearningObjectivesPage';
 // AMAS 增强功能页面
 import LearningTimePage from './pages/LearningTimePage';
 import TrendReportPage from './pages/TrendReportPage';
@@ -32,6 +34,7 @@ import AdminWordBooks from './pages/admin/AdminWordBooks';
 import AlgorithmConfigPage from './pages/admin/AlgorithmConfigPage';
 import ConfigHistoryPage from './pages/admin/ConfigHistoryPage';
 import ExperimentDashboard from './pages/admin/ExperimentDashboard';
+import LogViewerPage from './pages/admin/LogViewerPage';
 // AMAS 公开展示页面
 import AboutLayout from './pages/about/AboutLayout';
 import AboutHomePage from './pages/about/AboutHomePage';
@@ -97,6 +100,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <StudySettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/learning-objectives"
+              element={
+                <ProtectedRoute>
+                  <LearningObjectivesPage />
                 </ProtectedRoute>
               }
             />
@@ -217,6 +228,7 @@ function AppContent() {
               <Route path="algorithm-config" element={<AlgorithmConfigPage />} />
               <Route path="config-history" element={<ConfigHistoryPage />} />
               <Route path="experiments" element={<ExperimentDashboard />} />
+              <Route path="logs" element={<LogViewerPage />} />
             </Route>
 
             {/* 404重定向 */}
@@ -235,7 +247,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

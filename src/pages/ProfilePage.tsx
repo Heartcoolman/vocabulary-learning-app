@@ -4,6 +4,7 @@ import { User, Lock, Database, Activity, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/ApiClient';
 import StorageService from '../services/StorageService';
+import { useToast, ConfirmModal } from '../components/ui';
 
 /**
  * 个人资料页面组件
@@ -11,6 +12,7 @@ import StorageService from '../services/StorageService';
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'cache' | 'habit'>('profile');
 
@@ -25,6 +27,10 @@ export default function ProfilePage() {
   const [cacheError, setCacheError] = useState('');
   const [cacheSuccess, setCacheSuccess] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // 确认弹窗状态
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [clearCacheConfirm, setClearCacheConfirm] = useState(false);
 
   /**
    * 处理修改密码
@@ -69,10 +75,8 @@ export default function ProfilePage() {
    * 处理退出登录
    */
   const handleLogout = async () => {
-    if (window.confirm('确定要退出登录吗？')) {
-      await logout();
-      navigate('/login');
-    }
+    await logout();
+    navigate('/login');
   };
 
   /**
@@ -96,18 +100,15 @@ export default function ProfilePage() {
    * 清除本地缓存数据
    */
   const handleClearCache = async () => {
-    if (!window.confirm('⚠️ 将清除本地缓存数据（不影响云端），确定继续吗？')) {
-      return;
-    }
-
     try {
       await StorageService.deleteDatabase();
-      setCacheSuccess('本地缓存已清除');
+      toast.success('本地缓存已清除');
       setCacheError('');
-    } catch (err) {
-      setCacheError(err instanceof Error ? err.message : '清除缓存失败');
       setCacheSuccess('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '清除缓存失败');
     }
+    setClearCacheConfirm(false);
   };
 
   if (!user) {
@@ -209,7 +210,7 @@ export default function ProfilePage() {
               <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">账号管理</h2>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setLogoutConfirm(true)}
                   className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 border border-red-200"
                 >
                   退出登录
@@ -360,7 +361,7 @@ export default function ProfilePage() {
                 </button>
 
                 <button
-                  onClick={handleClearCache}
+                  onClick={() => setClearCacheConfirm(true)}
                   disabled={isSyncing}
                   className="w-full px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -424,6 +425,30 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* 退出登录确认弹窗 */}
+      <ConfirmModal
+        isOpen={logoutConfirm}
+        onClose={() => setLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="退出登录"
+        message="确定要退出登录吗？"
+        confirmText="退出"
+        cancelText="取消"
+        variant="warning"
+      />
+
+      {/* 清除缓存确认弹窗 */}
+      <ConfirmModal
+        isOpen={clearCacheConfirm}
+        onClose={() => setClearCacheConfirm(false)}
+        onConfirm={handleClearCache}
+        title="清除缓存"
+        message="将清除本地缓存数据（不影响云端），确定继续吗？"
+        confirmText="清除"
+        cancelText="取消"
+        variant="warning"
+      />
     </div>
   );
 }

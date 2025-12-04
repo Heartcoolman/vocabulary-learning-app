@@ -1,4 +1,5 @@
 import { getRedisClient } from '../config/redis';
+import { serviceLogger } from '../logger';
 
 const TTL_SECONDS = 60 * 60;
 const KEY_PREFIX = 'word_difficulty';
@@ -15,7 +16,7 @@ class DifficultyCacheService {
       const value = await client.get(buildKey(userId, wordId));
       return value !== null ? Number(value) : null;
     } catch (error) {
-      console.warn('[DifficultyCache] getCached failed:', (error as Error).message);
+      serviceLogger.warn({ err: error }, 'getCached failed');
       return null;
     }
   }
@@ -35,7 +36,7 @@ class DifficultyCacheService {
       });
       return result;
     } catch (error) {
-      console.warn('[DifficultyCache] getCachedBatch failed:', (error as Error).message);
+      serviceLogger.warn({ err: error }, 'getCachedBatch failed');
       return {};
     }
   }
@@ -46,7 +47,7 @@ class DifficultyCacheService {
       await client.connect();
       await client.setex(buildKey(userId, wordId), TTL_SECONDS, difficulty.toFixed(6));
     } catch (error) {
-      console.warn('[DifficultyCache] setCached failed:', (error as Error).message);
+      serviceLogger.warn({ err: error }, 'setCached failed');
     }
   }
 
@@ -59,7 +60,7 @@ class DifficultyCacheService {
         await client.del(...keys);
       }
     } catch (error) {
-      console.warn('[DifficultyCache] invalidate failed:', (error as Error).message);
+      serviceLogger.warn({ err: error }, 'invalidate failed');
     }
   }
 }

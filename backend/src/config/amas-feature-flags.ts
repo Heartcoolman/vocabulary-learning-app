@@ -10,6 +10,8 @@
  * - AMAS_ABOUT_DATA_SOURCE: 'real' | 'virtual'（默认 virtual）
  */
 
+import { amasLogger } from '../logger';
+
 // ==================== 类型定义 ====================
 
 export type DataSourceMode = 'real' | 'virtual';
@@ -106,7 +108,7 @@ export function updateFeatureFlag<K extends keyof AmasFeatureFlags>(
   value: AmasFeatureFlags[K]
 ): void {
   (amasFeatureFlags as any)[key] = value;
-  console.log(`[AmasFeatureFlags] Updated ${key} to ${value}`);
+  amasLogger.info({ key, value }, '特性开关已更新');
 }
 
 // ==================== 配置验证 ====================
@@ -143,17 +145,17 @@ export function validateFeatureFlags(): { valid: boolean; warnings: string[] } {
 
 const validation = validateFeatureFlags();
 
-console.log('[AmasFeatureFlags] Configuration loaded:');
-console.log(`  - writeEnabled: ${amasFeatureFlags.writeEnabled}`);
-console.log(`  - readEnabled: ${amasFeatureFlags.readEnabled}`);
-console.log(`  - visualizationEnabled: ${amasFeatureFlags.visualizationEnabled}`);
-console.log(`  - aboutDataSource: ${amasFeatureFlags.aboutDataSource}`);
-console.log(`  - cacheTtlMs: ${amasFeatureFlags.cacheTtlMs}`);
-console.log(`  - maxQueueSize: ${amasFeatureFlags.maxQueueSize}`);
+amasLogger.info({
+  writeEnabled: amasFeatureFlags.writeEnabled,
+  readEnabled: amasFeatureFlags.readEnabled,
+  visualizationEnabled: amasFeatureFlags.visualizationEnabled,
+  aboutDataSource: amasFeatureFlags.aboutDataSource,
+  cacheTtlMs: amasFeatureFlags.cacheTtlMs,
+  maxQueueSize: amasFeatureFlags.maxQueueSize
+}, 'AMAS 特性开关配置已加载');
 
 if (!validation.valid) {
-  console.warn('[AmasFeatureFlags] Warnings:');
   for (const warning of validation.warnings) {
-    console.warn(`  - ${warning}`);
+    amasLogger.warn({ warning }, 'AMAS 特性开关配置警告');
   }
 }

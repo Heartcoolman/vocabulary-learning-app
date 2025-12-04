@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
 import ApiClient from '../services/ApiClient';
 import { MagnifyingGlass, Compass, CheckCircle, Question } from './Icon';
+import { amasLogger } from '../utils/logger';
 
 interface AmasStatusProps {
   /** 是否显示详细信息 */
@@ -39,7 +40,7 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
           setIsInitialLoad(false);
         }
       } catch (error) {
-        console.error('加载AMAS状态失败:', error);
+        amasLogger.error({ err: error }, '加载AMAS状态失败');
       } finally {
         if (isMounted && isInitialLoad) setLoading(false);
       }

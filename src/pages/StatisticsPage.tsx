@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ChartBar, Target, CheckCircle, Clock, TrendUp, ArrowLeft, CircleNotch } from '../components/Icon';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
+import { learningLogger } from '../utils/logger';
 
 interface StatisticsData {
   totalWords: number;
@@ -135,7 +136,7 @@ export default function StatisticsPage() {
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('加载统计数据失败:', err);
+        learningLogger.error({ err }, '加载统计数据失败');
         if (mounted) {
           setError('加载统计数据失败');
           setIsLoading(false);

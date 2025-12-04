@@ -27,6 +27,7 @@ import { getFeatureFlags, isColdStartEnabled } from '../config/feature-flags';
 import { mapActionToStrategy, mapStrategyToAction } from '../decision/mapper';
 import { applyGuardrails, shouldSuggestBreak } from '../decision/guardrails';
 import { generateExplanation, generateSuggestion, generateEnhancedExplanation } from '../decision/explain';
+import { MultiObjectiveDecisionEngine } from '../decision/multi-objective-decision';
 import {
   ACTION_SPACE,
   DEFAULT_STRATEGY,
@@ -40,14 +41,19 @@ import { telemetry } from '../common/telemetry';
 import prisma from '../../config/database';
 import {
   ColdStartPhase,
+  ObjectiveEvaluation,
   PersistableFeatureVector,
-  RawEvent
+  RawEvent,
+  StrategyParams,
+  UserState
 } from '../types';
+import { newUserInitializer, UserStateSnapshot } from '../cold-start/new-user-initializer';
 import {
   recordActionSelection,
   recordDecisionConfidence,
   recordInferenceLatencyMs
 } from '../../monitoring/amas-metrics';
+import { amasLogger } from '../../logger';
 
 import {
   DecisionModel,
@@ -70,6 +76,14 @@ import { DecisionRecorderService, getSharedDecisionRecorder } from '../services/
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 
 /**
+ * 用户奖励配置缓存项
+ */
+interface RewardProfileCacheItem {
+  profile: string | null;
+  cachedAt: number;
+}
+
+/**
  * AMAS 核心引擎
  *
  * 整合感知层、建模层、学习层和决策层
@@ -86,6 +100,10 @@ export class AMASEngine {
   private isolation: IsolationManager;
   private modeling: ModelingManager;
   private learning: LearningManager;
+
+  // 用户奖励配置缓存（避免每次请求都查询数据库）
+  private rewardProfileCache: Map<string, RewardProfileCacheItem> = new Map();
+  private static readonly REWARD_PROFILE_CACHE_TTL_MS = 5 * 60 * 1000; // 5分钟缓存
 
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
@@ -140,10 +158,7 @@ export class AMASEngine {
 
     // 开发/测试环境可以使用内存存储
     if (!isProduction && (!deps.stateRepo || !deps.modelRepo)) {
-      console.warn(
-        '[AMAS Engine] 警告：使用内存存储，数据在服务重启后会丢失。' +
-        '生产环境请务必配置数据库存储。'
-      );
+      amasLogger.warn('[AMAS Engine] 使用内存存储，数据在服务重启后会丢失。生产环境请务必配置数据库存储。');
     }
 
     this.stateRepo = deps.stateRepo ?? new MemoryStateRepository();
@@ -250,12 +265,8 @@ export class AMASEngine {
     const prevState = await this.loadOrCreateState(userId);
     await this.loadModelIfExists(userId, models.bandit);
 
-    // 2.5. 加载用户奖励配置
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { rewardProfile: true }
-    });
-    const rewardProfile = getRewardProfile((user as any)?.rewardProfile);
+    // 2.5. 加载用户奖励配置（使用缓存避免重复查询）
+    const rewardProfile = await this.getCachedRewardProfile(userId);
 
     // 检查取消/超时状态
     if (signal?.aborted || timedOut?.value) {
@@ -320,7 +331,41 @@ export class AMASEngine {
     stageTiming.decision.start = Date.now();
     const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
     const mappedParams = mapActionToStrategy(action, currentParams);
-    const finalStrategy = applyGuardrails(state, mappedParams);
+    let finalStrategy: StrategyParams = applyGuardrails(state, mappedParams);
+
+    // 8.5 多目标优化调整（如果配置了学习目标）
+    let objectiveEvaluation: ObjectiveEvaluation | undefined;
+    let multiObjectiveAdjusted = false;
+
+    if (opts.learningObjectives && opts.sessionStats) {
+      try {
+        const moDecision = MultiObjectiveDecisionEngine.makeDecision(
+          finalStrategy,
+          opts.learningObjectives,
+          opts.sessionStats,
+          state
+        );
+
+        objectiveEvaluation = moDecision.evaluation;
+
+        if (moDecision.shouldAdjust) {
+          // 应用多目标优化建议的策略调整
+          finalStrategy = moDecision.newStrategy;
+          multiObjectiveAdjusted = true;
+
+          this.logger?.info('Multi-objective optimization adjusted strategy', {
+            userId,
+            mode: opts.learningObjectives.mode,
+            aggregatedScore: moDecision.evaluation.metrics.aggregatedScore,
+            constraintsSatisfied: moDecision.evaluation.constraintsSatisfied,
+            violationCount: moDecision.evaluation.constraintViolations.length
+          });
+        }
+      } catch (err) {
+        // 多目标优化失败不影响主流程
+        this.logger?.warn('Multi-objective optimization failed', { userId, error: err });
+      }
+    }
 
     // Critical Fix #3: 重建action以匹配guardrail后的策略
     // 确保用户体验、模型训练、决策记录使用一致的action
@@ -457,7 +502,9 @@ export class AMASEngine {
       reward,
       suggestion,
       shouldBreak: shouldSuggestBreak(state),
-      featureVector: persistableFeatureVector
+      featureVector: persistableFeatureVector,
+      objectiveEvaluation,
+      multiObjectiveAdjusted
     };
   }
 
@@ -550,9 +597,72 @@ export class AMASEngine {
 
   // ==================== 私有方法 ====================
 
-  private async loadOrCreateState(userId: string) {
+  /**
+   * 加载或创建用户状态
+   *
+   * 集成 NewUserInitializer：
+   * - 新用户：使用默认状态
+   * - 回归用户：根据离线时长应用状态衰减
+   */
+  private async loadOrCreateState(userId: string): Promise<UserState> {
     const state = await this.stateRepo.loadState(userId);
-    return state ?? this.modeling.createDefaultState();
+
+    // 新用户：返回默认状态
+    if (!state) {
+      return this.modeling.createDefaultState();
+    }
+
+    // 现有用户：检查是否需要处理回归用户状态衰减
+    const now = Date.now();
+    const lastActiveAt = state.ts || now;
+    const offlineMs = now - lastActiveAt;
+    const offlineDays = offlineMs / (1000 * 60 * 60 * 24);
+
+    // 如果离线时间超过1天，应用回归用户处理
+    if (offlineDays >= 1) {
+      try {
+        const snapshot: UserStateSnapshot = {
+          attention: state.A,
+          fatigue: state.F,
+          motivation: state.M,
+          cognitiveProfile: state.C,
+          lastActiveAt,
+          coldStartPhase: this.getColdStartPhase(userId),
+          totalLearningMinutes: undefined // 暂不追踪总学习时长
+        };
+
+        const config = await newUserInitializer.handleReturningUser(userId, snapshot);
+
+        if (config.needsReColdStart) {
+          // 需要重新冷启动：重置冷启动状态
+          this.isolation.deleteUserModels(userId);
+          this.logger?.info('Returning user needs re-cold-start', {
+            userId,
+            offlineDays: config.offlineDays,
+            decayFactor: config.decayFactor
+          });
+        }
+
+        // 应用衰减后的状态
+        const inheritedState = config.inheritedState;
+        return {
+          A: inheritedState.attention ?? state.A,
+          F: inheritedState.fatigue ?? state.F,
+          M: inheritedState.motivation ?? state.M,
+          C: inheritedState.cognitiveProfile ?? state.C,
+          H: state.H,
+          T: state.T,
+          conf: Math.max(0.3, state.conf * config.decayFactor), // 置信度也衰减
+          ts: now
+        };
+      } catch (err) {
+        this.logger?.warn('Failed to handle returning user', { userId, error: err });
+        // 失败时返回原状态
+        return state;
+      }
+    }
+
+    return state;
   }
 
   private async loadModelIfExists(userId: string, bandit: DecisionModel): Promise<void> {
@@ -568,6 +678,74 @@ export class AMASEngine {
         linucb: model
       });
     }
+  }
+
+  /**
+   * 获取缓存的用户奖励配置
+   *
+   * 使用内存缓存避免每次请求都查询数据库
+   * 缓存 TTL: 5分钟
+   */
+  private async getCachedRewardProfile(userId: string): Promise<ReturnType<typeof getRewardProfile>> {
+    const now = Date.now();
+    const cached = this.rewardProfileCache.get(userId);
+
+    // 缓存命中且未过期
+    if (cached && (now - cached.cachedAt) < AMASEngine.REWARD_PROFILE_CACHE_TTL_MS) {
+      return getRewardProfile(cached.profile ?? undefined);
+    }
+
+    // 缓存未命中或已过期，从数据库加载
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { rewardProfile: true }
+      });
+
+      const profile = (user as any)?.rewardProfile ?? null;
+
+      // 更新缓存
+      this.rewardProfileCache.set(userId, {
+        profile,
+        cachedAt: now
+      });
+
+      // 定期清理过期缓存（当缓存过大时）
+      if (this.rewardProfileCache.size > 10000) {
+        this.cleanupRewardProfileCache();
+      }
+
+      return getRewardProfile(profile);
+    } catch (err) {
+      this.logger?.warn('Failed to load reward profile', { userId, error: err });
+      return getRewardProfile(undefined);
+    }
+  }
+
+  /**
+   * 清理过期的奖励配置缓存
+   */
+  private cleanupRewardProfileCache(): void {
+    const now = Date.now();
+    const expiredKeys: string[] = [];
+
+    for (const [userId, item] of this.rewardProfileCache) {
+      if (now - item.cachedAt > AMASEngine.REWARD_PROFILE_CACHE_TTL_MS) {
+        expiredKeys.push(userId);
+      }
+    }
+
+    for (const key of expiredKeys) {
+      this.rewardProfileCache.delete(key);
+    }
+  }
+
+  /**
+   * 使指定用户的奖励配置缓存失效
+   * （当用户更新奖励配置时调用）
+   */
+  invalidateRewardProfileCache(userId: string): void {
+    this.rewardProfileCache.delete(userId);
   }
 
   private async createFallbackResult(

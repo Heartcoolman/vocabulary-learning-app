@@ -24,6 +24,7 @@ import {
   BaseLearnerContext,
   LearnerCapabilities
 } from './base-learner';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -187,15 +188,13 @@ export class HeuristicLearner
    */
   setState(state: HeuristicState): void {
     if (!state) {
-      console.warn('[HeuristicLearner] 无效状态，跳过恢复');
+      amasLogger.warn('[HeuristicLearner] 无效状态，跳过恢复');
       return;
     }
 
     // 版本检查
     if (state.version !== HeuristicLearner.VERSION) {
-      console.log(
-        `[HeuristicLearner] 版本迁移: ${state.version} → ${HeuristicLearner.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: HeuristicLearner.VERSION }, '[HeuristicLearner] 版本迁移');
     }
 
     this.state = {

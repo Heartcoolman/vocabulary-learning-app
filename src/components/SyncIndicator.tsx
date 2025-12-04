@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import StorageService, { SyncStatus } from '../services/StorageService';
 import { Check, X } from './Icon';
+import { storageLogger } from '../utils/logger';
 
 /**
  * SyncIndicator - 同步状态指示器
@@ -177,7 +178,7 @@ export default function SyncIndicator() {
                   try {
                     await StorageService.syncToCloud();
                   } catch (err) {
-                    console.error('手动同步失败:', err);
+                    storageLogger.error({ err }, '手动同步失败');
                     // 同步失败会触发 onSyncStatusChange，显示错误图标
                   }
                 }}

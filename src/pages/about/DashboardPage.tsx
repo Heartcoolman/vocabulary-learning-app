@@ -11,6 +11,7 @@ import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target, Databa
 import { getMixedDecisions, getDecisionDetail } from '../../services/aboutApi';
 import type { RecentDecision, DecisionDetail, MixedDecisions } from '../../services/aboutApi';
 import { DecisionDetailPanel } from './components/DecisionDetailPanel';
+import { amasLogger } from '../../utils/logger';
 
 interface DecisionCardProps {
   decision: RecentDecision;
@@ -137,7 +138,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         if (isMounted) {
-          console.error('Failed to fetch recent decisions:', err);
+          amasLogger.error({ err }, '获取近期决策列表失败');
           setError('无法连接到决策服务');
         }
       } finally {
@@ -175,7 +176,7 @@ export default function DashboardPage() {
           }
         }
       } catch (err) {
-        console.error(`Failed to fetch details for ${selectedId}:`, err);
+        amasLogger.error({ err, decisionId: selectedId, source: selectedSource }, '获取决策详情失败');
         if (isMounted) {
           setSelectedDecision(null);
           const errorMessage = err instanceof Error ? err.message : String(err);

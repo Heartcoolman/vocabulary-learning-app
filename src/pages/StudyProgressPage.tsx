@@ -6,9 +6,8 @@ import { CircleNotch } from '../components/Icon';
 export default function StudyProgressPage() {
   const { progress, loading, error, refresh } = useStudyProgress();
 
-  // 模拟7日趋势数据（未来可以接入真实历史API）
-  const weeklyTrend = [45, 60, 55, 70, 85, 65, progress?.todayStudied ?? 0];
-  const maxTrend = Math.max(...weeklyTrend, 100);
+  const weeklyTrend = progress?.weeklyTrend ?? [0, 0, 0, 0, 0, 0, 0];
+  const maxTrend = Math.max(...weeklyTrend, 1);
 
   if (loading) {
     return (
@@ -63,9 +62,6 @@ export default function StudyProgressPage() {
                 <TrendingUp className="w-5 h-5 text-blue-500" />
                 7日学习活动
               </h3>
-              <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
-                模拟数据
-              </span>
             </div>
 
             <div className="h-64 flex items-end justify-between gap-2 sm:gap-4">
@@ -87,9 +83,6 @@ export default function StudyProgressPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-4 text-center">
-              * 历史趋势数据将在后续版本中接入真实API
-            </p>
           </section>
 
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

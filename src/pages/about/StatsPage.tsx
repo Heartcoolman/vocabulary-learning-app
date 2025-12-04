@@ -29,21 +29,19 @@ import {
 import {
   getOverviewStats,
   getAlgorithmDistribution,
+  getPerformanceMetrics,
+  getOptimizationEvents,
+  getMasteryRadar,
   OverviewStats,
   AlgorithmDistribution,
+  PerformanceMetrics,
+  OptimizationEvent,
+  MasteryRadarData,
 } from '../../services/aboutApi';
 import { fadeInVariants, staggerContainerVariants } from '../../utils/animations';
+import { amasLogger } from '../../utils/logger';
 
-// ==================== 类型定义 & Mock数据 ====================
-
-interface OptimizationEvent {
-  id: string;
-  type: 'bayesian' | 'ab_test' | 'causal';
-  title: string;
-  description: string;
-  timestamp: Date;
-  impact: string;
-}
+// ==================== 配置 ====================
 
 const ALGO_CONFIG: Record<string, { name: string; color: string; icon: ElementType }> = {
   thompson: { name: 'Thompson Sampling', color: 'text-blue-500', icon: ChartBar },
@@ -53,37 +51,16 @@ const ALGO_CONFIG: Record<string, { name: string; color: string; icon: ElementTy
   coldstart: { name: 'ColdStart Manager', color: 'text-slate-500', icon: Lightning },
 };
 
-const MOCK_EVENTS: OptimizationEvent[] = [
-  {
-    id: '1',
-    type: 'bayesian',
-    title: '超参数自动调优',
-    description: 'Thompson 采样 Beta 分布参数优化完成',
-    timestamp: new Date(Date.now() - 1000 * 60 * 15),
-    impact: '+2.3% 探索效率',
-  },
-  {
-    id: '2',
-    type: 'ab_test',
-    title: 'A/B 测试 #45 结束',
-    description: '记忆衰减曲线 V2 验证通过',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    impact: '显著性 p < 0.01',
-  },
-  {
-    id: '3',
-    type: 'causal',
-    title: '因果推断分析',
-    description: '发现"复习间隔"对"长期留存"的因果效应',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-    impact: 'ATE = 0.15',
-  },
-];
-
 // ==================== 子组件 ====================
 
 // 1. 系统生命力看板 (SystemVitality)
-function SystemVitality({ overview }: { overview: OverviewStats | null }) {
+function SystemVitality({
+  overview,
+  performance
+}: {
+  overview: OverviewStats | null;
+  performance: PerformanceMetrics | null;
+}) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
       <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm">
@@ -95,9 +72,13 @@ function SystemVitality({ overview }: { overview: OverviewStats | null }) {
             <TrendUp className="text-emerald-500" /> 全局准确率 (vs Baseline)
           </p>
           <div className="text-3xl font-bold text-gray-900">
-            {overview ? `${(92.4 + (overview.avgEfficiencyGain / 10)).toFixed(1)}%` : '-'}
+            {performance ? `${performance.globalAccuracy.toFixed(1)}%` : '-'}
           </div>
-          <div className="text-emerald-500 text-xs mt-2 font-mono">+12.4% 提升</div>
+          <div className="text-emerald-500 text-xs mt-2 font-mono">
+            {performance && performance.accuracyImprovement > 0
+              ? `+${performance.accuracyImprovement.toFixed(1)}% 提升`
+              : '暂无数据'}
+          </div>
         </div>
       </motion.div>
 
@@ -110,9 +91,11 @@ function SystemVitality({ overview }: { overview: OverviewStats | null }) {
             <Atom className="text-blue-500" /> 集成因果效应 (ATE)
           </p>
           <div className="text-3xl font-bold text-gray-900">
-            +{(0.18).toFixed(2)}
+            {performance ? `+${performance.causalATE.toFixed(2)}` : '-'}
           </div>
-          <div className="text-blue-400 text-xs mt-2 font-mono">置信度 95%</div>
+          <div className="text-blue-400 text-xs mt-2 font-mono">
+            {performance ? `置信度 ${Math.round(performance.causalConfidence * 100)}%` : '暂无数据'}
+          </div>
         </div>
       </motion.div>
 
@@ -125,9 +108,11 @@ function SystemVitality({ overview }: { overview: OverviewStats | null }) {
             <Lightning className="text-amber-500" /> 今日决策总量
           </p>
           <div className="text-3xl font-bold text-gray-900">
-            {overview?.todayDecisions.toLocaleString() ?? '-'}
+            {overview?.todayDecisions.toLocaleString() ?? '0'}
           </div>
-          <div className="text-gray-500 text-xs mt-2 font-mono">实时计算中</div>
+          <div className="text-gray-500 text-xs mt-2 font-mono">
+            活跃用户: {overview?.activeUsers ?? 0}
+          </div>
         </div>
       </motion.div>
 
@@ -140,9 +125,11 @@ function SystemVitality({ overview }: { overview: OverviewStats | null }) {
              <Timer className="text-purple-500" /> 平均推理耗时
           </p>
           <div className="text-3xl font-bold text-gray-900">
-            12<span className="text-lg font-normal text-gray-500">ms</span>
+            {performance?.avgInferenceMs ?? 0}<span className="text-lg font-normal text-gray-500">ms</span>
           </div>
-          <div className="text-purple-400 text-xs mt-2 font-mono">P99 &lt; 45ms</div>
+          <div className="text-purple-400 text-xs mt-2 font-mono">
+            P99 &lt; {performance?.p99InferenceMs ?? 0}ms
+          </div>
         </div>
       </motion.div>
     </div>
@@ -202,10 +189,10 @@ function MemberCard({
 }
 
 // 3. 单词掌握度雷达 (WordMasteryRadar)
-function WordMasteryRadar() {
-  // 简单的 SVG 雷达图实现
-  const stats = { Speed: 0.8, Stability: 0.6, Complexity: 0.7, Consistency: 0.9 };
-  const values = Object.values(stats);
+function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null }) {
+  // 使用真实数据或默认值
+  const data = radarData ?? { speed: 0, stability: 0, complexity: 0, consistency: 0 };
+  const values = [data.speed, data.stability, data.complexity, data.consistency];
 
   const points = values.map((v, i) => {
     const angle = (Math.PI * 2 * i) / 4 - Math.PI / 2;
@@ -238,11 +225,19 @@ function WordMasteryRadar() {
           {/* Data Polygon */}
           <polygon points={points} fill="rgba(244, 63, 94, 0.2)" stroke="#fb7185" strokeWidth="2" />
 
-          {/* Labels */}
-          <text x="100" y="10" textAnchor="middle" className="text-[10px] fill-gray-500">速度</text>
-          <text x="190" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">稳定性</text>
-          <text x="100" y="190" textAnchor="middle" className="text-[10px] fill-gray-500">复杂度</text>
-          <text x="10" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">一致性</text>
+          {/* Labels with values */}
+          <text x="100" y="10" textAnchor="middle" className="text-[10px] fill-gray-500">
+            速度 ({(data.speed * 100).toFixed(0)}%)
+          </text>
+          <text x="190" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">
+            稳定性 ({(data.stability * 100).toFixed(0)}%)
+          </text>
+          <text x="100" y="195" textAnchor="middle" className="text-[10px] fill-gray-500">
+            复杂度 ({(data.complexity * 100).toFixed(0)}%)
+          </text>
+          <text x="10" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">
+            一致性 ({(data.consistency * 100).toFixed(0)}%)
+          </text>
         </svg>
       </div>
     </motion.div>
@@ -250,36 +245,43 @@ function WordMasteryRadar() {
 }
 
 // 4. 优化事件时间轴 (OptimizationTimeline)
-function OptimizationTimeline() {
+function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
     <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm col-span-1 md:col-span-2">
       <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
         <Flask className="text-amber-500" />
         自进化事件日志
       </h3>
-      <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-        {MOCK_EVENTS.map((event) => (
-          <div key={event.id} className="relative pl-12">
-            <div className={`absolute left-2 -translate-x-1/2 w-4 h-4 rounded-full border-4 border-white ${
-              event.type === 'bayesian' ? 'bg-blue-500' : event.type === 'ab_test' ? 'bg-purple-500' : 'bg-emerald-500'
-            }`} />
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="font-bold text-gray-800 text-sm">{event.title}</h4>
-                <p className="text-xs text-gray-500 mt-1">{event.description}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-mono text-gray-400 block">
-                  {event.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </span>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                  {event.impact}
-                </span>
+      {events.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          <Flask size={32} className="mx-auto mb-2 opacity-50" />
+          <p>暂无优化事件</p>
+        </div>
+      ) : (
+        <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+          {events.map((event) => (
+            <div key={event.id} className="relative pl-12">
+              <div className={`absolute left-2 -translate-x-1/2 w-4 h-4 rounded-full border-4 border-white ${
+                event.type === 'bayesian' ? 'bg-blue-500' : event.type === 'ab_test' ? 'bg-purple-500' : 'bg-emerald-500'
+              }`} />
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">{event.title}</h4>
+                  <p className="text-xs text-gray-500 mt-1">{event.description}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-mono text-gray-400 block">
+                    {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                    {event.impact}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -289,18 +291,27 @@ function OptimizationTimeline() {
 export default function StatsPage() {
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [algoDist, setAlgoDist] = useState<AlgorithmDistribution | null>(null);
+  const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
+  const [events, setEvents] = useState<OptimizationEvent[]>([]);
+  const [radarData, setRadarData] = useState<MasteryRadarData | null>(null);
   const [time, setTime] = useState(new Date());
 
   const fetchData = useCallback(async () => {
     try {
-      const [ov, ad] = await Promise.all([
+      const [ov, ad, perf, evts, radar] = await Promise.all([
         getOverviewStats(),
         getAlgorithmDistribution(),
+        getPerformanceMetrics(),
+        getOptimizationEvents(),
+        getMasteryRadar(),
       ]);
       setOverview(ov);
       setAlgoDist(ad);
+      setPerformance(perf);
+      setEvents(evts);
+      setRadarData(radar);
     } catch (e) {
-      console.error('Stats fetch failed', e);
+      amasLogger.error({ err: e }, '获取统计数据失败');
     }
   }, []);
 
@@ -351,7 +362,7 @@ export default function StatsPage() {
         </header>
 
         {/* 1. System Vitality Big Numbers */}
-        <SystemVitality overview={overview} />
+        <SystemVitality overview={overview} performance={performance} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 2. Member Leaderboard (Takes up full width of its row) */}
@@ -376,12 +387,12 @@ export default function StatsPage() {
 
           {/* 3. Word Mastery Radar */}
           <div className="lg:col-span-1">
-            <WordMasteryRadar />
+            <WordMasteryRadar radarData={radarData} />
           </div>
 
           {/* 4. Optimization Timeline */}
           <div className="lg:col-span-2">
-            <OptimizationTimeline />
+            <OptimizationTimeline events={events} />
           </div>
         </div>
       </motion.div>

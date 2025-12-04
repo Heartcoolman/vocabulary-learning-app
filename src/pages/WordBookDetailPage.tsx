@@ -16,10 +16,13 @@ import {
     CircleNotch,
     Warning
 } from '../components/Icon';
+import { useToast, ConfirmModal } from '../components/ui';
+import { uiLogger } from '../utils/logger';
 
 export default function WordBookDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const toast = useToast();
     const [wordBook, setWordBook] = useState<WordBook | null>(null);
     const [words, setWords] = useState<Word[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +32,12 @@ export default function WordBookDetailPage() {
     const [selectedWord, setSelectedWord] = useState<Word | null>(null);
     const [showWordDetail, setShowWordDetail] = useState(false);
     const [isPronouncing, setIsPronouncing] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; wordId: string; spelling: string }>({
+        isOpen: false,
+        wordId: '',
+        spelling: '',
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const wordsPerPage = 20;
 
@@ -60,7 +69,7 @@ export default function WordBookDetailPage() {
             setWords(wordsData);
             setCurrentPage(1); // 重置到第一页
         } catch (err) {
-            console.error('加载词书详情失败:', err);
+            uiLogger.error({ err, wordBookId: id }, '加载词书详情失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);
@@ -69,7 +78,7 @@ export default function WordBookDetailPage() {
 
     const handleAddWord = async () => {
         if (!newWord.spelling || !newWord.phonetic) {
-            alert('请填写单词拼写和音标');
+            toast.warning('请填写单词拼写和音标');
             return;
         }
 
@@ -82,25 +91,31 @@ export default function WordBookDetailPage() {
                 meanings: [''],
                 examples: [''],
             });
+            toast.success('单词添加成功');
             loadWordBookDetail();
         } catch (err) {
-            console.error('添加单词失败:', err);
-            alert(err instanceof Error ? err.message : '添加失败');
+            uiLogger.error({ err, word: newWord, wordBookId: id }, '添加单词失败');
+            toast.error(err instanceof Error ? err.message : '添加失败');
         }
     };
 
-    const handleDeleteWord = async (wordId: string, spelling: string) => {
-        if (!confirm(`确定要删除单词"${spelling}"吗？`)) {
-            return;
-        }
+    const openDeleteConfirm = (wordId: string, spelling: string) => {
+        setDeleteConfirm({ isOpen: true, wordId, spelling });
+    };
 
+    const handleDeleteWord = async () => {
+        setIsDeleting(true);
         try {
-            await apiClient.removeWordFromWordBook(id!, wordId);
-            setCurrentPage(1); // 重置到第一页
+            await apiClient.removeWordFromWordBook(id!, deleteConfirm.wordId);
+            setCurrentPage(1);
+            toast.success('单词已删除');
             loadWordBookDetail();
         } catch (err) {
-            console.error('删除单词失败:', err);
-            alert(err instanceof Error ? err.message : '删除失败');
+            uiLogger.error({ err, wordId: deleteConfirm.wordId, wordBookId: id }, '删除单词失败');
+            toast.error(err instanceof Error ? err.message : '删除失败');
+        } finally {
+            setIsDeleting(false);
+            setDeleteConfirm({ isOpen: false, wordId: '', spelling: '' });
         }
     };
 
@@ -130,7 +145,7 @@ export default function WordBookDetailPage() {
             setIsPronouncing(true);
             await AudioService.playPronunciation(word);
         } catch (err) {
-            console.error('播放发音失败:', err);
+            uiLogger.error({ err, word }, '播放发音失败');
         } finally {
             setIsPronouncing(false);
         }
@@ -347,7 +362,7 @@ export default function WordBookDetailPage() {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDeleteWord(word.id, word.spelling);
+                                                    openDeleteConfirm(word.id, word.spelling);
                                                 }}
                                                 className="
                                                     mt-4 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 
@@ -702,6 +717,19 @@ export default function WordBookDetailPage() {
                         </div>
                     )}
                 </main>
+
+                {/* 删除确认弹窗 */}
+                <ConfirmModal
+                    isOpen={deleteConfirm.isOpen}
+                    onClose={() => setDeleteConfirm({ isOpen: false, wordId: '', spelling: '' })}
+                    onConfirm={handleDeleteWord}
+                    title="删除单词"
+                    message={`确定要删除单词"${deleteConfirm.spelling}"吗？`}
+                    confirmText="删除"
+                    cancelText="取消"
+                    variant="danger"
+                    isLoading={isDeleting}
+                />
             </div>
         </div>
     );

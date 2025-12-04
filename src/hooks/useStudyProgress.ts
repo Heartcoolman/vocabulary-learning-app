@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/ApiClient';
+import { learningLogger } from '../utils/logger';
 
 export interface StudyProgressData {
   todayStudied: number;
   todayTarget: number;
   totalStudied: number;
   correctRate: number;
+  weeklyTrend: number[];
 }
 
 interface UseStudyProgressReturn {
@@ -28,7 +30,7 @@ export const useStudyProgress = (): UseStudyProgressReturn => {
       const response = await apiClient.getStudyProgress();
       setProgress(response);
     } catch (err) {
-      console.error('Failed to fetch study progress:', err);
+      learningLogger.error({ err }, '获取学习进度失败');
       setError('无法加载学习进度，请检查网络连接。');
     } finally {
       setLoading(false);

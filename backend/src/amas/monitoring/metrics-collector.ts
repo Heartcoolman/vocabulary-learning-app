@@ -6,6 +6,7 @@
 import { telemetry } from '../common/telemetry';
 import { MetricValue } from './alert-engine';
 import { DEFAULT_SLO, SLOConfig } from './alert-config';
+import { monitorLogger } from '../../logger';
 
 /**
  * 指标统计
@@ -100,7 +101,7 @@ export class MetricsCollector {
       this.collectMetrics();
     }, this.collectionInterval);
 
-    console.log(`[MetricsCollector] Started (interval: ${this.collectionInterval}ms)`);
+    monitorLogger.info({ interval: this.collectionInterval }, 'Started');
   }
 
   /**
@@ -110,7 +111,7 @@ export class MetricsCollector {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = undefined;
-      console.log('[MetricsCollector] Stopped');
+      monitorLogger.info('Stopped');
     }
   }
 

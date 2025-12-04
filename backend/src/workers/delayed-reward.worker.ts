@@ -20,6 +20,7 @@ import {
   recordRewardProcessingDuration,
   updateRewardQueueLength
 } from '../services/metrics.service';
+import { workerLogger } from '../logger';
 
 /**
  * 奖励应用处理器 (业务逻辑)
@@ -30,8 +31,14 @@ const applyReward: ApplyRewardHandler = async (task: RewardQueue) => {
   const startTime = Date.now();
 
   try {
-    console.log(
-      `[delayed-reward] 应用奖励: userId=${task.userId}, reward=${task.reward}, answerRecordId=${task.answerRecordId ?? 'n/a'}, sessionId=${task.sessionId ?? 'n/a'}`
+    workerLogger.info(
+      {
+        userId: task.userId,
+        reward: task.reward,
+        answerRecordId: task.answerRecordId ?? 'n/a',
+        sessionId: task.sessionId ?? 'n/a'
+      },
+      '应用奖励'
     );
 
     // 调用AMAS服务应用延迟奖励，优先使用answerRecordId
@@ -47,14 +54,26 @@ const applyReward: ApplyRewardHandler = async (task: RewardQueue) => {
     const durationSeconds = (Date.now() - startTime) / 1000;
     recordRewardProcessingDuration(durationSeconds);
 
-    console.log(`[delayed-reward] 奖励已应用: taskId=${task.id}, duration=${durationSeconds.toFixed(3)}s`);
+    workerLogger.info(
+      {
+        taskId: task.id,
+        duration: durationSeconds
+      },
+      '奖励已应用'
+    );
   } catch (err) {
     // 记录失败指标
     recordRewardProcessed('failure');
     const durationSeconds = (Date.now() - startTime) / 1000;
     recordRewardProcessingDuration(durationSeconds);
 
-    console.error(`[delayed-reward] 应用奖励失败: taskId=${task.id}`, err);
+    workerLogger.error(
+      {
+        err,
+        taskId: task.id
+      },
+      '应用奖励失败'
+    );
     throw err;
   }
 };
@@ -66,7 +85,7 @@ const applyReward: ApplyRewardHandler = async (task: RewardQueue) => {
 export function startDelayedRewardWorker(): ScheduledTask {
   const service = new DelayedRewardService();
 
-  console.log('[delayed-reward-worker] 启动中...');
+  workerLogger.info('延迟奖励Worker启动中...');
 
   // 每分钟执行一次
   const task = cron.schedule('* * * * *', async () => {
@@ -74,12 +93,12 @@ export function startDelayedRewardWorker(): ScheduledTask {
       await service.processPendingRewards(applyReward);
     } catch (err) {
       // 记录日志,避免中断后续调度
-      console.error('[delayed-reward-worker] 处理错误:', err);
+      workerLogger.error({ err }, '处理错误');
     }
   });
 
   task.start();
-  console.log('[delayed-reward-worker] 已启动 (每分钟执行)');
+  workerLogger.info('延迟奖励Worker已启动 (每分钟执行)');
 
   return task;
 }
@@ -90,5 +109,5 @@ export function startDelayedRewardWorker(): ScheduledTask {
  */
 export function stopDelayedRewardWorker(task: ScheduledTask): void {
   task.stop();
-  console.log('[delayed-reward-worker] 已停止');
+  workerLogger.info('延迟奖励Worker已停止');
 }

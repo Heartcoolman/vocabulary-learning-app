@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { AlgorithmConfig } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
-import { 
-  Gear, 
-  ArrowCounterClockwise, 
-  FloppyDisk, 
+import {
+  Gear,
+  ArrowCounterClockwise,
+  FloppyDisk,
   Warning,
   CheckCircle,
   Plus,
   Trash,
   CircleNotch
 } from '../../components/Icon';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
 
 /**
  * 算法配置页面（管理员）
  * 允许管理员查看和修改所有学习算法参数
  */
 export default function AlgorithmConfigPage() {
+  const toast = useToast();
   const [config, setConfig] = useState<AlgorithmConfig | null>(null);
   const [defaultConfig, setDefaultConfig] = useState<AlgorithmConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +44,7 @@ export default function AlgorithmConfigPage() {
       const defaultCfg = configService.getDefaultConfig();
       setDefaultConfig(defaultCfg);
     } catch (error) {
-      console.error('加载配置失败:', error);
+      adminLogger.error({ err: error }, '加载算法配置失败');
     } finally {
       setIsLoading(false);
     }
@@ -70,8 +73,8 @@ export default function AlgorithmConfigPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('保存配置失败:', error);
-      alert('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      adminLogger.error({ err: error, config }, '保存算法配置失败');
+      toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setIsSaving(false);
     }
@@ -88,8 +91,8 @@ export default function AlgorithmConfigPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('重置配置失败:', error);
-      alert('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      adminLogger.error({ err: error }, '重置算法配置失败');
+      toast.error('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setIsSaving(false);
     }
@@ -267,7 +270,6 @@ function ReviewIntervalsSection({ intervals, defaultIntervals, onChange }: Revie
 
   const removeInterval = (index: number) => {
     if (intervals.length <= 1) {
-      alert('至少需要保留一个复习间隔');
       return;
     }
     onChange(intervals.filter((_, i) => i !== index));

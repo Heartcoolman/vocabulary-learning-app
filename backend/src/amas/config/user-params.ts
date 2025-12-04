@@ -22,6 +22,8 @@
  * - 动机趋势好 → 减少探索（alpha↓）
  */
 
+import { amasLogger } from '../../logger';
+
 // ==================== 类型定义 ====================
 
 /**
@@ -369,7 +371,7 @@ export class UserParamsManager {
    */
   importUser(userId: string, state: UserParamsState): boolean {
     if (!this.validateState(state)) {
-      console.warn(`[UserParamsManager] 无效状态，跳过导入: ${userId}`);
+      amasLogger.warn({ userId }, '[UserParamsManager] 无效状态，跳过导入');
       return false;
     }
     this.userParams.set(userId, this.migrateState(state));
@@ -616,9 +618,7 @@ export class UserParamsManager {
    */
   private migrateState(state: UserParamsState): UserParamsState {
     if (state.version !== UserParamsManager.VERSION) {
-      console.log(
-        `[UserParamsManager] 版本迁移: ${state.version} → ${UserParamsManager.VERSION}`
-      );
+      amasLogger.debug({ from: state.version, to: UserParamsManager.VERSION }, '[UserParamsManager] 版本迁移');
     }
 
     return {

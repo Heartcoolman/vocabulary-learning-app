@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient, { AdminStatistics } from '../../services/ApiClient';
 import { UsersThree, Sparkle, Books, BookOpen, Note, FileText, ChartBar, CircleNotch, Warning } from '../../components/Icon';
+import { adminLogger } from '../../utils/logger';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
@@ -21,7 +22,7 @@ export default function AdminDashboard() {
             const data = await apiClient.adminGetStatistics();
             setStats(data);
         } catch (err) {
-            console.error('加载统计数据失败:', err);
+            adminLogger.error({ err }, '加载统计数据失败');
             setError(err instanceof Error ? err.message : '加载失败');
         } finally {
             setIsLoading(false);

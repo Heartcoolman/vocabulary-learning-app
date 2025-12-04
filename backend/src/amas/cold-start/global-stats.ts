@@ -7,6 +7,9 @@
 import prisma from '../../config/database';
 import { StrategyParams } from '../types';
 
+/** 用户类型 */
+export type UserTypeGlobal = 'fast' | 'stable' | 'cautious';
+
 export interface GlobalUserStats {
   /** 新用户平均初始准确率 */
   initialAccuracy: number;
@@ -18,6 +21,8 @@ export interface GlobalUserStats {
   recommendedStartStrategy: StrategyParams;
   /** 统计样本数 */
   sampleSize: number;
+  /** 用户类型先验概率分布（基于历史数据） */
+  userTypePriors: Record<UserTypeGlobal, number>;
 }
 
 export class GlobalStatsService {
@@ -67,12 +72,16 @@ export class GlobalStatsService {
       samplesize: BigInt(0)
     };
 
+    const accuracy = Number(result.avgaccuracy);
+    const responseTime = Number(result.avgresponsetime);
+
     const globalStats: GlobalUserStats = {
-      initialAccuracy: Number(result.avgaccuracy),
-      initialResponseTime: Number(result.avgresponsetime),
+      initialAccuracy: accuracy,
+      initialResponseTime: responseTime,
       initialDwellTime: Number(result.avgdwelltime),
-      recommendedStartStrategy: this.deriveStartStrategy(Number(result.avgaccuracy)),
-      sampleSize: Number(result.samplesize)
+      recommendedStartStrategy: this.deriveStartStrategy(accuracy),
+      sampleSize: Number(result.samplesize),
+      userTypePriors: this.deriveUserTypePriors(accuracy, responseTime)
     };
 
     // 更新缓存
@@ -80,6 +89,52 @@ export class GlobalStatsService {
     this.cacheTimestamp = Date.now();
 
     return globalStats;
+  }
+
+  /**
+   * 基于全局统计推导用户类型先验概率
+   *
+   * 使用准确率和响应时间来估计用户类型分布
+   */
+  private deriveUserTypePriors(
+    globalAccuracy: number,
+    globalResponseTime: number
+  ): Record<UserTypeGlobal, number> {
+    // 默认先验
+    let fastPrior = 0.25;
+    let stablePrior = 0.50;
+    let cautiousPrior = 0.25;
+
+    // 根据全局准确率调整
+    if (globalAccuracy >= 0.75) {
+      // 高准确率环境：更多fast用户
+      fastPrior += 0.1;
+      stablePrior -= 0.05;
+      cautiousPrior -= 0.05;
+    } else if (globalAccuracy < 0.55) {
+      // 低准确率环境：更多cautious用户
+      fastPrior -= 0.1;
+      cautiousPrior += 0.1;
+    }
+
+    // 根据全局响应时间调整
+    if (globalResponseTime < 2000) {
+      // 快速响应环境：更多fast用户
+      fastPrior += 0.05;
+      stablePrior -= 0.05;
+    } else if (globalResponseTime > 4000) {
+      // 慢速响应环境：更多cautious用户
+      fastPrior -= 0.05;
+      cautiousPrior += 0.05;
+    }
+
+    // 归一化
+    const total = fastPrior + stablePrior + cautiousPrior;
+    return {
+      fast: fastPrior / total,
+      stable: stablePrior / total,
+      cautious: cautiousPrior / total
+    };
   }
 
   /**

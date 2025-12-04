@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
 import { handleError } from '../utils/errorHandler';
+import { learningLogger } from '../utils/logger';
 import {
   StateHistoryPoint,
   SignificantChange,
@@ -137,7 +138,7 @@ export default function HistoryPage() {
           setSignificantChanges(changesData.changes);
         }
       } catch (err) {
-        console.error('加载状态历史失败:', err);
+        learningLogger.error({ err }, '加载状态历史失败');
       } finally {
         if (mounted) setIsLoadingState(false);
       }
