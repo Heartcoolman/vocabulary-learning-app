@@ -35,10 +35,13 @@ export class ModelingManager {
     const A = models.attention.update(attentionFeatures);
 
     // 疲劳度更新
+    // 将对话框暂停时间转换为休息分钟数，用于疲劳度衰减计算
+    const breakMinutes = event.pausedTimeMs ? event.pausedTimeMs / 60000 : undefined;
     const F = models.fatigue.update({
       error_rate_trend: event.isCorrect ? -0.05 : 0.1,
       rt_increase_rate: featureVec.values[0],
-      repeat_errors: event.retryCount
+      repeat_errors: event.retryCount,
+      breakMinutes // 对话框暂停时间视为休息时间
     });
 
     // 认知能力更新 (使用二项分布方差公式: p * (1-p))

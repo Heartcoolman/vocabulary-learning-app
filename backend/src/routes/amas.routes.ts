@@ -41,7 +41,8 @@ router.post('/process', authMiddleware, validateBody(processEventSchema), async 
       switchCount,
       retryCount,
       focusLossDuration,
-      interactionDensity
+      interactionDensity,
+      pausedTimeMs
     } = validatedData;
 
     // 解析sessionId: 优先使用前端传入的，否则后端生成
@@ -62,7 +63,8 @@ router.post('/process', authMiddleware, validateBody(processEventSchema), async 
         switchCount,
         retryCount,
         focusLossDuration,
-        interactionDensity
+        interactionDensity,
+        pausedTimeMs
       },
       resolvedSessionId  // 传递sessionId
     );

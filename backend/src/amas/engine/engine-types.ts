@@ -223,6 +223,16 @@ export interface EngineDependencies {
 }
 
 /**
+ * 单词复习历史记录（用于 ACT-R 模型）
+ */
+export interface WordReviewHistory {
+  /** 距今时间（秒） */
+  secondsAgo: number;
+  /** 是否正确 */
+  isCorrect?: boolean;
+}
+
+/**
  * 处理选项
  */
 export interface ProcessOptions {
@@ -252,6 +262,8 @@ export interface ProcessOptions {
     cognitiveLoad: number;
     sessionDuration: number;
   };
+  /** 单词复习历史（用于 ACT-R 记忆模型） */
+  wordReviewHistory?: WordReviewHistory[];
 }
 
 /**

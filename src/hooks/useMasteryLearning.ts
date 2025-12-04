@@ -9,6 +9,10 @@ import { learningLogger } from '../utils/logger';
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
   sessionId?: string;
+  /** 获取当前对话框暂停时间的函数（毫秒） */
+  getDialogPausedTime?: () => number;
+  /** 重置对话框暂停时间的函数 */
+  resetDialogPausedTime?: () => void;
 }
 
 export interface UseMasteryLearningReturn {
@@ -42,7 +46,12 @@ const STORAGE_KEY = 'mastery_learning_session';
 const EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24小时
 
 export function useMasteryLearning(options: UseMasteryLearningOptions = {}): UseMasteryLearningReturn {
-  const { targetMasteryCount: initialTargetCount = 20, sessionId } = options;
+  const {
+    targetMasteryCount: initialTargetCount = 20,
+    sessionId,
+    getDialogPausedTime,
+    resetDialogPausedTime
+  } = options;
   const { user } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -458,12 +467,19 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     }
 
     // ============ 异步同步到服务器（不阻塞UI） ============
+    // 获取对话框暂停时间并重置（用于AMAS疲劳度计算）
+    const pausedTimeMs = getDialogPausedTime?.() ?? 0;
+    if (pausedTimeMs > 0 && resetDialogPausedTime) {
+      resetDialogPausedTime();
+    }
+
     apiClient.processLearningEvent({
       wordId,
       isCorrect,
       responseTime,
       sessionId: currentSessionIdRef.current,
-      timestamp
+      timestamp,
+      pausedTimeMs // 传递暂停时间给后端
     })
       .then(amasResult => {
         if (!isMountedRef.current) return;
@@ -498,7 +514,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         });
       });
 
-  }, [currentWord, saveSessionToCache, syncProgress, latestAmasResult, triggerQueueAdjustment]);
+  }, [currentWord, saveSessionToCache, syncProgress, latestAmasResult, triggerQueueAdjustment, getDialogPausedTime, resetDialogPausedTime]);
 
   const advanceToNext = useCallback(() => {
     updateStateFromManager({ consume: true });

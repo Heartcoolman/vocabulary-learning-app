@@ -81,6 +81,8 @@ export interface LearningEventInput {
   interactionDensity?: number;
   /** 时间戳（可选，用于批量处理） */
   timestamp?: number;
+  /** 对话框暂停时间（毫秒，用于疲劳度计算时排除非学习时间） */
+  pausedTimeMs?: number;
 }
 
 /**

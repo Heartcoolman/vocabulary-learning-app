@@ -130,6 +130,8 @@ export interface RawEvent {
   focusLossDuration: number;
   /** 微交互密度(events/s) */
   interactionDensity: number;
+  /** 对话框暂停时间(ms)，用于疲劳度计算时排除非学习时间 */
+  pausedTimeMs?: number;
 }
 
 /**

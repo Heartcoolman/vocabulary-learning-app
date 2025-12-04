@@ -43,6 +43,8 @@ export const processEventSchema = z.object({
   retryCount: z.coerce.number().int().min(0).max(100).optional(),
   focusLossDuration: z.coerce.number().min(0).max(600000).optional(),
   interactionDensity: z.coerce.number().min(0).max(10).optional(),
+  // 对话框暂停时间（毫秒），用于疲劳度计算时排除非学习时间
+  pausedTimeMs: z.coerce.number().int().min(0).max(3600000).optional(),
 });
 
 /**

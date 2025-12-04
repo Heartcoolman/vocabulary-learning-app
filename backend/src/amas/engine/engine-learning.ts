@@ -19,7 +19,8 @@ import {
 } from '../config/action-space';
 import { RewardProfile, REWARD_PROFILES } from '../config/reward-profiles';
 import { Action, ColdStartPhase, RawEvent, UserState } from '../types';
-import { UserModels, clamp } from './engine-types';
+import { UserModels, WordReviewHistory, clamp } from './engine-types';
+import { ReviewTrace } from '../modeling/actr-memory';
 import { recordModelDrift } from '../../monitoring/amas-metrics';
 
 /**
@@ -56,6 +57,7 @@ export class LearningManager {
    * 选择动作
    *
    * 根据用户状态、阶段和启用的模块选择最佳动作
+   * @param wordReviewHistory 单词复习历史（用于 ACT-R 模型）
    */
   selectAction(
     state: UserState,
@@ -63,7 +65,8 @@ export class LearningManager {
     context: DecisionContext,
     coldStartPhase: ColdStartPhase,
     interactionCount: number,
-    recentAccuracy: number
+    recentAccuracy: number,
+    wordReviewHistory?: WordReviewHistory[]
   ): ActionSelection {
     const coldStartEnabled = isColdStartEnabled() && models.coldStart !== null;
     const inColdStartPhase = coldStartPhase !== 'normal';
@@ -76,6 +79,12 @@ export class LearningManager {
       const alpha = models.bandit.getColdStartAlpha(interactionCount, recentAccuracy, state.F);
       models.bandit.setAlpha(alpha);
     }
+
+    // 转换 WordReviewHistory 为 ReviewTrace（ACT-R 使用的格式）
+    const actrTrace: ReviewTrace[] = (wordReviewHistory ?? []).map(h => ({
+      secondsAgo: h.secondsAgo,
+      isCorrect: h.isCorrect
+    }));
 
     let action: Action;
     let contextVec: Float32Array | undefined;
@@ -95,7 +104,7 @@ export class LearningManager {
         base: context,
         linucb: context,
         thompson: context,
-        actr: { ...context, trace: [] },
+        actr: { ...context, trace: actrTrace },
         heuristic: context
       };
 
@@ -173,6 +182,7 @@ export class LearningManager {
    * 更新模型
    *
    * 更新决策模型、冷启动管理器和用户参数管理器
+   * @param wordReviewHistory 单词复习历史（用于 ACT-R 模型）
    */
   updateModels(
     models: UserModels,
@@ -183,9 +193,16 @@ export class LearningManager {
     context: DecisionContext,
     coldStartPhase: ColdStartPhase,
     userId: string,
-    isCorrect: boolean
+    isCorrect: boolean,
+    wordReviewHistory?: WordReviewHistory[]
   ): void {
     const coldStartEnabled = isColdStartEnabled() && models.coldStart !== null;
+
+    // 转换 WordReviewHistory 为 ReviewTrace（ACT-R 使用的格式）
+    const actrTrace: ReviewTrace[] = (wordReviewHistory ?? []).map(h => ({
+      secondsAgo: h.secondsAgo,
+      isCorrect: h.isCorrect
+    }));
 
     // 更新决策模型
     if (models.bandit instanceof EnsembleLearningFramework) {
@@ -194,7 +211,7 @@ export class LearningManager {
         base: context,
         linucb: context,
         thompson: context,
-        actr: { ...context, trace: [] },
+        actr: { ...context, trace: actrTrace },
         heuristic: context
       };
       models.bandit.update(state, action, reward, ensembleContext);

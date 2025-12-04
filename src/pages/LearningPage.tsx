@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect, useMemo } from 'react';
+﻿import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
@@ -27,6 +27,43 @@ export default function LearningPage() {
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
   const [showTodayWords, setShowTodayWords] = useState(true);
 
+  // 追踪对话框打开的时间（用于暂停疲劳度计算）
+  const [dialogPausedTime, setDialogPausedTime] = useState(0);
+  const dialogOpenTimeRef = useRef<number | null>(null);
+
+  // 检测任意对话框是否打开
+  const isAnyDialogOpen = isStatusOpen || isSuggestionOpen || isExplainabilityOpen;
+
+  // 当对话框打开/关闭时，记录暂停时间
+  useEffect(() => {
+    if (isAnyDialogOpen) {
+      // 对话框刚打开，记录开始时间
+      if (dialogOpenTimeRef.current === null) {
+        dialogOpenTimeRef.current = Date.now();
+      }
+    } else {
+      // 对话框刚关闭，累加暂停时间
+      if (dialogOpenTimeRef.current !== null) {
+        const pausedDuration = Date.now() - dialogOpenTimeRef.current;
+        setDialogPausedTime(prev => prev + pausedDuration);
+        dialogOpenTimeRef.current = null;
+      }
+    }
+  }, [isAnyDialogOpen]);
+
+  // 获取和重置对话框暂停时间的回调函数
+  const getDialogPausedTime = useCallback(() => {
+    // 如果对话框当前打开，需要加上当前打开的时间
+    if (dialogOpenTimeRef.current !== null) {
+      return dialogPausedTime + (Date.now() - dialogOpenTimeRef.current);
+    }
+    return dialogPausedTime;
+  }, [dialogPausedTime]);
+
+  const resetDialogPausedTime = useCallback(() => {
+    setDialogPausedTime(0);
+  }, []);
+
   const {
     currentWord,
     isLoading,
@@ -40,7 +77,11 @@ export default function LearningPage() {
     allWords,
     error,
     latestAmasResult
-  } = useMasteryLearning({ targetMasteryCount: 20 });
+  } = useMasteryLearning({
+    targetMasteryCount: 20,
+    getDialogPausedTime,
+    resetDialogPausedTime
+  });
 
   const allWordsForOptions = useMemo(() => allWords.map(w => ({
     id: w.id,

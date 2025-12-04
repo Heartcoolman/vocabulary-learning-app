@@ -254,6 +254,8 @@ class AMASService {
       retryCount?: number;
       focusLossDuration?: number;
       interactionDensity?: number;
+      /** 对话框暂停时间（毫秒），用于疲劳度计算时排除非学习时间 */
+      pausedTimeMs?: number;
     },
     sessionId?: string
   ): Promise<ProcessResult> {
@@ -268,7 +270,8 @@ class AMASService {
       switchCount: event.switchCount ?? 0,
       retryCount: event.retryCount ?? 0,
       focusLossDuration: event.focusLossDuration ?? 0,
-      interactionDensity: event.interactionDensity ?? 1.0
+      interactionDensity: event.interactionDensity ?? 1.0,
+      pausedTimeMs: event.pausedTimeMs
     };
 
     // 记录学习时间事件（用于习惯画像）
@@ -336,6 +339,9 @@ class AMASService {
       }
     }
 
+    // 获取单词复习历史（用于 ACT-R 记忆模型）
+    const wordReviewHistory = await this.getWordReviewHistory(userId, event.wordId);
+
     // 处理事件（多目标优化在引擎内部完成）
     const result = await this.engine.processEvent(userId, rawEvent, {
       currentParams: currentStrategy ?? undefined,
@@ -344,7 +350,8 @@ class AMASService {
       answerRecordId,
       sessionId,
       learningObjectives,
-      sessionStats
+      sessionStats,
+      wordReviewHistory
     });
 
     // 缓存新策略
@@ -1192,6 +1199,51 @@ class AMASService {
       interactionCount,
       recentAccuracy
     };
+  }
+
+  /**
+   * 获取单词复习历史（用于 ACT-R 记忆模型）
+   *
+   * 查询指定单词的历史答题记录，转换为 ACT-R 需要的 trace 格式
+   * @param userId 用户ID
+   * @param wordId 单词ID
+   * @returns 复习历史记录数组（最多返回最近 20 条）
+   */
+  private async getWordReviewHistory(
+    userId: string,
+    wordId: string
+  ): Promise<Array<{ secondsAgo: number; isCorrect?: boolean }>> {
+    try {
+      const now = Date.now();
+
+      // 查询该单词的历史答题记录（按时间倒序，最多 20 条）
+      const records = await prisma.answerRecord.findMany({
+        where: {
+          userId,
+          wordId
+        },
+        orderBy: { timestamp: 'desc' },
+        take: 20,
+        select: {
+          timestamp: true,
+          isCorrect: true
+        }
+      });
+
+      // 转换为 ACT-R trace 格式
+      return records.map(record => ({
+        // 计算距今时间（秒）
+        secondsAgo: Math.max(1, Math.floor((now - record.timestamp.getTime()) / 1000)),
+        isCorrect: record.isCorrect
+      }));
+    } catch (error) {
+      // 查询失败时返回空数组，不影响主流程
+      serviceLogger.warn(
+        { err: error, userId, wordId },
+        '获取单词复习历史失败'
+      );
+      return [];
+    }
   }
 
   /**

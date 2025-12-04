@@ -316,7 +316,8 @@ export class AMASEngine {
       context,
       coldStartPhase,
       interactionCount,
-      recentAccuracy
+      recentAccuracy,
+      opts.wordReviewHistory
     );
     stageTiming.learning.end = Date.now();
 
@@ -424,7 +425,8 @@ export class AMASEngine {
         context,
         coldStartPhase,
         userId,
-        rawEvent.isCorrect
+        rawEvent.isCorrect,
+        opts.wordReviewHistory
       );
       this.isolation.incrementInteractionCount(userId);
     }

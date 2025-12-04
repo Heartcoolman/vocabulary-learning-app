@@ -103,17 +103,17 @@ function PipelineLayerCard({
         <StatusIndicator status={layer.status} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <div className="text-lg font-bold text-gray-900">{layer.processedCount}</div>
+      <div className="flex justify-between text-center mt-2">
+        <div className="flex-1">
+          <div className="text-base font-bold text-gray-900">{layer.processedCount}</div>
           <div className="text-xs text-gray-500">处理数</div>
         </div>
-        <div>
-          <div className="text-lg font-bold text-gray-900">{layer.avgLatencyMs}ms</div>
+        <div className="flex-1">
+          <div className="text-base font-bold text-gray-900">{layer.avgLatencyMs}<span className="text-sm font-medium">ms</span></div>
           <div className="text-xs text-gray-500">延迟</div>
         </div>
-        <div>
-          <div className="text-lg font-bold text-emerald-600">{(layer.successRate * 100).toFixed(1)}%</div>
+        <div className="flex-1">
+          <div className="text-base font-bold text-emerald-600">{(layer.successRate * 100).toFixed(1)}<span className="text-sm font-medium">%</span></div>
           <div className="text-xs text-gray-500">成功率</div>
         </div>
       </div>
