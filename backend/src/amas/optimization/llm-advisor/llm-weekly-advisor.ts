@@ -12,6 +12,7 @@ import { StatsCollector, statsCollector, WeeklyStats } from './stats-collector';
 import { SuggestionParser, suggestionParser, LLMSuggestion, SuggestionItem } from './suggestion-parser';
 import { SYSTEM_PROMPT, buildWeeklyAnalysisPrompt } from './prompts';
 import { amasLogger } from '../../../logger';
+import { amasConfigService } from '../../../services/amas-config.service';
 
 // ==================== 类型定义 ====================
 
@@ -317,18 +318,60 @@ export class LLMWeeklyAdvisor {
     const itemsToApply = suggestion.parsedSuggestion.suggestions
       .filter(s => selectedItems.includes(s.id));
 
+    const appliedItems: string[] = [];
+    const failedItems: { id: string; error: string }[] = [];
+
     for (const item of itemsToApply) {
-      await this.applySuggestionItem(item);
+      try {
+        await this.applySuggestionItem(item, suggestion.id);
+        appliedItems.push(item.id);
+      } catch (error) {
+        failedItems.push({
+          id: item.id,
+          error: (error as Error).message
+        });
+        amasLogger.error({
+          itemId: item.id,
+          suggestionId: suggestion.id,
+          error: (error as Error).message
+        }, '[LLMWeeklyAdvisor] 应用建议项失败，继续处理其他项');
+      }
+    }
+
+    if (failedItems.length > 0) {
+      amasLogger.warn({
+        suggestionId: suggestion.id,
+        appliedCount: appliedItems.length,
+        failedCount: failedItems.length,
+        failedItems
+      }, '[LLMWeeklyAdvisor] 部分建议项应用失败');
+    }
+
+    if (appliedItems.length > 0) {
+      amasLogger.info({
+        suggestionId: suggestion.id,
+        appliedCount: appliedItems.length,
+        appliedItems
+      }, '[LLMWeeklyAdvisor] 建议项应用完成');
     }
   }
 
   /**
    * 应用单个建议项
    *
-   * 注意：这里只是记录变更，实际应用需要根据类型处理
-   * 目前写死的参数需要手动修改代码
+   * 根据建议类型调用相应的配置服务更新配置：
+   * - param_bound: 更新用户超参数边界
+   * - threshold: 更新调整阈值
+   * - reward_weight: 更新奖励函数权重
+   * - safety_threshold: 更新安全阈值
+   *
+   * @param item 建议项
+   * @param suggestionId 建议记录ID（可选，用于关联追溯）
    */
-  private async applySuggestionItem(item: SuggestionItem): Promise<void> {
+  private async applySuggestionItem(
+    item: SuggestionItem,
+    suggestionId?: string
+  ): Promise<void> {
     amasLogger.info({
       type: item.type,
       target: item.target,
@@ -336,26 +379,139 @@ export class LLMWeeklyAdvisor {
       suggestedValue: item.suggestedValue
     }, '[LLMWeeklyAdvisor] 应用建议项');
 
-    // TODO: 根据类型实际应用配置变更
-    // 目前这些参数是硬编码的，需要：
-    // 1. 将参数改为可配置（存入数据库）
-    // 2. 实现配置热加载
-    //
-    // 现阶段只记录日志，实际变更需要管理员手动操作
-    switch (item.type) {
-      case 'param_bound':
-        amasLogger.info(`建议调整参数边界 ${item.target}: ${item.currentValue} → ${item.suggestedValue}`);
-        break;
-      case 'threshold':
-        amasLogger.info(`建议调整阈值 ${item.target}: ${item.currentValue} → ${item.suggestedValue}`);
-        break;
-      case 'reward_weight':
-        amasLogger.info(`建议调整奖励权重 ${item.target}: ${item.currentValue} → ${item.suggestedValue}`);
-        break;
-      case 'safety_threshold':
-        amasLogger.info(`建议调整安全阈值 ${item.target}: ${item.currentValue} → ${item.suggestedValue}`);
-        break;
+    const changedBy = 'llm-advisor';
+    const changeReason = item.reason;
+
+    try {
+      switch (item.type) {
+        case 'param_bound':
+          await this.applyParamBoundChange(item, changedBy, changeReason, suggestionId);
+          break;
+
+        case 'threshold':
+          await amasConfigService.updateThreshold(
+            item.target,
+            item.suggestedValue,
+            changedBy,
+            changeReason,
+            suggestionId
+          );
+          amasLogger.info({
+            target: item.target,
+            previousValue: item.currentValue,
+            newValue: item.suggestedValue
+          }, '[LLMWeeklyAdvisor] 已应用调整阈值变更');
+          break;
+
+        case 'reward_weight':
+          await amasConfigService.updateRewardWeight(
+            item.target,
+            item.suggestedValue,
+            changedBy,
+            changeReason,
+            suggestionId
+          );
+          amasLogger.info({
+            target: item.target,
+            previousValue: item.currentValue,
+            newValue: item.suggestedValue
+          }, '[LLMWeeklyAdvisor] 已应用奖励权重变更');
+          break;
+
+        case 'safety_threshold':
+          await amasConfigService.updateSafetyThreshold(
+            item.target,
+            item.suggestedValue,
+            changedBy,
+            changeReason,
+            suggestionId
+          );
+          amasLogger.info({
+            target: item.target,
+            previousValue: item.currentValue,
+            newValue: item.suggestedValue
+          }, '[LLMWeeklyAdvisor] 已应用安全阈值变更');
+          break;
+
+        default:
+          amasLogger.warn({
+            type: item.type,
+            target: item.target
+          }, '[LLMWeeklyAdvisor] 未知的建议类型，跳过应用');
+      }
+    } catch (error) {
+      amasLogger.error({
+        type: item.type,
+        target: item.target,
+        error: (error as Error).message
+      }, '[LLMWeeklyAdvisor] 应用建议项失败');
+      throw error;
     }
+  }
+
+  /**
+   * 应用参数边界变更
+   *
+   * 参数边界的 target 格式可能是：
+   * - "alpha" (需要确定是 min 还是 max)
+   * - "alpha.min" 或 "alpha.max" (明确指定边界)
+   */
+  private async applyParamBoundChange(
+    item: SuggestionItem,
+    changedBy: string,
+    changeReason: string,
+    suggestionId?: string
+  ): Promise<void> {
+    let paramName: string;
+    let boundType: 'min' | 'max';
+
+    // 解析 target 格式
+    if (item.target.includes('.')) {
+      const parts = item.target.split('.');
+      paramName = parts[0];
+      boundType = parts[1] as 'min' | 'max';
+    } else {
+      // 如果没有指定边界类型，根据当前值和建议值判断
+      paramName = item.target;
+      const config = await amasConfigService.getParamBounds();
+      const currentBounds = config[paramName as keyof typeof config];
+
+      if (!currentBounds) {
+        throw new Error(`无效的参数名称: ${paramName}`);
+      }
+
+      // 通过比较确定是调整 min 还是 max
+      if (Math.abs(item.currentValue - currentBounds.min) < 0.001) {
+        boundType = 'min';
+      } else if (Math.abs(item.currentValue - currentBounds.max) < 0.001) {
+        boundType = 'max';
+      } else {
+        // 如果无法确定，根据建议值与当前边界的关系判断
+        boundType = item.suggestedValue < (currentBounds.min + currentBounds.max) / 2 ? 'min' : 'max';
+        amasLogger.warn({
+          target: item.target,
+          currentValue: item.currentValue,
+          suggestedValue: item.suggestedValue,
+          inferredBoundType: boundType
+        }, '[LLMWeeklyAdvisor] 无法精确确定边界类型，已推断');
+      }
+    }
+
+    await amasConfigService.updateParamBound(
+      paramName,
+      boundType,
+      item.suggestedValue,
+      changedBy,
+      changeReason,
+      suggestionId
+    );
+
+    amasLogger.info({
+      paramName,
+      boundType,
+      previousValue: item.currentValue,
+      newValue: item.suggestedValue
+    }, '[LLMWeeklyAdvisor] 已应用参数边界变更');
   }
 
   /**

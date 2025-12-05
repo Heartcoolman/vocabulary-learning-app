@@ -381,6 +381,9 @@ export const uiLogger = logger.child({ module: 'ui' });
 /** 管理后台日志器 */
 export const adminLogger = logger.child({ module: 'admin' });
 
+/** 埋点追踪日志器 */
+export const trackingLogger = logger.child({ module: 'tracking' });
+
 // ==================== 全局错误捕获 ====================
 
 if (typeof window !== 'undefined') {

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Clock, Target, SpeakerHigh } from './Icon';
 import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
+import { trackingService } from '../services/TrackingService';
 
 interface WordCardWord {
   id: string;
@@ -34,6 +35,13 @@ export default function WordCard({
 }: WordCardProps) {
   const pronounceButtonRef = useRef<HTMLButtonElement>(null);
 
+  // 处理发音按钮点击，包含埋点
+  const handlePronounce = () => {
+    // 记录发音按钮点击事件（用于学习风格分析-听觉偏好）
+    trackingService.trackPronunciationClick(word.id, word.spelling);
+    onPronounce();
+  };
+
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -42,13 +50,13 @@ export default function WordCard({
       const isFormControl = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(activeTag);
       if (e.code === 'Space' && !isPronouncing && !isFormControl) {
         e.preventDefault();
-        onPronounce();
+        handlePronounce();
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [onPronounce, isPronouncing]);
+  }, [onPronounce, isPronouncing, word.id, word.spelling]);
 
   return (
     <motion.div
@@ -62,11 +70,11 @@ export default function WordCard({
       {/* 发音按钮 */}
       <motion.button
         ref={pronounceButtonRef}
-        onClick={onPronounce}
+        onClick={handlePronounce}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            onPronounce();
+            handlePronounce();
           }
         }}
         disabled={isPronouncing}

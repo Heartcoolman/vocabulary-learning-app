@@ -192,17 +192,53 @@ const CreateExperimentModal = ({
 
   const [submitting, setSubmitting] = useState(false);
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMessage(null);
+
     try {
-      // 这里暂时不实现完整的创建逻辑，因为后端API可能需要调整
+      // 验证表单
+      if (!form.name.trim()) {
+        throw new Error('实验名称不能为空');
+      }
+
+      if (form.minSampleSize < 10) {
+        throw new Error('最小样本数必须至少为10');
+      }
+
+      if (form.significanceLevel <= 0 || form.significanceLevel >= 1) {
+        throw new Error('显著性水平必须在 0 和 1 之间');
+      }
+
+      // 验证变体权重总和
+      const totalWeight = form.variants.reduce((sum, v) => sum + v.weight, 0);
+      if (Math.abs(totalWeight - 1) > 0.01) {
+        throw new Error('变体权重总和必须为 1');
+      }
+
       adminLogger.info({ form }, '创建实验表单提交');
-      alert('实验创建功能即将上线');
+
+      // 调用 API 创建实验
+      const result = await apiClient.createExperiment({
+        name: form.name.trim(),
+        description: form.description?.trim() || undefined,
+        trafficAllocation: form.trafficAllocation,
+        minSampleSize: form.minSampleSize,
+        significanceLevel: form.significanceLevel,
+        minimumDetectableEffect: form.minimumDetectableEffect,
+        autoDecision: form.autoDecision,
+        variants: form.variants,
+      });
+
+      adminLogger.info({ experimentId: result.id }, '实验创建成功');
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.message || '创建实验失败';
       adminLogger.error({ err: error }, '创建实验失败');
-      alert('创建实验失败');
+      setErrorMessage(message);
     } finally {
       setSubmitting(false);
     }
@@ -287,6 +323,16 @@ const CreateExperimentModal = ({
               <option value="DYNAMIC">动态分配</option>
             </select>
           </div>
+
+          {/* 错误提示 */}
+          {errorMessage && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-700">
+                <WarningCircle size={20} weight="bold" />
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+            </div>
+          )}
 
           {/* 操作按钮 */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">

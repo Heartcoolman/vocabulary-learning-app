@@ -50,8 +50,7 @@ vi.mock('../../../src/config/database', () => ({
 
 // Mock feature flags
 vi.mock('../../../src/amas/config/feature-flags', () => ({
-  isCausalInferenceEnabled: vi.fn().mockReturnValue(true),
-  isABTestEngineEnabled: vi.fn().mockReturnValue(true)
+  isCausalInferenceEnabled: vi.fn().mockReturnValue(true)
 }));
 
 // Mock AMAS modules with proper class constructors
@@ -61,17 +60,12 @@ vi.mock('../../../src/amas', () => {
       addObservation = vi.fn();
       estimateATE = vi.fn().mockReturnValue({ ate: 0.1, confidence: 0.95 });
       getObservationCount = vi.fn().mockReturnValue(100);
-    },
-    createABTestEngine: vi.fn().mockReturnValue({
-      createExperiment: vi.fn(),
-      startExperiment: vi.fn(),
-      assignVariant: vi.fn()
-    })
+    }
   };
 });
 
 import prisma from '../../../src/config/database';
-import { isCausalInferenceEnabled, isABTestEngineEnabled } from '../../../src/amas/config/feature-flags';
+import { isCausalInferenceEnabled } from '../../../src/amas/config/feature-flags';
 
 describe('EvaluationService', () => {
   let evaluationService: any;

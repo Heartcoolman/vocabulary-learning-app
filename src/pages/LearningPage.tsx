@@ -1,5 +1,5 @@
-﻿import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import WordCard from '../components/WordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
@@ -11,11 +11,14 @@ import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain, ChartPie, Lightbulb } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { learningLogger } from '../utils/logger';
+import { trackingService } from '../services/TrackingService';
 
 
 export default function LearningPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isPronouncing, setIsPronouncing] = useState(false);
+  const previousPathRef = useRef<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | undefined>(undefined);
   const [showResult, setShowResult] = useState(false);
   const [responseStartTime, setResponseStartTime] = useState<number>(Date.now());
@@ -31,12 +34,14 @@ export default function LearningPage() {
   // 检测任意对话框是否打开
   const isAnyDialogOpen = isStatusOpen || isSuggestionOpen || isExplainabilityOpen;
 
-  // 当对话框打开/关闭时，记录暂停时间
+  // 当对话框打开/关闭时，记录暂停时间并上报埋点
   useEffect(() => {
     if (isAnyDialogOpen) {
       // 对话框刚打开，记录开始时间
       if (dialogOpenTimeRef.current === null) {
         dialogOpenTimeRef.current = Date.now();
+        // 埋点：学习暂停事件
+        trackingService.trackLearningPause('dialog_opened');
       }
     } else {
       // 对话框刚关闭，累加暂停时间
@@ -44,9 +49,28 @@ export default function LearningPage() {
         const pausedDuration = Date.now() - dialogOpenTimeRef.current;
         setDialogPausedTime(prev => prev + pausedDuration);
         dialogOpenTimeRef.current = null;
+        // 埋点：学习恢复事件
+        trackingService.trackLearningResume('dialog_closed');
       }
     }
   }, [isAnyDialogOpen]);
+
+  // 页面切换埋点
+  useEffect(() => {
+    if (previousPathRef.current !== null && previousPathRef.current !== location.pathname) {
+      trackingService.trackPageSwitch(previousPathRef.current, location.pathname);
+    }
+    previousPathRef.current = location.pathname;
+  }, [location.pathname]);
+
+  // 会话开始埋点
+  useEffect(() => {
+    trackingService.trackSessionStart({ page: 'learning' });
+    return () => {
+      // 组件卸载时记录会话结束（页面离开）
+      trackingService.trackLearningPause('page_leave');
+    };
+  }, []);
 
   // 获取和重置对话框暂停时间的回调函数
   const getDialogPausedTime = useCallback(() => {

@@ -41,10 +41,6 @@ export interface AMASFeatureFlags {
   enableDelayedRewardAggregator: boolean;
   /** CausalInference - 因果推断验证 */
   enableCausalInference: boolean;
-  /** ABTestEngine - A/B测试引擎 */
-  enableABTestEngine: boolean;
-  /** OfflineReplayEvaluator - 离线回放评估器 */
-  enableOfflineReplay: boolean;
 
   // 优化层
   /** BayesianOptimizer - 贝叶斯超参数优化 */
@@ -74,8 +70,6 @@ export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
   // 评估层
   enableDelayedRewardAggregator: true,
   enableCausalInference: true,
-  enableABTestEngine: false, // 默认关闭，需要显式启用
-  enableOfflineReplay: false, // 默认关闭，主要用于离线分析
 
   // 优化层
   enableBayesianOptimizer: true
@@ -97,8 +91,6 @@ const ENV_VAR_MAP: Record<keyof AMASFeatureFlags, string> = {
   enableUserParamsManager: 'AMAS_FEATURE_USER_PARAMS_MANAGER',
   enableDelayedRewardAggregator: 'AMAS_FEATURE_DELAYED_REWARD_AGGREGATOR',
   enableCausalInference: 'AMAS_FEATURE_CAUSAL_INFERENCE',
-  enableABTestEngine: 'AMAS_FEATURE_AB_TEST_ENGINE',
-  enableOfflineReplay: 'AMAS_FEATURE_OFFLINE_REPLAY',
   enableBayesianOptimizer: 'AMAS_FEATURE_BAYESIAN_OPTIMIZER'
 };
 
@@ -233,16 +225,6 @@ export function isUserParamsManagerEnabled(): boolean {
   return currentFlags.enableUserParamsManager;
 }
 
-/** 检查A/B测试引擎是否启用 */
-export function isABTestEngineEnabled(): boolean {
-  return currentFlags.enableABTestEngine;
-}
-
-/** 检查离线回放评估器是否启用 */
-export function isOfflineReplayEnabled(): boolean {
-  return currentFlags.enableOfflineReplay;
-}
-
 // ==================== 模块分组检查 ====================
 
 /**
@@ -266,9 +248,7 @@ export function getEnsembleLearnerFlags(): {
 export function hasEvaluationModulesEnabled(): boolean {
   return (
     currentFlags.enableDelayedRewardAggregator ||
-    currentFlags.enableCausalInference ||
-    currentFlags.enableABTestEngine ||
-    currentFlags.enableOfflineReplay
+    currentFlags.enableCausalInference
   );
 }
 

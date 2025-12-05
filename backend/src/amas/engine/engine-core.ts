@@ -25,7 +25,7 @@ import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
 import { getFeatureFlags, isColdStartEnabled } from '../config/feature-flags';
 import { mapActionToStrategy, mapStrategyToAction } from '../decision/mapper';
-import { applyGuardrails, shouldSuggestBreak } from '../decision/guardrails';
+import { applyGuardrails, shouldForceBreak, shouldSuggestBreak } from '../decision/guardrails';
 import { generateExplanation, generateSuggestion, generateEnhancedExplanation } from '../decision/explain';
 import { MultiObjectiveDecisionEngine } from '../decision/multi-objective-decision';
 import {
@@ -33,7 +33,9 @@ import {
   DEFAULT_STRATEGY,
   DEFAULT_PERCEPTION_CONFIG,
   FEATURE_VERSION,
-  DEFAULT_DIMENSION
+  DEFAULT_DIMENSION,
+  CLASSIFY_PHASE_THRESHOLD,
+  EXPLORE_PHASE_THRESHOLD
 } from '../config/action-space';
 import { getRewardProfile } from '../config/reward-profiles';
 import { telemetry } from '../common/telemetry';
@@ -360,6 +362,17 @@ export class AMASEngine {
     const currentParams = opts.currentParams ?? DEFAULT_STRATEGY;
     const mappedParams = mapActionToStrategy(action, currentParams);
     let finalStrategy: StrategyParams = applyGuardrails(state, mappedParams);
+    const forceBreak = shouldForceBreak(state);
+    if (forceBreak) {
+      finalStrategy = {
+        ...finalStrategy,
+        interval_scale: Math.max(finalStrategy.interval_scale, 1.0),
+        new_ratio: Math.min(finalStrategy.new_ratio, 0.1),
+        difficulty: 'easy',
+        batch_size: Math.min(finalStrategy.batch_size, 5),
+        hint_level: Math.max(finalStrategy.hint_level, 1)
+      };
+    }
 
     // 8.5 多目标优化调整（如果配置了学习目标）
     let objectiveEvaluation: ObjectiveEvaluation | undefined;
@@ -415,7 +428,9 @@ export class AMASEngine {
 
     // 9. 生成解释
     const explanation = generateExplanation(state, currentParams, finalStrategy);
-    const suggestion = generateSuggestion(state);
+    const suggestion = forceBreak
+      ? '疲劳度过高，请先休息后再继续学习。'
+      : generateSuggestion(state);
 
     // 9.5. 生成增强解释（包含详细因素分析）
     const decisionSource = this.getDecisionSource(models, coldStartPhase);
@@ -515,6 +530,8 @@ export class AMASEngine {
     // Optimization #1: 使用finalContextVec（基于alignedAction重建）
     const persistableFeatureVector = this.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
 
+    const shouldBreakFlag = forceBreak || shouldSuggestBreak(state);
+
     return {
       strategy: finalStrategy,
       action: alignedAction,
@@ -523,7 +540,7 @@ export class AMASEngine {
       state,
       reward,
       suggestion,
-      shouldBreak: shouldSuggestBreak(state),
+      shouldBreak: shouldBreakFlag,
       featureVector: persistableFeatureVector,
       objectiveEvaluation,
       multiObjectiveAdjusted
@@ -574,8 +591,8 @@ export class AMASEngine {
 
     // 回退到简单阈值判断
     const count = this.isolation.getInteractionCount(userId);
-    if (count < 15) return 'classify';
-    if (count < 50) return 'explore';
+    if (count < CLASSIFY_PHASE_THRESHOLD) return 'classify';
+    if (count < EXPLORE_PHASE_THRESHOLD) return 'explore';
     return 'normal';
   }
 

@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { initSentry } from './services/sentry'
+
+// 初始化 Sentry 错误追踪
+initSentry()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

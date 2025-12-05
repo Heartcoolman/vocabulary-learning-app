@@ -2982,6 +2982,101 @@ class ApiClient {
   // ==================== Experiments API (Admin) ====================
 
   /**
+   * 创建实验（管理员）
+   * POST /api/experiments
+   */
+  async createExperiment(data: {
+    name: string;
+    description?: string;
+    trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+    minSampleSize: number;
+    significanceLevel: number;
+    minimumDetectableEffect: number;
+    autoDecision: boolean;
+    variants: Array<{
+      id: string;
+      name: string;
+      weight: number;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }>;
+  }): Promise<{ id: string; name: string }> {
+    return this.request('/api/experiments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * 获取实验列表（管理员）
+   * GET /api/experiments
+   */
+  async getExperiments(params?: {
+    status?: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    experiments: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      status: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+      trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+      minSampleSize: number;
+      significanceLevel: number;
+      startedAt: string | null;
+      endedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+      variantCount: number;
+      totalSamples: number;
+    }>;
+    total: number;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+    const query = queryParams.toString();
+    return this.request(`/api/experiments${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * 获取实验详情（管理员）
+   * GET /api/experiments/:experimentId
+   */
+  async getExperiment(experimentId: string): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    status: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+    trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+    minSampleSize: number;
+    significanceLevel: number;
+    minimumDetectableEffect: number;
+    autoDecision: boolean;
+    startedAt: string | null;
+    endedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    variants: Array<{
+      id: string;
+      name: string;
+      weight: number;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }>;
+    metrics: Array<{
+      variantId: string;
+      sampleCount: number;
+      averageReward: number;
+      stdDev: number;
+    }>;
+  }> {
+    return this.request(`/api/experiments/${experimentId}`);
+  }
+
+  /**
    * 获取实验状态（管理员）
    * GET /api/experiments/:experimentId/status
    */
@@ -3005,6 +3100,36 @@ class ApiClient {
     isActive: boolean;
   }> {
     return this.request(`/api/experiments/${experimentId}/status`);
+  }
+
+  /**
+   * 启动实验（管理员）
+   * POST /api/experiments/:experimentId/start
+   */
+  async startExperiment(experimentId: string): Promise<{ message: string }> {
+    return this.request(`/api/experiments/${experimentId}/start`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * 停止实验（管理员）
+   * POST /api/experiments/:experimentId/stop
+   */
+  async stopExperiment(experimentId: string): Promise<{ message: string }> {
+    return this.request(`/api/experiments/${experimentId}/stop`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * 删除实验（管理员）
+   * DELETE /api/experiments/:experimentId
+   */
+  async deleteExperiment(experimentId: string): Promise<{ message: string }> {
+    return this.request(`/api/experiments/${experimentId}`, {
+      method: 'DELETE',
+    });
   }
 
   // ==================== Cognitive Profiling API ====================

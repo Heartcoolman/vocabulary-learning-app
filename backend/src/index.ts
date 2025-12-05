@@ -16,6 +16,12 @@ import { startAlertMonitoring, stopAlertMonitoring } from './monitoring/monitori
 import { getSharedDecisionRecorder } from './amas/services/decision-recorder.service';
 import { startupLogger } from './logger';
 import type { ScheduledTask } from 'node-cron';
+import {
+  initSentry,
+  captureException as sentryCaptureException,
+  flush as sentryFlush,
+  close as sentryClose
+} from './config/sentry';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -26,6 +32,12 @@ let llmAdvisorWorkerTask: ScheduledTask | null = null;
 
 async function startServer() {
   try {
+    // 初始化 Sentry 错误追踪（在其他服务之前）
+    const sentryInitialized = initSentry();
+    if (sentryInitialized) {
+      startupLogger.info('Sentry error tracking initialized');
+    }
+
     // 测试数据库连接
     await prisma.$connect();
     startupLogger.info('Database connected successfully');
@@ -153,6 +165,14 @@ async function gracefulShutdown(signal: string) {
     startupLogger.warn({ err: error }, 'Failed to stop metrics collection');
   }
 
+  // Flush Sentry 事件队列
+  try {
+    await sentryFlush(2000);
+    startupLogger.info('Sentry events flushed');
+  } catch (error) {
+    startupLogger.warn({ err: error }, 'Failed to flush Sentry events');
+  }
+
   // 断开 Redis 连接
   await disconnectRedis();
   startupLogger.info('Redis disconnected');
@@ -160,6 +180,14 @@ async function gracefulShutdown(signal: string) {
   // 断开数据库连接
   await prisma.$disconnect();
   startupLogger.info('Database disconnected');
+
+  // 关闭 Sentry 客户端
+  try {
+    await sentryClose(2000);
+    startupLogger.info('Sentry client closed');
+  } catch (error) {
+    startupLogger.warn({ err: error }, 'Failed to close Sentry client');
+  }
 
   process.exit(0);
 }
@@ -171,11 +199,17 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // 修复问题#16: 全局未处理Promise拒绝处理
 process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
   startupLogger.error({ reason, promise }, 'Unhandled Promise Rejection');
+  // 上报到 Sentry
+  sentryCaptureException(reason instanceof Error ? reason : new Error(String(reason)), {
+    type: 'unhandledRejection',
+  });
 });
 
 // 全局未捕获异常处理
 process.on('uncaughtException', (error: Error) => {
   startupLogger.error({ err: error }, 'Uncaught Exception');
+  // 上报到 Sentry
+  sentryCaptureException(error, { type: 'uncaughtException' });
   // 未捕获异常通常意味着应用状态不可预测，应该重启
   // 但先尝试优雅关闭
   gracefulShutdown('uncaughtException').catch(() => {

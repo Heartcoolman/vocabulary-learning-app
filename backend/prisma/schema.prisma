@@ -904,3 +904,42 @@ model UserLearningState {
   @@index([updatedAt])
   @@map("user_learning_states")
 }
+
+// ==================== 用户交互埋点系统 ====================
+
+/// 用户交互统计（用于学习风格分析）
+model UserInteractionStats {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  pronunciationClicks Int      @default(0)   // 发音按钮点击次数（用于听觉偏好分析）
+  pauseCount          Int      @default(0)   // 学习暂停次数
+  pageSwitchCount     Int      @default(0)   // 页面切换次数
+  totalInteractions   Int      @default(0)   // 总交互次数
+  totalSessionDuration Int     @default(0)   // 总会话时长（毫秒）
+  lastActivityTime    DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+  @@index([lastActivityTime])
+  @@map("user_interaction_stats")
+}
+
+/// 用户交互事件记录（原始事件数据）
+model UserTrackingEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  sessionId String
+  eventType String   // pronunciation_click, learning_pause, learning_resume, page_switch, etc.
+  eventData String?  // JSON 格式的事件详情
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+  @@index([userId, eventType])
+  @@map("user_tracking_events")
+}

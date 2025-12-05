@@ -26,9 +26,10 @@ const suggestionsQuerySchema = z.object({
 
 /**
  * 建议ID参数验证
+ * 注意：使用 cuid 格式，不是 uuid
  */
 const suggestionIdParamSchema = z.object({
-  id: z.string().uuid('无效的建议ID格式'),
+  id: z.string().min(1, '建议ID不能为空'),
 });
 
 const router = Router();
@@ -113,8 +114,10 @@ router.get('/suggestions', validateQuery(suggestionsQuerySchema), async (req: Au
 
     res.json({
       success: true,
-      data: result.items,
-      total: result.total
+      data: {
+        items: result.items,
+        total: result.total
+      }
     });
   } catch (error) {
     next(error);
@@ -156,10 +159,19 @@ router.post('/suggestions/:id/approve', validateParams(suggestionIdParamSchema),
     const { selectedItems, notes } = req.body;
     const userId = req.user!.id;
 
+    // 调试日志
+    amasLogger.info({
+      body: req.body,
+      selectedItems,
+      selectedItemsType: typeof selectedItems,
+      isArray: Array.isArray(selectedItems)
+    }, '[LLMAdvisorRoutes] 审批请求体');
+
     if (!Array.isArray(selectedItems)) {
       return res.status(400).json({
         success: false,
-        message: 'selectedItems 必须是数组'
+        message: 'selectedItems 必须是数组',
+        debug: { received: selectedItems, type: typeof selectedItems }
       });
     }
 

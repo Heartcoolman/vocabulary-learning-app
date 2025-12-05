@@ -183,28 +183,66 @@ npm run dev
 
 ## 前端页面路由
 
+### 公开路由
 | 路由 | 页面 | 说明 |
 |------|------|------|
-| `/` | LearningPage | 主学习页面 |
-| `/vocabulary` | VocabularyPage | 词库管理 |
-| `/wordbook/:id` | WordBookDetailPage | 词书详情 |
-| `/statistics` | StatisticsPage | 学习统计 |
-| `/profile` | ProfilePage | 个人中心（含习惯画像） |
-| `/word-mastery` | WordMasteryPage | 单词掌握度分析 |
-| `/habit-profile` | HabitProfilePage | 习惯画像详情 |
-| `/trend-report` | TrendReportPage | 趋势报告 |
-| `/learning-time` | LearningTimePage | 学习时间推荐 |
-| `/plan` | PlanPage | 智能学习计划 |
-| `/achievement` | AchievementPage | 成就徽章 |
+| `/login` | LoginPage | 登录页面 |
+| `/register` | RegisterPage | 注册页面 |
+
+### AMAS 公开展示路由（无需登录）
+| 路由 | 页面 | 说明 |
+|------|------|------|
 | `/about` | AboutHomePage | AMAS 引擎介绍 |
 | `/about/dashboard` | DashboardPage | 决策仪表盘 |
 | `/about/simulation` | SimulationPage | 决策模拟器 |
 | `/about/stats` | StatsPage | 系统统计 |
+| `/about/system-status` | SystemStatusPage | 系统状态 |
+
+### 受保护路由（需要认证）
+| 路由 | 页面 | 说明 |
+|------|------|------|
+| `/` | LearningPage | 主学习页面 |
+| `/vocabulary` | VocabularyPage | 词库管理 |
+| `/wordbooks/:id` | WordBookDetailPage | 词书详情 |
+| `/word-list` | WordListPage | 单词列表 |
+| `/word-mastery` | WordMasteryPage | 单词掌握度分析 |
+| `/history` | HistoryPage | 学习历史 |
+| `/statistics` | StatisticsPage | 学习统计 |
+| `/profile` | ProfilePage | 个人中心 |
+| `/study-settings` | StudySettingsPage | 学习设置 |
+| `/learning-objectives` | LearningObjectivesPage | 学习目标 |
+| `/today-words` | TodayWordsPage | 今日单词 |
+| `/progress` | StudyProgressPage | 学习进度 |
+
+### AMAS 增强功能路由（需要认证）
+| 路由 | 页面 | 说明 |
+|------|------|------|
+| `/learning-time` | LearningTimePage | 学习时间推荐 |
+| `/trend-report` | TrendReportPage | 趋势报告 |
+| `/achievements` | AchievementPage | 成就徽章 |
+| `/badges` | BadgeGalleryPage | 徽章画廊 |
+| `/plan` | PlanPage | 智能学习计划 |
+| `/habit-profile` | HabitProfilePage | 习惯画像 |
+| `/learning-profile` | LearningProfilePage | 学习画像 |
+
+### 管理员后台路由（需要管理员权限）
+| 路由 | 页面 | 说明 |
+|------|------|------|
 | `/admin` | AdminDashboard | 管理后台首页 |
-| `/admin/users` | AdminUsers | 用户管理 |
+| `/admin/users` | UserManagementPage | 用户管理 |
+| `/admin/users/:userId` | UserDetailPage | 用户详情 |
+| `/admin/users/:userId/words` | WordDetailPage | 用户单词详情 |
 | `/admin/wordbooks` | AdminWordBooks | 词库管理 |
+| `/admin/batch-import` | BatchImportPage | 批量导入 |
 | `/admin/algorithm-config` | AlgorithmConfigPage | 算法配置 |
-| `/admin/experiment-dashboard` | ExperimentDashboard | A/B 测试仪表盘 |
+| `/admin/config-history` | ConfigHistoryPage | 配置历史 |
+| `/admin/experiments` | ExperimentDashboard | A/B 测试仪表盘 |
+| `/admin/logs` | LogViewerPage | 日志查看器 |
+| `/admin/log-alerts` | LogAlertsPage | 日志告警 |
+| `/admin/optimization` | OptimizationDashboard | 优化仪表盘 |
+| `/admin/causal-analysis` | CausalInferencePage | 因果推断分析 |
+| `/admin/llm-advisor` | LLMAdvisorPage | LLM 顾问 |
+| `/admin/amas-explainability` | AMASExplainabilityPage | AMAS 可解释性 |
 
 ## 文档
 

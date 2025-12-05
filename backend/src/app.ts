@@ -36,6 +36,8 @@ import learningObjectivesRoutes from './routes/learning-objectives.routes';
 import logsRoutes from './routes/logs.routes';
 import logViewerRoutes from './routes/log-viewer.routes';
 import llmAdvisorRoutes from './routes/llm-advisor.routes';
+import experimentRoutes from './routes/experiment.routes';
+import trackingRoutes from './routes/tracking.routes';
 
 
 const app = express();
@@ -199,6 +201,8 @@ app.use('/api/logs', logsRoutes);
 app.use('/api/admin/logs', logViewerRoutes);
 app.use('/api/llm-advisor', llmAdvisorRoutes);
 app.use('/api/users/profile', profileRoutes);
+app.use('/api/experiments', experimentRoutes);
+app.use('/api/tracking', trackingRoutes);
 
 
 // 404处理
