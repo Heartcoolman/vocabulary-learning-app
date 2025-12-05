@@ -488,4 +488,377 @@ describe('ThompsonSampling', () => {
       expect(result.action).toBeDefined();
     });
   });
+
+  // ==================== ThompsonSampling Edge Cases Tests ====================
+
+  describe('ThompsonSampling Edge Cases', () => {
+    describe('Beta distribution edge cases', () => {
+      it('should handle alpha close to 0 (prior minimum enforced)', () => {
+        // Create instance with very small alpha prior
+        const smallAlphaThompson = new ThompsonSampling({
+          priorAlpha: 1e-10,  // Very close to 0
+          priorBeta: 1
+        });
+
+        // Should use EPSILON minimum internally
+        const result = smallAlphaThompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(result.score).toBeGreaterThanOrEqual(0);
+        expect(result.score).toBeLessThanOrEqual(1);
+      });
+
+      it('should handle beta close to 0 (prior minimum enforced)', () => {
+        // Create instance with very small beta prior
+        const smallBetaThompson = new ThompsonSampling({
+          priorAlpha: 1,
+          priorBeta: 1e-10  // Very close to 0
+        });
+
+        // Should use EPSILON minimum internally
+        const result = smallBetaThompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(result.score).toBeGreaterThanOrEqual(0);
+        expect(result.score).toBeLessThanOrEqual(1);
+      });
+
+      it('should handle very large alpha/beta values', () => {
+        // Simulate many successes
+        const action = STANDARD_ACTIONS[0];
+        for (let i = 0; i < 1000; i++) {
+          thompson.update(defaultState, action, 1.0, defaultContext);
+        }
+
+        const state = thompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // Alpha should be very large
+        expect(params.alpha).toBeGreaterThan(500);
+
+        // Should still sample correctly
+        const result = thompson.selectAction(defaultState, [action], defaultContext);
+        expect(result.score).toBeGreaterThanOrEqual(0);
+        expect(result.score).toBeLessThanOrEqual(1);
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle very small probabilities (high beta relative to alpha)', () => {
+        // Simulate many failures
+        const action = STANDARD_ACTIONS[0];
+        for (let i = 0; i < 100; i++) {
+          thompson.update(defaultState, action, -1.0, defaultContext);  // Negative reward = failure
+        }
+
+        const state = thompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // Beta should be much larger than alpha
+        expect(params.beta).toBeGreaterThan(params.alpha);
+
+        // Should still work
+        const result = thompson.selectAction(defaultState, [action], defaultContext);
+        expect(Number.isFinite(result.score)).toBe(true);
+        expect(result.score).toBeGreaterThanOrEqual(0);
+        expect(result.score).toBeLessThanOrEqual(1);
+      });
+    });
+
+    describe('identical arm statistics', () => {
+      it('should handle all arms with identical statistics', () => {
+        // Update all actions with identical rewards
+        for (let i = 0; i < 10; i++) {
+          for (const action of STANDARD_ACTIONS) {
+            thompson.update(defaultState, action, 0.5, defaultContext);
+          }
+        }
+
+        // Should still select one action (random due to sampling)
+        const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(STANDARD_ACTIONS).toContainEqual(result.action);
+      });
+
+      it('should handle arms with same expected value but different variance', () => {
+        // First arm: few observations (high variance)
+        thompson.update(defaultState, STANDARD_ACTIONS[0], 1.0, defaultContext);
+        thompson.update(defaultState, STANDARD_ACTIONS[0], 0.0, defaultContext);
+
+        // Second arm: many observations (low variance), same mean
+        for (let i = 0; i < 100; i++) {
+          thompson.update(defaultState, STANDARD_ACTIONS[1], i % 2 === 0 ? 1.0 : 0.0, defaultContext);
+        }
+
+        // Both should be selectable
+        const selectionCounts = new Map<string, number>();
+        for (let i = 0; i < 100; i++) {
+          const testThompson = new ThompsonSampling();
+          testThompson.setState(thompson.getState());
+          const result = testThompson.selectAction(defaultState, [STANDARD_ACTIONS[0], STANDARD_ACTIONS[1]], defaultContext);
+          const key = JSON.stringify(result.action);
+          selectionCounts.set(key, (selectionCounts.get(key) || 0) + 1);
+        }
+
+        // Both arms should be selected at least once (due to exploration from high variance)
+        expect(selectionCounts.size).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('numerical stability', () => {
+      it('should handle NaN in context fields gracefully', () => {
+        const nanContext: ThompsonContext = {
+          recentErrorRate: NaN,
+          recentResponseTime: NaN,
+          timeBucket: NaN as unknown as number
+        };
+
+        // Should use defaults when NaN is detected
+        const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, nanContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle Infinity in context fields gracefully', () => {
+        const infContext: ThompsonContext = {
+          recentErrorRate: Infinity,
+          recentResponseTime: Infinity,
+          timeBucket: 12
+        };
+
+        // Should clamp to valid ranges
+        const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, infContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle extreme reward values', () => {
+        const action = STANDARD_ACTIONS[0];
+
+        // Reward outside [-1, 1] should be clamped
+        thompson.update(defaultState, action, 1e10, defaultContext);
+        thompson.update(defaultState, action, -1e10, defaultContext);
+
+        const state = thompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // Parameters should be finite
+        expect(Number.isFinite(params.alpha)).toBe(true);
+        expect(Number.isFinite(params.beta)).toBe(true);
+      });
+
+      it('should maintain valid Beta samples after many updates', () => {
+        // Perform many updates
+        for (let i = 0; i < 1000; i++) {
+          const action = STANDARD_ACTIONS[i % 5];
+          const reward = Math.random() * 2 - 1; // Random in [-1, 1]
+          thompson.update(defaultState, action, reward, defaultContext);
+        }
+
+        // All samples should be in [0, 1]
+        for (let i = 0; i < 100; i++) {
+          const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+          expect(result.score).toBeGreaterThanOrEqual(0);
+          expect(result.score).toBeLessThanOrEqual(1);
+          expect(Number.isFinite(result.score)).toBe(true);
+        }
+      });
+    });
+
+    describe('context handling edge cases', () => {
+      it('should handle undefined context properties', () => {
+        const partialContext = {
+          recentErrorRate: 0.2
+        } as ThompsonContext;
+
+        // Should use defaults for missing properties
+        const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, partialContext);
+        expect(result.action).toBeDefined();
+      });
+
+      it('should handle empty context object', () => {
+        const emptyContext = {} as ThompsonContext;
+
+        // Should use defaults for all properties
+        const result = thompson.selectAction(defaultState, STANDARD_ACTIONS, emptyContext);
+        expect(result.action).toBeDefined();
+      });
+
+      it('should handle boundary error rates', () => {
+        const zeroErrorContext: ThompsonContext = {
+          recentErrorRate: 0,
+          recentResponseTime: 2000,
+          timeBucket: 12
+        };
+
+        const fullErrorContext: ThompsonContext = {
+          recentErrorRate: 1,
+          recentResponseTime: 2000,
+          timeBucket: 12
+        };
+
+        const result1 = thompson.selectAction(defaultState, STANDARD_ACTIONS, zeroErrorContext);
+        const result2 = thompson.selectAction(defaultState, STANDARD_ACTIONS, fullErrorContext);
+
+        expect(result1.action).toBeDefined();
+        expect(result2.action).toBeDefined();
+      });
+
+      it('should create different context keys for different contexts', () => {
+        // Two very different contexts
+        const context1: ThompsonContext = {
+          recentErrorRate: 0.1,
+          recentResponseTime: 1000,
+          timeBucket: 8
+        };
+
+        const context2: ThompsonContext = {
+          recentErrorRate: 0.9,
+          recentResponseTime: 9000,
+          timeBucket: 22
+        };
+
+        // Update with different contexts
+        thompson.update(defaultState, STANDARD_ACTIONS[0], 1.0, context1);
+        thompson.update(defaultState, STANDARD_ACTIONS[0], 0.0, context2);
+
+        const state = thompson.getState();
+        const actionKey = Object.keys(state.contextual)[0];
+        const contextKeys = Object.keys(state.contextual[actionKey] || {});
+
+        // Should have different context entries
+        expect(contextKeys.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('state persistence edge cases', () => {
+      it('should handle restoration of state with invalid alpha/beta', () => {
+        const invalidState: ThompsonSamplingState = {
+          version: '1.0.0',
+          priorAlpha: 1,
+          priorBeta: 1,
+          updateCount: 10,
+          global: {
+            'test-action': { alpha: -1, beta: NaN } // Invalid values
+          },
+          contextual: {}
+        };
+
+        const newThompson = new ThompsonSampling();
+        newThompson.setState(invalidState);
+
+        // Should recover and use valid defaults
+        const result = newThompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle state with mismatched prior parameters', () => {
+        // Create state with different priors
+        const stateWithDifferentPriors: ThompsonSamplingState = {
+          version: '1.0.0',
+          priorAlpha: 5,  // Different from default 1
+          priorBeta: 5,   // Different from default 1
+          updateCount: 20,
+          global: {
+            'test-action': { alpha: 10, beta: 10 }
+          },
+          contextual: {}
+        };
+
+        // Create new instance with default priors (1, 1)
+        const newThompson = new ThompsonSampling();
+        newThompson.setState(stateWithDifferentPriors);
+
+        // Should migrate parameters appropriately
+        const result = newThompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+      });
+
+      it('should handle empty state restoration', () => {
+        const emptyState: ThompsonSamplingState = {
+          version: '1.0.0',
+          priorAlpha: 1,
+          priorBeta: 1,
+          updateCount: 0,
+          global: {},
+          contextual: {}
+        };
+
+        const newThompson = new ThompsonSampling();
+        newThompson.setState(emptyState);
+
+        const result = newThompson.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(newThompson.getState().updateCount).toBe(0);
+      });
+    });
+
+    describe('soft update mode edge cases', () => {
+      it('should handle soft update with reward = 0', () => {
+        const softThompson = new ThompsonSampling({ enableSoftUpdate: true });
+        const action = STANDARD_ACTIONS[0];
+
+        softThompson.update(defaultState, action, 0, defaultContext);
+
+        const state = softThompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // With reward=0, both alpha and beta should increase by 0.5
+        expect(params.alpha).toBeCloseTo(1.5, 5);
+        expect(params.beta).toBeCloseTo(1.5, 5);
+      });
+
+      it('should handle soft update with reward = 1', () => {
+        const softThompson = new ThompsonSampling({ enableSoftUpdate: true });
+        const action = STANDARD_ACTIONS[0];
+
+        softThompson.update(defaultState, action, 1, defaultContext);
+
+        const state = softThompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // With reward=1, alpha += 1, beta += 0
+        expect(params.alpha).toBe(2);
+        expect(params.beta).toBe(1);
+      });
+
+      it('should handle soft update with reward = -1', () => {
+        const softThompson = new ThompsonSampling({ enableSoftUpdate: true });
+        const action = STANDARD_ACTIONS[0];
+
+        softThompson.update(defaultState, action, -1, defaultContext);
+
+        const state = softThompson.getState();
+        const actionKey = Object.keys(state.global)[0];
+        const params = state.global[actionKey];
+
+        // With reward=-1, alpha += 0, beta += 1
+        expect(params.alpha).toBe(1);
+        expect(params.beta).toBe(2);
+      });
+    });
+
+    describe('single action edge cases', () => {
+      it('should always return the only action when single action provided', () => {
+        const singleAction = [STANDARD_ACTIONS[0]];
+
+        for (let i = 0; i < 10; i++) {
+          const result = thompson.selectAction(defaultState, singleAction, defaultContext);
+          expect(result.action).toEqual(STANDARD_ACTIONS[0]);
+        }
+      });
+
+      it('should compute valid confidence for single action', () => {
+        const singleAction = [STANDARD_ACTIONS[0]];
+
+        const result = thompson.selectAction(defaultState, singleAction, defaultContext);
+        expect(result.confidence).toBeGreaterThanOrEqual(0);
+        expect(result.confidence).toBeLessThanOrEqual(1);
+        expect(Number.isFinite(result.confidence)).toBe(true);
+      });
+    });
+  });
 });

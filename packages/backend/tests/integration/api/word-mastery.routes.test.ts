@@ -30,6 +30,14 @@ vi.mock('../../../src/middleware/auth.middleware', () => ({
     } else {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+  },
+  optionalAuthMiddleware: (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader === 'Bearer valid-token') {
+      req.user = { id: 'test-user-id', username: 'testuser' };
+    }
+    // optionalAuthMiddleware always calls next, even without auth
+    next();
   }
 }));
 
@@ -117,7 +125,7 @@ describe('Word Mastery API Routes', () => {
         .send({ wordIds: [] });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('non-empty');
+      expect(res.body.error).toContain('非空数组');
     });
 
     it('should return 400 for non-array wordIds', async () => {
@@ -138,7 +146,7 @@ describe('Word Mastery API Routes', () => {
         .send({ wordIds: tooManyIds });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('maximum size');
+      expect(res.body.error).toContain('不能超过');
     });
 
     it('should return 400 for invalid userFatigue', async () => {
@@ -148,7 +156,8 @@ describe('Word Mastery API Routes', () => {
         .send({ wordIds: ['word-1'], userFatigue: 1.5 });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('userFatigue');
+      // Zod validation error for number > 1 (max is 1)
+      expect(res.body.success).toBe(false);
     });
 
     it('should deduplicate wordIds', async () => {
@@ -205,18 +214,16 @@ describe('Word Mastery API Routes', () => {
       );
     });
 
-    it('should ignore invalid userFatigue', async () => {
+    it('should return 400 for invalid userFatigue query parameter', async () => {
       mockWordMasteryService.evaluateWord.mockResolvedValue({ wordId: 'word-1' });
 
-      await request(app)
+      const res = await request(app)
         .get('/api/word-mastery/word-1?userFatigue=invalid')
         .set('Authorization', 'Bearer valid-token');
 
-      expect(mockWordMasteryService.evaluateWord).toHaveBeenCalledWith(
-        'test-user-id',
-        'word-1',
-        undefined
-      );
+      // z.coerce.number() fails for non-numeric strings
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
 
     it('should return 401 without authentication', async () => {
@@ -275,19 +282,16 @@ describe('Word Mastery API Routes', () => {
       );
     });
 
-    it('should cap limit at 100', async () => {
+    it('should return 400 when limit exceeds 100', async () => {
       mockWordMasteryService.getMemoryTrace.mockResolvedValue([]);
 
-      await request(app)
+      const res = await request(app)
         .get('/api/word-mastery/word-123/trace?limit=200')
         .set('Authorization', 'Bearer valid-token');
 
-      // Should use default (50) since 200 > 100
-      expect(mockWordMasteryService.getMemoryTrace).toHaveBeenCalledWith(
-        'test-user-id',
-        'word-123',
-        50
-      );
+      // Zod validation rejects values > 100
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
   });
 

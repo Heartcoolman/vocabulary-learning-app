@@ -90,6 +90,29 @@ vi.mock('lucide-react', () => ({
   Beaker: () => <span data-testid="icon-beaker">🧪</span>,
 }));
 
+// Mock Icon components from phosphor-icons/react (used via components/Icon)
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    Activity: () => <span data-testid="icon-activity">📊</span>,
+    UsersThree: () => <span data-testid="icon-users">👥</span>,
+    Scales: () => <span data-testid="icon-scales">⚖️</span>,
+    Target: () => <span data-testid="icon-target">🎯</span>,
+    CheckCircle: () => <span data-testid="icon-check">✓</span>,
+    WarningCircle: () => <span data-testid="icon-warning">⚠️</span>,
+    XCircle: () => <span data-testid="icon-x">✗</span>,
+    ArrowsClockwise: () => <span data-testid="icon-refresh">↻</span>,
+    Trophy: () => <span data-testid="icon-trophy">🏆</span>,
+    ArrowRight: () => <span data-testid="icon-arrow">→</span>,
+    TrendUp: () => <span data-testid="icon-trend">📈</span>,
+    Flask: () => <span data-testid="icon-flask">🧪</span>,
+    Plus: () => <span data-testid="icon-plus">+</span>,
+    ChartBar: () => <span data-testid="icon-chart">📊</span>,
+    Gear: () => <span data-testid="icon-gear">⚙️</span>,
+  };
+});
+
 describe('ExperimentDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,7 +149,8 @@ describe('ExperimentDashboard', () => {
       render(<ExperimentDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/0.03/)).toBeInTheDocument();
+        const elements = screen.getAllByText(/0\.03/);
+        expect(elements.length).toBeGreaterThan(0);
       });
     });
 
@@ -215,7 +239,8 @@ describe('ExperimentDashboard', () => {
       render(<ExperimentDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/0.12/)).toBeInTheDocument();
+        const elements = screen.getAllByText(/0\.12/);
+        expect(elements.length).toBeGreaterThan(0);
       });
     });
   });

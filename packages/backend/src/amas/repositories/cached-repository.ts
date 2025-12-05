@@ -65,7 +65,7 @@ export class CachedStateRepository implements StateRepository {
 
       return state;
     } catch (error) {
-      amasLogger.warn({ userId, err: error }, '[CachedStateRepo] loadState 缓存操作失败，直接查数据库');
+      amasLogger.warn({ userId, err: error }, '[CachedStateRepo] loadState 缓存操作失败，降级为直接查数据库');
       // 缓存失败时降级为直接查数据库
       return this.dbRepo.loadState(userId);
     }
@@ -79,7 +79,7 @@ export class CachedStateRepository implements StateRepository {
       try {
         await redisCacheService.delUserState(userId);
       } catch (error) {
-        amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 删除缓存失败');
+        amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 删除缓存失败，降级继续执行数据库写入');
         // 继续执行数据库写入
       }
     }
@@ -94,7 +94,7 @@ export class CachedStateRepository implements StateRepository {
         try {
           await this.setStateWithVersionCheck(userId, state, version);
         } catch (error) {
-          amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 异步更新缓存失败');
+          amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 异步更新缓存失败，降级为无缓存模式');
         }
       });
     }
@@ -159,7 +159,7 @@ export class CachedStateRepository implements StateRepository {
     try {
       await redisCacheService.delUserState(userId);
     } catch (error) {
-      amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 失效缓存失败');
+      amasLogger.warn({ userId, err: error }, '[CachedStateRepo] 失效缓存失败，降级为无缓存模式');
     }
   }
 }
@@ -203,7 +203,7 @@ export class CachedModelRepository implements ModelRepository {
 
       return model;
     } catch (error) {
-      amasLogger.warn({ userId, err: error }, '[CachedModelRepo] loadModel 缓存操作失败，直接查数据库');
+      amasLogger.warn({ userId, err: error }, '[CachedModelRepo] loadModel 缓存操作失败，降级为直接查数据库');
       // 缓存失败时降级为直接查数据库
       return this.dbRepo.loadModel(userId);
     }
@@ -217,7 +217,7 @@ export class CachedModelRepository implements ModelRepository {
       try {
         await redisCacheService.delUserModel(userId);
       } catch (error) {
-        amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 删除缓存失败');
+        amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 删除缓存失败，降级继续执行数据库写入');
         // 继续执行数据库写入
       }
     }
@@ -231,7 +231,7 @@ export class CachedModelRepository implements ModelRepository {
         try {
           await this.setModelWithVersionCheck(userId, model, version);
         } catch (error) {
-          amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 异步更新缓存失败');
+          amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 异步更新缓存失败，降级为无缓存模式');
         }
       });
     }
@@ -293,7 +293,7 @@ export class CachedModelRepository implements ModelRepository {
     try {
       await redisCacheService.delUserModel(userId);
     } catch (error) {
-      amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 失效缓存失败');
+      amasLogger.warn({ userId, err: error }, '[CachedModelRepo] 失效缓存失败，降级为无缓存模式');
     }
   }
 

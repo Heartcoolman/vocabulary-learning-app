@@ -670,4 +670,290 @@ describe('LinUCB', () => {
       expect(result.action).toBeDefined();
     });
   });
+
+  // ==================== LinUCB Edge Cases Tests ====================
+
+  describe('LinUCB Edge Cases', () => {
+    describe('numerical stability', () => {
+      it('should handle near-singular covariance matrix', () => {
+        // Create a model where A matrix is near-singular (very small diagonal values)
+        const model = linucb.getModel();
+        const d = model.d;
+
+        // Set diagonal elements to very small values (close to singular)
+        for (let i = 0; i < d; i++) {
+          model.A[i * d + i] = 1e-6;
+        }
+
+        // Should handle gracefully without throwing
+        linucb.setModel(model);
+
+        // Model should still select actions
+        const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should sanitize NaN in features', () => {
+        const nanFeatures = new Float32Array(DIMENSION);
+        nanFeatures.fill(0.5);
+        nanFeatures[0] = NaN;
+        nanFeatures[5] = NaN;
+        nanFeatures[10] = NaN;
+
+        const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
+
+        // Should sanitize NaN values and proceed
+        linucb.updateWithFeatureVector(nanFeatures, 1.0);
+
+        // Update should complete (with sanitized values)
+        expect(linucb.getUpdateCount()).toBe(1);
+        expect(warnSpy).toHaveBeenCalled();
+
+        // Model should remain valid after update
+        const model = linucb.getModel();
+        for (let i = 0; i < model.A.length; i++) {
+          expect(Number.isFinite(model.A[i])).toBe(true);
+        }
+
+        warnSpy.mockRestore();
+      });
+
+      it('should sanitize Infinity in features', () => {
+        const infFeatures = new Float32Array(DIMENSION);
+        infFeatures.fill(0.5);
+        infFeatures[0] = Infinity;
+        infFeatures[3] = -Infinity;
+
+        const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
+
+        // Should sanitize Infinity values and proceed
+        linucb.updateWithFeatureVector(infFeatures, 1.0);
+
+        // Update should complete
+        expect(linucb.getUpdateCount()).toBe(1);
+        expect(warnSpy).toHaveBeenCalled();
+
+        warnSpy.mockRestore();
+      });
+
+      it('should handle zero variance context', () => {
+        // All state values are the same (zero variance)
+        const zeroVarianceState: UserState = {
+          A: 0.5,
+          F: 0.5,
+          M: 0.5,
+          C: { mem: 0.5, speed: 0.5 }
+        };
+
+        const zeroVarianceContext: LinUCBContext = {
+          recentErrorRate: 0.5,
+          recentResponseTime: 2500,
+          timeBucket: 12
+        };
+
+        // Should handle without issues
+        const result = linucb.selectAction(zeroVarianceState, STANDARD_ACTIONS, zeroVarianceContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+        expect(Number.isFinite(result.confidence)).toBe(true);
+      });
+
+      it('should handle matrix with NaN after update', () => {
+        // Simulate a corrupted L matrix with NaN
+        const model = linucb.getModel();
+        model.L[0] = NaN;
+
+        const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
+
+        linucb.setModel(model);
+
+        // Should recover and still work
+        const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+
+        warnSpy.mockRestore();
+      });
+    });
+
+    describe('extreme values', () => {
+      it('should handle very large rewards', () => {
+        const largeReward = 1e6;
+
+        // Should clamp or handle gracefully
+        linucb.update(defaultState, STANDARD_ACTIONS[0], largeReward, defaultContext);
+
+        expect(linucb.getUpdateCount()).toBe(1);
+
+        // Model should remain stable
+        const model = linucb.getModel();
+        for (let i = 0; i < model.b.length; i++) {
+          expect(Number.isFinite(model.b[i])).toBe(true);
+        }
+      });
+
+      it('should handle negative rewards', () => {
+        const negativeReward = -1.5;
+
+        linucb.update(defaultState, STANDARD_ACTIONS[0], negativeReward, defaultContext);
+
+        expect(linucb.getUpdateCount()).toBe(1);
+
+        // b vector should reflect the negative reward
+        const model = linucb.getModel();
+        let hasNegative = false;
+        for (let i = 0; i < model.b.length; i++) {
+          if (model.b[i] < 0) hasNegative = true;
+          expect(Number.isFinite(model.b[i])).toBe(true);
+        }
+        expect(hasNegative).toBe(true);
+      });
+
+      it('should handle empty arm list', () => {
+        expect(() => {
+          linucb.selectAction(defaultState, [], defaultContext);
+        }).toThrow('actions array must not be empty');
+      });
+
+      it('should handle very small alpha', () => {
+        linucb.setAlpha(1e-10);
+
+        const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+
+        // Exploration should be minimal
+        expect(result.meta?.exploration).toBeCloseTo(0, 5);
+      });
+
+      it('should handle very large alpha', () => {
+        linucb.setAlpha(1000);
+
+        const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+
+        // Exploration should dominate
+        expect(result.meta?.exploration).toBeGreaterThan(result.meta?.exploitation ?? 0);
+      });
+
+      it('should handle extreme state values', () => {
+        const extremeState: UserState = {
+          A: 1e10,    // Extremely large
+          F: -1e10,   // Extremely negative
+          M: 0,       // Zero
+          C: { mem: 1e10, speed: -1e10 }
+        };
+
+        // Should clamp and handle gracefully
+        const result = linucb.selectAction(extremeState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle all-zero feature vector', () => {
+        const zeroFeatures = new Float32Array(DIMENSION);
+        zeroFeatures.fill(0);
+
+        // All zeros is valid (though unusual)
+        linucb.updateWithFeatureVector(zeroFeatures, 1.0);
+
+        expect(linucb.getUpdateCount()).toBe(1);
+      });
+
+      it('should handle single action selection', () => {
+        const singleAction = [STANDARD_ACTIONS[0]];
+
+        const result = linucb.selectAction(defaultState, singleAction, defaultContext);
+        expect(result.action).toEqual(STANDARD_ACTIONS[0]);
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+
+      it('should handle extreme time bucket values', () => {
+        // Time bucket at boundaries
+        const contextAt0: LinUCBContext = {
+          recentErrorRate: 0.2,
+          recentResponseTime: 2500,
+          timeBucket: 0
+        };
+
+        const contextAt23: LinUCBContext = {
+          recentErrorRate: 0.2,
+          recentResponseTime: 2500,
+          timeBucket: 23
+        };
+
+        const contextNegative: LinUCBContext = {
+          recentErrorRate: 0.2,
+          recentResponseTime: 2500,
+          timeBucket: -5
+        };
+
+        const contextOver24: LinUCBContext = {
+          recentErrorRate: 0.2,
+          recentResponseTime: 2500,
+          timeBucket: 30
+        };
+
+        const result0 = linucb.selectAction(defaultState, STANDARD_ACTIONS, contextAt0);
+        const result23 = linucb.selectAction(defaultState, STANDARD_ACTIONS, contextAt23);
+        const resultNeg = linucb.selectAction(defaultState, STANDARD_ACTIONS, contextNegative);
+        const resultOver = linucb.selectAction(defaultState, STANDARD_ACTIONS, contextOver24);
+
+        expect(result0.action).toBeDefined();
+        expect(result23.action).toBeDefined();
+        expect(resultNeg.action).toBeDefined();
+        expect(resultOver.action).toBeDefined();
+      });
+    });
+
+    describe('model consistency', () => {
+      it('should maintain positive definiteness after many updates', () => {
+        // Perform many random updates
+        for (let i = 0; i < 500; i++) {
+          const randomState: UserState = {
+            A: Math.random(),
+            F: Math.random(),
+            M: Math.random() * 2 - 1,
+            C: { mem: Math.random(), speed: Math.random() }
+          };
+          const randomContext: LinUCBContext = {
+            recentErrorRate: Math.random(),
+            recentResponseTime: Math.random() * 10000,
+            timeBucket: Math.floor(Math.random() * 24)
+          };
+
+          linucb.update(randomState, STANDARD_ACTIONS[i % 5], Math.random() * 2 - 1, randomContext);
+        }
+
+        // Model should remain valid
+        const model = linucb.getModel();
+
+        // Check all A diagonal elements are positive
+        for (let i = 0; i < model.d; i++) {
+          expect(model.A[i * model.d + i]).toBeGreaterThan(0);
+        }
+
+        // Check all values are finite
+        for (let i = 0; i < model.A.length; i++) {
+          expect(Number.isFinite(model.A[i])).toBe(true);
+        }
+      });
+
+      it('should handle rapid sequential updates', async () => {
+        // Simulate rapid updates (like in a fast session)
+        for (let i = 0; i < 100; i++) {
+          linucb.update(defaultState, STANDARD_ACTIONS[i % 5], Math.random(), defaultContext);
+        }
+
+        const model = linucb.getModel();
+        expect(model.updateCount).toBe(100);
+
+        // Model should still be valid and functional
+        const result = linucb.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
+        expect(result.action).toBeDefined();
+        expect(Number.isFinite(result.score)).toBe(true);
+      });
+    });
+  });
 });

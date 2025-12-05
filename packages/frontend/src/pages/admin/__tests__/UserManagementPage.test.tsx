@@ -83,19 +83,29 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  UsersThree: () => <span data-testid="icon-users">👥</span>,
-  MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
-  CaretLeft: () => <span data-testid="icon-caret-left">‹</span>,
-  CaretRight: () => <span data-testid="icon-caret-right">›</span>,
-  User: () => <span data-testid="icon-user">👤</span>,
-  ChartBar: () => <span data-testid="icon-chart">📊</span>,
-  Target: () => <span data-testid="icon-target">🎯</span>,
-  Clock: () => <span data-testid="icon-clock">🕐</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
+// Mock Modal component
+vi.mock('@/components/ui', () => ({
+  Modal: ({ isOpen, onClose, children }: any) =>
+    isOpen ? <div data-testid="modal">{children}<button onClick={onClose}>关闭</button></div> : null,
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    UsersThree: () => <span data-testid="icon-users">👥</span>,
+    MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
+    CaretLeft: () => <span data-testid="icon-caret-left">‹</span>,
+    CaretRight: () => <span data-testid="icon-caret-right">›</span>,
+    User: () => <span data-testid="icon-user">👤</span>,
+    ChartBar: () => <span data-testid="icon-chart">📊</span>,
+    Target: () => <span data-testid="icon-target">🎯</span>,
+    Clock: () => <span data-testid="icon-clock">🕐</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 const renderWithRouter = () => {
   return render(
@@ -185,17 +195,23 @@ describe('UserManagementPage', () => {
   });
 
   describe('user interaction', () => {
-    it('should navigate to user detail on click', async () => {
+    it('should open quick view modal on user click', async () => {
       renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('user1')).toBeInTheDocument();
       });
 
-      const userCard = screen.getByText('user1').closest('div[role="button"]') || screen.getByText('user1');
-      fireEvent.click(userCard);
+      // 点击用户行
+      const userRow = screen.getByText('user1').closest('tr');
+      if (userRow) {
+        fireEvent.click(userRow);
+      }
 
-      expect(mockNavigate).toHaveBeenCalledWith('/admin/users/u1');
+      // 应该打开快速查看弹窗
+      await waitFor(() => {
+        expect(screen.getByTestId('modal')).toBeInTheDocument();
+      });
     });
   });
 

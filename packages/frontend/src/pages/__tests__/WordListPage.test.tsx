@@ -20,6 +20,17 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
+}));
+
 vi.mock('@/services/StorageService', () => ({
   default: {
     getWords: vi.fn().mockResolvedValue([
@@ -55,16 +66,20 @@ vi.mock('@/services/LearningService', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  ArrowLeft: () => <span data-testid="arrow-left">←</span>,
-  Star: ({ weight }: { weight: string }) => <span data-testid={`star-${weight}`}>★</span>,
-  Target: () => <span data-testid="target">🎯</span>,
-  Clock: () => <span data-testid="clock">🕐</span>,
-  MagnifyingGlass: () => <span data-testid="search">🔍</span>,
-  CheckCircle: () => <span data-testid="check">✓</span>,
-  Warning: () => <span data-testid="warning">⚠</span>,
-  ArrowClockwise: () => <span data-testid="reset">↻</span>,
-}));
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    ArrowLeft: () => <span data-testid="arrow-left">←</span>,
+    Star: ({ weight }: { weight: string }) => <span data-testid={`star-${weight}`}>★</span>,
+    Target: () => <span data-testid="target">🎯</span>,
+    Clock: () => <span data-testid="clock">🕐</span>,
+    MagnifyingGlass: () => <span data-testid="search">🔍</span>,
+    CheckCircle: () => <span data-testid="check">✓</span>,
+    Warning: () => <span data-testid="warning">⚠</span>,
+    ArrowClockwise: () => <span data-testid="reset">↻</span>,
+  };
+});
 
 describe('WordListPage', () => {
   beforeEach(() => {

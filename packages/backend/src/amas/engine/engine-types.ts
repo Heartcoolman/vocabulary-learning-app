@@ -217,6 +217,8 @@ export interface MemoryManagementConfig {
  */
 export interface EngineDependencies {
   featureBuilder?: FeatureBuilder;
+  // 特征向量构建器（可选，用于构建和序列化特征向量）
+  featureVectorBuilder?: any; // 使用 any 避免循环依赖，实际类型为 FeatureVectorBuilder
   attention?: AttentionMonitor;
   fatigue?: FatigueEstimator;
   cognitive?: CognitiveProfiler;
@@ -234,10 +236,16 @@ export interface EngineDependencies {
   userParamsManager?: UserParamsManager;
   // 决策记录器（可选，用于持久化决策轨迹）
   recorder?: any; // 使用 any 避免循环依赖，实际类型为 DecisionRecorderService
+  // 决策轨迹记录器（可选，优先于 recorder）
+  decisionTracer?: any; // 使用 any 避免循环依赖，实际类型为 DecisionTracer
   // Prisma客户端（可选，用于自动创建默认 recorder）
   prisma?: any; // 使用 any 避免循环依赖，实际类型为 PrismaClient
   // 内存管理配置（可选，用于配置用户模型缓存的 LRU/TTL 策略）
   memoryConfig?: MemoryManagementConfig;
+  // 持久化管理器（可选，用于自定义状态和模型的持久化逻辑）
+  persistence?: any; // 使用 any 避免循环依赖，实际类型为 PersistenceManager
+  // 奖励配置缓存管理器（可选，用于缓存用户奖励配置）
+  rewardCacheManager?: any; // 使用 any 避免循环依赖，实际类型为 RewardCacheManager
 }
 
 /**

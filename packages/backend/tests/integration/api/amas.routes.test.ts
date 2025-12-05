@@ -42,6 +42,14 @@ vi.mock('../../../src/middleware/auth.middleware', () => ({
     } else {
       return _res.status(401).json({ error: 'Unauthorized' });
     }
+  },
+  optionalAuthMiddleware: (req: any, _res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader === 'Bearer valid-token') {
+      req.user = { id: 'test-user-id', username: 'testuser' };
+    }
+    // optionalAuthMiddleware always calls next, even without auth
+    next();
   }
 }));
 

@@ -68,14 +68,30 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
-  ChartBar: () => <span data-testid="icon-chart">📊</span>,
-  Clock: () => <span data-testid="icon-clock">🕐</span>,
-  CheckCircle: () => <span data-testid="icon-check">✓</span>,
-  XCircle: () => <span data-testid="icon-x">✗</span>,
-  Warning: () => <span data-testid="icon-warning">⚠️</span>,
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
+    ChartBar: () => <span data-testid="icon-chart">📊</span>,
+    Clock: () => <span data-testid="icon-clock">🕐</span>,
+    CheckCircle: () => <span data-testid="icon-check">✓</span>,
+    XCircle: () => <span data-testid="icon-x">✗</span>,
+    Warning: () => <span data-testid="icon-warning">⚠️</span>,
+    WarningCircle: () => <span data-testid="icon-warning-circle">⚠️</span>,
+  };
+});
 
 vi.mock('@phosphor-icons/react', () => ({
   Flag: () => <span data-testid="icon-flag">🚩</span>,

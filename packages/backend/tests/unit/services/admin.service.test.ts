@@ -52,7 +52,47 @@ vi.mock('../../../src/config/database', () => ({
     session: {
       deleteMany: vi.fn()
     },
-    $transaction: vi.fn((operations) => Promise.all(operations)),
+    $transaction: vi.fn((operationsOrCallback) => {
+      // 支持两种形式：数组形式和函数回调形式
+      if (typeof operationsOrCallback === 'function') {
+        // 函数回调形式 - 创建一个mock的tx对象
+        const mockTx = {
+          answerRecord: {
+            findMany: vi.fn().mockResolvedValue([]),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          decisionRecord: {
+            findMany: vi.fn().mockResolvedValue([]),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          decisionInsight: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          wordLearningState: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          wordScore: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          session: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          wordBook: {
+            findMany: vi.fn().mockResolvedValue([]),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          word: {
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          user: {
+            delete: vi.fn().mockResolvedValue({})
+          }
+        };
+        return operationsOrCallback(mockTx);
+      }
+      // 数组形式
+      return Promise.all(operationsOrCallback);
+    }),
     $queryRaw: vi.fn().mockResolvedValue([])
   }
 }));
@@ -143,13 +183,16 @@ describe('AdminService', () => {
 
   describe('deleteUser', () => {
     it('should delete user', async () => {
-      (prisma.user.delete as any).mockResolvedValue({});
+      // Mock user lookup to return non-admin user
+      (prisma.user.findUnique as any).mockResolvedValue({
+        id: 'u1',
+        role: 'USER'
+      });
 
       await adminService.deleteUser('u1');
 
-      expect(prisma.user.delete).toHaveBeenCalledWith({
-        where: { id: 'u1' }
-      });
+      // deleteUser 使用事务回调形式，验证 $transaction 被调用
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
   });
 

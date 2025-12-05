@@ -34,6 +34,16 @@ vi.mock('../../../src/middleware/auth.middleware', () => ({
     } else {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+  },
+  optionalAuthMiddleware: (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader === 'Bearer valid-token') {
+      req.user = { id: 'test-user-id', username: 'testuser', role: 'USER' };
+    } else if (authHeader === 'Bearer admin-token') {
+      req.user = { id: 'admin-user-id', username: 'admin', role: 'ADMIN' };
+    }
+    // optionalAuthMiddleware always calls next, even without auth
+    next();
   }
 }));
 
@@ -100,11 +110,11 @@ describe('Algorithm Config API Routes', () => {
     });
   });
 
-  // ==================== PUT /api/algorithm-config ====================
+  // ==================== PUT /api/algorithm-config/:id ====================
 
-  describe('PUT /api/algorithm-config', () => {
+  describe('PUT /api/algorithm-config/:id', () => {
+    const configId = '550e8400-e29b-41d4-a716-446655440000';
     const validUpdatePayload = {
-      configId: 'config-1',
       config: {
         linucb: { alpha: 0.6, lambda: 1.2 },
         thompson: { priorAlpha: 2, priorBeta: 2 },
@@ -113,47 +123,54 @@ describe('Algorithm Config API Routes', () => {
       changeReason: 'Tuning for better exploration'
     };
 
-    it('should update config for authenticated user', async () => {
+    it('should update config for admin user', async () => {
       mockAlgorithmConfigService.validateConfig.mockReturnValue({ valid: true, errors: [] });
       mockAlgorithmConfigService.updateConfig.mockResolvedValue({
-        id: 'config-1',
+        id: configId,
         config: validUpdatePayload.config,
         updatedAt: new Date().toISOString()
       });
 
       const res = await request(app)
-        .put('/api/algorithm-config')
-        .set('Authorization', 'Bearer valid-token')
+        .put(`/api/algorithm-config/${configId}`)
+        .set('Authorization', 'Bearer admin-token')
         .send(validUpdatePayload);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(mockAlgorithmConfigService.updateConfig).toHaveBeenCalledWith(
-        'config-1',
+        configId,
         validUpdatePayload.config,
-        'test-user-id',
+        'admin-user-id',
         'Tuning for better exploration'
       );
     });
 
-    it('should return 400 for missing configId', async () => {
+    it('should return 403 for non-admin user', async () => {
       const res = await request(app)
-        .put('/api/algorithm-config')
+        .put(`/api/algorithm-config/${configId}`)
         .set('Authorization', 'Bearer valid-token')
-        .send({ config: {} });
+        .send(validUpdatePayload);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should return 400 for invalid configId format', async () => {
+      const res = await request(app)
+        .put('/api/algorithm-config/invalid-uuid')
+        .set('Authorization', 'Bearer admin-token')
+        .send(validUpdatePayload);
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toContain('配置ID');
     });
 
     it('should return 400 for missing config data', async () => {
       const res = await request(app)
-        .put('/api/algorithm-config')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ configId: 'config-1' });
+        .put(`/api/algorithm-config/${configId}`)
+        .set('Authorization', 'Bearer admin-token')
+        .send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toContain('配置数据');
     });
 
     it('should return 400 for invalid config', async () => {
@@ -163,10 +180,9 @@ describe('Algorithm Config API Routes', () => {
       });
 
       const res = await request(app)
-        .put('/api/algorithm-config')
-        .set('Authorization', 'Bearer valid-token')
+        .put(`/api/algorithm-config/${configId}`)
+        .set('Authorization', 'Bearer admin-token')
         .send({
-          configId: 'config-1',
           config: { linucb: { alpha: -1 } }
         });
 
@@ -176,7 +192,7 @@ describe('Algorithm Config API Routes', () => {
 
     it('should return 401 without authentication', async () => {
       const res = await request(app)
-        .put('/api/algorithm-config')
+        .put(`/api/algorithm-config/${configId}`)
         .send(validUpdatePayload);
 
       expect(res.status).toBe(401);
@@ -186,43 +202,54 @@ describe('Algorithm Config API Routes', () => {
   // ==================== POST /api/algorithm-config/reset ====================
 
   describe('POST /api/algorithm-config/reset', () => {
-    it('should reset config to default', async () => {
-      mockAlgorithmConfigService.getActiveConfig.mockResolvedValue({ id: 'config-1' });
+    const validConfigId = '550e8400-e29b-41d4-a716-446655440001';
+
+    it('should reset config to default for admin', async () => {
+      mockAlgorithmConfigService.getActiveConfig.mockResolvedValue({ id: validConfigId });
       mockAlgorithmConfigService.resetToDefault.mockResolvedValue({
-        id: 'config-1',
+        id: validConfigId,
         config: { linucb: { alpha: 0.5 } },
         isDefault: true
       });
 
       const res = await request(app)
         .post('/api/algorithm-config/reset')
-        .set('Authorization', 'Bearer valid-token')
+        .set('Authorization', 'Bearer admin-token')
         .send({});
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(mockAlgorithmConfigService.resetToDefault).toHaveBeenCalledWith(
-        'config-1',
-        'test-user-id'
+        validConfigId,
+        'admin-user-id'
       );
     });
 
     it('should reset specific config when configId provided', async () => {
       mockAlgorithmConfigService.resetToDefault.mockResolvedValue({
-        id: 'config-2',
+        id: validConfigId,
         isDefault: true
       });
 
       const res = await request(app)
         .post('/api/algorithm-config/reset')
-        .set('Authorization', 'Bearer valid-token')
-        .send({ configId: 'config-2' });
+        .set('Authorization', 'Bearer admin-token')
+        .send({ configId: validConfigId });
 
       expect(res.status).toBe(200);
       expect(mockAlgorithmConfigService.resetToDefault).toHaveBeenCalledWith(
-        'config-2',
-        'test-user-id'
+        validConfigId,
+        'admin-user-id'
       );
+    });
+
+    it('should return 403 for non-admin user', async () => {
+      const res = await request(app)
+        .post('/api/algorithm-config/reset')
+        .set('Authorization', 'Bearer valid-token')
+        .send({});
+
+      expect(res.status).toBe(403);
     });
 
     it('should return 500 when no config available', async () => {
@@ -230,7 +257,7 @@ describe('Algorithm Config API Routes', () => {
 
       const res = await request(app)
         .post('/api/algorithm-config/reset')
-        .set('Authorization', 'Bearer valid-token')
+        .set('Authorization', 'Bearer admin-token')
         .send({});
 
       expect(res.status).toBe(500);

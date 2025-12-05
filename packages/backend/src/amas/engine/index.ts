@@ -31,3 +31,34 @@ export { ResilienceManager } from './engine-resilience';
 export { IsolationManager } from './engine-isolation';
 export { ModelingManager } from './engine-modeling';
 export { LearningManager, DecisionContext, ActionSelection } from './engine-learning';
+export { PersistenceManager, DefaultPersistenceManager } from './engine-persistence';
+export {
+  DecisionTracer,
+  DecisionTraceParams,
+  StageTiming,
+  DefaultDecisionTracer,
+  NoopDecisionTracer,
+  createDecisionTracer
+} from './engine-decision-trace';
+
+// 特征向量构建模块
+export {
+  FeatureVector,
+  FeatureContext,
+  FeatureVectorBuilder,
+  FeatureLabel,
+  FEATURE_LABELS,
+  DefaultFeatureVectorBuilder,
+  createFeatureVectorBuilder
+} from './engine-feature-vector';
+
+// 奖励配置缓存模块
+export {
+  RewardProfileCacheItem,
+  RewardCacheStats,
+  RewardCacheManager,
+  RewardCacheConfig,
+  DefaultRewardCacheManager,
+  NoopRewardCacheManager,
+  createRewardCacheManager
+} from './engine-reward-cache';

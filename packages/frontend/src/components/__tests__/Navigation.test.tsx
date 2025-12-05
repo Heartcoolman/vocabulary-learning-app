@@ -25,7 +25,9 @@ vi.mock('../Icon', () => ({
   CalendarCheck: () => <span>📅</span>,
   ChartBar: () => <span>📊</span>,
   Target: () => <span>🎯</span>,
-  UserCircle: () => <span>👤</span>
+  UserCircle: () => <span>👤</span>,
+  List: () => <span data-testid="list-icon">☰</span>,
+  X: () => <span data-testid="x-icon">✕</span>
 }));
 
 // Mock AuthContext

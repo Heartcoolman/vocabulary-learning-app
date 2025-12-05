@@ -7,16 +7,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Windows null device
-nul
-
 # Dependencies
 node_modules
+.pnpm-store/
 
 # Build outputs
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 
 # Environment variables
 .env
@@ -25,47 +24,41 @@ dist-ssr
 .env.test
 .env.production
 .env.development
-.env.docker
 .env.remote
-backend/.env.remote
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Kiro IDE
-.kiro/
-
 # AI Assistant files
 .claude/
 .shrimp/
 .agent/
 .serena/
+.kiro/
+.windsurf/
 
 # OS files
 Thumbs.db
 .DS_Store
-
-# Temporary files
-bug-report.md
-WARP.md
-
-# Local icon files (replaced by npm dependency)
-phosphor-icons/
-phosphor-icons.zip
-public/phosphor-icons/
+nul
 
 # Test artifacts
 playwright-report/
 test-results/
 coverage/
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/backend/prisma/*.db
 
 # Large test result files
 **/simulation-test-results*.txt

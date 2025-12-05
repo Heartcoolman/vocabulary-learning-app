@@ -31,6 +31,14 @@ vi.mock('../../../src/middleware/auth.middleware', () => ({
     } else {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+  },
+  optionalAuthMiddleware: (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader === 'Bearer valid-token') {
+      req.user = { id: 'test-user-id', username: 'testuser' };
+    }
+    // optionalAuthMiddleware always calls next, even without auth
+    next();
   }
 }));
 
@@ -82,9 +90,11 @@ describe('Word API Routes', () => {
   // ==================== GET /api/words/:id ====================
 
   describe('GET /api/words/:id', () => {
+    const validWordId = '123e4567-e89b-12d3-a456-426614174000';
+
     it('should return a single word', async () => {
       mockWordService.getWordById.mockResolvedValue({
-        id: 'word-123',
+        id: validWordId,
         spelling: 'hello',
         phonetic: '/həˈloʊ/',
         meanings: ['你好', '喂'],
@@ -92,20 +102,21 @@ describe('Word API Routes', () => {
       });
 
       const res = await request(app)
-        .get('/api/words/word-123')
+        .get(`/api/words/${validWordId}`)
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.spelling).toBe('hello');
-      expect(mockWordService.getWordById).toHaveBeenCalledWith('word-123', 'test-user-id');
+      expect(mockWordService.getWordById).toHaveBeenCalledWith(validWordId, 'test-user-id');
     });
 
     it('should handle word not found', async () => {
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
       mockWordService.getWordById.mockRejectedValue(new Error('单词不存在'));
 
       const res = await request(app)
-        .get('/api/words/non-existent')
+        .get(`/api/words/${nonExistentId}`)
         .set('Authorization', 'Bearer valid-token');
 
       // 404 for resource not found, 500 for unexpected errors
@@ -216,6 +227,7 @@ describe('Word API Routes', () => {
   // ==================== PUT /api/words/:id ====================
 
   describe('PUT /api/words/:id', () => {
+    const validWordId = '123e4567-e89b-12d3-a456-426614174000';
     const updateData = {
       meanings: ['更新的含义'],
       examples: ['Updated example sentence.']
@@ -223,14 +235,14 @@ describe('Word API Routes', () => {
 
     it('should update a word', async () => {
       mockWordService.updateWord.mockResolvedValue({
-        id: 'word-123',
+        id: validWordId,
         spelling: 'test',
         ...updateData,
         updatedAt: new Date().toISOString()
       });
 
       const res = await request(app)
-        .put('/api/words/word-123')
+        .put(`/api/words/${validWordId}`)
         .set('Authorization', 'Bearer valid-token')
         .send(updateData);
 
@@ -238,7 +250,7 @@ describe('Word API Routes', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.meanings).toEqual(['更新的含义']);
       expect(mockWordService.updateWord).toHaveBeenCalledWith(
-        'word-123',
+        validWordId,
         'test-user-id',
         updateData
       );
@@ -246,7 +258,7 @@ describe('Word API Routes', () => {
 
     it('should return 400 for invalid update data', async () => {
       const res = await request(app)
-        .put('/api/words/word-123')
+        .put(`/api/words/${validWordId}`)
         .set('Authorization', 'Bearer valid-token')
         .send({ meanings: 'not-an-array' });
 
@@ -254,10 +266,11 @@ describe('Word API Routes', () => {
     });
 
     it('should handle word not found on update', async () => {
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
       mockWordService.updateWord.mockRejectedValue(new Error('单词不存在'));
 
       const res = await request(app)
-        .put('/api/words/non-existent')
+        .put(`/api/words/${nonExistentId}`)
         .set('Authorization', 'Bearer valid-token')
         .send(updateData);
 
@@ -269,24 +282,27 @@ describe('Word API Routes', () => {
   // ==================== DELETE /api/words/:id ====================
 
   describe('DELETE /api/words/:id', () => {
+    const validWordId = '123e4567-e89b-12d3-a456-426614174000';
+
     it('should delete a word', async () => {
       mockWordService.deleteWord.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .delete('/api/words/word-123')
+        .delete(`/api/words/${validWordId}`)
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain('删除成功');
-      expect(mockWordService.deleteWord).toHaveBeenCalledWith('word-123', 'test-user-id');
+      expect(mockWordService.deleteWord).toHaveBeenCalledWith(validWordId, 'test-user-id');
     });
 
     it('should handle word not found on delete', async () => {
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
       mockWordService.deleteWord.mockRejectedValue(new Error('单词不存在'));
 
       const res = await request(app)
-        .delete('/api/words/non-existent')
+        .delete(`/api/words/${nonExistentId}`)
         .set('Authorization', 'Bearer valid-token');
 
       // 404 for resource not found, 500 for unexpected errors
@@ -294,7 +310,7 @@ describe('Word API Routes', () => {
     });
 
     it('should return 401 without authentication', async () => {
-      const res = await request(app).delete('/api/words/word-123');
+      const res = await request(app).delete(`/api/words/${validWordId}`);
 
       expect(res.status).toBe(401);
     });

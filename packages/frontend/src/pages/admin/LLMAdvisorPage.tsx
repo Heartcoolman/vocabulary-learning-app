@@ -47,13 +47,12 @@ export default function LLMAdvisorPage() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // 加载配置和状态
+  // 加载配置和建议（快速加载）
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [configData, healthData, suggestionsData] = await Promise.all([
+      const [configData, suggestionsData] = await Promise.all([
         getLLMConfig(),
-        checkLLMHealth().catch(() => ({ status: 'unknown', message: '无法检查' })),
         getSuggestions({
           status: statusFilter === 'all' ? undefined : statusFilter as 'pending' | 'approved' | 'rejected' | 'partial',
           limit: 20
@@ -62,7 +61,6 @@ export default function LLMAdvisorPage() {
 
       setConfig(configData.config);
       setWorkerStatus(configData.worker);
-      setHealth(healthData);
       setSuggestions(suggestionsData.items);
       setTotal(suggestionsData.total);
     } catch (error) {
@@ -72,9 +70,28 @@ export default function LLMAdvisorPage() {
     }
   }, [statusFilter]);
 
+  // 单独加载健康检查（避免阻塞页面）
+  const loadHealth = useCallback(async () => {
+    try {
+      const healthData = await checkLLMHealth();
+      setHealth(healthData);
+    } catch {
+      setHealth({ status: 'unknown', message: '无法检查' });
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // 延迟加载健康检查，不阻塞主页面
+  useEffect(() => {
+    if (config?.enabled) {
+      loadHealth();
+    } else if (config) {
+      setHealth({ status: 'disabled', message: 'LLM 顾问未启用' });
+    }
+  }, [config, loadHealth]);
 
   // 手动触发分析
   const handleTrigger = async () => {
@@ -247,18 +264,21 @@ export default function LLMAdvisorPage() {
             <span className="font-medium">LLM 服务</span>
           </div>
           <div className="flex items-center gap-2">
-            {health?.status === 'healthy' ? (
+            {!health ? (
+              <CircleNotch size={24} className="text-gray-400 animate-spin" />
+            ) : health.status === 'healthy' ? (
               <CheckCircle size={24} className="text-green-500" />
-            ) : health?.status === 'disabled' ? (
+            ) : health.status === 'disabled' ? (
               <XCircle size={24} className="text-gray-400" />
             ) : (
               <Warning size={24} className="text-yellow-500" />
             )}
             <span className={
-              health?.status === 'healthy' ? 'text-green-600' :
-              health?.status === 'disabled' ? 'text-gray-500' : 'text-yellow-600'
+              !health ? 'text-gray-400' :
+              health.status === 'healthy' ? 'text-green-600' :
+              health.status === 'disabled' ? 'text-gray-500' : 'text-yellow-600'
             }>
-              {health?.message || '未知'}
+              {!health ? '检查中...' : health.message || '未知'}
             </span>
           </div>
         </div>

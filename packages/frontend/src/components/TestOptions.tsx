@@ -97,6 +97,7 @@ export default function TestOptions({
       className="flex flex-wrap justify-center gap-3 px-4 py-5 w-full"
       role="group"
       aria-label="测试选项"
+      data-testid="test-options"
     >
       {options.map((option, index) => (
         <motion.button
@@ -114,6 +115,7 @@ export default function TestOptions({
           whileHover={!showResult ? { scale: 1.05 } : undefined}
           whileTap={!showResult ? { scale: 0.95 } : undefined}
           transition={g3SpringSnappy}
+          data-testid={`option-${index}`}
           className={`
             flex-1 min-w-[120px] sm:min-w-[140px] max-w-[200px] px-5 py-3 rounded-lg text-base md:text-lg font-medium
             ${getButtonStyle(option)}

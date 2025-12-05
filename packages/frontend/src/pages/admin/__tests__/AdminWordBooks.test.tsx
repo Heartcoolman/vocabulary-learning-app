@@ -35,12 +35,31 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  Books: ({ size }: { size?: number }) => <span data-testid="icon-books">📚</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
+// Mock useToast hook and Modal components
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
+  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+  Modal: ({ isOpen, onClose, children }: any) =>
+    isOpen ? <div data-testid="modal">{children}<button onClick={onClose}>关闭</button></div> : null,
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    Books: ({ size }: { size?: number }) => <span data-testid="icon-books">📚</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 vi.mock('lucide-react', () => ({
   Upload: () => <span data-testid="icon-upload">📤</span>,
@@ -130,7 +149,10 @@ describe('AdminWordBooks', () => {
 
       fireEvent.click(screen.getByText('+ 创建系统词库'));
 
-      expect(screen.getByText('创建系统词库')).toBeInTheDocument();
+      // Modal 组件渲染后会显示 data-testid="modal"
+      await waitFor(() => {
+        expect(screen.getByTestId('modal')).toBeInTheDocument();
+      });
       expect(screen.getByPlaceholderText('例如：TOEFL 核心词汇')).toBeInTheDocument();
     });
 
@@ -157,7 +179,8 @@ describe('AdminWordBooks', () => {
       });
     });
 
-    it('should show alert when name is empty', async () => {
+    it('should not call API when name is empty', async () => {
+      const apiClient = (await import('@/services/ApiClient')).default;
       renderWithRouter();
 
       await waitFor(() => {
@@ -165,9 +188,17 @@ describe('AdminWordBooks', () => {
       });
 
       fireEvent.click(screen.getByText('+ 创建系统词库'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('modal')).toBeInTheDocument();
+      });
+
+      // 不输入名称直接点击创建
       fireEvent.click(screen.getByRole('button', { name: '创建' }));
 
-      expect(window.alert).toHaveBeenCalledWith('请输入词库名称');
+      // 组件使用 toast.warning('请输入词库名称') 而非 alert
+      // 验证创建按钮点击后不会调用 API（因为名称为空）
+      expect(apiClient.adminCreateSystemWordBook).not.toHaveBeenCalled();
     });
   });
 
@@ -211,7 +242,10 @@ describe('AdminWordBooks', () => {
 
       fireEvent.click(screen.getAllByText('编辑')[0]);
 
-      expect(screen.getByText('编辑词库信息')).toBeInTheDocument();
+      // Modal 组件渲染后会显示 data-testid="modal"
+      await waitFor(() => {
+        expect(screen.getByTestId('modal')).toBeInTheDocument();
+      });
     });
 
     it('should show import button', async () => {
@@ -253,6 +287,13 @@ describe('AdminWordBooks', () => {
       });
 
       fireEvent.click(screen.getAllByText('删除')[0]);
+
+      // 现在需要点击确认弹窗的确认按钮
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('确认'));
 
       await waitFor(() => {
         expect(apiClient.adminDeleteSystemWordBook).toHaveBeenCalledWith('wb1');

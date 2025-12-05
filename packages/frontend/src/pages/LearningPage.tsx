@@ -6,54 +6,30 @@ import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
 import { LearningModeSelector } from '../components/LearningModeSelector';
 import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
-import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain, ChartPie, Lightbulb } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
-import { learningLogger } from '../utils/logger';
+import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
+import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
+import { useTestOptionsGenerator } from '../hooks/useTestOptions';
 import { trackingService } from '../services/TrackingService';
 
 
 export default function LearningPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isPronouncing, setIsPronouncing] = useState(false);
   const previousPathRef = useRef<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | undefined>(undefined);
   const [showResult, setShowResult] = useState(false);
   const [responseStartTime, setResponseStartTime] = useState<number>(Date.now());
-  const [testOptions, setTestOptions] = useState<string[]>([]);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
 
-  // 追踪对话框打开的时间（用于暂停疲劳度计算）
-  const [dialogPausedTime, setDialogPausedTime] = useState(0);
-  const dialogOpenTimeRef = useRef<number | null>(null);
-
-  // 检测任意对话框是否打开
-  const isAnyDialogOpen = isStatusOpen || isSuggestionOpen || isExplainabilityOpen;
-
-  // 当对话框打开/关闭时，记录暂停时间并上报埋点
-  useEffect(() => {
-    if (isAnyDialogOpen) {
-      // 对话框刚打开，记录开始时间
-      if (dialogOpenTimeRef.current === null) {
-        dialogOpenTimeRef.current = Date.now();
-        // 埋点：学习暂停事件
-        trackingService.trackLearningPause('dialog_opened');
-      }
-    } else {
-      // 对话框刚关闭，累加暂停时间
-      if (dialogOpenTimeRef.current !== null) {
-        const pausedDuration = Date.now() - dialogOpenTimeRef.current;
-        setDialogPausedTime(prev => prev + pausedDuration);
-        dialogOpenTimeRef.current = null;
-        // 埋点：学习恢复事件
-        trackingService.trackLearningResume('dialog_closed');
-      }
-    }
-  }, [isAnyDialogOpen]);
+  // 使用对话框暂停追踪 Hook（替代原来的手动追踪逻辑）
+  const { getPausedTime: getDialogPausedTime, resetPausedTime: resetDialogPausedTime } = useDialogPauseTrackingWithStates(
+    [isStatusOpen, isSuggestionOpen, isExplainabilityOpen]
+  );
 
   // 页面切换埋点
   useEffect(() => {
@@ -70,19 +46,6 @@ export default function LearningPage() {
       // 组件卸载时记录会话结束（页面离开）
       trackingService.trackLearningPause('page_leave');
     };
-  }, []);
-
-  // 获取和重置对话框暂停时间的回调函数
-  const getDialogPausedTime = useCallback(() => {
-    // 如果对话框当前打开，需要加上当前打开的时间
-    if (dialogOpenTimeRef.current !== null) {
-      return dialogPausedTime + (Date.now() - dialogOpenTimeRef.current);
-    }
-    return dialogPausedTime;
-  }, [dialogPausedTime]);
-
-  const resetDialogPausedTime = useCallback(() => {
-    setDialogPausedTime(0);
   }, []);
 
   const {
@@ -104,6 +67,16 @@ export default function LearningPage() {
     resetDialogPausedTime
   });
 
+  // 使用自动朗读 Hook
+  const { isPlaying: isPronouncing, play: playPronunciation } = useAutoPlayPronunciation({
+    word: currentWord?.spelling,
+    wordId: currentWord?.id,
+    enabled: true,
+    delay: 300,
+    showResult
+  });
+
+  // 转换单词格式以适配选项生成器
   const allWordsForOptions = useMemo(() => allWords.map(w => ({
     id: w.id,
     spelling: w.spelling,
@@ -114,60 +87,39 @@ export default function LearningPage() {
     updatedAt: 0
   })), [allWords]);
 
-  // 用于跟踪当前题目，防止同一单词重复出现时选项不更新
-  const [questionIndex, setQuestionIndex] = useState(0);
+  // 转换当前单词格式
+  const currentWordForOptions = useMemo(() => {
+    if (!currentWord) return null;
+    return {
+      ...currentWord,
+      createdAt: 0,
+      updatedAt: 0
+    };
+  }, [currentWord]);
 
-  // 当 currentWord 或 questionIndex 变化时重新生成选项
-  // questionIndex 用于处理同一单词连续出现的情况
+  // 使用测试选项生成器 Hook
+  const { options: testOptions, regenerateOptions } = useTestOptionsGenerator(
+    {
+      currentWord: currentWordForOptions,
+      allWords: allWordsForOptions,
+      numberOfOptions: 4,
+      fallbackDistractors: ['未知释义', '其他含义', '暂无解释']
+    },
+    LearningService.generateTestOptions.bind(LearningService)
+  );
+
+  // 当单词变化时重置答题状态
   useEffect(() => {
     if (!currentWord) return;
-
-    try {
-      const wordForOptions = {
-        ...currentWord,
-        createdAt: 0,
-        updatedAt: 0
-      };
-      const { options } = LearningService.generateTestOptions(
-        wordForOptions,
-        allWordsForOptions,
-        4
-      );
-      setTestOptions(options);
-    } catch (e) {
-      learningLogger.warn({ err: e, wordId: currentWord.id }, '生成测试选项失败，使用备用方案');
-      // 回退方案：确保至少2个选项，使用预设干扰项
-      const correctAnswer = currentWord.meanings[0];
-      const fallbackDistractors = [
-        '未知释义',
-        '其他含义',
-        '暂无解释'
-      ];
-      // 从干扰项中随机选择一个，确保至少有2个选项
-      const randomDistractor = fallbackDistractors[Math.floor(Math.random() * fallbackDistractors.length)];
-      // 随机打乱顺序
-      const fallbackOptions = Math.random() > 0.5
-        ? [correctAnswer, randomDistractor]
-        : [randomDistractor, correctAnswer];
-      setTestOptions(fallbackOptions);
-    }
-
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
-  }, [currentWord, allWordsForOptions, questionIndex]);
+  }, [currentWord]);
 
   const handlePronounce = useCallback(async () => {
     if (!currentWord || isPronouncing) return;
-    try {
-      setIsPronouncing(true);
-      await AudioService.playPronunciation(currentWord.spelling);
-    } catch (err) {
-      learningLogger.error({ err, word: currentWord.spelling }, '播放发音失败');
-    } finally {
-      setIsPronouncing(false);
-    }
-  }, [currentWord, isPronouncing]);
+    await playPronunciation();
+  }, [currentWord, isPronouncing, playPronunciation]);
 
   // 使用 ref 立即跟踪是否已提交，防止快速点击重复提交
   const isSubmittingRef = useRef(false);
@@ -191,9 +143,9 @@ export default function LearningPage() {
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
-    setQuestionIndex(prev => prev + 1); // 递增题目索引，强制触发选项重新生成
+    regenerateOptions(); // 强制触发选项重新生成
     isSubmittingRef.current = false; // 重置提交状态
-  }, [advanceToNext]);
+  }, [advanceToNext, regenerateOptions]);
 
   const handleRestart = useCallback(async () => {
     await resetSession();
@@ -209,18 +161,7 @@ export default function LearningPage() {
     }
   }, [showResult, handleNext]);
 
-  // 新单词出现时自动朗读
-  useEffect(() => {
-    if (currentWord && !showResult) {
-      // 延迟一点播放，让用户先看到单词
-      const timer = setTimeout(() => {
-        AudioService.playPronunciation(currentWord.spelling).catch(err => {
-          learningLogger.error({ err, word: currentWord.spelling }, '自动朗读失败');
-        });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [currentWord?.id, showResult]);
+  // 自动朗读已由 useAutoPlayPronunciation Hook 处理
 
   if (isLoading) {
     return (

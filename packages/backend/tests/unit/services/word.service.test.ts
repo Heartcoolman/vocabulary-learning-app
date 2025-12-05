@@ -21,6 +21,9 @@ vi.mock('../../../src/config/database', () => ({
       create: vi.fn(),
       update: vi.fn()
     },
+    userStudyConfig: {
+      findUnique: vi.fn()
+    },
     $transaction: vi.fn((operations) => Promise.all(operations))
   }
 }));
@@ -43,10 +46,10 @@ describe('WordService', () => {
 
   describe('getWordsByUserId', () => {
     it('should return words for user wordbooks', async () => {
-      (prisma.wordBook.findMany as any).mockResolvedValue([
-        { id: 'wb-1' },
-        { id: 'wb-2' }
-      ]);
+      // Mock userStudyConfig with selected word book IDs
+      (prisma.userStudyConfig.findUnique as any).mockResolvedValue({
+        selectedWordBookIds: ['wb-1', 'wb-2']
+      });
       (prisma.word.findMany as any).mockResolvedValue([
         { id: 'w1', spelling: 'apple' },
         { id: 'w2', spelling: 'banana' }
@@ -77,7 +80,10 @@ describe('WordService', () => {
     });
 
     it('should delegate to getWordsByUserId when userId provided', async () => {
-      (prisma.wordBook.findMany as any).mockResolvedValue([{ id: 'wb-1' }]);
+      // Mock userStudyConfig with selected word book IDs
+      (prisma.userStudyConfig.findUnique as any).mockResolvedValue({
+        selectedWordBookIds: ['wb-1']
+      });
       (prisma.word.findMany as any).mockResolvedValue([{ id: 'w1' }]);
 
       const result = await wordService.getWords('user-1');

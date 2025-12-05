@@ -48,6 +48,7 @@ export default function MasteryProgress({
       className={`w-full bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4 ${className}`}
       role="region"
       aria-label="掌握模式学习进度"
+      data-testid="mastery-progress"
     >
       {/* Header: Title + Actions */}
       <div className="flex items-center justify-between mb-3">
@@ -86,13 +87,14 @@ export default function MasteryProgress({
           aria-valuenow={progress.masteredCount}
           aria-valuemin={0}
           aria-valuemax={progress.targetCount}
+          data-testid="progress-bar"
         />
       </div>
 
       {/* Footer Stats */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-4 text-gray-600">
-          <span className="flex items-center gap-1.5" title="已掌握/目标">
+          <span className="flex items-center gap-1.5" title="已掌握/目标" data-testid="mastered-count">
             <Target size={16} className={isCompleted ? 'text-green-500' : 'text-blue-500'} />
             <span className="font-medium text-gray-900">{progress.masteredCount}</span>
             <span className="text-gray-400">/</span>
@@ -101,7 +103,7 @@ export default function MasteryProgress({
 
           <span className="w-px h-4 bg-gray-200" />
 
-          <span className="flex items-center gap-1.5" title="本次答题数">
+          <span className="flex items-center gap-1.5" title="本次答题数" data-testid="question-count">
             <span className="font-medium text-gray-900">{progress.totalQuestions}</span>
             <span>题</span>
           </span>

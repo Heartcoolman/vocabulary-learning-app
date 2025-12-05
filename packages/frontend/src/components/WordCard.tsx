@@ -66,6 +66,7 @@ export default function WordCard({
       className="flex flex-col items-center justify-center space-y-4 py-8 px-8 md:py-10 md:px-12 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl shadow-sm"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
+      data-testid="word-card"
     >
       {/* 发音按钮 */}
       <motion.button
@@ -102,6 +103,7 @@ export default function WordCard({
         className="text-5xl md:text-6xl font-bold text-gray-900"
         role="heading"
         aria-level={2}
+        data-testid="word-spelling"
       >
         {word.spelling}
       </motion.h2>

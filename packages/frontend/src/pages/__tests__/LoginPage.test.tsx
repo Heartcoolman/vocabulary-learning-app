@@ -60,7 +60,7 @@ describe('LoginPage', () => {
 
     it('should render back to home link', () => {
       render(<LoginPage />);
-      expect(screen.getByRole('link', { name: /返回首页/ })).toHaveAttribute('href', '/');
+      expect(screen.getByRole('link', { name: /了解更多/ })).toHaveAttribute('href', '/about');
     });
   });
 

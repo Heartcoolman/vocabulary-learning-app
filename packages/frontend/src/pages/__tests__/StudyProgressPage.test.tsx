@@ -6,6 +6,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import StudyProgressPage from '../StudyProgressPage';
 
+// Mock useAuth hook
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 'test-user', email: 'test@example.com' },
+    isAuthenticated: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 const mockProgress = {
   todayStudied: 25,
   todayTarget: 50,
@@ -35,11 +45,15 @@ vi.mock('@/components/dashboard/ProgressOverviewCard', () => ({
   ),
 }));
 
-vi.mock('@/components/Icon', () => ({
-  CircleNotch: ({ className }: { className: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
-}));
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 vi.mock('lucide-react', () => ({
   TrendingUp: () => <span data-testid="trending-up">📈</span>,
@@ -233,10 +247,11 @@ describe('StudyProgressPage', () => {
       });
     });
 
-    it('should show simulated data notice', () => {
+    it('should render day labels correctly', () => {
       render(<StudyProgressPage />);
 
-      expect(screen.getByText('模拟数据')).toBeInTheDocument();
+      // 测试7日学习活动部分的日期标签
+      expect(screen.getByText('7日学习活动')).toBeInTheDocument();
     });
   });
 

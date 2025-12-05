@@ -809,7 +809,7 @@ describe('StorageService', () => {
 
         const records = await StorageService.getAnswerRecords('word-1');
 
-        expect(ApiClient.getRecords).toHaveBeenCalledWith({ pageSize: 100 });
+        expect(ApiClient.getRecords).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
         expect(records).toHaveLength(2);
         expect(records.every((r) => r.wordId === 'word-1')).toBe(true);
       });

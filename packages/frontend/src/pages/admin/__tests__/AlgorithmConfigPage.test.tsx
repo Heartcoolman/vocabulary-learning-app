@@ -36,18 +36,33 @@ vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
   };
 });
 
-vi.mock('@/components/Icon', () => ({
-  Gear: () => <span data-testid="icon-gear">⚙️</span>,
-  ArrowCounterClockwise: () => <span data-testid="icon-reset">↺</span>,
-  FloppyDisk: () => <span data-testid="icon-save">💾</span>,
-  Warning: () => <span data-testid="icon-warning">⚠️</span>,
-  CheckCircle: () => <span data-testid="icon-check">✓</span>,
-  Plus: () => <span data-testid="icon-plus">+</span>,
-  Trash: () => <span data-testid="icon-trash">🗑️</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    Gear: () => <span data-testid="icon-gear">⚙️</span>,
+    ArrowCounterClockwise: () => <span data-testid="icon-reset">↺</span>,
+    FloppyDisk: () => <span data-testid="icon-save">💾</span>,
+    Warning: () => <span data-testid="icon-warning">⚠️</span>,
+    CheckCircle: () => <span data-testid="icon-check">✓</span>,
+    Plus: () => <span data-testid="icon-plus">+</span>,
+    Trash: () => <span data-testid="icon-trash">🗑️</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 describe('AlgorithmConfigPage', () => {
   beforeEach(() => {

@@ -82,18 +82,34 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  User: () => <span data-testid="icon-user">👤</span>,
-  ChartBar: () => <span data-testid="icon-chart">📊</span>,
-  Target: () => <span data-testid="icon-target">🎯</span>,
-  Clock: () => <span data-testid="icon-clock">🕐</span>,
-  TrendUp: () => <span data-testid="icon-trend">📈</span>,
-  Books: () => <span data-testid="icon-books">📚</span>,
-  ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
-  MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
-  CaretLeft: () => <span data-testid="icon-caret-left">‹</span>,
-  CaretRight: () => <span data-testid="icon-caret-right">›</span>,
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    User: () => <span data-testid="icon-user">👤</span>,
+    ChartBar: () => <span data-testid="icon-chart">📊</span>,
+    Target: () => <span data-testid="icon-target">🎯</span>,
+    Clock: () => <span data-testid="icon-clock">🕐</span>,
+    TrendUp: () => <span data-testid="icon-trend">📈</span>,
+    Books: () => <span data-testid="icon-books">📚</span>,
+    ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
+    MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
+    CaretLeft: () => <span data-testid="icon-caret-left">‹</span>,
+    CaretRight: () => <span data-testid="icon-caret-right">›</span>,
+    WarningCircle: () => <span data-testid="icon-warning">⚠️</span>,
+  };
+});
 
 vi.mock('@phosphor-icons/react', () => ({
   Flame: () => <span data-testid="icon-flame">🔥</span>,
@@ -102,6 +118,10 @@ vi.mock('@phosphor-icons/react', () => ({
   ArrowDown: () => <span data-testid="icon-arrow-down">↓</span>,
   ListDashes: () => <span data-testid="icon-list">☰</span>,
   Brain: () => <span data-testid="icon-brain">🧠</span>,
+  ChartLine: () => <span data-testid="icon-chartline">📈</span>,
+  Download: () => <span data-testid="icon-download">📥</span>,
+  CalendarBlank: () => <span data-testid="icon-calendar">📅</span>,
+  Lightning: () => <span data-testid="icon-lightning">⚡</span>,
 }));
 
 vi.mock('@/components/admin/LearningRecordsTab', () => ({
@@ -246,20 +266,50 @@ describe('UserDetailPage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        // Error page shows "加载失败" as title
+        // Error page shows "加载失败" as title and the error message
         expect(screen.getByText('加载失败')).toBeInTheDocument();
-      }, { timeout: 3000 });
+        expect(screen.getByText('网络错误')).toBeInTheDocument();
+      }, { timeout: 5000 });
     });
   });
 
   describe('navigation', () => {
     it('should render back button', async () => {
+      // 重新设置正确的 mock（因为上一个测试修改了它）
+      const apiClient = (await import('@/services/ApiClient')).default;
+      vi.mocked(apiClient.adminGetUserStatistics).mockResolvedValue({
+        user: { id: 'u1', username: 'testuser', email: 'test@test.com', role: 'USER', createdAt: '2024-01-01' },
+        totalWordsLearned: 100,
+        masteredWords: 50,
+        learningWords: 30,
+        newWords: 20,
+        totalRecords: 500,
+        accuracy: 85,
+        averageScore: 78.5,
+        avgResponseTime: 2500,
+        studyDays: 30,
+        consecutiveDays: 7,
+        totalStudyTime: 120,
+        lastActiveAt: '2024-01-15',
+        masteryDistribution: {
+          level0: 10,
+          level1: 15,
+          level2: 20,
+          level3: 25,
+          level4: 20,
+          level5: 10,
+        },
+      });
+
       renderWithRouter();
 
-      // Back button should be visible immediately, no need to wait for data
+      // 等待用户名加载后，返回按钮应该可见
       await waitFor(() => {
-        expect(screen.getByText('返回用户列表')).toBeInTheDocument();
-      }, { timeout: 3000 });
+        expect(screen.getByText('testuser')).toBeInTheDocument();
+      }, { timeout: 5000 });
+
+      // 返回按钮文本是"返回用户列表"
+      expect(screen.getByText('返回用户列表')).toBeInTheDocument();
     });
   });
 });

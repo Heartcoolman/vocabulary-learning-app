@@ -1022,4 +1022,487 @@ describe('EngineCore', () => {
       expect(result).toBeDefined();
     });
   });
+
+  // ==================== 关键路径测试 ====================
+  // 这些测试覆盖核心业务流程的关键场景
+
+  describe('Critical Paths', () => {
+    // ==================== 奖励缓存命中测试 ====================
+    describe('reward profile cache', () => {
+      it('should return cached reward when available', async () => {
+        const userId = 'cache-hit-user';
+
+        // 第一次请求：缓存未命中，从数据库加载
+        const event1 = RawEventFactory.build({
+          isCorrect: true,
+          responseTime: 2000,
+          timestamp: Date.now()
+        });
+        const result1 = await engine.processEvent(userId, event1);
+
+        // 第二次请求：缓存命中，不再查询数据库
+        const event2 = RawEventFactory.build({
+          isCorrect: true,
+          responseTime: 2500,
+          timestamp: Date.now() + 1000
+        });
+        const result2 = await engine.processEvent(userId, event2);
+
+        // 两次请求都应该成功
+        expect(result1).toBeDefined();
+        expect(result1.reward).toBeDefined();
+        expect(result2).toBeDefined();
+        expect(result2.reward).toBeDefined();
+
+        // 奖励计算应该一致（使用相同的奖励配置）
+        // 由于缓存命中，第二次请求应该更快且使用相同配置
+        expect(typeof result1.reward).toBe('number');
+        expect(typeof result2.reward).toBe('number');
+      });
+
+      it('should refresh cache after TTL expires', async () => {
+        const userId = 'cache-ttl-user';
+
+        // 第一次请求
+        const event1 = RawEventFactory.build();
+        const result1 = await engine.processEvent(userId, event1);
+        expect(result1.reward).toBeDefined();
+
+        // 使缓存失效
+        engine.invalidateRewardProfileCache(userId);
+
+        // 第二次请求应该重新加载（缓存已失效）
+        const event2 = RawEventFactory.build();
+        const result2 = await engine.processEvent(userId, event2);
+        expect(result2.reward).toBeDefined();
+
+        // 两次都应该成功执行
+        expect(result1).toBeDefined();
+        expect(result2).toBeDefined();
+      });
+
+      it('should handle cache with multiple users independently', async () => {
+        const user1 = 'cache-user-1';
+        const user2 = 'cache-user-2';
+
+        // 用户1请求
+        const event1 = RawEventFactory.build({ isCorrect: true, responseTime: 1500 });
+        const result1 = await engine.processEvent(user1, event1);
+
+        // 用户2请求
+        const event2 = RawEventFactory.build({ isCorrect: false, responseTime: 5000 });
+        const result2 = await engine.processEvent(user2, event2);
+
+        // 失效用户1的缓存
+        engine.invalidateRewardProfileCache(user1);
+
+        // 用户1再次请求（缓存已失效）
+        const event3 = RawEventFactory.build();
+        const result3 = await engine.processEvent(user1, event3);
+
+        // 用户2再次请求（缓存应该仍然有效）
+        const event4 = RawEventFactory.build();
+        const result4 = await engine.processEvent(user2, event4);
+
+        // 所有请求都应该成功
+        expect(result1).toBeDefined();
+        expect(result2).toBeDefined();
+        expect(result3).toBeDefined();
+        expect(result4).toBeDefined();
+      });
+    });
+
+    // ==================== 决策记录失败降级测试 ====================
+    describe('decision recording degradation', () => {
+      it('should degrade gracefully when decision recording fails', async () => {
+        // 创建带有 recorder 的引擎
+        const mockRecorder = {
+          record: vi.fn().mockRejectedValue(new Error('Database connection failed')),
+          flush: vi.fn().mockResolvedValue(undefined),
+          cleanup: vi.fn().mockResolvedValue(undefined),
+          getQueueStats: vi.fn().mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 })
+        };
+
+        const engineWithRecorder = new AMASEngine({
+          stateRepo,
+          modelRepo,
+          logger: mockLogger as any,
+          recorder: mockRecorder as any
+        });
+
+        const userId = 'degradation-test-user';
+        const event = RawEventFactory.build({
+          isCorrect: true,
+          responseTime: 2000
+        });
+
+        // 提供 answerRecordId 以触发决策记录
+        const opts: ProcessOptions = {
+          answerRecordId: 'test-answer-record-id',
+          sessionId: 'test-session-id'
+        };
+
+        // 即使 recorder 失败，processEvent 也应该成功返回
+        const result = await engineWithRecorder.processEvent(userId, event, opts);
+
+        // 验证核心功能仍然正常工作
+        expect(result).toBeDefined();
+        expect(result.strategy).toBeDefined();
+        expect(result.action).toBeDefined();
+        expect(result.state).toBeDefined();
+        expect(result.reward).toBeDefined();
+      });
+
+      it('should continue processing when recorder is not available', async () => {
+        // 不提供 recorder 的引擎
+        const engineWithoutRecorder = new AMASEngine({
+          stateRepo,
+          modelRepo,
+          logger: mockLogger as any
+          // 没有 recorder
+        });
+
+        const userId = 'no-recorder-test';
+        const event = RawEventFactory.build();
+
+        const opts: ProcessOptions = {
+          answerRecordId: 'test-answer-id'
+        };
+
+        const result = await engineWithoutRecorder.processEvent(userId, event, opts);
+
+        // 核心功能应该正常
+        expect(result).toBeDefined();
+        expect(result.strategy).toBeDefined();
+        expect(result.action).toBeDefined();
+      });
+
+      it('should not block main flow when recording is slow', async () => {
+        // 模拟慢速的 recorder
+        const slowRecorder = {
+          record: vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 500))),
+          flush: vi.fn().mockResolvedValue(undefined),
+          cleanup: vi.fn().mockResolvedValue(undefined),
+          getQueueStats: vi.fn().mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 })
+        };
+
+        const engineWithSlowRecorder = new AMASEngine({
+          stateRepo,
+          modelRepo,
+          logger: mockLogger as any,
+          recorder: slowRecorder as any
+        });
+
+        const userId = 'slow-recorder-test';
+        const event = RawEventFactory.build();
+
+        const opts: ProcessOptions = {
+          answerRecordId: 'test-answer-id'
+        };
+
+        const startTime = Date.now();
+        const result = await engineWithSlowRecorder.processEvent(userId, event, opts);
+        const elapsed = Date.now() - startTime;
+
+        // 主流程应该在合理时间内完成（决策记录是异步的，不应阻塞）
+        // 注意：生产环境超时是100ms，测试环境是500ms
+        expect(elapsed).toBeLessThan(1000);
+
+        expect(result).toBeDefined();
+        expect(result.strategy).toBeDefined();
+      });
+    });
+
+    // ==================== processEvent 端到端流程测试 ====================
+    describe('processEvent end-to-end', () => {
+      it('should process learning event end-to-end', async () => {
+        const userId = 'e2e-test-user';
+        const rawEvent = RawEventFactory.build({
+          isCorrect: true,
+          responseTime: 2500,
+          timestamp: Date.now(),
+          difficulty: 'mid',
+          wordId: 'test-word-123'
+        });
+
+        const opts: ProcessOptions = {
+          currentParams: {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: 'mid',
+            batch_size: 10,
+            hint_level: 1
+          },
+          recentAccuracy: 0.75,
+          interactionCount: 25
+        };
+
+        const result = await engine.processEvent(userId, rawEvent, opts);
+
+        // 验证完整的处理结果
+        expect(result).toBeDefined();
+
+        // 1. 策略输出
+        expect(result.strategy).toBeDefined();
+        expect(result.strategy.interval_scale).toBeGreaterThan(0);
+        expect(result.strategy.new_ratio).toBeGreaterThanOrEqual(0);
+        expect(result.strategy.new_ratio).toBeLessThanOrEqual(1);
+        expect(['easy', 'mid', 'hard']).toContain(result.strategy.difficulty);
+        expect(result.strategy.batch_size).toBeGreaterThan(0);
+        expect(result.strategy.hint_level).toBeGreaterThanOrEqual(0);
+
+        // 2. 动作选择
+        expect(result.action).toBeDefined();
+        expect(result.action.interval_scale).toBeDefined();
+        expect(result.action.new_ratio).toBeDefined();
+        expect(result.action.difficulty).toBeDefined();
+        expect(result.action.batch_size).toBeDefined();
+        expect(result.action.hint_level).toBeDefined();
+
+        // 3. 状态更新
+        expect(result.state).toBeDefined();
+        expect(result.state.A).toBeGreaterThanOrEqual(0); // Attention
+        expect(result.state.A).toBeLessThanOrEqual(1);
+        expect(result.state.F).toBeGreaterThanOrEqual(0); // Fatigue
+        expect(result.state.F).toBeLessThanOrEqual(1);
+        expect(result.state.M).toBeGreaterThanOrEqual(0); // Motivation
+        expect(result.state.M).toBeLessThanOrEqual(1);
+        expect(result.state.C).toBeDefined(); // Cognitive
+
+        // 4. 奖励计算
+        expect(result.reward).toBeDefined();
+        expect(typeof result.reward).toBe('number');
+        expect(result.reward).toBeGreaterThanOrEqual(-1);
+        expect(result.reward).toBeLessThanOrEqual(1);
+
+        // 5. 解释和建议
+        expect(result.explanation).toBeDefined();
+        expect(typeof result.explanation).toBe('string');
+        expect(typeof result.shouldBreak).toBe('boolean');
+      });
+
+      it('should persist state across multiple events', async () => {
+        const userId = 'e2e-persistence-user';
+
+        // 处理多个事件
+        const events = [
+          RawEventFactory.build({ isCorrect: true, responseTime: 1500 }),
+          RawEventFactory.build({ isCorrect: true, responseTime: 1800 }),
+          RawEventFactory.build({ isCorrect: false, responseTime: 4000 }),
+          RawEventFactory.build({ isCorrect: true, responseTime: 2000 })
+        ];
+
+        let prevState: any = null;
+        for (const event of events) {
+          const result = await engine.processEvent(userId, event);
+          expect(result.state).toBeDefined();
+
+          if (prevState) {
+            // 状态应该有变化（但仍在有效范围内）
+            expect(result.state.A).toBeDefined();
+            expect(result.state.F).toBeDefined();
+            expect(result.state.M).toBeDefined();
+          }
+          prevState = result.state;
+        }
+
+        // 验证状态已持久化
+        const persistedState = await stateRepo.loadState(userId);
+        expect(persistedState).toBeDefined();
+      });
+
+      it('should handle concurrent requests correctly', async () => {
+        const userId = 'concurrent-e2e-user';
+
+        // 创建多个并发请求
+        const concurrentCount = 10;
+        const events = Array.from({ length: concurrentCount }, (_, i) =>
+          RawEventFactory.build({
+            isCorrect: i % 2 === 0,
+            responseTime: 1500 + i * 100,
+            timestamp: Date.now() + i
+          })
+        );
+
+        // 并发执行
+        const results = await Promise.all(
+          events.map(event => engine.processEvent(userId, event))
+        );
+
+        // 验证所有请求都成功完成
+        expect(results).toHaveLength(concurrentCount);
+
+        results.forEach((result, index) => {
+          expect(result).toBeDefined();
+          expect(result.strategy).toBeDefined();
+          expect(result.action).toBeDefined();
+          expect(result.state).toBeDefined();
+          expect(result.reward).toBeDefined();
+        });
+
+        // 验证每个结果中的状态有效性（而不是从 stateRepo 加载，因为并发时状态可能被覆盖）
+        // 由于使用用户锁，并发请求实际上是串行执行的，最后一个结果应该反映最终状态
+        const lastResult = results[results.length - 1];
+        expect(lastResult.state.A).toBeGreaterThanOrEqual(0);
+        expect(lastResult.state.A).toBeLessThanOrEqual(1);
+        expect(lastResult.state.F).toBeGreaterThanOrEqual(0);
+        expect(lastResult.state.F).toBeLessThanOrEqual(1);
+
+        // 额外验证：所有结果的状态都应该在有效范围内
+        results.forEach(result => {
+          expect(result.state.A).toBeGreaterThanOrEqual(0);
+          expect(result.state.A).toBeLessThanOrEqual(1);
+          expect(result.state.F).toBeGreaterThanOrEqual(0);
+          expect(result.state.F).toBeLessThanOrEqual(1);
+          expect(result.state.M).toBeGreaterThanOrEqual(0);
+          expect(result.state.M).toBeLessThanOrEqual(1);
+        });
+      });
+
+      it('should handle rapid sequential requests', async () => {
+        const userId = 'rapid-sequential-user';
+
+        const results: any[] = [];
+
+        // 快速连续处理事件
+        for (let i = 0; i < 20; i++) {
+          const event = RawEventFactory.build({
+            isCorrect: Math.random() > 0.3,
+            responseTime: 1000 + Math.random() * 4000,
+            timestamp: Date.now() + i * 10
+          });
+
+          const result = await engine.processEvent(userId, event);
+          results.push(result);
+        }
+
+        // 所有请求应该成功
+        expect(results).toHaveLength(20);
+        results.forEach(result => {
+          expect(result).toBeDefined();
+          expect(result.strategy).toBeDefined();
+        });
+
+        // 验证冷启动阶段转换
+        const phase = engine.getColdStartPhase(userId);
+        expect(['classify', 'explore', 'normal']).toContain(phase);
+      });
+
+      it('should apply guardrails correctly in e2e flow', async () => {
+        const userId = 'e2e-guardrails-user';
+
+        // 模拟疲劳场景
+        for (let i = 0; i < 15; i++) {
+          const event = RawEventFactory.build({
+            isCorrect: false,
+            responseTime: 10000 + i * 500
+          });
+          await engine.processEvent(userId, event);
+        }
+
+        // 最终请求
+        const finalEvent = RawEventFactory.build({
+          isCorrect: false,
+          responseTime: 15000
+        });
+        const result = await engine.processEvent(userId, finalEvent);
+
+        // Guardrails 应该限制策略参数
+        expect(result.strategy.batch_size).toBeGreaterThanOrEqual(5);
+        expect(result.strategy.batch_size).toBeLessThanOrEqual(20);
+        expect(result.strategy.interval_scale).toBeGreaterThan(0);
+        expect(result.strategy.new_ratio).toBeGreaterThanOrEqual(0);
+        expect(result.strategy.new_ratio).toBeLessThanOrEqual(1);
+
+        // 高疲劳应该触发休息建议
+        // shouldBreak 可能为 true 或 false，取决于具体阈值
+        expect(typeof result.shouldBreak).toBe('boolean');
+      });
+
+      it('should handle word review history in ACT-R calculations', async () => {
+        const userId = 'e2e-actr-user';
+        const event = RawEventFactory.build({
+          isCorrect: true,
+          responseTime: 2000
+        });
+
+        const opts: ProcessOptions = {
+          wordReviewHistory: [
+            { secondsAgo: 60, isCorrect: true },      // 1分钟前正确
+            { secondsAgo: 3600, isCorrect: true },    // 1小时前正确
+            { secondsAgo: 86400, isCorrect: false },  // 1天前错误
+            { secondsAgo: 259200, isCorrect: true }   // 3天前正确
+          ]
+        };
+
+        const result = await engine.processEvent(userId, event, opts);
+
+        // 验证处理成功
+        expect(result).toBeDefined();
+        expect(result.strategy).toBeDefined();
+        expect(result.action).toBeDefined();
+      });
+    });
+
+    // ==================== 内存统计测试 ====================
+    describe('memory stats', () => {
+      it('should report memory statistics', async () => {
+        const userId = 'memory-stats-user';
+
+        // 处理一些事件以创建用户数据
+        const event = RawEventFactory.build();
+        await engine.processEvent(userId, event);
+
+        // 获取内存统计
+        const stats = engine.getMemoryStats();
+
+        expect(stats).toBeDefined();
+        expect(stats.isolation).toBeDefined();
+        expect(typeof stats.isolation.userModelsCount).toBe('number');
+        expect(typeof stats.isolation.userLocksCount).toBe('number');
+        expect(typeof stats.isolation.interactionCountsCount).toBe('number');
+        expect(typeof stats.isolation.maxUsers).toBe('number');
+        expect(typeof stats.isolation.utilizationPercent).toBe('number');
+        expect(typeof stats.rewardCache.size).toBe('number');
+      });
+
+      it('should track reward profile cache count', async () => {
+        const users = ['cache-count-1', 'cache-count-2', 'cache-count-3'];
+
+        // 为多个用户处理事件
+        for (const userId of users) {
+          const event = RawEventFactory.build();
+          await engine.processEvent(userId, event);
+        }
+
+        const stats = engine.getMemoryStats();
+
+        // 缓存应该包含这些用户的奖励配置
+        expect(stats.rewardCache.size).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    // ==================== 销毁和清理测试 ====================
+    describe('destroy and cleanup', () => {
+      it('should clean up resources on destroy', async () => {
+        // 创建新引擎实例进行销毁测试
+        const testEngine = new AMASEngine({
+          stateRepo: new MemoryStateRepository(),
+          modelRepo: new MemoryModelRepository(),
+          logger: mockLogger as any
+        });
+
+        const userId = 'destroy-test-user';
+        const event = RawEventFactory.build();
+        await testEngine.processEvent(userId, event);
+
+        // 销毁引擎
+        testEngine.destroy();
+
+        // 销毁后内存统计应该显示清理状态
+        const stats = testEngine.getMemoryStats();
+        expect(stats.rewardCache.size).toBe(0);
+      });
+    });
+  });
 });

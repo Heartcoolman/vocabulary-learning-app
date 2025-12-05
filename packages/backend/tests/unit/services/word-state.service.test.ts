@@ -36,7 +36,8 @@ vi.mock('../../../src/services/cache.service', () => ({
   },
   CacheTTL: {
     LEARNING_STATE: 3600,
-    USER_STATS: 300
+    USER_STATS: 300,
+    NULL_CACHE: 60
   }
 }));
 
@@ -93,8 +94,9 @@ describe('WordStateService', () => {
       const result = await wordStateService.getWordState('u1', 'w1');
 
       expect(result).toBeNull();
+      // 服务使用 CacheTTL.NULL_CACHE (60秒) 缓存空值标记
       expect(cacheService.set).toHaveBeenCalledWith(
-        expect.any(String),
+        'ls:u1:w1',
         '__NULL__',
         60
       );
@@ -164,11 +166,12 @@ describe('WordStateService', () => {
       const result = await wordStateService.getDueWords('u1');
 
       expect(result).toEqual(dueWords);
+      // 验证调用了findMany，包含userId和OR条件
       expect(prisma.wordLearningState.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             userId: 'u1',
-            nextReviewDate: expect.any(Object)
+            OR: expect.any(Array)
           })
         })
       );

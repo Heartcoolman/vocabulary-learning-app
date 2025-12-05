@@ -25,17 +25,32 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  ChartBar: () => <span data-testid="icon-chart">📊</span>,
-  UsersThree: () => <span data-testid="icon-users">👥</span>,
-  Books: () => <span data-testid="icon-books">📚</span>,
-  Gear: () => <span data-testid="icon-gear">⚙️</span>,
-  Clock: () => <span data-testid="icon-clock">🕐</span>,
-  ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    ChartBar: () => <span data-testid="icon-chart">📊</span>,
+    UsersThree: () => <span data-testid="icon-users">👥</span>,
+    Books: () => <span data-testid="icon-books">📚</span>,
+    Gear: () => <span data-testid="icon-gear">⚙️</span>,
+    Clock: () => <span data-testid="icon-clock">🕐</span>,
+    ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 const renderWithRouter = (initialEntries = ['/admin']) => {
   return render(

@@ -34,11 +34,28 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
+// Mock useToast hook and ConfirmModal
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
+  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
 }));
+
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+  };
+});
 
 const renderWithRouter = () => {
   return render(
@@ -158,6 +175,13 @@ describe('AdminUsers', () => {
 
       fireEvent.click(screen.getByText('升为管理员'));
 
+      // 现在需要点击确认弹窗的确认按钮
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('确认'));
+
       await waitFor(() => {
         expect(apiClient.adminUpdateUserRole).toHaveBeenCalledWith('u1', 'ADMIN');
       });
@@ -180,6 +204,13 @@ describe('AdminUsers', () => {
       });
 
       fireEvent.click(screen.getByText('删除'));
+
+      // 现在需要点击确认弹窗的确认按钮
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('确认'));
 
       await waitFor(() => {
         expect(apiClient.adminDeleteUser).toHaveBeenCalledWith('u1');

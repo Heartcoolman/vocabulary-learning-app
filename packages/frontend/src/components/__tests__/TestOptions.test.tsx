@@ -19,7 +19,7 @@ vi.mock('framer-motion', () => ({
 describe('TestOptions', () => {
   const defaultProps = {
     options: ['你好', '再见', '谢谢', '对不起'],
-    correctAnswer: '你好',
+    correctAnswers: ['你好'],  // 支持多个正确答案（多义词）
     onSelect: vi.fn(),
     showResult: false
   };

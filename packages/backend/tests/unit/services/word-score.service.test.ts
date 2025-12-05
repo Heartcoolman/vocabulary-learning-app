@@ -19,6 +19,9 @@ vi.mock('../../../src/config/database', () => ({
     learningRecord: {
       findMany: vi.fn()
     },
+    answerRecord: {
+      findMany: vi.fn()
+    },
     $transaction: vi.fn((fns: any[]) => Promise.all(fns))
   }
 }));
@@ -60,7 +63,7 @@ describe('WordScoreService', () => {
 
   describe('calculateScore', () => {
     it('should return 0 for word with no records', async () => {
-      prisma.learningRecord.findMany.mockResolvedValue([]);
+      prisma.answerRecord.findMany.mockResolvedValue([]);
 
       const result = await service.calculateScore('user-1', 'word-1');
 
@@ -68,7 +71,7 @@ describe('WordScoreService', () => {
     });
 
     it('should calculate score based on accuracy and time', async () => {
-      prisma.learningRecord.findMany.mockResolvedValue([
+      prisma.answerRecord.findMany.mockResolvedValue([
         { isCorrect: true, responseTime: 1000 },
         { isCorrect: true, responseTime: 2000 },
         { isCorrect: false, responseTime: 3000 }

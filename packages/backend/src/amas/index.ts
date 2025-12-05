@@ -70,6 +70,13 @@ export {
 } from './learning/linucb';
 
 export {
+  LinUCBAsync,
+  LinUCBAsyncOptions,
+  createLinUCBAsync,
+  createLinUCBAsyncSync
+} from './learning/linucb-async';
+
+export {
   ColdStartManager,
   ColdStartState
 } from './learning/coldstart';
@@ -156,6 +163,18 @@ export {
   Posterior,
   defaultBayesianOptimizer
 } from './optimization/bayesian-optimizer';
+
+// ==================== Worker 池 ====================
+export {
+  getComputePool,
+  destroyComputePool,
+  isPoolInitialized,
+  getPoolStats,
+  runLinUCBSelect,
+  runLinUCBUpdate,
+  ComputePoolConfig,
+  PoolStats
+} from './workers/pool';
 
 // ==================== 引擎 ====================
 export {

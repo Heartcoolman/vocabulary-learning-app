@@ -33,6 +33,14 @@ vi.mock('@/services/AudioService', () => ({
   },
 }));
 
+// Mock useToast hook
+vi.mock('@/components/ui/Toast', () => ({
+  useToast: () => ({
+    toast: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
 import WordBookDetailPage from '../WordBookDetailPage';
 
 describe('WordBookDetailPage', () => {

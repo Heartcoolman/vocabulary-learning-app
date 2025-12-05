@@ -37,7 +37,8 @@ describe('DifficultyCacheService', () => {
       const result = await service.getCached('word-1', 'user-1');
 
       expect(result).toBe(0.75);
-      expect(mockRedisClient.connect).toHaveBeenCalled();
+      // 服务直接调用 getRedisClient().get()，不再单独调用 connect
+      expect(mockRedisClient.get).toHaveBeenCalled();
     });
 
     it('should return null when not cached', async () => {

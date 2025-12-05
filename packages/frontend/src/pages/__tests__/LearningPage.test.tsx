@@ -13,6 +13,7 @@ const mockResetSession = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ pathname: '/', search: '', hash: '', state: null, key: 'default' }),
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
@@ -47,6 +48,7 @@ vi.mock('../../components/Icon', () => ({
 vi.mock('../../services/AudioService', () => ({
   default: {
     playPronunciation: vi.fn().mockResolvedValue(undefined),
+    stopAudio: vi.fn(),
   },
 }));
 
@@ -133,6 +135,46 @@ vi.mock('../../utils/logger', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+// Mock TrackingService
+vi.mock('../../services/TrackingService', () => ({
+  trackingService: {
+    trackLearningPause: vi.fn(),
+    trackLearningResume: vi.fn(),
+    trackPageSwitch: vi.fn(),
+    trackSessionStart: vi.fn(),
+    trackSessionEnd: vi.fn(),
+    trackPronunciationClick: vi.fn(),
+    trackTaskSwitch: vi.fn(),
+    trackInteraction: vi.fn(),
+    getStats: vi.fn().mockReturnValue({
+      pronunciationClicks: 0,
+      pauseCount: 0,
+      resumeCount: 0,
+      pageSwitchCount: 0,
+      taskSwitchCount: 0,
+      totalInteractions: 0,
+      sessionDuration: 0,
+      lastActivityTime: Date.now(),
+    }),
+    isVisible: vi.fn().mockReturnValue(true),
+    getSessionId: vi.fn().mockReturnValue('test-session-id'),
+    flush: vi.fn(),
+    flushSync: vi.fn(),
+    resetSession: vi.fn(),
+    destroy: vi.fn(),
+  },
+}));
+
+// Mock useDialogPauseTracking hook
+vi.mock('../../hooks/useDialogPauseTracking', () => ({
+  useDialogPauseTrackingWithStates: () => ({
+    pausedTime: 0,
+    getPausedTime: vi.fn().mockReturnValue(0),
+    resetPausedTime: vi.fn(),
+    isDialogOpen: false,
+  }),
 }));
 
 // Default mock data

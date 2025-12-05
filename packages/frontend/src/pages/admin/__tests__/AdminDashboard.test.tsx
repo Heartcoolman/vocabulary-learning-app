@@ -4,7 +4,23 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import AdminDashboard from '../AdminDashboard';
+
+// Mock useToast hook
+vi.mock('@/components/ui', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    showToast: vi.fn(),
+  }),
+  ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
+    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+  AlertModal: ({ isOpen, onClose, children }: any) =>
+    isOpen ? <div data-testid="alert-modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+}));
 
 const mockStats = {
   totalUsers: 100,
@@ -30,19 +46,31 @@ vi.mock('@/services/ApiClient', () => ({
   },
 }));
 
-vi.mock('@/components/Icon', () => ({
-  UsersThree: () => <span data-testid="icon-users">👥</span>,
-  Sparkle: () => <span data-testid="icon-sparkle">✨</span>,
-  Books: () => <span data-testid="icon-books">📚</span>,
-  BookOpen: () => <span data-testid="icon-bookopen">📖</span>,
-  Note: () => <span data-testid="icon-note">📝</span>,
-  FileText: () => <span data-testid="icon-filetext">📄</span>,
-  ChartBar: () => <span data-testid="icon-chartbar">📊</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
-  ),
-  Warning: () => <span data-testid="icon-warning">⚠️</span>,
-}));
+vi.mock('@/components/Icon', async () => {
+  const actual = await vi.importActual('@/components/Icon');
+  return {
+    ...actual,
+    UsersThree: () => <span data-testid="icon-users">👥</span>,
+    Sparkle: () => <span data-testid="icon-sparkle">✨</span>,
+    Books: () => <span data-testid="icon-books">📚</span>,
+    BookOpen: () => <span data-testid="icon-bookopen">📖</span>,
+    Note: () => <span data-testid="icon-note">📝</span>,
+    FileText: () => <span data-testid="icon-filetext">📄</span>,
+    ChartBar: () => <span data-testid="icon-chartbar">📊</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>Loading</span>
+    ),
+    Warning: () => <span data-testid="icon-warning">⚠️</span>,
+  };
+});
+
+const renderWithRouter = () => {
+  return render(
+    <MemoryRouter>
+      <AdminDashboard />
+    </MemoryRouter>
+  );
+};
 
 describe('AdminDashboard', () => {
   beforeEach(() => {
@@ -51,7 +79,7 @@ describe('AdminDashboard', () => {
 
   describe('loading state', () => {
     it('should show loading indicator initially', () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
       expect(screen.getByText('正在加载...')).toBeInTheDocument();
@@ -60,7 +88,7 @@ describe('AdminDashboard', () => {
 
   describe('data display', () => {
     it('should render page title after loading', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('系统概览')).toBeInTheDocument();
@@ -68,7 +96,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should display statistics cards', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         // Multiple elements may show same text, use getAllByText
@@ -80,7 +108,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should display active users count', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('活跃用户')).toBeInTheDocument();
@@ -91,7 +119,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should display wordbook statistics', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('总词库数')).toBeInTheDocument();
@@ -100,7 +128,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should display word count', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('总单词数')).toBeInTheDocument();
@@ -109,7 +137,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should calculate active rate correctly', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('50%')).toBeInTheDocument();
@@ -117,7 +145,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should calculate average words per wordbook', async () => {
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('平均每词库单词数')).toBeInTheDocument();
@@ -133,7 +161,7 @@ describe('AdminDashboard', () => {
       const apiClient = (await import('@/services/ApiClient')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('网络错误'));
 
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('加载失败')).toBeInTheDocument();
@@ -145,7 +173,7 @@ describe('AdminDashboard', () => {
       const apiClient = (await import('@/services/ApiClient')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('Error'));
 
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('重试')).toBeInTheDocument();
@@ -158,7 +186,7 @@ describe('AdminDashboard', () => {
         .mockRejectedValueOnce(new Error('Error'))
         .mockResolvedValueOnce(mockStats);
 
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('重试')).toBeInTheDocument();
@@ -181,7 +209,7 @@ describe('AdminDashboard', () => {
         activeUsers: 0,
       });
 
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('0%')).toBeInTheDocument();
@@ -195,7 +223,7 @@ describe('AdminDashboard', () => {
         totalWordBooks: 0,
       });
 
-      render(<AdminDashboard />);
+      renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText('平均每词库单词数')).toBeInTheDocument();

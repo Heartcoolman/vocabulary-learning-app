@@ -73,16 +73,24 @@ import { ResilienceManager } from './engine-resilience';
 import { IsolationManager } from './engine-isolation';
 import { ModelingManager } from './engine-modeling';
 import { LearningManager } from './engine-learning';
-import { DecisionRecorderService, getSharedDecisionRecorder } from '../services/decision-recorder.service';
-import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
-
-/**
- * 用户奖励配置缓存项
- */
-interface RewardProfileCacheItem {
-  profile: string | null;
-  cachedAt: number;
-}
+import { getSharedDecisionRecorder } from '../services/decision-recorder.service';
+import {
+  DecisionTracer,
+  DecisionTraceParams,
+  StageTiming,
+  createDecisionTracer
+} from './engine-decision-trace';
+import { PersistenceManager, DefaultPersistenceManager } from './engine-persistence';
+import {
+  FeatureVectorBuilder,
+  DefaultFeatureVectorBuilder,
+  FEATURE_LABELS
+} from './engine-feature-vector';
+import {
+  RewardCacheManager,
+  DefaultRewardCacheManager,
+  createRewardCacheManager
+} from './engine-reward-cache';
 
 /**
  * AMAS 核心引擎
@@ -91,10 +99,12 @@ interface RewardProfileCacheItem {
  */
 export class AMASEngine {
   private featureBuilder: FeatureBuilder;
+  private featureVectorBuilder: FeatureVectorBuilder;
   private stateRepo: StateRepository;
   private modelRepo: ModelRepository;
   private logger?: Logger;
-  private recorder?: DecisionRecorderService;
+  private decisionTracer: DecisionTracer;
+  private persistence: PersistenceManager;
 
   // 子管理器
   private resilience: ResilienceManager;
@@ -102,12 +112,12 @@ export class AMASEngine {
   private modeling: ModelingManager;
   private learning: LearningManager;
 
-  // 用户奖励配置缓存（避免每次请求都查询数据库）
-  private rewardProfileCache: Map<string, RewardProfileCacheItem> = new Map();
-  private static readonly REWARD_PROFILE_CACHE_TTL_MS = 5 * 60 * 1000; // 5分钟缓存
+  // 奖励配置缓存管理器
+  private rewardCacheManager: RewardCacheManager;
 
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
+    this.featureVectorBuilder = deps.featureVectorBuilder ?? new DefaultFeatureVectorBuilder(deps.logger);
 
     // 获取功能开关配置
     const flags = getFeatureFlags();
@@ -166,18 +176,29 @@ export class AMASEngine {
     this.modelRepo = deps.modelRepo ?? new MemoryModelRepository();
     this.logger = deps.logger;
 
-    // Optimization #3: 使用共享的 recorder 实例，确保 shutdown 时 flush 正确的队列
-    if (!deps.recorder && deps.prisma) {
-      this.recorder = getSharedDecisionRecorder(deps.prisma);
-    } else {
-      this.recorder = deps.recorder;
-    }
+    // Optimization #3: 使用共享的 recorder 实例，通过 DecisionTracer 抽象封装
+    const recorder = deps.recorder ?? (deps.prisma ? getSharedDecisionRecorder(deps.prisma) : undefined);
+    this.decisionTracer = deps.decisionTracer ?? createDecisionTracer(recorder, deps.logger);
+
+    // 初始化持久化管理器
+    this.persistence = deps.persistence ?? new DefaultPersistenceManager(
+      this.stateRepo,
+      this.modelRepo,
+      this.logger
+    );
 
     // 初始化子管理器
     this.resilience = new ResilienceManager(this.logger);
     this.isolation = new IsolationManager(modelTemplates, deps.memoryConfig);
     this.modeling = new ModelingManager();
     this.learning = new LearningManager();
+
+    // 初始化奖励配置缓存管理器
+    this.rewardCacheManager = deps.rewardCacheManager ?? createRewardCacheManager({
+      ttlMs: 5 * 60 * 1000, // 5分钟
+      maxSize: 10000,
+      logger: this.logger
+    });
   }
 
   /**
@@ -186,7 +207,7 @@ export class AMASEngine {
    */
   destroy(): void {
     this.isolation.destroy();
-    this.rewardProfileCache.clear();
+    this.rewardCacheManager.clearAll();
   }
 
   /**
@@ -200,11 +221,16 @@ export class AMASEngine {
       maxUsers: number;
       utilizationPercent: number;
     };
-    rewardProfileCacheCount: number;
+    rewardCache: {
+      size: number;
+      hits: number;
+      misses: number;
+      hitRate: number;
+    };
   } {
     return {
       isolation: this.isolation.getMemoryStats(),
-      rewardProfileCacheCount: this.rewardProfileCache.size
+      rewardCache: this.rewardCacheManager.getCacheStats()
     };
   }
 
@@ -490,14 +516,10 @@ export class AMASEngine {
       settledStrategy: models.coldStart.getSettledStrategy()
     } : undefined;
 
-    await this.stateRepo.saveState(userId, { ...state, coldStartState } as UserState);
+    await this.persistence.saveState(userId, state, coldStartState);
 
     // 保存 Bandit 模型
-    if (models.bandit instanceof EnsembleLearningFramework) {
-      await this.modelRepo.saveModel(userId, models.bandit.getState().linucb);
-    } else if (models.bandit instanceof LinUCB) {
-      await this.modelRepo.saveModel(userId, models.bandit.getModel());
-    }
+    await this.persistence.saveModel(userId, models.bandit);
 
     // 13. 记录性能
     const elapsed = Date.now() - startTime;
@@ -507,8 +529,8 @@ export class AMASEngine {
 
     // 14. 记录决策轨迹（异步，不阻塞）
     // Critical Fix #3: 使用alignedAction确保记录与实际执行一致
-    if (this.recorder && opts.answerRecordId) {
-      void this.recordDecisionTrace({
+    if (opts.answerRecordId) {
+      void this.decisionTracer.recordDecisionTrace({
         answerRecordId: opts.answerRecordId,
         sessionId: opts.sessionId,
         timestamp: new Date(rawEvent.timestamp),
@@ -521,14 +543,12 @@ export class AMASEngine {
         reward,
         totalDurationMs: elapsed,
         stageTiming
-      }).catch(err => {
-        this.logger?.error('Failed to record decision trace', { userId, error: err });
       });
     }
 
     // 构建可序列化的特征向量
     // Optimization #1: 使用finalContextVec（基于alignedAction重建）
-    const persistableFeatureVector = this.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
+    const persistableFeatureVector = this.featureVectorBuilder.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
 
     const shouldBreakFlag = forceBreak || shouldSuggestBreak(state);
 
@@ -624,18 +644,11 @@ export class AMASEngine {
           modelDimension: model.d
         });
 
-        if (featureVector.length < model.d) {
-          // 特征向量较短（旧版本），零填充扩展到模型维度
-          alignedFeatureVector = [...featureVector];
-          while (alignedFeatureVector.length < model.d) {
-            alignedFeatureVector.push(0);
-          }
-        } else {
-          // 特征向量较长（模型较旧），截断到模型维度
-          // 注意：这种情况理论上不应发生，因为模型会自动升级
-          // 但为了安全起见仍然处理
-          alignedFeatureVector = featureVector.slice(0, model.d);
-        }
+        // 使用 FeatureVectorBuilder 进行维度对齐
+        alignedFeatureVector = this.featureVectorBuilder.alignFeatureVectorDimension(
+          featureVector,
+          model.d
+        );
       }
 
       const tempBandit = new LinUCB({
@@ -665,7 +678,7 @@ export class AMASEngine {
    * - 回归用户：根据离线时长应用状态衰减
    */
   private async loadOrCreateState(userId: string): Promise<UserState> {
-    const state = await this.stateRepo.loadState(userId);
+    const state = await this.persistence.loadState(userId);
 
     // 新用户：返回默认状态
     if (!state) {
@@ -740,77 +753,37 @@ export class AMASEngine {
   }
 
   private async loadModelIfExists(userId: string, bandit: DecisionModel): Promise<void> {
-    const model = await this.modelRepo.loadModel(userId);
-    if (!model) return;
-
-    if (bandit instanceof LinUCB) {
-      bandit.setModel(model);
-    } else if (bandit instanceof EnsembleLearningFramework) {
-      const currentState = bandit.getState();
-      bandit.setState({
-        ...currentState,
-        linucb: model
-      });
-    }
+    await this.persistence.loadModelIfExists(userId, bandit);
   }
 
   /**
    * 获取缓存的用户奖励配置
    *
-   * 使用内存缓存避免每次请求都查询数据库
-   * 缓存 TTL: 5分钟
+   * 使用 RewardCacheManager 避免每次请求都查询数据库
    */
   private async getCachedRewardProfile(userId: string): Promise<ReturnType<typeof getRewardProfile>> {
-    const now = Date.now();
-    const cached = this.rewardProfileCache.get(userId);
-
-    // 缓存命中且未过期
-    if (cached && (now - cached.cachedAt) < AMASEngine.REWARD_PROFILE_CACHE_TTL_MS) {
-      return getRewardProfile(cached.profile ?? undefined);
+    // 尝试从缓存获取
+    const cachedProfileId = this.rewardCacheManager.getCachedProfileId(userId);
+    if (cachedProfileId !== undefined) {
+      return getRewardProfile(cachedProfileId ?? undefined);
     }
 
-    // 缓存未命中或已过期，从数据库加载
+    // 缓存未命中，从数据库加载
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { rewardProfile: true }
       });
 
-      const profile = (user as any)?.rewardProfile ?? null;
+      const profileId = (user as any)?.rewardProfile ?? null;
 
       // 更新缓存
-      this.rewardProfileCache.set(userId, {
-        profile,
-        cachedAt: now
-      });
+      this.rewardCacheManager.setCachedProfileId(userId, profileId);
 
-      // 定期清理过期缓存（当缓存过大时）
-      if (this.rewardProfileCache.size > 10000) {
-        this.cleanupRewardProfileCache();
-      }
-
-      return getRewardProfile(profile);
+      return getRewardProfile(profileId ?? undefined);
     } catch (err) {
       this.logger?.warn('Failed to load reward profile', { userId, error: err });
       return getRewardProfile(undefined);
-    }
-  }
-
-  /**
-   * 清理过期的奖励配置缓存
-   */
-  private cleanupRewardProfileCache(): void {
-    const now = Date.now();
-    const expiredKeys: string[] = [];
-
-    for (const [userId, item] of this.rewardProfileCache) {
-      if (now - item.cachedAt > AMASEngine.REWARD_PROFILE_CACHE_TTL_MS) {
-        expiredKeys.push(userId);
-      }
-    }
-
-    for (const key of expiredKeys) {
-      this.rewardProfileCache.delete(key);
     }
   }
 
@@ -819,7 +792,14 @@ export class AMASEngine {
    * （当用户更新奖励配置时调用）
    */
   invalidateRewardProfileCache(userId: string): void {
-    this.rewardProfileCache.delete(userId);
+    this.rewardCacheManager.invalidateCache(userId);
+  }
+
+  /**
+   * 获取奖励缓存管理器（用于高级监控和调试）
+   */
+  getRewardCacheManager(): RewardCacheManager {
+    return this.rewardCacheManager;
   }
 
   private async createFallbackResult(
@@ -836,125 +816,6 @@ export class AMASEngine {
       (uid, provided) => this.isolation.getInteractionCount(uid, provided),
       eventTimestamp
     );
-  }
-
-  private buildPersistableFeatureVector(
-    contextVec: Float32Array | undefined,
-    ts: number
-  ): PersistableFeatureVector | undefined {
-    const FEATURE_LABELS = [
-      'state.A', 'state.F', 'state.C.mem', 'state.C.speed', 'state.M',
-      'recentErrorRate', 'interval_scale', 'new_ratio', 'difficulty',
-      'hint_level', 'batch_norm', 'rt_norm', 'time_norm', 'time_sin',
-      'time_cos', 'attn_fatigue', 'motivation_fatigue', 'pace_match',
-      'memory_new_ratio', 'fatigue_latency', 'new_ratio_motivation', 'bias'
-    ] as const;
-
-    if (!contextVec || contextVec.length === 0) {
-      return undefined;
-    }
-
-    const dimensionMismatch = contextVec.length !== DEFAULT_DIMENSION;
-    const labelsMismatch = FEATURE_LABELS.length !== DEFAULT_DIMENSION;
-
-    if (dimensionMismatch || labelsMismatch) {
-      this.logger?.error('Feature vector dimension mismatch', {
-        expected: DEFAULT_DIMENSION,
-        actual: contextVec.length
-      });
-      return undefined;
-    }
-
-    return {
-      values: Array.from(contextVec),
-      version: FEATURE_VERSION,
-      normMethod: 'ucb-context',
-      ts,
-      labels: [...FEATURE_LABELS]
-    };
-  }
-
-  /**
-   * 记录决策轨迹到数据库（异步）
-   */
-  private async recordDecisionTrace(params: {
-    answerRecordId: string;
-    sessionId?: string;
-    timestamp: Date;
-    decisionSource: string;
-    coldstartPhase?: string;
-    weightsSnapshot?: Record<string, number>;
-    memberVotes?: Record<string, unknown>;
-    selectedAction: any;
-    confidence: number;
-    reward: number;
-    totalDurationMs: number;
-    stageTiming: any;
-  }): Promise<void> {
-    if (!this.recorder) return;
-
-    const { generateDecisionId } = await import('../services/decision-recorder.service');
-    const decisionId = generateDecisionId();
-
-    await this.recorder.record({
-      decisionId,
-      answerRecordId: params.answerRecordId,
-      sessionId: params.sessionId,
-      timestamp: params.timestamp,
-      decisionSource: params.decisionSource,
-      coldstartPhase: params.coldstartPhase,
-      weightsSnapshot: params.weightsSnapshot,
-      memberVotes: params.memberVotes,
-      selectedAction: params.selectedAction,
-      confidence: params.confidence,
-      reward: params.reward,
-      traceVersion: 1,
-      totalDurationMs: params.totalDurationMs,
-      stages: this.buildPipelineStages(params.stageTiming)
-    });
-  }
-
-  /**
-   * 构建流水线阶段记录
-   */
-  private buildPipelineStages(stageTiming: any) {
-    const stages: Array<{
-      stage: PipelineStageType;
-      stageName: string;
-      status: PipelineStageStatus;
-      startedAt: Date;
-      endedAt?: Date;
-      durationMs?: number;
-    }> = [];
-
-    const stageMap: Array<{
-      key: string;
-      type: PipelineStageType;
-      name: string;
-    }> = [
-      { key: 'perception', type: 'PERCEPTION' as PipelineStageType, name: '感知层' },
-      { key: 'modeling', type: 'MODELING' as PipelineStageType, name: '建模层' },
-      { key: 'learning', type: 'LEARNING' as PipelineStageType, name: '学习层' },
-      { key: 'decision', type: 'DECISION' as PipelineStageType, name: '决策层' },
-      { key: 'evaluation', type: 'EVALUATION' as PipelineStageType, name: '评估层' },
-      { key: 'optimization', type: 'OPTIMIZATION' as PipelineStageType, name: '优化层' }
-    ];
-
-    for (const { key, type, name } of stageMap) {
-      const timing = stageTiming[key];
-      if (timing && timing.start && timing.end) {
-        stages.push({
-          stage: type,
-          stageName: name,
-          status: 'SUCCESS' as PipelineStageStatus,
-          startedAt: new Date(timing.start),
-          endedAt: new Date(timing.end),
-          durationMs: timing.end - timing.start
-        });
-      }
-    }
-
-    return stages;
   }
 
   /**
