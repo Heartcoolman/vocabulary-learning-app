@@ -100,7 +100,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
         })}
 
         {/* X-axis labels */}
-        {points.filter((_, i) => i % Math.ceil(points.length / 5) === 0).map((p, i) => (
+        {points.filter((_, i) => i % Math.max(1, Math.ceil(points.length / 5)) === 0).map((p, i) => (
           <text
             key={i}
             x={p.x}

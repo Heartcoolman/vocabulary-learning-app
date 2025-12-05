@@ -37,6 +37,20 @@ const MIN_RANK1_DIAG = 1e-6;
 const MAX_COVARIANCE = 1e9;
 const MAX_FEATURE_ABS = 50;
 
+/**
+ * 特征维度校验常量
+ * 特征结构: 状态5 + 错误1 + 动作5 + 交互1 + 时间3 + 处理键6 + bias1 = 22
+ * 必须与 DEFAULT_DIMENSION 保持同步
+ */
+const FEATURE_DIMENSION_V2 = 22;
+
+// 静态校验：确保特征维度与配置常量一致
+if (DEFAULT_DIMENSION !== FEATURE_DIMENSION_V2) {
+  throw new Error(
+    `[LinUCB] 配置不一致: DEFAULT_DIMENSION(${DEFAULT_DIMENSION}) !== FEATURE_DIMENSION_V2(${FEATURE_DIMENSION_V2})`
+  );
+}
+
 // ==================== 类型定义 ====================
 
 /**
@@ -111,7 +125,7 @@ function normalizeTimeFeatures(timeBucket: number): {
   sin: number;
   cos: number;
 } {
-  const bucket = clamp(timeBucket, 0, 24);
+  const bucket = clamp(timeBucket, 0, 23);
   const norm = bucket / 24;
   const phase = (2 * Math.PI * bucket) / 24;
   return {
@@ -616,9 +630,28 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     const matrix = Float64Array.from(A);
 
     // 对称化处理：确保 matrix 是对称矩阵
+    // 修复：在计算平均值前检查NaN，防止NaN传播
     for (let i = 0; i < d; i++) {
       for (let j = i + 1; j < d; j++) {
-        const avg = (matrix[i * d + j] + matrix[j * d + i]) / 2;
+        const val_ij = matrix[i * d + j];
+        const val_ji = matrix[j * d + i];
+
+        // 检查NaN并处理
+        let avg: number;
+        if (!Number.isFinite(val_ij) && !Number.isFinite(val_ji)) {
+          // 两个值都无效，使用0
+          avg = 0;
+        } else if (!Number.isFinite(val_ij)) {
+          // 只有val_ij无效，使用val_ji
+          avg = val_ji;
+        } else if (!Number.isFinite(val_ji)) {
+          // 只有val_ji无效，使用val_ij
+          avg = val_ij;
+        } else {
+          // 两个值都有效，计算平均
+          avg = (val_ij + val_ji) / 2;
+        }
+
         matrix[i * d + j] = avg;
         matrix[j * d + i] = avg;
       }
@@ -889,15 +922,35 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   /**
    * 构建上下文特征向量 v2
    * 维度: d = 22 (状态5 + 错误1 + 动作5 + 交互1 + 时间3 + 处理键6 + bias1)
+   *
+   * 特征结构（必须与DEFAULT_DIMENSION保持同步）:
+   * - 状态特征 (5维): A, F, C.mem, C.speed, M
+   * - 错误率 (1维): recentErrorRate
+   * - 动作特征 (5维): interval_scale, new_ratio, difficulty, hint_level, batch_size
+   * - 交互特征 (1维): rtNorm
+   * - 时间特征 (3维): timeNorm, timeSin, timeCos
+   * - 处理键/交叉特征 (6维): attentionFatigue, motivationFatigue, paceMatch, memoryNewRatio, fatigueLatency, newRatioMotivation
+   * - bias项 (1维): 1.0
+   * 总计: 5 + 1 + 5 + 1 + 3 + 6 + 1 = 22维
    */
   buildContextVector(input: ContextBuildInput): Float32Array {
     const { state, action, recentErrorRate, recentResponseTime, timeBucket } = input;
+
+    // 运行时校验：确保模型维度与预期的特征维度一致
+    // 使用模块级常量 FEATURE_DIMENSION_V2 进行校验
+    if (this.model.d !== FEATURE_DIMENSION_V2) {
+      amasLogger.warn(
+        { modelDimension: this.model.d, expectedDimension: FEATURE_DIMENSION_V2 },
+        '[LinUCB] 模型维度与特征构建器不匹配，可能导致特征截断或填充'
+      );
+    }
+
     const vec = new Float32Array(this.model.d);
 
     // 归一化反应时间
     const rtNorm = recentResponseTime > 0
       ? clamp(5000 / Math.max(recentResponseTime, 1000), 0, 2)
-      : 0;
+      : 1; // 无数据时使用中间值1，而不是0
 
     // 时间特征 (norm + sin/cos)
     const { norm: timeNorm, sin: timeSin, cos: timeCos } = normalizeTimeFeatures(timeBucket);

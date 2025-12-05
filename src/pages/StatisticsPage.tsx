@@ -71,30 +71,51 @@ export default function StatisticsPage() {
         if (!mounted) return;
 
         // 计算学习天数和连续学习天数
+        // 使用 YYYY-MM-DD 格式归一化日期，避免时区和精度问题
+        const normalizeToDateString = (date: Date): string => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         const studyDates = new Set(
-          recordsResult.records.map((r: any) => new Date(r.timestamp).toDateString())
+          recordsResult.records.map((r: any) => normalizeToDateString(new Date(r.timestamp)))
         );
         const studyDays = studyDates.size;
 
         // 计算连续学习天数
-        const sortedDates = Array.from(studyDates)
-          .map(d => new Date(d).getTime())
-          .sort((a, b) => b - a);
+        // 将日期字符串排序（降序，最近的日期在前）
+        const sortedDateStrings = Array.from(studyDates).sort((a, b) => b.localeCompare(a));
 
         let consecutiveDays = 0;
-        const today = new Date().setHours(0, 0, 0, 0);
-        const yesterday = today - 24 * 60 * 60 * 1000;
+        const now = new Date();
+        const todayStr = normalizeToDateString(now);
+        const yesterdayDate = new Date(now);
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = normalizeToDateString(yesterdayDate);
 
         // 确定起始日期：如果今天有学习记录从今天开始，否则从昨天开始
-        const hasTodayRecord = sortedDates.length > 0 && sortedDates[0] === today;
-        const startDate = hasTodayRecord ? today : yesterday;
+        const hasTodayRecord = sortedDateStrings.length > 0 && sortedDateStrings[0] === todayStr;
+        const hasYesterdayRecord = sortedDateStrings.includes(yesterdayStr);
 
-        for (let i = 0; i < sortedDates.length; i++) {
-          const expectedDate = startDate - i * 24 * 60 * 60 * 1000;
-          if (sortedDates[i] === expectedDate) {
-            consecutiveDays++;
-          } else {
-            break;
+        // 如果今天没学习且昨天也没学习，连续天数为0
+        if (!hasTodayRecord && !hasYesterdayRecord) {
+          consecutiveDays = 0;
+        } else {
+          // 从起始日期开始检查连续性
+          const startDateObj = hasTodayRecord ? now : yesterdayDate;
+
+          for (let i = 0; i < sortedDateStrings.length; i++) {
+            const checkDate = new Date(startDateObj);
+            checkDate.setDate(checkDate.getDate() - i);
+            const expectedDateStr = normalizeToDateString(checkDate);
+
+            if (sortedDateStrings.includes(expectedDateStr)) {
+              consecutiveDays++;
+            } else {
+              break;
+            }
           }
         }
 

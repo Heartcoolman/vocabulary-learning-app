@@ -236,7 +236,7 @@ class LearningService {
    * 移动到下一个单词
    * 应用自适应难度调整
    */
-  nextWord(): Word | null {
+  async nextWord(): Promise<Word | null> {
     if (!this.currentSession) {
       return null;
     }
@@ -249,11 +249,14 @@ class LearningService {
       
       // 结束间隔重复会话
       if (this.srService) {
-        this.srService.endSession().catch(error => {
+        try {
+          await this.srService.endSession();
+        } catch (error) {
           learningLogger.error({ err: error }, '结束间隔重复会话失败');
-        });
+          // 继续执行，不阻塞学习流程
+        }
       }
-      
+
       return null;
     }
 
@@ -384,21 +387,28 @@ class LearningService {
 
   /**
    * 结束当前会话
+   * @returns 是否成功结束会话
    */
-  endSession(): void {
+  async endSession(): Promise<boolean> {
     if (this.currentSession) {
       this.currentSession.endTime = Date.now();
-      
+
       // 结束间隔重复会话
+      let endSessionSuccess = true;
       if (this.srService) {
-        this.srService.endSession().catch(error => {
+        try {
+          await this.srService.endSession();
+        } catch (error) {
           learningLogger.error({ err: error }, '结束间隔重复会话失败');
-        });
+          endSessionSuccess = false;
+        }
       }
-      
+
       this.currentSession = null;
       this.words = [];
+      return endSessionSuccess;
     }
+    return true;
   }
 
   /**
@@ -413,15 +423,20 @@ class LearningService {
     nextReviewDate: number | null;
   } | null> {
     await this.initSRService(userId);
-    
-    const state = await this.srService!.getWordState(userId, wordId);
+
+    if (!this.srService) {
+      learningLogger.warn({ userId, wordId }, '间隔重复服务未初始化，无法获取单词状态');
+      return null;
+    }
+
+    const state = await this.srService.getWordState(userId, wordId);
     if (!state) {
       return null;
     }
 
     // 尝试获取得分信息
-    const score = await this.srService!.getWordScore(userId, wordId);
-    
+    const score = await this.srService.getWordScore(userId, wordId);
+
     return {
       masteryLevel: state.masteryLevel,
       score: score?.totalScore || 0,
@@ -436,7 +451,11 @@ class LearningService {
    */
   async getWordScore(userId: string, wordId: string): Promise<WordScore | null> {
     await this.initSRService(userId);
-    return await this.srService!.getWordScore(userId, wordId);
+    if (!this.srService) {
+      learningLogger.warn({ userId, wordId }, '间隔重复服务未初始化，无法获取单词得分');
+      return null;
+    }
+    return await this.srService.getWordScore(userId, wordId);
   }
 
   /**
@@ -445,7 +464,11 @@ class LearningService {
    */
   async getDueWords(userId: string): Promise<string[]> {
     await this.initSRService(userId);
-    return await this.srService!.getDueWords(userId);
+    if (!this.srService) {
+      learningLogger.warn({ userId }, '间隔重复服务未初始化，无法获取到期单词');
+      return [];
+    }
+    return await this.srService.getDueWords(userId);
   }
 
   /**
@@ -583,7 +606,10 @@ class LearningService {
    */
   async markAsMastered(userId: string, wordId: string, reason?: string): Promise<void> {
     await this.initSRService(userId);
-    await this.srService!.markAsMastered(userId, wordId, reason);
+    if (!this.srService) {
+      throw new Error('间隔重复服务未初始化，无法标记单词为已掌握');
+    }
+    await this.srService.markAsMastered(userId, wordId, reason);
   }
 
   /**
@@ -594,7 +620,10 @@ class LearningService {
    */
   async markAsNeedsPractice(userId: string, wordId: string, reason?: string): Promise<void> {
     await this.initSRService(userId);
-    await this.srService!.markAsNeedsPractice(userId, wordId, reason);
+    if (!this.srService) {
+      throw new Error('间隔重复服务未初始化，无法标记单词为需要重点学习');
+    }
+    await this.srService.markAsNeedsPractice(userId, wordId, reason);
   }
 
   /**
@@ -605,7 +634,10 @@ class LearningService {
    */
   async resetProgress(userId: string, wordId: string, reason?: string): Promise<void> {
     await this.initSRService(userId);
-    await this.srService!.resetProgress(userId, wordId, reason);
+    if (!this.srService) {
+      throw new Error('间隔重复服务未初始化，无法重置单词学习进度');
+    }
+    await this.srService.resetProgress(userId, wordId, reason);
   }
 
   /**
@@ -622,7 +654,10 @@ class LearningService {
     reason?: string
   ): Promise<void> {
     await this.initSRService(userId);
-    await this.srService!.batchUpdateWords(userId, wordIds, operation, reason);
+    if (!this.srService) {
+      throw new Error('间隔重复服务未初始化，无法批量更新单词状态');
+    }
+    await this.srService.batchUpdateWords(userId, wordIds, operation, reason);
   }
 
   /**

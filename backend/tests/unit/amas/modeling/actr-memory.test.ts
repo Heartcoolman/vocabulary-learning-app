@@ -536,18 +536,25 @@ describe('ACTRMemoryModel', () => {
         { secondsAgo: 3600, isCorrect: true }
       ];
 
+      // 使用更长时间跨度的 trace 来获得更高的置信度
+      // 置信度 = 0.5 * (reviewCount/10) + 0.5 * (timeSpan/7天)
       const longTrace: ReviewTrace[] = [
         { secondsAgo: 3600, isCorrect: true },
-        { secondsAgo: 7200, isCorrect: true },
-        { secondsAgo: 10800, isCorrect: true },
-        { secondsAgo: 14400, isCorrect: true },
-        { secondsAgo: 18000, isCorrect: true }
+        { secondsAgo: 86400, isCorrect: true },      // 1天前
+        { secondsAgo: 172800, isCorrect: true },     // 2天前
+        { secondsAgo: 259200, isCorrect: true },     // 3天前
+        { secondsAgo: 345600, isCorrect: true },     // 4天前
+        { secondsAgo: 432000, isCorrect: true },     // 5天前
+        { secondsAgo: 518400, isCorrect: true },     // 6天前
+        { secondsAgo: 604800, isCorrect: true }      // 7天前
       ];
 
       const shortPrediction = actr.retrievalProbability(shortTrace);
       const longPrediction = actr.retrievalProbability(longTrace);
 
-      // Longer trace should give higher confidence
+      // 更长的 trace（8次复习跨越7天）应该有更高的置信度
+      // shortTrace: BASE_SINGLE_REVIEW_CONFIDENCE = 0.3
+      // longTrace: 0.5 * (8/10) + 0.5 * (7天/7天) = 0.4 + 0.5 = 0.9
       expect(longPrediction.confidence).toBeGreaterThanOrEqual(shortPrediction.confidence);
     });
   });

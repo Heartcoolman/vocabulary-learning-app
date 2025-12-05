@@ -10,9 +10,23 @@
  * - Mixed: 混合型
  */
 
+import { PrismaClient } from '@prisma/client';
 import prisma from '../../config/database';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
+
+/**
+ * 交互模式统计数据接口
+ */
+export interface InteractionPatterns {
+  avgDwellTime: number;
+  avgResponseTime: number;
+  pauseCount: number;
+  switchCount: number;
+  dwellTimeVariance: number;
+  responseTimeVariance: number;
+  sampleCount: number;
+}
 
 export interface LearningStyleProfile {
   /** 学习风格类型 */
@@ -39,6 +53,15 @@ export interface LearningStyleProfile {
 export class LearningStyleProfiler {
   private readonly minSampleSize = 50; // 最小数据量
   private readonly recentRecordLimit = 200; // 分析最近N条记录
+  private readonly prismaClient: PrismaClient;
+
+  /**
+   * 构造函数
+   * @param prismaClient Prisma客户端实例（依赖注入）
+   */
+  constructor(prismaClient: PrismaClient = prisma) {
+    this.prismaClient = prismaClient;
+  }
 
   /**
    * 基于交互行为推断学习风格
@@ -80,11 +103,11 @@ export class LearningStyleProfiler {
       scores.kinesthetic /= totalScore;
     }
 
-    // 判断主导风格
-    const maxScore = Math.max(visualScore, auditoryScore, kinestheticScore);
+    // 判断主导风格 - 使用归一化后的分数
+    const normalizedMaxScore = Math.max(scores.visual, scores.auditory, scores.kinesthetic);
 
-    // 如果没有明显主导风格（差异<20%），判定为混合型
-    if (maxScore < 0.4) {
+    // 如果没有明显主导风格（归一化后最大值<0.4，即占比不足40%），判定为混合型
+    if (normalizedMaxScore < 0.4) {
       return {
         style: 'mixed',
         confidence: 0.5,
@@ -99,18 +122,18 @@ export class LearningStyleProfiler {
       };
     }
 
-    // 确定主导风格
+    // 确定主导风格 - 使用归一化后的分数
     let style: LearningStyle;
-    if (visualScore === maxScore) {
+    if (scores.visual === normalizedMaxScore) {
       style = 'visual';
-    } else if (auditoryScore === maxScore) {
+    } else if (scores.auditory === normalizedMaxScore) {
       style = 'auditory';
     } else {
       style = 'kinesthetic';
     }
 
-    // 计算置信度
-    const confidence = Math.min(maxScore, 0.9);
+    // 计算置信度 - 使用归一化后的最大分数
+    const confidence = Math.min(normalizedMaxScore, 0.9);
 
     return {
       style,
@@ -129,67 +152,74 @@ export class LearningStyleProfiler {
   /**
    * 获取用户交互模式
    */
-  private async getInteractionPatterns(userId: string) {
-    const records = await prisma.answerRecord.findMany({
-      where: { userId },
-      select: {
-        dwellTime: true,
-        responseTime: true,
-        timestamp: true
-      },
-      orderBy: { timestamp: 'desc' },
-      take: this.recentRecordLimit
-    });
-
-    if (records.length === 0) {
-      return {
-        avgDwellTime: 0,
-        avgResponseTime: 0,
-        pauseCount: 0,
-        switchCount: 0,
-        dwellTimeVariance: 0,
-        responseTimeVariance: 0,
-        sampleCount: 0
-      };
-    }
-
-    const avgDwellTime = records.reduce((sum, r) => sum + (r.dwellTime || 0), 0) / records.length;
-    const avgResponseTime = records.reduce((sum, r) => sum + (r.responseTime || 0), 0) / records.length;
-
-    const dwellTimeVariance = records.reduce((sum, r) => {
-      const diff = (r.dwellTime || 0) - avgDwellTime;
-      return sum + diff * diff;
-    }, 0) / records.length;
-
-    const responseTimeVariance = records.reduce((sum, r) => {
-      const diff = (r.responseTime || 0) - avgResponseTime;
-      return sum + diff * diff;
-    }, 0) / records.length;
-
-    let pauseCount = 0;
-    for (let i = 1; i < records.length; i++) {
-      const gap = records[i - 1].timestamp.getTime() - records[i].timestamp.getTime();
-      if (gap > 30000) pauseCount++;
-    }
-
-    let switchCount = 0;
-    for (let i = 1; i < records.length; i++) {
-      const prev = records[i - 1].responseTime || avgResponseTime;
-      const curr = records[i].responseTime || avgResponseTime;
-      if (prev > 0 && curr > 0 && (curr / prev > 2 || prev / curr > 2)) {
-        switchCount++;
-      }
-    }
-
-    return {
-      avgDwellTime,
-      avgResponseTime,
-      pauseCount,
-      switchCount,
-      dwellTimeVariance,
-      responseTimeVariance,
-      sampleCount: records.length
+  private async getInteractionPatterns(userId: string): Promise<InteractionPatterns> {
+    const emptyPatterns: InteractionPatterns = {
+      avgDwellTime: 0,
+      avgResponseTime: 0,
+      pauseCount: 0,
+      switchCount: 0,
+      dwellTimeVariance: 0,
+      responseTimeVariance: 0,
+      sampleCount: 0
     };
+
+    try {
+      const records = await this.prismaClient.answerRecord.findMany({
+        where: { userId },
+        select: {
+          dwellTime: true,
+          responseTime: true,
+          timestamp: true
+        },
+        orderBy: { timestamp: 'desc' },
+        take: this.recentRecordLimit
+      });
+
+      if (records.length === 0) {
+        return emptyPatterns;
+      }
+
+      const avgDwellTime = records.reduce((sum, r) => sum + (r.dwellTime || 0), 0) / records.length;
+      const avgResponseTime = records.reduce((sum, r) => sum + (r.responseTime || 0), 0) / records.length;
+
+      const dwellTimeVariance = records.reduce((sum, r) => {
+        const diff = (r.dwellTime || 0) - avgDwellTime;
+        return sum + diff * diff;
+      }, 0) / records.length;
+
+      const responseTimeVariance = records.reduce((sum, r) => {
+        const diff = (r.responseTime || 0) - avgResponseTime;
+        return sum + diff * diff;
+      }, 0) / records.length;
+
+      let pauseCount = 0;
+      for (let i = 1; i < records.length; i++) {
+        const gap = records[i - 1].timestamp.getTime() - records[i].timestamp.getTime();
+        if (gap > 30000) pauseCount++;
+      }
+
+      let switchCount = 0;
+      for (let i = 1; i < records.length; i++) {
+        const prev = records[i - 1].responseTime || avgResponseTime;
+        const curr = records[i].responseTime || avgResponseTime;
+        if (prev > 0 && curr > 0 && (curr / prev > 2 || prev / curr > 2)) {
+          switchCount++;
+        }
+      }
+
+      return {
+        avgDwellTime,
+        avgResponseTime,
+        pauseCount,
+        switchCount,
+        dwellTimeVariance,
+        responseTimeVariance,
+        sampleCount: records.length
+      };
+    } catch (error) {
+      console.error('[LearningStyleProfiler] 获取用户交互模式失败:', error);
+      return emptyPatterns;
+    }
   }
 
   /**
@@ -197,7 +227,7 @@ export class LearningStyleProfiler {
    *
    * 特征：高停留时间（仔细阅读）、低急迫性
    */
-  private computeVisualScore(interactions: any): number {
+  private computeVisualScore(interactions: InteractionPatterns): number {
     const optimalDwellTime = 5000; // 5秒
     const dwellTimeScore = Math.min(interactions.avgDwellTime / optimalDwellTime, 1.0);
 
@@ -212,7 +242,7 @@ export class LearningStyleProfiler {
    *
    * 特征：基于停留时间方差推断（听觉学习者通常停留时间更稳定）
    */
-  private computeAuditoryScore(interactions: any): number {
+  private computeAuditoryScore(interactions: InteractionPatterns): number {
     const dwellTimeStdDev = Math.sqrt(interactions.dwellTimeVariance || 0);
     const coefficientOfVariation = interactions.avgDwellTime > 0
       ? dwellTimeStdDev / interactions.avgDwellTime
@@ -231,7 +261,7 @@ export class LearningStyleProfiler {
    *
    * 特征：高交互密度、频繁切换、快速尝试
    */
-  private computeKinestheticScore(interactions: any): number {
+  private computeKinestheticScore(interactions: InteractionPatterns): number {
     const speedScore = interactions.avgResponseTime < 2000 ? 0.4
       : interactions.avgResponseTime < 3000 ? 0.3 : 0.15;
 

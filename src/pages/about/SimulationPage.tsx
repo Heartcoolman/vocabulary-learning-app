@@ -65,6 +65,12 @@ const SCENARIOS = [
   { id: 'graduation', name: '毕业时刻', icon: CheckCircle, desc: '冷启动 -> 集成' },
 ];
 
+const LEARNING_MODES = [
+  { id: 'standard', name: '标准模式', icon: Target, desc: '平衡长期记忆' },
+  { id: 'cram', name: '突击模式', icon: Lightning, desc: '考前冲刺' },
+  { id: 'relaxed', name: '轻松模式', icon: Pulse, desc: '降低压力' },
+];
+
 // ==================== Helper Components ====================
 
 function ControlSlider({
@@ -265,6 +271,13 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
              <span>生词比例</span>
              <span>{(result.outputStrategy.new_ratio * 100).toFixed(0)}%</span>
           </div>
+          <div className="flex justify-between text-gray-600">
+             <span>学习模式</span>
+             <span className="font-medium text-emerald-600">
+               {result.outputStrategy.difficulty === 'easy' ? '轻松' : 
+                result.outputStrategy.difficulty === 'hard' ? '突击' : '标准'}
+             </span>
+          </div>
         </div>
       </div>
 
@@ -293,6 +306,7 @@ export default function SimulationPage() {
 
   const [injectNoise, setInjectNoise] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState('newUser');
+  const [selectedMode, setSelectedMode] = useState('standard');
 
   const handleScenarioChange = (id: string) => {
     setSelectedScenario(id);
@@ -402,7 +416,30 @@ export default function SimulationPage() {
                 ))}
               </div>
 
-              <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-100">
+              {/* 学习模式选择 */}
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">学习模式</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {LEARNING_MODES.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMode(m.id)}
+                      className={`p-2 rounded-lg text-center transition-all border ${
+                        selectedMode === m.id
+                          ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500'
+                          : 'bg-gray-50 border-transparent hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className={`mb-1 flex justify-center ${selectedMode === m.id ? 'text-emerald-600' : 'text-gray-500'}`}>
+                        <m.icon size={18} weight={selectedMode === m.id ? 'fill' : 'regular'} />
+                      </div>
+                      <div className="font-medium text-gray-700 text-xs">{m.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
                  <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
                    <Warning className="text-amber-500" />
                    注入随机噪声

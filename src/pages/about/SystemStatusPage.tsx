@@ -511,6 +511,28 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
           </div>
         </div>
       </div>
+
+      {/* ACT-R 记忆追踪 */}
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <Brain className="text-purple-500" size={18} />
+          ACT-R 记忆追踪
+        </h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-purple-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-purple-600">20</div>
+            <div className="text-xs text-gray-500">最大追踪记录</div>
+          </div>
+          <div className="bg-indigo-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-indigo-600">0.3</div>
+            <div className="text-xs text-gray-500">错误惩罚因子</div>
+          </div>
+          <div className="bg-rose-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-rose-600">0.5</div>
+            <div className="text-xs text-gray-500">默认衰减率</div>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -538,6 +560,10 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
     abTestEngine: 'A/B 测试引擎',
     offlineReplay: '离线回放',
     delayedReward: '延迟奖励',
+    personalizedHalfLife: '个性化半衰期',
+    multiObjective: '多目标优化',
+    learningModes: '学习模式',
+    wordReviewHistory: '复习历史追踪',
   };
 
   return (

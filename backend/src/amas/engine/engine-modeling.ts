@@ -84,15 +84,18 @@ export class ModelingManager {
    */
   extractAttentionFeatures(featureVec: FeatureVector): AttentionFeatures {
     const v = featureVec.values;
+    const safeGet = (index: number, defaultVal: number = 0) =>
+      index < v.length && Number.isFinite(v[index]) ? v[index] : defaultVal;
+
     return {
-      z_rt_mean: v[0],
-      z_rt_cv: v[1],
-      z_pace_cv: v[2],
-      z_pause: v[3],
-      z_switch: v[4],
-      z_drift: v[5],
-      interaction_density: v[6],
-      focus_loss_duration: v[7]
+      z_rt_mean: safeGet(0),
+      z_rt_cv: safeGet(1),
+      z_pace_cv: safeGet(2),
+      z_pause: safeGet(3),
+      z_switch: safeGet(4),
+      z_drift: safeGet(5),
+      interaction_density: safeGet(6),
+      focus_loss_duration: safeGet(7)
     };
   }
 

@@ -25,6 +25,7 @@ import {
 } from '../../components/Icon';
 import apiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
+import { useToast, ConfirmModal } from '../../components/ui';
 
 // ==================== Types ====================
 
@@ -146,7 +147,10 @@ const ParamCard = ({ name, value, space }: {
 };
 
 const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
-  if (history.length === 0) {
+  // 防御性检查：确保 history 是数组
+  const safeHistory = Array.isArray(history) ? history : [];
+  
+  if (safeHistory.length === 0) {
     return (
       <div className="text-center text-gray-400 py-12">
         <Database size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
@@ -155,13 +159,13 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
     );
   }
 
-  const maxValue = Math.max(...history.map(h => h.value));
-  const minValue = Math.min(...history.map(h => h.value));
+  const maxValue = Math.max(...safeHistory.map(h => h.value));
+  const minValue = Math.min(...safeHistory.map(h => h.value));
   const range = maxValue - minValue;
 
   return (
     <div className="space-y-3">
-      {history.slice(-10).map((item, index) => {
+      {safeHistory.slice(-10).map((item, index) => {
         const height = range > 0 ? ((item.value - minValue) / range) * 100 : 50;
         const date = new Date(item.timestamp).toLocaleString('zh-CN', {
           month: '2-digit',
@@ -194,6 +198,7 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
 // ==================== Main Component ====================
 
 export default function OptimizationDashboard() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'suggestion' | 'history' | 'best' | 'control' | 'diagnostics'>('suggestion');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +217,9 @@ export default function OptimizationDashboard() {
 
   // Diagnostics expand state
   const [expandedDiagnostics, setExpandedDiagnostics] = useState(false);
+
+  // 重置确认对话框状态
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -246,30 +254,27 @@ export default function OptimizationDashboard() {
     try {
       const result = await apiClient.triggerOptimization();
       adminLogger.info({ result }, '优化触发成功');
-      alert('优化已触发：' + JSON.stringify(result));
+      toast.success('优化已触发');
       await loadAllData();
     } catch (e: any) {
       adminLogger.error({ err: e }, '触发优化失败');
-      alert('触发优化失败：' + e.message);
+      toast.error('触发优化失败：' + e.message);
     } finally {
       setTriggering(false);
     }
   };
 
   const handleResetOptimizer = async () => {
-    if (!confirm('确定要重置优化器吗？这将清除所有历史数据。')) {
-      return;
-    }
-
+    setShowResetConfirm(false);
     setResetting(true);
     try {
       const result = await apiClient.resetOptimizer();
       adminLogger.info({ result }, '优化器重置成功');
-      alert('优化器已重置');
+      toast.success('优化器已重置');
       await loadAllData();
     } catch (e: any) {
       adminLogger.error({ err: e }, '重置优化器失败');
-      alert('重置优化器失败：' + e.message);
+      toast.error('重置优化器失败：' + e.message);
     } finally {
       setResetting(false);
     }
@@ -277,13 +282,13 @@ export default function OptimizationDashboard() {
 
   const handleRecordEvaluation = async () => {
     if (!suggestion?.params) {
-      alert('没有可评估的参数建议');
+      toast.error('没有可评估的参数建议');
       return;
     }
 
     const value = parseFloat(evaluationValue);
     if (isNaN(value) || value < 0 || value > 1) {
-      alert('请输入 0-1 之间的有效数值');
+      toast.error('请输入 0-1 之间的有效数值');
       return;
     }
 
@@ -291,11 +296,11 @@ export default function OptimizationDashboard() {
     try {
       await apiClient.recordOptimizationEvaluation(suggestion.params, value);
       adminLogger.info({ params: suggestion.params, value }, '评估记录成功');
-      alert('评估已记录');
+      toast.success('评估已记录');
       await loadAllData();
     } catch (e: any) {
       adminLogger.error({ err: e }, '记录评估失败');
-      alert('记录评估失败：' + e.message);
+      toast.error('记录评估失败：' + e.message);
     } finally {
       setEvaluating(false);
     }
@@ -346,7 +351,7 @@ export default function OptimizationDashboard() {
           label="历史评估次数"
           value={history.length}
           icon={Database}
-          subtext={`最近评估: ${history.length > 0 ? new Date(history[history.length - 1].timestamp).toLocaleString('zh-CN') : '无'}`}
+          subtext={`最近评估: ${Array.isArray(history) && history.length > 0 ? new Date(history[history.length - 1].timestamp).toLocaleString('zh-CN') : '无'}`}
         />
         <MetricCard
           label="最佳性能值"
@@ -612,7 +617,7 @@ export default function OptimizationDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={handleResetOptimizer}
+                    onClick={() => setShowResetConfirm(true)}
                     disabled={resetting}
                     className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -670,6 +675,18 @@ export default function OptimizationDashboard() {
           )}
         </div>
       </div>
+
+      {/* 重置确认对话框 */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetOptimizer}
+        title="确认重置优化器"
+        message="确定要重置优化器吗？这将清除所有历史数据，此操作不可撤销。"
+        confirmText="确认重置"
+        cancelText="取消"
+        variant="danger"
+      />
     </div>
   );
 }

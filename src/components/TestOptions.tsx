@@ -100,7 +100,7 @@ export default function TestOptions({
     >
       {options.map((option, index) => (
         <motion.button
-          key={index}
+          key={`${option}-${index}`}
           ref={(el) => (optionsRef.current[index] = el)}
           onClick={() => !showResult && onSelect(option)}
           onKeyDown={(e) => {

@@ -49,24 +49,40 @@ export interface HabitProfile {
 export type TrendState = 'up' | 'flat' | 'stuck' | 'down';
 
 /**
- * 用户状态向量 - AMAS核心状态
+ * 用户状态向量 - AMAS核心状态（后端格式）
+ *
+ * 此类型使用简写字段名用于后端内部处理和存储。
+ * API 响应通过 utils/state-converter.ts 转换为前端格式。
+ *
+ * 字段映射关系：
+ * - A (Attention)  -> 前端 attention
+ * - F (Fatigue)    -> 前端 fatigue
+ * - M (Motivation) -> 前端 motivation
+ * - C.mem          -> 前端 memory
+ * - C.speed        -> 前端 speed
+ * - C.stability    -> 前端 stability
+ * - conf           -> 前端 confidence
+ * - ts             -> 前端 timestamp
+ *
+ * @see utils/state-converter.ts - toFrontendState(), toBackendState()
+ * @see src/types/amas.ts (前端) - UserState (前端格式，使用全拼字段名)
  */
 export interface UserState {
-  /** 注意力 [0,1] - 0=完全分心, 1=高度专注 */
+  /** 注意力 [0,1] - 0=完全分心, 1=高度专注 - 前端字段: attention */
   A: number;
-  /** 疲劳度 [0,1] - 0=精力充沛, 1=极度疲劳 */
+  /** 疲劳度 [0,1] - 0=精力充沛, 1=极度疲劳 - 前端字段: fatigue */
   F: number;
-  /** 认知能力画像 */
+  /** 认知能力画像 - 前端字段: cognitive, memory, speed, stability */
   C: CognitiveProfile;
-  /** 动机 [-1,1] - -1=极度受挫, 1=高度积极 */
+  /** 动机 [-1,1] - -1=极度受挫, 1=高度积极 - 前端字段: motivation */
   M: number;
   /** 学习习惯画像 (扩展版) */
   H?: HabitProfile;
   /** 长期趋势 (扩展版) */
   T?: TrendState;
-  /** 状态置信度 [0,1] */
+  /** 状态置信度 [0,1] - 前端字段: confidence */
   conf: number;
-  /** 时间戳 */
+  /** 时间戳 - 前端字段: timestamp */
   ts: number;
 }
 
@@ -404,4 +420,33 @@ export interface ObjectiveEvaluation {
   constraintViolations: ConstraintViolation[];
   /** 建议的策略调整 */
   suggestedAdjustments?: Partial<StrategyParams>;
+}
+
+// ==================== 冷启动状态扩展类型 ====================
+
+/**
+ * 冷启动状态数据（从 engine-types 复制以避免循环依赖）
+ */
+export interface ColdStartStateData {
+  /** 当前阶段 */
+  phase: ColdStartPhase;
+  /** 用户类型分类 */
+  userType: UserType | null;
+  /** 当前探测索引 */
+  probeIndex: number;
+  /** 更新计数 */
+  updateCount: number;
+  /** 收敛后的策略 */
+  settledStrategy: StrategyParams | null;
+}
+
+/**
+ * 带有冷启动状态的用户状态扩展类型
+ *
+ * 用于数据库存储和加载时的类型安全，
+ * 避免使用 (state as any).coldStartState
+ */
+export interface UserStateWithColdStart extends UserState {
+  /** 冷启动状态数据（可选） */
+  coldStartState?: ColdStartStateData;
 }

@@ -584,7 +584,15 @@ export class ACTRMemoryModel
     const timeSpan = Math.max(...trace.map(t => t.secondsAgo)) - Math.min(...trace.map(t => t.secondsAgo));
     const countFactor = Math.min(1, reviewCount / 10); // 10次复习达到满置信度
     const timeFactor = Math.min(1, timeSpan / (7 * 24 * 3600)); // 7天跨度达到满置信度
-    const confidence = this.clamp(0.5 * countFactor + 0.5 * timeFactor, 0, 1);
+
+    // 单次复习特殊处理：给予基础置信度0.3
+    // 原因：单次复习时timeSpan=0导致置信度仅为0.05，这不合理
+    // 单次复习虽然信息有限，但仍有一定参考价值
+    const BASE_SINGLE_REVIEW_CONFIDENCE = 0.3;
+    const rawConfidence = 0.5 * countFactor + 0.5 * timeFactor;
+    const confidence = reviewCount === 1
+      ? Math.max(BASE_SINGLE_REVIEW_CONFIDENCE, rawConfidence)
+      : this.clamp(rawConfidence, 0, 1);
 
     return {
       activation,

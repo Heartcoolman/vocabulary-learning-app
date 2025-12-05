@@ -112,6 +112,8 @@ export interface EnsembleState {
   lastVotes?: Record<string, unknown>;
   /** 上一次决策置信度（用于决策轨迹记录） */
   lastConfidence?: number;
+  /** 最近奖励历史（用于计算发散度） */
+  recentRewards?: number[];
 }
 
 /**
@@ -332,7 +334,8 @@ export class EnsembleLearningFramework
       actr: this.actr.getState(),
       heuristic: this.heuristic.getState(),
       lastVotes: this.lastVotes,
-      lastConfidence: this.lastConfidence
+      lastConfidence: this.lastConfidence,
+      recentRewards: [...this.recentRewards]
     };
   }
 
@@ -374,6 +377,11 @@ export class EnsembleLearningFramework
     // 恢复轨迹记录字段
     this.lastVotes = state.lastVotes;
     this.lastConfidence = state.lastConfidence;
+
+    // 恢复最近奖励历史（用于计算发散度）
+    this.recentRewards = Array.isArray(state.recentRewards)
+      ? state.recentRewards.slice(-this.REWARD_HISTORY_SIZE)
+      : [];
 
     // 清空临时状态
     this.lastDecisions = {};
@@ -691,11 +699,14 @@ export class EnsembleLearningFramework
       const currentWeight = this.weights[member];
 
       if (!decision) {
-        // 缺席/异常的成员应用衰减惩罚（向MIN_WEIGHT收敛）
-        // 使用0.95的衰减因子，使权重逐渐降低
-        const ABSENCE_DECAY = 0.95;
+        // 缺席/异常的成员应用衰减惩罚（向MIN_WEIGHT*2收敛）
+        // 使用0.98的温和衰减因子，避免权重降低过快
+        // 原0.95衰减过于激进（20次后权重降到36%），现在改为0.98
+        // 20次后权重约降到67%，更加温和
+        const ABSENCE_DECAY = 0.98;
+        const ABSENCE_MIN = MIN_WEIGHT * 2; // 下限提高到MIN_WEIGHT*2，保留恢复空间
         const decayed = currentWeight * ABSENCE_DECAY;
-        updated[member] = Math.max(MIN_WEIGHT, decayed);
+        updated[member] = Math.max(ABSENCE_MIN, decayed);
         continue;
       }
 
@@ -711,7 +722,7 @@ export class EnsembleLearningFramework
       const gradient = reward * aligned * (0.5 + confidence / 2);
 
       // 指数加权更新（使用自适应学习率）
-      const raw = currentWeight * Math.exp(adaptiveLR * gradient * normalizedWeight);
+      const raw = currentWeight * Math.exp(adaptiveLR * gradient);
       updated[member] = Math.max(MIN_WEIGHT, raw);
     }
 
@@ -829,9 +840,17 @@ export class EnsembleLearningFramework
     // 如果归一化后有权重低于 MIN_WEIGHT，需要重新调整
     const belowMin = Object.entries(normalized).filter(([_, v]) => v < MIN_WEIGHT);
     if (belowMin.length > 0) {
-      // 将低于最小值的权重提升到 MIN_WEIGHT，其余按比例缩放
+      // 计算需要分配给低于最小值成员的总量
       const minTotal = belowMin.length * MIN_WEIGHT;
       const remainingTotal = 1 - minTotal;
+
+      // 边界情况: 当 belowMin.length >= 4 时，所有成员都低于 MIN_WEIGHT
+      // 或者 remainingTotal <= 0（例如所有权重都极低）
+      // 此时回退到初始权重
+      if (remainingTotal <= 0 || belowMin.length >= 4) {
+        return { ...INITIAL_WEIGHTS };
+      }
+
       const aboveMinTotal = Object.entries(normalized)
         .filter(([_, v]) => v >= MIN_WEIGHT)
         .reduce((sum, [_, v]) => sum + v, 0);

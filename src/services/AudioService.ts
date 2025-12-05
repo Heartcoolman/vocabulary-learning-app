@@ -59,7 +59,7 @@ class AudioService {
     return new Promise((resolve, reject) => {
       // 尝试从缓存获取
       let audio = this.audioCache.get(word);
-      
+
       if (!audio) {
         audio = new Audio(url);
         audio.preload = 'auto';
@@ -72,19 +72,37 @@ class AudioService {
       // 重置播放位置
       audio.currentTime = 0;
 
-      audio.onended = () => {
+      // 定义事件处理函数
+      const onEnded = () => {
         this.isPlaying = false;
         this.currentAudio = null;
+        // 清理事件监听器，避免内存泄漏
+        audio!.removeEventListener('ended', onEnded);
+        audio!.removeEventListener('error', onError);
         resolve();
       };
 
-      audio.onerror = () => {
+      const onError = () => {
         this.isPlaying = false;
         this.currentAudio = null;
+        // 清理事件监听器，避免内存泄漏
+        audio!.removeEventListener('ended', onEnded);
+        audio!.removeEventListener('error', onError);
         reject(new Error('音频加载失败'));
       };
 
-      audio.play().catch(reject);
+      // 使用 addEventListener 并在回调中手动移除，确保缓存的音频对象每次播放都能正确触发事件
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('error', onError);
+
+      audio.play().catch((err) => {
+        // 播放失败时也要清理事件监听器
+        audio!.removeEventListener('ended', onEnded);
+        audio!.removeEventListener('error', onError);
+        this.isPlaying = false;
+        this.currentAudio = null;
+        reject(err);
+      });
     });
   }
 

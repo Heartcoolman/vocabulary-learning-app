@@ -4,10 +4,26 @@
  */
 
 import { Router } from 'express';
+import { z } from 'zod';
 import { LearningObjectivesService } from '../services/learning-objectives.service';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { validateBody } from '../middleware/validate.middleware';
 import { AuthRequest } from '../types';
 import { LearningObjectiveMode } from '../amas/types';
+
+/**
+ * 更新学习目标的 Zod Schema
+ */
+const updateLearningObjectivesSchema = z.object({
+  mode: z.enum(['exam', 'daily', 'travel', 'custom']).optional(),
+  primaryObjective: z.enum(['vocabulary', 'retention', 'speed', 'balanced']).optional(),
+  minAccuracy: z.number().min(0).max(100).optional(),
+  maxDailyTime: z.number().min(5).max(480).optional(), // 5分钟到8小时
+  targetRetention: z.number().min(0).max(100).optional(),
+  weightShortTerm: z.number().min(0).max(1).optional(),
+  weightLongTerm: z.number().min(0).max(1).optional(),
+  weightEfficiency: z.number().min(0).max(1).optional(),
+});
 
 const router = Router();
 
@@ -40,30 +56,33 @@ router.get('/', authMiddleware, async (req: AuthRequest, res, next) => {
  * PUT /api/learning-objectives
  * 更新用户学习目标配置
  */
-router.put('/', authMiddleware, async (req: AuthRequest, res, next) => {
+router.put('/', authMiddleware, validateBody(updateLearningObjectivesSchema), async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const {
-      mode,
-      primaryObjective,
-      minAccuracy,
-      maxDailyTime,
-      targetRetention,
-      weightShortTerm,
-      weightLongTerm,
-      weightEfficiency
-    } = req.body;
+    const validatedData = req.validatedBody as z.infer<typeof updateLearningObjectivesSchema>;
+
+    // 获取现有配置作为默认值
+    const existingObjectives = await LearningObjectivesService.getUserObjectives(userId);
+    const defaultConfig = existingObjectives || {
+      mode: 'daily' as LearningObjectiveMode,
+      primaryObjective: 'accuracy' as const,
+      weightShortTerm: 0.4,
+      weightLongTerm: 0.4,
+      weightEfficiency: 0.2,
+    };
 
     const objectives = await LearningObjectivesService.upsertUserObjectives({
       userId,
-      mode,
-      primaryObjective,
-      minAccuracy,
-      maxDailyTime,
-      targetRetention,
-      weightShortTerm,
-      weightLongTerm,
-      weightEfficiency
+      mode: validatedData.mode || defaultConfig.mode,
+      primaryObjective: (validatedData.primaryObjective === 'vocabulary' ? 'retention' :
+                        validatedData.primaryObjective === 'balanced' ? 'accuracy' :
+                        validatedData.primaryObjective || defaultConfig.primaryObjective) as 'accuracy' | 'retention' | 'efficiency',
+      minAccuracy: validatedData.minAccuracy,
+      maxDailyTime: validatedData.maxDailyTime,
+      targetRetention: validatedData.targetRetention,
+      weightShortTerm: validatedData.weightShortTerm ?? defaultConfig.weightShortTerm,
+      weightLongTerm: validatedData.weightLongTerm ?? defaultConfig.weightLongTerm,
+      weightEfficiency: validatedData.weightEfficiency ?? defaultConfig.weightEfficiency,
     });
 
     res.json({

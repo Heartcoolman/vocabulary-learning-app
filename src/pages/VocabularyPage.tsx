@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/ApiClient';
-import { WordBook } from '../types/models';
-import { Books, CircleNotch } from '../components/Icon';
+import { WordBook, Word } from '../types/models';
+import { Books, CircleNotch, MagnifyingGlass, X } from '../components/Icon';
 import { useToast, Modal } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
+
+// 搜索结果类型
+type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
 
 /**
  * VocabularyPage - 词库管理页面（重构为词书列表）
@@ -30,9 +33,50 @@ export default function VocabularyPage() {
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 搜索相关状态
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
   useEffect(() => {
     loadWordBooks();
   }, []);
+
+  // 防抖搜索
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+    try {
+      const results = await apiClient.searchWords(query);
+      setSearchResults(results);
+    } catch (err) {
+      uiLogger.error({ err }, '搜索单词失败');
+      toast.error('搜索失败');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [toast]);
+
+  // 防抖处理
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, handleSearch]);
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
 
   const loadWordBooks = async () => {
     try {
@@ -174,6 +218,83 @@ export default function VocabularyPage() {
           >
             + 新建词书
           </button>
+        )}
+      </div>
+
+      {/* 搜索框 */}
+      <div className="mb-6 relative">
+        <div className="relative">
+          <MagnifyingGlass
+            size={20}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索单词..."
+            className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* 搜索结果下拉 */}
+        {showSearchResults && (
+          <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-96 overflow-y-auto">
+            {isSearching ? (
+              <div className="p-4 text-center text-gray-500">
+                <CircleNotch className="animate-spin mx-auto mb-2" size={24} />
+                搜索中...
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                未找到匹配的单词
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {searchResults.map((word) => (
+                  <div
+                    key={word.id}
+                    onClick={() => {
+                      if (word.wordBook) {
+                        navigate(`/wordbooks/${word.wordBook.id}`);
+                        clearSearch();
+                      }
+                    }}
+                    className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900">{word.spelling}</div>
+                        {word.phonetic && (
+                          <div className="text-sm text-gray-500">{word.phonetic}</div>
+                        )}
+                        <div className="text-sm text-gray-600 mt-1">
+                          {word.meanings.slice(0, 2).join('；')}
+                        </div>
+                      </div>
+                      {word.wordBook && (
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          word.wordBook.type === 'SYSTEM'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-green-100 text-green-600'
+                        }`}>
+                          {word.wordBook.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

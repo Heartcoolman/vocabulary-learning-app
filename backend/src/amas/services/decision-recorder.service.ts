@@ -23,6 +23,7 @@ import {
   recordBackpressureTimeout
 } from '../../monitoring/amas-metrics';
 import { amasLogger } from '../../logger';
+import { decisionEventsService } from '../../services/decision-events.service';
 
 // ==================== 类型定义 ====================
 
@@ -72,11 +73,19 @@ const BACKPRESSURE_TIMEOUT_MS = 5000; // 5秒超时
 
 // ==================== 服务实现 ====================
 
+/**
+ * 背压等待者包装器，使用唯一标识符追踪
+ */
+interface BackpressureWaiter {
+  id: symbol;
+  resolve: () => void;
+}
+
 export class DecisionRecorderService {
   private queue: DecisionTrace[] = [];
   private flushing = false;
   private flushTimer: NodeJS.Timeout | null = null;
-  private backpressureWaiters: Array<() => void> = [];
+  private backpressureWaiters: Map<symbol, () => void> = new Map();
 
   constructor(private prisma: PrismaClient) {
     this.startPeriodicFlush();
@@ -159,6 +168,17 @@ export class DecisionRecorderService {
         // 记录成功指标
         const durationMs = Date.now() - startTime;
         recordWriteSuccess(durationMs);
+
+        // 发射决策事件（用于 SSE 实时推送）
+        decisionEventsService.emitDecision({
+          decisionId: trace.decisionId,
+          userId: trace.userId,
+          timestamp: trace.timestamp,
+          decisionSource: trace.decisionSource,
+          selectedAction: trace.selectedAction,
+          stateSnapshot: trace.stateSnapshot,
+          isSimulation: trace.isSimulation
+        });
 
         return; // 成功
       } catch (error) {
@@ -256,6 +276,7 @@ export class DecisionRecorderService {
         await tx.pipelineStage.createMany({
           data: trace.stages.map(stage => ({
             decisionRecordId: record.id,
+            decisionRecordTimestamp: record.timestamp, // 复合主键所需的 timestamp 字段
             stage: stage.stage,
             stageName: stage.stageName,
             status: stage.status,
@@ -315,6 +336,8 @@ export class DecisionRecorderService {
 
   /**
    * 队列回压控制（带超时保护）
+   *
+   * Bug修复：使用Symbol唯一标识符追踪等待者，避免数组索引不稳定问题
    */
   private async enforceBackpressure(): Promise<void> {
     if (this.queue.length < MAX_QUEUE_SIZE) {
@@ -324,13 +347,23 @@ export class DecisionRecorderService {
     // 记录回压事件
     recordBackpressure();
 
-    // 带超时的等待
+    // 使用Symbol作为唯一标识符，避免数组索引不稳定
+    const waiterId = Symbol('backpressure-waiter');
+    let isResolved = false;
+
     await Promise.race([
       new Promise<void>(resolve => {
-        this.backpressureWaiters.push(resolve);
+        this.backpressureWaiters.set(waiterId, () => {
+          isResolved = true;
+          resolve();
+        });
       }),
       new Promise<void>((_, reject) => {
         setTimeout(() => {
+          // 超时时使用Symbol删除等待者，确保精确移除
+          if (!isResolved) {
+            this.backpressureWaiters.delete(waiterId);
+          }
           reject(new Error('Backpressure timeout: queue is persistently full'));
         }, BACKPRESSURE_TIMEOUT_MS);
       })
@@ -339,11 +372,16 @@ export class DecisionRecorderService {
 
   /**
    * 释放回压等待者
+   *
+   * Bug修复：使用Map迭代器按FIFO顺序释放第一个等待者
    */
   private releaseBackpressure(): void {
-    const waiter = this.backpressureWaiters.shift();
-    if (waiter) {
-      waiter();
+    // Map按插入顺序迭代，获取第一个等待者（FIFO）
+    const firstEntry = this.backpressureWaiters.entries().next();
+    if (!firstEntry.done) {
+      const [waiterId, resolve] = firstEntry.value;
+      this.backpressureWaiters.delete(waiterId);
+      resolve();
     }
   }
 
@@ -430,7 +468,7 @@ export class DecisionRecorderService {
     return {
       queueLength: this.queue.length,
       isFlushing: this.flushing,
-      backpressureWaiters: this.backpressureWaiters.length
+      backpressureWaiters: this.backpressureWaiters.size
     };
   }
 }

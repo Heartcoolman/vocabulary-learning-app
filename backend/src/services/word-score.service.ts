@@ -9,6 +9,9 @@ import prisma from '../config/database';
 
 
 export class WordScoreService {
+  // 空值标记，用于缓存穿透防护
+  private static readonly NULL_MARKER = '__NULL__';
+
   /**
    * Compute a lightweight score used by unit tests.
    */
@@ -16,10 +19,9 @@ export class WordScoreService {
     userId: string,
     wordId: string
   ): Promise<{ userId: string; wordId: string; score: number }> {
-    const records =
-      (await (prisma as any).learningRecord?.findMany({
-        where: { userId, wordId }
-      })) ?? [];
+    const records = await prisma.answerRecord.findMany({
+      where: { userId, wordId }
+    });
 
     if (records.length === 0) {
       return { userId, wordId, score: 0 };
@@ -69,13 +71,18 @@ export class WordScoreService {
 
   /**
    * 获取单词得分（带缓存）
+   * 修复问题: 添加空值缓存防止缓存穿透
    */
   async getWordScore(userId: string, wordId: string): Promise<WordScore | null> {
     const cacheKey = CacheKeys.WORD_SCORE(userId, wordId);
 
     // 尝试从缓存获取
-    const cached = cacheService.get<WordScore>(cacheKey);
-    if (cached) {
+    const cached = cacheService.get<WordScore | typeof WordScoreService.NULL_MARKER>(cacheKey);
+    if (cached !== null) {
+      // 如果是空值标记，返回null
+      if (cached === WordScoreService.NULL_MARKER) {
+        return null;
+      }
       return cached;
     }
 
@@ -89,9 +96,12 @@ export class WordScoreService {
       }
     });
 
-    // 存入缓存
+    // 存入缓存（包括空值）
     if (score) {
       cacheService.set(cacheKey, score, CacheTTL.WORD_SCORE);
+    } else {
+      // 缓存空值，使用较短的TTL防止数据长期不一致
+      cacheService.set(cacheKey, WordScoreService.NULL_MARKER, CacheTTL.NULL_CACHE);
     }
 
     return score;
@@ -99,18 +109,26 @@ export class WordScoreService {
 
   /**
    * 批量获取单词得分（带缓存）
+   * 修复: 正确处理空值标记，与getWordScore方法保持一致
    */
   async batchGetWordScores(userId: string, wordIds: string[]): Promise<Map<string, WordScore>> {
     const result = new Map<string, WordScore>();
     const uncachedWordIds: string[] = [];
+    const nullCachedWordIds: string[] = []; // 已知为空的单词ID（命中空值缓存）
 
     // 先从缓存获取
     for (const wordId of wordIds) {
       const cacheKey = CacheKeys.WORD_SCORE(userId, wordId);
-      const cached = cacheService.get<WordScore>(cacheKey);
+      const cached = cacheService.get<WordScore | typeof WordScoreService.NULL_MARKER>(cacheKey);
 
-      if (cached) {
-        result.set(wordId, cached);
+      if (cached !== null) {
+        // 检查是否为空值标记
+        if (cached === WordScoreService.NULL_MARKER) {
+          // 空值缓存命中，不需要查询数据库，也不添加到结果
+          nullCachedWordIds.push(wordId);
+        } else {
+          result.set(wordId, cached);
+        }
       } else {
         uncachedWordIds.push(wordId);
       }
@@ -125,11 +143,22 @@ export class WordScoreService {
         }
       });
 
+      // 构建查询结果的wordId集合
+      const foundWordIds = new Set(scores.map(s => s.wordId));
+
       // 存入缓存和结果
       for (const score of scores) {
         const cacheKey = CacheKeys.WORD_SCORE(userId, score.wordId);
         cacheService.set(cacheKey, score, CacheTTL.WORD_SCORE);
         result.set(score.wordId, score);
+      }
+
+      // 为未找到的单词缓存空值标记，防止缓存穿透
+      for (const wordId of uncachedWordIds) {
+        if (!foundWordIds.has(wordId)) {
+          const cacheKey = CacheKeys.WORD_SCORE(userId, wordId);
+          cacheService.set(cacheKey, WordScoreService.NULL_MARKER, CacheTTL.NULL_CACHE);
+        }
       }
     }
 

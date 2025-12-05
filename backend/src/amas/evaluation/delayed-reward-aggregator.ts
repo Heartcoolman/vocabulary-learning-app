@@ -148,14 +148,29 @@ export class DelayedRewardAggregator {
   private idSequence = 0;
 
   constructor(schedule: RewardSchedule[] = DEFAULT_SCHEDULE) {
-    // 验证权重和为1
+    // 验证并归一化权重
     const totalWeight = schedule.reduce((sum, s) => sum + s.weight, 0);
-    if (Math.abs(totalWeight - 1.0) > 0.01) {
-      amasLogger.warn({ totalWeight }, '[DelayedRewardAggregator] 权重和建议为1.0');
+    if (Math.abs(totalWeight - 1.0) > 0.001) {
+      // 权重和不为1时进行归一化处理，而非仅警告
+      if (totalWeight > 0) {
+        this.schedule = schedule.map(s => ({
+          ...s,
+          weight: s.weight / totalWeight
+        }));
+        amasLogger.info(
+          { originalTotal: totalWeight },
+          '[DelayedRewardAggregator] 权重和不为1，已自动归一化'
+        );
+      } else {
+        // 所有权重为0时使用默认配置
+        this.schedule = [...DEFAULT_SCHEDULE];
+        amasLogger.warn('[DelayedRewardAggregator] 所有权重为0，使用默认配置');
+      }
+    } else {
+      this.schedule = schedule;
     }
 
-    this.schedule = schedule;
-    this.maxDelaySec = Math.max(...schedule.map(s => s.delaySec));
+    this.maxDelaySec = Math.max(...this.schedule.map(s => s.delaySec));
   }
 
   // ==================== 核心API ====================
@@ -203,13 +218,84 @@ export class DelayedRewardAggregator {
 
     this.queue.push(event);
 
-    // 队列容量保护
+    // 队列容量保护：优先淘汰已大部分发放的事件，而非简单截断最旧的
     if (this.queue.length > MAX_QUEUE_SIZE) {
-      amasLogger.warn({ maxSize: MAX_QUEUE_SIZE }, '[DelayedRewardAggregator] 队列超限，移除最旧事件');
-      this.queue = this.queue.slice(-MAX_QUEUE_SIZE);
+      this.pruneQueue();
     }
 
     return eventId;
+  }
+
+  /**
+   * 智能修剪队列
+   *
+   * 策略:
+   * 1. 优先移除已大部分发放的事件（>90%已发放）
+   * 2. 其次移除过期事件
+   * 3. 最后才移除最旧的事件
+   *
+   * 这样可以避免丢失未发放的长期奖励
+   */
+  private pruneQueue(): void {
+    const now = Date.now();
+    const targetSize = Math.floor(MAX_QUEUE_SIZE * 0.9); // 修剪到90%容量
+
+    // 计算每个事件的发放进度
+    const eventsWithProgress = this.queue.map(event => {
+      const totalTarget = this.schedule.reduce(
+        (sum, s) => sum + Math.abs(s.weight * event.reward),
+        0
+      );
+      const totalDelivered = event.delivered.reduce(
+        (sum, d) => sum + Math.abs(d),
+        0
+      );
+      const progress = totalTarget > 0 ? totalDelivered / totalTarget : 1;
+      const age = now - event.timestamp;
+      const isExpired = age > MAX_EVENT_AGE_MS;
+
+      return { event, progress, age, isExpired };
+    });
+
+    // 排序优先级：
+    // 1. 已过期的排在前面（优先移除）
+    // 2. 发放进度高的排在前面（优先移除）
+    // 3. 同等进度时，年龄大的排在前面
+    eventsWithProgress.sort((a, b) => {
+      // 过期事件优先移除
+      if (a.isExpired !== b.isExpired) {
+        return a.isExpired ? -1 : 1;
+      }
+      // 发放进度高的优先移除
+      if (Math.abs(a.progress - b.progress) > 0.1) {
+        return b.progress - a.progress;
+      }
+      // 同等进度时，年龄大的优先移除
+      return b.age - a.age;
+    });
+
+    // 保留后面的事件（发放进度低、未过期、较新的）
+    const eventsToKeep = eventsWithProgress
+      .slice(-(targetSize))
+      .map(e => e.event);
+
+    const removedCount = this.queue.length - eventsToKeep.length;
+    const removedHighProgress = eventsWithProgress
+      .slice(0, removedCount)
+      .filter(e => e.progress > 0.9).length;
+
+    amasLogger.info(
+      {
+        originalSize: this.queue.length,
+        newSize: eventsToKeep.length,
+        removedTotal: removedCount,
+        removedHighProgress,
+        maxSize: MAX_QUEUE_SIZE
+      },
+      '[DelayedRewardAggregator] 队列已修剪，优先移除高发放进度事件'
+    );
+
+    this.queue = eventsToKeep;
   }
 
   /**
@@ -267,16 +353,24 @@ export class DelayedRewardAggregator {
 
         totalDelivered += event.delivered[i];
 
-        // 检查是否完全发放
-        if (event.delivered[i] < weight * event.reward - 1e-9) {
-          fullyDelivered = false;
+        // 检查是否完全发放 - 考虑正负奖励
+        const targetValue = weight * event.reward;
+        if (event.reward >= 0) {
+          if (event.delivered[i] < targetValue - 1e-9) {
+            fullyDelivered = false;
+          }
+        } else {
+          if (event.delivered[i] > targetValue + 1e-9) {
+            fullyDelivered = false;
+          }
         }
       }
 
       // 记录分解
       if (Math.abs(incrementSum) > 1e-9) {
         const remainingReward = event.reward - totalDelivered;
-        const progress = totalDelivered / (Math.abs(event.reward) || 1);
+        // 修复负奖励进度计算：使用绝对值确保进度正确
+        const progress = Math.abs(totalDelivered) / (Math.abs(event.reward) || 1);
 
         breakdown.push({
           eventId: event.id,
@@ -291,8 +385,9 @@ export class DelayedRewardAggregator {
         totalIncrement += incrementSum;
       }
 
-      // 保留未完成的事件
-      if (!fullyDelivered || elapsedSec < this.maxDelaySec) {
+      // 保留未完成的事件（使用 AND 逻辑：未完成 且 未超时）
+      // 已完成的事件应该立即移除，不需要等待 maxDelaySec
+      if (!fullyDelivered && elapsedSec < this.maxDelaySec) {
         remaining.push(event);
       }
     }

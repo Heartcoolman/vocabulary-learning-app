@@ -244,6 +244,7 @@ class MasteryLearningService {
       const overdueDays = state.nextReviewDate
         ? (now.getTime() - state.nextReviewDate.getTime()) / 86400000
         : 0;
+      // 使用 WordScore 的 totalAttempts 和 correctAttempts 字段计算错误率
       const errorRate = score && score.totalAttempts > 0
         ? 1 - (score.correctAttempts / score.totalAttempts)
         : 0;
@@ -342,9 +343,16 @@ class MasteryLearningService {
       w => w.difficulty >= difficultyRange.min && w.difficulty <= difficultyRange.max
     );
 
-    // 如果筛选后不足，放宽条件
+    // Bug Fix: 如果筛选后不足，优先返回符合条件的，不足部分用其他单词补充（避免重复）
     if (filtered.length < count) {
-      return wordsWithDifficulty.slice(0, count);
+      // 获取已筛选单词的ID集合
+      const filteredIds = new Set(filtered.map(w => w.id));
+      // 从原列表中找出不在filtered中的单词作为补充
+      const remaining = wordsWithDifficulty.filter(w => !filteredIds.has(w.id));
+      // 需要补充的数量
+      const needCount = count - filtered.length;
+      // 合并：优先使用符合条件的，再用其他单词补充
+      return [...filtered, ...remaining.slice(0, needCount)];
     }
 
     return filtered.slice(0, count);
@@ -544,7 +552,11 @@ class MasteryLearningService {
 
         return sessionId;
       }
-      // 会话不存在,忽略客户端提供的ID,创建新会话
+      // Bug Fix: 客户端sessionId不存在时添加警告日志
+      logger.warn(
+        `[MasteryLearning] 客户端提供的sessionId不存在，将创建新会话: ` +
+        `clientSessionId=${sessionId}, userId=${userId}`
+      );
     }
 
     // 创建新会话

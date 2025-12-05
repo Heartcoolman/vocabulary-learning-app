@@ -226,7 +226,49 @@ export class WordService {
   }
 
   /**
+   * 搜索单词 - 在所有词书中搜索匹配的单词
+   * @param query 搜索关键词
+   * @param limit 返回结果数量限制，默认20
+   */
+  async searchWords(query: string, limit: number = 20) {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const searchTerm = query.trim().toLowerCase();
+
+    // 搜索单词拼写或释义中包含关键词的单词
+    const words = await prisma.word.findMany({
+      where: {
+        OR: [
+          { spelling: { contains: searchTerm, mode: 'insensitive' } },
+          { meanings: { hasSome: [searchTerm] } },
+        ],
+      },
+      include: {
+        wordBook: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+      take: limit,
+      orderBy: [
+        // 完全匹配优先
+        { spelling: 'asc' },
+      ],
+    });
+
+    return words;
+  }
+
+  /**
    * @deprecated 使用 WordBookService.batchImportWords() 代替
+   *
+   * 修复 Bug #39: 按词书ID分组统计，批量更新各词书的计数
+   * 原问题：只更新默认词书计数，其他词书不更新
    */
   async batchCreateWords(
     userId: string,
@@ -249,6 +291,13 @@ export class WordService {
       });
     }
 
+    // 按词书ID分组统计单词数量
+    const wordCountByBookId = new Map<string, number>();
+    for (const word of words) {
+      const bookId = word.wordBookId || defaultWordBook.id;
+      wordCountByBookId.set(bookId, (wordCountByBookId.get(bookId) || 0) + 1);
+    }
+
     const createdWords = await prisma.$transaction(
       words.map((word) =>
         prisma.word.create({
@@ -266,11 +315,15 @@ export class WordService {
       )
     );
 
-    // 更新词书单词计数
-    await prisma.wordBook.update({
-      where: { id: defaultWordBook.id },
-      data: { wordCount: { increment: words.length } },
-    });
+    // 批量更新各词书的单词计数
+    const updatePromises = Array.from(wordCountByBookId.entries()).map(
+      ([bookId, count]) =>
+        prisma.wordBook.update({
+          where: { id: bookId },
+          data: { wordCount: { increment: count } },
+        })
+    );
+    await Promise.all(updatePromises);
 
     return createdWords;
   }

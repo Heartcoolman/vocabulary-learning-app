@@ -17,6 +17,8 @@ import { serviceLogger } from '../logger';
 const BATCH_SIZE = 50;
 /** 最大重试次数 */
 const MAX_RETRY = 3;
+/** PROCESSING状态超时时间（毫秒）- 5分钟 */
+const PROCESSING_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
  * 入队延迟奖励参数
@@ -76,6 +78,35 @@ export class DelayedRewardService {
   }
 
   /**
+   * 恢复超时的PROCESSING任务
+   * 将超过超时时间的PROCESSING状态任务重置为PENDING
+   * @returns 恢复的任务数量
+   */
+  async recoverStuckProcessingTasks(): Promise<number> {
+    const timeoutThreshold = new Date(Date.now() - PROCESSING_TIMEOUT_MS);
+
+    const result = await prisma.rewardQueue.updateMany({
+      where: {
+        status: RewardStatus.PROCESSING,
+        updatedAt: { lt: timeoutThreshold }
+      },
+      data: {
+        status: RewardStatus.PENDING,
+        lastError: 'Recovered from stuck PROCESSING state (timeout)',
+        updatedAt: new Date()
+      }
+    });
+
+    if (result.count > 0) {
+      serviceLogger.warn(
+        `Recovered ${result.count} stuck PROCESSING tasks (timeout: ${PROCESSING_TIMEOUT_MS}ms)`
+      );
+    }
+
+    return result.count;
+  }
+
+  /**
    * 处理待处理的奖励 (Worker调用)
    * 使用事务 + SELECT FOR UPDATE SKIP LOCKED 实现原子抢占，避免多Worker竞争
    * @param handler 奖励应用处理器（必需）
@@ -85,6 +116,10 @@ export class DelayedRewardService {
       serviceLogger.error('handler is required but not provided');
       return;
     }
+
+    // 首先恢复超时的PROCESSING任务
+    await this.recoverStuckProcessingTasks();
+
     const now = new Date();
 
     // 使用事务和行锁实现原子抢占，避免TOCTOU竞态条件
@@ -119,40 +154,43 @@ export class DelayedRewardService {
 
     // 逐个处理任务
     for (const task of tasks) {
-      const attempts = this.parseAttempts(task.lastError);
+      // 使用独立的 retryCount 字段，兼容旧数据（从 lastError 解析）
+      const currentRetryCount = task.retryCount ?? this.parseAttempts(task.lastError);
 
       try {
         // 应用奖励
         await handler(task);
 
-        // 标记为完成
+        // 标记为完成，重置重试计数
         await prisma.rewardQueue.update({
           where: { id: task.id },
           data: {
             status: RewardStatus.DONE,
             lastError: null,
+            retryCount: 0,
             updatedAt: new Date()
           }
         });
       } catch (err) {
-        const nextAttempts = attempts + 1;
-        const isFailed = nextAttempts >= MAX_RETRY;
+        const nextRetryCount = currentRetryCount + 1;
+        const isFailed = nextRetryCount >= MAX_RETRY;
         const nextStatus = isFailed ? RewardStatus.FAILED : RewardStatus.PENDING;
 
         // 退避重试: 1min, 2min, 3min...
         const nextDue = isFailed
           ? task.dueTs
-          : new Date(Date.now() + Math.min(5, nextAttempts) * 60_000);
+          : new Date(Date.now() + Math.min(5, nextRetryCount) * 60_000);
 
-        const message = this.formatError(err, nextAttempts, isFailed);
+        const message = this.formatError(err, nextRetryCount, isFailed);
 
-        // 更新任务状态
+        // 更新任务状态，使用独立的 retryCount 字段
         await prisma.rewardQueue.update({
           where: { id: task.id },
           data: {
             status: nextStatus,
             dueTs: nextDue,
             lastError: message,
+            retryCount: nextRetryCount,
             updatedAt: new Date()
           }
         });
@@ -173,7 +211,8 @@ export class DelayedRewardService {
   }
 
   /**
-   * 从错误信息解析重试次数
+   * 从错误信息解析重试次数（向后兼容）
+   * @deprecated 推荐使用独立的 retryCount 字段。此方法仅用于兼容迁移前的旧数据。
    */
   private parseAttempts(lastError?: string | null): number {
     if (!lastError) return 0;

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Flask, ArrowRight, CheckCircle, WarningCircle, CircleNotch } from '@phosphor-icons/react';
 import { explainabilityApi } from '../../services/explainabilityApi';
 import type { CounterfactualResult } from '../../types/explainability';
 import { amasLogger } from '../../utils/logger';
 
 interface CounterfactualPanelProps {
-  currentWordId: string;
   decisionId?: string;
 }
 
@@ -13,6 +12,9 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
   const [isSimulating, setIsSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CounterfactualResult | null>(null);
+
+  // 用于请求取消的 AbortController 引用
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 状态覆盖值
   const [overrides, setOverrides] = useState({
@@ -22,7 +24,24 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
     recentAccuracy: 0.75
   });
 
+  // 组件卸载时取消正在进行的请求
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const handleSimulate = async () => {
+    // 取消之前的请求（如果存在）
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 创建新的 AbortController
+    abortControllerRef.current = new AbortController();
+
     setIsSimulating(true);
     setError(null);
     try {
@@ -30,12 +49,25 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
         decisionId,
         overrides
       });
+
+      // 检查请求是否已被取消
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       setResult(response);
     } catch (err) {
+      // 如果是取消错误，不显示错误信息
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       amasLogger.error({ err, decisionId, overrides }, '反事实分析失败');
       setError('分析失败，请稍后重试');
     } finally {
-      setIsSimulating(false);
+      // 只有在请求未被取消时才更新 loading 状态
+      if (!abortControllerRef.current?.signal.aborted) {
+        setIsSimulating(false);
+      }
     }
   };
 
@@ -55,7 +87,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
         min="0"
         max="100"
         value={value * 100}
-        onChange={(e) => setOverrides(prev => ({ ...prev, [key]: parseInt(e.target.value) / 100 }))}
+        onChange={(e) => setOverrides(prev => ({ ...prev, [key]: Number(e.target.value) / 100 }))}
         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
       />
       <p className="text-xs text-gray-500">{description}</p>

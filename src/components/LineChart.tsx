@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 export interface LineChartData {
   date: string;
@@ -22,18 +22,37 @@ const LineChart: React.FC<LineChartProps> = ({
   const [dimensions, setDimensions] = useState({ width: 600, height });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 使用debounce优化resize事件处理，避免频繁重渲染
+  const updateDimensions = useCallback(() => {
+    if (containerRef.current) {
+      const width = containerRef.current.offsetWidth;
+      setDimensions({ width, height });
+    }
+  }, [height]);
+
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const width = containerRef.current.offsetWidth;
-        setDimensions({ width, height });
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const debouncedUpdateDimensions = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
+      timeoutId = setTimeout(() => {
+        updateDimensions();
+      }, 150); // 150ms debounce延迟
     };
 
+    // 初始化时立即更新尺寸
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, [height]);
+
+    window.addEventListener('resize', debouncedUpdateDimensions);
+    return () => {
+      window.removeEventListener('resize', debouncedUpdateDimensions);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [updateDimensions]);
 
   if (!data || data.length === 0) {
     return (

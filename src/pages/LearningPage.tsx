@@ -6,13 +6,11 @@ import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
 import { LearningModeSelector } from '../components/LearningModeSelector';
 import ExplainabilityModal from '../components/explainability/ExplainabilityModal';
-import TodayWordsCard from '../components/learning/TodayWordsCard';
 import AudioService from '../services/AudioService';
 import LearningService from '../services/LearningService';
 import { Confetti, Books, CircleNotch, Clock, WarningCircle, Brain, ChartPie, Lightbulb } from '../components/Icon';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { learningLogger } from '../utils/logger';
-import { Word } from '../types/models';
 
 
 export default function LearningPage() {
@@ -25,7 +23,6 @@ export default function LearningPage() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
-  const [showTodayWords, setShowTodayWords] = useState(true);
 
   // 追踪对话框打开的时间（用于暂停疲劳度计算）
   const [dialogPausedTime, setDialogPausedTime] = useState(0);
@@ -93,6 +90,11 @@ export default function LearningPage() {
     updatedAt: 0
   })), [allWords]);
 
+  // 用于跟踪当前题目，防止同一单词重复出现时选项不更新
+  const [questionIndex, setQuestionIndex] = useState(0);
+
+  // 当 currentWord 或 questionIndex 变化时重新生成选项
+  // questionIndex 用于处理同一单词连续出现的情况
   useEffect(() => {
     if (!currentWord) return;
 
@@ -110,13 +112,26 @@ export default function LearningPage() {
       setTestOptions(options);
     } catch (e) {
       learningLogger.warn({ err: e, wordId: currentWord.id }, '生成测试选项失败，使用备用方案');
-      setTestOptions([currentWord.meanings[0]]);
+      // 回退方案：确保至少2个选项，使用预设干扰项
+      const correctAnswer = currentWord.meanings[0];
+      const fallbackDistractors = [
+        '未知释义',
+        '其他含义',
+        '暂无解释'
+      ];
+      // 从干扰项中随机选择一个，确保至少有2个选项
+      const randomDistractor = fallbackDistractors[Math.floor(Math.random() * fallbackDistractors.length)];
+      // 随机打乱顺序
+      const fallbackOptions = Math.random() > 0.5
+        ? [correctAnswer, randomDistractor]
+        : [randomDistractor, correctAnswer];
+      setTestOptions(fallbackOptions);
     }
 
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
-  }, [currentWord, allWordsForOptions]);
+  }, [currentWord, allWordsForOptions, questionIndex]);
 
   const handlePronounce = useCallback(async () => {
     if (!currentWord || isPronouncing) return;
@@ -130,8 +145,12 @@ export default function LearningPage() {
     }
   }, [currentWord, isPronouncing]);
 
+  // 使用 ref 立即跟踪是否已提交，防止快速点击重复提交
+  const isSubmittingRef = useRef(false);
+
   const handleSelectAnswer = useCallback(async (answer: string) => {
-    if (!currentWord || showResult) return;
+    if (!currentWord || showResult || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     setSelectedAnswer(answer);
     setShowResult(true);
@@ -148,18 +167,13 @@ export default function LearningPage() {
     setSelectedAnswer(undefined);
     setShowResult(false);
     setResponseStartTime(Date.now());
+    setQuestionIndex(prev => prev + 1); // 递增题目索引，强制触发选项重新生成
+    isSubmittingRef.current = false; // 重置提交状态
   }, [advanceToNext]);
 
   const handleRestart = useCallback(async () => {
     await resetSession();
-    setShowTodayWords(true); // 重新显示今日推荐卡片
   }, [resetSession]);
-
-  // 处理从今日推荐卡片开始学习
-  const handleStartLearningFromToday = useCallback((words: Word[]) => {
-    learningLogger.info({ wordCount: words.length }, '从今日推荐开始学习');
-    setShowTodayWords(false); // 隐藏今日推荐卡片，开始学习
-  }, []);
 
   // 答题后自动切换到下一词
   useEffect(() => {
@@ -170,6 +184,19 @@ export default function LearningPage() {
       return () => clearTimeout(timer);
     }
   }, [showResult, handleNext]);
+
+  // 新单词出现时自动朗读
+  useEffect(() => {
+    if (currentWord && !showResult) {
+      // 延迟一点播放，让用户先看到单词
+      const timer = setTimeout(() => {
+        AudioService.playPronunciation(currentWord.spelling).catch(err => {
+          learningLogger.error({ err, word: currentWord.spelling }, '自动朗读失败');
+        });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [currentWord?.id, showResult]);
 
   if (isLoading) {
     return (
@@ -302,11 +329,6 @@ export default function LearningPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="flex-1 flex flex-col items-center justify-center p-3 w-full max-w-4xl mx-auto">
         <div className="w-full space-y-3">
-          {/* 今日推荐卡片 - 仅在未开始学习时显示 */}
-          {showTodayWords && !currentWord && !isLoading && allWords.length > 0 && (
-            <TodayWordsCard onStartLearning={handleStartLearningFromToday} />
-          )}
-
           {/* 学习进度面板 - 集成工具栏 */}
           <MasteryProgress
             progress={progress}

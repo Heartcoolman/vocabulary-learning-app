@@ -18,7 +18,7 @@ export default function AdminDashboard() {
     const [isAmasLoading, setIsAmasLoading] = useState(false);
     const [amasError, setAmasError] = useState<string | null>(null);
     const [isResetting, setIsResetting] = useState(false);
-    const [isBatchProcessing] = useState(false);
+    const [, setIsBatchProcessing] = useState(false); // isBatchProcessing 目前未在UI中显示，但保留setter用于状态管理
 
     // 对话框状态
     const [resetConfirm, setResetConfirm] = useState(false);
@@ -82,7 +82,20 @@ export default function AdminDashboard() {
     };
 
     const handleBatchProcessEvents = async () => {
-        setAlertModal({ isOpen: true, title: '功能提示', message: '批量处理事件功能需要在后端实现具体的事件来源逻辑。', variant: 'info' });
+        // 由于批量处理需要具体的事件数据源，这里展示正确的状态管理流程
+        // 实际使用时需要根据业务需求提供事件数据
+        setIsBatchProcessing(true);
+        try {
+            // 示例：如果有待处理事件，可以调用 apiClient.batchProcessEvents(events)
+            // 目前显示提示信息，因为没有具体的事件来源
+            await new Promise(resolve => setTimeout(resolve, 500)); // 模拟处理延迟
+            setAlertModal({ isOpen: true, title: '功能提示', message: '批量处理事件功能需要在后端实现具体的事件来源逻辑。', variant: 'info' });
+        } catch (err) {
+            adminLogger.error({ err }, '批量处理事件失败');
+            setAlertModal({ isOpen: true, title: '操作失败', message: err instanceof Error ? err.message : '批量处理失败', variant: 'error' });
+        } finally {
+            setIsBatchProcessing(false);
+        }
     };
 
     // 计算系统健康度
@@ -468,20 +481,13 @@ export default function AdminDashboard() {
                                 </button>
                                 <button
                                     onClick={handleBatchProcessEvents}
-                                    disabled={isBatchProcessing}
-                                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                                    disabled={true}
+                                    className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed flex items-center gap-2 transition-all duration-200"
+                                    title="功能开发中"
                                 >
-                                    {isBatchProcessing ? (
-                                        <>
-                                            <CircleNotch className="animate-spin" size={18} weight="bold" />
-                                            处理中...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Lightning size={18} weight="bold" />
-                                            批量处理事件
-                                        </>
-                                    )}
+                                    <Lightning size={18} weight="bold" />
+                                    批量处理事件
+                                    <span className="text-xs bg-yellow-500 text-white px-1.5 py-0.5 rounded ml-1">开发中</span>
                                 </button>
                             </div>
                         </div>

@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import wordService from '../services/word.service';
 import { createWordSchema, updateWordSchema } from '../validators/word.validator';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { validateParams } from '../middleware/validate.middleware';
+import { idParamSchema } from '../validators/common.validator';
 import { AuthRequest } from '../types';
 
 const router = Router();
@@ -13,6 +15,23 @@ router.use(authMiddleware);
 router.get('/', async (req: AuthRequest, res: Response, next) => {
   try {
     const words = await wordService.getWordsByUserId(req.user!.id);
+
+    res.json({
+      success: true,
+      data: words,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 搜索单词
+router.get('/search', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const query = req.query.q as string;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const words = await wordService.searchWords(query, limit);
 
     res.json({
       success: true,
@@ -38,9 +57,10 @@ router.get('/learned', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 获取单个单词
-router.get('/:id', async (req: AuthRequest, res: Response, next) => {
+router.get('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
   try {
-    const word = await wordService.getWordById(req.params.id, req.user!.id);
+    const { id } = req.validatedParams as { id: string };
+    const word = await wordService.getWordById(id, req.user!.id);
 
     res.json({
       success: true,
@@ -88,10 +108,11 @@ router.post('/batch', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 更新单词
-router.put('/:id', async (req: AuthRequest, res: Response, next) => {
+router.put('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
   try {
+    const { id } = req.validatedParams as { id: string };
     const data = updateWordSchema.parse(req.body);
-    const word = await wordService.updateWord(req.params.id, req.user!.id, data);
+    const word = await wordService.updateWord(id, req.user!.id, data);
 
     res.json({
       success: true,
@@ -103,9 +124,10 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 删除单词
-router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
+router.delete('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
   try {
-    await wordService.deleteWord(req.params.id, req.user!.id);
+    const { id } = req.validatedParams as { id: string };
+    await wordService.deleteWord(id, req.user!.id);
 
     res.json({
       success: true,

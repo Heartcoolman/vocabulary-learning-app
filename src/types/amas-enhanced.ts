@@ -330,7 +330,7 @@ export interface StateHistoryPoint {
   fatigue: number;
   /** 动机 (-1-1) */
   motivation: number;
-  /** 记忆力 (0-1) */
+  /** 记忆力 (0-1) - 与后端 API 和数据库保持一致 */
   memory: number;
   /** 速度 (0-1) */
   speed: number;
@@ -342,9 +342,10 @@ export interface StateHistoryPoint {
 
 /**
  * 认知能力画像
+ * 注意：字段命名与后端 API 和数据库保持一致，使用 memory
  */
 export interface CognitiveProfile {
-  /** 记忆力 (0-1) */
+  /** 记忆力 (0-1) - 与后端 API 和数据库 UserStateHistory.memory 对应 */
   memory: number;
   /** 速度 (0-1) */
   speed: number;
@@ -372,7 +373,7 @@ export interface CognitiveGrowthResult {
   current: CognitiveProfile;
   /** 过去认知画像 */
   past: CognitiveProfile;
-  /** 变化详情 */
+  /** 变化详情 - 使用 memory 与 CognitiveProfile 字段名保持一致 */
   changes: {
     memory: CognitiveChange;
     speed: CognitiveChange;
@@ -388,7 +389,7 @@ export interface CognitiveGrowthResult {
  * 显著变化
  */
 export interface SignificantChange {
-  /** 指标名称 */
+  /** 指标名称 - 使用 memory 与后端 API 保持一致 */
   metric: 'attention' | 'fatigue' | 'motivation' | 'memory' | 'speed' | 'stability';
   /** 指标显示名称 */
   metricLabel: string;

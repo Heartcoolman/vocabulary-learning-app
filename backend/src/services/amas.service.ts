@@ -28,6 +28,7 @@ import { habitProfileService } from './habit-profile.service';
 import { evaluationService } from './evaluation.service';
 import { Prisma, WordState } from '@prisma/client';
 import { LearningObjectivesService } from './learning-objectives.service';
+import { LearningObjectives } from '../amas/types';
 import { updateHalfLife, computeOptimalInterval } from '../amas/modeling/forgetting-curve';
 import { serviceLogger } from '../logger';
 
@@ -205,11 +206,13 @@ class AMASService {
     const maxAttempts = 3;
     const baseDelayMs = 100;
     const txOptions = { maxWait: 5_000, timeout: 20_000 };
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         return await prisma.$transaction(operation, txOptions);
       } catch (error) {
+        lastError = error;
         if (!this.isRetryableTransactionError(error) || attempt === maxAttempts) {
           throw error;
         }
@@ -221,7 +224,10 @@ class AMASService {
         await new Promise(resolve => setTimeout(resolve, backoffMs));
       }
     }
-    throw new Error('Transaction retries exhausted');
+    // 保留原始错误作为 cause，便于调试
+    const error = new Error('Transaction retries exhausted');
+    (error as Error & { cause?: unknown }).cause = lastError;
+    throw error;
   }
 
   /**
@@ -234,6 +240,38 @@ class AMASService {
     }
     return error instanceof Error &&
       error.message.includes('Unable to start a transaction in the given time');
+  }
+
+  /**
+   * 带重试机制的习惯画像持久化
+   * 指数退避重试，最多 3 次
+   */
+  private async persistHabitProfileWithRetry(userId: string): Promise<void> {
+    const maxAttempts = 3;
+    const baseDelayMs = 500;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await habitProfileService.persistHabitProfile(userId);
+        serviceLogger.info({ userId, attempt }, '习惯画像持久化成功');
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxAttempts) {
+          const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
+          serviceLogger.warn(
+            { err: error, userId, attempt, nextRetryMs: backoffMs },
+            '习惯画像持久化失败，准备重试'
+          );
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+    // 所有重试失败后，抛出错误（保留原始错误作为 cause）
+    const error = new Error(`习惯画像持久化失败（已重试 ${maxAttempts} 次）`);
+    (error as Error & { cause?: unknown }).cause = lastError;
+    throw error;
   }
 
   /**
@@ -278,11 +316,11 @@ class AMASService {
     habitProfileService.recordTimeEvent(userId, rawEvent.timestamp);
 
     // 定期自动持久化习惯画像（每 10 个事件检查一次）
-    // 使用异步方式，不阻塞主流程
+    // 使用异步方式，不阻塞主流程，带重试机制
     const profile = habitProfileService.getHabitProfile(userId);
     if (profile.samples.timeEvents >= 10 && profile.samples.timeEvents % 10 === 0) {
-      habitProfileService.persistHabitProfile(userId).catch((error) => {
-        serviceLogger.warn({ err: error, userId }, '习惯画像自动持久化失败');
+      this.persistHabitProfileWithRetry(userId).catch((error) => {
+        serviceLogger.warn({ err: error, userId }, '习惯画像自动持久化最终失败');
       });
     }
 
@@ -312,7 +350,11 @@ class AMASService {
       answerRecordId = answerRecord.id;
     } catch (error) {
       // 如果是唯一约束冲突（重复记录），忽略错误
-      if (error instanceof Error && error.message.includes('Unique constraint')) {
+      // 使用 Prisma 错误码 P2002 替代字符串匹配
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         serviceLogger.info({ userId, wordId: event.wordId }, '跳过重复答题记录');
       } else {
         // 其他错误仅记录警告，不阻断主流程
@@ -320,27 +362,37 @@ class AMASService {
       }
     }
 
-    // 获取当前策略和统计
-    const currentStrategy = await this.getCurrentStrategy(userId);
-    const stats = await this.getUserStats(userId);
+    // 并行获取当前策略、统计、学习目标和单词复习历史
+    // 这些查询相互独立，可以并行执行以提升性能
+    const [
+      currentStrategy,
+      stats,
+      learningObjectivesResult,
+      wordReviewHistory
+    ] = await Promise.all([
+      this.getCurrentStrategy(userId),
+      this.getUserStats(userId),
+      sessionId
+        ? LearningObjectivesService.getUserObjectives(userId).catch((error) => {
+            serviceLogger.warn({ err: error, userId }, '获取学习目标失败');
+            return null;
+          })
+        : Promise.resolve(null),
+      this.getWordReviewHistory(userId, event.wordId)
+    ]);
 
     // 获取学习目标和会话统计（用于多目标优化）
-    let learningObjectives: any = undefined;
-    let sessionStats: any = undefined;
+    let learningObjectives: LearningObjectives | undefined = learningObjectivesResult ?? undefined;
+    let sessionStats: Awaited<ReturnType<AMASService['getSessionStats']>> | undefined = undefined;
 
-    if (sessionId) {
+    // 会话统计依赖学习目标，需要串行获取
+    if (sessionId && learningObjectives) {
       try {
-        learningObjectives = await LearningObjectivesService.getUserObjectives(userId);
-        if (learningObjectives) {
-          sessionStats = await this.getSessionStats(userId, sessionId);
-        }
+        sessionStats = await this.getSessionStats(userId, sessionId);
       } catch (error) {
-        serviceLogger.warn({ err: error, userId }, '获取学习目标失败');
+        serviceLogger.warn({ err: error, userId }, '获取会话统计失败');
       }
     }
-
-    // 获取单词复习历史（用于 ACT-R 记忆模型）
-    const wordReviewHistory = await this.getWordReviewHistory(userId, event.wordId);
 
     // 处理事件（多目标优化在引擎内部完成）
     const result = await this.engine.processEvent(userId, rawEvent, {
@@ -449,8 +501,8 @@ class AMASService {
 
         // 基于新半衰期计算最优复习间隔
         const optimalInterval = computeOptimalInterval(halfLifeUpdate.newHalfLife, 0.8);
-        // 结合策略的 interval_scale 调整
-        const finalIntervalDays = optimalInterval * safeIntervalScale;
+        // 结合策略的 interval_scale 调整，取整以匹配数据库 Int 类型
+        const finalIntervalDays = Math.round(optimalInterval * safeIntervalScale);
         const finalNextReviewDate = new Date(rawEvent.timestamp + finalIntervalDays * 24 * 60 * 60 * 1000);
 
         const upsertedState = await tx.wordLearningState.upsert({
@@ -523,6 +575,7 @@ class AMASService {
         );
 
         // 8. 更新 WordScore
+        // Bug Fix: 同步更新totalAttempts和correctAttempts字段
         await tx.wordScore.upsert({
           where: {
             unique_user_word_score: { userId, wordId: event.wordId }
@@ -534,14 +587,18 @@ class AMASService {
             accuracyScore,
             speedScore,
             stabilityScore,
-            proficiencyScore
+            proficiencyScore,
+            totalAttempts: totalAnswers,
+            correctAttempts: correctAnswers
           },
           update: {
             totalScore,
             accuracyScore,
             speedScore,
             stabilityScore,
-            proficiencyScore
+            proficiencyScore,
+            totalAttempts: totalAnswers,
+            correctAttempts: correctAnswers
           }
         });
 
@@ -716,9 +773,11 @@ class AMASService {
 
       // 4.2 历史表现得分 (权重35%)
       if (learningState) {
-        const consecutiveScore = Math.min(learningState.consecutiveCorrect / 3, 1) * 0.2; // 连续正确
-        const masteryLevelScore = (learningState.masteryLevel / 5) * 0.15; // 掌握等级
-        masteryScore += (consecutiveScore + masteryLevelScore) * 0.35 / 0.35; // 归一化到35%
+        const consecutiveScore = Math.min(learningState.consecutiveCorrect / 3, 1); // 连续正确 [0,1]
+        const masteryLevelScore = learningState.masteryLevel / 5; // 掌握等级 [0,1]
+        // 组合历史得分：连续正确权重60%，掌握等级权重40%，总体占35%
+        const combinedHistoryScore = consecutiveScore * 0.6 + masteryLevelScore * 0.4;
+        masteryScore += combinedHistoryScore * 0.35;
       }
 
       // 4.3 当前表现得分 (权重25%)
@@ -798,15 +857,31 @@ class AMASService {
       return;
     }
 
+    // Bug Fix: sessionId为空时跳过持久化，避免使用auto-前缀违反外键约束
+    // FeatureVector.sessionId 是 LearningSession 的外键，必须是有效的会话ID
+    if (!sessionId) {
+      serviceLogger.warn(
+        { answerRecordId },
+        'FeatureVector持久化跳过: sessionId缺失，无法满足外键约束'
+      );
+      recordFeatureVectorSaved('failure');
+      return;
+    }
+
+    const effectiveSessionId = sessionId;
+
     try {
+      // 使用主键 (sessionId_featureVersion) 进行 upsert
+      // 同时确保 answerRecordId 在 update 时也被更新，保持数据一致性
       await prisma.featureVector.upsert({
         where: {
-          answerRecordId_featureVersion: {
-            answerRecordId,
+          sessionId_featureVersion: {
+            sessionId: effectiveSessionId,
             featureVersion: featureVector.version
           }
         },
         update: {
+          answerRecordId,
           features: {
             values: featureVector.values,
             labels: featureVector.labels,
@@ -816,7 +891,7 @@ class AMASService {
         },
         create: {
           answerRecordId,
-          sessionId: sessionId || `auto-${answerRecordId}`,
+          sessionId: effectiveSessionId,
           featureVersion: featureVector.version,
           features: {
             values: featureVector.values,
@@ -882,7 +957,11 @@ class AMASService {
       serviceLogger.info({ sessionId, userId }, '学习会话已确保');
     } catch (error) {
       // 处理并发创建时的唯一约束冲突
-      if (error instanceof Error && error.message.includes('Unique constraint')) {
+      // 使用 Prisma 错误码 P2002 替代字符串匹配
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         // 再次检查会话归属
         const session = await prisma.learningSession.findUnique({
           where: { id: sessionId }
@@ -1117,6 +1196,10 @@ class AMASService {
 
   /**
    * 批量处理事件（用于历史数据导入）
+   *
+   * 注意：此方法为轻量级批处理，不会创建 AnswerRecord 记录。
+   * 仅更新用户状态和学习策略，适用于历史数据迁移或批量状态同步场景。
+   * 如需记录完整答题历史，请使用 processLearningEvent 方法。
    */
   async batchProcessEvents(
     userId: string,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient, {
     UserDetailedStatistics,
@@ -69,6 +69,7 @@ export default function UserDetailPage() {
         try {
             setIsExporting(true);
             await apiClient.adminExportUserWords(userId, format);
+            toast.success(`${format.toUpperCase()} 导出成功`);
         } catch (err) {
             adminLogger.error({ err, userId, format }, '导出用户单词失败');
             toast.error('导出失败，请重试');
@@ -77,20 +78,7 @@ export default function UserDetailPage() {
         }
     };
 
-    useEffect(() => {
-        if (userId) {
-            loadStatistics();
-            loadWords();
-        }
-    }, [userId]);
-
-    useEffect(() => {
-        if (userId) {
-            loadWords();
-        }
-    }, [filters, pagination.page]);
-
-    const loadStatistics = async () => {
+    const loadStatistics = useCallback(async () => {
         if (!userId) return;
 
         try {
@@ -105,13 +93,14 @@ export default function UserDetailPage() {
         } finally {
             setIsLoadingStats(false);
         }
-    };
+    }, [userId]);
 
-    const loadWords = async () => {
+    const loadWords = useCallback(async () => {
         if (!userId) return;
 
         try {
             setIsLoadingWords(true);
+            setError(null);
 
             const response = await apiClient.adminGetUserWords(userId, {
                 page: pagination.page,
@@ -127,7 +116,19 @@ export default function UserDetailPage() {
         } finally {
             setIsLoadingWords(false);
         }
-    };
+    }, [userId, filters, pagination.page, pagination.pageSize]);
+
+    useEffect(() => {
+        if (userId) {
+            loadStatistics();
+        }
+    }, [userId, loadStatistics]);
+
+    useEffect(() => {
+        if (userId) {
+            loadWords();
+        }
+    }, [userId, loadWords]);
 
     const handleFilterChange = (newFilters: Partial<FilterState>) => {
         setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -303,10 +304,11 @@ export default function UserDetailPage() {
         });
 
         const weakWords = Array.from(wordErrorMap.entries())
+            .filter(([_, stats]) => stats.word) // 过滤掉 word 为 undefined 的记录
             .map(([wordId, stats]) => ({
                 wordId,
-                spelling: stats.word.spelling,
-                phonetic: stats.word.phonetic,
+                spelling: stats.word?.spelling || '未知单词',
+                phonetic: stats.word?.phonetic || '',
                 total: stats.total,
                 errors: stats.errors,
                 errorRate: stats.errors / stats.total

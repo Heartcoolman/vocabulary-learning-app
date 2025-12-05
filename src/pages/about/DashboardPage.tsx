@@ -6,10 +6,10 @@
  * - 右侧：选中决策的完整流程详情
  */
 
-import { useState, useEffect } from 'react';
-import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target, Database, Flask } from '../../components/Icon';
-import { getMixedDecisions, getDecisionDetail } from '../../services/aboutApi';
-import type { RecentDecision, DecisionDetail, MixedDecisions } from '../../services/aboutApi';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target, Database, Flask, WifiHigh, WifiSlash } from '../../components/Icon';
+import { getMixedDecisions, getDecisionDetail, subscribeToDecisions } from '../../services/aboutApi';
+import type { RecentDecision, DecisionDetail, MixedDecisions, SSEDecisionEvent } from '../../services/aboutApi';
 import { DecisionDetailPanel } from './components/DecisionDetailPanel';
 import { amasLogger } from '../../utils/logger';
 
@@ -103,6 +103,10 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'real' | 'virtual'>('all');
+  const [isSSEConnected, setIsSSEConnected] = useState(false);
+
+  // 用于跟踪是否已选择过决策
+  const hasSelectedRef = useRef(false);
 
   // 合并并排序决策列表
   const allDecisions: DecisionWithSource[] = mixedData ? [
@@ -110,15 +114,51 @@ export default function DashboardPage() {
     ...mixedData.virtual.map(d => ({ ...d, source: 'virtual' as const }))
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
 
-  const filteredDecisions = activeTab === 'all' 
-    ? allDecisions 
+  const filteredDecisions = activeTab === 'all'
+    ? allDecisions
     : allDecisions.filter(d => d.source === activeTab);
 
-  // Poll recent decisions every 3 seconds
+  // SSE 事件处理：添加新决策到列表
+  const handleNewDecision = useCallback((event: SSEDecisionEvent) => {
+    const newDecision: RecentDecision = {
+      decisionId: event.decisionId,
+      pseudoId: event.pseudoId,
+      timestamp: event.timestamp,
+      decisionSource: event.decisionSource,
+      strategy: event.strategy,
+      dominantFactor: event.dominantFactor
+    };
+
+    setMixedData(prev => {
+      if (!prev) {
+        return {
+          real: event.source === 'real' ? [newDecision] : [],
+          virtual: event.source === 'virtual' ? [newDecision] : []
+        };
+      }
+
+      // 添加到对应列表的开头，限制最多 50 条
+      if (event.source === 'real') {
+        return {
+          ...prev,
+          real: [newDecision, ...prev.real.filter(d => d.decisionId !== event.decisionId)].slice(0, 50)
+        };
+      } else {
+        return {
+          ...prev,
+          virtual: [newDecision, ...prev.virtual.filter(d => d.decisionId !== event.decisionId)].slice(0, 50)
+        };
+      }
+    });
+  }, []);
+
+  // 初始加载 + SSE 实时推送
   useEffect(() => {
     let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
 
-    const fetchRecent = async () => {
+    // 首次加载历史数据
+    const fetchInitial = async () => {
       try {
         const data = await getMixedDecisions();
         if (!isMounted) return;
@@ -126,15 +166,16 @@ export default function DashboardPage() {
         setMixedData(data);
         setError(null);
 
-        // Auto-select first real decision if none selected
+        // 自动选择第一条
         const allDecs = [
           ...data.real.map(d => ({ ...d, source: 'real' as const })),
           ...data.virtual.map(d => ({ ...d, source: 'virtual' as const }))
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-        if (allDecs.length > 0 && selectedId === null) {
+        if (allDecs.length > 0 && !hasSelectedRef.current) {
           setSelectedId(allDecs[0].decisionId);
           setSelectedSource(allDecs[0].source);
+          hasSelectedRef.current = true;
         }
       } catch (err) {
         if (isMounted) {
@@ -146,14 +187,37 @@ export default function DashboardPage() {
       }
     };
 
-    fetchRecent();
-    const interval = setInterval(fetchRecent, 3000);
+    fetchInitial();
+
+    // 建立 SSE 连接
+    unsubscribe = subscribeToDecisions(
+      // 收到新决策
+      (event) => {
+        if (isMounted) {
+          handleNewDecision(event);
+        }
+      },
+      // 连接成功
+      () => {
+        if (isMounted) {
+          setIsSSEConnected(true);
+          amasLogger.info('[Dashboard] SSE connected');
+        }
+      },
+      // 连接错误
+      () => {
+        if (isMounted) {
+          setIsSSEConnected(false);
+          amasLogger.warn('[Dashboard] SSE connection error');
+        }
+      }
+    );
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      unsubscribe?.();
     };
-  }, [selectedId]);
+  }, [handleNewDecision]);
 
   // Fetch decision detail when selection changes
   useEffect(() => {
@@ -288,8 +352,18 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[10px] text-center text-slate-400">
-          Auto-refreshing every 3s
+        <div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[10px] text-center text-slate-400 flex items-center justify-center gap-2">
+          {isSSEConnected ? (
+            <>
+              <WifiHigh size={14} weight="fill" className="text-green-500" />
+              <span className="text-green-600">实时连接中</span>
+            </>
+          ) : (
+            <>
+              <WifiSlash size={14} weight="fill" className="text-amber-500" />
+              <span className="text-amber-600">连接中断，尝试重连...</span>
+            </>
+          )}
         </div>
       </aside>
 

@@ -286,7 +286,7 @@ export class LearningManager {
     const normalizedDwellScore = clamp(dwellScore, 0, 1);
 
     // 交互密度得分
-    const interactionScore = event.interactionDensity || 0.5;
+    const interactionScore = event.interactionDensity ?? 0.5;
 
     // 综合得分
     return clamp((normalizedDwellScore + interactionScore) / 2, 0, 1);

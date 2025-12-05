@@ -87,7 +87,13 @@ export class OptimizationService {
       noiseVariance: 0.1
     };
 
-    this.initializeOptimizer();
+    // 异步初始化，添加错误处理避免 unhandled rejection
+    this.initializeOptimizer().catch(err => {
+      // 在测试环境或 Prisma 不可用时静默处理
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('[OptimizationService] 初始化失败:', err);
+      }
+    });
   }
 
   /**

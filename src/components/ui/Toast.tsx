@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
 
@@ -56,8 +56,27 @@ interface ToastProviderProps {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // 使用 Map 跟踪所有活跃的定时器
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // 组件卸载时清理所有定时器
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((timerId) => {
+        clearTimeout(timerId);
+      });
+      timers.clear();
+    };
+  }, []);
 
   const removeToast = useCallback((id: string) => {
+    // 清除对应的定时器
+    const timerId = timersRef.current.get(id);
+    if (timerId) {
+      clearTimeout(timerId);
+      timersRef.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
@@ -68,9 +87,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts((prev) => [...prev, newToast]);
 
     if (duration > 0) {
-      setTimeout(() => {
+      // 存储定时器ID以便后续清理
+      const timerId = setTimeout(() => {
+        timersRef.current.delete(id);
         removeToast(id);
       }, duration);
+      timersRef.current.set(id, timerId);
     }
   }, [removeToast]);
 

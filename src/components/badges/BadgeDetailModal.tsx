@@ -32,7 +32,7 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
     if (!badge.unlockedAt) {
       loadBadgeProgress();
     }
-  }, [badge.id]);
+  }, [badge.id, badge.unlockedAt]);
 
   const loadBadgeProgress = async () => {
     try {

@@ -16,6 +16,7 @@ export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const insightsRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   // 点击外部关闭下拉菜单
   useEffect(() => {
@@ -23,7 +24,14 @@ export default function Navigation() {
       if (insightsRef.current && !insightsRef.current.contains(event.target as Node)) {
         setIsInsightsOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+      // 检查点击是否在移动菜单或汉堡按钮之外
+      // 如果点击的是汉堡按钮，则不关闭菜单（由按钮的onClick处理toggle）
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node) &&
+        hamburgerRef.current &&
+        !hamburgerRef.current.contains(event.target as Node)
+      ) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -219,6 +227,7 @@ export default function Navigation() {
 
           {/* 移动端汉堡菜单按钮 */}
           <button
+            ref={hamburgerRef}
             className="lg:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-expanded={isMobileMenuOpen}

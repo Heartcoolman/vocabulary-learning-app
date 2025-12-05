@@ -111,17 +111,13 @@ export class SpacedRepetitionService {
       } else if (this.storage.loadScore) {
         // 降级为单个加载，使用 Promise.allSettled 容错
         const scorePromises = availableWordIds.map(async wordId => {
-          try {
-            const score = await this.storage.loadScore!(userId, wordId);
-            return score ? { wordId, score } : null;
-          } catch {
-            return null;
-          }
+          const score = await this.storage.loadScore!(userId, wordId);
+          return score ? { wordId, score } : null;
         });
-        const results = await Promise.all(scorePromises);
-        for (const item of results) {
-          if (item?.score) {
-            wordScores.set(item.wordId, item.score);
+        const results = await Promise.allSettled(scorePromises);
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value?.score) {
+            wordScores.set(result.value.wordId, result.value.score);
           }
         }
       }

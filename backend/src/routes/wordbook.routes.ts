@@ -1,10 +1,20 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import wordBookService from '../services/wordbook.service';
 import { authMiddleware } from '../middleware/auth.middleware';
-import { validateBody } from '../middleware/validate.middleware';
+import { validateBody, validateParams } from '../middleware/validate.middleware';
 import { createWordSchema } from '../validators/word.validator';
+import { idParamSchema, uuidSchema } from '../validators/common.validator';
 import { AuthRequest } from '../types';
 import { CreateWordDto } from '../types';
+
+/**
+ * 词书和单词组合参数 schema
+ */
+const wordBookWordParamsSchema = z.object({
+    wordBookId: uuidSchema,
+    wordId: uuidSchema,
+});
 
 const router = Router();
 
@@ -130,10 +140,11 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 获取词书详情
-router.get('/:id', async (req: AuthRequest, res: Response, next) => {
+router.get('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
     try {
+        const { id } = req.validatedParams as { id: string };
         const wordBook = await wordBookService.getWordBookById(
-            req.params.id,
+            id,
             req.user!.id
         );
 
@@ -147,8 +158,9 @@ router.get('/:id', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 更新词书信息
-router.put('/:id', async (req: AuthRequest, res: Response, next) => {
+router.put('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
     try {
+        const { id } = req.validatedParams as { id: string };
         const { name, description, coverImage } = req.body;
 
         // 验证名称（如果提供）
@@ -207,7 +219,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
         }
 
         const wordBook = await wordBookService.updateWordBook(
-            req.params.id,
+            id,
             req.user!.id,
             {
                 name: name?.trim(),
@@ -226,9 +238,10 @@ router.put('/:id', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 删除词书
-router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
+router.delete('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
     try {
-        await wordBookService.deleteWordBook(req.params.id, req.user!.id);
+        const { id } = req.validatedParams as { id: string };
+        await wordBookService.deleteWordBook(id, req.user!.id);
 
         res.json({
             success: true,
@@ -240,10 +253,11 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 获取词书中的单词
-router.get('/:id/words', async (req: AuthRequest, res: Response, next) => {
+router.get('/:id/words', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
     try {
+        const { id } = req.validatedParams as { id: string };
         const words = await wordBookService.getWordBookWords(
-            req.params.id,
+            id,
             req.user!.id
         );
 
@@ -257,13 +271,14 @@ router.get('/:id/words', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 向词书添加单词
-router.post('/:id/words', validateBody(createWordSchema), async (req: AuthRequest, res: Response, next) => {
+router.post('/:id/words', validateParams(idParamSchema), validateBody(createWordSchema), async (req: AuthRequest, res: Response, next) => {
     try {
+        const { id } = req.validatedParams as { id: string };
         const validatedData = req.validatedBody as unknown as CreateWordDto;
         const { spelling, phonetic, meanings, examples, audioUrl } = validatedData;
 
         const word = await wordBookService.addWordToWordBook(
-            req.params.id,
+            id,
             req.user!.id,
             {
                 spelling,
@@ -286,11 +301,13 @@ router.post('/:id/words', validateBody(createWordSchema), async (req: AuthReques
 // 从词书删除单词
 router.delete(
     '/:wordBookId/words/:wordId',
+    validateParams(wordBookWordParamsSchema),
     async (req: AuthRequest, res: Response, next) => {
         try {
+            const { wordBookId, wordId } = req.validatedParams as { wordBookId: string; wordId: string };
             await wordBookService.removeWordFromWordBook(
-                req.params.wordBookId,
-                req.params.wordId,
+                wordBookId,
+                wordId,
                 req.user!.id
             );
 

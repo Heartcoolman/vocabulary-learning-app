@@ -15,9 +15,10 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
     // 解析分页参数，确保无效值回退为 undefined
     const parsedPage = req.query.page ? parseInt(req.query.page as string, 10) : NaN;
     const parsedPageSize = req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : NaN;
-    
-    const page = Number.isNaN(parsedPage) ? undefined : parsedPage;
-    const pageSize = Number.isNaN(parsedPageSize) ? undefined : parsedPageSize;
+
+    // 验证分页参数：必须是有效数字且 >= 1
+    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? undefined : parsedPage;
+    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? undefined : parsedPageSize;
 
     const result = await recordService.getRecordsByUserId(req.user!.id, { page, pageSize });
 

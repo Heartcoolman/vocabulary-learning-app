@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -48,13 +48,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WordDetailData | null>(null);
 
-  useEffect(() => {
-    if (isOpen && wordId) {
-      loadDetailData();
-    }
-  }, [isOpen, wordId]);
-
-  const loadDetailData = async () => {
+  const loadDetailData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -90,7 +84,13 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [wordId]);
+
+  useEffect(() => {
+    if (isOpen && wordId) {
+      loadDetailData();
+    }
+  }, [isOpen, wordId, loadDetailData]);
 
   const getMasteryLevel = (mastery: MasteryEvaluation | null): {
     label: string;

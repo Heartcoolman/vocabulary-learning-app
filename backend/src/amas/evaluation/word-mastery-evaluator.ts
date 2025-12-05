@@ -51,7 +51,7 @@ export interface MasteryEvaluation {
   isLearned: boolean;
   /** 综合评分 [0, 1] */
   score: number;
-  /** 置信度 [0, 1] */
+  /** 置信度 [0, 1] - 表示评估结果的可信程度，不影响 isLearned 判断 */
   confidence: number;
   /** 各因子详情 */
   factors: {
@@ -66,6 +66,8 @@ export interface MasteryEvaluation {
   };
   /** 建议文本 */
   suggestion?: string;
+  /** 疲劳度警告（当疲劳度较高时提示置信度可能不足） */
+  fatigueWarning?: string;
 }
 
 /**
@@ -112,8 +114,32 @@ export class WordMasteryEvaluator {
     if (config.weights) {
       this.config.weights = { ...DEFAULT_CONFIG.weights, ...config.weights };
     }
+    // 校验并归一化权重
+    this.normalizeWeights();
     this.actrModel = actrModel ?? new ACTRMemoryModel();
     this.memoryTracker = memoryTracker ?? new WordMemoryTracker();
+  }
+
+  /**
+   * 归一化权重，确保权重和为1
+   */
+  private normalizeWeights(): void {
+    const { srs, actr, recent } = this.config.weights;
+    const sum = srs + actr + recent;
+
+    if (Math.abs(sum - 1.0) > 0.001) {
+      // 权重和不为1时进行归一化
+      if (sum > 0) {
+        this.config.weights = {
+          srs: srs / sum,
+          actr: actr / sum,
+          recent: recent / sum
+        };
+      } else {
+        // 所有权重为0时使用默认值
+        this.config.weights = { ...DEFAULT_CONFIG.weights };
+      }
+    }
   }
 
   /**
@@ -182,6 +208,8 @@ export class WordMasteryEvaluator {
   updateConfig(config: Partial<EvaluatorConfig>): void {
     if (config.weights) {
       this.config.weights = { ...this.config.weights, ...config.weights };
+      // 更新权重后重新归一化
+      this.normalizeWeights();
     }
     if (config.threshold !== undefined) {
       this.config.threshold = config.threshold;
@@ -202,6 +230,11 @@ export class WordMasteryEvaluator {
 
   /**
    * 计算掌握度评估结果
+   *
+   * 修复: 置信度作为返回值的一部分，不再直接影响 isLearned 判断
+   * - isLearned 仅基于原始评分与阈值的比较
+   * - confidence 反映评估结果的可信程度，供调用方参考
+   * - 疲劳度高时添加警告信息，而非错误地降低分数
    */
   private computeEvaluation(
     wordId: string,
@@ -213,30 +246,41 @@ export class WordMasteryEvaluator {
     // 提取各因子值
     const srsLevel = wordState?.masteryLevel ?? 0;
     const recentAccuracy = wordScore?.recentAccuracy ?? 0;
-    
+
     // 计算ACT-R提取概率
     const recallPrediction = this.actrModel.retrievalProbability(trace);
     const actrRecall = recallPrediction.recallProbability;
 
-    // 计算融合评分
+    // 计算融合评分（权重已在构造函数中归一化，无需再次检查）
     const { weights, threshold, fatigueImpact } = this.config;
     const normalizedSrs = srsLevel / MAX_MASTERY_LEVEL;
-    
-    const rawScore = 
+
+    const rawScore =
       weights.srs * normalizedSrs +
       weights.actr * actrRecall +
       weights.recent * recentAccuracy;
 
-    // 疲劳度影响置信度
+    // 确保评分在 [0, 1] 范围内
+    const score = this.clamp(rawScore, 0, 1);
+
+    // 计算置信度：疲劳度影响评估结果的可信程度，但不影响判断结果
     const safeFatigue = this.clamp(userFatigue, 0, 1);
     const confidence = 1 - safeFatigue * fatigueImpact;
 
-    // 最终评分考虑置信度
-    const score = this.clamp(rawScore, 0, 1);
-    const isLearned = score * confidence >= threshold;
+    // isLearned 仅基于原始评分判断，置信度不参与判断
+    // 这样避免了疲劳时高分被错误判断为未学会的问题
+    const isLearned = score >= threshold;
 
     // 生成建议
     const suggestion = this.generateSuggestion(actrRecall, srsLevel, isLearned);
+
+    // 当疲劳度较高时，添加警告信息
+    let fatigueWarning: string | undefined;
+    if (safeFatigue > 0.6) {
+      fatigueWarning = '当前疲劳度较高，评估结果的置信度可能不足，建议休息后再测试';
+    } else if (safeFatigue > 0.4) {
+      fatigueWarning = '疲劳度适中，评估结果仅供参考';
+    }
 
     return {
       wordId,
@@ -249,7 +293,8 @@ export class WordMasteryEvaluator {
         recentAccuracy,
         userFatigue: safeFatigue
       },
-      suggestion
+      suggestion,
+      fatigueWarning
     };
   }
 

@@ -110,6 +110,9 @@ export function applyAttentionProtection(
 
 /**
  * 趋势保护 (扩展版功能)
+ *
+ * 注意: state.T 可能为 undefined（如旧版状态数据或首次使用）
+ * 当 T 未定义时，不应用任何趋势保护
  */
 export function applyTrendProtection(
   state: UserState,
@@ -117,10 +120,16 @@ export function applyTrendProtection(
 ): StrategyParams {
   const result = { ...params };
 
+  // 保护: state.T 为 undefined 时跳过趋势保护
+  if (state.T === undefined || state.T === null) {
+    return result;
+  }
+
   if (state.T === 'down') {
     result.new_ratio = Math.min(result.new_ratio, 0.1);
     result.difficulty = 'easy';
-    result.interval_scale = Math.max(result.interval_scale, 0.8);
+    // 趋势下降时应该缩短复习间隔（更频繁复习），而不是延长
+    result.interval_scale = Math.min(result.interval_scale, 0.7);
   }
 
   if (state.T === 'stuck') {
@@ -166,7 +175,8 @@ export function getActiveProtections(state: UserState): string[] {
   if (state.F > HIGH_FATIGUE) protections.push('fatigue');
   if (state.M < LOW_MOTIVATION) protections.push('motivation');
   if (state.A < MIN_ATTENTION) protections.push('attention');
-  if (state.T === 'down' || state.T === 'stuck') protections.push('trend');
+  // 保护: state.T 可能为 undefined
+  if (state.T && (state.T === 'down' || state.T === 'stuck')) protections.push('trend');
 
   return protections;
 }

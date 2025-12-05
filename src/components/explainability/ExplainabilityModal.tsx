@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, ChartPie, Sliders, TrendUp, Flask } from '@phosphor-icons/react';
 import { createPortal } from 'react-dom';
 import DecisionFactors from './DecisionFactors';
@@ -10,91 +10,116 @@ import { DecisionExplanation, LearningCurvePoint, AlgorithmWeights, DecisionFact
 import { explainabilityApi } from '../../services/explainabilityApi';
 import { amasLogger } from '../../utils/logger';
 
+// 从状态生成 factors（移到组件外部避免 useEffect 依赖问题）
+const generateFactorsFromState = (state: AmasProcessResult['state']): DecisionFactor[] => {
+  return [
+    { name: '记忆强度', score: state.memory || 0.5, weight: 0.4, explanation: '记忆痕迹强度', icon: 'memory' },
+    { name: '注意力', score: state.attention || 0.5, weight: 0.2, explanation: '当前注意力水平', icon: 'attention' },
+    { name: '疲劳度', score: 1 - (state.fatigue || 0.5), weight: 0.2, explanation: '疲劳程度（低分表示疲劳）', icon: 'fatigue' },
+    { name: '学习动机', score: state.motivation || 0.5, weight: 0.1, explanation: '学习动力指数', icon: 'motivation' },
+    { name: '反应速度', score: state.speed || 0.5, weight: 0.1, explanation: '响应速度评估', icon: 'speed' },
+  ];
+};
+
 interface ExplainabilityModalProps {
   isOpen: boolean;
   onClose: () => void;
   latestDecision?: AmasProcessResult | null;
 }
 
+// Tab ID 类型定义
+type TabId = 'factors' | 'weights' | 'curve' | 'counterfactual';
+
 const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
   isOpen,
   onClose,
   latestDecision
 }) => {
-  const [activeTab, setActiveTab] = useState<'factors' | 'weights' | 'curve' | 'counterfactual'>('factors');
+  const [activeTab, setActiveTab] = useState<TabId>('factors');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [explanationData, setExplanationData] = useState<DecisionExplanation | null>(null);
   const [curveData, setCurveData] = useState<LearningCurvePoint[]>([]);
 
-  // 从 latestDecision 的状态生成 factors（如果后端未返回）
-  const generateFactorsFromState = (state: AmasProcessResult['state']): DecisionFactor[] => {
-    return [
-      { name: '记忆强度', score: state.memory || 0.5, weight: 0.4, explanation: '记忆痕迹强度', icon: 'memory' },
-      { name: '注意力', score: state.attention || 0.5, weight: 0.2, explanation: '当前注意力水平', icon: 'attention' },
-      { name: '疲劳度', score: 1 - (state.fatigue || 0.5), weight: 0.2, explanation: '疲劳程度（低分表示疲劳）', icon: 'fatigue' },
-      { name: '学习动机', score: state.motivation || 0.5, weight: 0.1, explanation: '学习动力指数', icon: 'motivation' },
-      { name: '反应速度', score: state.speed || 0.5, weight: 0.1, explanation: '响应速度评估', icon: 'speed' },
-    ];
-  };
+  // 使用 useMemo 记忆化 latestDecision 的关键字段，避免对象引用变化导致无限循环
+  const decisionKey = useMemo(() => {
+    if (!latestDecision) return null;
+    return {
+      sessionId: latestDecision.sessionId,
+      attention: latestDecision.state.attention,
+      fatigue: latestDecision.state.fatigue,
+      motivation: latestDecision.state.motivation,
+    };
+  }, [
+    latestDecision?.sessionId,
+    latestDecision?.state.attention,
+    latestDecision?.state.fatigue,
+    latestDecision?.state.motivation,
+  ]);
 
-  // 加载真实数据
+  // 加载真实数据 - 使用 decisionKey 的 sessionId 作为稳定依赖
   useEffect(() => {
-    if (isOpen && latestDecision) {
-      const loadData = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-          // 并行获取决策解释和学习曲线
-          // 注意: AmasProcessResult 不包含 decisionId，传 undefined 让后端返回最近的决策
-          const [explanationRes, curveRes] = await Promise.all([
-            explainabilityApi.getDecisionExplanation(undefined).catch(() => null),
-            explainabilityApi.getLearningCurve(30).catch(() => null)
-          ]);
+    // 只依赖 decisionKey，不直接依赖 latestDecision 对象
+    if (!isOpen || !decisionKey || !latestDecision) return;
 
-          // 处理决策解释数据
-          if (explanationRes) {
-            // 如果后端没有返回 factors，从 latestDecision.state 生成
-            const factors = explanationRes.factors || generateFactorsFromState(latestDecision.state);
-            setExplanationData({
-              ...explanationRes,
-              factors,
-              reasoning: explanationRes.reasoning || latestDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
-            });
-          } else {
-            // API 调用失败，使用 latestDecision 数据构建
-            setExplanationData({
-              decisionId: latestDecision.sessionId || `local-${Date.now()}`,
-              timestamp: new Date().toISOString(),
-              reasoning: latestDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
-              state: {
-                attention: latestDecision.state.attention,
-                fatigue: latestDecision.state.fatigue,
-                motivation: latestDecision.state.motivation,
-              },
-              difficultyFactors: { length: 0, accuracy: 0, frequency: 0, forgetting: 0 },
-              factors: generateFactorsFromState(latestDecision.state),
-              weights: { thompson: 0.5, linucb: 0.25, actr: 0.15, heuristic: 0.1 }
-            });
-          }
+    // 捕获当前 latestDecision 的引用，避免闭包问题
+    const currentDecision = latestDecision;
 
-          // 处理学习曲线数据
-          if (curveRes && curveRes.points) {
-            setCurveData(curveRes.points);
-          } else {
-            setCurveData([]);
-          }
-        } catch (err) {
-          amasLogger.error({ err }, '加载解释数据失败');
-          setError('加载数据失败，请稍后重试');
-        } finally {
-          setLoading(false);
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // 并行获取决策解释和学习曲线
+        // 注意: AmasProcessResult 不包含 decisionId，传 undefined 让后端返回最近的决策
+        const [explanationRes, curveRes] = await Promise.all([
+          explainabilityApi.getDecisionExplanation(undefined).catch(() => null),
+          explainabilityApi.getLearningCurve(30).catch(() => null)
+        ]);
+
+        // 处理决策解释数据
+        if (explanationRes) {
+          // 如果后端没有返回 factors，从 currentDecision.state 生成
+          const factors = explanationRes.factors || generateFactorsFromState(currentDecision.state);
+          setExplanationData({
+            ...explanationRes,
+            factors,
+            reasoning: explanationRes.reasoning || currentDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
+          });
+        } else {
+          // API 调用失败，使用 currentDecision 数据构建
+          setExplanationData({
+            decisionId: currentDecision.sessionId || `local-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            reasoning: currentDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
+            state: {
+              attention: currentDecision.state.attention,
+              fatigue: currentDecision.state.fatigue,
+              motivation: currentDecision.state.motivation,
+            },
+            difficultyFactors: { length: 0, accuracy: 0, frequency: 0, forgetting: 0 },
+            factors: generateFactorsFromState(currentDecision.state),
+            weights: { thompson: 0.5, linucb: 0.25, actr: 0.15, heuristic: 0.1 }
+          });
         }
-      };
 
-      loadData();
-    }
-  }, [isOpen, latestDecision]);
+        // 处理学习曲线数据
+        if (curveRes && curveRes.points) {
+          setCurveData(curveRes.points);
+        } else {
+          setCurveData([]);
+        }
+      } catch (err) {
+        amasLogger.error({ err }, '加载解释数据失败');
+        setError('加载数据失败，请稍后重试');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    // 只依赖 isOpen 和 decisionKey (已包含稳定的标识符)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, decisionKey?.sessionId]);
 
   if (!isOpen) return null;
 
@@ -130,7 +155,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as TabId)}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap transition-all relative ${
                 activeTab === tab.id
                   ? 'text-indigo-600 dark:text-indigo-400'
@@ -178,7 +203,6 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
 
               {activeTab === 'counterfactual' && (
                 <CounterfactualPanel
-                  currentWordId={explanationData.selectedWordId || ''}
                   decisionId={explanationData.decisionId}
                 />
               )}

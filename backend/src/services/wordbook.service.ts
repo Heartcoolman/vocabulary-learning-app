@@ -70,29 +70,39 @@ export class WordBookService {
             });
         }
 
-        const words = await prisma.word.findMany({
-            where: { id: { in: wordIds } },
-        });
+        // 修复：将wordCount更新放入事务中，使用实际更新成功的数量
+        const result = await prisma.$transaction(async (tx) => {
+            const words = await tx.word.findMany({
+                where: { id: { in: wordIds } },
+            });
 
-        await prisma.$transaction(
-            words.map((word) =>
-                prisma.word.update({
+            // 更新每个单词的wordBookId
+            for (const word of words) {
+                await tx.word.update({
                     where: { id: word.id },
                     data: { wordBookId: wordbookId },
-                })
-            )
-        );
+                });
+            }
 
-        await prisma.wordBook.update({
-            where: { id: wordbookId },
-            data: { wordCount: { increment: wordIds.length } },
+            // 使用实际找到的单词数量更新wordCount
+            const actualCount = words.length;
+            if (actualCount > 0) {
+                await tx.wordBook.update({
+                    where: { id: wordbookId },
+                    data: { wordCount: { increment: actualCount } },
+                });
+            }
+
+            return { count: actualCount };
         });
 
-        return { count: wordIds.length };
+        return result;
     }
 
     /**
      * 从词书删除单词（简化版，用于测试兼容）
+     *
+     * 修复：将wordCount更新放入事务中，确保数据一致性
      */
     async removeWordFromWordbook(wordbookId: string, wordId: string) {
         const prismaAny = prisma as any;
@@ -105,13 +115,16 @@ export class WordBookService {
             return;
         }
 
-        await prisma.word.delete({
-            where: { id: wordId },
-        });
+        // 使用事务确保删除单词和更新wordCount的原子性
+        await prisma.$transaction(async (tx) => {
+            await tx.word.delete({
+                where: { id: wordId },
+            });
 
-        await prisma.wordBook.update({
-            where: { id: wordbookId },
-            data: { wordCount: { decrement: 1 } },
+            await tx.wordBook.update({
+                where: { id: wordbookId },
+                data: { wordCount: { decrement: 1 } },
+            });
         });
     }
 

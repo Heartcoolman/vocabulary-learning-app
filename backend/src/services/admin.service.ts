@@ -177,6 +177,10 @@ export class AdminService {
 
     /**
      * 删除用户
+     *
+     * 修复：同步清理DecisionInsight孤儿数据
+     * 由于DecisionRecord使用复合主键，DecisionInsight只能通过decisionId逻辑关联，
+     * 删除用户时需要在应用层处理级联删除
      */
     async deleteUser(userId: string) {
         // 检查是否为管理员
@@ -189,8 +193,39 @@ export class AdminService {
             throw new Error('不能删除管理员账户');
         }
 
-        await prisma.user.delete({
-            where: { id: userId },
+        await prisma.$transaction(async (tx) => {
+            // 1. 获取用户的answerRecordIds
+            const answerRecords = await tx.answerRecord.findMany({
+                where: { userId },
+                select: { id: true }
+            });
+            const answerRecordIds = answerRecords.map(r => r.id);
+
+            // 2. 获取关联的DecisionRecord的decisionIds
+            const decisionRecords = await tx.decisionRecord.findMany({
+                where: { answerRecordId: { in: answerRecordIds } },
+                select: { decisionId: true }
+            });
+            const decisionIds = decisionRecords.map(d => d.decisionId);
+
+            // 3. 清理DecisionInsight孤儿数据（通过decisionId关联）
+            if (decisionIds.length > 0) {
+                await tx.decisionInsight.deleteMany({
+                    where: { decisionId: { in: decisionIds } }
+                });
+            }
+
+            // 4. 清理DecisionRecord（PipelineStage会通过外键级联删除）
+            if (answerRecordIds.length > 0) {
+                await tx.decisionRecord.deleteMany({
+                    where: { answerRecordId: { in: answerRecordIds } }
+                });
+            }
+
+            // 5. 删除用户（其他数据通过外键级联删除）
+            await tx.user.delete({
+                where: { id: userId },
+            });
         });
     }
 
@@ -1229,17 +1264,20 @@ export class AdminService {
             whereConditions.confidence = { gte: options.minConfidence };
         }
 
+        // 先查询一次answerRecordIds并复用，避免N+1查询
+        const answerRecordIds = (await prisma.answerRecord.findMany({
+            where: { userId },
+            select: { id: true }
+        })).map(r => r.id);
+
+        const decisionWhereConditions = {
+            answerRecordId: { in: answerRecordIds },
+            ...whereConditions
+        };
+
         const [decisions, total] = await Promise.all([
             prisma.decisionRecord.findMany({
-                where: {
-                    answerRecordId: {
-                        in: (await prisma.answerRecord.findMany({
-                            where: { userId },
-                            select: { id: true }
-                        })).map(r => r.id)
-                    },
-                    ...whereConditions
-                },
+                where: decisionWhereConditions,
                 select: {
                     id: true,
                     decisionId: true,
@@ -1259,15 +1297,7 @@ export class AdminService {
                 take: options.pageSize,
             }),
             prisma.decisionRecord.count({
-                where: {
-                    answerRecordId: {
-                        in: (await prisma.answerRecord.findMany({
-                            where: { userId },
-                            select: { id: true }
-                        })).map(r => r.id)
-                    },
-                    ...whereConditions
-                }
+                where: decisionWhereConditions
             })
         ]);
 

@@ -269,18 +269,24 @@ export class MultiObjectiveDecisionEngine {
 
     const { shortTermScore, longTermScore, efficiencyScore } = evaluation.metrics;
 
+    let suggestedMode: LearningObjectives['mode'] | null = null;
+
     if (shortTermScore < 0.5) {
-      return 'exam';
+      // 短期表现差，建议使用考试模式（强化短期记忆）
+      suggestedMode = 'exam';
+    } else if (longTermScore < 0.5) {
+      // 长期表现差，建议使用日常模式（强化长期记忆）
+      suggestedMode = 'daily';
+    } else if (efficiencyScore < 0.5) {
+      // 效率低，建议使用旅行模式（优化学习效率）
+      suggestedMode = 'travel';
     }
 
-    if (longTermScore < 0.5) {
-      return 'daily';
+    // 如果建议的模式与当前模式相同，返回 null
+    if (suggestedMode === currentMode) {
+      return null;
     }
 
-    if (efficiencyScore < 0.5) {
-      return 'travel';
-    }
-
-    return null;
+    return suggestedMode;
   }
 }

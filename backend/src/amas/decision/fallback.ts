@@ -34,10 +34,26 @@ export interface FallbackResult {
 }
 
 /**
+ * 默认动作（当 ACTION_SPACE 为空时使用）
+ */
+const DEFAULT_ACTION: Action = {
+  interval_scale: 1.0,
+  new_ratio: 0.2,
+  difficulty: 'mid',
+  batch_size: 8,
+  hint_level: 1
+};
+
+/**
  * 根据策略参数选择最匹配的动作
  * 使用加权距离计算找到动作空间中最接近策略的动作
  */
 function selectFallbackAction(strategy: StrategyParams): Action {
+  // 保护: ACTION_SPACE 为空时返回默认动作
+  if (!ACTION_SPACE || ACTION_SPACE.length === 0) {
+    return DEFAULT_ACTION;
+  }
+
   let bestAction: Action = ACTION_SPACE[0];
   let bestScore = Number.POSITIVE_INFINITY;
 
@@ -308,8 +324,8 @@ export function intelligentFallback(
   }
 ): FallbackResult {
   // 冷启动阶段(交互次数<20): 使用安全默认
-  // 修复: interactionCount=0时也应该走此分支
-  if (context?.interactionCount !== undefined && context.interactionCount < 20) {
+  // 修复: interactionCount为undefined或<20时都应该走此分支
+  if (context?.interactionCount === undefined || context.interactionCount < 20) {
     return safeDefaultStrategy(reason);
   }
 

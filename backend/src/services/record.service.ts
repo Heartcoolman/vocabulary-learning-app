@@ -237,6 +237,33 @@ export class RecordService {
       await this.ensureLearningSession(sessionId, userId);
     }
 
+    // 修复：先检查已存在的记录，避免重复记录轨迹
+    // 构建用于检查重复的键集合
+    const recordKeys = validRecords.map(record => ({
+      userId,
+      wordId: record.wordId,
+      timestamp: record.timestamp
+        ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
+        : new Date()
+    }));
+
+    // 查询已存在的记录
+    const existingRecords = await prisma.answerRecord.findMany({
+      where: {
+        OR: recordKeys.map(key => ({
+          userId: key.userId,
+          wordId: key.wordId,
+          timestamp: key.timestamp
+        }))
+      },
+      select: { userId: true, wordId: true, timestamp: true }
+    });
+
+    // 创建已存在记录的键集合用于快速查找
+    const existingKeySet = new Set(
+      existingRecords.map(r => `${r.userId}-${r.wordId}-${r.timestamp.getTime()}`)
+    );
+
     // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
     // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
     const result = await prisma.answerRecord.createMany({
@@ -260,20 +287,32 @@ export class RecordService {
       skipDuplicates: true, // 数据库层面跳过重复记录，基于 unique_user_word_timestamp 唯一约束
     });
 
-    // 批量同步到 WordReviewTrace 用于掌握度评估
-    try {
-      const reviewEvents = validRecords.map(record => ({
-        wordId: record.wordId,
-        event: {
-          timestamp: record.timestamp ?? Date.now(),
-          isCorrect: record.isCorrect,
-          responseTime: record.responseTime ?? 0
-        }
-      }));
-      await wordMasteryService.batchRecordReview(userId, reviewEvents);
-    } catch (error) {
-      // 记录失败不阻断主流程，仅警告
-      serviceLogger.warn({ userId, error }, '批量同步复习轨迹失败');
+    // 修复：只对实际创建的记录同步轨迹，避免重复
+    // 过滤掉已存在的记录
+    const newRecords = validRecords.filter(record => {
+      const timestamp = record.timestamp
+        ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
+        : new Date();
+      const key = `${userId}-${record.wordId}-${timestamp.getTime()}`;
+      return !existingKeySet.has(key);
+    });
+
+    // 批量同步到 WordReviewTrace 用于掌握度评估（只同步新创建的记录）
+    if (newRecords.length > 0) {
+      try {
+        const reviewEvents = newRecords.map(record => ({
+          wordId: record.wordId,
+          event: {
+            timestamp: record.timestamp ?? Date.now(),
+            isCorrect: record.isCorrect,
+            responseTime: record.responseTime ?? 0
+          }
+        }));
+        await wordMasteryService.batchRecordReview(userId, reviewEvents);
+      } catch (error) {
+        // 记录失败不阻断主流程，仅警告
+        serviceLogger.warn({ userId, error }, '批量同步复习轨迹失败');
+      }
     }
 
     return result;

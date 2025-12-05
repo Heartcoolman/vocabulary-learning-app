@@ -125,14 +125,6 @@ vi.mock('../../components/explainability/ExplainabilityModal', () => ({
   ),
 }));
 
-vi.mock('../../components/learning/TodayWordsCard', () => ({
-  default: ({ onStartLearning }: any) => (
-    <div data-testid="today-words-card">
-      <button onClick={() => onStartLearning([])}>开始学习</button>
-    </div>
-  ),
-}));
-
 // Mock logger
 vi.mock('../../utils/logger', () => ({
   learningLogger: {

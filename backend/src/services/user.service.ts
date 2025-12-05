@@ -133,15 +133,48 @@ export class UserService {
 
   /**
    * 兼容 *.spec.ts：删除用户（及相关数据的简单事务）
+   *
+   * 修复：同步清理DecisionInsight孤儿数据
+   * 由于DecisionRecord使用复合主键，DecisionInsight只能通过decisionId逻辑关联，
+   * 删除用户时需要在应用层处理级联删除
    */
   async deleteUser(userId: string) {
-    await prisma.$transaction([
-      prisma.answerRecord.deleteMany({ where: { userId } }),
-      prisma.wordLearningState.deleteMany({ where: { userId } }),
-      prisma.wordScore.deleteMany({ where: { userId } }),
-      prisma.learningSession.deleteMany({ where: { userId } }),
-      prisma.user.delete({ where: { id: userId } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      // 1. 获取用户的answerRecordIds
+      const answerRecords = await tx.answerRecord.findMany({
+        where: { userId },
+        select: { id: true }
+      });
+      const answerRecordIds = answerRecords.map(r => r.id);
+
+      // 2. 获取关联的DecisionRecord的decisionIds
+      const decisionRecords = await tx.decisionRecord.findMany({
+        where: { answerRecordId: { in: answerRecordIds } },
+        select: { decisionId: true }
+      });
+      const decisionIds = decisionRecords.map(d => d.decisionId);
+
+      // 3. 清理DecisionInsight孤儿数据（通过decisionId关联）
+      if (decisionIds.length > 0) {
+        await tx.decisionInsight.deleteMany({
+          where: { decisionId: { in: decisionIds } }
+        });
+      }
+
+      // 4. 清理DecisionRecord（PipelineStage会通过外键级联删除）
+      if (answerRecordIds.length > 0) {
+        await tx.decisionRecord.deleteMany({
+          where: { answerRecordId: { in: answerRecordIds } }
+        });
+      }
+
+      // 5. 删除其他用户数据
+      await tx.answerRecord.deleteMany({ where: { userId } });
+      await tx.wordLearningState.deleteMany({ where: { userId } });
+      await tx.wordScore.deleteMany({ where: { userId } });
+      await tx.learningSession.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
   }
 }
 

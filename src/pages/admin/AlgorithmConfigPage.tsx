@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AlgorithmConfig } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 import {
@@ -28,7 +28,8 @@ export default function AlgorithmConfigPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const configService = new AlgorithmConfigService();
+  // 使用 useMemo 避免每次渲染都创建新实例
+  const configService = useMemo(() => new AlgorithmConfigService(), []);
 
   useEffect(() => {
     loadConfig();
@@ -45,6 +46,7 @@ export default function AlgorithmConfigPage() {
       setDefaultConfig(defaultCfg);
     } catch (error) {
       adminLogger.error({ err: error }, '加载算法配置失败');
+      toast.error('加载算法配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +73,7 @@ export default function AlgorithmConfigPage() {
       setIsSaving(true);
       await configService.updateConfig(config, '管理员手动更新');
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      toast.success('配置已保存');
     } catch (error) {
       adminLogger.error({ err: error, config }, '保存算法配置失败');
       toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
@@ -89,7 +91,6 @@ export default function AlgorithmConfigPage() {
       setValidationErrors([]);
       setShowResetConfirm(false);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       adminLogger.error({ err: error }, '重置算法配置失败');
       toast.error('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
@@ -97,6 +98,14 @@ export default function AlgorithmConfigPage() {
       setIsSaving(false);
     }
   };
+
+  // 使用 useEffect 管理 saveSuccess 的自动清理
+  useEffect(() => {
+    if (saveSuccess) {
+      const timeoutId = setTimeout(() => setSaveSuccess(false), 3000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [saveSuccess]);
 
   if (isLoading || !config || !defaultConfig) {
     return (
@@ -582,10 +591,14 @@ interface MasteryThresholdsSectionProps {
 }
 
 function MasteryThresholdsSection({ thresholds, defaultThresholds, onChange }: MasteryThresholdsSectionProps) {
-  const isDefault = JSON.stringify(thresholds) === JSON.stringify(defaultThresholds);
+  // 防御性检查：确保 thresholds 是数组
+  const safeThresholds = Array.isArray(thresholds) ? thresholds : (Array.isArray(defaultThresholds) ? defaultThresholds : []);
+  const safeDefaultThresholds = Array.isArray(defaultThresholds) ? defaultThresholds : [];
+  
+  const isDefault = JSON.stringify(safeThresholds) === JSON.stringify(safeDefaultThresholds);
 
-  const updateThreshold = (level: number, field: keyof typeof thresholds[0], value: number) => {
-    const newThresholds = thresholds.map(t => 
+  const updateThreshold = (level: number, field: keyof typeof safeThresholds[0], value: number) => {
+    const newThresholds = safeThresholds.map(t => 
       t.level === level ? { ...t, [field]: value } : t
     );
     onChange(newThresholds);
@@ -596,7 +609,7 @@ function MasteryThresholdsSection({ thresholds, defaultThresholds, onChange }: M
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">掌握程度阈值</h2>
         <p className="text-sm text-gray-600 mt-1">
-          配置各级别的晋升条件（0-5级）
+          配置各级别的晋升条件（1-5级）
           {!isDefault && <span className="ml-2 text-blue-600">（已修改）</span>}
         </p>
       </div>
@@ -612,7 +625,7 @@ function MasteryThresholdsSection({ thresholds, defaultThresholds, onChange }: M
             </tr>
           </thead>
           <tbody>
-            {thresholds.map((threshold) => (
+            {safeThresholds.map((threshold) => (
               <tr key={threshold.level} className="border-b border-gray-100">
                 <td className="py-3 px-4">
                   <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-bold">

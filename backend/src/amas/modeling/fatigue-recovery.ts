@@ -22,27 +22,33 @@ export class FatigueRecoveryModel {
    *
    * 使用指数恢复模型：F_recovered = F * exp(-k * restHours)
    *
-   * @param currentFatigue 当前疲劳值 [0, 1]
+   * 当使用会话结束时记录的累积疲劳值时，可以更准确地计算恢复后的状态
+   *
+   * @param currentFatigue 当前疲劳值 [0, 1]，如果未提供则使用会话结束时记录的累积疲劳值
    * @param now 当前时间
    * @returns 恢复后的疲劳值
    */
-  computeRecoveredFatigue(currentFatigue: number, now: Date): number {
+  computeRecoveredFatigue(currentFatigue?: number, now: Date = new Date()): number {
+    // 如果没有上次会话记录，返回当前疲劳值或0
     if (!this.lastSessionEnd) {
-      return currentFatigue;
+      return currentFatigue ?? 0;
     }
+
+    // 使用累积疲劳值（如果未提供当前疲劳值）
+    const fatigueToRecover = currentFatigue ?? this.accumulatedFatigue;
 
     const restDuration = now.getTime() - this.lastSessionEnd.getTime();
     const restSeconds = restDuration / 1000;
 
     // 休息时间过短，不应用恢复
     if (restSeconds < this.minRecoveryTime) {
-      return currentFatigue;
+      return fatigueToRecover;
     }
 
     const restHours = restSeconds / 3600;
 
     // 指数恢复模型
-    const recovered = currentFatigue * Math.exp(-this.recoveryRate * restHours);
+    const recovered = fatigueToRecover * Math.exp(-this.recoveryRate * restHours);
 
     // 确保在有效范围
     return Math.max(0, Math.min(1, recovered));
@@ -56,6 +62,24 @@ export class FatigueRecoveryModel {
   markSessionEnd(fatigue: number): void {
     this.lastSessionEnd = new Date();
     this.accumulatedFatigue = fatigue;
+  }
+
+  /**
+   * 获取会话结束时记录的累积疲劳值
+   *
+   * @returns 累积疲劳值，如果没有记录则返回 0
+   */
+  getAccumulatedFatigue(): number {
+    return this.accumulatedFatigue;
+  }
+
+  /**
+   * 获取上次会话结束时间
+   *
+   * @returns 上次会话结束时间，如果没有记录则返回 null
+   */
+  getLastSessionEnd(): Date | null {
+    return this.lastSessionEnd;
   }
 
   /**
@@ -89,7 +113,9 @@ export class FatigueRecoveryModel {
     }
 
     // 根据指数恢复模型反推时间：t = -ln(F_target / F_current) / k
-    const requiredHours = -Math.log(targetFatigue / currentFatigue) / this.recoveryRate;
+    // 防止 log(0)，当 targetFatigue 为 0 时使用极小值
+    const safeTargetFatigue = Math.max(targetFatigue, 1e-10);
+    const requiredHours = -Math.log(safeTargetFatigue / currentFatigue) / this.recoveryRate;
     const requiredMinutes = Math.ceil(requiredHours * 60);
 
     return Math.max(this.minRecoveryTime / 60, requiredMinutes);

@@ -81,7 +81,7 @@ export class WordStateService {
       cacheService.set(cacheKey, state, CacheTTL.LEARNING_STATE);
     } else {
       // 缓存空值，使用较短的TTL防止数据长期不一致
-      cacheService.set(cacheKey, WordStateService.NULL_MARKER, 60); // 1分钟
+      cacheService.set(cacheKey, WordStateService.NULL_MARKER, CacheTTL.NULL_CACHE);
     }
 
     return state;
@@ -137,7 +137,7 @@ export class WordStateService {
       for (const wordId of uncachedWordIds) {
         if (!foundWordIds.has(wordId)) {
           const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
-          cacheService.set(cacheKey, WordStateService.NULL_MARKER, 60); // 1分钟
+          cacheService.set(cacheKey, WordStateService.NULL_MARKER, CacheTTL.NULL_CACHE);
         }
       }
     }
@@ -170,31 +170,46 @@ export class WordStateService {
   }
 
   /**
-   * 获取需要复习的单词（带缓存）
+   * 获取需要复习的单词（不缓存）
+   *
+   * 修复 Bug #37: getDueWords 缓存过期问题
+   * 原因：缓存期间（即使只有1分钟）新到期的单词不会出现在列表中，
+   * 导致用户在学习时可能看到的到期单词列表不够及时。
+   *
+   * 解决方案：此查询不使用缓存，每次直接查询数据库。
+   * 由于 nextReviewDate 索引存在，查询性能可接受（通常 < 10ms）。
+   *
+   * 替代方案参考：
+   * - 如果性能成为问题，可考虑使用极短TTL（5秒）
+   * - 或使用"预取+过滤"策略：缓存稍大范围，查询时再过滤
    */
   async getDueWords(userId: string): Promise<WordLearningState[]> {
-    const cacheKey = CacheKeys.USER_DUE_WORDS(userId);
-
-    // 尝试从缓存获取
-    const cached = cacheService.get<WordLearningState[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // 从数据库查询
+    // 直接从数据库查询，不使用缓存，确保获取最新的到期单词
     // 返回所有到期的单词：LEARNING、REVIEWING 状态，以及 NEW 状态（包括未学习的新词）
     const now = new Date();
+    // Bug Fix: NEW状态单词的nextReviewDate为null，不会被lte条件匹配
+    // 添加OR条件包含nextReviewDate为null且state为NEW的单词
     const dueWords = await prisma.wordLearningState.findMany({
       where: {
         userId,
-        nextReviewDate: { lte: now },
-        state: { in: [WordState.NEW, WordState.LEARNING, WordState.REVIEWING] }
+        OR: [
+          // 条件1: 已到复习时间的单词（LEARNING、REVIEWING状态）
+          {
+            nextReviewDate: { lte: now },
+            state: { in: [WordState.LEARNING, WordState.REVIEWING] }
+          },
+          // 条件2: NEW状态单词（nextReviewDate可能为null或已到期）
+          {
+            state: WordState.NEW,
+            OR: [
+              { nextReviewDate: null },
+              { nextReviewDate: { lte: now } }
+            ]
+          }
+        ]
       },
       orderBy: { nextReviewDate: 'asc' }
     });
-
-    // 存入缓存（较短的TTL，因为这个数据变化较快）
-    cacheService.set(cacheKey, dueWords, 60); // 1分钟
 
     return dueWords;
   }
@@ -281,27 +296,39 @@ export class WordStateService {
       throw new Error(`无权访问以下单词: ${inaccessibleWordIds.join(', ')}`);
     }
 
-    // 使用事务批量更新
+    // 修复：事务外预先校验所有时间戳，避免单条记录无效导致整个批量操作失败
+    // 同时预处理数据，避免在事务内部进行可能抛异常的操作
+    const invalidTimestampErrors: string[] = [];
+    const preparedUpdates = updates.map(({ wordId, data }, index) => {
+      // 过滤掉userId和wordId，防止被data覆盖
+      const { userId: _, wordId: __, ...safeData } = data as any;
+
+      // 转换时间戳为Date对象，使用统一的校验逻辑
+      const convertedData: any = { ...safeData };
+      const timestampFields = ['lastReviewDate', 'nextReviewDate', 'createdAt', 'updatedAt'] as const;
+
+      for (const field of timestampFields) {
+        if (typeof convertedData[field] === 'number') {
+          try {
+            convertedData[field] = validateAndConvertTimestamp(convertedData[field]);
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            invalidTimestampErrors.push(`记录[${index}] wordId=${wordId} ${field}: ${errorMsg}`);
+          }
+        }
+      }
+
+      return { wordId, convertedData };
+    });
+
+    // 如果有时间戳校验错误，提前抛出，避免进入事务
+    if (invalidTimestampErrors.length > 0) {
+      throw new Error(`时间戳校验失败:\n${invalidTimestampErrors.join('\n')}`);
+    }
+
+    // 使用事务批量更新（数据已预处理，不会在事务内抛异常）
     await prisma.$transaction(
-      updates.map(({ wordId, data }) => {
-        // 过滤掉userId和wordId，防止被data覆盖
-        const { userId: _, wordId: __, ...safeData } = data as any;
-
-        // 转换时间戳为Date对象，使用统一的校验逻辑
-        const convertedData: any = { ...safeData };
-        if (typeof convertedData.lastReviewDate === 'number') {
-          convertedData.lastReviewDate = validateAndConvertTimestamp(convertedData.lastReviewDate);
-        }
-        if (typeof convertedData.nextReviewDate === 'number') {
-          convertedData.nextReviewDate = validateAndConvertTimestamp(convertedData.nextReviewDate);
-        }
-        if (typeof convertedData.createdAt === 'number') {
-          convertedData.createdAt = validateAndConvertTimestamp(convertedData.createdAt);
-        }
-        if (typeof convertedData.updatedAt === 'number') {
-          convertedData.updatedAt = validateAndConvertTimestamp(convertedData.updatedAt);
-        }
-
+      preparedUpdates.map(({ wordId, convertedData }) => {
         return prisma.wordLearningState.upsert({
           where: {
             unique_user_word: {

@@ -28,12 +28,15 @@ router.get('/active', (req, res) => {
   try {
     const activeAlerts = alertMonitoringService.getActiveAlerts();
     res.json({
-      count: activeAlerts.length,
-      alerts: activeAlerts
+      success: true,
+      data: {
+        count: activeAlerts.length,
+        alerts: activeAlerts
+      }
     });
   } catch (error) {
     routeLogger.error({ err: error }, 'Failed to get active alerts');
-    res.status(500).json({ error: 'Failed to retrieve active alerts' });
+    res.status(500).json({ success: false, error: 'Failed to retrieve active alerts' });
   }
 });
 
@@ -43,16 +46,33 @@ router.get('/active', (req, res) => {
  */
 router.get('/history', (req, res) => {
   try {
-    const limit = Math.min(parseInt(String(req.query.limit || '100'), 10), 200);
+    const limitParam = req.query.limit;
+    let limit = 100; // 默认值
+
+    if (limitParam !== undefined && limitParam !== '') {
+      const parsed = parseInt(String(limitParam), 10);
+      // 检查NaN和范围
+      if (isNaN(parsed) || parsed < 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'limit参数必须是大于0的整数'
+        });
+      }
+      limit = Math.min(parsed, 200);
+    }
+
     const history = alertMonitoringService.getHistory(limit);
     res.json({
-      count: history.length,
-      limit,
-      alerts: history
+      success: true,
+      data: {
+        count: history.length,
+        limit,
+        alerts: history
+      }
     });
   } catch (error) {
     routeLogger.error({ err: error }, 'Failed to get alert history');
-    res.status(500).json({ error: 'Failed to retrieve alert history' });
+    res.status(500).json({ success: false, error: 'Failed to retrieve alert history' });
   }
 });
 

@@ -192,7 +192,9 @@ export const REWARD_WEIGHTS = {
   /** 速度奖励权重 */
   speed: 0.4,
   /** 挫折惩罚权重 */
-  frustration: 0.8
+  frustration: 0.8,
+  /** 参与度奖励权重 */
+  engagement: 0.3
 };
 
 /** 参考反应时间(ms) */

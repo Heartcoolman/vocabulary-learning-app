@@ -498,8 +498,9 @@ describe('EngineCore', () => {
         0.8
       );
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('dimension_mismatch');
+      // 代码现在会自动对齐特征向量维度（零填充或截断）
+      // 所以不再返回 dimension_mismatch 错误
+      expect(result.success).toBe(true);
     });
   });
 

@@ -134,6 +134,10 @@ export interface CausalInferenceState {
   featureDim: number;
   /** 是否已拟合 */
   fitted: boolean;
+  /** 字符串treatment映射（兼容旧API） */
+  treatmentMapping?: [string, number][];
+  /** 默认协变量键（兼容旧API） */
+  defaultCovariateKeys?: string[];
 }
 
 // ==================== 常量 ====================
@@ -163,24 +167,29 @@ const DEFAULT_CONFIG: Required<CausalInferenceConfig> = {
  * - 策略效果验证
  * - A/B测试分析
  * - 观测性因果推断
+ *
+ * 数据管理说明:
+ * - 统一使用 observations 数组存储所有观测数据
+ * - 兼容旧API（recordObservation）会自动转换为标准格式
+ * - 字符串treatment会被映射为数值（第一个出现的为1，其他为0）
  */
 export class CausalInference {
-  private static readonly VERSION = '1.0.0';
+  private static readonly VERSION = '1.1.0'; // 版本升级：统一数据管理
 
   /** 配置 */
   private readonly config: Required<CausalInferenceConfig>;
 
-  /** 观测数据 */
+  /** 统一的观测数据存储 */
   private observations: CausalObservation[] = [];
-  /** 兼容测试的观测数据（字符串 treatment） */
-  private legacyObservations: Array<{
-    treatment: string;
-    outcome: number;
-    covariates: Record<string, any>;
-  }> = [];
+
+  /** 字符串treatment到数值的映射（用于兼容旧API） */
+  private treatmentMapping: Map<string, number> = new Map();
 
   /** 特征维度 */
   private featureDim = 0;
+
+  /** 默认协变量键（用于兼容旧API转换） */
+  private defaultCovariateKeys: string[] = [];
 
   /** 倾向得分模型权重 */
   private propensityWeights: Float64Array | null = null;
@@ -194,39 +203,127 @@ export class CausalInference {
   /** 是否已拟合 */
   private fitted = false;
 
-    constructor(config: CausalInferenceConfig = {}) {
-      this.config = { ...DEFAULT_CONFIG, ...config };
-    }
+  constructor(config: CausalInferenceConfig = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
 
   /**
-   * 兼容测试：记录观测
+   * 记录观测（兼容旧API，统一转换为标准格式）
+   *
+   * @param obs 观测数据，支持字符串treatment
    */
   recordObservation(obs: {
     treatment: string;
     outcome: number;
     covariates: Record<string, any>;
-  }) {
-    this.legacyObservations.push(obs);
+  }): void {
+    // 转换字符串treatment为数值
+    let treatmentValue: number;
+    if (!this.treatmentMapping.has(obs.treatment)) {
+      // 第一个出现的treatment映射为1，其他为0
+      treatmentValue = this.treatmentMapping.size === 0 ? 1 : 0;
+      this.treatmentMapping.set(obs.treatment, treatmentValue);
+    } else {
+      treatmentValue = this.treatmentMapping.get(obs.treatment)!;
+    }
+
+    // 提取协变量键（首次调用时记录）
+    const covariateKeys = Object.keys(obs.covariates).sort();
+    if (this.defaultCovariateKeys.length === 0 && covariateKeys.length > 0) {
+      this.defaultCovariateKeys = covariateKeys;
+    }
+
+    // 转换协变量为特征向量
+    const features = this.covariatesToFeatures(obs.covariates);
+
+    // 添加到统一的观测数据存储
+    this.addObservation({
+      features,
+      treatment: treatmentValue,
+      outcome: obs.outcome,
+      timestamp: Date.now()
+    });
   }
 
   /**
-   * 兼容测试：估计平均处理效应
+   * 将协变量对象转换为特征向量
    */
-  estimateCATT(treatment: string, condition: Record<string, any>) {
-    const filtered = this.legacyObservations.filter(obs =>
-      Object.entries(condition).every(([k, v]) => obs.covariates[k] === v)
-    );
-    const mean =
-      filtered.reduce((s, o) => s + o.outcome, 0) / (filtered.length || 1);
-    return { effect: mean, samples: filtered.length };
+  private covariatesToFeatures(covariates: Record<string, any>): number[] {
+    if (this.defaultCovariateKeys.length === 0) {
+      // 没有协变量时返回默认特征
+      return [1];
+    }
+
+    return this.defaultCovariateKeys.map(key => {
+      const value = covariates[key];
+      if (typeof value === 'number') {
+        return value;
+      } else if (typeof value === 'boolean') {
+        return value ? 1 : 0;
+      } else if (typeof value === 'string') {
+        // 简单的字符串编码：使用哈希
+        return this.simpleHash(value) / 1000000;
+      }
+      return 0;
+    });
   }
 
   /**
-   * 兼容测试：重置
+   * 简单字符串哈希（用于特征编码）
+   */
+  private simpleHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  }
+
+  /**
+   * 估计条件平均处理效应（兼容旧API）
+   *
+   * @param treatment 处理名称
+   * @param condition 条件（协变量过滤）
+   */
+  estimateCATT(treatment: string, condition: Record<string, any>): { effect: number; samples: number } {
+    // 获取treatment对应的数值
+    const treatmentValue = this.treatmentMapping.get(treatment);
+    if (treatmentValue === undefined) {
+      return { effect: 0, samples: 0 };
+    }
+
+    // 转换条件为特征向量进行匹配
+    const conditionFeatures = this.covariatesToFeatures(condition);
+
+    // 过滤匹配的观测
+    const filtered = this.observations.filter(obs => {
+      // 检查特征是否匹配（允许部分匹配）
+      if (conditionFeatures.length === 0) return true;
+      return conditionFeatures.every((cf, i) =>
+        i >= obs.features.length || Math.abs(obs.features[i] - cf) < 0.001
+      );
+    });
+
+    if (filtered.length === 0) {
+      return { effect: 0, samples: 0 };
+    }
+
+    // 计算该treatment组的平均outcome
+    const treatmentGroup = filtered.filter(o => o.treatment === treatmentValue);
+    const mean = treatmentGroup.reduce((s, o) => s + o.outcome, 0) / (treatmentGroup.length || 1);
+
+    return { effect: mean, samples: treatmentGroup.length };
+  }
+
+  /**
+   * 重置所有状态
    */
   reset(): void {
-    this.legacyObservations = [];
     this.observations = [];
+    this.treatmentMapping.clear();
+    this.defaultCovariateKeys = [];
     this.featureDim = 0;
     this.propensityWeights = null;
     this.outcomeWeightsControl = null;
@@ -317,20 +414,29 @@ export class CausalInference {
     treatmentA?: string,
     treatmentB?: string
   ): CausalEstimate | { effect: number; treated: number; control: number; samples: number } {
-    // 兼容测试：字符串 treatment 简化版
+    // 兼容旧API：字符串 treatment 简化版（使用统一的观测数据）
     if (typeof treatmentA === 'string' && typeof treatmentB === 'string') {
-      if (!this.legacyObservations.length) {
+      if (this.observations.length === 0) {
         return { effect: 0, treated: 0, control: 0, samples: 0 };
       }
-      const groupA = this.legacyObservations.filter(o => o.treatment === treatmentA);
-      const groupB = this.legacyObservations.filter(o => o.treatment === treatmentB);
+
+      const treatmentValueA = this.treatmentMapping.get(treatmentA);
+      const treatmentValueB = this.treatmentMapping.get(treatmentB);
+
+      if (treatmentValueA === undefined || treatmentValueB === undefined) {
+        return { effect: 0, treated: 0, control: 0, samples: 0 };
+      }
+
+      const groupA = this.observations.filter(o => o.treatment === treatmentValueA);
+      const groupB = this.observations.filter(o => o.treatment === treatmentValueB);
       const meanA = groupA.reduce((s, o) => s + o.outcome, 0) / (groupA.length || 1);
       const meanB = groupB.reduce((s, o) => s + o.outcome, 0) / (groupB.length || 1);
+
       return {
         effect: meanA - meanB,
         treated: meanA,
         control: meanB,
-        samples: this.legacyObservations.length
+        samples: this.observations.length
       };
     }
 
@@ -340,27 +446,35 @@ export class CausalInference {
 
     const n = this.observations.length;
     const scores: number[] = [];
-    let effectiveN = 0;
+    let sumWeights = 0;
+    let sumWeightsSquared = 0;
 
     for (const obs of this.observations) {
       const e = this.getPropensityScore(obs.features);
       const mu1 = this.predictOutcome(obs.features, 1);
       const mu0 = this.predictOutcome(obs.features, 0);
 
-      // 双重稳健得分
+      // 双重稳健得分 (Augmented IPW / AIPW 估计器)
+      // 标准公式: τ_DR = E[ (T/e)(Y - μ1) - ((1-T)/(1-e))(Y - μ0) + μ1 - μ0 ]
       let score: number;
+      let w: number;
       if (obs.treatment === 1) {
-        const w = 1 / e;
-        score = w * obs.outcome - (w - 1) * mu1 - mu0;
-        effectiveN += Math.min(w, 10); // 截断极端权重
+        w = Math.min(1 / Math.max(e, EPSILON), 20); // 截断极端权重，最大20
+        // 处理组: (Y - μ1)/e + μ1 - μ0
+        score = w * (obs.outcome - mu1) + mu1 - mu0;
       } else {
-        const w = 1 / (1 - e);
-        score = mu1 - w * obs.outcome + (w - 1) * mu0;
-        effectiveN += Math.min(w, 10);
+        w = Math.min(1 / Math.max(1 - e, EPSILON), 20);
+        // 对照组: μ1 - (Y - μ0)/(1-e) - μ0 = μ1 - μ0 - (Y - μ0)/(1-e)
+        score = mu1 - mu0 - w * (obs.outcome - mu0);
       }
 
       scores.push(score);
+      sumWeights += w;
+      sumWeightsSquared += w * w;
     }
+
+    // 计算有效样本量: (Σw)² / Σw² (Kish's effective sample size)
+    const effectiveN = sumWeightsSquared > 0 ? (sumWeights * sumWeights) / sumWeightsSquared : n;
 
     // 计算ATE和标准误
     const ate = this.mean(scores);
@@ -433,14 +547,28 @@ export class CausalInference {
     featuresOrTreatment: number[] | string,
     covariates: Record<string, any> = {}
   ): number {
-    // 兼容测试：按频率计算
+    // 兼容旧API：按频率计算（使用统一的观测数据）
     if (typeof featuresOrTreatment === 'string') {
-      if (!this.legacyObservations.length) return 0.5;
-      const matching = this.legacyObservations.filter(obs =>
-        Object.keys(covariates).every(key => obs.covariates[key] === covariates[key])
-      );
-      const treated = matching.filter(obs => obs.treatment === featuresOrTreatment).length;
-      return Math.min(1, Math.max(0, treated / (matching.length || 1)));
+      if (this.observations.length === 0) return 0.5;
+
+      const treatmentValue = this.treatmentMapping.get(featuresOrTreatment);
+      if (treatmentValue === undefined) return 0.5;
+
+      // 转换条件为特征向量进行匹配
+      const conditionFeatures = this.covariatesToFeatures(covariates);
+
+      // 过滤匹配的观测
+      const matching = this.observations.filter(obs => {
+        if (Object.keys(covariates).length === 0) return true;
+        return conditionFeatures.every((cf, i) =>
+          i >= obs.features.length || Math.abs(obs.features[i] - cf) < 0.001
+        );
+      });
+
+      if (matching.length === 0) return 0.5;
+
+      const treated = matching.filter(obs => obs.treatment === treatmentValue).length;
+      return this.clamp(treated / matching.length, 0, 1);
     }
 
     const features = featuresOrTreatment;
@@ -534,7 +662,7 @@ export class CausalInference {
    * 获取观测数量
    */
   getObservationCount(): number {
-    return this.legacyObservations.length || this.observations.length;
+    return this.observations.length;
   }
 
   /**
@@ -542,6 +670,8 @@ export class CausalInference {
    */
   clear(): void {
     this.observations = [];
+    this.treatmentMapping.clear();
+    this.defaultCovariateKeys = [];
     this.featureDim = 0;
     this.propensityWeights = null;
     this.outcomeWeightsTreatment = null;
@@ -574,7 +704,10 @@ export class CausalInference {
         ? Array.from(this.outcomeWeightsControl)
         : null,
       featureDim: this.featureDim,
-      fitted: this.fitted
+      fitted: this.fitted,
+      // 保存兼容旧API所需的映射
+      treatmentMapping: Array.from(this.treatmentMapping.entries()),
+      defaultCovariateKeys: [...this.defaultCovariateKeys]
     };
   }
 
@@ -587,8 +720,12 @@ export class CausalInference {
       return;
     }
 
+    // 版本迁移处理
     if (state.version !== CausalInference.VERSION) {
-      amasLogger.debug({ from: state.version, to: CausalInference.VERSION }, '[CausalInference] 版本迁移');
+      amasLogger.debug(
+        { from: state.version, to: CausalInference.VERSION },
+        '[CausalInference] 版本迁移'
+      );
     }
 
     this.observations = (state.observations ?? []).map(o => ({
@@ -613,6 +750,10 @@ export class CausalInference {
 
     this.featureDim = state.featureDim ?? 0;
     this.fitted = state.fitted ?? false;
+
+    // 恢复兼容旧API所需的映射
+    this.treatmentMapping = new Map(state.treatmentMapping ?? []);
+    this.defaultCovariateKeys = state.defaultCovariateKeys ?? [];
   }
 
   // ==================== 私有方法 ====================
@@ -868,19 +1009,7 @@ export class CausalInference {
   }
 
   /**
-   * 点积（Float64Array）
-   */
-  private dotProduct(a: number[], b: Float64Array): number {
-    let sum = 0;
-    const len = Math.min(a.length, b.length);
-    for (let i = 0; i < len; i++) {
-      sum += a[i] * b[i];
-    }
-    return sum;
-  }
-
-  /**
-   * 点积（数组和Float64Array，支持不同长度）
+   * 点积（数组和Float64Array）
    */
   private dotProductArrayExt(a: number[], b: Float64Array): number {
     let sum = 0;

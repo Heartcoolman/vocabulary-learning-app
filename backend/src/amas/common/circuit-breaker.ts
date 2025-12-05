@@ -37,10 +37,23 @@ export interface CircuitBreakerOptions {
 export class CircuitBreaker {
   private state: CircuitState = 'CLOSED';
   private lastOpenedAt = 0;
-  private samples: Array<{ at: number; ok: boolean }> = [];
+
+  /** 环形缓冲区存储样本 */
+  private sampleBuffer: Array<{ at: number; ok: boolean }>;
+  /** 环形缓冲区写入位置 */
+  private sampleIndex = 0;
+  /** 实际样本数量 */
+  private sampleCount = 0;
+
   private halfOpenRemaining = 0;
 
-  constructor(private readonly opts: CircuitBreakerOptions) {}
+  /** 状态转换锁，防止并发transition */
+  private transitioning = false;
+
+  constructor(private readonly opts: CircuitBreakerOptions) {
+    // 预分配环形缓冲区
+    this.sampleBuffer = new Array(opts.windowSize);
+  }
 
   /**
    * 检查是否可以执行请求
@@ -53,10 +66,20 @@ export class CircuitBreaker {
       if (now - this.lastOpenedAt >= this.opts.openDurationMs) {
         this.transition('HALF_OPEN');
         this.halfOpenRemaining = this.opts.halfOpenProbe;
-        return true;
+        return this.halfOpenRemaining > 0;
       }
       return false; // 仍在熔断状态
     }
+
+    // HALF_OPEN状态下限制探测请求数量
+    if (this.state === 'HALF_OPEN') {
+      if (this.halfOpenRemaining > 0) {
+        this.halfOpenRemaining -= 1;
+        return true;
+      }
+      return false; // 探测请求已用完，等待结果
+    }
+
     return true;
   }
 
@@ -69,9 +92,10 @@ export class CircuitBreaker {
 
     // HALF_OPEN状态下探测成功
     if (this.state === 'HALF_OPEN') {
-      this.halfOpenRemaining -= 1;
+      // 使用tryTransition确保只有一个请求能触发状态转换
+      // halfOpenRemaining在canExecute中已递减，这里检查是否所有探测都已完成
       if (this.halfOpenRemaining <= 0) {
-        this.transition('CLOSED'); // 所有探测成功,恢复正常
+        this.tryTransition('CLOSED'); // 所有探测成功,恢复正常
       }
     }
   }
@@ -95,7 +119,7 @@ export class CircuitBreaker {
     if (
       this.state === 'CLOSED' &&
       failureRate >= this.opts.failureThreshold &&
-      this.samples.length >= this.opts.windowSize
+      this.sampleCount >= this.opts.windowSize
     ) {
       this.open(now, reason);
     }
@@ -121,8 +145,19 @@ export class CircuitBreaker {
   reset(): void {
     this.state = 'CLOSED';
     this.lastOpenedAt = 0;
-    this.samples = [];
+    this.sampleBuffer = new Array(this.opts.windowSize);
+    this.sampleIndex = 0;
+    this.sampleCount = 0;
     this.halfOpenRemaining = 0;
+    this.transitioning = false;
+  }
+
+  /**
+   * 强制进入OPEN状态（手动熔断）
+   * @param reason 熔断原因
+   */
+  forceOpen(reason?: string): void {
+    this.open(Date.now(), reason ?? 'force_open');
   }
 
   /**
@@ -137,6 +172,24 @@ export class CircuitBreaker {
   }
 
   /**
+   * 尝试状态转换（带同步保护）
+   * @param to 目标状态
+   * @returns 是否成功转换
+   */
+  private tryTransition(to: CircuitState): boolean {
+    if (this.transitioning || to === this.state) {
+      return false;
+    }
+    this.transitioning = true;
+    try {
+      this.transition(to);
+      return true;
+    } finally {
+      this.transitioning = false;
+    }
+  }
+
+  /**
    * 状态转换
    * @param to 目标状态
    */
@@ -148,7 +201,9 @@ export class CircuitBreaker {
 
     // 修复: 转换到CLOSED状态时清空历史失败样本，避免抖动
     if (to === 'CLOSED') {
-      this.samples = [];
+      this.sampleBuffer = new Array(this.opts.windowSize);
+      this.sampleIndex = 0;
+      this.sampleCount = 0;
     }
 
     // 触发状态变更回调
@@ -161,21 +216,32 @@ export class CircuitBreaker {
   }
 
   /**
-   * 添加样本到滑动窗口
+   * 添加样本到滑动窗口（使用环形缓冲区，O(1)复杂度）
    * @param sample 样本
    */
   private pushSample(sample: { at: number; ok: boolean }): void {
-    this.samples.push(sample);
+    // 使用环形缓冲区存储样本
+    this.sampleBuffer[this.sampleIndex] = sample;
+    this.sampleIndex = (this.sampleIndex + 1) % this.opts.windowSize;
 
-    // 基于数量的窗口裁剪
-    if (this.samples.length > this.opts.windowSize) {
-      this.samples.shift();
+    if (this.sampleCount < this.opts.windowSize) {
+      this.sampleCount += 1;
     }
 
-    // 基于时间的窗口裁剪 (淘汰过期样本)
+    // 基于时间的窗口裁剪 (标记过期样本为undefined)
     if (this.opts.windowDurationMs) {
       const cutoffTime = sample.at - this.opts.windowDurationMs;
-      this.samples = this.samples.filter(s => s.at >= cutoffTime);
+      let validCount = 0;
+      for (let i = 0; i < this.sampleCount; i++) {
+        const s = this.sampleBuffer[i];
+        if (s && s.at >= cutoffTime) {
+          validCount++;
+        } else if (s) {
+          // 标记为过期（通过设置为undefined）
+          this.sampleBuffer[i] = undefined as unknown as { at: number; ok: boolean };
+        }
+      }
+      this.sampleCount = validCount;
     }
 
     // 触发事件回调
@@ -187,9 +253,21 @@ export class CircuitBreaker {
    * @returns 失败率 (0-1)
    */
   private computeFailureRate(): number {
-    if (this.samples.length === 0) return 0;
-    const failures = this.samples.filter(s => !s.ok).length;
-    return failures / this.samples.length;
+    let validCount = 0;
+    let failures = 0;
+
+    for (let i = 0; i < this.opts.windowSize; i++) {
+      const s = this.sampleBuffer[i];
+      if (s) {
+        validCount++;
+        if (!s.ok) {
+          failures++;
+        }
+      }
+    }
+
+    if (validCount === 0) return 0;
+    return failures / validCount;
   }
 
   /**

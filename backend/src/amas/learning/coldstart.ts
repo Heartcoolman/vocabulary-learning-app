@@ -203,12 +203,23 @@ export class ColdStartManager
   /** 全局统计是否已初始化 */
   private globalStatsInitialized = false;
 
+  /** 初始化Promise，用于等待初始化完成 */
+  private initPromise: Promise<void>;
+
+  /** 是否已准备就绪（基础初始化完成） */
+  private ready = false;
+
   constructor(thresholds?: Partial<ClassificationThresholds>) {
     this.thresholds = { ...DEFAULT_THRESHOLDS, ...thresholds };
-    // 异步初始化全局统计先验
-    this.initGlobalPriors().catch(err => {
-      amasLogger.warn({ err }, '[ColdStartManager] 无法加载全局统计先验');
-    });
+    // Bug修复：同步标记为就绪，避免selectAction阻塞或竞态条件
+    // 全局统计先验是优化项（用于贝叶斯分类），不是必需的
+    // 使用默认先验也能正常完成用户分类
+    this.ready = true;
+    // 异步加载全局统计先验（可选优化）
+    this.initPromise = this.initGlobalPriors()
+      .catch(err => {
+        amasLogger.warn({ err }, '[ColdStartManager] 无法加载全局统计先验，使用默认先验');
+      });
   }
 
   /**
@@ -252,6 +263,22 @@ export class ColdStartManager
     return this.globalStatsInitialized;
   }
 
+  /**
+   * 检查是否已准备就绪（基础初始化完成）
+   * 用于同步检查实例是否可以安全使用
+   */
+  isReady(): boolean {
+    return this.ready;
+  }
+
+  /**
+   * 等待初始化完成
+   * 用于需要确保初始化完成后再使用的场景
+   */
+  async waitUntilReady(): Promise<void> {
+    await this.initPromise;
+  }
+
   // ==================== BaseLearner接口实现 ====================
 
   /**
@@ -261,6 +288,8 @@ export class ColdStartManager
    * - classify阶段: 按顺序执行探测动作
    * - explore阶段: 使用分类后的收敛策略
    * - normal阶段: 返回收敛策略或默认策略
+   *
+   * 注意：如果实例尚未准备就绪，会使用默认先验，不会阻塞调用
    */
   selectAction(
     _state: UserState,
@@ -270,6 +299,12 @@ export class ColdStartManager
     // 保持与其他学习器一致的 API 行为
     if (!actions || actions.length === 0) {
       throw new Error('Action list cannot be empty');
+    }
+
+    // 如果尚未准备就绪，记录警告但继续使用默认先验
+    // 不阻塞调用以避免性能问题
+    if (!this.ready) {
+      amasLogger.debug('[ColdStartManager] selectAction 在初始化完成前被调用，使用默认先验');
     }
 
     const action = this.determineNextAction();
@@ -284,7 +319,8 @@ export class ColdStartManager
         userType: this.state.userType,
         probeIndex: this.state.probeIndex,
         probeTotal: PROBE_ACTIONS.length,
-        settledStrategy: this.state.settledStrategy
+        settledStrategy: this.state.settledStrategy,
+        initializationComplete: this.ready
       }
     };
   }
@@ -304,11 +340,16 @@ export class ColdStartManager
     reward: number,
     context: BaseLearnerContext
   ): void {
-    // 正确性判断：使用更严格的阈值，避免连续reward信号误判
-    // 当errorRate可用时，优先使用errorRate（低于0.5视为正确）
-    // 否则使用reward阈值（>= 0.5视为正确，适应连续奖励场景）
+    // 正确性判断：综合评估 errorRate 和 reward 两个指标
+    // - recentErrorRate: 最近错误率（0-1），越低表示表现越好
+    // - reward: 奖励值（0-1），越高表示表现越好
+    // 使用加权组合：将两者转换为同一方向后综合评估
+    // reward 权重较高（0.6）因为它是更直接的反馈信号
+    // errorRate 权重较低（0.4）提供窗口期稳定性信息
     const recentErrorRate = this.toNumber(context.recentErrorRate, 0.5);
-    const isCorrect = recentErrorRate < 0.5 || reward >= 0.5;
+    const correctnessFromErrorRate = 1 - recentErrorRate; // 转换为正确率
+    const combinedScore = 0.6 * reward + 0.4 * correctnessFromErrorRate;
+    const isCorrect = combinedScore >= 0.5;
 
     const result: ProbeResult = {
       action,
@@ -338,13 +379,18 @@ export class ColdStartManager
     }
 
     // 探索阶段转换检查
-    // 增加条件：探针完成 + 样本数达标 + 有收敛策略
+    // 增加条件：探针完成 + 样本数达标
     if (
       this.state.phase === 'explore' &&
       this.state.updateCount >= EXPLORE_PHASE_THRESHOLD &&
-      this.state.probeIndex >= PROBE_ACTIONS.length &&
-      this.state.settledStrategy !== null
+      this.state.probeIndex >= PROBE_ACTIONS.length
     ) {
+      // 容错逻辑：如果settledStrategy为null（理论上不应该发生），重新执行分类
+      // 这确保即使之前分类失败，也能正常进入normal阶段
+      if (this.state.settledStrategy === null) {
+        amasLogger.warn('[ColdStartManager] explore阶段settledStrategy为null，重新执行分类');
+        this.classifyUserBayesian();
+      }
       this.state.phase = 'normal';
     }
   }
@@ -468,12 +514,16 @@ export class ColdStartManager
    */
   getProgress(): number {
     if (this.state.phase === 'classify') {
-      return this.state.probeIndex / PROBE_ACTIONS.length * 0.5;
+      // 防止除零：PROBE_ACTIONS.length 应该 > 0
+      const probeCount = PROBE_ACTIONS.length || 1;
+      return this.state.probeIndex / probeCount * 0.5;
     }
     if (this.state.phase === 'explore') {
-      const exploreProgress =
-        (this.state.updateCount - PROBE_ACTIONS.length) /
-        (EXPLORE_PHASE_THRESHOLD - PROBE_ACTIONS.length);
+      // 防止除零和负数：确保分母 > 0
+      const probeCount = PROBE_ACTIONS.length;
+      const exploreDenominator = Math.max(EXPLORE_PHASE_THRESHOLD - probeCount, 1);
+      const exploreNumerator = Math.max(this.state.updateCount - probeCount, 0);
+      const exploreProgress = exploreNumerator / exploreDenominator;
       return 0.5 + Math.min(exploreProgress, 1) * 0.5;
     }
     return 1;
@@ -620,7 +670,9 @@ export class ColdStartManager
    * 高斯分布对数似然
    */
   private gaussianLogLikelihood(x: number, mean: number, std: number): number {
-    const variance = std * std;
+    // 防止除零：确保 std > 0
+    const safeStd = Math.max(std, 1e-10);
+    const variance = safeStd * safeStd;
     const diff = x - mean;
     return -0.5 * (diff * diff) / variance;
   }

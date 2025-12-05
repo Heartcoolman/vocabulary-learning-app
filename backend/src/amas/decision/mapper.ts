@@ -79,11 +79,15 @@ export function computeStrategyDelta(
   oldParams: StrategyParams,
   newParams: StrategyParams
 ): number {
+  // 计算 difficulty 变化：不同则加1，相同则加0
+  const difficultyDelta = oldParams.difficulty !== newParams.difficulty ? 1 : 0;
+
   const delta =
     Math.abs(newParams.interval_scale - oldParams.interval_scale) +
     Math.abs(newParams.new_ratio - oldParams.new_ratio) * 10 +
     Math.abs(newParams.batch_size - oldParams.batch_size) / 5 +
-    Math.abs(newParams.hint_level - oldParams.hint_level);
+    Math.abs(newParams.hint_level - oldParams.hint_level) +
+    difficultyDelta; // 添加 difficulty 变化
 
   return delta;
 }
@@ -100,12 +104,25 @@ export function hasSignificantChange(
 }
 
 /**
+ * 计算动作与preferredAction的相似度（距离越小越相似）
+ */
+function computePreferenceDistance(action: Action, preferred: Action): number {
+  return (
+    Math.abs(action.interval_scale - preferred.interval_scale) +
+    Math.abs(action.new_ratio - preferred.new_ratio) * 10 +
+    Math.abs(action.batch_size - preferred.batch_size) / 5 +
+    Math.abs(action.hint_level - preferred.hint_level) +
+    (action.difficulty === preferred.difficulty ? 0 : 1)
+  );
+}
+
+/**
  * Critical Fix #3: 逆向映射 - 根据最终策略重建动作
  * Optimization #2: 对齐到ACTION_SPACE，确保返回的action在预定义的动作空间中
  * 用于Guardrail修改策略后，确保action与strategy保持一致
  *
  * @param strategy 最终策略参数（经过guardrail调整后）
- * @param preferredAction 可选的原始动作（平局时优先选择）
+ * @param preferredAction 可选的原始动作（平局时优先选择更接近它的）
  * @returns 与strategy最接近的action（对齐到ACTION_SPACE）
  */
 export function mapStrategyToAction(
@@ -117,6 +134,7 @@ export function mapStrategyToAction(
   // 计算策略与每个action的距离
   let bestAction: Action = ACTION_SPACE[0];
   let minDistance = Infinity;
+  let bestPreferenceDistance = Infinity;
 
   for (const candidate of ACTION_SPACE) {
     // 计算加权欧氏距离
@@ -127,15 +145,26 @@ export function mapStrategyToAction(
       Math.pow(candidate.hint_level - strategy.hint_level, 2) +
       (candidate.difficulty === strategy.difficulty ? 0 : 1); // difficulty不匹配额外惩罚
 
-    // 如果距离相同且是preferredAction，优先选择
-    if (distance < minDistance || (distance === minDistance && preferredAction &&
-        candidate.interval_scale === preferredAction.interval_scale &&
-        candidate.new_ratio === preferredAction.new_ratio &&
-        candidate.difficulty === preferredAction.difficulty &&
-        candidate.batch_size === preferredAction.batch_size &&
-        candidate.hint_level === preferredAction.hint_level)) {
+    // 判断是否应该更新bestAction
+    let shouldUpdate = false;
+
+    if (distance < minDistance) {
+      // 距离更近，直接更新
+      shouldUpdate = true;
+    } else if (distance === minDistance && preferredAction) {
+      // 距离相等时，优先选择更接近preferredAction的
+      const candidatePreferenceDistance = computePreferenceDistance(candidate, preferredAction);
+      if (candidatePreferenceDistance < bestPreferenceDistance) {
+        shouldUpdate = true;
+      }
+    }
+
+    if (shouldUpdate) {
       minDistance = distance;
       bestAction = candidate;
+      bestPreferenceDistance = preferredAction
+        ? computePreferenceDistance(candidate, preferredAction)
+        : Infinity;
     }
   }
 

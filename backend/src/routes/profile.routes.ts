@@ -27,7 +27,7 @@ const handleError = (res: Response, err: any) => {
   res.status(500).json({ success: false, error: 'Unexpected error' });
 };
 
-router.get('/api/users/profile/chronotype', authMiddleware, async (req, res) => {
+router.get('/chronotype', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {
@@ -38,7 +38,7 @@ router.get('/api/users/profile/chronotype', authMiddleware, async (req, res) => 
   }
 });
 
-router.get('/api/users/profile/learning-style', authMiddleware, async (req, res) => {
+router.get('/learning-style', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {
@@ -50,7 +50,7 @@ router.get('/api/users/profile/learning-style', authMiddleware, async (req, res)
 });
 
 // Combined endpoint if the frontend prefers one call.
-router.get('/api/users/profile/cognitive', authMiddleware, async (req, res) => {
+router.get('/cognitive', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {

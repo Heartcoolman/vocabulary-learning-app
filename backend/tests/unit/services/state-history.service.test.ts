@@ -17,7 +17,19 @@ vi.mock('../../../src/config/database', () => ({
       deleteMany: vi.fn(),
       count: vi.fn(),
       aggregate: vi.fn()
-    }
+    },
+    $transaction: vi.fn().mockImplementation(async (fn: any) => {
+      // 模拟事务上下文
+      const txContext = {
+        userStateHistory: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          upsert: vi.fn().mockResolvedValue({ id: 'state-1' }),
+          create: vi.fn().mockResolvedValue({ id: 'state-1' }),
+          update: vi.fn().mockResolvedValue({ id: 'state-1' })
+        }
+      };
+      return fn(txContext);
+    })
   }
 }));
 
@@ -100,14 +112,13 @@ describe('StateHistoryService', () => {
 
   describe('saveStateSnapshot', () => {
     it('should save state snapshot', async () => {
-      // Service uses upsert, not create
-      (prisma.userStateHistory.upsert as any).mockResolvedValue({ id: 'h1' });
-
       const state = { A: 0.8, F: 0.2, M: 0.6, C: { memory: 0.7, speed: 0.6, stability: 0.5 } };
-      
+
+      // Service uses $transaction with tx.userStateHistory operations
       await stateHistoryService.saveStateSnapshot('user-1', state);
 
-      expect(prisma.userStateHistory.upsert).toHaveBeenCalled();
+      // 验证事务被调用
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
   });
 

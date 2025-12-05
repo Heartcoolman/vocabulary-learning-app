@@ -48,6 +48,7 @@ const LogViewerPage = lazy(() => import('./pages/admin/LogViewerPage'));
 const LogAlertsPage = lazy(() => import('./pages/admin/LogAlertsPage'));
 const OptimizationDashboard = lazy(() => import('./pages/admin/OptimizationDashboard'));
 const CausalInferencePage = lazy(() => import('./pages/admin/CausalInferencePage'));
+const LLMAdvisorPage = lazy(() => import('./pages/admin/LLMAdvisorPage'));
 
 // 懒加载 - AMAS 公开展示页面（About）
 const AboutLayout = lazy(() => import('./pages/about/AboutLayout'));
@@ -385,6 +386,11 @@ function AppContent() {
               <Route path="causal-analysis" element={
                 <Suspense fallback={<PageLoader />}>
                   <CausalInferencePage />
+                </Suspense>
+              } />
+              <Route path="llm-advisor" element={
+                <Suspense fallback={<PageLoader />}>
+                  <LLMAdvisorPage />
                 </Suspense>
               } />
             </Route>

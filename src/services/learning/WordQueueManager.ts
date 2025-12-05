@@ -128,7 +128,14 @@ export class WordQueueManager {
 
     // 4. 活跃队列不够,从待学习池补充
     if (this.activeWords.size < this.config.maxActiveWords && this.pendingWords.length > 0) {
-      // peek时也要移动队列（让词可被答题），只是不增加totalQuestions
+      // peek模式：只读操作，不修改队列状态
+      if (!consume) {
+        // 返回pending队列的第一个词作为预览，但不实际移动
+        const previewWord = this.pendingWords[0];
+        return { word: previewWord, isCompleted: false };
+      }
+
+      // consume模式：实际移动单词到活跃队列
       const newWord = this.pendingWords.shift()!;
       this.activeWords.set(newWord.id, {
         wordId: newWord.id,
@@ -138,10 +145,8 @@ export class WordQueueManager {
         attempts: 0,
         lastAttemptTime: 0
       });
-      if (consume) {
-        this.totalQuestions++;
-        this.updateRecentlyShown(newWord.id);
-      }
+      this.totalQuestions++;
+      this.updateRecentlyShown(newWord.id);
 
       learningLogger.info(
         `[WordQueue] 补充新词到活跃队列: ${newWord.spelling}, ` +
@@ -151,15 +156,28 @@ export class WordQueueManager {
       return { word: newWord, isCompleted: false };
     }
 
-    // 5. 如果活跃队列还有词,强制选一个(忽略间隔)
+    // 5. 如果活跃队列还有词,强制选一个(忽略间隔，但避免选刚刚显示的那个)
     if (this.activeWords.size > 0) {
-      const forcePick = Array.from(this.activeWords.keys())[0];
+      const activeKeys = Array.from(this.activeWords.keys());
+      // 获取最近显示的词ID（如果有）
+      const lastShownId = this.recentlyShown.length > 0
+        ? this.recentlyShown[this.recentlyShown.length - 1]
+        : null;
+
+      // 尝试找一个不是刚刚显示的词
+      let forcePick = activeKeys.find(id => id !== lastShownId);
+
+      // 如果所有活跃词都是刚显示的（只有一个词的情况），就用第一个
+      if (!forcePick) {
+        forcePick = activeKeys[0];
+      }
+
       if (consume) {
         this.totalQuestions++;
         this.updateRecentlyShown(forcePick);
       }
 
-      learningLogger.debug('强制选择活跃队列中的词');
+      learningLogger.debug({ forcePick, lastShownId }, '强制选择活跃队列中的词');
 
       return { word: this.getWordItem(forcePick), isCompleted: false };
     }
@@ -191,6 +209,9 @@ export class WordQueueManager {
    * @param peek 是否为预览模式（不修改状态）
    */
   private selectFromActiveWords(peek: boolean = false): string | null {
+    // 收集需要自动标记为掌握的单词（达到最大尝试次数）
+    const wordsToMarkMastered: string[] = [];
+
     const candidates = Array.from(this.activeWords.entries())
       .filter(([wordId, progress]) => {
         // 过滤掉最近出现过的
@@ -200,15 +221,9 @@ export class WordQueueManager {
 
         // 过滤掉超过最大尝试次数的
         if (progress.attempts >= this.config.maxAttemptsPerWord) {
+          // 仅收集需要处理的单词，不在filter中直接修改状态
           if (!peek) {
-            // 只有非peek模式才执行状态修改
-            learningLogger.warn(
-              `[WordQueue] 单词${wordId}已达最大尝试次数${this.config.maxAttemptsPerWord}, ` +
-              `自动标记为掌握`
-            );
-            // 自动标记为掌握(降级处理)
-            this.activeWords.delete(wordId);
-            this.masteredWords.add(wordId);
+            wordsToMarkMastered.push(wordId);
           }
           return false;
         }
@@ -222,6 +237,18 @@ export class WordQueueManager {
         // 其次选尝试次数少的
         return a[1].attempts - b[1].attempts;
       });
+
+    // 在filter完成后，统一处理需要标记为掌握的单词（避免在迭代中修改集合）
+    if (!peek && wordsToMarkMastered.length > 0) {
+      for (const wordId of wordsToMarkMastered) {
+        learningLogger.warn(
+          `[WordQueue] 单词${wordId}已达最大尝试次数${this.config.maxAttemptsPerWord}, ` +
+          `自动标记为掌握`
+        );
+        this.activeWords.delete(wordId);
+        this.masteredWords.add(wordId);
+      }
+    }
 
     if (candidates.length > 0) {
       const selected = candidates[0][0];

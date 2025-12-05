@@ -2,6 +2,11 @@
  * 状态历史服务
  * 管理用户学习状态的历史记录和认知成长追踪
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+ *
+ * 时区策略：
+ * - 所有日期操作统一使用 UTC 时间
+ * - 存储到数据库的 date 字段为 UTC 零点时间 (00:00:00.000 UTC)
+ * - 这确保了跨时区查询的一致性，避免因本地时间差异导致的数据不一致
  */
 
 import prisma from '../config/database';
@@ -58,8 +63,10 @@ export interface CognitiveGrowthResult {
     stability: number;
   };
   period: number;
-  /** 是否有真实数据（无历史记录时为false，此时current/past使用默认值） */
+  /** 是否有当前数据（有当前记录时为true） */
   hasData: boolean;
+  /** 是否有可比较的数据（有当前记录且有历史记录时为true，用于判断changes是否有意义） */
+  hasComparableData: boolean;
 }
 
 /**
@@ -113,6 +120,8 @@ const POSITIVE_WHEN_DOWN = ['fatigue'];
 class StateHistoryService {
   /**
    * 兼容旧版/测试的简单记录接口
+   *
+   * 修复：统一使用UTC时间，与其他方法保持一致
    */
   async recordState(
     userId: string,
@@ -121,10 +130,14 @@ class StateHistoryService {
     const prismaAny = prisma as any;
     const timestamp = state.timestamp ?? new Date();
 
+    // 修复：统一使用UTC时间，将日期规范化为UTC零点
+    const dateForDb = new Date(timestamp);
+    dateForDb.setUTCHours(0, 0, 0, 0);
+
     // 将简化的 state 映射到结构化字段（实际数据库使用）
     const payload = {
       userId,
-      date: new Date(timestamp),
+      date: dateForDb,
       attention: state.A ?? (state as any).attention ?? 0,
       fatigue: state.F ?? (state as any).fatigue ?? 0,
       motivation: state.M ?? (state as any).motivation ?? 0,
@@ -212,9 +225,12 @@ class StateHistoryService {
   /**
    * 保存状态快照
    * Requirements: 5.2
-   * 
+   *
    * Property 16: 同一天多次更新时保存平均值
-   * 
+   *
+   * 使用 Prisma 事务确保查询和更新的原子性，避免 TOCTOU 竞态条件。
+   * 在并发场景下，事务保证 EMA 计算基于一致的数据。
+   *
    * @param userId 用户ID
    * @param state 用户状态
    */
@@ -223,57 +239,64 @@ class StateHistoryService {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
 
-    const existing = await prisma.userStateHistory.findUnique({
-      where: {
-        userId_date: {
-          userId,
-          date: today
-        }
-      }
-    });
-
     const alpha = 0.3;
-    const createData = {
-      userId,
-      date: today,
-      attention: state.A,
-      fatigue: state.F,
-      motivation: state.M,
-      memory: state.C.memory,
-      speed: state.C.speed,
-      stability: state.C.stability,
-      trendState: state.T
-    };
 
-    const updateData = existing
-      ? {
-          attention: alpha * state.A + (1 - alpha) * existing.attention,
-          fatigue: alpha * state.F + (1 - alpha) * existing.fatigue,
-          motivation: alpha * state.M + (1 - alpha) * existing.motivation,
-          memory: alpha * state.C.memory + (1 - alpha) * existing.memory,
-          speed: alpha * state.C.speed + (1 - alpha) * existing.speed,
-          stability: alpha * state.C.stability + (1 - alpha) * existing.stability,
-          trendState: state.T || existing.trendState
+    // 使用事务确保查询和更新的原子性，避免 TOCTOU 竞态条件
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userStateHistory.findUnique({
+        where: {
+          userId_date: {
+            userId,
+            date: today
+          }
         }
-      : {
-          attention: state.A,
-          fatigue: state.F,
-          motivation: state.M,
-          memory: state.C.memory,
-          speed: state.C.speed,
-          stability: state.C.stability,
-          trendState: state.T
-        };
+      });
 
-    await prisma.userStateHistory.upsert({
-      where: {
-        userId_date: {
-          userId,
-          date: today
-        }
-      },
-      create: createData,
-      update: updateData
+      // 兼容处理：支持 memory 和 mem 两种字段名
+      const memoryValue = (state.C as any).memory ?? (state.C as any).mem ?? 0;
+
+      const createData = {
+        userId,
+        date: today,
+        attention: state.A,
+        fatigue: state.F,
+        motivation: state.M,
+        memory: memoryValue,
+        speed: state.C.speed,
+        stability: state.C.stability,
+        trendState: state.T
+      };
+
+      const updateData = existing
+        ? {
+            attention: alpha * state.A + (1 - alpha) * existing.attention,
+            fatigue: alpha * state.F + (1 - alpha) * existing.fatigue,
+            motivation: alpha * state.M + (1 - alpha) * existing.motivation,
+            memory: alpha * memoryValue + (1 - alpha) * existing.memory,
+            speed: alpha * state.C.speed + (1 - alpha) * existing.speed,
+            stability: alpha * state.C.stability + (1 - alpha) * existing.stability,
+            trendState: state.T || existing.trendState
+          }
+        : {
+            attention: state.A,
+            fatigue: state.F,
+            motivation: state.M,
+            memory: memoryValue,
+            speed: state.C.speed,
+            stability: state.C.stability,
+            trendState: state.T
+          };
+
+      await tx.userStateHistory.upsert({
+        where: {
+          userId_date: {
+            userId,
+            date: today
+          }
+        },
+        create: createData,
+        update: updateData
+      });
     });
   }
 
@@ -295,10 +318,12 @@ class StateHistoryService {
     let endDate: Date;
 
     if (typeof range === 'number') {
-      // 使用天数
+      // 使用天数，统一使用 UTC 时间以与 saveStateSnapshot 保持一致
       endDate = new Date();
       startDate = new Date();
-      startDate.setDate(startDate.getDate() - range);
+      startDate.setUTCDate(startDate.getUTCDate() - range);
+      startDate.setUTCHours(0, 0, 0, 0);
+      endDate.setUTCHours(23, 59, 59, 999);
     } else {
       // 使用具体范围
       startDate = range.start;
@@ -334,13 +359,17 @@ class StateHistoryService {
    *
    * Property 17: 对比当前和指定天数前的认知画像
    *
+   * 修复：统一使用UTC时间，与saveStateSnapshot和getStateHistory保持一致
+   *
    * @param userId 用户ID
    * @param period 对比周期（天数），默认30天
    * @returns 认知成长结果（包含 hasData 标志区分真实数据和默认值）
    */
   async getCognitiveGrowth(userId: string, period: DateRangeOption = 30): Promise<CognitiveGrowthResult> {
+    // 修复：使用UTC时间计算过去日期，与其他方法保持一致
     const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - period);
+    pastDate.setUTCDate(pastDate.getUTCDate() - period);
+    pastDate.setUTCHours(0, 0, 0, 0);
 
     // 获取当前状态（最近一条记录）
     const currentRecord = await prisma.userStateHistory.findFirst({
@@ -357,8 +386,11 @@ class StateHistoryService {
       orderBy: { date: 'desc' }
     });
 
-    // 检查是否有足够的真实数据
-    const hasData = currentRecord !== null && pastRecord !== null;
+    // Bug Fix: 区分hasData和hasComparableData
+    // hasData: 有当前记录时为true（即使只有单条记录）
+    // hasComparableData: 有当前记录且有历史记录时为true（可以进行有意义的对比）
+    const hasData = currentRecord !== null;
+    const hasComparableData = currentRecord !== null && pastRecord !== null;
 
     // 默认值（无数据时使用）
     const defaultProfile: CognitiveProfile = {
@@ -392,7 +424,8 @@ class StateHistoryService {
         stability: current.stability - past.stability
       },
       period,
-      hasData
+      hasData,
+      hasComparableData
     };
   }
 
@@ -430,19 +463,27 @@ class StateHistoryService {
       const endValue = lastRecord[metric];
       const absoluteChange = endValue - startValue;
 
-      // 计算变化百分比
-      // 当 startValue 为 0 时，使用绝对阈值判断（适用于 motivation 等可为0的指标）
+      // Bug Fix: 统一百分比计算逻辑，明确changePercent的含义
+      // changePercent 统一表示相对变化百分比（如 +25% 表示增长了25%）
+      // 边界情况处理：
+      // 1. startValue接近0时：使用绝对变化量判断是否显著，但changePercent仍为0
+      // 2. startValue非0时：changePercent = (endValue - startValue) / |startValue| * 100
       let changePercent: number;
       let isSignificant: boolean;
 
       if (Math.abs(startValue) < 0.001) {
-        // startValue 接近0时，使用绝对变化量判断（阈值0.2）
-        changePercent = absoluteChange * 100; // 转换为百分比形式显示
+        // startValue 接近0时，无法计算有意义的百分比变化
+        // 使用绝对变化量判断是否显著（阈值0.2）
+        // changePercent设为绝对变化量乘以100，表示"百分点"变化（如0.3变为30）
+        // 注意：这种情况下changePercent的含义是"百分点变化"而非"百分比变化"
+        changePercent = absoluteChange * 100;
         isSignificant = Math.abs(absoluteChange) >= SIGNIFICANT_CHANGE_THRESHOLD;
       } else {
-        changePercent = absoluteChange / Math.abs(startValue);
-        isSignificant = Math.abs(changePercent) >= SIGNIFICANT_CHANGE_THRESHOLD;
-        changePercent = changePercent * 100; // 转换为百分比形式
+        // 标准情况：计算相对百分比变化
+        // 例如：从0.5变为0.6，changePercent = (0.6-0.5)/0.5 * 100 = 20%
+        const relativeChange = absoluteChange / Math.abs(startValue);
+        isSignificant = Math.abs(relativeChange) >= SIGNIFICANT_CHANGE_THRESHOLD;
+        changePercent = relativeChange * 100;
       }
 
       // 检查是否超过阈值 (Property 18)

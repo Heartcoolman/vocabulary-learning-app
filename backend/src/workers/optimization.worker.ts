@@ -15,6 +15,9 @@ import { workerLogger } from '../logger';
 /** 优化周期运行状态 */
 let isRunning = false;
 
+/** 定时任务实例 */
+let scheduledTask: ScheduledTask | null = null;
+
 /**
  * 执行优化周期
  */
@@ -95,7 +98,7 @@ export function startOptimizationWorker(
 
   workerLogger.info({ schedule }, '启动优化Worker');
 
-  const task = cron.schedule(schedule, () => {
+  scheduledTask = cron.schedule(schedule, () => {
     runOptimizationCycle().catch(err => {
       workerLogger.error({ err }, '未捕获的错误');
     });
@@ -103,7 +106,20 @@ export function startOptimizationWorker(
 
   workerLogger.info('优化Worker已启动');
 
-  return task;
+  return scheduledTask;
+}
+
+/**
+ * 停止优化Worker
+ */
+export function stopOptimizationWorker(): void {
+  if (scheduledTask) {
+    scheduledTask.stop();
+    scheduledTask = null;
+    workerLogger.info('优化Worker已停止');
+  }
+  // 重置运行状态，确保重启后任务可以正常执行
+  isRunning = false;
 }
 
 /**
@@ -113,15 +129,40 @@ export async function triggerOptimizationCycle(): Promise<{
   suggested: Record<string, number> | null;
   evaluated: boolean;
 }> {
-  return runOptimizationCycle().then(() => {
-    const history = optimizationService.getOptimizationHistory();
-    const lastObs = history.observations[history.observations.length - 1];
+  if (!isBayesianOptimizerEnabled()) {
+    throw new Error('贝叶斯优化器未启用');
+  }
 
-    return {
-      suggested: lastObs?.params ?? null,
-      evaluated: history.evaluationCount > 0
-    };
-  });
+  if (isRunning) {
+    throw new Error('优化周期正在运行中，请稍后再试');
+  }
+
+  isRunning = true;
+  const startTime = Date.now();
+
+  try {
+    workerLogger.info('手动触发：开始执行优化周期');
+
+    const result = await optimizationService.runOptimizationCycle();
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    workerLogger.info(
+      {
+        duration,
+        suggested: result.suggested,
+        evaluated: result.evaluated
+      },
+      '手动触发：优化周期完成'
+    );
+
+    return result;
+  } catch (error) {
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    workerLogger.error({ err: error, duration }, '手动触发：优化周期失败');
+    throw error;
+  } finally {
+    isRunning = false;
+  }
 }
 
 /**

@@ -244,7 +244,97 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
   );
 }
 
-// 4. 优化事件时间轴 (OptimizationTimeline)
+// 4. 学习模式分布 (LearningModeDistribution)
+function LearningModeDistribution() {
+  // 模拟数据 - 实际应从 API 获取
+  const modeData = useMemo(() => ({
+    standard: 0.65,
+    cram: 0.20,
+    relaxed: 0.15
+  }), []);
+
+  const modeConfig = {
+    standard: { name: '标准模式', color: 'bg-blue-500', desc: '平衡长期记忆' },
+    cram: { name: '突击模式', color: 'bg-amber-500', desc: '考前冲刺' },
+    relaxed: { name: '轻松模式', color: 'bg-emerald-500', desc: '降低压力' }
+  };
+
+  return (
+    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm">
+      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <Target className="text-blue-500" />
+        学习模式分布
+      </h3>
+      <div className="space-y-4">
+        {Object.entries(modeData).map(([id, value]) => {
+          const config = modeConfig[id as keyof typeof modeConfig];
+          return (
+            <div key={id}>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-700">{config.name}</span>
+                <span className="text-sm font-mono text-gray-500">{(value * 100).toFixed(0)}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${value * 100}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                  className={`h-full ${config.color} rounded-full`}
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{config.desc}</p>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+// 5. 半衰期分布 (HalfLifeDistribution)
+function HalfLifeDistribution() {
+  // 模拟数据 - 实际应从 API 获取
+  const halfLifeData = useMemo(() => [
+    { range: '0-1天', count: 120, percentage: 15 },
+    { range: '1-3天', count: 280, percentage: 35 },
+    { range: '3-7天', count: 200, percentage: 25 },
+    { range: '7-14天', count: 120, percentage: 15 },
+    { range: '14+天', count: 80, percentage: 10 }
+  ], []);
+
+  const avgHalfLife = 4.2;
+
+  return (
+    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm">
+      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <Timer className="text-purple-500" />
+        半衰期分布
+      </h3>
+      <div className="text-center mb-4">
+        <div className="text-3xl font-bold text-purple-600">{avgHalfLife}</div>
+        <div className="text-sm text-gray-500">平均半衰期（天）</div>
+      </div>
+      <div className="space-y-2">
+        {halfLifeData.map((item) => (
+          <div key={item.range} className="flex items-center gap-2">
+            <span className="w-16 text-xs text-gray-500">{item.range}</span>
+            <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${item.percentage}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full"
+              />
+            </div>
+            <span className="w-10 text-xs text-gray-600 text-right">{item.percentage}%</span>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// 6. 优化事件时间轴 (OptimizationTimeline)
 function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
     <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm col-span-1 md:col-span-2">
@@ -393,6 +483,16 @@ export default function StatsPage() {
           {/* 4. Optimization Timeline */}
           <div className="lg:col-span-2">
             <OptimizationTimeline events={events} />
+          </div>
+
+          {/* 5. Learning Mode Distribution */}
+          <div className="lg:col-span-1">
+            <LearningModeDistribution />
+          </div>
+
+          {/* 6. Half-Life Distribution */}
+          <div className="lg:col-span-1">
+            <HalfLifeDistribution />
           </div>
         </div>
       </motion.div>

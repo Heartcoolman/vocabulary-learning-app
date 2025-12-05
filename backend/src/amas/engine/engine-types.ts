@@ -197,6 +197,22 @@ export class MemoryModelRepository implements ModelRepository {
 // ==================== 引擎依赖和选项 ====================
 
 /**
+ * 内存管理配置（用于用户隔离模块）
+ */
+export interface MemoryManagementConfig {
+  /** 最大用户数限制（默认 5000） */
+  maxUsers?: number;
+  /** 用户模型 TTL（毫秒，默认 30 分钟） */
+  modelTtlMs?: number;
+  /** 交互计数 TTL（毫秒，默认 1 小时） */
+  interactionCountTtlMs?: number;
+  /** 清理间隔（毫秒，默认 5 分钟） */
+  cleanupIntervalMs?: number;
+  /** LRU 淘汰阈值（当缓存达到此比例时触发 LRU 淘汰，默认 0.9） */
+  lruEvictionThreshold?: number;
+}
+
+/**
  * 引擎依赖
  */
 export interface EngineDependencies {
@@ -220,6 +236,8 @@ export interface EngineDependencies {
   recorder?: any; // 使用 any 避免循环依赖，实际类型为 DecisionRecorderService
   // Prisma客户端（可选，用于自动创建默认 recorder）
   prisma?: any; // 使用 any 避免循环依赖，实际类型为 PrismaClient
+  // 内存管理配置（可选，用于配置用户模型缓存的 LRU/TTL 策略）
+  memoryConfig?: MemoryManagementConfig;
 }
 
 /**

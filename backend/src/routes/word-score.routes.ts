@@ -47,6 +47,14 @@ router.get('/low/list', async (req: AuthRequest, res, next) => {
         const userId = req.user!.id;
         const threshold = req.query.threshold ? parseInt(req.query.threshold as string) : 40;
 
+        // 验证threshold范围
+        if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+            return res.status(400).json({
+                success: false,
+                error: 'threshold必须在0-100之间'
+            });
+        }
+
         const lowScoreWords = await wordScoreService.getLowScoreWords(userId, threshold);
 
         res.json({
@@ -66,6 +74,14 @@ router.get('/high/list', async (req: AuthRequest, res, next) => {
     try {
         const userId = req.user!.id;
         const threshold = req.query.threshold ? parseInt(req.query.threshold as string) : 80;
+
+        // 验证threshold范围
+        if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+            return res.status(400).json({
+                success: false,
+                error: 'threshold必须在0-100之间'
+            });
+        }
 
         const highScoreWords = await wordScoreService.getHighScoreWords(userId, threshold);
 
@@ -131,6 +147,22 @@ router.post('/batch', async (req: AuthRequest, res, next) => {
             return res.status(400).json({
                 success: false,
                 error: 'wordIds must be an array'
+            });
+        }
+
+        // 验证数组长度限制
+        if (wordIds.length > 500) {
+            return res.status(400).json({
+                success: false,
+                error: 'wordIds数组最多允许500个元素'
+            });
+        }
+
+        // 验证数组元素类型
+        if (!wordIds.every(id => typeof id === 'string' && id.length > 0)) {
+            return res.status(400).json({
+                success: false,
+                error: 'wordIds数组元素必须是非空字符串'
             });
         }
 

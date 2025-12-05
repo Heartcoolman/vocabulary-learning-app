@@ -19,8 +19,47 @@ const HabitProfileTab: React.FC = () => {
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    loadHabitProfile();
-    loadCognitiveProfile();
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await apiClient.getHabitProfile();
+        if (mounted) {
+          setProfile(data.realtime);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : '加载习惯数据失败');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const loadCognitive = async () => {
+      try {
+        const data = await apiClient.getCognitiveProfile();
+        if (mounted) {
+          setCognitiveProfile(data);
+        }
+      } catch (err) {
+        learningLogger.warn({ err }, '加载认知画像失败');
+        if (mounted) {
+          setCognitiveProfile(null);
+        }
+      }
+    };
+
+    loadData();
+    loadCognitive();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const loadHabitProfile = async () => {
@@ -33,17 +72,6 @@ const HabitProfileTab: React.FC = () => {
       setError(err instanceof Error ? err.message : '加载习惯数据失败');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadCognitiveProfile = async () => {
-    try {
-      const data = await apiClient.getCognitiveProfile();
-      setCognitiveProfile(data);
-    } catch (err) {
-      learningLogger.warn({ err }, '加载认知画像失败');
-      // Don't set error - cognitive profile is optional/supplementary
-      setCognitiveProfile(null);
     }
   };
 

@@ -35,6 +35,7 @@ import profileRoutes from './routes/profile.routes';
 import learningObjectivesRoutes from './routes/learning-objectives.routes';
 import logsRoutes from './routes/logs.routes';
 import logViewerRoutes from './routes/log-viewer.routes';
+import llmAdvisorRoutes from './routes/llm-advisor.routes';
 
 
 const app = express();
@@ -196,7 +197,8 @@ app.use('/api/alerts', alertsRoutes);
 app.use('/api/learning-objectives', learningObjectivesRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/admin/logs', logViewerRoutes);
-app.use(profileRoutes); // Profile routes already include /api prefix
+app.use('/api/llm-advisor', llmAdvisorRoutes);
+app.use('/api/users/profile', profileRoutes);
 
 
 // 404处理

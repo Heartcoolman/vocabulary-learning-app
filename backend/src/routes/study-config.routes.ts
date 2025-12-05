@@ -41,6 +41,15 @@ router.put('/', async (req: AuthRequest, res: Response, next) => {
             });
         }
 
+        // 验证 studyMode 枚举值
+        const validStudyModes = ['sequential', 'random', 'new', 'review', 'mixed'];
+        if (studyMode !== undefined && !validStudyModes.includes(studyMode)) {
+            return res.status(400).json({
+                success: false,
+                error: `studyMode 必须是以下值之一: ${validStudyModes.join(', ')}`,
+            });
+        }
+
         const config = await studyConfigService.updateStudyConfig(req.user!.id, {
             selectedWordBookIds,
             dailyWordCount,

@@ -77,6 +77,12 @@ export interface ThompsonSamplingOptions {
   minContextWeight?: number;
   /** 上下文权重上限 */
   maxContextWeight?: number;
+  /**
+   * 启用软更新模式（默认false）
+   * - false: 二值化更新，reward >= 0.5 → α+1，否则 β+1
+   * - true: 软更新，α += reward, β += (1 - reward)，保留梯度信息
+   */
+  enableSoftUpdate?: boolean;
 }
 
 // ==================== 常量 ====================
@@ -126,6 +132,9 @@ export class ThompsonSampling
   private readonly minContextWeight: number;
   private readonly maxContextWeight: number;
 
+  /** 是否启用软更新模式 */
+  private readonly enableSoftUpdate: boolean;
+
   /** 全局层Beta参数 */
   private global: Record<string, BetaParams> = {};
 
@@ -141,6 +150,7 @@ export class ThompsonSampling
     this.priorBeta = Math.max(EPSILON, options.priorBeta ?? 1);
     this.minContextWeight = options.minContextWeight ?? 0.35;
     this.maxContextWeight = options.maxContextWeight ?? 0.75;
+    this.enableSoftUpdate = options.enableSoftUpdate ?? false;
   }
 
   // ==================== BaseLearner接口实现 ====================
@@ -222,7 +232,10 @@ export class ThompsonSampling
   /**
    * 更新模型
    *
-   * @param reward 奖励值: >0视为成功, ≤0视为失败
+   * @param reward 奖励值:
+   *   - 二值化模式(默认): >=0视为成功(α+1), <0视为失败(β+1)
+   *     以0为分界点，正面表现（包括0-0.5的微弱正反馈）都被视为成功
+   *   - 软更新模式: α += (reward+1)/2, β += (1-reward)/2，保留梯度信息
    */
   update(
     state: UserState,
@@ -237,13 +250,31 @@ export class ThompsonSampling
     const globalParams = this.ensureGlobalParams(actionKey);
     const contextualParams = this.ensureContextualParams(actionKey, contextKey);
 
-    // 二元反馈更新
-    if (reward > 0) {
-      globalParams.alpha += 1;
-      contextualParams.alpha += 1;
+    // 确保奖励值在有效范围内 [-1, 1]
+    const safeReward = this.clamp(reward, -1, 1);
+
+    if (this.enableSoftUpdate) {
+      // 软更新模式：保留连续奖励的梯度信息
+      // 将 reward 从 [-1,1] 映射到 [0,1] 以支持负奖励
+      // α += (reward+1)/2 表示成功程度，β += (1-reward)/2 表示失败程度
+      // 例如: reward=0.7 → α+=0.85, β+=0.15
+      //       reward=-0.5 → α+=0.25, β+=0.75
+      const normalizedReward = (safeReward + 1) / 2;
+      globalParams.alpha += normalizedReward;
+      globalParams.beta += (1 - normalizedReward);
+      contextualParams.alpha += normalizedReward;
+      contextualParams.beta += (1 - normalizedReward);
     } else {
-      globalParams.beta += 1;
-      contextualParams.beta += 1;
+      // 二值化更新模式(默认): reward >= 0 视为成功，< 0 视为失败
+      // 以0为分界点，这样0-0.5的正面表现也被视为成功
+      // 避免将微弱的正反馈错误地判断为失败
+      if (safeReward >= 0) {
+        globalParams.alpha += 1;
+        contextualParams.alpha += 1;
+      } else {
+        globalParams.beta += 1;
+        contextualParams.beta += 1;
+      }
     }
 
     this.updateCount += 1;
@@ -560,6 +591,8 @@ export class ThompsonSampling
   ): number {
     const safeValue = Number.isFinite(value) ? value : (min + max) / 2;
     const clamped = this.clamp(safeValue, min, max);
+    // 防止除零：step <= 0 时直接返回 clamped 值
+    if (step <= 0) return clamped;
     return Math.floor(clamped / step) * step;
   }
 

@@ -95,13 +95,23 @@ describe('DelayedRewardService', () => {
   describe('processPendingRewards', () => {
     it('should process pending rewards with handler', async () => {
       const mockTasks = [
-        { id: 'task-1', userId: 'user-1', status: 'PENDING', dueTs: new Date() }
+        { id: 'task-1', userId: 'user-1', status: 'PENDING', dueTs: new Date(), retryCount: 0 }
       ];
 
+      // Mock $transaction to simulate the nested $queryRaw and updateMany
       (prisma.$transaction as any).mockImplementation(async (fn: any) => {
-        return mockTasks;
+        // 模拟事务内部的上下文
+        const txContext = {
+          $queryRaw: vi.fn().mockResolvedValue(mockTasks),
+          rewardQueue: {
+            updateMany: vi.fn().mockResolvedValue({ count: mockTasks.length })
+          }
+        };
+        return fn(txContext);
       });
       (prisma.rewardQueue.update as any).mockResolvedValue({ id: 'task-1', status: 'DONE' });
+      // Mock recoverStuckProcessingTasks
+      (prisma.rewardQueue.updateMany as any).mockResolvedValue({ count: 0 });
 
       const handler = vi.fn().mockResolvedValue(undefined);
 
@@ -111,7 +121,18 @@ describe('DelayedRewardService', () => {
     });
 
     it('should do nothing when no pending rewards', async () => {
-      (prisma.$transaction as any).mockResolvedValue([]);
+      // Mock $transaction to return empty array
+      (prisma.$transaction as any).mockImplementation(async (fn: any) => {
+        const txContext = {
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          rewardQueue: {
+            updateMany: vi.fn().mockResolvedValue({ count: 0 })
+          }
+        };
+        return fn(txContext);
+      });
+      // Mock recoverStuckProcessingTasks
+      (prisma.rewardQueue.updateMany as any).mockResolvedValue({ count: 0 });
 
       const handler = vi.fn();
 

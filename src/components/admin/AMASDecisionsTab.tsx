@@ -3,7 +3,7 @@
  * 管理员查看用户 AMAS 决策记录的完整功能组件
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ApiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
 
@@ -49,6 +49,24 @@ interface DecisionDetail {
   context?: any;
 }
 
+// API 响应类型定义
+interface DecisionsApiResponse {
+  data: {
+    decisions: DecisionListItem[];
+    pagination: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    };
+    statistics: DecisionStatistics | null;
+  };
+}
+
+interface DecisionDetailApiResponse {
+  data: DecisionDetail | null;
+}
+
 interface Props {
   userId: string;
 }
@@ -64,6 +82,9 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   const [decisionDetail, setDecisionDetail] = useState<DecisionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // 用于取消正在进行的详情请求
+  const detailRequestCancelledRef = useRef(false);
+
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -72,14 +93,27 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     sortOrder: 'desc' as 'asc' | 'desc'
   });
 
+  // 修复：将 filters 对象的各个属性作为独立依赖项，避免对象引用变化导致的不必要重新渲染
   useEffect(() => {
+    // 空值保护：如果 userId 为空，不发起请求
+    if (!userId) {
+      setLoading(false);
+      setError('用户ID为空');
+      return;
+    }
     loadDecisions();
-  }, [userId, pagination.page, filters]);
+  }, [userId, pagination.page, filters.startDate, filters.endDate, filters.decisionSource, filters.sortBy, filters.sortOrder]);
 
   const loadDecisions = async () => {
+    // 空值保护：确保 userId 有效
+    if (!userId) {
+      setError('用户ID为空');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const response: any = await ApiClient.adminGetUserDecisions(userId, {
+      const response = await ApiClient.adminGetUserDecisions(userId, {
         page: pagination.page,
         pageSize: pagination.pageSize,
         startDate: filters.startDate || undefined,
@@ -87,13 +121,28 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
         decisionSource: filters.decisionSource || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder
-      });
+      }) as DecisionsApiResponse;
 
       setDecisions(response.data.decisions || []);
-      setPagination(response.data.pagination || pagination);
+
+      // 只在分页数据有实际变化时才更新 pagination，避免无限循环
+      const newPagination = response.data.pagination;
+      if (newPagination && (
+        newPagination.total !== pagination.total ||
+        newPagination.totalPages !== pagination.totalPages ||
+        newPagination.pageSize !== pagination.pageSize
+      )) {
+        setPagination(prev => ({
+          ...prev,
+          total: newPagination.total,
+          totalPages: newPagination.totalPages,
+          pageSize: newPagination.pageSize
+        }));
+      }
+
       setStatistics(response.data.statistics || null);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('加载决策记录失败');
       adminLogger.error({ err, userId, page: pagination.page }, '加载决策记录失败');
     } finally {
@@ -102,15 +151,24 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   };
 
   const loadDecisionDetail = async (decisionId: string) => {
+    // 重置取消标志
+    detailRequestCancelledRef.current = false;
     try {
       setDetailLoading(true);
-      const response: any = await ApiClient.adminGetDecisionDetail(userId, decisionId);
+      const response = await ApiClient.adminGetDecisionDetail(userId, decisionId) as DecisionDetailApiResponse;
+      // 如果请求被取消，不更新状态
+      if (detailRequestCancelledRef.current) return;
       setDecisionDetail(response.data || null);
     } catch (err) {
+      // 如果请求被取消，不显示错误
+      if (detailRequestCancelledRef.current) return;
       adminLogger.error({ err, userId, decisionId }, '加载决策详情失败');
       setDecisionDetail(null);
     } finally {
-      setDetailLoading(false);
+      // 如果请求被取消，不更新 loading 状态
+      if (!detailRequestCancelledRef.current) {
+        setDetailLoading(false);
+      }
     }
   };
 
@@ -120,8 +178,11 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   };
 
   const closeDetail = () => {
+    // 取消正在进行的请求
+    detailRequestCancelledRef.current = true;
     setSelectedDecisionId(null);
     setDecisionDetail(null);
+    setDetailLoading(false);
   };
 
   if (loading && decisions.length === 0) {

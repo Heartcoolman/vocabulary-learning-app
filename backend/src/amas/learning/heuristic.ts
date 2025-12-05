@@ -347,7 +347,8 @@ export class HeuristicLearner
 
     // 3. 动机匹配得分：新词比例与动机的匹配
     // 动机高时，新词多得分高
-    const newRatioNorm = action.new_ratio / 0.4; // 归一化到约[0.25,1]
+    // 添加边界保护：确保 newRatioNorm 在 [0, 1] 范围内
+    const newRatioNorm = Math.min(1, Math.max(0, action.new_ratio / 0.4));
     const motivationMatch = ctx.motivationNorm * newRatioNorm +
       (1 - ctx.motivationNorm) * (1 - newRatioNorm);
     breakdown.motivation = motivationMatch * ctx.attention;
@@ -360,7 +361,8 @@ export class HeuristicLearner
 
     // 5. 负载惩罚：批量大小惩罚
     // 疲劳高时，大批量惩罚大
-    const batchNorm = (action.batch_size - 5) / 11; // [5,16] → [0,1]
+    // 添加边界保护：确保 batchNorm 在 [0, 1] 范围内
+    const batchNorm = Math.max(0, Math.min(1, (action.batch_size - 5) / 11)); // [5,16] → [0,1]，超出范围时截断
     breakdown.loadPenalty = batchNorm * ctx.fatigue;
 
     // 加权求和

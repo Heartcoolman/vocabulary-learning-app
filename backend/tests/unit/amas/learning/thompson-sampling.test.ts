@@ -234,7 +234,7 @@ describe('ThompsonSampling', () => {
       expect(alphaAfter).toBeGreaterThan(alphaBefore);
     });
 
-    it('should increment beta for non-positive reward', () => {
+    it('should increment beta for negative reward', () => {
       const action = STANDARD_ACTIONS[0];
 
       thompson.selectAction(defaultState, [action], defaultContext);
@@ -242,7 +242,8 @@ describe('ThompsonSampling', () => {
       const actionKey = Object.keys(stateBefore.global)[0];
       const betaBefore = stateBefore.global[actionKey]?.beta ?? 1;
 
-      thompson.update(defaultState, action, 0.0, defaultContext);
+      // 使用负奖励来触发 beta 增加 (阈值现在是 reward < 0)
+      thompson.update(defaultState, action, -0.5, defaultContext);
 
       const stateAfter = thompson.getState();
       const betaAfter = stateAfter.global[actionKey]?.beta ?? 1;
@@ -285,9 +286,10 @@ describe('ThompsonSampling', () => {
       const badAction = STANDARD_ACTIONS[1];
 
       // Train: good action gets rewards, bad action gets penalties
+      // 注意: reward >= 0 被视为成功, reward < 0 被视为失败
       for (let i = 0; i < 20; i++) {
         thompson.update(defaultState, goodAction, 1.0, defaultContext);
-        thompson.update(defaultState, badAction, 0.0, defaultContext);
+        thompson.update(defaultState, badAction, -0.5, defaultContext); // 使用负奖励
       }
 
       // Count selections over many samples

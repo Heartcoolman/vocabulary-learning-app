@@ -119,3 +119,25 @@ export const flagAnomalySchema = z.object({
 export const exportFormatSchema = z.object({
   format: z.enum(['csv', 'excel']).default('csv'),
 });
+
+/**
+ * AMAS 决策查询参数验证
+ */
+export const adminDecisionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  decisionSource: z.string().optional(),
+  minConfidence: z.coerce.number().min(0).max(1).optional(),
+  sortBy: z.enum(['timestamp', 'confidence', 'duration']).default('timestamp'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+/**
+ * 决策详情参数验证
+ */
+export const decisionIdParamSchema = z.object({
+  id: z.string().uuid('无效的用户ID格式'),
+  decisionId: z.string().uuid('无效的决策ID格式'),
+});

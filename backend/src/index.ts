@@ -7,6 +7,10 @@ import {
   stopDelayedRewardWorker
 } from './workers/delayed-reward.worker';
 import { startOptimizationWorker } from './workers/optimization.worker';
+import {
+  startLLMAdvisorWorker,
+  stopLLMAdvisorWorker
+} from './workers/llm-advisor.worker';
 import { startGlobalMonitoring, stopGlobalMonitoring } from './amas/monitoring/monitoring-service';
 import { startAlertMonitoring, stopAlertMonitoring } from './monitoring/monitoring-service';
 import { getSharedDecisionRecorder } from './amas/services/decision-recorder.service';
@@ -18,6 +22,7 @@ const PORT = parseInt(env.PORT, 10);
 // 保存worker引用，用于优雅关闭
 let delayedRewardWorkerTask: ScheduledTask | null = null;
 let optimizationWorkerTask: ScheduledTask | null = null;
+let llmAdvisorWorkerTask: ScheduledTask | null = null;
 
 async function startServer() {
   try {
@@ -46,6 +51,12 @@ async function startServer() {
       optimizationWorkerTask = startOptimizationWorker();
       if (optimizationWorkerTask) {
         startupLogger.info('Optimization worker started (leader mode)');
+      }
+
+      // 启动 LLM 顾问Worker（每周日凌晨4点执行）
+      llmAdvisorWorkerTask = startLLMAdvisorWorker();
+      if (llmAdvisorWorkerTask) {
+        startupLogger.info('LLM advisor worker started (leader mode)');
       }
     } else {
       startupLogger.info('Workers skipped (not leader node, set WORKER_LEADER=true to enable)');
@@ -107,6 +118,12 @@ async function gracefulShutdown(signal: string) {
   if (optimizationWorkerTask) {
     optimizationWorkerTask.stop();
     startupLogger.info('Optimization worker stopped');
+  }
+
+  // 停止 LLM 顾问Worker
+  if (llmAdvisorWorkerTask) {
+    stopLLMAdvisorWorker();
+    startupLogger.info('LLM advisor worker stopped');
   }
 
   // 停止监控服务

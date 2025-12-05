@@ -15,6 +15,8 @@ import {
   batchAddWordsSchema,
   flagAnomalySchema,
   exportFormatSchema,
+  adminDecisionsQuerySchema,
+  decisionIdParamSchema,
 } from '../validators/admin.validator';
 import { idParamSchema, userWordParamsSchema, userIdParamSchema } from '../validators/common.validator';
 import { AuthRequest } from '../types';
@@ -508,29 +510,42 @@ router.get('/statistics', async (req: AuthRequest, res: Response, next) => {
 // ==================== AMAS 决策查询 ====================
 
 // 获取用户决策列表
-router.get('/users/:id/decisions', async (req: AuthRequest, res: Response, next) => {
+router.get(
+    '/users/:id/decisions',
+    validateParams(idParamSchema),
+    validateQuery(adminDecisionsQuerySchema),
+    async (req: AuthRequest, res: Response, next) => {
     try {
-        const { id } = req.params;
+        const { id } = req.validatedParams as { id: string };
         const {
-            page = '1',
-            pageSize = '20',
+            page,
+            pageSize,
             startDate,
             endDate,
             decisionSource,
             minConfidence,
-            sortBy = 'timestamp',
-            sortOrder = 'desc'
-        } = req.query;
+            sortBy,
+            sortOrder
+        } = req.validatedQuery as {
+            page: number;
+            pageSize: number;
+            startDate?: string;
+            endDate?: string;
+            decisionSource?: string;
+            minConfidence?: number;
+            sortBy: 'timestamp' | 'confidence' | 'duration';
+            sortOrder: 'asc' | 'desc';
+        };
 
         const data = await adminService.getUserDecisions(id, {
-            page: parseInt(page as string),
-            pageSize: Math.min(parseInt(pageSize as string), 100),
-            startDate: startDate as string,
-            endDate: endDate as string,
-            decisionSource: decisionSource as string,
-            minConfidence: minConfidence ? parseFloat(minConfidence as string) : undefined,
-            sortBy: sortBy as 'timestamp' | 'confidence' | 'duration',
-            sortOrder: sortOrder as 'asc' | 'desc'
+            page,
+            pageSize,
+            startDate,
+            endDate,
+            decisionSource,
+            minConfidence,
+            sortBy,
+            sortOrder
         });
 
         res.json({
@@ -543,9 +558,12 @@ router.get('/users/:id/decisions', async (req: AuthRequest, res: Response, next)
 });
 
 // 获取决策详情
-router.get('/users/:id/decisions/:decisionId', async (req: AuthRequest, res: Response, next) => {
+router.get(
+    '/users/:id/decisions/:decisionId',
+    validateParams(decisionIdParamSchema),
+    async (req: AuthRequest, res: Response, next) => {
     try {
-        const { id, decisionId } = req.params;
+        const { id, decisionId } = req.validatedParams as { id: string; decisionId: string };
 
         const data = await adminService.getDecisionDetail(id, decisionId);
 

@@ -329,6 +329,7 @@ model LearningSession {
   rewardQueues       RewardQueue[]
 
   @@index([userId, startedAt])
+  @@index([userId, endedAt])
   @@map("learning_sessions")
 }
 
@@ -367,6 +368,7 @@ model RewardQueue {
   status         RewardStatus     @default(PENDING)
   idempotencyKey String           @unique
   lastError      String?
+  retryCount     Int              @default(0)  // 独立的重试次数字段，替代从 lastError 解析
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   answerRecordId String?
@@ -587,6 +589,7 @@ model DecisionRecord {
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
   isSimulation    Boolean                 @default(false)
+  pipelineStages  PipelineStage[]
 
   @@id([id, timestamp])
   @@unique([decisionId, timestamp])
@@ -595,10 +598,19 @@ model DecisionRecord {
   @@index([timestamp])
   @@index([sessionId])
   @@index([isSimulation])
+  @@index([sessionId, timestamp])
+  @@index([decisionSource, timestamp])
   @@map("decision_records")
 }
 
 /// AMAS 决策洞察表（用于解释性读写与缓存）
+///
+/// 数据关系说明：
+/// - decisionId 逻辑关联 DecisionRecord.decisionId（非外键关联）
+/// - 原因：DecisionRecord 使用复合主键 (id, timestamp)，无法直接建立单字段外键
+/// - 数据完整性：需在应用层处理关联数据的级联删除
+/// - 删除 DecisionRecord 时，应同步删除关联的 DecisionInsight 记录
+/// - 推荐：在 DecisionService 中实现 deleteDecisionWithInsight() 方法
 model DecisionInsight {
   id                String   @id @default(cuid())
   decisionId        String   @unique @map("decision_id")
@@ -616,21 +628,23 @@ model DecisionInsight {
   @@map("decision_insights")
 }
 
-/// 决策流水线阶段记�?
+/// 决策流水线阶段记录
 model PipelineStage {
-  id               String              @id @default(cuid())
-  decisionRecordId String
-  stage            PipelineStageType
-  stageName        String
-  status           PipelineStageStatus
-  startedAt        DateTime
-  endedAt          DateTime?
-  durationMs       Int?
-  inputSummary     Json?
-  outputSummary    Json?
-  metadata         Json?
-  errorMessage     String?
-  createdAt        DateTime            @default(now())
+  id                      String              @id @default(cuid())
+  decisionRecordId        String
+  decisionRecordTimestamp DateTime            @default(now()) // DecisionRecord 复合主键的 timestamp 部分，添加默认值以兼容现有数据
+  stage                   PipelineStageType
+  stageName               String
+  status                  PipelineStageStatus
+  startedAt               DateTime
+  endedAt                 DateTime?
+  durationMs              Int?
+  inputSummary            Json?
+  outputSummary           Json?
+  metadata                Json?
+  errorMessage            String?
+  createdAt               DateTime            @default(now())
+  decisionRecord          DecisionRecord      @relation(fields: [decisionRecordId, decisionRecordTimestamp], references: [id, timestamp], onDelete: Cascade)
 
   @@index([decisionRecordId, stage])
   @@index([stage])
@@ -638,16 +652,9 @@ model PipelineStage {
   @@map("pipeline_stages")
 }
 
-model word_frequency {
-  word_id         String   @id
-  frequency_rank  Int
-  frequency_score Decimal  @db.Decimal(5, 4)
-  corpus_source   String
-  updated_at      DateTime
-
-  @@index([frequency_rank], map: "idx_word_frequency_rank")
-  @@index([corpus_source], map: "idx_word_frequency_source")
-}
+/// @deprecated 已废弃，使用 WordFrequency 模型代替
+/// 此模型功能与 WordFrequency (82-94行) 重复，请在数据迁移完成后删除
+/// 保留此注释作为数据库迁移提示，实际使用 WordFrequency 模型
 
 enum UserRole {
   USER
@@ -798,6 +805,8 @@ model SystemLog {
   @@index([userId])
   @@index([requestId])
   @@index([timestamp, level])
+  @@index([module, level])
+  @@index([source, timestamp])
   @@map("system_logs")
 }
 
@@ -844,4 +853,54 @@ enum LogLevel {
 enum LogSource {
   BACKEND
   FRONTEND
+}
+
+// ==================== LLM 顾问系统 ====================
+
+/// LLM 顾问建议记录
+model LLMAdvisorSuggestion {
+  id               String   @id @default(cuid())
+
+  // 统计周期
+  weekStart        DateTime
+  weekEnd          DateTime
+
+  // 输入数据快照
+  statsSnapshot    Json     // WeeklyStats
+
+  // LLM 输出
+  rawResponse      String   @db.Text
+  parsedSuggestion Json     // LLMSuggestion
+
+  // 审核状态
+  status           String   @default("pending")  // pending | approved | rejected | partial
+
+  // 审核信息
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  reviewNotes      String?
+  appliedItems     Json?    // 实际应用的建议项ID列表
+
+  // 元数据
+  createdAt        DateTime @default(now())
+
+  @@index([status])
+  @@index([weekStart])
+  @@index([createdAt])
+  @@index([status, reviewedAt])
+  @@map("llm_advisor_suggestions")
+}
+
+/// 用户学习状态快照（用于 LLM 分析）
+model UserLearningState {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  fatigue    Float    @default(0)
+  motivation Float    @default(0)
+  attention  Float    @default(0.7)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@index([updatedAt])
+  @@map("user_learning_states")
 }

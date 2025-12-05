@@ -13,6 +13,13 @@ export interface FrontendUserState {
 }
 
 export function toFrontendState(state: BackendUserState): FrontendUserState {
+  // 将后端的 mem 字段转换为前端期望的 memory 字段
+  const frontendCognitive = {
+    memory: state.C.mem,
+    speed: state.C.speed,
+    stability: state.C.stability
+  };
+
   return {
     attention: state.A,
     fatigue: state.F,
@@ -20,7 +27,7 @@ export function toFrontendState(state: BackendUserState): FrontendUserState {
     memory: state.C.mem,
     speed: state.C.speed,
     stability: state.C.stability,
-    cognitive: state.C,
+    cognitive: frontendCognitive as unknown as CognitiveProfile,
     confidence: state.conf,
     timestamp: state.ts
   };

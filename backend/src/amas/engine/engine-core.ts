@@ -173,9 +173,37 @@ export class AMASEngine {
 
     // 初始化子管理器
     this.resilience = new ResilienceManager(this.logger);
-    this.isolation = new IsolationManager(modelTemplates);
+    this.isolation = new IsolationManager(modelTemplates, deps.memoryConfig);
     this.modeling = new ModelingManager();
     this.learning = new LearningManager();
+  }
+
+  /**
+   * 销毁引擎，清理资源
+   * 应在服务关闭时调用
+   */
+  destroy(): void {
+    this.isolation.destroy();
+    this.rewardProfileCache.clear();
+  }
+
+  /**
+   * 获取内存使用统计
+   */
+  getMemoryStats(): {
+    isolation: {
+      userModelsCount: number;
+      userLocksCount: number;
+      interactionCountsCount: number;
+      maxUsers: number;
+      utilizationPercent: number;
+    };
+    rewardProfileCacheCount: number;
+  } {
+    return {
+      isolation: this.isolation.getMemoryStats(),
+      rewardProfileCacheCount: this.rewardProfileCache.size
+    };
   }
 
   /**
@@ -251,17 +279,17 @@ export class AMASEngine {
       optimization: { start: 0, end: 0 }
     };
 
-    // 获取用户专属模型实例
-    const models = this.isolation.getUserModels(userId);
-
-    // 1. 异常检测
+    // 1. 异常检测（在加载状态之前，避免无效请求消耗资源）
     if (this.featureBuilder.isAnomalous(rawEvent)) {
       this.logger?.warn('Anomalous event detected', { userId, event: rawEvent });
       return this.createFallbackResult(userId, 'degraded_state', opts, rawEvent.timestamp);
     }
 
-    // 2. 加载状态和模型
+    // 2. 加载状态（需要在获取模型之前，以便恢复冷启动状态）
     const prevState = await this.loadOrCreateState(userId);
+
+    // 3. 获取用户专属模型实例（现在冷启动状态已在 loadOrCreateState 中恢复）
+    const models = this.isolation.getUserModels(userId);
     await this.loadModelIfExists(userId, models.bandit);
 
     // 2.5. 加载用户奖励配置（使用缓存避免重复查询）
@@ -432,12 +460,12 @@ export class AMASEngine {
     }
     stageTiming.optimization.end = Date.now();
 
-    // 检查取消/超时状态
-    if (signal?.aborted || timedOut?.value) {
+    // 12. 持久化
+    // 在执行持久化操作之前检查取消状态，避免竞态条件导致状态部分写入
+    if (timedOut?.value || signal?.aborted) {
       throw new Error('Operation cancelled');
     }
 
-    // 12. 持久化
     // 获取冷启动状态用于持久化
     const coldStartState = models.coldStart ? {
       phase: models.coldStart.getPhase(),
@@ -448,10 +476,6 @@ export class AMASEngine {
     } : undefined;
 
     await this.stateRepo.saveState(userId, { ...state, coldStartState } as UserState);
-
-    if (timedOut?.value || signal?.aborted) {
-      throw new Error('Operation cancelled');
-    }
 
     // 保存 Bandit 模型
     if (models.bandit instanceof EnsembleLearningFramework) {
@@ -557,6 +581,11 @@ export class AMASEngine {
 
   /**
    * 应用延迟奖励更新模型
+   *
+   * Bug修复：添加版本兼容性处理
+   * - 当特征向量维度小于模型维度时，进行零填充扩展
+   * - 当特征向量维度大于模型维度时，截断到模型维度
+   * - 这允许在特征版本升级期间继续处理旧的延迟奖励
    */
   async applyDelayedRewardUpdate(
     userId: string,
@@ -569,11 +598,27 @@ export class AMASEngine {
         return { success: false, error: 'model_not_found' };
       }
 
+      // Bug修复：处理特征向量版本不匹配
+      let alignedFeatureVector = featureVector;
       if (featureVector.length !== model.d) {
-        return {
-          success: false,
-          error: `dimension_mismatch: expected=${model.d}, got=${featureVector.length}`
-        };
+        this.logger?.info('Feature vector dimension mismatch, applying compatibility fix', {
+          userId,
+          featureVectorLength: featureVector.length,
+          modelDimension: model.d
+        });
+
+        if (featureVector.length < model.d) {
+          // 特征向量较短（旧版本），零填充扩展到模型维度
+          alignedFeatureVector = [...featureVector];
+          while (alignedFeatureVector.length < model.d) {
+            alignedFeatureVector.push(0);
+          }
+        } else {
+          // 特征向量较长（模型较旧），截断到模型维度
+          // 注意：这种情况理论上不应发生，因为模型会自动升级
+          // 但为了安全起见仍然处理
+          alignedFeatureVector = featureVector.slice(0, model.d);
+        }
       }
 
       const tempBandit = new LinUCB({
@@ -582,7 +627,7 @@ export class AMASEngine {
         dimension: model.d
       });
       tempBandit.setModel(model);
-      tempBandit.updateWithFeatureVector(featureVector, reward);
+      tempBandit.updateWithFeatureVector(alignedFeatureVector, reward);
 
       await this.modelRepo.saveModel(userId, tempBandit.getModel());
 
@@ -618,12 +663,20 @@ export class AMASEngine {
 
     // 现有用户：检查是否需要处理回归用户状态衰减
     const now = Date.now();
-    const lastActiveAt = state.ts || now;
+    // Bug修复：校验state.ts的有效性，防止NaN风险
+    // state.ts可能为undefined、0、负数或非数字
+    const isValidTs = typeof state.ts === 'number' &&
+                      Number.isFinite(state.ts) &&
+                      state.ts > 0 &&
+                      state.ts <= now;
+    const lastActiveAt = isValidTs ? state.ts : now;
     const offlineMs = now - lastActiveAt;
-    const offlineDays = offlineMs / (1000 * 60 * 60 * 24);
+    // 额外校验：确保offlineMs非负且有限
+    const safeOfflineMs = Number.isFinite(offlineMs) && offlineMs >= 0 ? offlineMs : 0;
+    const offlineDays = safeOfflineMs / (1000 * 60 * 60 * 24);
 
     // 如果离线时间超过1天，应用回归用户处理
-    if (offlineDays >= 1) {
+    if (Number.isFinite(offlineDays) && offlineDays >= 1) {
       try {
         const snapshot: UserStateSnapshot = {
           attention: state.A,

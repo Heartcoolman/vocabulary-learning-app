@@ -32,6 +32,8 @@ class StorageService {
     pendingChanges: 0,
   };
   private syncListeners: Array<(status: SyncStatus) => void> = [];
+  // 用于解决 syncToCloud 竞态条件的 Promise 锁
+  private syncPromise: Promise<void> | null = null;
 
   /**
    * 初始化服务，从云端加载缓存数据
@@ -103,9 +105,11 @@ class StorageService {
 
   /**
    * 从云端刷新缓存数据
-   * 注意：当前架构是“云优先”，所有数据操作（addWord/updateWord/deleteWord/saveAnswerRecord）
+   * 注意：当前架构是"云优先"，所有数据操作（addWord/updateWord/deleteWord/saveAnswerRecord）
    * 都直接调用API同步到云端，不存在本地待上传的变更队列。
    * 此方法仅用于从云端拉取最新数据刷新本地缓存。
+   *
+   * 使用 Promise-based 锁解决竞态条件：如果有正在进行的同步，返回同一个 Promise
    */
   async syncToCloud(): Promise<void> {
     // 检查是否有认证令牌，未认证时跳过同步
@@ -113,7 +117,26 @@ class StorageService {
       return;
     }
 
-    if (this.syncStatus.isSyncing) return;
+    // 使用 Promise 锁解决竞态条件：如果有正在进行的同步，返回同一个 Promise
+    if (this.syncPromise) {
+      return this.syncPromise;
+    }
+
+    // 创建新的同步 Promise
+    this.syncPromise = this.doSync();
+
+    try {
+      await this.syncPromise;
+    } finally {
+      // 同步完成后清除锁
+      this.syncPromise = null;
+    }
+  }
+
+  /**
+   * 实际执行同步操作的内部方法
+   */
+  private async doSync(): Promise<void> {
     this.updateSyncStatus({ isSyncing: true, error: null });
     try {
       await this.refreshCacheFromCloud();
@@ -122,7 +145,6 @@ class StorageService {
         lastSyncTime: Date.now(),
         pendingChanges: 0, // 云优先架构，无本地待同步数据
       });
-      return;
     } catch (error) {
       this.updateSyncStatus({
         isSyncing: false,
@@ -198,10 +220,8 @@ class StorageService {
   async deleteWord(wordId: string): Promise<void> {
     // 直接同步到云端
     await ApiClient.deleteWord(wordId);
-    // 更新本地缓存
-    this.wordCache = this.wordCache.filter((w) => w.id !== wordId);
-    // 重置缓存时间戳，确保下次 getWords 时重新从云端加载
-    this.cacheTimestamp = null;
+    // 立即从云端刷新缓存，确保数据一致性
+    await this.refreshCacheFromCloud();
   }
 
   /**
@@ -218,10 +238,37 @@ class StorageService {
     });
   }
 
+  /**
+   * 获取指定单词的答题记录
+   * 注意：当前实现会迭代获取所有分页数据，大量记录时可能影响性能
+   * @param wordId 单词ID
+   * @returns 该单词的所有答题记录
+   */
   async getAnswerRecords(wordId: string): Promise<AnswerRecord[]> {
     try {
-      const result = await ApiClient.getRecords({ pageSize: 100 });
-      return result.records.filter((r) => r.wordId === wordId);
+      const PAGE_SIZE = 100;
+      let allRecords: AnswerRecord[] = [];
+      let page = 1;
+      let hasMoreData = true;
+
+      // 迭代获取所有分页数据，避免硬编码 pageSize 导致数据不完整
+      while (hasMoreData) {
+        const result = await ApiClient.getRecords({ page, pageSize: PAGE_SIZE });
+        allRecords = allRecords.concat(result.records);
+
+        // 检查是否还有更多数据
+        const totalPages = result.pagination?.totalPages ?? 1;
+        hasMoreData = page < totalPages;
+        page++;
+
+        // 安全阈值：最多获取10000条记录，防止无限循环
+        if (allRecords.length >= 10000) {
+          storageLogger.warn({ wordId, totalFetched: allRecords.length }, '答题记录数量超过安全阈值，停止获取');
+          break;
+        }
+      }
+
+      return allRecords.filter((r) => r.wordId === wordId);
     } catch (error) {
       storageLogger.error({ err: error }, '获取答题记录失败');
       return [];

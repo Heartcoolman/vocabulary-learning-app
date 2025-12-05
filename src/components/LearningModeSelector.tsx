@@ -29,18 +29,28 @@ export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ mini
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadCurrentMode();
-  }, []);
+    let mounted = true;
 
-  const loadCurrentMode = async () => {
-    try {
-      const result = await ApiClient.getUserRewardProfile();
-      setCurrentMode(result.currentProfile);
-      setModes(result.availableProfiles);
-    } catch (error) {
-      uiLogger.error({ err: error }, '加载奖励配置失败');
-    }
-  };
+    const loadCurrentMode = async () => {
+      try {
+        const result = await ApiClient.getUserRewardProfile();
+        if (mounted) {
+          setCurrentMode(result.currentProfile);
+          setModes(result.availableProfiles);
+        }
+      } catch (error) {
+        if (mounted) {
+          uiLogger.error({ err: error }, '加载奖励配置失败');
+        }
+      }
+    };
+
+    loadCurrentMode();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleModeChange = async (modeId: string) => {
     if (modeId === currentMode) {

@@ -44,6 +44,7 @@ interface CachedSession {
 const SYNC_INTERVAL = 5;
 const STORAGE_KEY = 'mastery_learning_session';
 const EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24小时
+const MAX_RETRY_QUEUE_SIZE = 20; // 重试队列最大大小
 
 export function useMasteryLearning(options: UseMasteryLearningOptions = {}): UseMasteryLearningReturn {
   const {
@@ -81,6 +82,10 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     maxTotalQuestions: 100
   });
   const isMountedRef = useRef(true);
+
+  // 请求序列号，用于确保响应顺序处理
+  const requestSequenceRef = useRef(0);
+  const lastProcessedSequenceRef = useRef(0);
 
   const updateStateFromManager = useCallback((options: { consume?: boolean } = {}) => {
     const { consume = false } = options;
@@ -224,6 +229,31 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     }
   }, [progress.activeCount, progress.pendingCount, isCompleted, saveSessionToCache]);
 
+  // 跟踪上一次的userId，用于检测用户切换
+  const prevUserIdRef = useRef<string | null | undefined>(user?.id);
+
+  // 用户变化时清除缓存（分离到单独useEffect，避免触发完整重新初始化）
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+    const prevUserId = prevUserIdRef.current ?? null;
+
+    if (prevUserId !== null && currentUserId !== null && prevUserId !== currentUserId) {
+      // 用户切换，清除缓存
+      learningLogger.info({ prevUserId, currentUserId }, '用户切换，清除会话缓存');
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        learningLogger.warn({ err: e }, '清除会话缓存失败');
+      }
+      // 重置状态以触发重新初始化
+      queueManagerRef.current = null;
+      adaptiveManagerRef.current = null;
+      setHasRestoredSession(false);
+    }
+
+    prevUserIdRef.current = currentUserId;
+  }, [user?.id]);
+
   useEffect(() => {
     // 重新挂载时重置为 true（修复组件重新挂载后初始化失效的问题）
     isMountedRef.current = true;
@@ -232,7 +262,13 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       setIsLoading(true);
       setError(null); // 清除之前的错误
       try {
-        const cachedData = localStorage.getItem(STORAGE_KEY);
+        let cachedData: string | null = null;
+        try {
+          cachedData = localStorage.getItem(STORAGE_KEY);
+        } catch (e) {
+          learningLogger.warn({ err: e }, '读取localStorage失败');
+        }
+
         let restored = false;
 
         if (cachedData) {
@@ -249,7 +285,11 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
             if (isUserMismatch) {
               // 用户不匹配，清除缓存
               learningLogger.info('用户不匹配，清除缓存');
-              localStorage.removeItem(STORAGE_KEY);
+              try {
+                localStorage.removeItem(STORAGE_KEY);
+              } catch (e) {
+                learningLogger.warn({ err: e }, '删除localStorage失败');
+              }
             } else if (!isExpired && isSameSession && cache.queueState?.words?.length > 0) {
               configRef.current = {
                 masteryThreshold: cache.masteryThreshold || 2,
@@ -273,11 +313,19 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
               learningLogger.info({ sessionId: cache.sessionId }, '成功恢复会话');
             } else if (isExpired || !isSameSession) {
-              localStorage.removeItem(STORAGE_KEY);
+              try {
+                localStorage.removeItem(STORAGE_KEY);
+              } catch (e) {
+                learningLogger.warn({ err: e }, '删除过期localStorage失败');
+              }
             }
           } catch (e) {
             learningLogger.error({ err: e }, '解析缓存失败');
-            localStorage.removeItem(STORAGE_KEY);
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+            } catch (removeErr) {
+              learningLogger.warn({ err: removeErr }, '删除损坏的localStorage失败');
+            }
           }
         }
 
@@ -352,7 +400,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     return () => {
       isMountedRef.current = false;
     };
-  }, [initialTargetCount, sessionId, updateStateFromManager, user?.id]);
+  }, [initialTargetCount, sessionId, updateStateFromManager]);
 
   // 按需加载触发器：当队列剩余单词 <= 2 时自动补充
   useEffect(() => {
@@ -373,8 +421,9 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     retryCount: number;
   }>>([]);
 
-  // 处理重试队列
-  const processRetryQueue = useCallback(async () => {
+  // 处理重试队列的函数（使用ref存储最新引用，避免interval重复创建）
+  const processRetryQueueRef = useRef<() => Promise<void>>();
+  processRetryQueueRef.current = async () => {
     if (retryQueueRef.current.length === 0) return;
 
     const item = retryQueueRef.current[0];
@@ -399,18 +448,18 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       // 失败，增加重试次数
       item.retryCount += 1;
     }
-  }, []);
+  };
 
-  // 定期处理重试队列
+  // 定期处理重试队列（空依赖数组确保只创建一次interval）
   useEffect(() => {
     const interval = setInterval(() => {
-      if (retryQueueRef.current.length > 0) {
-        processRetryQueue();
+      if (retryQueueRef.current.length > 0 && processRetryQueueRef.current) {
+        processRetryQueueRef.current();
       }
     }, 5000); // 每5秒重试一次
 
     return () => clearInterval(interval);
-  }, [processRetryQueue]);
+  }, []); // 空依赖数组，只在挂载时创建一次interval
 
   const submitAnswer = useCallback(async (isCorrect: boolean, responseTime: number) => {
     if (!queueManagerRef.current || !currentWord) return;
@@ -473,6 +522,9 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       resetDialogPausedTime();
     }
 
+    // 分配请求序列号，用于确保响应顺序处理
+    const currentSequence = ++requestSequenceRef.current;
+
     apiClient.processLearningEvent({
       wordId,
       isCorrect,
@@ -483,6 +535,16 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     })
       .then(amasResult => {
         if (!isMountedRef.current) return;
+
+        // 只处理比上次处理的序号更大的响应（防止乱序）
+        if (currentSequence <= lastProcessedSequenceRef.current) {
+          learningLogger.debug(
+            { currentSequence, lastProcessed: lastProcessedSequenceRef.current },
+            '跳过过期的AMAS响应'
+          );
+          return;
+        }
+        lastProcessedSequenceRef.current = currentSequence;
 
         // 更新AMAS结果供后续使用
         setLatestAmasResult(amasResult);
@@ -504,7 +566,13 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
         if (!isMountedRef.current) return;
 
-        // 入队重试
+        // 入队重试，但检查队列大小限制
+        if (retryQueueRef.current.length >= MAX_RETRY_QUEUE_SIZE) {
+          // 移除最旧的重试项
+          const removed = retryQueueRef.current.shift();
+          learningLogger.warn({ removedWordId: removed?.wordId }, '重试队列已满，移除最旧项');
+        }
+
         retryQueueRef.current.push({
           wordId,
           isCorrect,
@@ -529,16 +597,99 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
   }, [currentWord, updateStateFromManager, saveSessionToCache]);
 
   const resetSession = useCallback(async () => {
-    localStorage.removeItem(STORAGE_KEY);
+    // 清除本地存储的会话
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      learningLogger.warn({ err: e }, '重置时清除localStorage失败');
+    }
+
+    // 重置所有状态
     setHasRestoredSession(false);
     setIsCompleted(false);
+    setCompletionReason(undefined);
+    setCurrentWord(null);
+    setAllWords([]);
+    setError(null);
+    setLatestAmasResult(null);
+    setProgress({
+      masteredCount: 0,
+      targetCount: initialTargetCount,
+      totalQuestions: 0,
+      activeCount: 0,
+      pendingCount: 0
+    });
+
+    // 重置引用
     syncCounterRef.current = 0;
-
     queueManagerRef.current = null;
-    setIsLoading(true);
+    adaptiveManagerRef.current = null;
+    currentSessionIdRef.current = '';
+    sessionStartTimeRef.current = 0;
+    retryQueueRef.current = [];
+    isFetchingRef.current = false;
+    requestSequenceRef.current = 0;
+    lastProcessedSequenceRef.current = 0;
 
-    window.location.reload();
-  }, []);
+    // 重新初始化会话
+    setIsLoading(true);
+    try {
+      const wordsResponse = await apiClient.getMasteryStudyWords(initialTargetCount);
+
+      if (!isMountedRef.current) return;
+
+      const serverTargetCount = wordsResponse.meta.targetCount;
+      if (serverTargetCount !== initialTargetCount) {
+        setTargetMasteryCount(serverTargetCount);
+      }
+
+      const sessionResponse = await apiClient.createMasterySession(serverTargetCount);
+
+      if (!isMountedRef.current) return;
+
+      if (sessionResponse?.sessionId) {
+        currentSessionIdRef.current = sessionResponse.sessionId;
+        sessionStartTimeRef.current = Date.now();
+      }
+
+      configRef.current = {
+        masteryThreshold: wordsResponse.meta.masteryThreshold,
+        maxTotalQuestions: wordsResponse.meta.maxQuestions
+      };
+
+      setAllWords(wordsResponse.words);
+
+      queueManagerRef.current = new WordQueueManager(wordsResponse.words, {
+        targetMasteryCount: serverTargetCount,
+        masteryThreshold: configRef.current.masteryThreshold,
+        maxTotalQuestions: configRef.current.maxTotalQuestions
+      });
+
+      adaptiveManagerRef.current = new AdaptiveQueueManager();
+
+      learningLogger.info(
+        {
+          sessionId: currentSessionIdRef.current,
+          wordCount: wordsResponse.words.length,
+          target: serverTargetCount
+        },
+        '重置后创建新会话'
+      );
+
+      if (isMountedRef.current) {
+        updateStateFromManager({ consume: true });
+      }
+    } catch (error) {
+      learningLogger.error({ err: error }, '重置会话失败');
+      if (isMountedRef.current) {
+        setError(error instanceof Error ? error.message : '重置会话失败，请重试');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [initialTargetCount, updateStateFromManager]);
 
   return {
     currentWord,

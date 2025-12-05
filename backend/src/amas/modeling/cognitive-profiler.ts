@@ -127,18 +127,16 @@ export class CognitiveProfiler {
   /**
    * 获取当前融合的认知能力画像
    * 当 sampleCount=0 时，直接返回 C_long（初始值或恢复的值）
+   * 当 sampleCount>0 时，返回已经通过 update() 融合的长期值
+   *
+   * 注意：此方法与 update() 保持一致的融合逻辑
+   * 由于 get() 不接收短期数据，当 sampleCount > 0 时使用 C_long 作为融合基准
    */
   get(): CognitiveProfile {
-    // 无样本时直接返回长期值（支持初始化和状态恢复场景）
-    if (this.sampleCount === 0) {
-      return { ...this.C_long };
-    }
-    const lambda = 1 - Math.exp(-this.sampleCount / this.k0);
-    return {
-      mem: clamp01(lambda * this.C_long.mem + (1 - lambda) * 0.5),
-      speed: clamp01(lambda * this.C_long.speed + (1 - lambda) * 0.5),
-      stability: clamp01(lambda * this.C_long.stability + (1 - lambda) * 0.5)
-    };
+    // 无论是否有样本，都返回长期值
+    // - sampleCount=0 时：返回初始值或恢复的值
+    // - sampleCount>0 时：返回已通过 update() 融合的长期值
+    return { ...this.C_long };
   }
 
   /**

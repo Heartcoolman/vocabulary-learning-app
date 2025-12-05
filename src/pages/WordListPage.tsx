@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Word } from '../types/models';
@@ -47,17 +47,7 @@ export default function WordListPage() {
   const [confirmAction, setConfirmAction] = useState<'mastered' | 'needsPractice' | 'reset' | null>(null);
   const [isAdjusting, setIsAdjusting] = useState(false);
 
-  useEffect(() => {
-    loadWords();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  useEffect(() => {
-    applyFiltersAndSort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [words, filterMasteryLevel, filterScoreRange, searchQuery, sortField, sortOrder]);
-
-  const loadWords = async () => {
+  const loadWords = useCallback(async () => {
     if (!user) {
       setError('请先登录');
       setIsLoading(false);
@@ -114,9 +104,9 @@ export default function WordListPage() {
       setError('加载单词列表失败');
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const applyFiltersAndSort = () => {
+  const applyFiltersAndSort = useCallback(() => {
     let result = [...words];
 
     // 应用搜索过滤
@@ -171,7 +161,17 @@ export default function WordListPage() {
     });
 
     setFilteredWords(result);
-  };
+  }, [words, filterMasteryLevel, filterScoreRange, searchQuery, sortField, sortOrder]);
+
+  // 加载单词数据
+  useEffect(() => {
+    loadWords();
+  }, [loadWords]);
+
+  // 应用筛选和排序
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [applyFiltersAndSort]);
 
   // const handleSort = (field: SortField) => {
   //   if (sortField === field) {

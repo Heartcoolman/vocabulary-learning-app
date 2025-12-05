@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
 import ApiClient from '../services/ApiClient';
 import { MagnifyingGlass, Compass, CheckCircle, Question } from './Icon';
@@ -19,7 +19,9 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
   const [state, setState] = useState<UserState | null>(null);
   const [phase, setPhase] = useState<ColdStartPhaseInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // 使用 useRef 跟踪初始加载状态，避免 useEffect 依赖问题
+  const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -27,7 +29,10 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
     const loadAmasData = async () => {
       try {
-        if (isMounted && isInitialLoad) setLoading(true);
+        // 只在初始加载时设置 loading=true，后续刷新不显示加载状态
+        if (isMounted && isInitialLoadRef.current) {
+          setLoading(true);
+        }
 
         const [stateData, phaseData] = await Promise.all([
           ApiClient.getAmasState(),
@@ -37,12 +42,19 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
         if (isMounted) {
           setState(stateData);
           setPhase(phaseData);
-          setIsInitialLoad(false);
+          setError(null); // 清除之前的错误
         }
-      } catch (error) {
-        amasLogger.error({ err: error }, '加载AMAS状态失败');
+      } catch (err) {
+        amasLogger.error({ err }, '加载AMAS状态失败');
+        if (isMounted) {
+          setError('加载AMAS状态失败，请稍后重试');
+        }
       } finally {
-        if (isMounted && isInitialLoad) setLoading(false);
+        // 无论成功还是失败，都要在初始加载后设置 loading=false
+        if (isMounted && isInitialLoadRef.current) {
+          setLoading(false);
+          isInitialLoadRef.current = false;
+        }
       }
     };
 
@@ -75,8 +87,25 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-4 bg-white/80 backdrop-blur-sm border border-red-200/60 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 text-red-600">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-sm">{error}</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!state || !phase) {
-    return null;
+    return (
+      <div className="p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
+        <div className="text-sm text-gray-500 text-center">暂无学习状态数据</div>
+      </div>
+    );
   }
 
   const getStateColor = (value: number, inverse = false): string => {

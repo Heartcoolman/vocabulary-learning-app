@@ -70,6 +70,8 @@ export interface UserParamsState {
   params: UserParams;
   /** 表现追踪 */
   performance: PerformanceTracker;
+  /** 最后访问时间（用于LRU/TTL） */
+  lastAccessedAt?: number;
 }
 
 /**
@@ -82,6 +84,12 @@ export interface UserParamsManagerConfig {
   minUpdateInterval?: number;
   /** 是否启用自动调整 */
   enableAutoAdjust?: boolean;
+  /** 最大用户数量（LRU容量），默认10000 */
+  maxUsers?: number;
+  /** 用户参数TTL（毫秒），超时未访问则可被淘汰，默认7天 */
+  userTtlMs?: number;
+  /** 清理检查间隔（毫秒），默认1小时 */
+  cleanupIntervalMs?: number;
 }
 
 /**
@@ -156,7 +164,10 @@ const ADJUSTMENT_RATES = {
 const DEFAULT_CONFIG: Required<UserParamsManagerConfig> = {
   accuracyAlpha: 0.15,
   minUpdateInterval: 5000,
-  enableAutoAdjust: true
+  enableAutoAdjust: true,
+  maxUsers: 10000,
+  userTtlMs: 7 * 24 * 60 * 60 * 1000, // 7天
+  cleanupIntervalMs: 60 * 60 * 1000 // 1小时
 };
 
 /** 默认表现追踪 */
@@ -187,8 +198,119 @@ export class UserParamsManager {
   /** 用户参数映射 */
   private readonly userParams: Map<string, UserParamsState> = new Map();
 
+  /** 操作锁映射，用于解决竞态条件 */
+  private readonly operationLocks: Map<string, Promise<void>> = new Map();
+
+  /** 清理定时器 */
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(config: UserParamsManagerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.startCleanupTimer();
+  }
+
+  /**
+   * 启动定时清理任务
+   */
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) return;
+
+    this.cleanupTimer = setInterval(() => {
+      this.cleanup();
+    }, this.config.cleanupIntervalMs);
+
+    // 允许进程正常退出
+    if (typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  /**
+   * 停止清理定时器
+   */
+  stopCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
+
+  /**
+   * 执行清理：淘汰过期或超量的用户数据
+   */
+  cleanup(): number {
+    const now = Date.now();
+    let removed = 0;
+
+    // 1. 首先淘汰TTL过期的
+    if (this.config.userTtlMs > 0) {
+      const cutoffTime = now - this.config.userTtlMs;
+      const toDelete: string[] = [];
+      this.userParams.forEach((state, userId) => {
+        const lastAccess = state.lastAccessedAt ?? state.params.lastUpdated;
+        if (lastAccess < cutoffTime) {
+          toDelete.push(userId);
+        }
+      });
+      for (const userId of toDelete) {
+        this.userParams.delete(userId);
+        removed++;
+      }
+    }
+
+    // 2. 如果仍超过maxUsers，按LRU淘汰最老的
+    if (this.userParams.size > this.config.maxUsers) {
+      const entries = Array.from(this.userParams.entries());
+      // 按最后访问时间排序（升序，最老的在前）
+      entries.sort((a, b) => {
+        const timeA = a[1].lastAccessedAt ?? a[1].params.lastUpdated;
+        const timeB = b[1].lastAccessedAt ?? b[1].params.lastUpdated;
+        return timeA - timeB;
+      });
+
+      // 淘汰超出的部分
+      const toRemove = entries.slice(0, this.userParams.size - this.config.maxUsers);
+      for (const [userId] of toRemove) {
+        this.userParams.delete(userId);
+        removed++;
+      }
+    }
+
+    if (removed > 0) {
+      amasLogger.debug({ removed, remaining: this.userParams.size }, '[UserParamsManager] 清理过期用户数据');
+    }
+
+    return removed;
+  }
+
+  /**
+   * 获取或等待用户操作锁
+   * 用于解决 get/set 之间的竞态条件
+   */
+  private async acquireLock(userId: string): Promise<() => void> {
+    // 等待现有锁释放
+    while (this.operationLocks.has(userId)) {
+      await this.operationLocks.get(userId);
+    }
+
+    // 创建新锁
+    let releaseLock: () => void;
+    const lockPromise = new Promise<void>(resolve => {
+      releaseLock = resolve;
+    });
+    this.operationLocks.set(userId, lockPromise);
+
+    return () => {
+      this.operationLocks.delete(userId);
+      releaseLock!();
+    };
+  }
+
+  /**
+   * 更新访问时间（用于LRU）
+   */
+  private touchUser(state: UserParamsState): void {
+    state.lastAccessedAt = Date.now();
   }
 
   // ==================== 核心API ====================
@@ -202,6 +324,7 @@ export class UserParamsManager {
   getParams(userId: string): UserParams {
     const state = this.userParams.get(userId);
     if (state) {
+      this.touchUser(state);
       return { ...state.params };
     }
     return { ...DEFAULT_PARAMS, lastUpdated: Date.now() };
@@ -212,11 +335,15 @@ export class UserParamsManager {
    */
   getState(userId: string): UserParamsState | null {
     const state = this.userParams.get(userId);
-    return state ? this.cloneState(state) : null;
+    if (state) {
+      this.touchUser(state);
+      return this.cloneState(state);
+    }
+    return null;
   }
 
   /**
-   * 基于反馈更新参数
+   * 基于反馈更新参数（同步版本）
    *
    * @param userId 用户ID
    * @param feedback 反馈数据
@@ -230,6 +357,8 @@ export class UserParamsManager {
       state = this.createInitialState();
       this.userParams.set(userId, state);
     }
+
+    this.touchUser(state);
 
     // 检查更新间隔
     if (now - state.params.lastUpdated < this.config.minUpdateInterval) {
@@ -250,7 +379,23 @@ export class UserParamsManager {
   }
 
   /**
-   * 直接设置用户参数
+   * 基于反馈更新参数（异步版本，带锁保护）
+   * 用于需要防止竞态条件的场景
+   *
+   * @param userId 用户ID
+   * @param feedback 反馈数据
+   */
+  async updateParamsAsync(userId: string, feedback: ParamsFeedback): Promise<void> {
+    const release = await this.acquireLock(userId);
+    try {
+      this.updateParams(userId, feedback);
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * 直接设置用户参数（同步版本）
    *
    * @param userId 用户ID
    * @param params 部分参数
@@ -261,6 +406,8 @@ export class UserParamsManager {
       state = this.createInitialState();
       this.userParams.set(userId, state);
     }
+
+    this.touchUser(state);
 
     // 合并并校验参数
     if (params.alpha !== undefined) {
@@ -293,6 +440,22 @@ export class UserParamsManager {
     }
 
     state.params.lastUpdated = Date.now();
+  }
+
+  /**
+   * 直接设置用户参数（异步版本，带锁保护）
+   * 用于需要防止竞态条件的场景
+   *
+   * @param userId 用户ID
+   * @param params 部分参数
+   */
+  async setParamsAsync(userId: string, params: Partial<UserParams>): Promise<void> {
+    const release = await this.acquireLock(userId);
+    try {
+      this.setParams(userId, params);
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -492,7 +655,8 @@ export class UserParamsManager {
     return {
       version: UserParamsManager.VERSION,
       params: { ...DEFAULT_PARAMS, lastUpdated: 0 },
-      performance: { ...DEFAULT_PERFORMANCE }
+      performance: { ...DEFAULT_PERFORMANCE },
+      lastAccessedAt: Date.now()
     };
   }
 
@@ -540,11 +704,13 @@ export class UserParamsManager {
     const rates = ADJUSTMENT_RATES;
 
     // 难度调整
+    // 修复: fatigueSlope是斜率(-1到1)，应与fastRecoverySlope/slowRecoverySlope比较
+    // 负斜率表示疲劳在下降(恢复中)，正斜率表示疲劳在上升
     if (
       performance.recentAccuracy > th.highAccuracy &&
-      performance.fatigueSlope < th.lowFatigue
+      performance.fatigueSlope < th.fastRecoverySlope
     ) {
-      // 表现好且不疲劳 → 提高难度
+      // 表现好且疲劳在快速恢复 → 提高难度
       params.optimalDifficulty = this.clamp(
         params.optimalDifficulty + rates.difficultyIncrement,
         PARAM_BOUNDS.optimalDifficulty.min,
@@ -552,9 +718,9 @@ export class UserParamsManager {
       );
     } else if (
       performance.recentAccuracy < th.lowAccuracy ||
-      performance.fatigueSlope > th.highFatigue
+      performance.fatigueSlope > th.slowRecoverySlope
     ) {
-      // 表现差或疲劳高 → 降低难度
+      // 表现差或疲劳在上升 → 降低难度
       params.optimalDifficulty = this.clamp(
         params.optimalDifficulty - rates.difficultyIncrement,
         PARAM_BOUNDS.optimalDifficulty.min,
@@ -682,7 +848,8 @@ export class UserParamsManager {
     return {
       version: state.version,
       params: { ...state.params },
-      performance: { ...state.performance }
+      performance: { ...state.performance },
+      lastAccessedAt: state.lastAccessedAt
     };
   }
 

@@ -33,6 +33,7 @@ import prisma from '../config/database';
 import { DecisionRecorderService } from '../amas/services/decision-recorder.service';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
+import { decisionEventsService, DecisionEventData } from '../services/decision-events.service';
 
 const router = Router();
 
@@ -926,6 +927,62 @@ router.get('/health', authMiddleware, async (req: AuthRequest, res: Response) =>
   } catch (error) {
     handleError(res, error, '健康检查失败');
   }
+});
+
+// ==================== Server-Sent Events (SSE) 实时推送 ====================
+
+/**
+ * GET /api/about/decisions/stream
+ * SSE 端点 - 实时推送新决策事件
+ *
+ * 客户端使用 EventSource 连接：
+ * const es = new EventSource('/api/about/decisions/stream');
+ * es.onmessage = (e) => console.log(JSON.parse(e.data));
+ */
+router.get('/decisions/stream', realDataProtection, (req: Request, res: Response) => {
+  // 设置 SSE 响应头
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Nginx 禁用缓冲
+
+  // 增加连接计数
+  decisionEventsService.incrementConnections();
+
+  // 发送初始连接成功消息
+  res.write(`event: connected\ndata: ${JSON.stringify({
+    message: 'SSE connection established',
+    timestamp: new Date().toISOString(),
+    connections: decisionEventsService.getConnectionCount()
+  })}\n\n`);
+
+  // 监听决策事件
+  const onDecision = (data: DecisionEventData) => {
+    try {
+      res.write(`event: decision\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch (err) {
+      logger.error({ err }, '[SSE] Failed to write decision event');
+    }
+  };
+
+  decisionEventsService.on('decision', onDecision);
+
+  // 心跳保活（每 30 秒）
+  const heartbeatInterval = setInterval(() => {
+    try {
+      res.write(`:heartbeat ${Date.now()}\n\n`);
+    } catch {
+      // 连接可能已关闭
+    }
+  }, 30000);
+
+  // 客户端断开连接时清理
+  req.on('close', () => {
+    clearInterval(heartbeatInterval);
+    decisionEventsService.off('decision', onDecision);
+    decisionEventsService.decrementConnections();
+    logger.debug('[SSE] Client disconnected from decisions stream');
+  });
 });
 
 export default router;

@@ -111,6 +111,11 @@ export {
   DownloadSimple,
   PencilSimple,
   DotsThreeVertical,
+  // LLM Advisor 页面图标
+  ShieldCheck,
+  // SSE 连接状态图标
+  WifiHigh,
+  WifiSlash,
 } from '@phosphor-icons/react';
 
 // 图标别名
@@ -118,3 +123,6 @@ export { SlidersHorizontal as Sliders, User as UserFocus, Pulse as Activity } fr
 
 // 系统状态页面额外图标
 export { UsersThree as Users, Gauge, ToggleLeft, ToggleRight } from '@phosphor-icons/react';
+
+// LLM Advisor 页面别名
+export { ShieldCheck as Shield } from '@phosphor-icons/react';

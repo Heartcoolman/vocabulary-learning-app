@@ -192,7 +192,24 @@ export const CacheKeys = {
   DECISION_INSIGHT: (decisionId: string) => `decision_insight:${decisionId}`,
 };
 
-// 缓存TTL（秒）
+/**
+ * 缓存TTL（秒）
+ *
+ * TTL策略说明：
+ * - 正常数据缓存：根据数据变化频率设置不同的TTL
+ *   - 配置类（ALGORITHM_CONFIG）：变化少，TTL较长（1小时）
+ *   - 状态类（LEARNING_STATE, USER_STATS）：变化适中，TTL适中（5分钟）
+ *   - 得分类（WORD_SCORE）：变化适中，TTL适中（10分钟）
+ *   - AMAS相关：变化适中，TTL适中（15分钟）
+ *
+ * - 空值缓存（NULL_CACHE）：使用较短TTL（1分钟）
+ *   - 防止缓存穿透：大量请求不存在的数据时，避免每次都查询数据库
+ *   - 使用短TTL原因：数据可能随时被创建，需要较快感知变化
+ *   - 空值缓存与正常缓存TTL不同是合理的设计，无需统一
+ *
+ * - 高频变化数据（DUE_WORDS）：使用最短TTL（1分钟）
+ *   - getDueWords返回的是即时性数据，需要频繁更新
+ */
 export const CacheTTL = {
   ALGORITHM_CONFIG: 60 * 60, // 1小时
   LEARNING_STATE: 5 * 60, // 5分钟
@@ -201,4 +218,11 @@ export const CacheTTL = {
   WORDBOOK_WORDS: 10 * 60, // 10分钟
   USER_STRATEGY: 15 * 60, // 15分钟
   AMAS_STATE: 15 * 60, // 15分钟
+
+  // 空值缓存TTL - 用于防止缓存穿透
+  // 使用较短时间，因为数据可能随时被创建
+  NULL_CACHE: 60, // 1分钟
+
+  // 高频变化数据TTL
+  DUE_WORDS: 60, // 1分钟
 };

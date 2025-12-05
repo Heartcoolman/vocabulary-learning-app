@@ -105,10 +105,28 @@ export class AttentionMonitor {
       features.focus_loss_duration
     ];
 
-    // 计算加权和
+    // 维度检查：确保特征向量长度与权重数组长度匹配
+    if (featureVector.length < this.weights.length) {
+      console.warn(
+        `[AttentionMonitor] 特征向量维度不匹配: 期望 ${this.weights.length}, 实际 ${featureVector.length}。跳过更新，返回上一次的注意力值。`
+      );
+      return this.prevAttention;
+    }
+
+    // 计算加权和（使用 Math.min 防止越界访问）
+    const loopLength = Math.min(this.weights.length, featureVector.length);
     let weightedSum = 0;
-    for (let i = 0; i < this.weights.length; i++) {
-      weightedSum += this.weights[i] * featureVector[i];
+    for (let i = 0; i < loopLength; i++) {
+      const weight = this.weights[i];
+      const feature = featureVector[i];
+      // 检查 NaN 值
+      if (Number.isNaN(weight) || Number.isNaN(feature)) {
+        console.warn(
+          `[AttentionMonitor] 检测到 NaN 值: weights[${i}]=${weight}, featureVector[${i}]=${feature}。使用 0 替代。`
+        );
+        continue;
+      }
+      weightedSum += weight * feature;
     }
 
     // Sigmoid激活 (注意负号)

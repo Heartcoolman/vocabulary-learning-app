@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Warning, CheckCircle, CircleNotch, FileText } from './Icon';
 import { fadeInVariants, scaleInVariants } from '../utils/animations';
@@ -31,6 +31,8 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
   const [importError, setImportError] = useState<string | null>(null);
   const [, setFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const isCancelledRef = useRef(false);
 
   const resetState = useCallback(() => {
     setStep('upload');
@@ -41,10 +43,21 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
     setImportError(null);
     setFile(null);
     setIsImporting(false);
+    setIsCancelling(false);
+    isCancelledRef.current = false;
   }, []);
 
   const handleClose = useCallback(() => {
-    if (isImporting) return;
+    if (isImporting) {
+      // 显示确认对话框
+      const confirmed = window.confirm('导入正在进行中，确定要取消吗？');
+      if (confirmed) {
+        // 设置取消标志和取消状态，让正在进行的导入操作可以检测到
+        isCancelledRef.current = true;
+        setIsCancelling(true);
+      }
+      return;
+    }
     resetState();
     onClose();
   }, [onClose, resetState, isImporting]);
@@ -73,7 +86,7 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
     setStep('importing');
     setIsImporting(true);
     setImportError(null);
-    let isCancelled = false;
+    isCancelledRef.current = false;
 
     try {
       // 根据是否为管理员模式选择相应的 API
@@ -81,7 +94,12 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
         ? await apiClient.adminBatchAddWordsToSystemWordBook(wordBookId, parsedData)
         : await apiClient.batchImportWords(wordBookId, parsedData);
 
-      if (isCancelled) return;
+      if (isCancelledRef.current) {
+        setIsCancelling(false);
+        resetState();
+        onClose();
+        return;
+      }
 
       // 处理响应
       if (Array.isArray(response)) {
@@ -105,7 +123,12 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
       setStep('result');
       setIsImporting(false);
     } catch (err) {
-      if (isCancelled) return;
+      if (isCancelledRef.current) {
+        setIsCancelling(false);
+        resetState();
+        onClose();
+        return;
+      }
 
       const errorMessage = err instanceof Error ? err.message : '导入请求失败';
       setImportError(errorMessage);
@@ -244,8 +267,14 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <CircleNotch size={48} weight="bold" className="text-blue-500 animate-spin" />
-              <h3 className="text-lg font-medium text-gray-900">正在导入...</h3>
-              <p className="text-gray-500">请稍候，正在处理 {parsedData.length} 个单词</p>
+              <h3 className="text-lg font-medium text-gray-900">
+                {isCancelling ? '正在取消...' : '正在导入...'}
+              </h3>
+              <p className="text-gray-500">
+                {isCancelling
+                  ? '请稍候，正在安全取消导入操作'
+                  : `请稍候，正在处理 ${parsedData.length} 个单词`}
+              </p>
             </div>
           )}
 

@@ -16,6 +16,7 @@ import {
   STANDARD_FEATURE_VECTOR
 } from '../../../fixtures/amas-fixtures';
 import { ActionFactory, AMASStateFactory } from '../../../helpers/factories';
+import { amasLogger } from '../../../../src/logger';
 
 describe('LinUCB', () => {
   let linucb: LinUCB;
@@ -297,7 +298,7 @@ describe('LinUCB', () => {
       const invalidFeatures = new Float32Array(DIMENSION);
       invalidFeatures[0] = NaN;
 
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
 
       const countBefore = linucb.getUpdateCount();
       linucb.updateWithFeatureVector(invalidFeatures, 1.0);
@@ -313,7 +314,7 @@ describe('LinUCB', () => {
       const features = new Float32Array(DIMENSION);
       features.fill(0.5);
 
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
 
       const countBefore = linucb.getUpdateCount();
       linucb.updateWithFeatureVector(features, NaN);
@@ -328,7 +329,7 @@ describe('LinUCB', () => {
       const extremeFeatures = new Float32Array(DIMENSION);
       extremeFeatures.fill(100); // Beyond MAX_FEATURE_ABS (50)
 
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
 
       // Should not throw, but should warn and clamp
       linucb.updateWithFeatureVector(extremeFeatures, 1.0);
@@ -438,16 +439,17 @@ describe('LinUCB', () => {
 
       // Migrate to larger dimension
       const largeLinucb = new LinUCB({ dimension: 22 });
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const debugSpy = vi.spyOn(amasLogger, 'debug').mockImplementation(() => {});
 
       largeLinucb.setModel(smallModel);
 
       const migratedModel = largeLinucb.getModel();
       expect(migratedModel.d).toBe(22);
       expect(migratedModel.updateCount).toBe(smallModel.updateCount);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('迁移模型'));
+      // 迁移日志使用 amasLogger.debug
+      expect(debugSpy).toHaveBeenCalled();
 
-      logSpy.mockRestore();
+      debugSpy.mockRestore();
     });
 
     it('should reset model when downgrading dimension', () => {
@@ -463,14 +465,14 @@ describe('LinUCB', () => {
 
       // Downgrade to smaller dimension
       const smallLinucb = new LinUCB({ dimension: 22 });
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(amasLogger, 'warn').mockImplementation(() => {});
 
       smallLinucb.setModel(largeModel);
 
       const model = smallLinucb.getModel();
       expect(model.d).toBe(22);
       expect(model.updateCount).toBe(0); // Reset on downgrade
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('降维不支持'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({ from: 30, to: 22 }), expect.stringContaining('降维不支持'));
 
       warnSpy.mockRestore();
     });

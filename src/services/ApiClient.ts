@@ -510,6 +510,116 @@ function convertWordScoreDates(score: ApiWordScore): import('../types/models').W
   };
 }
 
+// ==================== LLM Advisor 类型定义 ====================
+
+export interface LLMSuggestionItem {
+  id: string;
+  type: 'param_bound' | 'threshold' | 'reward_weight' | 'safety_threshold';
+  target: string;
+  currentValue: number;
+  suggestedValue: number;
+  reason: string;
+  expectedImpact: string;
+  risk: 'low' | 'medium' | 'high';
+  priority: number;
+}
+
+export interface LLMSuggestionAnalysis {
+  summary: string;
+  keyFindings: string[];
+  concerns: string[];
+}
+
+export interface LLMParsedSuggestion {
+  analysis: LLMSuggestionAnalysis;
+  suggestions: LLMSuggestionItem[];
+  confidence: number;
+  dataQuality: 'sufficient' | 'limited' | 'insufficient';
+  nextReviewFocus: string;
+}
+
+export interface LLMWeeklyStats {
+  period: { start: string; end: string };
+  users: {
+    total: number;
+    activeThisWeek: number;
+    newThisWeek: number;
+    churned: number;
+  };
+  learning: {
+    avgAccuracy: number;
+    avgSessionDuration: number;
+    totalWordsLearned: number;
+    totalAnswers: number;
+    avgResponseTime: number;
+  };
+  stateDistribution: {
+    fatigue: { low: number; mid: number; high: number };
+    motivation: { low: number; mid: number; high: number };
+  };
+  alerts: {
+    lowAccuracyUserRatio: number;
+    highFatigueUserRatio: number;
+    lowMotivationUserRatio: number;
+    churnRate: number;
+  };
+}
+
+export interface LLMStoredSuggestion {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  statsSnapshot: LLMWeeklyStats;
+  rawResponse: string;
+  parsedSuggestion: LLMParsedSuggestion;
+  status: 'pending' | 'approved' | 'rejected' | 'partial';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  appliedItems: string[] | null;
+  createdAt: string;
+}
+
+export interface LLMConfig {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  apiKeySet: boolean;
+}
+
+export interface LLMWorkerStatus {
+  enabled: boolean;
+  autoAnalysisEnabled: boolean;
+  isRunning: boolean;
+  schedule: string;
+  pendingCount: number;
+}
+
+export interface LLMAdvisorConfigResponse {
+  config: LLMConfig;
+  worker: LLMWorkerStatus;
+}
+
+export interface LLMAdvisorHealthResponse {
+  status: string;
+  message: string;
+}
+
+export interface LLMAdvisorSuggestionsResponse {
+  items: LLMStoredSuggestion[];
+  total: number;
+}
+
+export interface LLMAdvisorTriggerResponse {
+  suggestionId: string;
+  message: string;
+}
+
+export interface LLMAdvisorPendingCountResponse {
+  count: number;
+}
+
 /**
  * API请求错误类型
  * 用于区分"数据不存在"和"请求失败"
@@ -665,10 +775,10 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     // 如果外部传入了 signal，监听其 abort 事件并联动
+    // 修复：保存 handler 引用以便在 finally 中移除，避免内存泄漏
+    const abortHandler = () => controller.abort(options.signal!.reason);
     if (options.signal) {
-      options.signal.addEventListener('abort', () => {
-        controller.abort(options.signal!.reason);
-      });
+      options.signal.addEventListener('abort', abortHandler);
     }
 
     try {
@@ -733,6 +843,10 @@ class ApiClient {
       throw new Error('网络请求失败');
     } finally {
       clearTimeout(timeoutId);
+      // 修复：移除外部 signal 的事件监听器，避免内存泄漏
+      if (options.signal) {
+        options.signal.removeEventListener('abort', abortHandler);
+      }
     }
   }
 
@@ -758,10 +872,10 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     // 如果外部传入了 signal，监听其 abort 事件并联动
+    // 修复：保存 handler 引用以便在 finally 中移除，避免内存泄漏
+    const abortHandler = () => controller.abort(options.signal!.reason);
     if (options.signal) {
-      options.signal.addEventListener('abort', () => {
-        controller.abort(options.signal!.reason);
-      });
+      options.signal.addEventListener('abort', abortHandler);
     }
 
     try {
@@ -777,7 +891,7 @@ class ApiClient {
           this.onUnauthorizedCallback();
         }
         const errorMessage = await this.extractErrorMessage(response, '认证失败，请重新登录');
-        throw new Error(errorMessage);
+        throw new ApiError(errorMessage, 401, 'UNAUTHORIZED');
       }
 
       if (!response.ok) {
@@ -801,6 +915,10 @@ class ApiClient {
       throw new Error('网络请求失败');
     } finally {
       clearTimeout(timeoutId);
+      // 修复：移除外部 signal 的事件监听器，避免内存泄漏
+      if (options.signal) {
+        options.signal.removeEventListener('abort', abortHandler);
+      }
     }
   }
 
@@ -922,6 +1040,21 @@ class ApiClient {
     return apiWords.map(convertApiWord);
   }
 
+  /**
+   * 搜索单词
+   * @param query 搜索关键词
+   * @param limit 返回结果数量限制
+   */
+  async searchWords(query: string, limit: number = 20): Promise<(Word & { wordBook?: { id: string; name: string; type: string } })[]> {
+    const apiWords = await this.request<(ApiWord & { wordBook?: { id: string; name: string; type: string } })[]>(
+      `/api/words/search?q=${encodeURIComponent(query)}&limit=${limit}`
+    );
+    return apiWords.map(w => ({
+      ...convertApiWord(w),
+      wordBook: w.wordBook,
+    }));
+  }
+
   // ==================== 学习记录相关 ====================
 
   /**
@@ -967,9 +1100,11 @@ class ApiClient {
         : record.timestamp,
     })) as AnswerRecord[];
 
+    // 默认分页信息：pageSize 使用请求参数或合理默认值（避免空数据时 pageSize 为 0）
+    const DEFAULT_PAGE_SIZE = 20;
     const defaultPagination = {
       page: options?.page ?? 1,
-      pageSize: options?.pageSize ?? records.length,
+      pageSize: options?.pageSize ?? Math.max(records.length, DEFAULT_PAGE_SIZE),
       total: records.length,
       totalPages: 1,
     };
@@ -1693,9 +1828,10 @@ class ApiClient {
   ): Promise<import('../types/models').AlgorithmConfig> {
     try {
       const payload = this.denormalizeAlgorithmConfig(config);
-      const raw = await this.request<ApiAlgorithmConfig>('/api/algorithm-config', {
+      // RESTful风格：configId在URL路径中
+      const raw = await this.request<ApiAlgorithmConfig>(`/api/algorithm-config/${configId}`, {
         method: 'PUT',
-        body: JSON.stringify({ configId, config: payload, changeReason }),
+        body: JSON.stringify({ config: payload, changeReason }),
       });
       return this.normalizeAlgorithmConfig(raw);
     } catch (error) {
@@ -3060,6 +3196,99 @@ class ApiClient {
    */
   async adminGetDecisionDetail(userId: string, decisionId: string) {
     return this.request(`/api/admin/users/${userId}/decisions/${decisionId}`);
+  }
+
+  // ==================== LLM Advisor ====================
+
+  /**
+   * 获取 LLM 配置状态
+   * GET /api/llm-advisor/config
+   */
+  async getLLMAdvisorConfig(): Promise<LLMAdvisorConfigResponse> {
+    return this.request<LLMAdvisorConfigResponse>('/api/llm-advisor/config');
+  }
+
+  /**
+   * 检查 LLM 健康状态
+   * GET /api/llm-advisor/health
+   */
+  async checkLLMAdvisorHealth(): Promise<LLMAdvisorHealthResponse> {
+    return this.request<LLMAdvisorHealthResponse>('/api/llm-advisor/health');
+  }
+
+  /**
+   * 获取建议列表
+   * GET /api/llm-advisor/suggestions
+   */
+  async getLLMAdvisorSuggestions(params?: {
+    status?: 'pending' | 'approved' | 'rejected' | 'partial';
+    limit?: number;
+    offset?: number;
+  }): Promise<LLMAdvisorSuggestionsResponse> {
+    const query = new URLSearchParams();
+    if (params?.status) query.append('status', params.status);
+    if (params?.limit !== undefined) query.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) query.append('offset', params.offset.toString());
+    const queryStr = query.toString();
+    return this.request<LLMAdvisorSuggestionsResponse>(`/api/llm-advisor/suggestions${queryStr ? `?${queryStr}` : ''}`);
+  }
+
+  /**
+   * 获取单个建议详情
+   * GET /api/llm-advisor/suggestions/:id
+   */
+  async getLLMAdvisorSuggestion(id: string): Promise<LLMStoredSuggestion> {
+    return this.request<LLMStoredSuggestion>(`/api/llm-advisor/suggestions/${id}`);
+  }
+
+  /**
+   * 审批通过建议
+   * POST /api/llm-advisor/suggestions/:id/approve
+   */
+  async approveLLMAdvisorSuggestion(
+    id: string,
+    selectedItems: string[],
+    notes?: string
+  ): Promise<LLMStoredSuggestion> {
+    return this.request<LLMStoredSuggestion>(`/api/llm-advisor/suggestions/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ selectedItems, notes })
+    });
+  }
+
+  /**
+   * 拒绝建议
+   * POST /api/llm-advisor/suggestions/:id/reject
+   */
+  async rejectLLMAdvisorSuggestion(id: string, notes?: string): Promise<LLMStoredSuggestion> {
+    return this.request<LLMStoredSuggestion>(`/api/llm-advisor/suggestions/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ notes })
+    });
+  }
+
+  /**
+   * 手动触发 LLM 分析
+   * POST /api/llm-advisor/trigger
+   */
+  async triggerLLMAdvisorAnalysis(): Promise<LLMAdvisorTriggerResponse> {
+    return this.request<LLMAdvisorTriggerResponse>('/api/llm-advisor/trigger', { method: 'POST' });
+  }
+
+  /**
+   * 获取最新建议
+   * GET /api/llm-advisor/latest
+   */
+  async getLatestLLMAdvisorSuggestion(): Promise<LLMStoredSuggestion | null> {
+    return this.request<LLMStoredSuggestion | null>('/api/llm-advisor/latest');
+  }
+
+  /**
+   * 获取待审核数量
+   * GET /api/llm-advisor/pending-count
+   */
+  async getLLMAdvisorPendingCount(): Promise<LLMAdvisorPendingCountResponse> {
+    return this.request<LLMAdvisorPendingCountResponse>('/api/llm-advisor/pending-count');
   }
 }
 
