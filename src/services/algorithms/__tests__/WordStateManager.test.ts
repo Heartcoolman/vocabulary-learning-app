@@ -2,50 +2,30 @@
  * WordStateManager Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 describe('WordStateManager', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('getState', () => {
-    it('should return word state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return word state');
 
-    it('should return default for new word', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return default for new word');
   });
 
   describe('updateState', () => {
-    it('should update on correct answer', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update on correct answer');
 
-    it('should update on incorrect answer', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update on incorrect answer');
   });
 
   describe('state transitions', () => {
-    it('should transition from new to learning', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should transition from new to learning');
 
-    it('should transition from learning to mastered', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should transition from learning to mastered');
 
-    it('should transition from mastered to learning on failure', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should transition from mastered to learning on failure');
   });
 
   describe('interval calculation', () => {
-    it('should calculate next review interval', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should calculate next review interval');
   });
 });

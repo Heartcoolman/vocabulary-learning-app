@@ -2,53 +2,32 @@
  * StatusModal Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('StatusModal', () => {
   describe('rendering', () => {
-    it('should render success modal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render success modal');
 
-    it('should render error modal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render error modal');
 
-    it('should render warning modal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render warning modal');
 
-    it('should render info modal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render info modal');
   });
 
   describe('content', () => {
-    it('should show title', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show title');
 
-    it('should show message', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show message');
 
-    it('should show icon', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show icon');
   });
 
   describe('interactions', () => {
-    it('should handle close', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle close');
 
-    it('should handle confirm', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle confirm');
 
-    it('should auto close after timeout', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should auto close after timeout');
   });
 });

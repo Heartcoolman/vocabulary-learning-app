@@ -2,45 +2,28 @@
  * ChronotypeCard Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('ChronotypeCard', () => {
   describe('rendering', () => {
-    it('should render chronotype info', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render chronotype info');
 
-    it('should show chronotype icon', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show chronotype icon');
 
-    it('should show optimal times', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show optimal times');
   });
 
   describe('chronotypes', () => {
-    it('should display morning lark', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display morning lark');
 
-    it('should display night owl', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display night owl');
 
-    it('should display intermediate', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display intermediate');
   });
 
   describe('recommendations', () => {
-    it('should show study time recommendations', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show study time recommendations');
 
-    it('should show confidence level', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show confidence level');
   });
 });

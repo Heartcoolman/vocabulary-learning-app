@@ -2,7 +2,7 @@
  * ProfilePage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -33,78 +33,46 @@ describe('ProfilePage', () => {
   });
 
   describe('rendering', () => {
-    it('should render profile page title', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render profile page title');
 
-    it('should display user information', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display user information');
 
-    it('should render tab navigation', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render tab navigation');
   });
 
   describe('tabs', () => {
-    it('should switch to profile info tab', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should switch to profile info tab');
 
-    it('should switch to password change tab', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should switch to password change tab');
 
-    it('should switch to cache management tab', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should switch to cache management tab');
 
-    it('should switch to habit profile tab', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should switch to habit profile tab');
   });
 
   describe('profile editing', () => {
-    it('should allow editing username', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow editing username');
 
-    it('should save profile changes', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should save profile changes');
   });
 
   describe('password change', () => {
-    it('should validate current password', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should validate current password');
 
-    it('should validate new password match', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should validate new password match');
 
-    it('should submit password change', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should submit password change');
   });
 
   describe('cache management', () => {
-    it('should display cache statistics', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display cache statistics');
 
-    it('should allow clearing cache', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow clearing cache');
   });
 
   describe('logout', () => {
-    it('should call logout on button click', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should call logout on button click');
 
-    it('should navigate to login after logout', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should navigate to login after logout');
   });
 });

@@ -7,7 +7,6 @@
  * - 新增习惯画像查询端点
  * - 新增从历史记录初始化端点
  *
- * 前端组件: src/components/HabitProfileTab.tsx (集成在 ProfilePage)
  * 独立页面: src/pages/HabitProfilePage.tsx
  * 路由配置: App.tsx -> /habit-profile
  * API方法: ApiClient.ts -> getHabitProfile, initializeHabitProfile, persistHabitProfile 等

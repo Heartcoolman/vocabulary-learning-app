@@ -2,7 +2,7 @@
  * StudySettingsPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -31,52 +31,32 @@ describe('StudySettingsPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render settings page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render settings page');
 
-    it('should display setting sections', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display setting sections');
   });
 
   describe('daily goal settings', () => {
-    it('should display daily word goal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display daily word goal');
 
-    it('should allow changing daily goal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow changing daily goal');
   });
 
   describe('learning mode settings', () => {
-    it('should display learning mode options', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning mode options');
 
-    it('should allow changing learning mode', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow changing learning mode');
   });
 
   describe('notification settings', () => {
-    it('should display notification options', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display notification options');
 
-    it('should toggle notifications', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should toggle notifications');
   });
 
   describe('save settings', () => {
-    it('should save settings on submit', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should save settings on submit');
 
-    it('should show success message', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show success message');
   });
 });

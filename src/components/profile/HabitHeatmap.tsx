@@ -1,16 +1,29 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Info, Moon, SunHorizon, Sun, CloudSun, SunDim, MoonStars } from '@phosphor-icons/react';
 
 interface HabitHeatmapProps {
-  data: number[];
+  /** 24小时时段数据数组 */
+  data?: number[];
+  /** timePref 作为 data 的别名，向后兼容 */
+  timePref?: number[];
+  /** 是否显示卡片容器，默认 true */
+  showCard?: boolean;
 }
 
-export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data }) => {
+export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, showCard = true }) => {
+  // 支持 timePref 作为 data 的别名，向后兼容
+  const timeData = data ?? timePref ?? [];
+
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   // 检查是否有有效数据
-  const hasData = data && data.length > 0 && data.some(v => v > 0);
-  const maxVal = hasData ? Math.max(...data, 1) : 1;
+  const hasData = timeData && timeData.length > 0 && timeData.some(v => v > 0);
+
+  // useMemo 性能优化：计算最大值
+  const maxVal = useMemo(() => {
+    if (!hasData) return 1;
+    return Math.max(...timeData, 1);
+  }, [timeData, hasData]);
 
   const getColorClasses = (value: number) => {
     if (value === 0) return { bg: 'bg-gray-50', text: 'text-gray-500', subtext: 'text-gray-400' };
@@ -30,22 +43,54 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data }) => {
     return '深夜';
   };
 
+  // useMemo 性能优化：时段分组汇总数据
+  const timeGroupData = useMemo(() => {
+    return [
+      { label: '凌晨', range: [0, 6], Icon: Moon, color: 'text-indigo-500' },
+      { label: '上午', range: [6, 12], Icon: SunHorizon, color: 'text-orange-400' },
+      { label: '中午', range: [12, 14], Icon: Sun, color: 'text-yellow-500' },
+      { label: '下午', range: [14, 18], Icon: CloudSun, color: 'text-amber-500' },
+      { label: '晚上', range: [18, 22], Icon: SunDim, color: 'text-orange-600' },
+      { label: '深夜', range: [22, 24], Icon: MoonStars, color: 'text-indigo-600' }
+    ].map(({ label, range, Icon, color }) => {
+      const sum = timeData.slice(range[0], range[1]).reduce((a, b) => a + b, 0);
+      const intensity = sum / maxVal / (range[1] - range[0]);
+      return { label, range, Icon, color, sum, intensity };
+    });
+  }, [timeData, maxVal]);
+
+  // 无数据时的空状态
+  const emptyContent = (
+    <div className="text-center py-8 text-gray-400">
+      <p>暂无学习时段数据</p>
+      <p className="text-sm mt-2">开始学习后，系统会自动记录你的学习时段偏好</p>
+    </div>
+  );
+
   if (!hasData) {
+    if (!showCard) {
+      return (
+        <>
+          <div className="flex items-center gap-2 mb-6">
+            <h3 className="text-lg font-bold text-gray-800">学习时段热力图</h3>
+          </div>
+          {emptyContent}
+        </>
+      );
+    }
     return (
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <div className="flex items-center gap-2 mb-6">
           <h3 className="text-lg font-bold text-gray-800">学习时段热力图</h3>
         </div>
-        <div className="text-center py-8 text-gray-400">
-          <p>暂无学习时段数据</p>
-          <p className="text-sm mt-2">开始学习后，系统会自动记录你的学习时段偏好</p>
-        </div>
+        {emptyContent}
       </div>
     );
   }
 
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+  // 主内容渲染
+  const mainContent = (
+    <>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-bold text-gray-800">学习时段偏好</h3>
@@ -72,11 +117,14 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data }) => {
       {/* 24小时时段网格 */}
       <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2">
         {hours.map((hour) => {
-          const val = data[hour] || 0;
+          const val = timeData[hour] || 0;
           const colors = getColorClasses(val);
           return (
             <div
               key={hour}
+              role="button"
+              tabIndex={0}
+              aria-label={`${hour}:00 - ${hour}:59 (${getTimeLabel(hour)}) - 活跃度: ${val.toFixed(1)}`}
               className={`aspect-square rounded-lg transition-all hover:scale-105 cursor-default flex flex-col items-center justify-center ${colors.bg}`}
               title={`${hour}:00 - ${hour}:59 (${getTimeLabel(hour)}) - 活跃度: ${val.toFixed(1)}`}
             >
@@ -95,32 +143,38 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data }) => {
       <div className="mt-6 pt-4 border-t border-gray-100">
         <h4 className="text-sm font-medium text-gray-600 mb-3">时段汇总</h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {[
-            { label: '凌晨', range: [0, 6], Icon: Moon, color: 'text-indigo-500' },
-            { label: '上午', range: [6, 12], Icon: SunHorizon, color: 'text-orange-400' },
-            { label: '中午', range: [12, 14], Icon: Sun, color: 'text-yellow-500' },
-            { label: '下午', range: [14, 18], Icon: CloudSun, color: 'text-amber-500' },
-            { label: '晚上', range: [18, 22], Icon: SunDim, color: 'text-orange-600' },
-            { label: '深夜', range: [22, 24], Icon: MoonStars, color: 'text-indigo-600' }
-          ].map(({ label, range, Icon, color }) => {
-            const sum = data.slice(range[0], range[1]).reduce((a, b) => a + b, 0);
-            const intensity = sum / maxVal / (range[1] - range[0]);
-            return (
-              <div
-                key={label}
-                className={`p-3 rounded-lg text-center ${
-                  intensity > 0.5 ? 'bg-blue-100' :
-                  intensity > 0.2 ? 'bg-blue-50' : 'bg-gray-50'
-                }`}
-              >
-                <Icon size={24} weight="duotone" className={`mx-auto ${color}`} />
-                <p className="text-xs font-medium text-gray-700 mt-1">{label}</p>
-                <p className="text-xs text-gray-500">{sum.toFixed(0)}</p>
-              </div>
-            );
-          })}
+          {timeGroupData.map(({ label, Icon, color, sum, intensity }) => (
+            <div
+              key={label}
+              role="button"
+              tabIndex={0}
+              aria-label={`${label}时段 - 活跃度: ${sum.toFixed(1)}`}
+              className={`p-3 rounded-lg text-center ${
+                intensity > 0.5 ? 'bg-blue-100' :
+                intensity > 0.2 ? 'bg-blue-50' : 'bg-gray-50'
+              }`}
+            >
+              <Icon size={24} weight="duotone" className={`mx-auto ${color}`} />
+              <p className="text-xs font-medium text-gray-700 mt-1">{label}</p>
+              <p className="text-xs text-gray-500">{sum.toFixed(0)}</p>
+            </div>
+          ))}
         </div>
       </div>
+    </>
+  );
+
+  // 根据 showCard 决定是否包裹卡片容器
+  if (!showCard) {
+    return mainContent;
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      {mainContent}
     </div>
   );
 };
+
+// 默认导出，向后兼容
+export default HabitHeatmap;

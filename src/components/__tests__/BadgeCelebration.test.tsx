@@ -2,51 +2,32 @@
  * BadgeCelebration Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('BadgeCelebration', () => {
   describe('rendering', () => {
-    it('should render celebration modal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render celebration modal');
 
-    it('should show badge icon', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show badge icon');
 
-    it('should show badge name', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show badge name');
 
-    it('should show badge description', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show badge description');
   });
 
   describe('animation', () => {
-    it('should animate on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should animate on mount');
 
-    it('should show confetti effect', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show confetti effect');
   });
 
   describe('interactions', () => {
-    it('should handle close', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle close');
 
-    it('should handle share', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle share');
   });
 
   describe('accessibility', () => {
-    it('should be keyboard accessible', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should be keyboard accessible');
   });
 });

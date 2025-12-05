@@ -2,7 +2,7 @@
  * WordMasteryPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,42 +30,26 @@ describe('WordMasteryPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render word mastery page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render word mastery page');
 
-    it('should display mastery statistics', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display mastery statistics');
   });
 
   describe('word list', () => {
-    it('should fetch words on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch words on mount');
 
-    it('should display mastered words', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display mastered words');
 
-    it('should display learning words', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning words');
   });
 
   describe('filtering', () => {
-    it('should filter by mastery level', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should filter by mastery level');
 
-    it('should search words', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should search words');
   });
 
   describe('memory trace', () => {
-    it('should display memory trace chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display memory trace chart');
   });
 });

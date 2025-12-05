@@ -2,8 +2,7 @@
  * VocabularyPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 const mockNavigate = vi.fn();
 
@@ -33,34 +32,22 @@ describe('VocabularyPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render page structure', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render page structure');
   });
 
   describe('wordbook list', () => {
-    it('should fetch wordbooks on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch wordbooks on mount');
 
-    it('should display wordbooks', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display wordbooks');
 
-    it('should handle empty wordbook list', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle empty wordbook list');
   });
 
   describe('navigation', () => {
-    it('should navigate to wordbook detail', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should navigate to wordbook detail');
   });
 
   describe('error handling', () => {
-    it('should display error message on fetch failure', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display error message on fetch failure');
   });
 });

@@ -109,8 +109,9 @@ src/pages/ExplainabilityPage.tsx  // 或 AMASInsightsPage.tsx
 **原位置**: `backend/src/routes/habit-profile.routes.ts`
 
 **当前状态**:
-- ✅ 前端组件: `src/components/HabitProfileTab.tsx` 已存在
-- ✅ 集成位置: ProfilePage.tsx 中已集成为标签页
+- ~~✅ 前端组件: `src/components/HabitProfileTab.tsx` 已存在~~ (已删除，使用独立页面替代)
+- ✅ 独立页面: `src/pages/HabitProfilePage.tsx`
+- ✅ 路由配置: App.tsx 中已注册 `/habit-profile`
 - ✅ API 方法: ApiClient.ts 中已实现全部4个方法
 - ✅ 额外功能: 还包含认知画像（ChronotypeCard, LearningStyleCard）
 - ✅ **TODO 注释已删除**

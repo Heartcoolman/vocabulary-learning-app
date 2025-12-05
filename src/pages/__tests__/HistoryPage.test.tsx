@@ -2,7 +2,7 @@
  * HistoryPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,46 +30,28 @@ describe('HistoryPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render history page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render history page');
 
-    it('should display page title', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display page title');
   });
 
   describe('history list', () => {
-    it('should fetch history on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch history on mount');
 
-    it('should display learning sessions', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning sessions');
 
-    it('should handle empty history', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle empty history');
   });
 
   describe('filtering', () => {
-    it('should filter by date', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should filter by date');
 
-    it('should filter by wordbook', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should filter by wordbook');
   });
 
   describe('pagination', () => {
-    it('should paginate results', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should paginate results');
 
-    it('should load more on scroll', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should load more on scroll');
   });
 });

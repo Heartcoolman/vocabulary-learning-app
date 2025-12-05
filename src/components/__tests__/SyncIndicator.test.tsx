@@ -2,41 +2,26 @@
  * SyncIndicator Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('SyncIndicator', () => {
   describe('rendering', () => {
-    it('should render synced state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render synced state');
 
-    it('should render syncing state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render syncing state');
 
-    it('should render error state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render error state');
 
-    it('should render offline state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render offline state');
   });
 
   describe('animations', () => {
-    it('should animate when syncing', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should animate when syncing');
   });
 
   describe('tooltip', () => {
-    it('should show last sync time', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show last sync time');
 
-    it('should show error message', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show error message');
   });
 });

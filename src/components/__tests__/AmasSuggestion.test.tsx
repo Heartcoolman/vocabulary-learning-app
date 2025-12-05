@@ -2,8 +2,7 @@
  * AmasSuggestion Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, vi } from 'vitest';
 
 vi.mock('@/services/ApiClient', () => ({
   default: {
@@ -14,42 +13,26 @@ vi.mock('@/services/ApiClient', () => ({
 
 describe('AmasSuggestion', () => {
   describe('rendering', () => {
-    it('should render suggestion card', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render suggestion card');
 
-    it('should show recommended words count', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show recommended words count');
 
-    it('should show optimal time', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show optimal time');
   });
 
   describe('interactions', () => {
-    it('should handle accept suggestion', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle accept suggestion');
 
-    it('should handle dismiss suggestion', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle dismiss suggestion');
 
-    it('should handle refresh suggestion', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle refresh suggestion');
   });
 
   describe('loading state', () => {
-    it('should show loading indicator', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show loading indicator');
   });
 
   describe('error state', () => {
-    it('should show error message', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show error message');
   });
 });

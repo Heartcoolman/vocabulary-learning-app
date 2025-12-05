@@ -2,7 +2,7 @@
  * PlanPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -31,32 +31,20 @@ describe('PlanPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render plan page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render plan page');
 
-    it('should display current plan', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display current plan');
   });
 
   describe('plan generation', () => {
-    it('should generate new plan', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should generate new plan');
 
-    it('should display plan suggestions', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display plan suggestions');
   });
 
   describe('plan progress', () => {
-    it('should show daily progress', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show daily progress');
 
-    it('should show weekly progress', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show weekly progress');
   });
 });

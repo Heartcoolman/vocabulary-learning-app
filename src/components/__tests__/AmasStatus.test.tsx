@@ -2,8 +2,7 @@
  * AmasStatus Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, vi } from 'vitest';
 
 vi.mock('@/services/ApiClient', () => ({
   default: {
@@ -13,40 +12,24 @@ vi.mock('@/services/ApiClient', () => ({
 
 describe('AmasStatus', () => {
   describe('rendering', () => {
-    it('should render status indicator', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render status indicator');
 
-    it('should show healthy status', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show healthy status');
 
-    it('should show degraded status', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show degraded status');
 
-    it('should show error status', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show error status');
   });
 
   describe('metrics', () => {
-    it('should show decision count', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show decision count');
 
-    it('should show average latency', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show average latency');
   });
 
   describe('polling', () => {
-    it('should poll for updates', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should poll for updates');
 
-    it('should stop polling on unmount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should stop polling on unmount');
   });
 });

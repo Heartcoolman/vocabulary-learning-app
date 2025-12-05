@@ -2,7 +2,7 @@
  * StatisticsPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,42 +30,26 @@ describe('StatisticsPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render statistics page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render statistics page');
 
-    it('should display stats cards', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display stats cards');
   });
 
   describe('data fetching', () => {
-    it('should fetch statistics on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch statistics on mount');
 
-    it('should display loading state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display loading state');
   });
 
   describe('charts', () => {
-    it('should render learning progress chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render learning progress chart');
 
-    it('should render daily activity chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render daily activity chart');
   });
 
   describe('time range selection', () => {
-    it('should allow time range selection', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow time range selection');
 
-    it('should update data on range change', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update data on range change');
   });
 });

@@ -2,61 +2,32 @@
  * explainabilityApi Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
+import { describe, it } from 'vitest';
 
 describe('explainabilityApi', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('getDecisionExplanation', () => {
-    it('should fetch explanation', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch explanation');
 
-    it('should include factors', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should include factors');
 
-    it('should include confidence', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should include confidence');
   });
 
   describe('getFeatureImportance', () => {
-    it('should fetch feature importance', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch feature importance');
 
-    it('should return ranked features', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return ranked features');
   });
 
   describe('getCounterfactual', () => {
-    it('should fetch counterfactual', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch counterfactual');
 
-    it('should return alternative scenarios', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return alternative scenarios');
   });
 
   describe('getLearningCurve', () => {
-    it('should fetch learning curve data', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch learning curve data');
 
-    it('should include predictions', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should include predictions');
   });
 });

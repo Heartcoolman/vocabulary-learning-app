@@ -2,7 +2,7 @@
  * AchievementPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,32 +30,20 @@ describe('AchievementPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render achievement page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render achievement page');
 
-    it('should display badges section', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display badges section');
   });
 
   describe('badges', () => {
-    it('should fetch badges on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch badges on mount');
 
-    it('should display earned badges', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display earned badges');
 
-    it('should display locked badges', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display locked badges');
   });
 
   describe('progress', () => {
-    it('should show badge progress', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show badge progress');
   });
 });

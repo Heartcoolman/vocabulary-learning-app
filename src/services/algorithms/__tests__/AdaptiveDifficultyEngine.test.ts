@@ -2,54 +2,32 @@
  * AdaptiveDifficultyEngine Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 describe('AdaptiveDifficultyEngine', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('getDifficulty', () => {
-    it('should return current difficulty', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return current difficulty');
 
-    it('should return personalized difficulty', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return personalized difficulty');
   });
 
   describe('adjustDifficulty', () => {
-    it('should increase on success streak', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should increase on success streak');
 
-    it('should decrease on failure streak', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should decrease on failure streak');
 
-    it('should stay in valid range', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should stay in valid range');
   });
 
   describe('zone of proximal development', () => {
-    it('should identify ZPD', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should identify ZPD');
 
-    it('should select appropriate difficulty', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should select appropriate difficulty');
   });
 
   describe('difficulty estimation', () => {
-    it('should estimate word difficulty', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should estimate word difficulty');
 
-    it('should use population data', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should use population data');
   });
 });

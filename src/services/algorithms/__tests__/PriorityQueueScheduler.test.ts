@@ -2,60 +2,36 @@
  * PriorityQueueScheduler Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 describe('PriorityQueueScheduler', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('addWord', () => {
-    it('should add word to queue', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should add word to queue');
 
-    it('should maintain priority order', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should maintain priority order');
   });
 
   describe('getNextWord', () => {
-    it('should return highest priority word', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return highest priority word');
 
-    it('should return null for empty queue', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return null for empty queue');
   });
 
   describe('updatePriority', () => {
-    it('should update word priority', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update word priority');
 
-    it('should reorder queue', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should reorder queue');
   });
 
   describe('removeWord', () => {
-    it('should remove word from queue', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should remove word from queue');
   });
 
   describe('priority calculation', () => {
-    it('should factor in due date', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should factor in due date');
 
-    it('should factor in mastery level', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should factor in mastery level');
 
-    it('should factor in difficulty', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should factor in difficulty');
   });
 });

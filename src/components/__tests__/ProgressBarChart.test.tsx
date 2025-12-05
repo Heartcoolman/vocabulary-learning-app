@@ -2,55 +2,34 @@
  * ProgressBarChart Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('ProgressBarChart', () => {
   describe('rendering', () => {
-    it('should render progress bar', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render progress bar');
 
-    it('should show correct percentage', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show correct percentage');
 
-    it('should apply correct color', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should apply correct color');
   });
 
   describe('data handling', () => {
-    it('should handle zero value', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle zero value');
 
-    it('should handle 100% value', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle 100% value');
 
-    it('should handle multiple bars', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle multiple bars');
   });
 
   describe('animation', () => {
-    it('should animate on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should animate on mount');
 
-    it('should animate on update', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should animate on update');
   });
 
   describe('labels', () => {
-    it('should show labels', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show labels');
 
-    it('should hide labels when disabled', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should hide labels when disabled');
   });
 });

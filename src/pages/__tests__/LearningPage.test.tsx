@@ -13,6 +13,7 @@ const mockResetSession = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ pathname: '/learning' }),
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
@@ -132,6 +133,17 @@ vi.mock('../../utils/logger', () => ({
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
+  },
+}));
+
+// Mock TrackingService
+vi.mock('../../services/TrackingService', () => ({
+  trackingService: {
+    trackSessionStart: vi.fn(),
+    trackLearningPause: vi.fn(),
+    trackLearningResume: vi.fn(),
+    trackPageSwitch: vi.fn(),
+    trackInteraction: vi.fn(),
   },
 }));
 

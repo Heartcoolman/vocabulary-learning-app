@@ -2,66 +2,34 @@
  * LearningService Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-  },
-}));
+import { describe, it } from 'vitest';
 
 describe('LearningService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('getWordsForSession', () => {
-    it('should fetch words for session', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch words for session');
 
-    it('should use AMAS recommendations', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should use AMAS recommendations');
 
-    it('should respect word count limit', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should respect word count limit');
   });
 
   describe('submitAnswer', () => {
-    it('should submit correct answer', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should submit correct answer');
 
-    it('should submit incorrect answer', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should submit incorrect answer');
 
-    it('should include response time', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should include response time');
   });
 
   describe('startSession', () => {
-    it('should create new session', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should create new session');
 
-    it('should set session mode', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should set session mode');
   });
 
   describe('endSession', () => {
-    it('should end session', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should end session');
 
-    it('should return session summary', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return session summary');
   });
 });

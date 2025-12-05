@@ -2,7 +2,7 @@
  * TrendReportPage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,38 +30,24 @@ describe('TrendReportPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render trend report page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render trend report page');
 
-    it('should display trend charts', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display trend charts');
   });
 
   describe('data fetching', () => {
-    it('should fetch trend data on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch trend data on mount');
 
-    it('should handle loading state', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle loading state');
   });
 
   describe('time range', () => {
-    it('should allow time range selection', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should allow time range selection');
 
-    it('should update charts on range change', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update charts on range change');
   });
 
   describe('insights', () => {
-    it('should display learning insights', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning insights');
   });
 });

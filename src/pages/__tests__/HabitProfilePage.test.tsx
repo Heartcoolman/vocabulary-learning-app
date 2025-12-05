@@ -2,7 +2,7 @@
  * HabitProfilePage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,32 +30,20 @@ describe('HabitProfilePage', () => {
   });
 
   describe('rendering', () => {
-    it('should render habit profile page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render habit profile page');
 
-    it('should display chronotype card', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display chronotype card');
 
-    it('should display learning style card', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning style card');
   });
 
   describe('habit analysis', () => {
-    it('should fetch habit data on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch habit data on mount');
 
-    it('should display learning heatmap', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display learning heatmap');
   });
 
   describe('recommendations', () => {
-    it('should display optimal learning times', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display optimal learning times');
   });
 });

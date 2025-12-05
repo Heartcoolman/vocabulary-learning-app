@@ -2,53 +2,28 @@
  * SpacedRepetitionService Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
+import { describe, it } from 'vitest';
 
 describe('SpacedRepetitionService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('recordReview', () => {
-    it('should record review result', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should record review result');
 
-    it('should update word schedule', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update word schedule');
   });
 
   describe('getSchedule', () => {
-    it('should return review schedule', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return review schedule');
 
-    it('should filter by date range', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should filter by date range');
   });
 
   describe('sync', () => {
-    it('should sync with backend', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should sync with backend');
 
-    it('should handle conflicts', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle conflicts');
   });
 
   describe('statistics', () => {
-    it('should return review statistics', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return review statistics');
   });
 });

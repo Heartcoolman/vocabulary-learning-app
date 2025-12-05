@@ -2,49 +2,30 @@
  * SuggestionModal Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('SuggestionModal', () => {
   describe('rendering', () => {
-    it('should render modal when open', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render modal when open');
 
-    it('should not render when closed', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should not render when closed');
 
-    it('should show suggestion content', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show suggestion content');
   });
 
   describe('interactions', () => {
-    it('should handle accept', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle accept');
 
-    it('should handle reject', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle reject');
 
-    it('should handle close on backdrop click', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle close on backdrop click');
 
-    it('should handle close on escape key', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle close on escape key');
   });
 
   describe('accessibility', () => {
-    it('should trap focus', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should trap focus');
 
-    it('should have aria attributes', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should have aria attributes');
   });
 });

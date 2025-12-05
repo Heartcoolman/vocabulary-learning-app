@@ -2,7 +2,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sun, Moon, SunHorizon, TrendUp, Sparkle } from './Icon';
 
-export type ChronotypeCategory = 'morning' | 'evening' | 'intermediate';
+// 支持 'neutral' 作为 'intermediate' 的别名
+export type ChronotypeType = 'morning' | 'evening' | 'intermediate' | 'neutral';
+export type ChronotypeCategory = ChronotypeType;
 
 export interface ChronotypeProfile {
   category: ChronotypeCategory;
@@ -16,14 +18,18 @@ export interface ChronotypeProfile {
 
 interface ChronotypeCardProps {
   data?: ChronotypeProfile;
+  // 扁平化 props 支持（向后兼容 profile 版本调用方式）
+  type?: ChronotypeType;
+  confidence?: number;
+  peakHours?: number[];
 }
 
-const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data }) => {
-  // Fallback/Placeholder data if none provided
+const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence, peakHours }) => {
+  // 支持扁平化 props 或 data 对象
   const profile: ChronotypeProfile = data || {
-    category: 'intermediate',
-    peakHours: [9, 10, 11, 19, 20],
-    confidence: 0.85,
+    category: type || 'intermediate',
+    peakHours: peakHours || [9, 10, 11, 19, 20],
+    confidence: confidence ?? 0.85,
     learningHistory: []
   };
 
@@ -47,6 +53,8 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data }) => {
           gradient: 'from-indigo-500 to-purple-500',
           desc: '你在夜晚思维更敏捷,适合进行深度学习。'
         };
+      case 'intermediate':
+      case 'neutral':
       default:
         return {
           label: '随时适应 (Intermediate)',

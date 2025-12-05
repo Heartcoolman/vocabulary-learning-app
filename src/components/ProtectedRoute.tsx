@@ -6,10 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
  */
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** 是否要求管理员权限，默认 false */
+  requireAdmin?: boolean;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
+export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+  const { user, isAuthenticated, loading } = useAuth();
 
   // 加载中显示加载状态
   if (loading) {
@@ -28,6 +30,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // 已登录则显示子组件
+  // 如果要求管理员权限，检查用户角色
+  if (requireAdmin && user?.role !== 'ADMIN') {
+    return <Navigate to="/403" replace />;
+  }
+
+  // 已登录（且权限满足）则显示子组件
   return <>{children}</>;
 }

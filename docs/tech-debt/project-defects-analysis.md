@@ -222,7 +222,7 @@
 
 | 类型 | 描述 | 建议 |
 |-----|-----|-----|
-| 废弃组件 | `HabitProfileTab` 标记为 Deprecated 但未删除 | 删除或完成迁移 |
+| ~~废弃组件~~ | ~~`HabitProfileTab` 标记为 Deprecated 但未删除~~ | ✅ 已删除 |
 | 调试脚本 | 16 个 JS 脚本在 backend/ 根目录 | 整理到 scripts/ 或删除 |
 | 重复组件 | 多个组件存在两个版本 | 整合为单一版本 |
 

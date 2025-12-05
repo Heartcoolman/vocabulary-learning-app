@@ -2,41 +2,26 @@
  * LearningStyleCard Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('LearningStyleCard', () => {
   describe('rendering', () => {
-    it('should render learning style info', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render learning style info');
 
-    it('should show style breakdown', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show style breakdown');
   });
 
   describe('styles', () => {
-    it('should display visual style', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display visual style');
 
-    it('should display auditory style', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display auditory style');
 
-    it('should display kinesthetic style', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display kinesthetic style');
   });
 
   describe('recommendations', () => {
-    it('should show content recommendations', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show content recommendations');
 
-    it('should show exercise recommendations', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show exercise recommendations');
   });
 });

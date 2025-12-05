@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../services/ApiClient';
 import { HabitProfileResponse } from '../types/habit-profile';
-import { ChronotypeCard } from '../components/profile/ChronotypeCard';
+import ChronotypeCard from '../components/ChronotypeCard';
 import { RhythmCard } from '../components/profile/RhythmCard';
 import { MotivationCard } from '../components/profile/MotivationCard';
 import { HabitHeatmap } from '../components/profile/HabitHeatmap';

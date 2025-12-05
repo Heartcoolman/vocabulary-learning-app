@@ -2,51 +2,32 @@
  * LineChart Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it } from 'vitest';
 
 describe('LineChart', () => {
   describe('rendering', () => {
-    it('should render chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render chart');
 
-    it('should render data points', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render data points');
 
-    it('should render axes', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render axes');
   });
 
   describe('data handling', () => {
-    it('should handle empty data', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle empty data');
 
-    it('should handle single point', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle single point');
 
-    it('should handle multiple series', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle multiple series');
   });
 
   describe('interactions', () => {
-    it('should show tooltip on hover', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show tooltip on hover');
 
-    it('should highlight point on hover', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should highlight point on hover');
   });
 
   describe('responsiveness', () => {
-    it('should resize on container change', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should resize on container change');
   });
 });

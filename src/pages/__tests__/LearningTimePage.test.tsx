@@ -2,7 +2,7 @@
  * LearningTimePage Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -30,32 +30,20 @@ describe('LearningTimePage', () => {
   });
 
   describe('rendering', () => {
-    it('should render learning time page', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should render learning time page');
 
-    it('should display time statistics', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display time statistics');
   });
 
   describe('time analysis', () => {
-    it('should fetch time data on mount', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch time data on mount');
 
-    it('should display daily time chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display daily time chart');
 
-    it('should display weekly time chart', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should display weekly time chart');
   });
 
   describe('recommendations', () => {
-    it('should show optimal study times', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should show optimal study times');
   });
 });

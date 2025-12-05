@@ -2,54 +2,32 @@
  * WordScoreCalculator Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 describe('WordScoreCalculator', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('calculateScore', () => {
-    it('should calculate score for correct answer', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should calculate score for correct answer');
 
-    it('should calculate score for incorrect answer', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should calculate score for incorrect answer');
 
-    it('should factor in response time', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should factor in response time');
   });
 
   describe('updateScore', () => {
-    it('should update existing score', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update existing score');
 
-    it('should initialize new score', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should initialize new score');
   });
 
   describe('scoring factors', () => {
-    it('should apply difficulty weight', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should apply difficulty weight');
 
-    it('should apply streak bonus', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should apply streak bonus');
 
-    it('should apply decay factor', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should apply decay factor');
   });
 
   describe('normalization', () => {
-    it('should clamp score to range', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should clamp score to range');
   });
 });

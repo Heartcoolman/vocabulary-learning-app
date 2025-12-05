@@ -2,56 +2,28 @@
  * useStudyPlan Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
+import { describe, it } from 'vitest';
 
 describe('useStudyPlan', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('plan fetching', () => {
-    it('should fetch study plan', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should fetch study plan');
 
-    it('should handle loading state', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle loading state');
 
-    it('should handle error state', async () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should handle error state');
   });
 
   describe('plan content', () => {
-    it('should return daily goal', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return daily goal');
 
-    it('should return recommended words', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return recommended words');
 
-    it('should return optimal time', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should return optimal time');
   });
 
   describe('plan updates', () => {
-    it('should update plan on preference change', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should update plan on preference change');
 
-    it('should refresh plan', () => {
-      expect(true).toBe(true);
-    });
+    it.todo('should refresh plan');
   });
 });
