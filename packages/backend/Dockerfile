@@ -1,76 +1,113 @@
-# ============================================
-# 后端 Dockerfile - 多阶段构建 (Monorepo 版本)
-# ============================================
-# 注意：需要从 Monorepo 根目录构建
-# docker build -f packages/backend/Dockerfile -t danci-backend .
+# =============================================================================
+# Danci Backend Dockerfile with Native Rust Module Support
+# Build from project root: docker build -f packages/backend/Dockerfile -t danci-backend .
+# =============================================================================
 
-# Stage 1: 依赖安装
+# -----------------------------------------------------------------------------
+# Stage 0: Rust builder - Build native LinUCB module
+# -----------------------------------------------------------------------------
+FROM rust:1.75-alpine AS rust-builder
+
+# Install build dependencies for Alpine
+RUN apk add --no-cache \
+    musl-dev \
+    openssl-dev \
+    pkgconfig \
+    nodejs \
+    npm \
+    python3 \
+    make \
+    gcc \
+    g++
+
+WORKDIR /app/packages/native
+
+# Copy Rust project files
+COPY packages/native/Cargo.toml packages/native/Cargo.lock* ./
+COPY packages/native/build.rs ./
+COPY packages/native/src ./src
+COPY packages/native/package.json ./
+
+# Install napi-rs CLI and build
+RUN npm install @napi-rs/cli
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependencies - Install Node.js dependencies
+# -----------------------------------------------------------------------------
 FROM node:20-alpine AS deps
+
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
-# 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
-
-# 复制 Monorepo 配置文件
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy package files for dependency installation
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 COPY packages/backend/package.json ./packages/backend/
-COPY packages/shared/package.json ./packages/shared/
+COPY packages/native/package.json ./packages/native/
 
-# 安装依赖（只安装 backend 和 shared）
-RUN pnpm install --frozen-lockfile --filter @danci/backend...
+# Copy native build artifacts from rust-builder
+COPY --from=rust-builder /app/packages/native/*.node ./packages/native/
+COPY --from=rust-builder /app/packages/native/index.js ./packages/native/
+COPY --from=rust-builder /app/packages/native/index.d.ts ./packages/native/
 
-# Stage 2: 构建
+# Install pnpm and dependencies
+RUN corepack enable pnpm && \
+    pnpm install --frozen-lockfile --prod
+
+# -----------------------------------------------------------------------------
+# Stage 2: Builder - Build TypeScript
+# -----------------------------------------------------------------------------
 FROM node:20-alpine AS builder
+
 WORKDIR /app
 
-# 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
-
-# 复制依赖
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/backend/node_modules ./packages/backend/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps /app/packages ./packages
 
-# 复制源代码
-COPY packages/shared ./packages/shared
+# Copy source code
 COPY packages/backend ./packages/backend
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.json ./
 
-# 生成 Prisma 客户端并构建
-WORKDIR /app/packages/backend
-RUN npx prisma generate
-RUN pnpm run build
+# Build TypeScript
+RUN corepack enable pnpm && \
+    cd packages/backend && pnpm run build
 
-# Stage 3: 生产镜像
+# -----------------------------------------------------------------------------
+# Stage 3: Runner - Production image
+# -----------------------------------------------------------------------------
 FROM node:20-alpine AS runner
+
+RUN apk add --no-cache dumb-init
+
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 安装 OpenSSL（Prisma 需要）
-RUN apk add --no-cache openssl
-
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 expressjs
+    adduser --system --uid 1001 danci
 
-# 复制构建产物
-COPY --from=builder /app/packages/backend/dist ./dist
-COPY --from=builder /app/packages/backend/node_modules ./node_modules
-COPY --from=builder /app/packages/backend/package.json ./
-COPY --from=builder /app/packages/backend/prisma ./prisma
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/native ./packages/native
 
-# 复制 shared 包（运行时可能需要）
-COPY --from=builder /app/packages/shared ./packages/shared
+# Copy built application
+COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
+COPY --from=builder /app/packages/backend/package.json ./packages/backend/
 
-# 设置权限
-RUN chown -R expressjs:nodejs /app
+# Set ownership
+RUN chown -R danci:nodejs /app
 
-COPY packages/backend/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-USER expressjs
+USER danci
 
 EXPOSE 3000
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["node", "dist/index.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "packages/backend/dist/index.js"]

@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**"]
     },
+    "build:native": {
+      "outputs": ["*.node", "index.js", "index.d.ts"],
+      "cache": true
+    },
     "dev": {
       "cache": false,
       "persistent": true
