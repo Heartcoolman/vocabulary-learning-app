@@ -9,6 +9,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:components": "vitest run src/components",
+    "test:pages": "vitest run src/pages",
+    "test:services": "vitest run src/services",
+    "test:hooks": "vitest run src/hooks",
+    "test:contexts": "vitest run src/contexts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext ts,tsx",
     "clean": "rm -rf dist node_modules"

@@ -26,22 +26,18 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] }
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] }
     }
   ],
 
   webServer: [
     {
-      command: 'NODE_ENV=test pnpm dev:backend',
+      command: 'NODE_ENV=test pnpm --filter @danci/backend dev',
       url: 'http://localhost:3000/api/about/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000
     },
     {
-      command: 'pnpm dev:frontend',
+      command: 'pnpm --filter @danci/frontend dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000

@@ -9,7 +9,22 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
+
+    "test:1:backend-services": "pnpm --filter @danci/backend test:unit:services",
+    "test:2:backend-amas": "pnpm --filter @danci/backend test:unit:amas",
+    "test:3:backend-api": "pnpm --filter @danci/backend test:integration",
+    "test:4:frontend-components": "pnpm --filter @danci/frontend test:components",
+    "test:5:frontend-pages": "pnpm --filter @danci/frontend test:pages",
+    "test:6:e2e": "playwright test",
+
+    "test:backend": "pnpm --filter @danci/backend test",
+    "test:backend:unit": "pnpm --filter @danci/backend test:unit",
+    "test:backend:integration": "pnpm --filter @danci/backend test:integration",
+    "test:frontend": "pnpm --filter @danci/frontend test",
+    "test:native": "pnpm --filter @danci/native test",
+    "test:shared": "pnpm --filter @danci/shared test",
     "test:e2e": "playwright test",
+
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
     "prisma:generate": "pnpm --filter @danci/backend prisma:generate",
