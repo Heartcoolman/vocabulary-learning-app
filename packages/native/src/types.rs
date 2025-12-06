@@ -126,6 +126,21 @@ pub struct ActionSelection {
     pub all_scores: Vec<f64>,
 }
 
+/// ActionSelectionTyped 结构体 - 类型化动作选择结果
+#[napi(object)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionSelectionTyped {
+    #[napi(js_name = "selectedIndex")]
+    pub selected_index: u32,
+    #[napi(js_name = "selectedAction")]
+    pub selected_action: ActionTyped,
+    pub exploitation: f64,
+    pub exploration: f64,
+    pub score: f64,
+    #[napi(js_name = "allScores")]
+    pub all_scores: Vec<f64>,
+}
+
 /// UCBStats 结构体 - UCB 统计信息
 #[napi(object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,5 +200,247 @@ impl Default for BanditModel {
             d: d as u32,
             update_count: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ============ Difficulty::from_str() 测试 ============
+
+    #[test]
+    fn test_difficulty_from_str_valid_lowercase() {
+        assert_eq!(Difficulty::from_str("recognition"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::from_str("recall"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::from_str("spelling"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::from_str("listening"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::from_str("usage"), Some(Difficulty::Usage));
+    }
+
+    #[test]
+    fn test_difficulty_from_str_valid_uppercase() {
+        assert_eq!(Difficulty::from_str("RECOGNITION"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::from_str("RECALL"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::from_str("SPELLING"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::from_str("LISTENING"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::from_str("USAGE"), Some(Difficulty::Usage));
+    }
+
+    #[test]
+    fn test_difficulty_from_str_valid_mixed_case() {
+        assert_eq!(Difficulty::from_str("Recognition"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::from_str("ReCaLl"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::from_str("SpElLiNg"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::from_str("Listening"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::from_str("UsAgE"), Some(Difficulty::Usage));
+    }
+
+    #[test]
+    fn test_difficulty_from_str_invalid() {
+        assert_eq!(Difficulty::from_str(""), None);
+        assert_eq!(Difficulty::from_str("invalid"), None);
+        assert_eq!(Difficulty::from_str("recognitionn"), None);
+        assert_eq!(Difficulty::from_str("recal"), None);
+        assert_eq!(Difficulty::from_str(" recall"), None);
+        assert_eq!(Difficulty::from_str("recall "), None);
+        assert_eq!(Difficulty::from_str("re call"), None);
+        assert_eq!(Difficulty::from_str("123"), None);
+        assert_eq!(Difficulty::from_str("recognition1"), None);
+    }
+
+    #[test]
+    fn test_difficulty_from_str_edge_cases() {
+        // 特殊字符
+        assert_eq!(Difficulty::from_str("recognition\n"), None);
+        assert_eq!(Difficulty::from_str("\trecall"), None);
+        assert_eq!(Difficulty::from_str("spelling\0"), None);
+        // Unicode 字符
+        assert_eq!(Difficulty::from_str("認識"), None);
+        assert_eq!(Difficulty::from_str("记忆"), None);
+    }
+
+    // ============ Difficulty::to_index() 测试 ============
+
+    #[test]
+    fn test_difficulty_to_index() {
+        assert_eq!(Difficulty::Recognition.to_index(), 0);
+        assert_eq!(Difficulty::Recall.to_index(), 1);
+        assert_eq!(Difficulty::Spelling.to_index(), 2);
+        assert_eq!(Difficulty::Listening.to_index(), 3);
+        assert_eq!(Difficulty::Usage.to_index(), 4);
+    }
+
+    #[test]
+    fn test_difficulty_roundtrip() {
+        // 测试 from_str -> to_index 的往返转换
+        let difficulties = vec![
+            ("recognition", 0),
+            ("recall", 1),
+            ("spelling", 2),
+            ("listening", 3),
+            ("usage", 4),
+        ];
+
+        for (name, expected_index) in difficulties {
+            let difficulty = Difficulty::from_str(name).expect(&format!("{} should be valid", name));
+            assert_eq!(difficulty.to_index(), expected_index);
+        }
+    }
+
+    #[test]
+    fn test_difficulty_index_uniqueness() {
+        // 确保所有难度的索引都是唯一的
+        let all_difficulties = vec![
+            Difficulty::Recognition,
+            Difficulty::Recall,
+            Difficulty::Spelling,
+            Difficulty::Listening,
+            Difficulty::Usage,
+        ];
+
+        let indices: Vec<usize> = all_difficulties.iter().map(|d| d.to_index()).collect();
+        let mut sorted_indices = indices.clone();
+        sorted_indices.sort();
+        sorted_indices.dedup();
+
+        assert_eq!(indices.len(), sorted_indices.len(), "Indices should be unique");
+    }
+
+    #[test]
+    fn test_difficulty_index_range() {
+        // 确保索引在有效范围内 [0, 4]
+        let all_difficulties = vec![
+            Difficulty::Recognition,
+            Difficulty::Recall,
+            Difficulty::Spelling,
+            Difficulty::Listening,
+            Difficulty::Usage,
+        ];
+
+        for difficulty in all_difficulties {
+            let index = difficulty.to_index();
+            assert!(index <= 4, "Index {} should be <= 4", index);
+        }
+    }
+
+    // ============ BanditModel::default() 测试 ============
+
+    #[test]
+    fn test_bandit_model_default_dimensions() {
+        let model = BanditModel::default();
+
+        assert_eq!(model.d as usize, FEATURE_DIMENSION);
+        assert_eq!(model.a_matrix.len(), FEATURE_DIMENSION * FEATURE_DIMENSION);
+        assert_eq!(model.b.len(), FEATURE_DIMENSION);
+        assert_eq!(model.l_matrix.len(), FEATURE_DIMENSION * FEATURE_DIMENSION);
+    }
+
+    #[test]
+    fn test_bandit_model_default_a_matrix_is_identity() {
+        let model = BanditModel::default();
+        let d = FEATURE_DIMENSION;
+
+        // A 矩阵应该是 λI，其中 λ = 1.0
+        for i in 0..d {
+            for j in 0..d {
+                let value = model.a_matrix[i * d + j];
+                if i == j {
+                    assert_eq!(value, 1.0, "Diagonal element A[{},{}] should be 1.0", i, j);
+                } else {
+                    assert_eq!(value, 0.0, "Off-diagonal element A[{},{}] should be 0.0", i, j);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_bandit_model_default_b_is_zero() {
+        let model = BanditModel::default();
+
+        for (i, &value) in model.b.iter().enumerate() {
+            assert_eq!(value, 0.0, "b[{}] should be 0.0", i);
+        }
+    }
+
+    #[test]
+    fn test_bandit_model_default_l_matrix_is_sqrt_identity() {
+        let model = BanditModel::default();
+        let d = FEATURE_DIMENSION;
+        let sqrt_lambda = 1.0_f64.sqrt(); // sqrt(1.0) = 1.0
+
+        // L 矩阵应该是 √λI
+        for i in 0..d {
+            for j in 0..d {
+                let value = model.l_matrix[i * d + j];
+                if i == j {
+                    assert!((value - sqrt_lambda).abs() < EPSILON,
+                        "Diagonal element L[{},{}] should be {}", i, j, sqrt_lambda);
+                } else {
+                    assert_eq!(value, 0.0, "Off-diagonal element L[{},{}] should be 0.0", i, j);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_bandit_model_default_parameters() {
+        let model = BanditModel::default();
+
+        assert_eq!(model.lambda, 1.0);
+        assert_eq!(model.alpha, 0.3);
+        assert_eq!(model.update_count, 0);
+    }
+
+    #[test]
+    fn test_bandit_model_clone() {
+        let model = BanditModel::default();
+        let cloned = model.clone();
+
+        assert_eq!(model.d, cloned.d);
+        assert_eq!(model.lambda, cloned.lambda);
+        assert_eq!(model.alpha, cloned.alpha);
+        assert_eq!(model.update_count, cloned.update_count);
+        assert_eq!(model.a_matrix, cloned.a_matrix);
+        assert_eq!(model.b, cloned.b);
+        assert_eq!(model.l_matrix, cloned.l_matrix);
+    }
+
+    #[test]
+    fn test_bandit_model_debug() {
+        let model = BanditModel::default();
+        let debug_str = format!("{:?}", model);
+
+        // 确保 Debug trait 正常工作
+        assert!(debug_str.contains("BanditModel"));
+        assert!(debug_str.contains("lambda"));
+        assert!(debug_str.contains("alpha"));
+    }
+
+    // ============ 常量测试 ============
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(FEATURE_DIMENSION, 22);
+        assert!(MIN_LAMBDA > 0.0);
+        assert!(MIN_RANK1_DIAG > 0.0);
+        assert!(MAX_COVARIANCE > 0.0);
+        assert!(MAX_FEATURE_ABS > 0.0);
+        assert!(EPSILON > 0.0);
+        assert!(EPSILON < 1e-6);
+    }
+
+    // ============ Difficulty 序列化测试 ============
+
+    #[test]
+    fn test_difficulty_equality() {
+        assert_eq!(Difficulty::Recognition, Difficulty::Recognition);
+        assert_ne!(Difficulty::Recognition, Difficulty::Recall);
+    }
+
+    #[test]
+    fn test_difficulty_debug() {
+        let debug_str = format!("{:?}", Difficulty::Recognition);
+        assert_eq!(debug_str, "Recognition");
     }
 }

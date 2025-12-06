@@ -158,6 +158,119 @@ impl LinUCBNative {
         }
     }
 
+    /// 构建 22 维特征向量（使用类型化 Action）
+    fn build_feature_vector_typed_internal(
+        &self,
+        state: &UserState,
+        action: &ActionTyped,
+        context: &LinUCBContext,
+    ) -> Vec<f64> {
+        let mut x = vec![0.0; self.d];
+        let mut idx = 0;
+
+        // 状态特征 (5维)
+        x[idx] = state.mastery_level;
+        idx += 1;
+        x[idx] = state.recent_accuracy;
+        idx += 1;
+        x[idx] = (state.study_streak as f64).min(30.0) / 30.0;
+        idx += 1;
+        x[idx] = ((state.total_interactions as f64).ln_1p()) / 10.0;
+        idx += 1;
+        x[idx] = (state.average_response_time / 10000.0).min(1.0);
+        idx += 1;
+
+        // 错误率特征 (1维)
+        x[idx] = 1.0 - state.recent_accuracy;
+        idx += 1;
+
+        // 动作特征 - one-hot (5维)
+        // 直接使用枚举，无需字符串解析
+        let diff_idx = action.difficulty.to_index();
+        for i in 0..5 {
+            x[idx + i] = if i == diff_idx { 1.0 } else { 0.0 };
+        }
+        idx += 5;
+
+        // 交互特征 (1维) - mastery * difficulty_weight
+        let diff_weight = match action.difficulty {
+            Difficulty::Recognition => 0.2,
+            Difficulty::Recall => 0.4,
+            Difficulty::Spelling => 0.6,
+            Difficulty::Listening => 0.8,
+            Difficulty::Usage => 1.0,
+        };
+        x[idx] = state.mastery_level * diff_weight;
+        idx += 1;
+
+        // 时间特征 (3维)
+        x[idx] = context.time_of_day;
+        idx += 1;
+        x[idx] = (context.day_of_week as f64) / 6.0;
+        idx += 1;
+        x[idx] = (context.session_duration / 3600.0).min(1.0);
+        idx += 1;
+
+        // 交叉特征 (6维)
+        x[idx] = state.mastery_level * state.recent_accuracy;
+        idx += 1;
+        x[idx] = state.mastery_level * context.time_of_day;
+        idx += 1;
+        x[idx] = state.recent_accuracy * diff_weight;
+        idx += 1;
+        x[idx] = context.time_of_day * diff_weight;
+        idx += 1;
+        let fatigue = context.fatigue_factor.unwrap_or(0.0);
+        x[idx] = state.mastery_level * (1.0 - fatigue);
+        idx += 1;
+        x[idx] = state.recent_accuracy * (1.0 - fatigue);
+        idx += 1;
+
+        // 偏置项 (1维)
+        x[idx] = 1.0;
+
+        x
+    }
+
+    /// 选择动作（类型化版本，性能更优）
+    #[napi]
+    pub fn select_action_typed(
+        &self,
+        state: UserState,
+        actions: Vec<ActionTyped>,
+        context: LinUCBContext,
+    ) -> ActionSelectionTyped {
+        let mut best_idx = 0;
+        let mut best_score = f64::NEG_INFINITY;
+        let mut all_scores = Vec::with_capacity(actions.len());
+        let mut best_exploitation = 0.0;
+        let mut best_exploration = 0.0;
+
+        for (idx, action) in actions.iter().enumerate() {
+            let mut x = self.build_feature_vector_typed_internal(&state, action, &context);
+            sanitize_feature_vector(&mut x);
+
+            let stats = self.compute_ucb_stats_internal(&x);
+            all_scores.push(stats.score);
+
+            if stats.score > best_score {
+                best_score = stats.score;
+                best_idx = idx;
+                best_exploitation = stats.exploitation;
+                best_exploration = stats.confidence;
+            }
+        }
+
+        ActionSelectionTyped {
+            selected_index: best_idx as u32,
+            selected_action: actions[best_idx].clone(),
+            exploitation: best_exploitation,
+            exploration: best_exploration,
+            score: best_score,
+            all_scores,
+        }
+    }
+
     /// 选择动作
     #[napi]
     pub fn select_action(
