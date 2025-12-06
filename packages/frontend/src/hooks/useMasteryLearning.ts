@@ -109,7 +109,12 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         if (!isMountedRef.current) return;
         currentSessionIdRef.current = session?.sessionId ?? '';
         sessionStartTimeRef.current = Date.now();
-        wordQueueRef.current.initializeQueue(words.words, { masteryThreshold: words.meta.masteryThreshold, maxTotalQuestions: words.meta.maxQuestions });
+        // 使用服务端返回的 targetCount，确保客户端与服务端一致
+        wordQueueRef.current.initializeQueue(words.words, {
+          masteryThreshold: words.meta.masteryThreshold,
+          maxTotalQuestions: words.meta.maxQuestions,
+          targetMasteryCount: words.meta.targetCount,
+        });
       }
       if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
     } catch (err) {

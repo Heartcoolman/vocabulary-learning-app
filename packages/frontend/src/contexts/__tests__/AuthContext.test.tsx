@@ -128,9 +128,12 @@ describe('AuthContext', () => {
       // Suppress console.error for this test
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      expect(() => {
-        renderHook(() => useAuth());
-      }).toThrow('useAuth必须在AuthProvider内部使用');
+      // renderHook captures errors in result.error instead of throwing
+      const { result } = renderHook(() => useAuth());
+
+      expect(result.error).toEqual(
+        new Error('useAuth必须在AuthProvider内部使用')
+      );
 
       consoleSpy.mockRestore();
     });

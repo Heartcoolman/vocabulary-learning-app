@@ -240,15 +240,23 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
   });
   const adaptiveManagerRef = useRef<AdaptiveQueueManager | null>(null);
 
-  const initializeQueue = useCallback((words: WordItem[], config?: Partial<WordQueueConfig>) => {
+  const initializeQueue = useCallback((words: WordItem[], config?: Partial<WordQueueConfig & { targetMasteryCount?: number }>) => {
     if (config) {
-      configRef.current = { ...configRef.current, ...config };
+      const { targetMasteryCount: configTargetCount, ...restConfig } = config;
+      configRef.current = { ...configRef.current, ...restConfig };
+      // 如果服务端提供了 targetMasteryCount，更新 progress 中的 targetCount
+      if (configTargetCount !== undefined) {
+        setProgress(prev => ({ ...prev, targetCount: configTargetCount }));
+      }
     }
+
+    // 使用配置中的 targetMasteryCount（如果有），否则使用默认值
+    const effectiveTargetCount = config?.targetMasteryCount ?? targetMasteryCount;
 
     queueManagerRef.current = new WordQueueManager(words, {
       masteryThreshold: configRef.current.masteryThreshold,
       maxTotalQuestions: configRef.current.maxTotalQuestions,
-      targetMasteryCount,
+      targetMasteryCount: effectiveTargetCount,
     });
 
     adaptiveManagerRef.current = new AdaptiveQueueManager();
