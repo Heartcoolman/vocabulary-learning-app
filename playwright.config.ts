@@ -35,13 +35,13 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'cd backend && NODE_ENV=test npm run dev',
+      command: 'NODE_ENV=test pnpm dev:backend',
       url: 'http://localhost:3000/api/about/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000
     },
     {
-      command: 'npm run dev',
+      command: 'pnpm dev:frontend',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000
