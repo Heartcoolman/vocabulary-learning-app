@@ -65,8 +65,15 @@ test.describe('Admin', () => {
     test('should deny non-admin access', async ({ page }) => {
       // Logout admin
       await page.goto('/profile');
-      page.on('dialog', dialog => dialog.accept());
+      await page.waitForLoadState('networkidle');
+
+      // Click logout button to open the confirm modal
       await page.click('button:has-text("退出登录")');
+
+      // Wait for confirm modal to appear and click the confirm button (text: "退出")
+      await page.waitForSelector('[role="dialog"]');
+      await page.click('[role="dialog"] button:has-text("退出")');
+
       await expect(page).toHaveURL('/login');
 
       // Login as regular user

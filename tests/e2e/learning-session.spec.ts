@@ -6,17 +6,34 @@
  * For AMAS decision tests, see amas-decision.spec.ts
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+// Helper function for login
+async function login(page: Page) {
+  await page.goto('/login');
+  await page.waitForSelector('#email');
+  await page.fill('#email', 'test@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL('/', { timeout: 15000 });
+}
+
+// Helper function to clear localStorage session data
+async function clearLearningSession(page: Page) {
+  await page.evaluate(() => {
+    localStorage.removeItem('mastery_learning_session');
+  });
+}
 
 test.describe('Learning Session', () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    await page.goto('/login');
-    await page.waitForSelector('#email');
-    await page.fill('#email', 'test@example.com');
-    await page.fill('#password', 'password123');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 15000 });
+    await login(page);
+    // Clear any existing session to ensure fresh state
+    await clearLearningSession(page);
+    // Refresh to apply cleared state
+    await page.reload();
+    await page.waitForLoadState('networkidle');
   });
 
   test.describe('Learning Page', () => {
@@ -109,11 +126,12 @@ test.describe('Learning Session', () => {
       await page.click('a[href="/profile"]');
       await expect(page).toHaveURL('/profile');
 
-      // Handle confirm dialog
-      page.on('dialog', dialog => dialog.accept());
-
-      // Click logout button
+      // Click logout button to open confirm modal
       await page.click('button:has-text("退出登录")');
+
+      // Wait for confirm modal and click the confirm button
+      await page.waitForSelector('[role="dialog"]');
+      await page.click('[role="dialog"] button:has-text("退出")');
       await expect(page).toHaveURL('/login');
 
       // Clear session storage
@@ -125,7 +143,7 @@ test.describe('Learning Session', () => {
       await page.fill('#email', 'test@example.com');
       await page.fill('#password', 'password123');
       await page.click('button[type="submit"]');
-      await page.waitForURL('/', { timeout: 15000 });
+      await expect(page).toHaveURL('/', { timeout: 15000 });
 
       // Should start fresh session
       await page.waitForLoadState('networkidle');

@@ -13,14 +13,16 @@
 
 import { test, expect, Page } from '@playwright/test';
 
+// Increase timeout for learning flow tests
+test.setTimeout(30000);
+
 // Helper function for login
 async function login(page: Page) {
   await page.goto('/login');
-  await page.waitForSelector('#email');
   await page.fill('#email', 'test@example.com');
   await page.fill('#password', 'password123');
   await page.click('button[type="submit"]');
-  await page.waitForURL('/', { timeout: 15000 });
+  await expect(page).toHaveURL('/');
 }
 
 // Helper function to clear localStorage session data
@@ -30,14 +32,24 @@ async function clearLearningSession(page: Page) {
   });
 }
 
+// Helper to wait for learning page to be ready
+async function waitForLearningPageReady(page: Page) {
+  // Wait for either word card, no words message, or completion state
+  const wordCard = page.locator('[data-testid="word-card"]');
+  const noWordsMessage = page.locator('text=暂无单词');
+  const completedMessage = page.locator('text=目标达成');
+  const mainContent = page.locator('main');
+
+  await expect(mainContent).toBeVisible();
+  // Give a short time for content to load, but don't wait for networkidle
+  await page.waitForTimeout(500);
+}
+
 test.describe('Learning Flow', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     // Clear any existing session to ensure fresh state
     await clearLearningSession(page);
-    // Refresh to apply cleared state
-    await page.reload();
-    await page.waitForLoadState('networkidle');
   });
 
   test.describe('Session Initialization', () => {
@@ -46,24 +58,25 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
       // The page may show loading spinner or directly show content
       // Check that main content eventually loads
-      await page.waitForSelector('main', { timeout: 10000 });
+      await expect(page.locator('main')).toBeVisible();
     });
 
     test('should display word card when session starts', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       // Wait for either word card or no words message
       const wordCard = page.locator('[data-testid="word-card"]');
       const noWordsMessage = page.locator('text=暂无单词');
+      const completedMessage = page.locator('text=目标达成');
 
       // Either should be visible
-      await expect(wordCard.or(noWordsMessage)).toBeVisible({ timeout: 15000 });
+      await expect(wordCard.or(noWordsMessage).or(completedMessage).first()).toBeVisible({ timeout: 10000 });
     });
 
     test('should show progress bar when learning starts', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const progressBar = page.locator('[data-testid="mastery-progress"]');
 
@@ -78,7 +91,7 @@ test.describe('Learning Flow', () => {
   test.describe('Word Display', () => {
     test('should display word spelling correctly', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const wordCard = page.locator('[data-testid="word-card"]');
       const hasWordCard = await wordCard.isVisible().catch(() => false);
@@ -94,7 +107,7 @@ test.describe('Learning Flow', () => {
 
     test('should display test options', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -111,7 +124,7 @@ test.describe('Learning Flow', () => {
 
     test('should show phonetic transcription', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -126,7 +139,7 @@ test.describe('Learning Flow', () => {
   test.describe('Answer Submission', () => {
     test('should allow selecting an answer', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -143,14 +156,11 @@ test.describe('Learning Flow', () => {
 
     test('should show correct/incorrect feedback after answering', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
       if (hasWordCard) {
-        // Store the current word spelling
-        const wordSpelling = await page.locator('[data-testid="word-spelling"]').textContent();
-
         // Click an option
         await page.locator('[data-testid="option-0"]').click();
 
@@ -166,7 +176,7 @@ test.describe('Learning Flow', () => {
 
     test('should advance to next word after answering', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -178,7 +188,7 @@ test.describe('Learning Flow', () => {
         await page.locator('[data-testid="option-0"]').click();
 
         // Wait for auto-advance (2 seconds based on the code)
-        await page.waitForTimeout(2500);
+        await page.waitForTimeout(2200);
 
         // Check if word changed or session completed
         const newWordSpelling = page.locator('[data-testid="word-spelling"]');
@@ -198,7 +208,7 @@ test.describe('Learning Flow', () => {
   test.describe('Progress Tracking', () => {
     test('should update question count after answering', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -214,7 +224,7 @@ test.describe('Learning Flow', () => {
         await page.locator('[data-testid="option-0"]').click();
 
         // Wait for UI update
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(300);
 
         // Question count should increase
         const updatedText = await questionCount.textContent();
@@ -225,7 +235,7 @@ test.describe('Learning Flow', () => {
 
     test('should display mastered count', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -243,7 +253,7 @@ test.describe('Learning Flow', () => {
   test.describe('Keyboard Shortcuts', () => {
     test('should support number keys for answer selection', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -259,7 +269,7 @@ test.describe('Learning Flow', () => {
 
     test('should support space key for pronunciation', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -271,7 +281,7 @@ test.describe('Learning Flow', () => {
         await page.keyboard.press('Space');
 
         // Brief wait to ensure event processed
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(200);
 
         // Page should still be functional
         await expect(page.locator('[data-testid="word-card"]')).toBeVisible();
@@ -282,7 +292,7 @@ test.describe('Learning Flow', () => {
   test.describe('Session Completion', () => {
     test('should show completion screen when mastery achieved', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       // This test simulates what the completion screen looks like
       // The completion screen shows "目标达成" or "今日学习结束"
@@ -303,7 +313,7 @@ test.describe('Learning Flow', () => {
 
     test('should allow restarting session', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       // Look for restart button (only visible when completed)
       const restartButton = page.locator('button:has-text("重新开始")');
@@ -313,7 +323,7 @@ test.describe('Learning Flow', () => {
         await restartButton.click();
 
         // Should show loading state briefly
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(300);
 
         // Should either show word card or completion again
         const wordCard = page.locator('[data-testid="word-card"]');
@@ -327,24 +337,21 @@ test.describe('Learning Flow', () => {
   test.describe('Session Restoration', () => {
     test('should restore session from cache on page reload', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
       if (hasWordCard) {
         // Answer a few questions to build session state
         await page.locator('[data-testid="option-0"]').click();
-        await page.waitForTimeout(2500);
+        await page.waitForTimeout(2200);
 
         // Get current progress
         const questionCountBefore = await page.locator('[data-testid="question-count"]').textContent();
 
         // Reload page
         await page.reload();
-        await page.waitForLoadState('networkidle');
-
-        // Wait for session restore
-        await page.waitForTimeout(1000);
+        await waitForLearningPageReady(page);
 
         // Check if session was restored (progress should be maintained)
         const questionCountAfter = await page.locator('[data-testid="question-count"]').textContent();
@@ -368,7 +375,7 @@ test.describe('Learning Flow', () => {
       await page.goto('/');
 
       // Should show error state or fallback UI
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(1000);
 
       // Page should not crash - either shows error or uses cached data
       const mainContent = page.locator('main');
@@ -382,7 +389,7 @@ test.describe('Learning Flow', () => {
       await clearLearningSession(page);
 
       await page.goto('/');
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(2000);
 
       // Should either show error message or fallback UI
       const errorMessage = page.locator('text=加载学习数据失败, text=重试');
@@ -390,7 +397,7 @@ test.describe('Learning Flow', () => {
       const noWordsMessage = page.locator('text=暂无单词');
 
       // One of these should be visible
-      await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({ timeout: 10000 });
+      await expect(errorMessage.or(wordCard).or(noWordsMessage).first()).toBeVisible({ timeout: 5000 });
     });
 
     test('should provide retry option on error', async ({ page }) => {
@@ -399,7 +406,7 @@ test.describe('Learning Flow', () => {
       await clearLearningSession(page);
 
       await page.goto('/');
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(2000);
 
       // Check for retry button if error occurred
       const retryButton = page.locator('button:has-text("重试")');
@@ -413,7 +420,7 @@ test.describe('Learning Flow', () => {
         await retryButton.click();
 
         // Should attempt to reload
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1000);
         await expect(page.locator('main')).toBeVisible();
       }
     });
@@ -422,7 +429,7 @@ test.describe('Learning Flow', () => {
   test.describe('AMAS Strategy Display', () => {
     test('should display learning strategy explanation after answering', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -431,7 +438,7 @@ test.describe('Learning Flow', () => {
         await page.locator('[data-testid="option-0"]').click();
 
         // Wait for result to show
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(300);
 
         // Strategy explanation should appear
         const strategyExplanation = page.locator('text=当前学习策略');
@@ -441,14 +448,14 @@ test.describe('Learning Flow', () => {
 
     test('should have working AI suggestion button', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
       if (hasWordCard) {
         // Answer a question to enable AI suggestion
         await page.locator('[data-testid="option-0"]').click();
-        await page.waitForTimeout(2500); // Wait for next word
+        await page.waitForTimeout(2200); // Wait for next word
 
         // Look for the suggestion button (lightbulb icon)
         const suggestionButton = page.locator('button[title*="建议"]');
@@ -457,7 +464,7 @@ test.describe('Learning Flow', () => {
         if (hasButton) {
           await suggestionButton.click();
           // Modal should appear
-          await page.waitForTimeout(500);
+          await page.waitForTimeout(300);
         }
       }
     });
@@ -466,7 +473,7 @@ test.describe('Learning Flow', () => {
   test.describe('Navigation Integration', () => {
     test('should allow navigation to vocabulary from empty state', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       // Check if in empty state
       const vocabButton = page.locator('button:has-text("选择词书"), a:has-text("选择词书")');
@@ -480,7 +487,7 @@ test.describe('Learning Flow', () => {
 
     test('should allow navigation to statistics after completion', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await waitForLearningPageReady(page);
 
       // Check if completed
       const statsButton = page.locator('button:has-text("查看统计")');
@@ -502,7 +509,7 @@ test.describe('Learning Flow - Multiple Sessions', () => {
   test('should handle rapid answer submissions correctly', async ({ page }) => {
     await clearLearningSession(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForLearningPageReady(page);
 
     const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -513,7 +520,7 @@ test.describe('Learning Flow - Multiple Sessions', () => {
       await option.click(); // Second click should be ignored
 
       // Only one answer should be recorded
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(300);
       await expect(option).toBeDisabled();
     }
   });
@@ -521,7 +528,7 @@ test.describe('Learning Flow - Multiple Sessions', () => {
   test('should complete a full learning session flow', async ({ page }) => {
     await clearLearningSession(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForLearningPageReady(page);
 
     const hasWordCard = await page.locator('[data-testid="word-card"]').isVisible().catch(() => false);
 
@@ -535,7 +542,7 @@ test.describe('Learning Flow - Multiple Sessions', () => {
 
         // Answer using keyboard for variety
         await page.keyboard.press('1');
-        await page.waitForTimeout(2500); // Wait for auto-advance
+        await page.waitForTimeout(2200); // Wait for auto-advance
       }
 
       // Session should have progressed

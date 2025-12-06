@@ -4,16 +4,24 @@
 
 import { test, expect } from '@playwright/test';
 
+/**
+ * Helper function to login user
+ */
+async function loginUser(page: import('@playwright/test').Page) {
+  await page.goto('/login');
+  await page.waitForSelector('#email');
+  await page.fill('#email', 'test@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type="submit"]');
+  // Wait for navigation to complete - use a more robust wait
+  await expect(page).toHaveURL('/', { timeout: 30000 });
+}
+
 test.describe('Navigation', () => {
   test.describe('Deep Linking', () => {
     test('should handle direct URL access when logged in', async ({ page }) => {
       // Login first
-      await page.goto('/login');
-      await page.waitForSelector('#email');
-      await page.fill('#email', 'test@example.com');
-      await page.fill('#password', 'password123');
-      await page.click('button[type="submit"]');
-      await page.waitForURL('/', { timeout: 15000 });
+      await loginUser(page);
 
       // Navigate directly to profile
       await page.goto('/profile');
@@ -25,7 +33,7 @@ test.describe('Navigation', () => {
       // Go to login page and clear cookies
       await page.goto('/login');
       await page.context().clearCookies();
-      
+
       // Try to access protected route
       await page.goto('/vocabulary');
       await expect(page).toHaveURL('/login');
@@ -35,17 +43,12 @@ test.describe('Navigation', () => {
   test.describe('Back Navigation', () => {
     test('should handle browser back button', async ({ page }) => {
       // Login
-      await page.goto('/login');
-      await page.waitForSelector('#email');
-      await page.fill('#email', 'test@example.com');
-      await page.fill('#password', 'password123');
-      await page.click('button[type="submit"]');
-      await page.waitForURL('/', { timeout: 15000 });
+      await loginUser(page);
 
       // Navigate to profile
       await page.click('a[href="/profile"]');
       await expect(page).toHaveURL('/profile');
-      
+
       // Go back
       await page.goBack();
       await expect(page).toHaveURL('/');

@@ -105,11 +105,12 @@ test.describe('Authentication', () => {
       await page.click('a[href="/profile"]');
       await expect(page).toHaveURL('/profile');
 
-      // Handle confirm dialog
-      page.on('dialog', dialog => dialog.accept());
-
-      // Click logout button
+      // Click logout button to open confirm modal
       await page.click('button:has-text("退出登录")');
+
+      // Wait for confirm modal and click the confirm button
+      await page.waitForSelector('[role="dialog"]');
+      await page.click('[role="dialog"] button:has-text("退出")');
 
       // Should redirect to login
       await expect(page).toHaveURL('/login');
