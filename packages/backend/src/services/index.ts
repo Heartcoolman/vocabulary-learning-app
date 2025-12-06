@@ -45,14 +45,14 @@ export { trackingService } from './tracking.service';
 // Analysis Services
 export { trendAnalysisService } from './trend-analysis.service';
 export { habitProfileService } from './habit-profile.service';
-export { cognitiveProfilingService } from './cognitive-profiling.service';
+export { default as cognitiveProfilingService } from './cognitive-profiling.service';
 export { evaluationService } from './evaluation.service';
 export { badgeService } from './badge.service';
 
 // Config Services
 export { algorithmConfigService } from './algorithm-config.service';
 export { timeRecommendService } from './time-recommend.service';
-export { learningObjectivesService } from './learning-objectives.service';
+export { LearningObjectivesService as learningObjectivesService } from './learning-objectives.service';
 export { planGeneratorService } from './plan-generator.service';
 
 // External Services
@@ -60,7 +60,7 @@ export { llmProviderService, LLMProviderService } from './llm-provider.service';
 export { logStorageService } from './log-storage.service';
 
 // About Services
-export { aboutService, createAboutService } from './about.service';
+export { aboutService } from './about.service';
 export { createRealAboutService, RealAboutService } from './real-about.service';
 
 // Experiment Service

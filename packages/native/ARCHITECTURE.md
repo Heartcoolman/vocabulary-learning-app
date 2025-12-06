@@ -1290,8 +1290,321 @@ CMD ["node", "dist/index.js"]
 
 ---
 
-## 11. 参考资料
+## 11. 进阶性能优化 (Codex 二次审计)
+
+> **基于 Codex 二次审计反馈**：在现有 2-8x 方案基础上，以下优化可进一步提升性能
+
+### 11.1 FFI 开销进一步减少
+
+| 优化策略 | 实现方式 | 预期收益 |
+|----------|----------|----------|
+| **ArrayBuffer 池复用** | TS 侧维护固定长度 `Float64Array` 池，通过 N-API Reference 传入 Rust，避免 `to_vec` 二次拷贝 | 更新路径 **10-20%** |
+| **句柄式 API** | 模型状态完全保留在 Rust，仅传入 `u32 model_id` + 索引/奖励 | FFI 成本再降 **20-30%** |
+| **参数扁平化** | 将 state/action/context 合并为单一 `Float64Array`（固定长度） | **5-10%** |
+
+```rust
+// 句柄式 API 示例
+static MODELS: Lazy<RwLock<HashMap<u32, LinUCBNative>>> = Lazy::new(Default::default);
+
+#[napi]
+pub fn select_action_by_id(
+    model_id: u32,
+    feature_vec: Float64Array,  // 扁平化输入
+) -> Result<ActionSelection> {
+    let models = MODELS.read().unwrap();
+    let model = models.get(&model_id).ok_or_else(|| Error::from_reason("Model not found"))?;
+    // 直接借用，零拷贝
+    model.select_action_with_features(feature_vec.as_ref())
+}
+```
+
+### 11.2 SIMD 优化 (d=22 场景)
+
+虽然 d=22 较小，但以下操作仍可受益于 SIMD：
+
+| 操作 | SIMD 策略 | 预期收益 |
+|------|-----------|----------|
+| **外积 `x*x^T`** | AVX2/FMA 内联 (`std::arch` 或 `wide` crate) | **1.2-1.5x** |
+| **点积 `dot`** | 4/8 元素并行 | **1.1-1.3x** |
+| **三角求解** | forward/backward solve 向量化 | **1.15-1.25x** |
+| **批量 UCB** | feature 向量按 4/8 对齐，批量 `mul_add` | **1.1-1.3x** |
+
+```rust
+// SIMD 点积示例 (使用 std::arch)
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
+#[inline(always)]
+unsafe fn dot_avx(a: &[f64], b: &[f64]) -> f64 {
+    let mut sum = _mm256_setzero_pd();
+    let chunks = a.len() / 4;
+
+    for i in 0..chunks {
+        let va = _mm256_loadu_pd(a.as_ptr().add(i * 4));
+        let vb = _mm256_loadu_pd(b.as_ptr().add(i * 4));
+        sum = _mm256_fmadd_pd(va, vb, sum);
+    }
+
+    // 水平求和 + 处理剩余元素
+    let mut result = hsum_avx(sum);
+    for i in (chunks * 4)..a.len() {
+        result += a[i] * b[i];
+    }
+    result
+}
+```
+
+### 11.3 内存布局优化
+
+#### 下三角压缩存储
+
+```rust
+/// 压缩下三角存储 - 减少内存占用 50%
+/// d=22 时: 484 元素 -> 253 元素 (d*(d+1)/2)
+pub struct CompactLowerTriangular {
+    data: SmallVec<[f64; 253]>,  // 栈分配，全程驻留 L1
+    d: usize,
+}
+
+impl CompactLowerTriangular {
+    #[inline(always)]
+    fn index(i: usize, j: usize) -> usize {
+        debug_assert!(i >= j);
+        i * (i + 1) / 2 + j
+    }
+
+    #[inline(always)]
+    pub fn get(&self, i: usize, j: usize) -> f64 {
+        if i >= j {
+            self.data[Self::index(i, j)]
+        } else {
+            0.0
+        }
+    }
+}
+```
+
+#### 缓存友好性
+
+| 优化 | 实现 | 收益 |
+|------|------|------|
+| **栈分配** | `SmallVec<[f64; 484]>` 存 A/L | 避免堆分配开销 |
+| **64B 对齐** | `#[repr(align(64))]` 对齐 feature_vec | 降低 load 延迟 ~5% |
+| **访问顺序** | 外积按列迭代，保持内层连续访问 | 减少 L1 miss 15-20% |
+
+### 11.4 矩阵运算优化
+
+#### Cholesky 分解 (尺寸专用)
+
+```rust
+/// 固定 d=22 的 Cholesky 分解 - 手工展开 + 消除边界检查
+#[inline(always)]
+pub fn cholesky_d22(a: &[f64; 484], lambda: f64) -> [f64; 484] {
+    let mut l = [0.0f64; 484];
+    const D: usize = 22;
+
+    for j in 0..D {
+        // 对角元素
+        let mut sum = unsafe { *a.get_unchecked(j * D + j) };
+        for k in 0..j {
+            let ljk = unsafe { *l.get_unchecked(j * D + k) };
+            sum -= ljk * ljk;
+        }
+        let diag = (sum.max(lambda)).sqrt();
+        unsafe { *l.get_unchecked_mut(j * D + j) = diag };
+
+        // 非对角元素
+        for i in (j + 1)..D {
+            let mut sum = unsafe { *a.get_unchecked(i * D + j) };
+            for k in 0..j {
+                sum -= unsafe { l.get_unchecked(i * D + k) * l.get_unchecked(j * D + k) };
+            }
+            unsafe { *l.get_unchecked_mut(i * D + j) = sum / diag };
+        }
+    }
+
+    l
+}
+```
+
+#### Rank-1 更新 (dchud 风格)
+
+```rust
+/// 经典 dchud 风格 Rank-1 更新 - 沿列更新，复用 hypot/FMA
+pub fn cholesky_rank1_update_optimized(
+    l: &mut [f64],
+    x: &[f64],
+    d: usize,
+    min_diag: f64,
+) -> bool {
+    let mut w = x.to_vec();
+
+    for j in 0..d {
+        let lj = l[j * d + j];
+        let wj = w[j];
+
+        // 使用 hypot 保持数值稳定
+        let r = lj.hypot(wj);
+        if r < min_diag {
+            return false;
+        }
+
+        let c = lj / r;
+        let s = wj / r;
+        l[j * d + j] = r;
+
+        // SIMD 友好的向量更新
+        for i in (j + 1)..d {
+            let li = l[i * d + j];
+            let wi = w[i];
+            l[i * d + j] = c.mul_add(li, s * wi);  // FMA
+            w[i] = c.mul_add(wi, -s * li);
+        }
+    }
+
+    true
+}
+```
+
+### 11.5 并发策略
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Node.js 主线程                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ LinUCBNativeWrapper                              │   │
+│  │   └── 通过 model_id 索引                         │   │
+│  └────────────────────┬────────────────────────────┘   │
+└───────────────────────┼─────────────────────────────────┘
+                        │
+          ╔═════════════╧══════════════╗
+          ║        Rust 侧             ║
+          ║  ┌─────────────────────┐   ║
+          ║  │ ModelRegistry       │   ║
+          ║  │ Arc<RwLock<HashMap>>│   ║
+          ║  │                     │   ║
+          ║  │ Model 1 ←── User A  │   ║  模型内串行
+          ║  │ Model 2 ←── User B  │   ║  模型间并行
+          ║  │ Model 3 ←── User C  │   ║
+          ║  └─────────────────────┘   ║
+          ╚════════════════════════════╝
+```
+
+```rust
+// 模型注册表 - 允许模型间并行
+use once_cell::sync::Lazy;
+use std::sync::RwLock;
+use std::collections::HashMap;
+
+static MODEL_REGISTRY: Lazy<RwLock<HashMap<u32, LinUCBNative>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
+
+#[napi]
+pub fn create_model(model_id: u32, alpha: Option<f64>, lambda: Option<f64>) -> Result<()> {
+    let model = LinUCBNative::new(alpha, lambda);
+    MODEL_REGISTRY.write().unwrap().insert(model_id, model);
+    Ok(())
+}
+
+#[napi]
+pub fn update_model(model_id: u32, feature_vec: Float64Array, reward: f64) -> Result<()> {
+    let mut registry = MODEL_REGISTRY.write().unwrap();
+    let model = registry.get_mut(&model_id)
+        .ok_or_else(|| Error::from_reason("Model not found"))?;
+    model.update_with_float64_array(feature_vec, reward)
+}
+```
+
+### 11.6 编译器优化
+
+```toml
+# Cargo.toml 补充配置
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+debug-assertions = false
+overflow-checks = false  # 仅限已保证安全的数值代码
+
+[profile.release.build-override]
+opt-level = 3
+
+# .cargo/config.toml
+[build]
+rustflags = ["-C", "target-cpu=native", "-C", "target-feature=+avx2,+fma"]
+
+# 或针对特定模块
+[target.'cfg(target_arch = "x86_64")']
+rustflags = ["-C", "target-feature=+avx2,+fma"]
+```
+
+**PGO (Profile-Guided Optimization)**:
+
+```bash
+# 1. 收集 profile 数据
+RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" cargo build --release
+
+# 2. 运行 benchmark
+npm run bench
+
+# 3. 合并 profile 数据
+llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
+
+# 4. 使用 profile 重新编译
+RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" cargo build --release
+```
+
+### 11.7 其他优化
+
+| 优化 | 实现 | 收益 |
+|------|------|------|
+| **减少重复 sanitize** | TS 侧预裁剪输入，Rust 仅做 `is_finite` 检查 | 5-8% |
+| **预热调用** | 首次调用前运行微基准，触发 JIT/页错误缓存 | 稳态延迟改善 |
+| **内联标记** | 对 `solve_triangular_lower`、`dot` 标记 `#[inline(always)]` | 减少调用开销 |
+| **诊断指标** | 收集 NaN/Inf/diag<阈值 计数，调优重分解频率 | 间接提升稳定性 |
+
+### 11.8 优化收益总结
+
+| 优化类别 | 预期收益 | 实现复杂度 | 优先级 |
+|----------|----------|------------|--------|
+| FFI 优化 (缓冲池/句柄) | **20-40%** | 中 | P0 |
+| SIMD + 尺寸特化 | **1.2-1.6x** | 高 | P1 |
+| 下三角压缩 + 连续访问 | **10-20%** | 中 | P1 |
+| 编译选项 (target-cpu/PGO) | **5-15%** | 低 | P0 |
+| 并发 (模型间并行) | **线性吞吐提升** | 中 | P2 |
+| 其他 (预热/内联) | **5-10%** | 低 | P2 |
+
+**叠加预期**: 在基础 2-8x 方案上，全部优化可再提升 **1.5-2.5x**，最终达到 **3-15x** 整体加速。
+
+---
+
+## 12. 实施优先级建议
+
+### 阶段一 (基础版 - 2 周)
+- [ ] 基础 LinUCB 实现 (2-8x 加速)
+- [ ] Float64Array 零拷贝
+- [ ] 批量 API
+- [ ] 编译优化 (target-cpu=native, LTO)
+
+### 阶段二 (进阶版 - 2 周)
+- [ ] ArrayBuffer 池复用
+- [ ] 句柄式 API
+- [ ] 下三角压缩存储
+- [ ] `#[inline(always)]` 标记
+
+### 阶段三 (极致版 - 2 周)
+- [ ] SIMD 优化 (AVX2/FMA)
+- [ ] 尺寸专用 Cholesky (d=22)
+- [ ] PGO 编译
+- [ ] 模型注册表并发
+
+---
+
+## 13. 参考资料
 
 - [napi-rs 文档](https://napi.rs/)
 - [TypeScript 版 LinUCB](packages/backend/src/amas/learning/linucb.ts)
-- [Codex 审计报告](本次审计反馈)
+- [Codex 第一次审计报告](性能预估修正、接口对齐、数值稳定性)
+- [Codex 第二次审计报告](进阶性能优化)

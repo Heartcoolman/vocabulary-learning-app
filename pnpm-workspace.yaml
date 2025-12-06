@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
 onlyBuiltDependencies:
+  - "@danci/native"
   - "@prisma/client"
   - "@prisma/engines"
   - bcrypt
