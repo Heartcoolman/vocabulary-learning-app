@@ -57,6 +57,10 @@ coverage/
 # Turbo
 .turbo/
 
+# Rust
+target/
+Cargo.lock
+
 # Prisma
 packages/backend/prisma/*.db
 
