@@ -55,28 +55,37 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
 
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
-  const sync = useMasterySync({
-    getSessionId: () => currentSessionIdRef.current,
-    getUserId: () => user?.id,
-    getQueueManager: () => wordQueue.queueManagerRef.current,
-    onAmasResult: setLatestAmasResult,
-    onQueueAdjusted: () => { saveCache(); wordQueue.resetAdaptiveCounter(); }
-  });
 
-  // 保存缓存
+  // 使用 ref 存储稳定的函数引用 - 必须在使用它们的 useCallback 之前定义
+  const wordQueueRef = useRef(wordQueue);
+  const syncRef = useRef<ReturnType<typeof useMasterySync> | null>(null);
+  wordQueueRef.current = wordQueue;
+
+  // 保存缓存 - 使用 ref 避免依赖循环
+  const saveCacheRef = useRef<() => void>(() => {});
   const saveCache = useCallback(() => {
-    const state = wordQueue.getQueueState();
-    if (!state) return;
-    sync.sessionCache.saveSessionToCache({
+    const state = wordQueueRef.current.getQueueState();
+    if (!state || !syncRef.current) return;
+    syncRef.current.sessionCache.saveSessionToCache({
       sessionId: currentSessionIdRef.current,
       targetMasteryCount: initialTargetCount,
-      masteryThreshold: wordQueue.configRef.current.masteryThreshold,
-      maxTotalQuestions: wordQueue.configRef.current.maxTotalQuestions,
+      masteryThreshold: wordQueueRef.current.configRef.current.masteryThreshold,
+      maxTotalQuestions: wordQueueRef.current.configRef.current.maxTotalQuestions,
       queueState: state,
       timestamp: Date.now(),
       userId: user?.id ?? null
     });
-  }, [initialTargetCount, user?.id, sync.sessionCache, wordQueue]);
+  }, [initialTargetCount, user?.id]);
+  saveCacheRef.current = saveCache;
+
+  const sync = useMasterySync({
+    getSessionId: () => currentSessionIdRef.current,
+    getUserId: () => user?.id,
+    getQueueManager: () => wordQueueRef.current.queueManagerRef.current,
+    onAmasResult: setLatestAmasResult,
+    onQueueAdjusted: () => { saveCacheRef.current(); wordQueueRef.current.resetAdaptiveCounter(); }
+  });
+  syncRef.current = sync;
 
   // 初始化会话
   const initSession = useCallback(async (isReset = false) => {
@@ -84,10 +93,10 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     setError(null);
     try {
       let restored = false;
-      if (!isReset) {
-        const cache = sync.sessionCache.loadSessionFromCache(user?.id, sessionId);
+      if (!isReset && syncRef.current) {
+        const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
         if (cache?.queueState?.words?.length) {
-          wordQueue.restoreQueue(cache.queueState.words, cache.queueState, { masteryThreshold: cache.masteryThreshold, maxTotalQuestions: cache.maxTotalQuestions });
+          wordQueueRef.current.restoreQueue(cache.queueState.words, cache.queueState, { masteryThreshold: cache.masteryThreshold, maxTotalQuestions: cache.maxTotalQuestions });
           currentSessionIdRef.current = cache.sessionId;
           setHasRestoredSession(true);
           restored = true;
@@ -100,34 +109,41 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
         if (!isMountedRef.current) return;
         currentSessionIdRef.current = session?.sessionId ?? '';
         sessionStartTimeRef.current = Date.now();
-        wordQueue.initializeQueue(words.words, { masteryThreshold: words.meta.masteryThreshold, maxTotalQuestions: words.meta.maxQuestions });
+        wordQueueRef.current.initializeQueue(words.words, { masteryThreshold: words.meta.masteryThreshold, maxTotalQuestions: words.meta.maxQuestions });
       }
-      if (isMountedRef.current) wordQueue.updateFromManager({ consume: !restored });
+      if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
     } catch (err) {
       if (isMountedRef.current) setError(err instanceof Error ? err.message : '初始化失败');
     } finally {
       if (isMountedRef.current) setIsLoading(false);
     }
-  }, [initialTargetCount, sessionId, user?.id, sync.sessionCache, wordQueue]);
+  }, [initialTargetCount, sessionId, user?.id]);
 
   // Effects
   useEffect(() => {
     const curr = user?.id ?? null, prev = prevUserIdRef.current ?? null;
-    if (prev !== null && curr !== null && prev !== curr) {
-      sync.sessionCache.clearSessionCache();
-      wordQueue.resetQueue();
+    if (prev !== null && curr !== null && prev !== curr && syncRef.current) {
+      syncRef.current.sessionCache.clearSessionCache();
+      wordQueueRef.current.resetQueue();
       setHasRestoredSession(false);
     }
     prevUserIdRef.current = curr ?? undefined;
-  }, [user?.id, sync.sessionCache, wordQueue]);
+  }, [user?.id]);
 
-  useEffect(() => { isMountedRef.current = true; initSession(); return () => { isMountedRef.current = false; }; }, [initSession]);
+  // 初始化 effect - 只在组件挂载时执行一次
+  const initSessionRef = useRef(initSession);
+  initSessionRef.current = initSession;
+  useEffect(() => {
+    isMountedRef.current = true;
+    initSessionRef.current();
+    return () => { isMountedRef.current = false; };
+  }, []); // 空依赖，只在挂载时执行一次
 
   useEffect(() => {
-    if (isLoading || wordQueue.isCompleted) return;
-    sync.fetchMoreWordsIfNeeded(wordQueue.progress.activeCount, wordQueue.progress.pendingCount, wordQueue.isCompleted)
-      .then(words => { if (words.length) { wordQueue.addWords(words); saveCache(); } });
-  }, [wordQueue.progress.activeCount, wordQueue.progress.pendingCount, isLoading, wordQueue.isCompleted, sync, saveCache, wordQueue]);
+    if (isLoading || wordQueue.isCompleted || !syncRef.current) return;
+    syncRef.current.fetchMoreWordsIfNeeded(wordQueue.progress.activeCount, wordQueue.progress.pendingCount, wordQueue.isCompleted)
+      .then(words => { if (words.length) { wordQueueRef.current.addWords(words); saveCache(); } });
+  }, [wordQueue.progress.activeCount, wordQueue.progress.pendingCount, isLoading, wordQueue.isCompleted, saveCache]);
 
   useEffect(() => {
     if (wordQueue.isCompleted && currentSessionIdRef.current && sessionStartTimeRef.current > 0) {
