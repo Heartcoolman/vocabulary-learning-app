@@ -23,22 +23,32 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('../../services/ApiClient', () => ({
   default: mockApiClient,
 }));
 
-vi.mock('@/services/AudioService', () => ({
+vi.mock('../../services/AudioService', () => ({
   default: {
     playPronunciation: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
 // Mock useToast hook
-vi.mock('@/components/ui/Toast', () => ({
+vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({
     toast: vi.fn(),
     dismiss: vi.fn(),
   }),
+}));
+
+// Mock logger
+vi.mock('../../utils/logger', () => ({
+  uiLogger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 import WordBookDetailPage from '../WordBookDetailPage';
