@@ -8,10 +8,11 @@ import { test, expect } from '@playwright/test';
 test.describe('AMAS Insights', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
+    await page.waitForSelector('#email');
     await page.fill('#email', 'test@example.com');
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/');
+    await page.waitForURL('/', { timeout: 15000 });
   });
 
   test.describe('Statistics Page', () => {

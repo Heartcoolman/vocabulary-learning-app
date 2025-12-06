@@ -2,18 +2,23 @@
  * Wordbook (Vocabulary) E2E Tests
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+// Helper function for login
+async function login(page: Page) {
+  await page.goto('/login');
+  await page.waitForSelector('#email');
+  await page.fill('#email', 'test@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL('/', { timeout: 15000 });
+}
 
 test.describe('Vocabulary', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.waitForSelector('#email');
-    await page.fill('#email', 'test@example.com');
-    await page.fill('#password', 'password123');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 15000 });
+    await login(page);
     await page.goto('/vocabulary');
-    await page.waitForURL('/vocabulary');
+    await expect(page).toHaveURL('/vocabulary');
   });
 
   test.describe('Vocabulary Page', () => {
