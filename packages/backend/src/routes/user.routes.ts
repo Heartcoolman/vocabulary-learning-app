@@ -4,8 +4,12 @@ import { updatePasswordSchema } from '../validators/auth.validator';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { AuthRequest } from '../types';
 import { REWARD_PROFILES, isValidProfileId } from '../amas/config/reward-profiles';
-import { ChronotypeDetector } from '../amas/modeling/chronotype';
-import { LearningStyleProfiler } from '../amas/modeling/learning-style';
+import {
+  getChronotypeProfile,
+  getLearningStyleProfile,
+  InsufficientDataError,
+  AnalysisError,
+} from '../services/cognitive-profiling.service';
 
 const router = Router();
 
@@ -104,32 +108,60 @@ router.put('/profile/reward', async (req: AuthRequest, res: Response, next) => {
 });
 
 // 获取用户Chronotype（昼夜节律类型）
-router.get('/profile/chronotype', async (req: AuthRequest, res: Response, next) => {
+router.get('/profile/chronotype', async (req: AuthRequest, res: Response) => {
   try {
-    const detector = new ChronotypeDetector();
-    const profile = await detector.analyzeChronotype(req.user!.id);
+    const profile = await getChronotypeProfile(req.user!.id);
 
     res.json({
       success: true,
       data: profile
     });
   } catch (error) {
-    next(error);
+    if (error instanceof InsufficientDataError) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough data to build profile (need ${error.required}, have ${error.actual}).`,
+      });
+    }
+    if (error instanceof AnalysisError) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: 'Unexpected error',
+    });
   }
 });
 
 // 获取用户学习风格
-router.get('/profile/learning-style', async (req: AuthRequest, res: Response, next) => {
+router.get('/profile/learning-style', async (req: AuthRequest, res: Response) => {
   try {
-    const profiler = new LearningStyleProfiler();
-    const profile = await profiler.detectLearningStyle(req.user!.id);
+    const profile = await getLearningStyleProfile(req.user!.id);
 
     res.json({
       success: true,
       data: profile
     });
   } catch (error) {
-    next(error);
+    if (error instanceof InsufficientDataError) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough data to build profile (need ${error.required}, have ${error.actual}).`,
+      });
+    }
+    if (error instanceof AnalysisError) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: 'Unexpected error',
+    });
   }
 });
 

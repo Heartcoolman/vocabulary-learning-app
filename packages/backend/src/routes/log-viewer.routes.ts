@@ -327,46 +327,11 @@ router.get(
   }
 );
 
-/**
- * GET /api/admin/logs/:id
- * 获取单条日志详情
- */
-router.get(
-  '/:id',
-  validateParams(idParamSchema),
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const { id } = req.validatedParams as z.infer<typeof idParamSchema>;
-
-      const log = await prisma.systemLog.findUnique({
-        where: { id },
-      });
-
-      if (!log) {
-        return res.status(404).json({
-          success: false,
-          error: '日志不存在',
-        });
-      }
-
-      res.json({
-        success: true,
-        data: log,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: '查询日志详情失败',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-);
-
 // ==================== 告警规则管理路由 ====================
+// 注意：这些路由必须放在 /:id 之前，否则 /log-alerts 会被 /:id 匹配
 
 /**
- * GET /api/admin/log-alerts
+ * GET /api/admin/logs/log-alerts
  * 获取告警规则列表
  */
 router.get('/log-alerts', async (req: AuthRequest, res: Response) => {
@@ -392,7 +357,7 @@ router.get('/log-alerts', async (req: AuthRequest, res: Response) => {
 });
 
 /**
- * POST /api/admin/log-alerts
+ * POST /api/admin/logs/log-alerts
  * 创建告警规则
  */
 router.post(
@@ -432,7 +397,7 @@ router.post(
 );
 
 /**
- * PUT /api/admin/log-alerts/:id
+ * PUT /api/admin/logs/log-alerts/:id
  * 更新告警规则
  */
 router.put(
@@ -476,7 +441,7 @@ router.put(
 );
 
 /**
- * DELETE /api/admin/log-alerts/:id
+ * DELETE /api/admin/logs/log-alerts/:id
  * 删除告警规则
  */
 router.delete(
@@ -510,6 +475,45 @@ router.delete(
       res.status(500).json({
         success: false,
         error: '删除告警规则失败',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+);
+
+// ==================== 日志详情路由 ====================
+// 注意：/:id 路由必须放在最后，否则会匹配其他路由路径
+
+/**
+ * GET /api/admin/logs/:id
+ * 获取单条日志详情
+ */
+router.get(
+  '/:id',
+  validateParams(idParamSchema),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.validatedParams as z.infer<typeof idParamSchema>;
+
+      const log = await prisma.systemLog.findUnique({
+        where: { id },
+      });
+
+      if (!log) {
+        return res.status(404).json({
+          success: false,
+          error: '日志不存在',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: log,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: '查询日志详情失败',
         details: error instanceof Error ? error.message : String(error),
       });
     }

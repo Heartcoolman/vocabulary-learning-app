@@ -54,10 +54,11 @@ router.get('/trend', authMiddleware, async (req: AuthRequest, res, next) => {
 router.get('/trend/history', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const days = parseInt(req.query.days as string) || 28;
+    const daysParam = req.query.days as string | undefined;
+    const days = daysParam !== undefined ? parseInt(daysParam) : 28;
 
     // 验证天数范围
-    if (days < 1 || days > 90) {
+    if (isNaN(days) || days < 1 || days > 90) {
       return res.status(400).json({
         success: false,
         message: 'days参数必须在1-90之间'

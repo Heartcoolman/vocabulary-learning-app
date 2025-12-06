@@ -260,6 +260,45 @@ class SlidingWindowHistogram {
 const HTTP_LATENCY_BUCKETS = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10]; // seconds
 const DB_QUERY_BUCKETS = [10, 50, 100, 200, 500, 1000, 2000, 5000]; // milliseconds
 const DECISION_LATENCY_BUCKETS = [50, 100, 250, 500, 1000, 2000, 5000]; // milliseconds
+const NATIVE_LATENCY_BUCKETS = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1]; // seconds
+
+/**
+ * Labeled histogram for metrics that need label dimensions.
+ * Each unique label combination gets its own BucketHistogram instance.
+ */
+class LabeledBucketHistogram {
+  private buckets: number[];
+  private histograms: Map<string, BucketHistogram> = new Map();
+
+  constructor(buckets: number[]) {
+    this.buckets = buckets;
+  }
+
+  observe(labels: Record<string, string>, value: number): void {
+    const key = serializeLabel(labels);
+    if (!key) return;
+
+    let histogram = this.histograms.get(key);
+    if (!histogram) {
+      histogram = new BucketHistogram(this.buckets);
+      this.histograms.set(key, histogram);
+    }
+    histogram.observe(value);
+  }
+
+  getHistogram(labels: Record<string, string>): BucketHistogram | undefined {
+    const key = serializeLabel(labels);
+    return key ? this.histograms.get(key) : undefined;
+  }
+
+  entries(): [string, BucketHistogram][] {
+    return Array.from(this.histograms.entries());
+  }
+
+  reset(): void {
+    this.histograms.clear();
+  }
+}
 
 // ==================== 指标定义 ====================
 
@@ -301,7 +340,13 @@ export const amasMetrics = {
   httpRequest5xxTotal: new Counter(), // Dedicated 5xx counter for efficient alert evaluation
 
   // 错误
-  errorTotal: new Counter()
+  errorTotal: new Counter(),
+
+  // Native 模块调用
+  nativeCallsTotal: new Counter(), // labels: method (selectAction/update), status (success/fallback)
+  nativeFailuresTotal: new Counter(), // Native 调用失败次数
+  nativeDuration: new LabeledBucketHistogram(NATIVE_LATENCY_BUCKETS), // Native 调用延迟 (秒), labels: method (selectAction/update)
+  nativeCircuitBreakerState: new Gauge() // 熔断器状态: 0=closed, 1=open, 2=half-open
 };
 
 // ==================== 便捷函数 ====================
@@ -432,6 +477,51 @@ export function recordHttpRequest(metric: HttpRequestMetric): void {
 export function recordHttpDrop(reason = 'unknown'): void {
   amasMetrics.httpRequestDropped.inc({ reason });
 }
+
+// ==================== Native 模块指标 ====================
+
+export type NativeMethod = 'selectAction' | 'update';
+export type NativeStatus = 'success' | 'fallback';
+
+/**
+ * 记录 Native 模块调用
+ * @param method - 调用的方法 (selectAction/update)
+ * @param status - 调用状态 (success/fallback)
+ */
+export function recordNativeCall(method: NativeMethod, status: NativeStatus): void {
+  amasMetrics.nativeCallsTotal.inc({ method, status });
+}
+
+/**
+ * 记录 Native 模块调用失败
+ */
+export function recordNativeFailure(): void {
+  amasMetrics.nativeFailuresTotal.inc();
+}
+
+/**
+ * 记录 Native 模块调用延迟
+ * @param method - 调用的方法 (selectAction/update)
+ * @param durationMs - 调用耗时（毫秒）
+ */
+export function recordNativeDuration(method: NativeMethod, durationMs: number): void {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return;
+  amasMetrics.nativeDuration.observe({ method }, durationMs);
+}
+
+export type CircuitBreakerState = 'closed' | 'open' | 'half-open';
+
+/**
+ * 更新熔断器状态
+ * @param state - 熔断器状态 (closed/open/half-open)
+ */
+export function updateCircuitBreakerState(state: CircuitBreakerState): void {
+  const stateValue = state === 'closed' ? 0 : state === 'open' ? 1 : 2;
+  amasMetrics.nativeCircuitBreakerState.set(stateValue);
+}
+
+// 别名，保持向后兼容
+export const updateNativeCircuitBreakerState = updateCircuitBreakerState;
 
 // ==================== 指标导出 ====================
 
@@ -651,6 +741,41 @@ export function getPrometheusMetrics(): string {
     lines.push(`http_request_dropped_total${labels} ${count}`);
   }
 
+  // Native 模块调用
+  lines.push('# HELP amas_native_calls_total Native module call count');
+  lines.push('# TYPE amas_native_calls_total counter');
+  lines.push(`amas_native_calls_total ${amasMetrics.nativeCallsTotal.get()}`);
+  for (const [labelKey, count] of amasMetrics.nativeCallsTotal.entries()) {
+    const labels = formatPrometheusLabel(parseLabel(labelKey));
+    lines.push(`amas_native_calls_total${labels} ${count}`);
+  }
+
+  // Native 模块调用失败
+  lines.push('# HELP amas_native_failures_total Native module call failures');
+  lines.push('# TYPE amas_native_failures_total counter');
+  lines.push(`amas_native_failures_total ${amasMetrics.nativeFailuresTotal.get()}`);
+
+  // Native 模块调用延迟 (带标签的直方图)
+  lines.push('# HELP amas_native_duration_seconds Native module call duration in seconds');
+  lines.push('# TYPE amas_native_duration_seconds histogram');
+  for (const [labelKey, histogram] of amasMetrics.nativeDuration.entries()) {
+    const labels = parseLabel(labelKey);
+    const methodLabel = labels.method || 'unknown';
+    // 输出每个 bucket
+    for (const bucket of histogram.getBuckets()) {
+      const leStr = bucket.le === Infinity ? '+Inf' : bucket.le.toString();
+      lines.push(`amas_native_duration_seconds_bucket{method="${methodLabel}",le="${leStr}"} ${bucket.count}`);
+    }
+    // 输出 sum 和 count
+    lines.push(`amas_native_duration_seconds_sum{method="${methodLabel}"} ${histogram.getSum()}`);
+    lines.push(`amas_native_duration_seconds_count{method="${methodLabel}"} ${histogram.getCount()}`);
+  }
+
+  // 熔断器状态
+  lines.push('# HELP amas_native_circuit_breaker_state Circuit breaker state (0=closed, 1=open, 2=half-open)');
+  lines.push('# TYPE amas_native_circuit_breaker_state gauge');
+  lines.push(`amas_native_circuit_breaker_state ${amasMetrics.nativeCircuitBreakerState.get()}`);
+
   return lines.join('\n');
 }
 
@@ -680,4 +805,8 @@ export function resetAllMetrics(): void {
   amasMetrics.httpRequestDuration.reset();
   amasMetrics.httpRequestDropped.reset();
   amasMetrics.errorTotal.reset();
+  amasMetrics.nativeCallsTotal.reset();
+  amasMetrics.nativeFailuresTotal.reset();
+  amasMetrics.nativeDuration.reset();
+  amasMetrics.nativeCircuitBreakerState.set(0);
 }

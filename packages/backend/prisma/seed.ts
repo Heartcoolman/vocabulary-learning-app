@@ -14,12 +14,14 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD;
   const testUserPassword = process.env.TEST_USER_PASSWORD;
 
-  // 开发环境允许使用默认密码，但需要显式设置 ALLOW_DEFAULT_PASSWORDS=true
-  const allowDefaultPasswords = process.env.ALLOW_DEFAULT_PASSWORDS === 'true';
+  // 测试环境或开发环境允许使用默认密码
+  // 测试环境自动允许，开发环境需要显式设置 ALLOW_DEFAULT_PASSWORDS=true
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  const allowDefaultPasswords = isTestEnv || process.env.ALLOW_DEFAULT_PASSWORDS === 'true';
 
   if (!adminPassword || !testUserPassword) {
     if (allowDefaultPasswords) {
-      console.log('⚠️  警告：使用默认测试密码（ALLOW_DEFAULT_PASSWORDS=true）');
+      console.log(`⚠️  警告：使用默认测试密码（${isTestEnv ? 'NODE_ENV=test' : 'ALLOW_DEFAULT_PASSWORDS=true'}）`);
     } else {
       throw new Error(
         '❌ 必须设置 ADMIN_PASSWORD 和 TEST_USER_PASSWORD 环境变量。\n' +
@@ -40,6 +42,7 @@ async function main() {
     where: { email: 'admin@example.com' },
     update: {
       role: UserRole.ADMIN,
+      passwordHash: adminPasswordHash, // 确保密码也被更新
     },
     create: {
       email: 'admin@example.com',
@@ -56,6 +59,7 @@ async function main() {
     where: { email: 'test@example.com' },
     update: {
       role: UserRole.USER,
+      passwordHash: userPasswordHash, // 确保密码也被更新
     },
     create: {
       email: 'test@example.com',

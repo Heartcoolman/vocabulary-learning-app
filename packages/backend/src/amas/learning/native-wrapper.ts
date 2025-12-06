@@ -13,6 +13,15 @@ import type {
   BanditModel,
 } from '@danci/native';
 
+// 导入 Prometheus 指标
+import {
+  recordNativeCall,
+  recordNativeFailure,
+  recordNativeDuration,
+  updateCircuitBreakerState,
+  type NativeMethod,
+} from '../../monitoring/amas-metrics';
+
 // 尝试加载 native 模块
 let NativeModule: typeof import('@danci/native') | null = null;
 try {
@@ -134,6 +143,8 @@ export class LinUCBNativeWrapper {
         // 进入半开状态，允许尝试
         this.halfOpenCallCount++;
         if (this.halfOpenCallCount <= CIRCUIT_BREAKER_CONFIG.halfOpenMaxCalls) {
+          // 更新熔断器状态指标: half-open = 2
+          updateCircuitBreakerState('half-open');
           return true;
         }
       }
@@ -152,6 +163,8 @@ export class LinUCBNativeWrapper {
       this.isCircuitOpen = false;
       this.failureCount = 0;
       this.halfOpenCallCount = 0;
+      // 更新熔断器状态指标: closed = 0
+      updateCircuitBreakerState('closed');
       console.log('[NativeWrapper] Circuit breaker closed, native recovered');
     }
     this.totalNativeCalls++;
@@ -167,6 +180,8 @@ export class LinUCBNativeWrapper {
     if (this.failureCount >= CIRCUIT_BREAKER_CONFIG.failureThreshold) {
       this.isCircuitOpen = true;
       this.halfOpenCallCount = 0;
+      // 更新熔断器状态指标: open = 1
+      updateCircuitBreakerState('open');
       console.warn(`[NativeWrapper] Circuit breaker opened after ${this.failureCount} failures`);
     }
 
@@ -227,22 +242,35 @@ export class LinUCBNativeWrapper {
    * 选择动作
    */
   selectAction(state: UserState, actions: Action[], context: LinUCBContext): ActionSelection {
+    const method: NativeMethod = 'selectAction';
+
     if (this.shouldUseNative() && this.nativeInstance) {
+      const startTime = performance.now();
       try {
         const nativeState = this.toNativeState(state);
         const nativeActions = actions.map(a => this.toNativeAction(a));
         const nativeContext = this.toNativeContext(context);
 
         const result = this.nativeInstance.selectAction(nativeState, nativeActions, nativeContext);
+
+        // 记录成功调用和延迟
+        const durationMs = performance.now() - startTime;
+        recordNativeDuration(method, durationMs);
+        recordNativeCall(method, 'success');
+
         this.recordSuccess();
         return this.fromNativeSelection(result, actions);
       } catch (e) {
+        // 记录失败
+        recordNativeFailure();
         this.recordFailure(e as Error);
       }
     }
 
     // 降级到 TS 实现
     this.totalFallbackCalls++;
+    recordNativeCall(method, 'fallback');
+
     if (this.tsInstance) {
       return this.tsInstance.selectAction(state, actions, context);
     }
@@ -263,22 +291,35 @@ export class LinUCBNativeWrapper {
    * 更新模型
    */
   update(state: UserState, action: Action, reward: number, context: LinUCBContext): void {
+    const method: NativeMethod = 'update';
+
     if (this.shouldUseNative() && this.nativeInstance) {
+      const startTime = performance.now();
       try {
         const nativeState = this.toNativeState(state);
         const nativeAction = this.toNativeAction(action);
         const nativeContext = this.toNativeContext(context);
 
         this.nativeInstance.update(nativeState, nativeAction, reward, nativeContext);
+
+        // 记录成功调用和延迟
+        const durationMs = performance.now() - startTime;
+        recordNativeDuration(method, durationMs);
+        recordNativeCall(method, 'success');
+
         this.recordSuccess();
         return;
       } catch (e) {
+        // 记录失败
+        recordNativeFailure();
         this.recordFailure(e as Error);
       }
     }
 
     // 降级到 TS 实现
     this.totalFallbackCalls++;
+    recordNativeCall(method, 'fallback');
+
     if (this.tsInstance) {
       this.tsInstance.update(state, action, reward, context);
     }

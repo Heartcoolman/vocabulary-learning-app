@@ -6,8 +6,23 @@ export const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h cache
 
 type CacheEntry<T> = { value: T; expiresAt: number };
 
-const chronotypeDetector = new ChronotypeDetector();
-const learningStyleProfiler = new LearningStyleProfiler();
+// 延迟实例化：只在首次使用时创建实例，便于测试 mock
+let chronotypeDetector: ChronotypeDetector | null = null;
+let learningStyleProfiler: LearningStyleProfiler | null = null;
+
+const getChronotypeDetector = (): ChronotypeDetector => {
+  if (!chronotypeDetector) {
+    chronotypeDetector = new ChronotypeDetector();
+  }
+  return chronotypeDetector;
+};
+
+const getLearningStyleProfiler = (): LearningStyleProfiler => {
+  if (!learningStyleProfiler) {
+    learningStyleProfiler = new LearningStyleProfiler();
+  }
+  return learningStyleProfiler;
+};
 
 const chronotypeCache = new Map<string, CacheEntry<any>>();
 const learningStyleCache = new Map<string, CacheEntry<any>>();
@@ -59,7 +74,7 @@ export const getChronotypeProfile = async (userId: string) => {
   if (cached) return cached;
   let result: any;
   try {
-    result = await chronotypeDetector.analyzeChronotype(uid);
+    result = await getChronotypeDetector().analyzeChronotype(uid);
   } catch (err: any) {
     throw new AnalysisError(err?.message ?? 'Chronotype analysis failed');
   }
@@ -75,7 +90,7 @@ export const getLearningStyleProfile = async (userId: string) => {
   if (cached) return cached;
   let result: any;
   try {
-    result = await learningStyleProfiler.detectLearningStyle(uid);
+    result = await getLearningStyleProfiler().detectLearningStyle(uid);
   } catch (err: any) {
     throw new AnalysisError(err?.message ?? 'Learning style analysis failed');
   }
