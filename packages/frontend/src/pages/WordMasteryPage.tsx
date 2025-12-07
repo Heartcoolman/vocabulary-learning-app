@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChartBar, Warning, MagnifyingGlass } from '@phosphor-icons/react';
-import apiClient from '../services/ApiClient';
-import type { UserMasteryStats, MasteryEvaluation } from '../types/word-mastery';
+import { useMasteryWords } from '../hooks/queries/useMasteryWords';
+import type { MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
 import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
 import { WordMasteryDetailModal } from '../components/word-mastery/WordMasteryDetailModal';
-import { learningLogger } from '../utils/logger';
 
 interface WordWithMastery {
   id: string;
@@ -17,66 +16,14 @@ interface WordWithMastery {
 type FilterType = 'all' | 'mastered' | 'learning' | 'review';
 
 const WordMasteryPage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<UserMasteryStats | null>(null);
-  const [words, setWords] = useState<WordWithMastery[]>([]);
-  const [filteredWords, setFilteredWords] = useState<WordWithMastery[]>([]);
+  // 使用React Query hooks
+  const { words, stats, loading, error, refetch } = useMasteryWords();
+
+  const [filteredWords, setFilteredWords] = useState(words);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Load stats
-      const statsData = await apiClient.getWordMasteryStats();
-      setStats(statsData);
-
-      // Load learned words only (words with learning records)
-      const wordsData = await apiClient.getLearnedWords();
-
-      // Batch load mastery data
-      const wordIds = wordsData.map((w) => w.id);
-      const batchSize = 100;
-      const masteryDataArray: MasteryEvaluation[] = [];
-
-      for (let i = 0; i < wordIds.length; i += batchSize) {
-        const batch = wordIds.slice(i, i + batchSize);
-        const batchMastery = await apiClient.batchProcessWordMastery(batch);
-        masteryDataArray.push(...batchMastery);
-      }
-
-      // Convert to map
-      const masteryMap: Record<string, MasteryEvaluation> = {};
-      masteryDataArray.forEach((m) => {
-        masteryMap[m.wordId] = m;
-      });
-
-      // Combine words with mastery data
-      const wordsWithMastery: WordWithMastery[] = wordsData.map((word) => ({
-        id: word.id,
-        spelling: word.spelling,
-        meanings: word.meanings.join('; '),
-        mastery: masteryMap[word.id] || null,
-      }));
-
-      setWords(wordsWithMastery);
-      setFilteredWords(wordsWithMastery);
-    } catch (err) {
-      setError('加载数据失败，请稍后重试');
-      learningLogger.error({ err }, '加载单词掌握度数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     let result = [...words];
@@ -136,7 +83,7 @@ const WordMasteryPage: React.FC = () => {
         <div className="text-center">
           <Warning size={48} className="mx-auto mb-4 text-red-400" />
           <p className="text-gray-600">{error}</p>
-          <button onClick={loadData} className="mt-4 rounded-lg bg-purple-500 px-4 py-2 text-white">
+          <button onClick={() => refetch()} className="mt-4 rounded-lg bg-purple-500 px-4 py-2 text-white">
             重试
           </button>
         </div>

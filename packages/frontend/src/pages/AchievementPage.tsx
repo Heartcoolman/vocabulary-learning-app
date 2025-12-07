@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ApiClient from '../services/ApiClient';
-import { handleError } from '../utils/errorHandler';
 import { Badge, BadgeProgress, NewBadgeResult, BadgeCategory } from '../types/amas-enhanced';
 import BadgeCelebration from '../components/BadgeCelebration';
+import { useAchievements, useCheckNewBadges, useAchievementProgress } from '../hooks/queries/useAchievements';
 import {
   Trophy,
   Star,
@@ -26,85 +25,47 @@ import { uiLogger } from '../utils/logger';
  */
 export default function AchievementPage() {
   const navigate = useNavigate();
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [badgeCount, setBadgeCount] = useState(0);
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
-  const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
   const [newBadges, setNewBadges] = useState<NewBadgeResult[]>([]);
   const [celebrationBadge, setCelebrationBadge] = useState<Badge | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCheckingBadges, setIsCheckingBadges] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<BadgeCategory | 'ALL'>('ALL');
 
-  useEffect(() => {
-    loadBadges();
-  }, []);
+  // 使用 React Query hooks
+  const { data, isLoading, error, refetch } = useAchievements();
+  const checkNewBadgesMutation = useCheckNewBadges();
+  const { data: badgeProgress } = useAchievementProgress(
+    selectedBadge && !selectedBadge.unlockedAt ? selectedBadge.id : null
+  );
 
-  const loadBadges = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // 使用 getAllBadgesWithStatus 获取所有徽章（包含未解锁的徽章及其进度）
-      const response = await ApiClient.getAllBadgesWithStatus();
-      // 转换 unlocked 字段为 unlockedAt 格式，保持与 Badge 类型兼容
-      const mappedBadges = response.badges.map((badge) => ({
-        ...badge,
-        unlockedAt: badge.unlocked ? badge.unlockedAt : undefined,
-      }));
-      setBadges(mappedBadges);
-      setBadgeCount(response.totalCount);
-    } catch (err) {
-      setError(handleError(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const badges = data?.badges.map((badge) => ({
+    ...badge,
+    unlockedAt: badge.unlocked ? badge.unlockedAt : undefined,
+  })) || [];
+  const badgeCount = data?.totalCount || 0;
 
   // 检查并获取新徽章
   const checkForNewBadges = async () => {
     try {
-      setIsCheckingBadges(true);
-      const result = await ApiClient.checkAndAwardBadges();
+      const result = await checkNewBadgesMutation.mutateAsync();
 
       if (result.hasNewBadges && result.newBadges.length > 0) {
         setNewBadges(result.newBadges);
         // 显示第一个新徽章的庆祝动画
         setCelebrationBadge(result.newBadges[0].badge);
-        // 重新加载徽章列表
-        await loadBadges();
       }
     } catch (err) {
       uiLogger.error({ err }, '检查徽章失败');
-    } finally {
-      setIsCheckingBadges(false);
-    }
-  };
-
-  // 加载徽章进度
-  const loadBadgeProgress = async (badgeId: string) => {
-    try {
-      const progress = await ApiClient.getBadgeProgress(badgeId);
-      setBadgeProgress(progress);
-    } catch (err) {
-      uiLogger.error({ err, badgeId }, '加载徽章进度失败');
-      setBadgeProgress(null);
     }
   };
 
   // 打开徽章详情
-  const openBadgeDetail = useCallback(async (badge: Badge) => {
+  const openBadgeDetail = useCallback((badge: Badge) => {
     setSelectedBadge(badge);
-    if (!badge.unlockedAt) {
-      await loadBadgeProgress(badge.id);
-    }
   }, []);
 
   // 关闭徽章详情
   const closeBadgeDetail = () => {
     setSelectedBadge(null);
-    setBadgeProgress(null);
   };
 
   // 关闭庆祝动画
@@ -212,9 +173,9 @@ export default function AchievementPage() {
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <p className="mb-6 text-gray-600">{error instanceof Error ? error.message : '加载失败'}</p>
           <button
-            onClick={loadBadges}
+            onClick={() => refetch()}
             className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
@@ -288,10 +249,10 @@ export default function AchievementPage() {
           </button>
           <button
             onClick={checkForNewBadges}
-            disabled={isCheckingBadges}
+            disabled={checkNewBadgesMutation.isPending}
             className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isCheckingBadges ? (
+            {checkNewBadgesMutation.isPending ? (
               <>
                 <CircleNotch className="animate-spin" size={18} weight="bold" />
                 检查中...

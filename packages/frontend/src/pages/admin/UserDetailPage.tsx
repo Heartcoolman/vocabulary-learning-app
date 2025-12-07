@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient, { UserDetailedStatistics, UserWordDetail } from '../../services/ApiClient';
+import { exportUserWords } from '../../hooks/queries/useUserDetail';
 import {
   User,
   ChartBar,
@@ -31,6 +31,7 @@ import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 import { useLearningData } from '../../hooks/useLearningData';
+import { useUserStatistics, useUserWords } from '../../hooks/queries';
 
 interface FilterState {
   scoreRange?: 'low' | 'medium' | 'high';
@@ -46,19 +47,7 @@ export default function UserDetailPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [statistics, setStatistics] = useState<UserDetailedStatistics | null>(null);
-  const [words, setWords] = useState<UserWordDetail[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 20,
-    total: 0,
-    totalPages: 0,
-  });
-
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingWords, setIsLoadingWords] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<FilterState>({
     sortBy: 'lastReview',
     sortOrder: 'desc',
@@ -70,6 +59,28 @@ export default function UserDetailPage() {
     'overview',
   );
 
+  // 使用新的 React Query hooks
+  const {
+    data: statistics,
+    isLoading: isLoadingStats,
+    error: statsError,
+  } = useUserStatistics(userId || '');
+
+  const {
+    data: wordsResponse,
+    isLoading: isLoadingWords,
+    error: wordsError,
+  } = useUserWords({
+    userId: userId || '',
+    page,
+    pageSize: 20,
+    ...filters,
+  });
+
+  const words = wordsResponse?.words || [];
+  const pagination = wordsResponse?.pagination;
+  const error = statsError || wordsError;
+
   // 使用 useLearningData hook 获取学习数据
   const { data: learningData, loading: learningDataLoading } = useLearningData(userId || '', 100);
 
@@ -78,7 +89,7 @@ export default function UserDetailPage() {
 
     try {
       setIsExporting(true);
-      await apiClient.adminExportUserWords(userId, format);
+      await exportUserWords(userId, format);
       toast.success(`${format.toUpperCase()} 导出成功`);
     } catch (err) {
       adminLogger.error({ err, userId, format }, '导出用户单词失败');
@@ -88,65 +99,13 @@ export default function UserDetailPage() {
     }
   };
 
-  const loadStatistics = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      setIsLoadingStats(true);
-      setError(null);
-
-      const data = await apiClient.adminGetUserStatistics(userId);
-      setStatistics(data);
-    } catch (err) {
-      adminLogger.error({ err, userId }, '加载用户统计失败');
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoadingStats(false);
-    }
-  }, [userId]);
-
-  const loadWords = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      setIsLoadingWords(true);
-      setError(null);
-
-      const response = await apiClient.adminGetUserWords(userId, {
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        ...filters,
-      });
-
-      setWords(response.words);
-      setPagination(response.pagination);
-    } catch (err) {
-      adminLogger.error({ err, userId, filters }, '加载用户单词列表失败');
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoadingWords(false);
-    }
-  }, [userId, filters, pagination.page, pagination.pageSize]);
-
-  useEffect(() => {
-    if (userId) {
-      loadStatistics();
-    }
-  }, [userId, loadStatistics]);
-
-  useEffect(() => {
-    if (userId) {
-      loadWords();
-    }
-  }, [userId, loadWords]);
-
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setPage(1);
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination((prev) => ({ ...prev, page: newPage }));
+    setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

@@ -1,0 +1,90 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import apiClient, { UserDetailedStatistics, UserWordDetail } from '../../services/ApiClient';
+import {
+  User,
+  ChartBar,
+  Target,
+  Clock,
+  TrendUp,
+  Books,
+  ArrowLeft,
+  MagnifyingGlass,
+  CaretLeft,
+  CaretRight,
+  WarningCircle,
+} from '../../components/Icon';
+import {
+  Flame,
+  CaretDown,
+  ArrowUp,
+  ArrowDown,
+  ListDashes,
+  Brain,
+  Download,
+  CalendarBlank,
+  ChartLine,
+  Lightning,
+} from '@phosphor-icons/react';
+import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
+import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
+import { useToast } from '../../components/ui';
+import { adminLogger } from '../../utils/logger';
+import { useLearningData } from '../../hooks/useLearningData';
+
+interface FilterState {
+  scoreRange?: 'low' | 'medium' | 'high';
+  masteryLevel?: number;
+  minAccuracy?: number;
+  state?: 'new' | 'learning' | 'reviewing' | 'mastered';
+  sortBy: 'score' | 'accuracy' | 'reviewCount' | 'lastReview';
+  sortOrder: 'asc' | 'desc';
+}
+
+export default function UserDetailPage() {
+  const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const [statistics, setStatistics] = useState<UserDetailedStatistics | null>(null);
+  const [words, setWords] = useState<UserWordDetail[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+  });
+
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingWords, setIsLoadingWords] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [filters, setFilters] = useState<FilterState>({
+    sortBy: 'lastReview',
+    sortOrder: 'desc',
+  });
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'decisions' | 'analytics'>(
+    'overview',
+  );
+
+  // 使用 useLearningData hook 获取学习数据
+  const { data: learningData, loading: learningDataLoading } = useLearningData(userId || '', 100);
+
+  const handleExport = async (format: 'csv' | 'excel') => {
+    if (!userId) return;
+
+    try {
+      setIsExporting(true);
+      await apiClient.adminExportUserWords(userId, format);
+      toast.success(`${format.toUpperCase()} 导出成功`);
+    } catch (err) {
+      adminLogger.error({ err, userId, format }, '导出用户单词失败');
+      toast.error('导出失败，请重试');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+

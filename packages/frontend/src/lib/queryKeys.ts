@@ -16,6 +16,7 @@ export const queryKeys = {
     details: () => [...queryKeys.words.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.words.details(), id] as const,
     search: (query: string) => [...queryKeys.words.all, 'search', query] as const,
+    learned: () => [...queryKeys.words.all, 'learned'] as const,
   },
 
   /**
@@ -68,6 +69,136 @@ export const queryKeys = {
     all: ['sync'] as const,
     status: () => [...queryKeys.sync.all, 'status'] as const,
     conflicts: () => [...queryKeys.sync.all, 'conflicts'] as const,
+  },
+
+  /**
+   * 徽章相关查询
+   */
+  badges: {
+    all: ['badges'] as const,
+    lists: () => [...queryKeys.badges.all, 'list'] as const,
+    userBadges: () => [...queryKeys.badges.all, 'user'] as const,
+    allWithStatus: () => [...queryKeys.badges.all, 'allWithStatus'] as const,
+    details: () => [...queryKeys.badges.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.badges.details(), id] as const,
+    progress: (id: string) => [...queryKeys.badges.all, 'progress', id] as const,
+  },
+
+  /**
+   * 成就相关查询
+   */
+  achievements: {
+    all: ['achievements'] as const,
+    check: () => [...queryKeys.achievements.all, 'check'] as const,
+  },
+
+  /**
+   * AMAS相关查询
+   */
+  amas: {
+    all: ['amas'] as const,
+    state: () => [...queryKeys.amas.all, 'state'] as const,
+    strategy: () => [...queryKeys.amas.all, 'strategy'] as const,
+    phase: () => [...queryKeys.amas.all, 'phase'] as const,
+    explanation: (decisionId?: string) =>
+      decisionId
+        ? [...queryKeys.amas.all, 'explanation', decisionId] as const
+        : [...queryKeys.amas.all, 'explanation', 'latest'] as const,
+    learningCurve: (days: number) => [...queryKeys.amas.all, 'learningCurve', days] as const,
+    decisionTimeline: (limit: number, cursor?: string) =>
+      cursor
+        ? [...queryKeys.amas.all, 'decisionTimeline', limit, cursor] as const
+        : [...queryKeys.amas.all, 'decisionTimeline', limit] as const,
+  },
+
+  /**
+   * 学习进度相关查询
+   */
+  studyProgress: {
+    all: ['studyProgress'] as const,
+    current: () => [...queryKeys.studyProgress.all, 'current'] as const,
+    todayWords: () => [...queryKeys.studyProgress.all, 'todayWords'] as const,
+    masteryStats: () => [...queryKeys.studyProgress.all, 'masteryStats'] as const,
+    masteryBatch: (wordIds: string[], userFatigue?: number) =>
+      userFatigue !== undefined
+        ? [...queryKeys.studyProgress.all, 'masteryBatch', wordIds, userFatigue] as const
+        : [...queryKeys.studyProgress.all, 'masteryBatch', wordIds] as const,
+    masteryDetail: (wordId: string, userFatigue?: number) =>
+      userFatigue !== undefined
+        ? [...queryKeys.studyProgress.all, 'masteryDetail', wordId, userFatigue] as const
+        : [...queryKeys.studyProgress.all, 'masteryDetail', wordId] as const,
+  },
+
+  /**
+   * 算法配置相关查询
+   */
+  algorithmConfig: {
+    all: ['algorithmConfig'] as const,
+    active: () => [...queryKeys.algorithmConfig.all, 'active'] as const,
+    histories: () => [...queryKeys.algorithmConfig.all, 'history'] as const,
+    history: (limit?: number) =>
+      [...queryKeys.algorithmConfig.histories(), { limit }] as const,
+    presets: () => [...queryKeys.algorithmConfig.all, 'presets'] as const,
+  },
+
+  /**
+   * 学习配置相关查询
+   */
+  studyConfig: {
+    all: ['studyConfig'] as const,
+    config: () => [...queryKeys.studyConfig.all, 'config'] as const,
+    todayWords: () => [...queryKeys.studyConfig.all, 'todayWords'] as const,
+    progress: () => [...queryKeys.studyConfig.all, 'progress'] as const,
+  },
+
+  /**
+   * 管理后台相关查询
+   */
+  admin: {
+    all: ['admin'] as const,
+
+    // 用户管理
+    users: {
+      all: ['admin', 'users'] as const,
+      lists: () => [...queryKeys.admin.users.all, 'list'] as const,
+      list: (filters: Record<string, unknown>) =>
+        [...queryKeys.admin.users.lists(), filters] as const,
+      details: () => [...queryKeys.admin.users.all, 'detail'] as const,
+      detail: (id: string) => [...queryKeys.admin.users.details(), id] as const,
+    },
+
+    // 用户统计数据
+    userStatistics: {
+      all: ['admin', 'statistics'] as const,
+      details: () => [...queryKeys.admin.userStatistics.all, 'detail'] as const,
+      detail: (userId: string) => [...queryKeys.admin.userStatistics.details(), userId] as const,
+      batch: (userIds: string[]) =>
+        [...queryKeys.admin.userStatistics.all, 'batch', userIds] as const,
+    },
+
+    // 用户单词数据
+    userWords: {
+      all: ['admin', 'userWords'] as const,
+      lists: () => [...queryKeys.admin.userWords.all, 'list'] as const,
+      list: (params: { userId: string; [key: string]: unknown }) =>
+        [...queryKeys.admin.userWords.lists(), params] as const,
+      details: () => [...queryKeys.admin.userWords.all, 'detail'] as const,
+      detail: (userId: string, wordId: string) =>
+        [...queryKeys.admin.userWords.details(), userId, wordId] as const,
+    },
+
+    // 用户学习数据
+    userLearning: {
+      all: ['admin', 'learning'] as const,
+      data: (userId: string, limit: number) =>
+        [...queryKeys.admin.userLearning.all, 'data', userId, limit] as const,
+      heatmap: (userId: string, startDate: string, endDate: string) =>
+        [...queryKeys.admin.userLearning.all, 'heatmap', userId, startDate, endDate] as const,
+      records: (userId: string, params: Record<string, unknown>) =>
+        [...queryKeys.admin.userLearning.all, 'records', userId, params] as const,
+      trend: (userId: string, days: number) =>
+        [...queryKeys.admin.userLearning.all, 'trend', userId, days] as const,
+    },
   },
 } as const;
 

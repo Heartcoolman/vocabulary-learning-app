@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../services/ApiClient';
-import { WordBook, Word } from '../types/models';
+import { Word, WordBook } from '../types/models';
 import { Books, CircleNotch, MagnifyingGlass, X } from '../components/Icon';
 import { useToast, Modal } from '../components/ui';
 import { ConfirmModal } from '../components/ui';
 import { uiLogger } from '../utils/logger';
+import {
+  useSystemWordBooks,
+  useUserWordBooks,
+  useSearchWords,
+} from '../hooks/queries/useWordBooks';
+import {
+  useCreateWordBook,
+  useDeleteWordBook,
+} from '../hooks/mutations/useWordBookMutations';
 
 // 搜索结果类型
 type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
@@ -17,10 +25,6 @@ export default function VocabularyPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'system' | 'user'>('system');
-  const [systemBooks, setSystemBooks] = useState<WordBook[]>([]);
-  const [userBooks, setUserBooks] = useState<WordBook[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBookName, setNewBookName] = useState('');
   const [newBookDesc, setNewBookDesc] = useState('');
@@ -33,74 +37,42 @@ export default function VocabularyPage() {
       name: '',
     },
   );
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // 搜索相关状态
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
+  // 使用 React Query hooks
+  const {
+    data: systemBooks = [],
+    isLoading: isLoadingSystem,
+    error: systemError,
+  } = useSystemWordBooks();
+  const { data: userBooks = [], isLoading: isLoadingUser, error: userError } = useUserWordBooks();
+  const {
+    data: searchResults = [],
+    isLoading: isSearching,
+    isFetching: isSearchingFetching,
+  } = useSearchWords(searchQuery, 20);
+
+  const createWordBookMutation = useCreateWordBook();
+  const deleteWordBookMutation = useDeleteWordBook();
+
+  const isLoading = isLoadingSystem || isLoadingUser;
+  const error = systemError || userError;
+
+  // 防抖处理搜索显示
   useEffect(() => {
-    loadWordBooks();
-  }, []);
-
-  // 防抖搜索
-  const handleSearch = useCallback(
-    async (query: string) => {
-      if (!query.trim()) {
-        setSearchResults([]);
-        setShowSearchResults(false);
-        return;
-      }
-
-      setIsSearching(true);
+    if (searchQuery.trim()) {
       setShowSearchResults(true);
-      try {
-        const results = await apiClient.searchWords(query);
-        setSearchResults(results);
-      } catch (err) {
-        uiLogger.error({ err }, '搜索单词失败');
-        toast.error('搜索失败');
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [toast],
-  );
-
-  // 防抖处理
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, handleSearch]);
+    } else {
+      setShowSearchResults(false);
+    }
+  }, [searchQuery]);
 
   const clearSearch = () => {
     setSearchQuery('');
-    setSearchResults([]);
     setShowSearchResults(false);
-  };
-
-  const loadWordBooks = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const [system, user] = await Promise.all([
-        apiClient.getSystemWordBooks(),
-        apiClient.getUserWordBooks(),
-      ]);
-
-      setSystemBooks(system);
-      setUserBooks(user);
-    } catch (err) {
-      uiLogger.error({ err }, '加载词书列表失败');
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleCreateBook = async () => {
@@ -110,7 +82,7 @@ export default function VocabularyPage() {
     }
 
     try {
-      await apiClient.createWordBook({
+      await createWordBookMutation.mutateAsync({
         name: newBookName,
         description: newBookDesc,
       });
@@ -119,7 +91,6 @@ export default function VocabularyPage() {
       setNewBookName('');
       setNewBookDesc('');
       toast.success('词书创建成功');
-      loadWordBooks();
     } catch (err) {
       uiLogger.error({ err, name: newBookName }, '创建词书失败');
       toast.error(err instanceof Error ? err.message : '创建失败');
@@ -131,17 +102,13 @@ export default function VocabularyPage() {
   };
 
   const handleDeleteBook = async () => {
-    setIsDeleting(true);
     try {
-      await apiClient.deleteWordBook(deleteConfirm.id);
+      await deleteWordBookMutation.mutateAsync(deleteConfirm.id);
       toast.success('词书已删除');
-      loadWordBooks();
+      setDeleteConfirm({ isOpen: false, id: '', name: '' });
     } catch (err) {
       uiLogger.error({ err, wordBookId: deleteConfirm.id }, '删除词书失败');
       toast.error(err instanceof Error ? err.message : '删除失败');
-    } finally {
-      setIsDeleting(false);
-      setDeleteConfirm({ isOpen: false, id: '', name: '' });
     }
   };
 
@@ -254,12 +221,12 @@ export default function VocabularyPage() {
         {/* 搜索结果下拉 */}
         {showSearchResults && (
           <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-            {isSearching ? (
+            {isSearching || isSearchingFetching ? (
               <div className="p-4 text-center text-gray-500">
                 <CircleNotch className="mx-auto mb-2 animate-spin" size={24} />
                 搜索中...
               </div>
-            ) : searchResults.length === 0 ? (
+            ) : searchResults.length === 0 && searchQuery.trim() ? (
               <div className="p-4 text-center text-gray-500">未找到匹配的单词</div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -306,7 +273,7 @@ export default function VocabularyPage() {
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
-          {error}
+          {error instanceof Error ? error.message : '加载失败'}
         </div>
       )}
 
@@ -418,7 +385,7 @@ export default function VocabularyPage() {
         confirmText="删除"
         cancelText="取消"
         variant="danger"
-        isLoading={isDeleting}
+        isLoading={deleteWordBookMutation.isPending}
       />
     </div>
   );

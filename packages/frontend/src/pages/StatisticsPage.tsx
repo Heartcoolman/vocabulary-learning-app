@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import {
   ChartBar,
   Target,
@@ -11,176 +9,16 @@ import {
   CircleNotch,
   Warning,
 } from '../components/Icon';
-import StorageService from '../services/StorageService';
-import ApiClient from '../services/ApiClient';
-import { learningLogger } from '../utils/logger';
-
-interface StatisticsData {
-  totalWords: number;
-  masteryDistribution: { level: number; count: number }[];
-  overallAccuracy: number;
-  studyDays: number;
-  consecutiveDays: number;
-}
+import { useStatistics } from '../hooks/queries';
 
 /**
  * 学习统计页面
  * 显示用户的学习统计数据、掌握程度分布、遗忘曲线和学习热力图
+ * 使用 React Query 管理数据，每分钟自动刷新
  */
 export default function StatisticsPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [statistics, setStatistics] = useState<StatisticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // 每日正确率数据（用于遗忘曲线近似展示）
-  const [dailyAccuracy, setDailyAccuracy] = useState<{ date: string; accuracy: number }[]>([]);
-  // 每周练习热度数据（0-6 对应周日-周六）
-  const [weekdayHeat, setWeekdayHeat] = useState<number[]>(Array(7).fill(0));
-
-  useEffect(() => {
-    // 使用 mounted 标志防止组件卸载后更新状态
-    let mounted = true;
-
-    const loadStatistics = async () => {
-      if (!user) {
-        if (mounted) {
-          setError('请先登录');
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      try {
-        if (mounted) {
-          setIsLoading(true);
-          setError(null);
-        }
-
-        // 获取所有单词
-        const words = await StorageService.getWords();
-        if (!mounted) return;
-
-        // 批量获取所有单词的学习状态（避免 N+1 查询）
-        const wordIds = words.map((w) => w.id);
-        const wordStates = await StorageService.getWordLearningStates(user.id, wordIds);
-        if (!mounted) return;
-
-        // 统计掌握程度分布
-        const masteryDistribution = [0, 1, 2, 3, 4, 5].map((level) => ({
-          level,
-          count: wordStates.filter((state) => state && state.masteryLevel === level).length,
-        }));
-
-        // 获取真实的学习统计数据
-        const studyStats = await StorageService.getStudyStatistics();
-        if (!mounted) return;
-
-        const recordsResult = await ApiClient.getRecords({ pageSize: 100 });
-        if (!mounted) return;
-
-        // 计算学习天数和连续学习天数
-        // 使用 YYYY-MM-DD 格式归一化日期，避免时区和精度问题
-        const normalizeToDateString = (date: Date): string => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        };
-
-        const studyDates = new Set(
-          recordsResult.records.map((r: any) => normalizeToDateString(new Date(r.timestamp))),
-        );
-        const studyDays = studyDates.size;
-
-        // 计算连续学习天数
-        // 将日期字符串排序（降序，最近的日期在前）
-        const sortedDateStrings = Array.from(studyDates).sort((a, b) => b.localeCompare(a));
-
-        let consecutiveDays = 0;
-        const now = new Date();
-        const todayStr = normalizeToDateString(now);
-        const yesterdayDate = new Date(now);
-        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        const yesterdayStr = normalizeToDateString(yesterdayDate);
-
-        // 确定起始日期：如果今天有学习记录从今天开始，否则从昨天开始
-        const hasTodayRecord = sortedDateStrings.length > 0 && sortedDateStrings[0] === todayStr;
-        const hasYesterdayRecord = sortedDateStrings.includes(yesterdayStr);
-
-        // 如果今天没学习且昨天也没学习，连续天数为0
-        if (!hasTodayRecord && !hasYesterdayRecord) {
-          consecutiveDays = 0;
-        } else {
-          // 从起始日期开始检查连续性
-          const startDateObj = hasTodayRecord ? now : yesterdayDate;
-
-          for (let i = 0; i < sortedDateStrings.length; i++) {
-            const checkDate = new Date(startDateObj);
-            checkDate.setDate(checkDate.getDate() - i);
-            const expectedDateStr = normalizeToDateString(checkDate);
-
-            if (sortedDateStrings.includes(expectedDateStr)) {
-              consecutiveDays++;
-            } else {
-              break;
-            }
-          }
-        }
-
-        // 生成每日正确率序列（用于简易柱状图展示）
-        const dailyMap = new Map<string, { correct: number; total: number }>();
-        recordsResult.records.forEach((r: any) => {
-          const day = new Date(r.timestamp).toISOString().split('T')[0];
-          const entry = dailyMap.get(day) || { correct: 0, total: 0 };
-          entry.total += 1;
-          if (r.isCorrect) entry.correct += 1;
-          dailyMap.set(day, entry);
-        });
-        const dailySeries = Array.from(dailyMap.entries())
-          .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
-          .slice(-14) // 只显示最近14天
-          .map(([date, { correct, total }]) => ({
-            date,
-            accuracy: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,
-          }));
-
-        // 生成按星期的练习热度（0-6 对应周日-周六）
-        const heat = Array(7).fill(0);
-        recordsResult.records.forEach((r: any) => {
-          const weekday = new Date(r.timestamp).getDay();
-          heat[weekday] += 1;
-        });
-
-        // 只有在组件仍然挂载时才更新状态
-        if (mounted) {
-          setStatistics({
-            totalWords: words.length,
-            masteryDistribution,
-            overallAccuracy: studyStats.correctRate,
-            studyDays,
-            consecutiveDays,
-          });
-          setDailyAccuracy(dailySeries);
-          setWeekdayHeat(heat);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        learningLogger.error({ err }, '加载统计数据失败');
-        if (mounted) {
-          setError('加载统计数据失败');
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadStatistics();
-
-    // 清理函数：组件卸载时设置 mounted 为 false
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
+  const { data: statistics, isLoading, error } = useStatistics();
 
   if (isLoading) {
     return (
@@ -204,7 +42,9 @@ export default function StatisticsPage() {
         <div className="max-w-md px-4 text-center">
           <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <p className="mb-6 text-gray-600">
+            {error instanceof Error ? error.message : '加载统计数据失败'}
+          </p>
           <button
             onClick={() => navigate('/')}
             className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -315,12 +155,12 @@ export default function StatisticsPage() {
         <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
           <h2 className="mb-6 text-xl font-bold text-gray-900">每日正确率趋势</h2>
           <div className="flex h-64 items-end gap-2 overflow-x-auto pb-4">
-            {dailyAccuracy.length === 0 ? (
+            {statistics.dailyAccuracy.length === 0 ? (
               <div className="flex h-full w-full items-center justify-center text-gray-400">
                 暂无学习记录
               </div>
             ) : (
-              dailyAccuracy.map((point) => (
+              statistics.dailyAccuracy.map((point) => (
                 <div key={point.date} className="flex min-w-[40px] flex-col items-center gap-2">
                   <div
                     className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-300 hover:from-blue-600 hover:to-blue-500"
@@ -334,7 +174,7 @@ export default function StatisticsPage() {
               ))
             )}
           </div>
-          {dailyAccuracy.length > 0 && (
+          {statistics.dailyAccuracy.length > 0 && (
             <p className="mt-2 text-center text-sm text-gray-500">最近14天每日正确率</p>
           )}
         </div>
@@ -344,8 +184,8 @@ export default function StatisticsPage() {
           <h2 className="mb-6 text-xl font-bold text-gray-900">每周学习分布</h2>
           <div className="grid grid-cols-7 gap-3">
             {['日', '一', '二', '三', '四', '五', '六'].map((label, idx) => {
-              const count = weekdayHeat[idx] ?? 0;
-              const maxCount = Math.max(...weekdayHeat, 1);
+              const count = statistics.weekdayHeat[idx] ?? 0;
+              const maxCount = Math.max(...statistics.weekdayHeat, 1);
               const intensity = Math.min(0.9, 0.1 + (count / maxCount) * 0.8);
               return (
                 <div

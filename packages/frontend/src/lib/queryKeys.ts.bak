@@ -1,0 +1,181 @@
+/**
+ * React Query 查询键工厂函数
+ *
+ * 统一管理所有查询的 key，便于类型安全和维护
+ * 使用工厂函数模式组织查询键，支持层级结构
+ */
+
+export const queryKeys = {
+  /**
+   * 单词相关查询
+   */
+  words: {
+    all: ['words'] as const,
+    lists: () => [...queryKeys.words.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.words.lists(), filters] as const,
+    details: () => [...queryKeys.words.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.words.details(), id] as const,
+    search: (query: string) => [...queryKeys.words.all, 'search', query] as const,
+  },
+
+  /**
+   * 单词本相关查询
+   */
+  wordbooks: {
+    all: ['wordbooks'] as const,
+    lists: () => [...queryKeys.wordbooks.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.wordbooks.lists(), filters] as const,
+    details: () => [...queryKeys.wordbooks.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.wordbooks.details(), id] as const,
+  },
+
+  /**
+   * 学习记录相关查询
+   */
+  learningRecords: {
+    all: ['learningRecords'] as const,
+    lists: () => [...queryKeys.learningRecords.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) =>
+      [...queryKeys.learningRecords.lists(), filters] as const,
+    statistics: () => [...queryKeys.learningRecords.all, 'statistics'] as const,
+  },
+
+  /**
+   * 用户相关查询
+   */
+  user: {
+    all: ['user'] as const,
+    profile: () => [...queryKeys.user.all, 'profile'] as const,
+    settings: () => [...queryKeys.user.all, 'settings'] as const,
+    statistics: () => [...queryKeys.user.all, 'statistics'] as const,
+  },
+
+  /**
+   * 统计数据相关查询
+   */
+  statistics: {
+    all: ['statistics'] as const,
+    overview: () => [...queryKeys.statistics.all, 'overview'] as const,
+    daily: (date: string) => [...queryKeys.statistics.all, 'daily', date] as const,
+    weekly: () => [...queryKeys.statistics.all, 'weekly'] as const,
+    monthly: () => [...queryKeys.statistics.all, 'monthly'] as const,
+    progress: () => [...queryKeys.statistics.all, 'progress'] as const,
+  },
+
+  /**
+   * 单词掌握度相关查询
+   */
+  wordMastery: {
+    all: ['wordMastery'] as const,
+    stats: () => [...queryKeys.wordMastery.all, 'stats'] as const,
+    evaluations: () => [...queryKeys.wordMastery.all, 'evaluations'] as const,
+    evaluation: (wordId: string) => [...queryKeys.wordMastery.evaluations(), wordId] as const,
+    trace: (wordId: string) => [...queryKeys.wordMastery.all, 'trace', wordId] as const,
+    interval: (wordId: string) => [...queryKeys.wordMastery.all, 'interval', wordId] as const,
+  },
+
+  /**
+   * 趋势分析相关查询
+   */
+  trend: {
+    all: ['trend'] as const,
+    current: () => [...queryKeys.trend.all, 'current'] as const,
+    history: (days: number) => [...queryKeys.trend.all, 'history', days] as const,
+    report: () => [...queryKeys.trend.all, 'report'] as const,
+    intervention: () => [...queryKeys.trend.all, 'intervention'] as const,
+    goldenTime: () => [...queryKeys.trend.all, 'goldenTime'] as const,
+    timePreferences: () => [...queryKeys.trend.all, 'timePreferences'] as const,
+    stateHistory: (range: number) => [...queryKeys.trend.all, 'stateHistory', range] as const,
+    cognitiveGrowth: (range: number) => [...queryKeys.trend.all, 'cognitiveGrowth', range] as const,
+    significantChanges: (range: number) =>
+      [...queryKeys.trend.all, 'significantChanges', range] as const,
+  },
+
+  /**
+   * 同步相关查询
+   */
+  sync: {
+    all: ['sync'] as const,
+    status: () => [...queryKeys.sync.all, 'status'] as const,
+    conflicts: () => [...queryKeys.sync.all, 'conflicts'] as const,
+  },
+
+  /**
+   * 徽章相关查询
+   */
+  badges: {
+    all: ['badges'] as const,
+    lists: () => [...queryKeys.badges.all, 'list'] as const,
+    userBadges: () => [...queryKeys.badges.all, 'user'] as const,
+    allWithStatus: () => [...queryKeys.badges.all, 'allWithStatus'] as const,
+    details: () => [...queryKeys.badges.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.badges.details(), id] as const,
+    progress: (id: string) => [...queryKeys.badges.all, 'progress', id] as const,
+  },
+
+  /**
+   * 成就相关查询
+   */
+  achievements: {
+    all: ['achievements'] as const,
+    check: () => [...queryKeys.achievements.all, 'check'] as const,
+  },
+
+  /**
+   * AMAS相关查询
+   *
+   * ⚠️ 注意：
+   * - state, strategy, phase 是查询类API，使用React Query管理
+   * - processLearningEvent 是有状态流程型API，保持现有实现（不使用Query）
+   */
+  amas: {
+    all: ['amas'] as const,
+    // 用户状态（实时性要求高）
+    state: () => [...queryKeys.amas.all, 'state'] as const,
+    // 学习策略
+    strategy: () => [...queryKeys.amas.all, 'strategy'] as const,
+    // 冷启动阶段
+    phase: () => [...queryKeys.amas.all, 'phase'] as const,
+    // 决策解释
+    explanation: (decisionId?: string) =>
+      decisionId
+        ? [...queryKeys.amas.all, 'explanation', decisionId] as const
+        : [...queryKeys.amas.all, 'explanation', 'latest'] as const,
+    // 学习曲线
+    learningCurve: (days: number) => [...queryKeys.amas.all, 'learningCurve', days] as const,
+    // 决策时间线
+    decisionTimeline: (limit: number, cursor?: string) =>
+      cursor
+        ? [...queryKeys.amas.all, 'decisionTimeline', limit, cursor] as const
+        : [...queryKeys.amas.all, 'decisionTimeline', limit] as const,
+  },
+
+  /**
+   * 算法配置相关查询
+   */
+  algorithmConfig: {
+    all: ['algorithmConfig'] as const,
+    active: () => [...queryKeys.algorithmConfig.all, 'active'] as const,
+    histories: () => [...queryKeys.algorithmConfig.all, 'history'] as const,
+    history: (limit?: number) =>
+      [...queryKeys.algorithmConfig.histories(), { limit }] as const,
+    presets: () => [...queryKeys.algorithmConfig.all, 'presets'] as const,
+  },
+
+  /**
+   * 学习配置相关查询
+   */
+  studyConfig: {
+    all: ['studyConfig'] as const,
+    config: () => [...queryKeys.studyConfig.all, 'config'] as const,
+    todayWords: () => [...queryKeys.studyConfig.all, 'todayWords'] as const,
+    progress: () => [...queryKeys.studyConfig.all, 'progress'] as const,
+  },
+} as const;
+
+/**
+ * 类型辅助：从查询键工厂中提取查询键类型
+ */
+export type QueryKey = ReturnType<
+  (typeof queryKeys)[keyof typeof queryKeys][keyof (typeof queryKeys)[keyof typeof queryKeys]]
+>;

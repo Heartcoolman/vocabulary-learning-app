@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ApiClient from '../services/ApiClient';
-import { handleError } from '../utils/errorHandler';
 import { Badge, BadgeCategory } from '../types/amas-enhanced';
 import BadgeDetailModal from '../components/badges/BadgeDetailModal';
+import { useAllBadgesWithStatus } from '../hooks/queries/useBadges';
 import {
   Trophy,
   Star,
@@ -24,33 +23,15 @@ import {
  */
 export default function BadgeGalleryPage() {
   const navigate = useNavigate();
-  const [badges, setBadges] = useState<(Badge & { unlocked: boolean })[]>([]);
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [unlockedCount, setUnlockedCount] = useState(0);
   const [activeCategory, setActiveCategory] = useState<BadgeCategory | 'ALL'>('ALL');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAllBadges();
-  }, []);
+  // 使用 React Query hooks
+  const { data, isLoading, error, refetch } = useAllBadgesWithStatus();
 
-  const loadAllBadges = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await ApiClient.getAllBadgesWithStatus();
-      setBadges(response.badges);
-      setTotalCount(response.totalCount);
-      setUnlockedCount(response.unlockedCount);
-    } catch (err) {
-      setError(handleError(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const badges = data?.badges || [];
+  const totalCount = data?.totalCount || 0;
+  const unlockedCount = data?.unlockedCount || 0;
 
   // 打开徽章详情
   const openBadgeDetail = (badge: Badge & { unlocked: boolean }) => {
@@ -159,9 +140,9 @@ export default function BadgeGalleryPage() {
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <p className="mb-6 text-gray-600">{error instanceof Error ? error.message : '加载失败'}</p>
           <button
-            onClick={loadAllBadges}
+            onClick={() => refetch()}
             className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试

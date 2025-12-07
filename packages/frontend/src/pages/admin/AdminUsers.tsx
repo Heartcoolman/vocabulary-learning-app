@@ -1,18 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient, { UserOverview, AdminUsersResponse } from '../../services/ApiClient';
 import { CircleNotch } from '../../components/Icon';
 import { useToast, ConfirmModal } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+import {
+  useAdminUsers,
+  useDeleteUser,
+  useUpdateUserRole,
+  AdminUsersParams,
+} from '../../hooks/queries';
 
 export default function AdminUsers() {
   const toast = useToast();
-  const [users, setUsers] = useState<UserOverview[]>([]);
-  const [pagination, setPagination] = useState<AdminUsersResponse['pagination'] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<AdminUsersParams['sortBy']>('createdAt');
+  const [sortOrder, setSortOrder] = useState<AdminUsersParams['sortOrder']>('desc');
+
+  // 使用新的 React Query hooks
+  const {
+    data: response,
+    isLoading,
+    error,
+  } = useAdminUsers({
+    page,
+    pageSize: 20,
+    search: search || undefined,
+    sortBy,
+    sortOrder,
+  });
+
+  const deleteUserMutation = useDeleteUser();
+  const updateRoleMutation = useUpdateUserRole();
 
   // 确认弹窗状态
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -35,36 +54,15 @@ export default function AdminUsers() {
     username: '',
     currentRole: '',
   });
-  const [isProcessing, setIsProcessing] = useState(false);
 
-  // 使用 ref 跟踪搜索变化，避免 setPage(1) 触发重复请求
-  const isSearchChangeRef = useRef(false);
+  const users = response?.users || [];
+  const pagination = response?.pagination;
 
-  useEffect(() => {
-    // 如果是搜索词变化导致的 page 重置，跳过本次加载（等待 page 变化后再加载）
-    if (isSearchChangeRef.current && page !== 1) {
-      return;
-    }
-    isSearchChangeRef.current = false;
-    loadUsers();
-  }, [page, search]);
-
-  const loadUsers = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await apiClient.adminGetUsers({
-        page,
-        pageSize: 20,
-        search: search || undefined,
-      });
-      setUsers(data.users);
-      setPagination(data.pagination);
-    } catch (err) {
-      adminLogger.error({ err, page, search }, '加载用户列表失败');
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoading(false);
+  const handleSearchChange = (newSearch: string) => {
+    setSearch(newSearch);
+    // 搜索时重置页码
+    if (page !== 1) {
+      setPage(1);
     }
   };
 
@@ -73,16 +71,13 @@ export default function AdminUsers() {
   };
 
   const handleDeleteUser = async () => {
-    setIsProcessing(true);
     try {
-      await apiClient.adminDeleteUser(deleteConfirm.userId);
+      await deleteUserMutation.mutateAsync(deleteConfirm.userId);
       toast.success('用户已删除');
-      loadUsers();
     } catch (err) {
       adminLogger.error({ err, userId: deleteConfirm.userId }, '删除用户失败');
       toast.error(err instanceof Error ? err.message : '删除失败');
     } finally {
-      setIsProcessing(false);
       setDeleteConfirm({ isOpen: false, userId: '', username: '' });
     }
   };
@@ -93,17 +88,28 @@ export default function AdminUsers() {
 
   const handleToggleRole = async () => {
     const newRole = roleConfirm.currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
-    setIsProcessing(true);
     try {
-      await apiClient.adminUpdateUserRole(roleConfirm.userId, newRole as 'USER' | 'ADMIN');
+      await updateRoleMutation.mutateAsync({
+        userId: roleConfirm.userId,
+        role: newRole as 'USER' | 'ADMIN',
+      });
       toast.success('用户角色已修改');
-      loadUsers();
     } catch (err) {
       adminLogger.error({ err, userId: roleConfirm.userId, newRole }, '修改用户角色失败');
       toast.error(err instanceof Error ? err.message : '修改失败');
     } finally {
-      setIsProcessing(false);
       setRoleConfirm({ isOpen: false, userId: '', username: '', currentRole: '' });
+    }
+  };
+
+  const handleSort = (field: AdminUsersParams['sortBy']) => {
+    if (sortBy === field) {
+      // 切换排序顺序
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 新字段默认降序
+      setSortBy(field);
+      setSortOrder('desc');
     }
   };
 
@@ -118,15 +124,7 @@ export default function AdminUsers() {
         <input
           type="text"
           value={search}
-          onChange={(e) => {
-            const newSearch = e.target.value;
-            setSearch(newSearch);
-            // 标记为搜索变化，避免双重请求
-            if (page !== 1) {
-              isSearchChangeRef.current = true;
-            }
-            setPage(1);
-          }}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="搜索用户名或邮箱..."
           className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
         />
@@ -134,7 +132,7 @@ export default function AdminUsers() {
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
-          {error}
+          {error instanceof Error ? error.message : '加载失败'}
         </div>
       )}
 
@@ -156,11 +154,37 @@ export default function AdminUsers() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">用户名</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">邮箱</th>
+                  <th
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => handleSort('username')}
+                  >
+                    用户名 {sortBy === 'username' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => handleSort('email')}
+                  >
+                    邮箱 {sortBy === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">角色</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">
-                    注册时间
+                  <th
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => handleSort('totalWordsLearned')}
+                  >
+                    学习单词数{' '}
+                    {sortBy === 'totalWordsLearned' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => handleSort('averageScore')}
+                  >
+                    平均分 {sortBy === 'averageScore' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th
+                    className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    注册时间 {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                   <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">操作</th>
                 </tr>
@@ -180,6 +204,10 @@ export default function AdminUsers() {
                       >
                         {user.role === 'ADMIN' ? '管理员' : '普通用户'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{user.totalWordsLearned}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {user.averageScore.toFixed(1)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {new Date(user.createdAt).toLocaleDateString('zh-CN')}
@@ -251,7 +279,7 @@ export default function AdminUsers() {
         confirmText="删除"
         cancelText="取消"
         variant="danger"
-        isLoading={isProcessing}
+        isLoading={deleteUserMutation.isPending}
       />
 
       {/* 修改角色确认弹窗 */}
@@ -264,7 +292,7 @@ export default function AdminUsers() {
         confirmText="确定"
         cancelText="取消"
         variant="warning"
-        isLoading={isProcessing}
+        isLoading={updateRoleMutation.isPending}
       />
     </div>
   );

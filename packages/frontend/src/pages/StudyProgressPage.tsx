@@ -1,5 +1,5 @@
 import { ProgressOverviewCard } from '../components/dashboard/ProgressOverviewCard';
-import { useStudyProgress } from '../hooks/useStudyProgress';
+import { useStudyProgressWithRefresh } from '../hooks/queries/useStudyProgress';
 import { useExtendedProgress } from '../hooks/useExtendedProgress';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -19,7 +19,7 @@ import LineChart from '../components/LineChart';
 
 export default function StudyProgressPage() {
   const { user } = useAuth();
-  const { progress, loading, error, refresh } = useStudyProgress();
+  const { progress, loading, error, refresh } = useStudyProgressWithRefresh();
   const { progress: extendedProgress, loading: extendedLoading } = useExtendedProgress(user?.id);
 
   const weeklyTrend = progress?.weeklyTrend ?? [0, 0, 0, 0, 0, 0, 0];

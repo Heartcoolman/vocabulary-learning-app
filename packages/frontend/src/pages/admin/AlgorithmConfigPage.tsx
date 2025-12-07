@@ -13,6 +13,8 @@ import {
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+import { useAlgorithmConfig } from '../../hooks/queries';
+import { useUpdateAlgorithmConfig, useResetAlgorithmConfig } from '../../hooks/mutations';
 
 /**
  * 算法配置页面（管理员）
@@ -22,35 +24,35 @@ export default function AlgorithmConfigPage() {
   const toast = useToast();
   const [config, setConfig] = useState<AlgorithmConfig | null>(null);
   const [defaultConfig, setDefaultConfig] = useState<AlgorithmConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // 使用 useMemo 避免每次渲染都创建新实例
+  // 使用 React Query hooks
+  const { data: serverConfig, isLoading, error } = useAlgorithmConfig();
+  const updateConfigMutation = useUpdateAlgorithmConfig();
+  const resetConfigMutation = useResetAlgorithmConfig();
+
+  // 使用 useMemo 避免每次渲染都创建新实例（用于获取默认配置和验证）
   const configService = useMemo(() => new AlgorithmConfigService(), []);
 
+  // 当从服务器加载配置后，初始化本地状态
   useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    try {
-      setIsLoading(true);
-      const currentConfig = await configService.getConfig();
-      setConfig(currentConfig);
-
-      // 直接获取默认配置用于对比，不调用 resetToDefault
+    if (serverConfig) {
+      setConfig(serverConfig);
+      // 获取默认配置用于对比
       const defaultCfg = configService.getDefaultConfig();
       setDefaultConfig(defaultCfg);
-    } catch (error) {
+    }
+  }, [serverConfig, configService]);
+
+  // 显示加载错误
+  useEffect(() => {
+    if (error) {
       adminLogger.error({ err: error }, '加载算法配置失败');
       toast.error('加载算法配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [error, toast]);
 
   // 验证配置
   const validateAndUpdate = (newConfig: AlgorithmConfig) => {
@@ -70,32 +72,33 @@ export default function AlgorithmConfigPage() {
     }
 
     try {
-      setIsSaving(true);
-      await configService.updateConfig(config, '管理员手动更新');
+      await updateConfigMutation.mutateAsync({
+        configId: config.id,
+        config,
+        changeReason: '管理员手动更新',
+      });
       setSaveSuccess(true);
       toast.success('配置已保存');
     } catch (error) {
       adminLogger.error({ err: error, config }, '保存算法配置失败');
       toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
-    } finally {
-      setIsSaving(false);
     }
   };
 
   // 重置为默认值
   const handleReset = async () => {
+    if (!config) return;
+
     try {
-      setIsSaving(true);
-      const resetConfig = await configService.resetToDefault();
+      const resetConfig = await resetConfigMutation.mutateAsync(config.id);
       setConfig(resetConfig);
       setValidationErrors([]);
       setShowResetConfirm(false);
       setSaveSuccess(true);
+      toast.success('配置已重置为默认值');
     } catch (error) {
       adminLogger.error({ err: error }, '重置算法配置失败');
       toast.error('重置失败: ' + (error instanceof Error ? error.message : '未知错误'));
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -106,6 +109,9 @@ export default function AlgorithmConfigPage() {
       return () => clearTimeout(timeoutId);
     }
   }, [saveSuccess]);
+
+  // 合并 loading 状态
+  const isSaving = updateConfigMutation.isPending || resetConfigMutation.isPending;
 
   if (isLoading || !config || !defaultConfig) {
     return (

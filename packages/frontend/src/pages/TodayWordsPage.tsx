@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { DailyMissionCard } from '../components/dashboard/DailyMissionCard';
-import { useStudyPlan } from '../hooks/useStudyPlan';
+import { useTodayWordsCompat } from '../hooks/queries/useTodayWords';
 import { useAuth } from '../contexts/AuthContext';
 import { CircleNotch, Books } from '../components/Icon';
 
 export default function TodayWordsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { plan, loading, error, refresh } = useStudyPlan();
+  const { plan, loading, error, refresh } = useTodayWordsCompat();
 
   const handleStartSession = () => {
     navigate('/');

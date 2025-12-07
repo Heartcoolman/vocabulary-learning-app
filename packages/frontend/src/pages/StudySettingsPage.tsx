@@ -5,6 +5,8 @@ import { WordBook } from '../types/models';
 import { CircleNotch } from '../components/Icon';
 import { useToast } from '../components/ui';
 import { uiLogger } from '../utils/logger';
+import { useStudyConfig } from '../hooks/queries';
+import { useUpdateStudyConfig } from '../hooks/mutations';
 
 export default function StudySettingsPage() {
   const navigate = useNavigate();
@@ -12,34 +14,32 @@ export default function StudySettingsPage() {
   const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
   const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
   const [dailyCount, setDailyCount] = useState(20);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 加载词书列表和学习配置
+  // 使用 React Query hooks
+  const { data: studyConfig, isLoading: configLoading } = useStudyConfig();
+  const updateConfigMutation = useUpdateStudyConfig();
+
+  // 加载词书列表
   useEffect(() => {
-    loadData();
+    loadWordBooks();
   }, []);
 
-  const loadData = async () => {
+  // 当配置加载后，初始化表单
+  useEffect(() => {
+    if (studyConfig) {
+      setSelectedBookIds(studyConfig.selectedWordBookIds || []);
+      setDailyCount(studyConfig.dailyWordCount || 20);
+    }
+  }, [studyConfig]);
+
+  const loadWordBooks = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // 并行加载词书和配置
-      const [booksData, configData] = await Promise.all([
-        apiClient.getAllAvailableWordBooks(),
-        apiClient.getStudyConfig(),
-      ]);
-
+      const booksData = await apiClient.getAllAvailableWordBooks();
       setWordBooks(booksData);
-      setSelectedBookIds(configData.selectedWordBookIds || []);
-      setDailyCount(configData.dailyWordCount || 20);
     } catch (err) {
-      uiLogger.error({ err }, '加载学习设置数据失败');
+      uiLogger.error({ err }, '加载词书列表失败');
       setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -61,10 +61,9 @@ export default function StudySettingsPage() {
     }
 
     try {
-      setIsSaving(true);
       setError(null);
 
-      await apiClient.updateStudyConfig({
+      await updateConfigMutation.mutateAsync({
         selectedWordBookIds: selectedBookIds,
         dailyWordCount: dailyCount,
         studyMode: 'sequential',
@@ -76,10 +75,12 @@ export default function StudySettingsPage() {
     } catch (err) {
       uiLogger.error({ err, selectedBookIds, dailyCount }, '保存学习设置失败');
       setError(err instanceof Error ? err.message : '保存失败');
-    } finally {
-      setIsSaving(false);
     }
   };
+
+  // 合并 loading 状态
+  const isLoading = configLoading;
+  const isSaving = updateConfigMutation.isPending;
 
   if (isLoading) {
     return (

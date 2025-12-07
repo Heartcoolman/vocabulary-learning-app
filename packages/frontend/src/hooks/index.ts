@@ -24,3 +24,15 @@ export type {
   UseAutoPlayPronunciationConfig,
   UseAutoPlayPronunciationReturn,
 } from './useAutoPlayPronunciation';
+
+// Mutations
+export {
+  useSubmitAnswer,
+  extractAmasState,
+  shouldTakeBreak,
+} from './mutations';
+export type {
+  SubmitAnswerParams,
+  LocalWordDecision,
+  UseSubmitAnswerOptions,
+} from './mutations';
