@@ -34,3 +34,10 @@ export * from './useAchievements';
 export * from './useAdminUsers';
 export * from './useUserDetail';
 export * from './useUserStatistics';
+export * from './useAdminStatistics';
+export * from './useSystemStatus';
+export * from './useConfigHistory';
+
+// 学习相关查询
+export * from './useLearningRecords';
+export * from './useNextWords';

@@ -14,10 +14,8 @@ import { useCallback, useRef } from 'react';
 import { processLearningEvent } from '../mastery';
 import type {
   LearningEventInput,
-  AmasProcessResult,
-  UserState
+  AmasProcessResult
 } from '../../types/amas';
-import type { WordItem } from '../../services/learning/WordQueueManager';
 
 // ==================== 类型定义 ====================
 
@@ -229,7 +227,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
     },
 
     // 成功：更新缓存并触发回调
-    onSuccess: (result, _params, context) => {
+    onSuccess: (result) => {
       // 更新AMAS结果缓存
       queryClient.setQueryData(['amas', result.sessionId], result);
 

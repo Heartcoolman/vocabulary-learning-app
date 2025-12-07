@@ -199,6 +199,49 @@ export const queryKeys = {
       trend: (userId: string, days: number) =>
         [...queryKeys.admin.userLearning.all, 'trend', userId, days] as const,
     },
+
+    // 系统统计
+    statistics: {
+      all: ['admin', 'statistics'] as const,
+      overview: () => [...queryKeys.admin.statistics.all, 'overview'] as const,
+    },
+
+    // 系统状态
+    system: {
+      all: ['admin', 'system'] as const,
+      status: () => [...queryKeys.admin.system.all, 'status'] as const,
+      performance: () => [...queryKeys.admin.system.all, 'performance'] as const,
+      alerts: (limit: number) => [...queryKeys.admin.system.all, 'alerts', limit] as const,
+    },
+
+    // 配置历史
+    configHistory: {
+      all: ['admin', 'configHistory'] as const,
+      lists: () => [...queryKeys.admin.configHistory.all, 'list'] as const,
+      list: (limit?: number) =>
+        [...queryKeys.admin.configHistory.lists(), { limit }] as const,
+      details: () => [...queryKeys.admin.configHistory.all, 'detail'] as const,
+      detail: (id: string) => [...queryKeys.admin.configHistory.details(), id] as const,
+    },
+  },
+
+  /**
+   * 导出相关查询
+   */
+  export: {
+    all: ['export'] as const,
+    history: (filters?: Record<string, unknown>) =>
+      filters ? [...queryKeys.export.all, 'history', filters] as const : [...queryKeys.export.all, 'history'] as const,
+    statistics: () => [...queryKeys.export.all, 'statistics'] as const,
+  },
+
+  /**
+   * 批量操作相关查询
+   */
+  batch: {
+    all: ['batch'] as const,
+    operations: () => [...queryKeys.batch.all, 'operations'] as const,
+    progress: (operationId: string) => [...queryKeys.batch.all, 'progress', operationId] as const,
   },
 } as const;
 

@@ -8,10 +8,12 @@
  * - 与 React Query 集成
  */
 
-import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
 import { queryKeys } from '../../lib/queryKeys';
 import { wordService } from '../../services/word.service';
+
 import type { SearchWordResult } from '../../services/word.service';
 
 export interface UseWordSearchOptions {

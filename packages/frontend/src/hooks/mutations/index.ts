@@ -17,3 +17,9 @@ export {
 // 其他 mutations
 export * from './useConfigMutations';
 export * from './useWordBookMutations';
+export * from './useAdminMutations';
+
+// 学习相关 mutations
+export * from './useSyncProgress';
+export * from './useAdjustWords';
+export * from './useWordMutations';

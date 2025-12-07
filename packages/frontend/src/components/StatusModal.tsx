@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 import { X, ChartPie } from './Icon';
 import { fadeInVariants, scaleInVariants } from '../utils/animations';
@@ -9,7 +10,7 @@ interface StatusModalProps {
   refreshTrigger?: number;
 }
 
-export default function StatusModal({ isOpen, onClose, refreshTrigger = 0 }: StatusModalProps) {
+const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusModalProps) => {
   if (!isOpen) return null;
 
   return (
@@ -59,4 +60,21 @@ export default function StatusModal({ isOpen, onClose, refreshTrigger = 0 }: Sta
       </motion.div>
     </motion.div>
   );
-}
+};
+
+/**
+ * Memoized StatusModal component
+ * Only re-renders when isOpen, onClose function, or refreshTrigger changes
+ */
+const StatusModal = React.memo(
+  StatusModalComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.isOpen === nextProps.isOpen &&
+      prevProps.onClose === nextProps.onClose &&
+      prevProps.refreshTrigger === nextProps.refreshTrigger
+    );
+  },
+);
+
+export default StatusModal;

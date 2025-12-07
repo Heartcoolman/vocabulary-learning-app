@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import apiClient from '../services/ApiClient';
-import { Word } from '../types/models';
 import { learningLogger } from '../utils/logger';
+
+import type { Word } from '../types/models';
 
 export interface StudyPlan {
   words: Word[];

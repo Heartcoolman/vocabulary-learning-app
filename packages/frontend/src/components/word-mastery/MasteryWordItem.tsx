@@ -17,7 +17,7 @@ interface MasteryWordItemProps {
   mastery: MasteryEvaluation | null;
 }
 
-export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
+const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
   wordId,
   spelling,
   meanings,
@@ -221,3 +221,42 @@ export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
     </div>
   );
 };
+
+/**
+ * Deep comparison for MasteryEvaluation object
+ */
+const compareMasteryEvaluation = (
+  prev: MasteryEvaluation | null,
+  next: MasteryEvaluation | null,
+): boolean => {
+  if (prev === null && next === null) return true;
+  if (prev === null || next === null) return false;
+
+  return (
+    prev.score === next.score &&
+    prev.confidence === next.confidence &&
+    prev.isLearned === next.isLearned &&
+    prev.factors.srsLevel === next.factors.srsLevel &&
+    prev.factors.actrRecall === next.factors.actrRecall &&
+    prev.factors.recentAccuracy === next.factors.recentAccuracy &&
+    prev.suggestion === next.suggestion
+  );
+};
+
+/**
+ * Memoized MasteryWordItem component
+ * Optimizes re-renders by deep comparing mastery evaluation
+ * Note: Component has internal state for expansion, so memo only prevents
+ * unnecessary re-renders from parent prop changes
+ */
+export const MasteryWordItem = React.memo(
+  MasteryWordItemComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.wordId === nextProps.wordId &&
+      prevProps.spelling === nextProps.spelling &&
+      prevProps.meanings === nextProps.meanings &&
+      compareMasteryEvaluation(prevProps.mastery, nextProps.mastery)
+    );
+  },
+);

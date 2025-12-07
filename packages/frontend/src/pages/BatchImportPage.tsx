@@ -15,6 +15,9 @@ import { FileUpload } from '../components';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
 import { WordBook } from '../types/models';
 import { adminLogger } from '../utils/logger';
+import { useBatchImport, BatchOperationProgress } from '../hooks/mutations/useBatchOperations';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryKeys';
 
 const STEPS = [
   { id: 1, name: '选择词书' },
@@ -28,35 +31,53 @@ export default function BatchImportPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [wordBooks, setWordBooks] = useState<WordBook[]>([]);
   const [selectedBookId, setSelectedBookId] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<WordImportData[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [progress, setProgress] = useState<BatchOperationProgress | null>(null);
 
   const [importedCount, setImportedCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchWordBooks = async () => {
-      try {
-        setIsLoading(true);
-        const books = await apiClient.adminGetSystemWordBooks();
-        setWordBooks(books);
-        if (books.length > 0) {
-          setSelectedBookId(books[0].id);
-        }
-      } catch (err) {
-        adminLogger.error({ err }, '获取词书列表失败');
-        setImportError('无法加载词书列表，请稍后重试');
-      } finally {
-        setIsLoading(false);
+  // 使用 React Query 获取词书列表
+  const {
+    data: wordBooks = [],
+    isLoading: isLoadingBooks,
+    error: booksError,
+  } = useQuery({
+    queryKey: queryKeys.wordbooks.lists(),
+    queryFn: async () => {
+      const books = await apiClient.adminGetSystemWordBooks();
+      if (books.length > 0 && !selectedBookId) {
+        setSelectedBookId(books[0].id);
       }
-    };
+      return books;
+    },
+    retry: 2,
+  });
 
-    fetchWordBooks();
-  }, []);
+  // 使用批量导入 hook
+  const { mutate: importWords, isPending: isImporting } = useBatchImport({
+    onSuccess: (result) => {
+      setImportedCount(result.imported);
+      setFailedCount(result.failed);
+      if (result.errors.length > 0) {
+        setValidationErrors((prev) => [...prev, ...result.errors]);
+      }
+      setCurrentStep(4);
+      setProgress(null);
+    },
+    onError: (error) => {
+      setImportError(error.message);
+      setCurrentStep(4);
+      setProgress(null);
+    },
+    onProgress: (p) => {
+      setProgress(p);
+    },
+  });
 
   const handleFileSelect = async (selectedFile: File | null) => {
     setFile(selectedFile);
@@ -82,29 +103,14 @@ export default function BatchImportPage() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     if (!selectedBookId || parsedData.length === 0) return;
 
-    setIsLoading(true);
     setImportError(null);
-
-    try {
-      const result = await apiClient.batchImportWords(selectedBookId, parsedData);
-
-      setImportedCount(result.imported);
-      setFailedCount(result.failed);
-
-      if (result.errors && result.errors.length > 0) {
-        setValidationErrors((prev) => [...prev, ...result.errors!]);
-      }
-
-      setCurrentStep(4);
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : '导入请求失败');
-      setCurrentStep(4);
-    } finally {
-      setIsLoading(false);
-    }
+    importWords({
+      wordBookId: selectedBookId,
+      words: parsedData,
+    });
   };
 
   const handleReset = () => {
@@ -114,6 +120,7 @@ export default function BatchImportPage() {
     setImportedCount(0);
     setFailedCount(0);
     setImportError(null);
+    setProgress(null);
     setCurrentStep(1);
   };
 
@@ -203,13 +210,13 @@ export default function BatchImportPage() {
                 <p className="mt-2 text-gray-500">请选择您要将单词导入到哪个词书中</p>
               </div>
 
-              {isLoading ? (
+              {isLoadingBooks ? (
                 <div className="flex justify-center py-12">
                   <CircleNotch className="h-8 w-8 animate-spin text-blue-500" weight="bold" />
                 </div>
-              ) : importError ? (
+              ) : booksError ? (
                 <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-center text-red-700">
-                  {importError}
+                  无法加载词书列表，请稍后重试
                   <button
                     onClick={() => window.location.reload()}
                     className="mx-auto mt-2 block text-sm underline"
@@ -376,21 +383,48 @@ export default function BatchImportPage() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-gray-100 bg-white p-6">
-                <button
-                  onClick={() => setCurrentStep(2)}
-                  className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  上一步
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={validationErrors.length > 0 || parsedData.length === 0 || isLoading}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isLoading && <CircleNotch className="h-4 w-4 animate-spin" weight="bold" />}
-                  {isLoading ? '导入中...' : '确认导入'}
-                </button>
+              <div className="border-t border-gray-100 bg-white p-6">
+                {/* 进度指示器 */}
+                {progress && (
+                  <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-medium text-blue-900">{progress.stage}</span>
+                      <span className="text-blue-700">{progress.progress}%</span>
+                    </div>
+                    <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-blue-200">
+                      <div
+                        className="h-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${progress.progress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-blue-700">
+                      <span>
+                        已处理: {progress.processed}/{progress.total}
+                      </span>
+                      <span>
+                        成功: {progress.succeeded} | 失败: {progress.failed}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    disabled={isImporting}
+                    className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    上一步
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={validationErrors.length > 0 || parsedData.length === 0 || isImporting}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isImporting && <CircleNotch className="h-4 w-4 animate-spin" weight="bold" />}
+                    {isImporting ? '导入中...' : '确认导入'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

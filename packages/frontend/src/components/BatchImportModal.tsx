@@ -16,7 +16,7 @@ interface BatchImportModalProps {
 
 type ImportStep = 'upload' | 'preview' | 'importing' | 'result';
 
-const BatchImportModal: React.FC<BatchImportModalProps> = ({
+const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
   isOpen,
   onClose,
   wordBookId,
@@ -357,5 +357,23 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
     </motion.div>
   );
 };
+
+/**
+ * Memoized BatchImportModal component
+ * Note: This component has complex internal state, so memo primarily prevents
+ * re-renders from parent component updates when props haven't changed
+ */
+const BatchImportModal = React.memo(
+  BatchImportModalComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.isOpen === nextProps.isOpen &&
+      prevProps.onClose === nextProps.onClose &&
+      prevProps.wordBookId === nextProps.wordBookId &&
+      prevProps.onImportSuccess === nextProps.onImportSuccess &&
+      prevProps.isAdminMode === nextProps.isAdminMode
+    );
+  },
+);
 
 export default BatchImportModal;

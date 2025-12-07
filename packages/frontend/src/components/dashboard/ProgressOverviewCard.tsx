@@ -1,3 +1,4 @@
+import React from 'react';
 import { Trophy, Target, BookOpen } from '../../components/Icon';
 import { StudyProgressData } from '../../hooks/useStudyProgress';
 
@@ -5,7 +6,7 @@ interface ProgressOverviewCardProps {
   data: StudyProgressData;
 }
 
-export const ProgressOverviewCard = ({ data }: ProgressOverviewCardProps) => {
+const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
   const { todayStudied, todayTarget, totalStudied, correctRate } = data;
 
   const percentComplete = Math.min(
@@ -96,3 +97,26 @@ export const ProgressOverviewCard = ({ data }: ProgressOverviewCardProps) => {
     </div>
   );
 };
+
+/**
+ * Deep comparison for StudyProgressData object
+ */
+const compareProgressData = (prev: StudyProgressData, next: StudyProgressData): boolean => {
+  return (
+    prev.todayStudied === next.todayStudied &&
+    prev.todayTarget === next.todayTarget &&
+    prev.totalStudied === next.totalStudied &&
+    prev.correctRate === next.correctRate
+  );
+};
+
+/**
+ * Memoized ProgressOverviewCard component
+ * Optimizes re-renders by deep comparing data object
+ */
+export const ProgressOverviewCard = React.memo(
+  ProgressOverviewCardComponent,
+  (prevProps, nextProps) => {
+    return compareProgressData(prevProps.data, nextProps.data);
+  },
+);

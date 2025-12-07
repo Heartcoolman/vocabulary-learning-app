@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import ApiClient from '../../services/ApiClient';
 import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
@@ -13,7 +13,7 @@ interface BadgeDetailModalProps {
  * BadgeDetailModal - 徽章详情模态框
  * 显示徽章的详细信息、解锁条件、进度追踪和奖励说明
  */
-export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalProps) {
+const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) => {
   const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -208,4 +208,30 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
       </div>
     </div>
   );
-}
+};
+
+/**
+ * Deep comparison for Badge object
+ */
+const compareBadge = (prev: Badge, next: Badge): boolean => {
+  return (
+    prev.id === next.id &&
+    prev.name === next.name &&
+    prev.description === next.description &&
+    prev.category === next.category &&
+    prev.tier === next.tier &&
+    prev.unlockedAt === next.unlockedAt
+  );
+};
+
+/**
+ * Memoized BadgeDetailModal component
+ */
+const BadgeDetailModal = React.memo(
+  BadgeDetailModalComponent,
+  (prevProps, nextProps) => {
+    return prevProps.onClose === nextProps.onClose && compareBadge(prevProps.badge, nextProps.badge);
+  },
+);
+
+export default BadgeDetailModal;

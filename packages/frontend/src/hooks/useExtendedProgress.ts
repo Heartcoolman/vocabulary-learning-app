@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import apiClient from '../services/ApiClient';
 import StorageService from '../services/StorageService';
 import { learningLogger } from '../utils/logger';
-import { StudyProgressData } from './useStudyProgress';
 import { Milestone } from '../components/progress/MilestoneCard';
+
+import { StudyProgressData } from './useStudyProgress';
 
 export interface ExtendedProgressData extends StudyProgressData {
   weeklyProgress: number;

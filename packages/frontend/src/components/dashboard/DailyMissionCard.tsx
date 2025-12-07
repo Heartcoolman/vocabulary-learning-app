@@ -1,3 +1,4 @@
+import React from 'react';
 import { Target, Clock, Lightning, Play, CheckCircle } from '../../components/Icon';
 
 interface DailyMissionCardProps {
@@ -9,7 +10,7 @@ interface DailyMissionCardProps {
   onStart: () => void;
 }
 
-export const DailyMissionCard = ({
+const DailyMissionCardComponent = ({
   totalWords,
   todayStudied,
   todayTarget,
@@ -120,3 +121,22 @@ export const DailyMissionCard = ({
     </div>
   );
 };
+
+/**
+ * Memoized DailyMissionCard component
+ * Optimizes re-renders by comparing numeric props and function stability
+ */
+export const DailyMissionCard = React.memo(
+  DailyMissionCardComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if props actually change
+    return (
+      prevProps.totalWords === nextProps.totalWords &&
+      prevProps.todayStudied === nextProps.todayStudied &&
+      prevProps.todayTarget === nextProps.todayTarget &&
+      prevProps.estimatedTime === nextProps.estimatedTime &&
+      prevProps.correctRate === nextProps.correctRate &&
+      prevProps.onStart === nextProps.onStart
+    );
+  },
+);

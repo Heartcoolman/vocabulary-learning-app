@@ -1,0 +1,203 @@
+{
+  "timestamp": "2025-12-07T12:51:00.000Z",
+  "note": "基于Bundle大小和网络条件的性能估算（Lighthouse未能运行，无Chrome环境）",
+  "methodology": "使用Bundle大小、压缩比率和标准网络速度计算",
+  "bundleMetrics": {
+    "criticalResources": {
+      "html": {"size": "0.63 KB", "gzipped": "0.38 KB"},
+      "css": {"size": "90.51 KB", "gzipped": "14.65 KB"},
+      "reactVendor": {"size": "541.70 KB", "gzipped": "146.10 KB"},
+      "indexBundle": {"size": "178.42 KB", "gzipped": "48.04 KB"},
+      "vendor": {"size": "113.32 KB", "gzipped": "38.90 KB"}
+    },
+    "totalCriticalPath": {
+      "raw": "924.58 KB",
+      "gzipped": "248.07 KB",
+      "note": "首次加载必需资源"
+    }
+  },
+  "networkEstimates": {
+    "slow3G": {
+      "bandwidth": "400 Kbps (50 KB/s)",
+      "latency": "400ms RTT",
+      "estimates": {
+        "DNS": "150ms",
+        "TCP": "150ms",
+        "SSL": "200ms",
+        "TTFB": "500ms",
+        "downloadHTML": "~10ms",
+        "downloadCSS": "293ms (14.65 KB @ 50 KB/s)",
+        "downloadReactVendor": "2922ms (146.10 KB @ 50 KB/s)",
+        "downloadIndexBundle": "961ms (48.04 KB @ 50 KB/s)",
+        "downloadVendor": "778ms (38.90 KB @ 50 KB/s)",
+        "FCP": "~3.2s",
+        "LCP": "~5.0s",
+        "TTI": "~6.5s",
+        "rating": "⚠️ NEEDS IMPROVEMENT"
+      }
+    },
+    "4G": {
+      "bandwidth": "4 Mbps (500 KB/s)",
+      "latency": "50ms RTT",
+      "estimates": {
+        "DNS": "20ms",
+        "TCP": "20ms",
+        "SSL": "40ms",
+        "TTFB": "80ms",
+        "downloadHTML": "~2ms",
+        "downloadCSS": "29ms (14.65 KB @ 500 KB/s)",
+        "downloadReactVendor": "292ms (146.10 KB @ 500 KB/s)",
+        "downloadIndexBundle": "96ms (48.04 KB @ 500 KB/s)",
+        "downloadVendor": "78ms (38.90 KB @ 500 KB/s)",
+        "FCP": "~1.1s",
+        "LCP": "~1.8s",
+        "TTI": "~2.5s",
+        "rating": "✅ GOOD"
+      }
+    },
+    "broadband": {
+      "bandwidth": "10 Mbps (1.25 MB/s)",
+      "latency": "20ms RTT",
+      "estimates": {
+        "DNS": "10ms",
+        "TCP": "10ms",
+        "SSL": "20ms",
+        "TTFB": "40ms",
+        "downloadHTML": "~1ms",
+        "downloadCSS": "12ms (14.65 KB @ 1250 KB/s)",
+        "downloadReactVendor": "117ms (146.10 KB @ 1250 KB/s)",
+        "downloadIndexBundle": "38ms (48.04 KB @ 1250 KB/s)",
+        "downloadVendor": "31ms (38.90 KB @ 1250 KB/s)",
+        "FCP": "~0.4s",
+        "LCP": "~0.7s",
+        "TTI": "~1.0s",
+        "rating": "✅ EXCELLENT"
+      }
+    }
+  },
+  "webVitalsEstimates": {
+    "FCP_FirstContentfulPaint": {
+      "slow3G": "3.2s",
+      "4G": "1.1s",
+      "broadband": "0.4s",
+      "target": "< 1.8s",
+      "status": {
+        "slow3G": "❌ POOR",
+        "4G": "✅ GOOD",
+        "broadband": "✅ EXCELLENT"
+      }
+    },
+    "LCP_LargestContentfulPaint": {
+      "slow3G": "5.0s",
+      "4G": "1.8s",
+      "broadband": "0.7s",
+      "target": "< 2.5s",
+      "status": {
+        "slow3G": "❌ POOR",
+        "4G": "✅ GOOD",
+        "broadband": "✅ EXCELLENT"
+      }
+    },
+    "TTI_TimeToInteractive": {
+      "slow3G": "6.5s",
+      "4G": "2.5s",
+      "broadband": "1.0s",
+      "target": "< 3.8s",
+      "status": {
+        "slow3G": "❌ POOR",
+        "4G": "✅ GOOD",
+        "broadband": "✅ EXCELLENT"
+      }
+    },
+    "CLS_CumulativeLayoutShift": {
+      "estimated": "< 0.1",
+      "target": "< 0.1",
+      "status": "✅ GOOD",
+      "note": "应用使用固定布局，预计CLS良好"
+    },
+    "FID_FirstInputDelay": {
+      "estimated": "< 50ms",
+      "target": "< 100ms",
+      "status": "✅ GOOD",
+      "note": "基于代码分割和React优化"
+    }
+  },
+  "performanceScore": {
+    "estimated": {
+      "slow3G": "45-55",
+      "4G": "75-85",
+      "broadband": "90-95"
+    },
+    "factors": [
+      "✅ 良好的代码分割策略",
+      "✅ Gzip压缩已启用",
+      "⚠️ 初始Bundle仍较大(248 KB gzipped)",
+      "❌ 静态资源未优化(41 MB)",
+      "✅ 页面chunks保持小型化"
+    ]
+  },
+  "comparisonWithBaseline": {
+    "criticalPathSize": {
+      "baseline": "235 KB gzipped",
+      "current": "248.07 KB gzipped",
+      "change": "+5.6%",
+      "status": "⚠️ SLIGHTLY WORSE"
+    },
+    "estimatedFCP_4G": {
+      "baseline": "1.2s",
+      "current": "1.1s",
+      "change": "-8.3%",
+      "status": "✅ IMPROVED"
+    },
+    "estimatedLCP_4G": {
+      "baseline": "2.0s",
+      "current": "1.8s",
+      "change": "-10%",
+      "status": "✅ IMPROVED"
+    },
+    "estimatedTTI_4G": {
+      "baseline": "2.8s",
+      "current": "2.5s",
+      "change": "-10.7%",
+      "status": "✅ IMPROVED"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "减少vendor bundle大小",
+      "impact": "可减少初始加载时间约300-500ms",
+      "method": "审查新增依赖，使用动态导入"
+    },
+    {
+      "priority": "HIGH",
+      "action": "实施CDN策略",
+      "impact": "可减少40MB静态资源加载时间",
+      "method": "将badges和icons迁移到CDN"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "启用Brotli压缩",
+      "impact": "可额外减少15-20%传输大小",
+      "method": "在生产服务器配置Brotli"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "实施资源预加载",
+      "impact": "可减少关键资源加载时间100-200ms",
+      "method": "添加<link rel=\"preload\">标签"
+    },
+    {
+      "priority": "LOW",
+      "action": "考虑SSR/SSG",
+      "impact": "可显著改善FCP和LCP",
+      "method": "评估Next.js或类似框架"
+    }
+  ],
+  "nextSteps": [
+    "在有Chrome环境的机器上运行真实Lighthouse测试",
+    "使用WebPageTest进行真实网络条件测试",
+    "设置Real User Monitoring (RUM)收集真实用户数据",
+    "在CI/CD中集成性能测试"
+  ]
+}

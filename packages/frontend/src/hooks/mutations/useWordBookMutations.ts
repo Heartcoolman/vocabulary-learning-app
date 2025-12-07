@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { queryKeys } from '../../lib/queryKeys';
 import apiClient from '../../services/ApiClient';
+
 import type { WordBook } from '../../types/models';
 
 /**
@@ -17,7 +19,7 @@ export function useCreateWordBook() {
     }): Promise<WordBook> => {
       return await apiClient.createWordBook(data);
     },
-    onSuccess: (newWordBook) => {
+    onSuccess: () => {
       // 创建成功后，使用户词书列表查询失效，触发重新获取
       queryClient.invalidateQueries({
         queryKey: queryKeys.wordbooks.list({ type: 'user' }),
@@ -94,7 +96,7 @@ export function useDeleteWordBook() {
       // 返回上下文对象，以便在失败时回滚
       return { previousUserBooks };
     },
-    onError: (err, deletedId, context) => {
+    onError: (_err, _deletedId, context) => {
       // 删除失败时，回滚到之前的状态
       if (context?.previousUserBooks) {
         queryClient.setQueryData(

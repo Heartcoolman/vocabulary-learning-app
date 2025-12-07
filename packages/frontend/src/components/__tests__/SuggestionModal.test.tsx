@@ -23,21 +23,41 @@ vi.mock('../AmasSuggestion', () => ({
   ),
 }));
 
-describe('SuggestionModal', () => {
-  const mockOnClose = vi.fn();
-  const mockOnBreak = vi.fn();
-
-  const mockResult: AmasProcessResult = {
-    explanation: 'Test explanation',
-    suggestion: 'Test suggestion',
-    shouldBreak: false,
+// Helper function to create test AmasProcessResult
+function createTestResult(overrides: Partial<AmasProcessResult> = {}): AmasProcessResult {
+  return {
+    sessionId: 'test-session-id',
     strategy: {
+      interval_scale: 1.0,
       batch_size: 10,
       difficulty: 'mid',
       new_ratio: 0.3,
       hint_level: 1,
     },
+    state: {
+      attention: 0.8,
+      fatigue: 0.3,
+      motivation: 0.7,
+      memory: 0.75,
+      speed: 0.65,
+      stability: 0.7,
+    },
+    explanation: '',
+    suggestion: '',
+    shouldBreak: false,
+    ...overrides,
   };
+}
+
+describe('SuggestionModal', () => {
+  const mockOnClose = vi.fn();
+  const mockOnBreak = vi.fn();
+
+  const mockResult: AmasProcessResult = createTestResult({
+    explanation: 'Test explanation',
+    suggestion: 'Test suggestion',
+    shouldBreak: false,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

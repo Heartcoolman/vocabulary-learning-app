@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { WordItem, QueueProgress, CompletionReason } from '../services/learning/WordQueueManager';
+
 import { useAuth } from '../contexts/AuthContext';
-import { AmasProcessResult } from '../types/amas';
+
+import type { WordItem, QueueProgress, CompletionReason } from '../services/learning/WordQueueManager';
+import type { AmasProcessResult } from '../types/amas';
+
 import {
   useWordQueue,
   useMasterySync,

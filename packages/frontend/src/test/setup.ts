@@ -230,31 +230,20 @@ vi.mock('../services/aboutApi', () => ({
 
 // ==================== Global Logger Mock ====================
 
+const createMockLogger = () => ({
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+});
+
 vi.mock('../utils/logger', () => ({
-  default: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  amasLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  adminLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  learningLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
+  default: createMockLogger(),
+  logger: createMockLogger(),
+  amasLogger: createMockLogger(),
+  adminLogger: createMockLogger(),
+  learningLogger: createMockLogger(),
+  apiLogger: createMockLogger(),
 }));
 
 // ==================== Global Animation Utils Mock ====================
@@ -262,8 +251,11 @@ vi.mock('../utils/logger', () => ({
 vi.mock('../utils/animations', () => ({
   fadeInVariants: {},
   staggerContainerVariants: {},
+  staggerItemVariants: {},
   slideUpVariants: {},
   scaleInVariants: {},
+  pageTransition: {},
+  modalTransition: {},
 }));
 
 // ==================== Cleanup ====================

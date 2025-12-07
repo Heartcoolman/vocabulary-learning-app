@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { AdminStatistics } from '../../services/ApiClient';
+import { useAdminStatistics, useSystemHealth } from '../../hooks/queries';
+import apiClient from '../../services/ApiClient';
 import {
   UsersThree,
   Sparkle,
@@ -27,9 +28,11 @@ type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 're
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<AdminStatistics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // 使用新的 hooks
+  const { data: stats, isLoading, error: statsError, refetch: refetchStats } = useAdminStatistics();
+  const { data: health } = useSystemHealth();
+
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
   const [amasError, setAmasError] = useState<string | null>(null);
@@ -50,25 +53,7 @@ export default function AdminDashboard() {
     variant: 'info',
   });
 
-  useEffect(() => {
-    loadStatistics();
-    loadAmasStrategy();
-  }, []);
-
-  const loadStatistics = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await apiClient.adminGetStatistics();
-      setStats(data);
-    } catch (err) {
-      adminLogger.error({ err }, '加载统计数据失败');
-      setError(err instanceof Error ? err.message : '加载失败');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // 加载 AMAS 策略（保留原有逻辑）
   const loadAmasStrategy = async () => {
     try {
       setIsAmasLoading(true);
@@ -82,6 +67,11 @@ export default function AdminDashboard() {
       setIsAmasLoading(false);
     }
   };
+
+  // 初始加载 AMAS 策略
+  React.useEffect(() => {
+    loadAmasStrategy();
+  }, []);
 
   const handleResetAmas = async () => {
     setResetConfirm(true);
@@ -139,50 +129,8 @@ export default function AdminDashboard() {
     }
   };
 
-  // 计算系统健康度
-  const getSystemHealth = () => {
-    if (!stats) return { status: 'unknown', score: 0, issues: [] };
-
-    const issues: string[] = [];
-    let score = 100;
-
-    // 检查活跃率
-    const activeRate = stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers) * 100 : 0;
-    if (activeRate < 30) {
-      issues.push('用户活跃率较低');
-      score -= 20;
-    } else if (activeRate < 50) {
-      issues.push('用户活跃率偏低');
-      score -= 10;
-    }
-
-    // 检查系统词库
-    if (stats.systemWordBooks < 3) {
-      issues.push('系统词库数量较少');
-      score -= 15;
-    }
-
-    // 检查单词数量
-    const avgWordsPerBook = stats.totalWordBooks > 0 ? stats.totalWords / stats.totalWordBooks : 0;
-    if (avgWordsPerBook < 50) {
-      issues.push('平均词库单词数较少');
-      score -= 15;
-    }
-
-    // 检查学习记录
-    const avgRecordsPerUser = stats.totalUsers > 0 ? stats.totalRecords / stats.totalUsers : 0;
-    if (avgRecordsPerUser < 10) {
-      issues.push('用户学习活跃度低');
-      score -= 10;
-    }
-
-    let status: 'excellent' | 'good' | 'warning' | 'error' = 'excellent';
-    if (score < 60) status = 'error';
-    else if (score < 75) status = 'warning';
-    else if (score < 90) status = 'good';
-
-    return { status, score, issues };
-  };
+  // 使用新的健康度计算（从 hook 获取）
+  const systemHealth = health || { status: 'unknown' as const, score: 0, issues: [] };
 
   if (isLoading) {
     return (
@@ -202,15 +150,17 @@ export default function AdminDashboard() {
     );
   }
 
-  if (error || !stats) {
+  if (statsError || !stats) {
     return (
       <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="max-w-md text-center" role="alert" aria-live="assertive">
           <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">{error || '无法加载统计数据'}</p>
+          <p className="mb-6 text-gray-600">
+            {statsError instanceof Error ? statsError.message : '无法加载统计数据'}
+          </p>
           <button
-            onClick={loadStatistics}
+            onClick={() => refetchStats()}
             className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
@@ -317,7 +267,6 @@ export default function AdminDashboard() {
         </h2>
         <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
           {(() => {
-            const health = getSystemHealth();
             const statusConfig: Record<
               string,
               { color: string; bgColor: string; icon: typeof CheckCircle; label: string }
@@ -349,7 +298,7 @@ export default function AdminDashboard() {
               },
             };
 
-            const config = statusConfig[health.status];
+            const config = statusConfig[systemHealth.status];
             const Icon = config.icon;
 
             return (
@@ -361,7 +310,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">系统状态：{config.label}</h3>
-                      <p className="text-sm text-gray-600">健康度评分：{health.score}/100</p>
+                      <p className="text-sm text-gray-600">健康度评分：{systemHealth.score}/100</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -369,16 +318,16 @@ export default function AdminDashboard() {
                       className="text-3xl font-bold"
                       style={{
                         color:
-                          health.score >= 90
+                          systemHealth.score >= 90
                             ? '#10b981'
-                            : health.score >= 75
+                            : systemHealth.score >= 75
                               ? '#3b82f6'
-                              : health.score >= 60
+                              : systemHealth.score >= 60
                                 ? '#f59e0b'
                                 : '#ef4444',
                       }}
                     >
-                      {health.score}
+                      {systemHealth.score}
                     </div>
                     <div className="text-xs text-gray-500">健康分</div>
                   </div>
@@ -390,13 +339,13 @@ export default function AdminDashboard() {
                     <div
                       className="h-full transition-all duration-500"
                       style={{
-                        width: `${health.score}%`,
+                        width: `${systemHealth.score}%`,
                         backgroundColor:
-                          health.score >= 90
+                          systemHealth.score >= 90
                             ? '#10b981'
-                            : health.score >= 75
+                            : systemHealth.score >= 75
                               ? '#3b82f6'
-                              : health.score >= 60
+                              : systemHealth.score >= 60
                                 ? '#f59e0b'
                                 : '#ef4444',
                       }}
@@ -405,10 +354,10 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 问题列表 */}
-                {health.issues.length > 0 && (
+                {systemHealth.issues.length > 0 && (
                   <div className="mt-4 space-y-2">
                     <h4 className="text-sm font-semibold text-gray-900">需要关注的问题：</h4>
-                    {health.issues.map((issue, index) => (
+                    {systemHealth.issues.map((issue, index) => (
                       <div
                         key={index}
                         className="flex items-center gap-2 rounded bg-gray-50 px-3 py-2 text-sm text-gray-700"

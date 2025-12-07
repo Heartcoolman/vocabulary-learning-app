@@ -418,7 +418,7 @@ interface SubmitAnswerParams {
  * 处理与服务器的同步逻辑
  */
 export function useMasterySync(options: UseMasterySyncOptions) {
-  const { getSessionId, getUserId, getQueueManager, onAmasResult, onQueueAdjusted } = options;
+  const { getSessionId, getQueueManager, onAmasResult, onQueueAdjusted } = options;
 
   const sessionCache = useSessionCache();
   const retryQueue = useRetryQueue();
@@ -440,7 +440,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
   const syncAnswerToServer = useCallback(
     async (
       params: SubmitAnswerParams & { pausedTimeMs: number },
-      localDecision: ReturnType<WordQueueManager['recordAnswer']> | null,
+      _localDecision: ReturnType<WordQueueManager['recordAnswer']> | null,
     ) => {
       const sessionId = getSessionId();
       if (!sessionId) return;

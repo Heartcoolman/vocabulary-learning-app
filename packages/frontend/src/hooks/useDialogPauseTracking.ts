@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+
 import { trackingService } from '../services/TrackingService';
 
 /**

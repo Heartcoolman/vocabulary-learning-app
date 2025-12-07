@@ -1,3 +1,4 @@
+import React from 'react';
 import { X, Lightbulb } from './Icon';
 import AmasSuggestion from './AmasSuggestion';
 import { AmasProcessResult } from '../types/amas';
@@ -9,12 +10,12 @@ interface SuggestionModalProps {
   onBreak: () => void;
 }
 
-export default function SuggestionModal({
+const SuggestionModalComponent = ({
   isOpen,
   onClose,
   result,
   onBreak,
-}: SuggestionModalProps) {
+}: SuggestionModalProps) => {
   if (!isOpen || !result) return null;
 
   return (
@@ -52,4 +53,40 @@ export default function SuggestionModal({
       </div>
     </div>
   );
-}
+};
+
+/**
+ * Deep comparison for AmasProcessResult
+ */
+const compareAmasResult = (
+  prev: AmasProcessResult | null,
+  next: AmasProcessResult | null,
+): boolean => {
+  if (prev === null && next === null) return true;
+  if (prev === null || next === null) return false;
+
+  return (
+    prev.suggestion === next.suggestion &&
+    prev.shouldBreak === next.shouldBreak &&
+    prev.reason === next.reason &&
+    prev.metrics?.cognitiveLoad === next.metrics?.cognitiveLoad &&
+    prev.metrics?.fatigueLevel === next.metrics?.fatigueLevel
+  );
+};
+
+/**
+ * Memoized SuggestionModal component
+ */
+const SuggestionModal = React.memo(
+  SuggestionModalComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.isOpen === nextProps.isOpen &&
+      prevProps.onClose === nextProps.onClose &&
+      prevProps.onBreak === nextProps.onBreak &&
+      compareAmasResult(prevProps.result, nextProps.result)
+    );
+  },
+);
+
+export default SuggestionModal;
