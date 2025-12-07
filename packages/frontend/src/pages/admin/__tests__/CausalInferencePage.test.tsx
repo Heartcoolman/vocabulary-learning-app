@@ -7,7 +7,12 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Use vi.hoisted to create mock functions that can be used in vi.mock factories
-const { mockGetCausalATE, mockGetCausalDiagnostics, mockRecordCausalObservation, mockCompareStrategies } = vi.hoisted(() => ({
+const {
+  mockGetCausalATE,
+  mockGetCausalDiagnostics,
+  mockRecordCausalObservation,
+  mockCompareStrategies,
+} = vi.hoisted(() => ({
   mockGetCausalATE: vi.fn(),
   mockGetCausalDiagnostics: vi.fn(),
   mockRecordCausalObservation: vi.fn(),
@@ -37,7 +42,9 @@ vi.mock('../../../services/ApiClient', () => ({
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
   CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
   ),
   Warning: () => <span data-testid="warning-icon">Warning</span>,
   CheckCircle: () => <span data-testid="check-icon">Check</span>,
@@ -84,7 +91,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <CausalInferencePage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 

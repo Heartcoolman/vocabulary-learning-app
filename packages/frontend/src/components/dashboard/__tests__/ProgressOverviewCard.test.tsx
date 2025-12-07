@@ -9,9 +9,21 @@ import type { StudyProgressData } from '../../../hooks/useStudyProgress';
 
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
-  Trophy: ({ className, weight }: any) => <span data-testid="icon-trophy" className={className}>Trophy</span>,
-  Target: ({ className, weight }: any) => <span data-testid="icon-target" className={className}>Target</span>,
-  BookOpen: ({ className, weight }: any) => <span data-testid="icon-book" className={className}>Book</span>,
+  Trophy: ({ className, weight }: any) => (
+    <span data-testid="icon-trophy" className={className}>
+      Trophy
+    </span>
+  ),
+  Target: ({ className, weight }: any) => (
+    <span data-testid="icon-target" className={className}>
+      Target
+    </span>
+  ),
+  BookOpen: ({ className, weight }: any) => (
+    <span data-testid="icon-book" className={className}>
+      Book
+    </span>
+  ),
 }));
 
 describe('ProgressOverviewCard', () => {

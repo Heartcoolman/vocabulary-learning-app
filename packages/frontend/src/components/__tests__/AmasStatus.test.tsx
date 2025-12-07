@@ -396,8 +396,8 @@ describe('AmasStatus', () => {
 
       await waitFor(() => {
         const progressbars = screen.getAllByRole('progressbar');
-        const attentionBar = progressbars.find(bar =>
-          bar.getAttribute('aria-label')?.includes('注意力')
+        const attentionBar = progressbars.find((bar) =>
+          bar.getAttribute('aria-label')?.includes('注意力'),
         );
         expect(attentionBar).toHaveAttribute('aria-valuenow', '80');
         expect(attentionBar).toHaveAttribute('aria-valuemin', '0');

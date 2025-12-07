@@ -27,7 +27,7 @@ function validateWordData(word: Partial<WordImportData>, rowIndex: number): Vali
     errors.push({
       row: rowIndex,
       field: 'spelling',
-      message: '单词拼写不能为空'
+      message: '单词拼写不能为空',
     });
   }
 
@@ -35,7 +35,7 @@ function validateWordData(word: Partial<WordImportData>, rowIndex: number): Vali
     errors.push({
       row: rowIndex,
       field: 'phonetic',
-      message: '音标不能为空'
+      message: '音标不能为空',
     });
   }
 
@@ -43,13 +43,13 @@ function validateWordData(word: Partial<WordImportData>, rowIndex: number): Vali
     errors.push({
       row: rowIndex,
       field: 'meanings',
-      message: '至少需要一个释义'
+      message: '至少需要一个释义',
     });
-  } else if (word.meanings.some(m => typeof m !== 'string' || m.trim() === '')) {
+  } else if (word.meanings.some((m) => typeof m !== 'string' || m.trim() === '')) {
     errors.push({
       row: rowIndex,
       field: 'meanings',
-      message: '释义不能包含空字符串'
+      message: '释义不能包含空字符串',
     });
   }
 
@@ -57,13 +57,13 @@ function validateWordData(word: Partial<WordImportData>, rowIndex: number): Vali
     errors.push({
       row: rowIndex,
       field: 'examples',
-      message: '至少需要一个例句'
+      message: '至少需要一个例句',
     });
-  } else if (word.examples.some(e => typeof e !== 'string' || e.trim() === '')) {
+  } else if (word.examples.some((e) => typeof e !== 'string' || e.trim() === '')) {
     errors.push({
       row: rowIndex,
       field: 'examples',
-      message: '例句不能包含空字符串'
+      message: '例句不能包含空字符串',
     });
   }
 
@@ -71,7 +71,7 @@ function validateWordData(word: Partial<WordImportData>, rowIndex: number): Vali
     errors.push({
       row: rowIndex,
       field: 'audioUrl',
-      message: 'audioUrl必须是字符串'
+      message: 'audioUrl必须是字符串',
     });
   }
 
@@ -97,7 +97,7 @@ export async function parseCSVFile(file: File): Promise<ParseResult> {
           resolve({
             success: false,
             data: [],
-            errors: ['CSV文件为空，没有有效数据']
+            errors: ['CSV文件为空，没有有效数据'],
           });
           return;
         }
@@ -105,11 +105,17 @@ export async function parseCSVFile(file: File): Promise<ParseResult> {
         results.data.forEach((row, index) => {
           try {
             const meanings = row.meanings
-              ? row.meanings.split('|').map(m => m.trim()).filter(m => m.length > 0)
+              ? row.meanings
+                  .split('|')
+                  .map((m) => m.trim())
+                  .filter((m) => m.length > 0)
               : [];
 
             const examples = row.examples
-              ? row.examples.split('|').map(e => e.trim()).filter(e => e.length > 0)
+              ? row.examples
+                  .split('|')
+                  .map((e) => e.trim())
+                  .filter((e) => e.length > 0)
               : [];
 
             const word: WordImportData = {
@@ -117,7 +123,7 @@ export async function parseCSVFile(file: File): Promise<ParseResult> {
               phonetic: row.phonetic?.trim() || '',
               meanings,
               examples,
-              audioUrl: row.audioUrl?.trim() || undefined
+              audioUrl: row.audioUrl?.trim() || undefined,
             };
 
             const rowErrors = validateWordData(word, index + 2);
@@ -127,35 +133,39 @@ export async function parseCSVFile(file: File): Promise<ParseResult> {
               data.push(word);
             }
           } catch (error) {
-            errors.push(`第 ${index + 2} 行解析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            errors.push(
+              `第 ${index + 2} 行解析失败: ${error instanceof Error ? error.message : '未知错误'}`,
+            );
           }
         });
 
         if (validationErrors.length > 0) {
-          validationErrors.forEach(err => {
+          validationErrors.forEach((err) => {
             errors.push(`第 ${err.row} 行，字段 "${err.field}": ${err.message}`);
           });
         }
 
         if (results.errors && results.errors.length > 0) {
-          results.errors.forEach(err => {
-            errors.push(`CSV解析错误 (第 ${err.row !== undefined ? err.row + 1 : '?'} 行): ${err.message}`);
+          results.errors.forEach((err) => {
+            errors.push(
+              `CSV解析错误 (第 ${err.row !== undefined ? err.row + 1 : '?'} 行): ${err.message}`,
+            );
           });
         }
 
         resolve({
           success: errors.length === 0,
           data,
-          errors
+          errors,
         });
       },
       error: (error) => {
         resolve({
           success: false,
           data: [],
-          errors: [`CSV解析失败: ${error.message}`]
+          errors: [`CSV解析失败: ${error.message}`],
         });
-      }
+      },
     });
   });
 }
@@ -173,7 +183,7 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
           resolve({
             success: false,
             data: [],
-            errors: ['JSON文件必须是数组格式']
+            errors: ['JSON文件必须是数组格式'],
           });
           return;
         }
@@ -182,7 +192,7 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
           resolve({
             success: false,
             data: [],
-            errors: ['JSON文件为空，没有有效数据']
+            errors: ['JSON文件为空，没有有效数据'],
           });
           return;
         }
@@ -194,11 +204,15 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
         parsed.forEach((item, index) => {
           try {
             const meanings = Array.isArray(item.meanings)
-              ? item.meanings.map((m: unknown) => typeof m === 'string' ? m.trim() : String(m)).filter((m: string) => m.length > 0)
+              ? item.meanings
+                  .map((m: unknown) => (typeof m === 'string' ? m.trim() : String(m)))
+                  .filter((m: string) => m.length > 0)
               : [];
 
             const examples = Array.isArray(item.examples)
-              ? item.examples.map((e: unknown) => typeof e === 'string' ? e.trim() : String(e)).filter((e: string) => e.length > 0)
+              ? item.examples
+                  .map((e: unknown) => (typeof e === 'string' ? e.trim() : String(e)))
+                  .filter((e: string) => e.length > 0)
               : [];
 
             let audioUrl: string | undefined = undefined;
@@ -213,7 +227,7 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
               phonetic: item.phonetic?.trim() || '',
               meanings,
               examples,
-              audioUrl
+              audioUrl,
             };
 
             const rowErrors = validateWordData(word, index + 1);
@@ -223,12 +237,14 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
               data.push(word);
             }
           } catch (error) {
-            errors.push(`第 ${index + 1} 项解析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            errors.push(
+              `第 ${index + 1} 项解析失败: ${error instanceof Error ? error.message : '未知错误'}`,
+            );
           }
         });
 
         if (validationErrors.length > 0) {
-          validationErrors.forEach(err => {
+          validationErrors.forEach((err) => {
             errors.push(`第 ${err.row} 项，字段 "${err.field}": ${err.message}`);
           });
         }
@@ -236,13 +252,13 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
         resolve({
           success: errors.length === 0,
           data,
-          errors
+          errors,
         });
       } catch (error) {
         resolve({
           success: false,
           data: [],
-          errors: [`JSON解析失败: ${error instanceof Error ? error.message : '未知错误'}`]
+          errors: [`JSON解析失败: ${error instanceof Error ? error.message : '未知错误'}`],
         });
       }
     };
@@ -251,7 +267,7 @@ export async function parseJSONFile(file: File): Promise<ParseResult> {
       resolve({
         success: false,
         data: [],
-        errors: ['文件读取失败']
+        errors: ['文件读取失败'],
       });
     };
 
@@ -271,7 +287,7 @@ export async function parseImportFile(file: File): Promise<ParseResult> {
       return {
         success: false,
         data: [],
-        errors: [`不支持的文件格式: ${extension}`]
+        errors: [`不支持的文件格式: ${extension}`],
       };
   }
 }

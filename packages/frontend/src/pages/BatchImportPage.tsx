@@ -8,7 +8,7 @@ import {
   FileText,
   CircleNotch,
   BookOpen,
-  X
+  X,
 } from '../components/Icon';
 import apiClient from '../services/ApiClient';
 import { FileUpload } from '../components';
@@ -20,7 +20,7 @@ const STEPS = [
   { id: 1, name: '选择词书' },
   { id: 2, name: '上传文件' },
   { id: 3, name: '预览确认' },
-  { id: 4, name: '导入结果' }
+  { id: 4, name: '导入结果' },
 ];
 
 export default function BatchImportPage() {
@@ -95,7 +95,7 @@ export default function BatchImportPage() {
       setFailedCount(result.failed);
 
       if (result.errors && result.errors.length > 0) {
-        setValidationErrors(prev => [...prev, ...result.errors!]);
+        setValidationErrors((prev) => [...prev, ...result.errors!]);
       }
 
       setCurrentStep(4);
@@ -118,8 +118,8 @@ export default function BatchImportPage() {
   };
 
   const renderStepIndicator = () => (
-    <div className="w-full py-6 px-4 bg-white border-b border-gray-200 mb-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="mb-8 w-full border-b border-gray-200 bg-white px-4 py-6">
+      <div className="mx-auto max-w-4xl">
         <nav aria-label="Progress">
           <ol className="flex items-center">
             {STEPS.map((step, index) => {
@@ -127,29 +127,39 @@ export default function BatchImportPage() {
               const isCurrent = currentStep === step.id;
 
               return (
-                <li key={step.name} className={`relative ${index !== STEPS.length - 1 ? 'pr-8 sm:pr-20 w-full' : ''}`}>
+                <li
+                  key={step.name}
+                  className={`relative ${index !== STEPS.length - 1 ? 'w-full pr-8 sm:pr-20' : ''}`}
+                >
                   <div className="flex items-center">
                     <div
-                      className={`
-                        relative flex h-8 w-8 items-center justify-center rounded-full border-2
-                        ${isCompleted ? 'bg-blue-600 border-blue-600' : isCurrent ? 'border-blue-600 bg-white' : 'border-gray-300 bg-white'}
-                      `}
+                      className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 ${isCompleted ? 'border-blue-600 bg-blue-600' : isCurrent ? 'border-blue-600 bg-white' : 'border-gray-300 bg-white'} `}
                     >
                       {isCompleted ? (
-                        <CheckCircle className="h-5 w-5 text-white" weight="fill" aria-hidden="true" />
+                        <CheckCircle
+                          className="h-5 w-5 text-white"
+                          weight="fill"
+                          aria-hidden="true"
+                        />
                       ) : (
-                        <span className={`text-sm font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-500'}`}>
+                        <span
+                          className={`text-sm font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-500'}`}
+                        >
                           {step.id}
                         </span>
                       )}
                     </div>
-                    <span className={`ml-3 text-sm font-medium ${isCurrent ? 'text-blue-600' : 'text-gray-500'} hidden sm:block`}>
+                    <span
+                      className={`ml-3 text-sm font-medium ${isCurrent ? 'text-blue-600' : 'text-gray-500'} hidden sm:block`}
+                    >
                       {step.name}
                     </span>
 
                     {index !== STEPS.length - 1 && (
-                      <div className="absolute top-4 left-0 w-full pl-14 -ml-2 lg:pl-20">
-                         <div className={`h-0.5 w-full ${isCompleted ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                      <div className="absolute left-0 top-4 -ml-2 w-full pl-14 lg:pl-20">
+                        <div
+                          className={`h-0.5 w-full ${isCompleted ? 'bg-blue-600' : 'bg-gray-200'}`}
+                        />
                       </div>
                     )}
                   </div>
@@ -163,13 +173,13 @@ export default function BatchImportPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <header className="sticky top-0 z-10 bg-white shadow-sm">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+              className="rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100"
               aria-label="Go back"
             >
               <ArrowLeft size={20} weight="bold" />
@@ -181,39 +191,46 @@ export default function BatchImportPage() {
 
       {renderStepIndicator()}
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 pb-12">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px] flex flex-col">
-
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 pb-12">
+        <div className="flex min-h-[500px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           {currentStep === 1 && (
-            <div className="p-8 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="text-center mb-4">
-                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <BookOpen className="w-8 h-8 text-blue-600" weight="bold" />
+            <div className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-6 p-8 duration-300">
+              <div className="mb-4 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+                  <BookOpen className="h-8 w-8 text-blue-600" weight="bold" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">选择目标词书</h2>
-                <p className="text-gray-500 mt-2">请选择您要将单词导入到哪个词书中</p>
+                <p className="mt-2 text-gray-500">请选择您要将单词导入到哪个词书中</p>
               </div>
 
               {isLoading ? (
                 <div className="flex justify-center py-12">
-                  <CircleNotch className="w-8 h-8 text-blue-500 animate-spin" weight="bold" />
+                  <CircleNotch className="h-8 w-8 animate-spin text-blue-500" weight="bold" />
                 </div>
               ) : importError ? (
-                <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-red-700 text-center">
+                <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-center text-red-700">
                   {importError}
-                  <button onClick={() => window.location.reload()} className="block mx-auto mt-2 text-sm underline">重试</button>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mx-auto mt-2 block text-sm underline"
+                  >
+                    重试
+                  </button>
                 </div>
               ) : (
-                <div className="max-w-md mx-auto w-full space-y-6">
+                <div className="mx-auto w-full max-w-md space-y-6">
                   <div>
-                    <label htmlFor="wordbook-select" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="wordbook-select"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
                       目标词书
                     </label>
                     <select
                       id="wordbook-select"
                       value={selectedBookId}
                       onChange={(e) => setSelectedBookId(e.target.value)}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-3"
+                      className="block w-full rounded-lg border-gray-300 py-3 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                     >
                       {wordBooks.map((book) => (
                         <option key={book.id} value={book.id}>
@@ -229,7 +246,7 @@ export default function BatchImportPage() {
                   <button
                     onClick={() => setCurrentStep(2)}
                     disabled={!selectedBookId}
-                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex w-full justify-center rounded-lg border border-transparent bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     下一步
                   </button>
@@ -239,38 +256,34 @@ export default function BatchImportPage() {
           )}
 
           {currentStep === 2 && (
-            <div className="p-8 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="text-center mb-2">
-                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <UploadSimple className="w-8 h-8 text-blue-600" weight="bold" />
+            <div className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-6 p-8 duration-300">
+              <div className="mb-2 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+                  <UploadSimple className="h-8 w-8 text-blue-600" weight="bold" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">上传数据文件</h2>
-                <p className="text-gray-500 mt-2">支持 CSV 或 JSON 格式的数据文件</p>
+                <p className="mt-2 text-gray-500">支持 CSV 或 JSON 格式的数据文件</p>
               </div>
 
-              <div className="max-w-xl mx-auto w-full space-y-6">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
-                  <p className="font-semibold flex items-center gap-2 mb-2">
+              <div className="mx-auto w-full max-w-xl space-y-6">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+                  <p className="mb-2 flex items-center gap-2 font-semibold">
                     <FileText size={16} weight="bold" />
                     文件格式要求:
                   </p>
-                  <ul className="list-disc list-inside space-y-1 ml-1 opacity-90">
+                  <ul className="ml-1 list-inside list-disc space-y-1 opacity-90">
                     <li>必需字段: spelling, phonetic, meanings, examples</li>
                     <li>CSV格式: 使用竖线 "|" 分隔多个释义或例句</li>
                     <li>最大文件大小: 5MB</li>
                   </ul>
                 </div>
 
-                <FileUpload
-                  onFileSelect={handleFileSelect}
-                  accept=".csv,.json"
-                  maxSizeMB={5}
-                />
+                <FileUpload onFileSelect={handleFileSelect} accept=".csv,.json" maxSizeMB={5} />
 
                 <div className="flex justify-between pt-4">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
                   >
                     上一步
                   </button>
@@ -280,8 +293,8 @@ export default function BatchImportPage() {
           )}
 
           {currentStep === 3 && (
-            <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div className="animate-in fade-in slide-in-from-right-4 flex h-full flex-col duration-300">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 p-6">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">预览数据</h2>
                   <p className="text-sm text-gray-500">
@@ -296,7 +309,7 @@ export default function BatchImportPage() {
                     setValidationErrors([]);
                     setCurrentStep(2);
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
                 >
                   重新上传
                 </button>
@@ -304,12 +317,14 @@ export default function BatchImportPage() {
 
               <div className="flex-1 overflow-y-auto p-6">
                 {validationErrors.length > 0 ? (
-                  <div className="bg-red-50 border border-red-100 rounded-lg p-6 text-center">
-                    <WarningCircle className="w-12 h-12 text-red-500 mx-auto mb-4" weight="bold" />
-                    <h3 className="text-lg font-medium text-red-900 mb-2">数据校验失败</h3>
-                    <p className="text-red-600 mb-4">发现 {validationErrors.length} 个错误，请修正后重新上传</p>
-                    <div className="text-left bg-white rounded border border-red-200 p-4 max-h-60 overflow-y-auto">
-                      <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                  <div className="rounded-lg border border-red-100 bg-red-50 p-6 text-center">
+                    <WarningCircle className="mx-auto mb-4 h-12 w-12 text-red-500" weight="bold" />
+                    <h3 className="mb-2 text-lg font-medium text-red-900">数据校验失败</h3>
+                    <p className="mb-4 text-red-600">
+                      发现 {validationErrors.length} 个错误，请修正后重新上传
+                    </p>
+                    <div className="max-h-60 overflow-y-auto rounded border border-red-200 bg-white p-4 text-left">
+                      <ul className="list-inside list-disc space-y-1 text-sm text-red-700">
                         {validationErrors.map((err, idx) => (
                           <li key={idx}>{err}</li>
                         ))}
@@ -317,28 +332,34 @@ export default function BatchImportPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
+                  <div className="overflow-hidden rounded-lg border border-gray-200">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-700">
                         <tr>
-                          <th className="px-4 py-3 w-1/4">拼写</th>
-                          <th className="px-4 py-3 w-1/4">音标</th>
+                          <th className="w-1/4 px-4 py-3">拼写</th>
+                          <th className="w-1/4 px-4 py-3">音标</th>
                           <th className="px-4 py-3">释义</th>
-                          <th className="px-4 py-3 hidden sm:table-cell">例句</th>
+                          <th className="hidden px-4 py-3 sm:table-cell">例句</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
                         {parsedData.slice(0, 5).map((word, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium text-gray-900">{word.spelling}</td>
-                            <td className="px-4 py-3 text-gray-500 font-mono">{word.phonetic}</td>
+                            <td className="px-4 py-3 font-mono text-gray-500">{word.phonetic}</td>
                             <td className="px-4 py-3 text-gray-600">
-                              <div className="truncate max-w-[150px]" title={word.meanings.join(', ')}>
+                              <div
+                                className="max-w-[150px] truncate"
+                                title={word.meanings.join(', ')}
+                              >
                                 {word.meanings.join(', ')}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
-                              <div className="truncate max-w-[200px]" title={word.examples.join(' | ')}>
+                            <td className="hidden px-4 py-3 text-gray-500 sm:table-cell">
+                              <div
+                                className="max-w-[200px] truncate"
+                                title={word.examples.join(' | ')}
+                              >
                                 {word.examples[0]}
                               </div>
                             </td>
@@ -347,7 +368,7 @@ export default function BatchImportPage() {
                       </tbody>
                     </table>
                     {parsedData.length > 5 && (
-                      <div className="bg-gray-50 px-4 py-3 text-sm text-center text-gray-500 border-t border-gray-200 font-medium">
+                      <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 text-center text-sm font-medium text-gray-500">
                         还有 {parsedData.length - 5} 条数据未显示...
                       </div>
                     )}
@@ -355,19 +376,19 @@ export default function BatchImportPage() {
                 )}
               </div>
 
-              <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-white">
+              <div className="flex justify-end gap-3 border-t border-gray-100 bg-white p-6">
                 <button
                   onClick={() => setCurrentStep(2)}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   上一步
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={validationErrors.length > 0 || parsedData.length === 0 || isLoading}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm"
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isLoading && <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />}
+                  {isLoading && <CircleNotch className="h-4 w-4 animate-spin" weight="bold" />}
                   {isLoading ? '导入中...' : '确认导入'}
                 </button>
               </div>
@@ -375,35 +396,36 @@ export default function BatchImportPage() {
           )}
 
           {currentStep === 4 && (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="animate-in fade-in slide-in-from-bottom-4 flex h-full flex-col items-center justify-center p-8 text-center duration-300">
               {importError ? (
-                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
-                  <X className="w-10 h-10 text-red-600" weight="bold" />
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
+                  <X className="h-10 w-10 text-red-600" weight="bold" />
                 </div>
               ) : failedCount === 0 ? (
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                  <CheckCircle className="w-10 h-10 text-green-600" weight="bold" />
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle className="h-10 w-10 text-green-600" weight="bold" />
                 </div>
               ) : (
-                <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
-                  <WarningCircle className="w-10 h-10 text-amber-600" weight="bold" />
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+                  <WarningCircle className="h-10 w-10 text-amber-600" weight="bold" />
                 </div>
               )}
 
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="mb-2 text-3xl font-bold text-gray-900">
                 {importError ? '导入失败' : failedCount === 0 ? '导入成功' : '部分导入完成'}
               </h2>
 
               {importError ? (
-                <p className="text-red-600 max-w-md mb-8">{importError}</p>
+                <p className="mb-8 max-w-md text-red-600">{importError}</p>
               ) : (
                 <div className="mb-8 space-y-2">
                   <p className="text-gray-600">
-                    成功导入 <span className="font-bold text-green-600 text-lg">{importedCount}</span> 个单词
+                    成功导入{' '}
+                    <span className="text-lg font-bold text-green-600">{importedCount}</span> 个单词
                   </p>
                   {failedCount > 0 && (
                     <p className="text-gray-600">
-                      失败 <span className="font-bold text-red-600 text-lg">{failedCount}</span> 个
+                      失败 <span className="text-lg font-bold text-red-600">{failedCount}</span> 个
                     </p>
                   )}
                 </div>
@@ -412,20 +434,19 @@ export default function BatchImportPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handleReset}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors min-w-[120px]"
+                  className="min-w-[120px] rounded-lg border border-gray-300 px-6 py-3 text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   继续导入
                 </button>
                 <button
                   onClick={() => navigate(-1)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors min-w-[120px] shadow-sm"
+                  className="min-w-[120px] rounded-lg bg-blue-600 px-6 py-3 text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
                   返回列表
                 </button>
               </div>
             </div>
           )}
-
         </div>
       </main>
     </div>

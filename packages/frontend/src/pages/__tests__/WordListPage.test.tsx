@@ -303,9 +303,12 @@ describe('WordListPage', () => {
       const searchInput = screen.getByPlaceholderText('搜索单词...');
       await user.type(searchInput, 'nonexistent');
 
-      await waitFor(() => {
-        expect(screen.getByText('没有找到符合条件的单词')).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('没有找到符合条件的单词')).toBeInTheDocument();
+        },
+        { timeout: 5000 },
+      );
     });
   });
 });

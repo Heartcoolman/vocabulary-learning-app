@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
 import apiClient, { User } from '../services/ApiClient';
 import StorageService from '../services/StorageService';
 import { authLogger } from '../utils/logger';
@@ -31,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 加载用户信息
    */
-  const loadUser = async (isMounted: () => boolean) => {
+  const loadUser = useCallback(async (isMounted: () => boolean) => {
     try {
       const token = apiClient.getToken();
       if (!token) {
@@ -56,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       if (isMounted()) setLoading(false);
     }
-  };
+  }, []);
 
   // 初始化和 401 处理
   useEffect(() => {
@@ -81,12 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       apiClient.setOnUnauthorized(null);
     };
-  }, []);
+  }, [loadUser]);
 
   /**
    * 用户登录
    */
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       const { user: userData, token } = await apiClient.login(email, password);
       if (!token) {
@@ -100,12 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLogger.error({ err: error, email }, '用户登录失败');
       throw error;
     }
-  };
+  }, []);
 
   /**
    * 用户注册
    */
-  const register = async (email: string, password: string, username: string) => {
+  const register = useCallback(async (email: string, password: string, username: string) => {
     try {
       const { user: userData, token } = await apiClient.register(email, password, username);
       if (!token) {
@@ -119,12 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLogger.error({ err: error, email, username }, '用户注册失败');
       throw error;
     }
-  };
+  }, []);
 
   /**
    * 用户退出登录
    */
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiClient.logout();
     } catch (error) {
@@ -135,25 +143,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await StorageService.setCurrentUser(null);
       await StorageService.clearLocalData();
     }
-  };
+  }, []);
 
   /**
    * 刷新用户信息
    */
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     // refreshUser 是主动调用，组件必然已挂载，直接传入返回 true 的函数
     await loadUser(() => true);
-  };
+  }, [loadUser]);
 
-  const value: AuthContextType = {
-    user,
-    isAuthenticated: !!user,
-    loading,
-    login,
-    register,
-    logout,
-    refreshUser,
-  };
+  const value: AuthContextType = useMemo(
+    () => ({
+      user,
+      isAuthenticated: !!user,
+      loading,
+      login,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [user, loading, login, register, logout, refreshUser],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

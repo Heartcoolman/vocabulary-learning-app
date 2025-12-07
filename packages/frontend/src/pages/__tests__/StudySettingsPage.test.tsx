@@ -88,7 +88,7 @@ describe('StudySettingsPage', () => {
     return render(
       <MemoryRouter>
         <StudySettingsPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

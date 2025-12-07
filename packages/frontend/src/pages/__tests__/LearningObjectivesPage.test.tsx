@@ -192,10 +192,13 @@ describe('LearningObjectivesPage', () => {
 
       render(<LearningObjectivesPage />);
 
-      await waitFor(() => {
-        // Component shows '无法加载配置' on error
-        expect(screen.getByText('无法加载配置')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          // Component shows '无法加载配置' on error
+          expect(screen.getByText('无法加载配置')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should show error when mode switch fails', async () => {

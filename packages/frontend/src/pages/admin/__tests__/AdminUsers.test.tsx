@@ -10,7 +10,13 @@ import AdminUsers from '../AdminUsers';
 
 const mockUsers = [
   { id: 'u1', username: 'user1', email: 'user1@test.com', role: 'USER', createdAt: '2024-01-01' },
-  { id: 'u2', username: 'admin1', email: 'admin1@test.com', role: 'ADMIN', createdAt: '2024-01-02' },
+  {
+    id: 'u2',
+    username: 'admin1',
+    email: 'admin1@test.com',
+    role: 'ADMIN',
+    createdAt: '2024-01-02',
+  },
 ];
 
 const mockPagination = {
@@ -24,8 +30,20 @@ vi.mock('@/services/ApiClient', () => ({
   default: {
     adminGetUsers: vi.fn().mockResolvedValue({
       users: [
-        { id: 'u1', username: 'user1', email: 'user1@test.com', role: 'USER', createdAt: '2024-01-01' },
-        { id: 'u2', username: 'admin1', email: 'admin1@test.com', role: 'ADMIN', createdAt: '2024-01-02' },
+        {
+          id: 'u1',
+          username: 'user1',
+          email: 'user1@test.com',
+          role: 'USER',
+          createdAt: '2024-01-01',
+        },
+        {
+          id: 'u2',
+          username: 'admin1',
+          email: 'admin1@test.com',
+          role: 'ADMIN',
+          createdAt: '2024-01-02',
+        },
       ],
       pagination: { total: 2, page: 1, pageSize: 20, totalPages: 1 },
     }),
@@ -44,7 +62,13 @@ vi.mock('@/components/ui', () => ({
     showToast: vi.fn(),
   }),
   ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+    isOpen ? (
+      <div data-testid="confirm-modal">
+        {children}
+        <button onClick={onConfirm}>确认</button>
+        <button onClick={onCancel}>取消</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/Icon', async () => {
@@ -52,7 +76,9 @@ vi.mock('@/components/Icon', async () => {
   return {
     ...actual,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });
@@ -61,7 +87,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <AdminUsers />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -140,7 +166,7 @@ describe('AdminUsers', () => {
 
       await waitFor(() => {
         expect(apiClient.adminGetUsers).toHaveBeenCalledWith(
-          expect.objectContaining({ search: 'test', page: 1 })
+          expect.objectContaining({ search: 'test', page: 1 }),
         );
       });
     });

@@ -9,19 +9,25 @@ interface DecisionFactorsProps {
 const DecisionFactors: React.FC<DecisionFactorsProps> = ({ factors }) => {
   const getIcon = (iconName: string) => {
     switch (iconName) {
-      case 'memory': return <Brain className="w-5 h-5" />;
-      case 'difficulty': return <Target className="w-5 h-5" />;
-      case 'time': return <Clock className="w-5 h-5" />;
-      case 'risk': return <Lightning className="w-5 h-5" />;
-      case 'rhythm': return <ChartLine className="w-5 h-5" />;
-      default: return <Info className="w-5 h-5" />;
+      case 'memory':
+        return <Brain className="h-5 w-5" />;
+      case 'difficulty':
+        return <Target className="h-5 w-5" />;
+      case 'time':
+        return <Clock className="h-5 w-5" />;
+      case 'risk':
+        return <Lightning className="h-5 w-5" />;
+      case 'rhythm':
+        return <ChartLine className="h-5 w-5" />;
+      default:
+        return <Info className="h-5 w-5" />;
     }
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-        <Brain className="w-6 h-6 text-indigo-500" />
+    <div className="animate-fade-in space-y-4">
+      <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
+        <Brain className="h-6 w-6 text-indigo-500" />
         决策因素解析
       </h3>
 
@@ -29,36 +35,34 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = ({ factors }) => {
         {factors.map((factor, index) => (
           <div
             key={index}
-            className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
+            className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
           >
             <div className="flex items-start gap-4">
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                 {getIcon(factor.icon)}
               </div>
 
               <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                    {factor.name}
-                  </h4>
-                  <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                <div className="mb-1 flex items-center justify-between">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">{factor.name}</h4>
+                  <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
                     权重: {(factor.weight * 100).toFixed(0)}%
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="mb-2 flex items-center gap-3">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                     <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                       style={{ width: `${factor.score * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 min-w-[3ch]">
+                  <span className="min-w-[3ch] text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                     {(factor.score * 100).toFixed(0)}
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                   {factor.explanation}
                 </p>
               </div>

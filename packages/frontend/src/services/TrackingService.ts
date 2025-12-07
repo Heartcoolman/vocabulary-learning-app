@@ -15,14 +15,14 @@ import { trackingLogger } from '../utils/logger';
  * 埋点事件类型
  */
 export type TrackingEventType =
-  | 'pronunciation_click'     // 发音按钮点击
-  | 'learning_pause'          // 学习暂停
-  | 'learning_resume'         // 学习恢复
-  | 'page_switch'            // 页面切换
-  | 'task_switch'            // 任务切换
-  | 'interaction'            // 一般交互事件
-  | 'session_start'          // 会话开始
-  | 'session_end';           // 会话结束
+  | 'pronunciation_click' // 发音按钮点击
+  | 'learning_pause' // 学习暂停
+  | 'learning_resume' // 学习恢复
+  | 'page_switch' // 页面切换
+  | 'task_switch' // 任务切换
+  | 'interaction' // 一般交互事件
+  | 'session_start' // 会话开始
+  | 'session_end'; // 会话结束
 
 /**
  * 埋点事件数据
@@ -375,17 +375,14 @@ class TrackingService {
         return;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(batch),
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(batch),
+      });
 
       if (!response.ok) {
         // 上报失败，将事件放回队列
@@ -427,7 +424,7 @@ class TrackingService {
       const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
       navigator.sendBeacon(
         `${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}?token=${token}`,
-        blob
+        blob,
       );
     }
   }

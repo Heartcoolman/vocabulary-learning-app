@@ -67,13 +67,29 @@ vi.mock('@/services/ApiClient', () => ({
       words: [
         {
           word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: [] },
-          score: 85, accuracy: 0.9, reviewCount: 10, masteryLevel: 4,
-          lastReviewDate: '2024-01-15', nextReviewDate: '2024-01-20', state: 'reviewing'
+          score: 85,
+          accuracy: 0.9,
+          reviewCount: 10,
+          masteryLevel: 4,
+          lastReviewDate: '2024-01-15',
+          nextReviewDate: '2024-01-20',
+          state: 'reviewing',
         },
         {
-          word: { id: 'w2', spelling: 'banana', phonetic: 'bəˈnænə', meanings: ['香蕉'], examples: [] },
-          score: 60, accuracy: 0.7, reviewCount: 5, masteryLevel: 2,
-          lastReviewDate: '2024-01-14', nextReviewDate: '2024-01-18', state: 'learning'
+          word: {
+            id: 'w2',
+            spelling: 'banana',
+            phonetic: 'bəˈnænə',
+            meanings: ['香蕉'],
+            examples: [],
+          },
+          score: 60,
+          accuracy: 0.7,
+          reviewCount: 5,
+          masteryLevel: 2,
+          lastReviewDate: '2024-01-14',
+          nextReviewDate: '2024-01-18',
+          state: 'learning',
         },
       ],
       pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
@@ -138,7 +154,7 @@ const renderWithRouter = () => {
       <Routes>
         <Route path="/admin/users/:userId" element={<UserDetailPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -176,18 +192,24 @@ describe('UserDetailPage', () => {
     it('should display accuracy rate', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText(/85\.0%/)).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/85\.0%/)).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should display streak days', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        // consecutiveDays is 7
-        expect(screen.getByText('7')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          // consecutiveDays is 7
+          expect(screen.getByText('7')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 
@@ -225,9 +247,12 @@ describe('UserDetailPage', () => {
     it('should switch to AMAS decisions tab', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('testuser')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('testuser')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Tab text is "决策分析" not "AMAS"
       const decisionsTab = screen.getByText(/决策分析/);
@@ -244,9 +269,12 @@ describe('UserDetailPage', () => {
       const apiClient = (await import('@/services/ApiClient')).default;
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('testuser')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('testuser')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Button text is "导出CSV" (direct button, no dropdown)
       const exportButton = screen.getByText('导出CSV');
@@ -265,11 +293,14 @@ describe('UserDetailPage', () => {
 
       renderWithRouter();
 
-      await waitFor(() => {
-        // Error page shows "加载失败" as title and the error message
-        expect(screen.getByText('加载失败')).toBeInTheDocument();
-        expect(screen.getByText('网络错误')).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          // Error page shows "加载失败" as title and the error message
+          expect(screen.getByText('加载失败')).toBeInTheDocument();
+          expect(screen.getByText('网络错误')).toBeInTheDocument();
+        },
+        { timeout: 5000 },
+      );
     });
   });
 
@@ -278,7 +309,13 @@ describe('UserDetailPage', () => {
       // 重新设置正确的 mock（因为上一个测试修改了它）
       const apiClient = (await import('@/services/ApiClient')).default;
       vi.mocked(apiClient.adminGetUserStatistics).mockResolvedValue({
-        user: { id: 'u1', username: 'testuser', email: 'test@test.com', role: 'USER', createdAt: '2024-01-01' },
+        user: {
+          id: 'u1',
+          username: 'testuser',
+          email: 'test@test.com',
+          role: 'USER',
+          createdAt: '2024-01-01',
+        },
         totalWordsLearned: 100,
         masteredWords: 50,
         learningWords: 30,
@@ -304,9 +341,12 @@ describe('UserDetailPage', () => {
       renderWithRouter();
 
       // 等待用户名加载后，返回按钮应该可见
-      await waitFor(() => {
-        expect(screen.getByText('testuser')).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('testuser')).toBeInTheDocument();
+        },
+        { timeout: 5000 },
+      );
 
       // 返回按钮文本是"返回用户列表"
       expect(screen.getByText('返回用户列表')).toBeInTheDocument();

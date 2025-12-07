@@ -129,7 +129,7 @@ export async function getSuggestion(id: string): Promise<StoredSuggestion> {
 export async function approveSuggestion(
   id: string,
   selectedItems: string[],
-  notes?: string
+  notes?: string,
 ): Promise<StoredSuggestion> {
   return apiClient.approveLLMAdvisorSuggestion(id, selectedItems, notes);
 }
@@ -137,10 +137,7 @@ export async function approveSuggestion(
 /**
  * 拒绝建议
  */
-export async function rejectSuggestion(
-  id: string,
-  notes?: string
-): Promise<StoredSuggestion> {
+export async function rejectSuggestion(id: string, notes?: string): Promise<StoredSuggestion> {
   return apiClient.rejectLLMAdvisorSuggestion(id, notes);
 }
 

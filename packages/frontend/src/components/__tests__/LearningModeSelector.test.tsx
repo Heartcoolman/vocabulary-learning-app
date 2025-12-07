@@ -215,8 +215,8 @@ describe('LearningModeSelector', () => {
 
       // Click on current mode button
       const modeButtons = screen.getAllByRole('button');
-      const standardButton = modeButtons.find(btn =>
-        btn.textContent?.includes('标准模式') && btn.textContent?.includes('当前')
+      const standardButton = modeButtons.find(
+        (btn) => btn.textContent?.includes('标准模式') && btn.textContent?.includes('当前'),
       );
       if (standardButton) {
         fireEvent.click(standardButton);
@@ -242,9 +242,9 @@ describe('LearningModeSelector', () => {
         expect(screen.getByText('冲刺模式')).toBeInTheDocument();
       });
 
-      const cramButton = screen.getAllByRole('button').find(btn =>
-        btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前')
-      );
+      const cramButton = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前'));
       if (cramButton) {
         fireEvent.click(cramButton);
       }
@@ -255,7 +255,9 @@ describe('LearningModeSelector', () => {
     });
 
     it('should show error toast when update fails', async () => {
-      vi.mocked(mockApiClient.updateUserRewardProfile).mockRejectedValue(new Error('Update failed'));
+      vi.mocked(mockApiClient.updateUserRewardProfile).mockRejectedValue(
+        new Error('Update failed'),
+      );
 
       render(<LearningModeSelector />);
 
@@ -270,9 +272,9 @@ describe('LearningModeSelector', () => {
         expect(screen.getByText('冲刺模式')).toBeInTheDocument();
       });
 
-      const cramButton = screen.getAllByRole('button').find(btn =>
-        btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前')
-      );
+      const cramButton = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前'));
       if (cramButton) {
         fireEvent.click(cramButton);
       }
@@ -298,9 +300,9 @@ describe('LearningModeSelector', () => {
         expect(screen.getByText('休闲模式')).toBeInTheDocument();
       });
 
-      const relaxedButton = screen.getAllByRole('button').find(btn =>
-        btn.textContent?.includes('休闲模式')
-      );
+      const relaxedButton = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.includes('休闲模式'));
       if (relaxedButton) {
         fireEvent.click(relaxedButton);
       }
@@ -314,7 +316,10 @@ describe('LearningModeSelector', () => {
       // Create a promise that we control
       let resolveUpdate: () => void;
       vi.mocked(mockApiClient.updateUserRewardProfile).mockImplementation(
-        () => new Promise(resolve => { resolveUpdate = () => resolve({}); })
+        () =>
+          new Promise((resolve) => {
+            resolveUpdate = () => resolve({});
+          }),
       );
 
       render(<LearningModeSelector />);
@@ -334,9 +339,9 @@ describe('LearningModeSelector', () => {
       });
 
       // Click on cram mode
-      const cramButton = screen.getAllByRole('button').find(btn =>
-        btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前')
-      );
+      const cramButton = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.includes('冲刺模式') && !btn.textContent?.includes('当前'));
       if (cramButton) {
         fireEvent.click(cramButton);
       }

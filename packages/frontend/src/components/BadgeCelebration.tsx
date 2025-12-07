@@ -1,13 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from '../types/amas-enhanced';
-import {
-  Confetti,
-  Star,
-  Trophy,
-  Medal,
-  X
-} from './Icon';
+import { Confetti, Star, Trophy, Medal, X } from './Icon';
 import {
   backdropVariants,
   celebrationVariants,
@@ -50,7 +44,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
         color: ['#f59e0b', '#3b82f6', '#22c55e', '#a855f7', '#ef4444'][i % 5],
         delay: Math.random() * 0.3,
       })),
-    []
+    [],
   );
 
   // 根据徽章类别获取图标
@@ -73,17 +67,47 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
   const getTierColor = () => {
     switch (badge.tier) {
       case 1:
-        return { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-700', icon: '#d97706' };
+        return {
+          bg: 'bg-amber-100',
+          border: 'border-amber-400',
+          text: 'text-amber-700',
+          icon: '#d97706',
+        };
       case 2:
-        return { bg: 'bg-gray-100', border: 'border-gray-400', text: 'text-gray-700', icon: '#6b7280' };
+        return {
+          bg: 'bg-gray-100',
+          border: 'border-gray-400',
+          text: 'text-gray-700',
+          icon: '#6b7280',
+        };
       case 3:
-        return { bg: 'bg-yellow-100', border: 'border-yellow-400', text: 'text-yellow-700', icon: '#ca8a04' };
+        return {
+          bg: 'bg-yellow-100',
+          border: 'border-yellow-400',
+          text: 'text-yellow-700',
+          icon: '#ca8a04',
+        };
       case 4:
-        return { bg: 'bg-cyan-100', border: 'border-cyan-400', text: 'text-cyan-700', icon: '#0891b2' };
+        return {
+          bg: 'bg-cyan-100',
+          border: 'border-cyan-400',
+          text: 'text-cyan-700',
+          icon: '#0891b2',
+        };
       case 5:
-        return { bg: 'bg-purple-100', border: 'border-purple-400', text: 'text-purple-700', icon: '#9333ea' };
+        return {
+          bg: 'bg-purple-100',
+          border: 'border-purple-400',
+          text: 'text-purple-700',
+          icon: '#9333ea',
+        };
       default:
-        return { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-700', icon: '#3b82f6' };
+        return {
+          bg: 'bg-blue-100',
+          border: 'border-blue-400',
+          text: 'text-blue-700',
+          icon: '#3b82f6',
+        };
     }
   };
 
@@ -103,7 +127,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
         >
           {/* 背景装饰 - 彩带效果 */}
           <motion.div
-            className="absolute inset-0 overflow-hidden pointer-events-none"
+            className="pointer-events-none absolute inset-0 overflow-hidden"
             variants={{
               hidden: { opacity: 0 },
               visible: {
@@ -116,10 +140,10 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             animate="visible"
             exit="exit"
           >
-            {confettiPieces.map(piece => (
+            {confettiPieces.map((piece) => (
               <motion.div
                 key={piece.id}
-                className="absolute w-3 h-8 rounded-full"
+                className="absolute h-8 w-3 rounded-full"
                 style={{
                   left: piece.left,
                   top: piece.top,
@@ -141,7 +165,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
           {/* 主内容卡片 */}
           <motion.div
-            className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4"
+            className="relative mx-4 w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
             variants={celebrationVariants}
             initial="hidden"
             animate="visible"
@@ -151,26 +175,22 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             {/* 关闭按钮 */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
               aria-label="关闭"
             >
               <X size={16} weight="bold" color="#6b7280" />
             </button>
 
             {/* 庆祝图标 */}
-            <div className="text-center mb-6">
+            <div className="mb-6 text-center">
               <motion.div
                 className="relative inline-block"
                 initial={{ scale: 0.9, rotate: -5, opacity: 0 }}
                 animate={{ scale: 1, rotate: 0, opacity: 1, transition: g3SpringBouncy }}
               >
-                <Confetti
-                  size={80}
-                  weight="duotone"
-                  color="#f59e0b"
-                />
+                <Confetti size={80} weight="duotone" color="#f59e0b" />
                 <motion.div
-                  className="absolute -top-2 -right-2"
+                  className="absolute -right-2 -top-2"
                   animate={{ scale: [1, 1.12, 1], rotate: [0, -6, 0] }}
                   transition={{ ...g3SpringBouncy, repeat: Infinity, repeatType: 'mirror' }}
                 >
@@ -180,33 +200,28 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             </div>
 
             {/* 标题 */}
-            <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-              恭喜获得新徽章!
-            </h2>
+            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">恭喜获得新徽章!</h2>
 
             {/* 徽章展示 */}
-            <div className={`
-              mt-6 p-6 rounded-2xl border-2 text-center
-              ${tierColor.bg} ${tierColor.border}
-            `}>
+            <div
+              className={`mt-6 rounded-2xl border-2 p-6 text-center ${tierColor.bg} ${tierColor.border} `}
+            >
               <motion.div
-                className={`
-                  w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4
-                  ${tierColor.bg} border-4 ${tierColor.border}
-                `}
+                className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${tierColor.bg} border-4 ${tierColor.border} `}
                 animate={{ scale: [0.95, 1.05, 1], rotate: [-4, 2, 0] }}
-                transition={{ ...g3SpringBouncy, repeat: Infinity, repeatType: 'loop', repeatDelay: 2 }}
+                transition={{
+                  ...g3SpringBouncy,
+                  repeat: Infinity,
+                  repeatType: 'loop',
+                  repeatDelay: 2,
+                }}
               >
                 <CategoryIcon size={40} weight="duotone" color={tierColor.icon} />
               </motion.div>
 
-              <h3 className={`text-xl font-bold ${tierColor.text} mb-2`}>
-                {badge.name}
-              </h3>
+              <h3 className={`text-xl font-bold ${tierColor.text} mb-2`}>{badge.name}</h3>
 
-              <p className="text-gray-600 mb-3">
-                {badge.description}
-              </p>
+              <p className="mb-3 text-gray-600">{badge.description}</p>
 
               {/* 等级标识 */}
               <div className="flex items-center justify-center gap-1">
@@ -223,7 +238,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
             {/* 解锁时间 */}
             {badge.unlockedAt && (
-              <p className="text-center text-sm text-gray-500 mt-4">
+              <p className="mt-4 text-center text-sm text-gray-500">
                 解锁时间: {new Date(badge.unlockedAt).toLocaleString('zh-CN')}
               </p>
             )}
@@ -231,7 +246,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             {/* 确认按钮 */}
             <motion.button
               onClick={onClose}
-              className="w-full mt-6 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 shadow-lg"
+              className="mt-6 w-full rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg hover:bg-blue-600"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               transition={g3SpringBouncy}

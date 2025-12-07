@@ -169,7 +169,12 @@ describe('SpacedRepetitionService', () => {
       ];
       vi.mocked(mockStorage.batchLoadStates).mockResolvedValue(states);
 
-      const session = await service.startSession('user-1', ['word-1', 'word-2', 'word-3', 'word-4', 'word-5'], 3, 0.7);
+      const session = await service.startSession(
+        'user-1',
+        ['word-1', 'word-2', 'word-3', 'word-4', 'word-5'],
+        3,
+        0.7,
+      );
 
       expect(session.wordIds.length).toBe(3);
     });
@@ -204,7 +209,7 @@ describe('SpacedRepetitionService', () => {
         3000,
         5000,
         'correct',
-        'correct'
+        'correct',
       );
 
       expect(result.isCorrect).toBe(true);
@@ -222,7 +227,7 @@ describe('SpacedRepetitionService', () => {
         3000,
         5000,
         'wrong',
-        'correct'
+        'correct',
       );
 
       expect(result.isCorrect).toBe(false);
@@ -266,15 +271,7 @@ describe('SpacedRepetitionService', () => {
       vi.mocked(mockStorage.loadState).mockResolvedValue(null);
 
       await service.startSession('user-1', ['new-word'], 1, 0.7);
-      const result = await service.submitAnswer(
-        'user-1',
-        'new-word',
-        true,
-        3000,
-        5000,
-        'a',
-        'a'
-      );
+      const result = await service.submitAnswer('user-1', 'new-word', true, 3000, 5000, 'a', 'a');
 
       expect(result.wordState).toBeDefined();
       expect(mockStorage.saveState).toHaveBeenCalled();
@@ -289,15 +286,7 @@ describe('SpacedRepetitionService', () => {
       vi.mocked(mockStorage.loadState).mockResolvedValue(existingState);
 
       await service.startSession('user-1', ['word-1'], 1, 0.7);
-      const result = await service.submitAnswer(
-        'user-1',
-        'word-1',
-        true,
-        2000,
-        3000,
-        'a',
-        'a'
-      );
+      const result = await service.submitAnswer('user-1', 'word-1', true, 2000, 3000, 'a', 'a');
 
       expect(typeof result.masteryLevelChange).toBe('number');
     });
@@ -551,11 +540,11 @@ describe('SpacedRepetitionService', () => {
         'user-1',
         ['word-1', 'word-2'],
         'mastered',
-        'Batch mastered'
+        'Batch mastered',
       );
 
       expect(results.length).toBe(2);
-      expect(results.every(r => r.state === WordState.MASTERED)).toBe(true);
+      expect(results.every((r) => r.state === WordState.MASTERED)).toBe(true);
     });
 
     it('should batch mark words as needs practice', async () => {
@@ -571,11 +560,11 @@ describe('SpacedRepetitionService', () => {
         'user-1',
         ['word-1', 'word-2'],
         'needsPractice',
-        'Need practice'
+        'Need practice',
       );
 
       expect(results.length).toBe(2);
-      expect(results.every(r => r.state === WordState.NEW)).toBe(true);
+      expect(results.every((r) => r.state === WordState.NEW)).toBe(true);
     });
 
     it('should batch reset words', async () => {
@@ -583,11 +572,11 @@ describe('SpacedRepetitionService', () => {
         'user-1',
         ['word-1', 'word-2'],
         'reset',
-        'Reset all'
+        'Reset all',
       );
 
       expect(results.length).toBe(2);
-      expect(results.every(r => r.state === WordState.NEW)).toBe(true);
+      expect(results.every((r) => r.state === WordState.NEW)).toBe(true);
     });
 
     it('should continue processing on individual failures', async () => {
@@ -595,11 +584,7 @@ describe('SpacedRepetitionService', () => {
         .mockRejectedValueOnce(new Error('Load failed'))
         .mockResolvedValueOnce(createMockLearningState({ wordId: 'word-2' }));
 
-      const results = await service.batchUpdateWords(
-        'user-1',
-        ['word-1', 'word-2'],
-        'mastered'
-      );
+      const results = await service.batchUpdateWords('user-1', ['word-1', 'word-2'], 'mastered');
 
       // Should have at least one success
       expect(results.length).toBeGreaterThanOrEqual(1);

@@ -7,7 +7,7 @@ import {
   useMasterySync,
   getMasteryStudyWords,
   createMasterySession,
-  endHabitSession
+  endHabitSession,
 } from './mastery';
 
 export interface UseMasteryLearningOptions {
@@ -35,10 +35,23 @@ export interface UseMasteryLearningReturn {
 
 // 辅助函数：提取 AMAS 状态
 const extractAmasState = (result: AmasProcessResult | null) =>
-  result?.state ? { fatigue: result.state.fatigue, attention: result.state.attention, motivation: result.state.motivation } : undefined;
+  result?.state
+    ? {
+        fatigue: result.state.fatigue,
+        attention: result.state.attention,
+        motivation: result.state.motivation,
+      }
+    : undefined;
 
-export function useMasteryLearning(options: UseMasteryLearningOptions = {}): UseMasteryLearningReturn {
-  const { targetMasteryCount: initialTargetCount = 20, sessionId, getDialogPausedTime, resetDialogPausedTime } = options;
+export function useMasteryLearning(
+  options: UseMasteryLearningOptions = {},
+): UseMasteryLearningReturn {
+  const {
+    targetMasteryCount: initialTargetCount = 20,
+    sessionId,
+    getDialogPausedTime,
+    resetDialogPausedTime,
+  } = options;
   const { user } = useAuth();
 
   // 状态
@@ -73,7 +86,7 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
       maxTotalQuestions: wordQueueRef.current.configRef.current.maxTotalQuestions,
       queueState: state,
       timestamp: Date.now(),
-      userId: user?.id ?? null
+      userId: user?.id ?? null,
     });
   }, [initialTargetCount, user?.id]);
   saveCacheRef.current = saveCache;
@@ -83,50 +96,60 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     getUserId: () => user?.id,
     getQueueManager: () => wordQueueRef.current.queueManagerRef.current,
     onAmasResult: setLatestAmasResult,
-    onQueueAdjusted: () => { saveCacheRef.current(); wordQueueRef.current.resetAdaptiveCounter(); }
+    onQueueAdjusted: () => {
+      saveCacheRef.current();
+      wordQueueRef.current.resetAdaptiveCounter();
+    },
   });
   syncRef.current = sync;
 
   // 初始化会话
-  const initSession = useCallback(async (isReset = false) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      let restored = false;
-      if (!isReset && syncRef.current) {
-        const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
-        if (cache?.queueState?.words?.length) {
-          wordQueueRef.current.restoreQueue(cache.queueState.words, cache.queueState, { masteryThreshold: cache.masteryThreshold, maxTotalQuestions: cache.maxTotalQuestions });
-          currentSessionIdRef.current = cache.sessionId;
-          setHasRestoredSession(true);
-          restored = true;
+  const initSession = useCallback(
+    async (isReset = false) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        let restored = false;
+        if (!isReset && syncRef.current) {
+          const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
+          if (cache?.queueState?.words?.length) {
+            wordQueueRef.current.restoreQueue(cache.queueState.words, cache.queueState, {
+              masteryThreshold: cache.masteryThreshold,
+              maxTotalQuestions: cache.maxTotalQuestions,
+            });
+            currentSessionIdRef.current = cache.sessionId;
+            setHasRestoredSession(true);
+            restored = true;
+          }
         }
+        if (!restored) {
+          const words = await getMasteryStudyWords(initialTargetCount);
+          if (!isMountedRef.current) return;
+          const session = await createMasterySession(words.meta.targetCount);
+          if (!isMountedRef.current) return;
+          currentSessionIdRef.current = session?.sessionId ?? '';
+          sessionStartTimeRef.current = Date.now();
+          // 使用服务端返回的 targetCount，确保客户端与服务端一致
+          wordQueueRef.current.initializeQueue(words.words, {
+            masteryThreshold: words.meta.masteryThreshold,
+            maxTotalQuestions: words.meta.maxQuestions,
+            targetMasteryCount: words.meta.targetCount,
+          });
+        }
+        if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
+      } catch (err) {
+        if (isMountedRef.current) setError(err instanceof Error ? err.message : '初始化失败');
+      } finally {
+        if (isMountedRef.current) setIsLoading(false);
       }
-      if (!restored) {
-        const words = await getMasteryStudyWords(initialTargetCount);
-        if (!isMountedRef.current) return;
-        const session = await createMasterySession(words.meta.targetCount);
-        if (!isMountedRef.current) return;
-        currentSessionIdRef.current = session?.sessionId ?? '';
-        sessionStartTimeRef.current = Date.now();
-        // 使用服务端返回的 targetCount，确保客户端与服务端一致
-        wordQueueRef.current.initializeQueue(words.words, {
-          masteryThreshold: words.meta.masteryThreshold,
-          maxTotalQuestions: words.meta.maxQuestions,
-          targetMasteryCount: words.meta.targetCount,
-        });
-      }
-      if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
-    } catch (err) {
-      if (isMountedRef.current) setError(err instanceof Error ? err.message : '初始化失败');
-    } finally {
-      if (isMountedRef.current) setIsLoading(false);
-    }
-  }, [initialTargetCount, sessionId, user?.id]);
+    },
+    [initialTargetCount, sessionId, user?.id],
+  );
 
   // Effects
   useEffect(() => {
-    const curr = user?.id ?? null, prev = prevUserIdRef.current ?? null;
+    const curr = user?.id ?? null,
+      prev = prevUserIdRef.current ?? null;
     if (prev !== null && curr !== null && prev !== curr && syncRef.current) {
       syncRef.current.sessionCache.clearSessionCache();
       wordQueueRef.current.resetQueue();
@@ -141,14 +164,32 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
   useEffect(() => {
     isMountedRef.current = true;
     initSessionRef.current();
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []); // 空依赖，只在挂载时执行一次
 
   useEffect(() => {
     if (isLoading || wordQueue.isCompleted || !syncRef.current) return;
-    syncRef.current.fetchMoreWordsIfNeeded(wordQueue.progress.activeCount, wordQueue.progress.pendingCount, wordQueue.isCompleted)
-      .then(words => { if (words.length) { wordQueueRef.current.addWords(words); saveCache(); } });
-  }, [wordQueue.progress.activeCount, wordQueue.progress.pendingCount, isLoading, wordQueue.isCompleted, saveCache]);
+    syncRef.current
+      .fetchMoreWordsIfNeeded(
+        wordQueue.progress.activeCount,
+        wordQueue.progress.pendingCount,
+        wordQueue.isCompleted,
+      )
+      .then((words) => {
+        if (words.length) {
+          wordQueueRef.current.addWords(words);
+          saveCache();
+        }
+      });
+  }, [
+    wordQueue.progress.activeCount,
+    wordQueue.progress.pendingCount,
+    isLoading,
+    wordQueue.isCompleted,
+    saveCache,
+  ]);
 
   useEffect(() => {
     if (wordQueue.isCompleted && currentSessionIdRef.current && sessionStartTimeRef.current > 0) {
@@ -158,24 +199,38 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
   }, [wordQueue.isCompleted]);
 
   // Actions
-  const submitAnswer = useCallback(async (isCorrect: boolean, responseTime: number) => {
-    const word = wordQueue.getCurrentWord();
-    if (!wordQueue.queueManagerRef.current || !word) return;
-    setError(null);
-    const amasState = extractAmasState(latestAmasResult);
-    const localDecision = sync.submitAnswerOptimistic({ wordId: word.id, isCorrect, responseTime, latestAmasState: amasState });
-    saveCache();
-    const adaptive = wordQueue.adaptiveManagerRef.current;
-    if (adaptive) {
-      const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-      if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
-    }
-    const pausedTimeMs = getDialogPausedTime?.() ?? 0;
-    if (pausedTimeMs > 0) resetDialogPausedTime?.();
-    sync.syncAnswerToServer({ wordId: word.id, isCorrect, responseTime, pausedTimeMs, latestAmasState: amasState }, localDecision);
-  }, [wordQueue, latestAmasResult, sync, saveCache, getDialogPausedTime, resetDialogPausedTime]);
+  const submitAnswer = useCallback(
+    async (isCorrect: boolean, responseTime: number) => {
+      const word = wordQueue.getCurrentWord();
+      if (!wordQueue.queueManagerRef.current || !word) return;
+      setError(null);
+      const amasState = extractAmasState(latestAmasResult);
+      const localDecision = sync.submitAnswerOptimistic({
+        wordId: word.id,
+        isCorrect,
+        responseTime,
+        latestAmasState: amasState,
+      });
+      saveCache();
+      const adaptive = wordQueue.adaptiveManagerRef.current;
+      if (adaptive) {
+        const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
+        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
+      }
+      const pausedTimeMs = getDialogPausedTime?.() ?? 0;
+      if (pausedTimeMs > 0) resetDialogPausedTime?.();
+      sync.syncAnswerToServer(
+        { wordId: word.id, isCorrect, responseTime, pausedTimeMs, latestAmasState: amasState },
+        localDecision,
+      );
+    },
+    [wordQueue, latestAmasResult, sync, saveCache, getDialogPausedTime, resetDialogPausedTime],
+  );
 
-  const advanceToNext = useCallback(() => wordQueue.updateFromManager({ consume: true }), [wordQueue]);
+  const advanceToNext = useCallback(
+    () => wordQueue.updateFromManager({ consume: true }),
+    [wordQueue],
+  );
 
   const skipWord = useCallback(() => {
     const word = wordQueue.getCurrentWord();
@@ -210,6 +265,6 @@ export function useMasteryLearning(options: UseMasteryLearningOptions = {}): Use
     hasRestoredSession,
     allWords: wordQueue.allWords,
     error,
-    latestAmasResult
+    latestAmasResult,
   };
 }

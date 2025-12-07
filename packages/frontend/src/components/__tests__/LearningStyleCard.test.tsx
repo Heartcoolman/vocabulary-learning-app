@@ -298,7 +298,9 @@ describe('LearningStyleCard', () => {
       // The highest score (0.8) should have 100% width
       // Other scores should be scaled relative to it
       await waitFor(() => {
-        const bars = document.querySelectorAll('.rounded-full.bg-sky-500, .rounded-full.bg-emerald-500, .rounded-full.bg-rose-500');
+        const bars = document.querySelectorAll(
+          '.rounded-full.bg-sky-500, .rounded-full.bg-emerald-500, .rounded-full.bg-rose-500',
+        );
         expect(bars.length).toBe(3);
       });
     });

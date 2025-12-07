@@ -22,7 +22,9 @@ Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
   CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
   ),
   Warning: () => <span data-testid="warning-icon">Warning</span>,
   MagnifyingGlass: () => <span data-testid="search-icon">Search</span>,
@@ -107,7 +109,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <LogViewerPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -124,10 +126,11 @@ describe('LogViewerPage', () => {
       if (url.includes('/api/admin/logs')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            data: { logs: mockLogs, pagination: mockPagination },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { logs: mockLogs, pagination: mockPagination },
+            }),
         });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -315,7 +318,7 @@ describe('LogViewerPage', () => {
 
       await waitFor(() => {
         const levelButtons = screen.getAllByRole('button');
-        const errorButton = levelButtons.find(btn => btn.textContent === 'ERROR');
+        const errorButton = levelButtons.find((btn) => btn.textContent === 'ERROR');
         expect(errorButton).toBeDefined();
       });
     });
@@ -329,7 +332,9 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        const errorButton = screen.getAllByRole('button').find(btn => btn.textContent === 'ERROR');
+        const errorButton = screen
+          .getAllByRole('button')
+          .find((btn) => btn.textContent === 'ERROR');
         if (errorButton) {
           fireEvent.click(errorButton);
         }
@@ -338,7 +343,7 @@ describe('LogViewerPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('levels=ERROR'),
-          expect.anything()
+          expect.anything(),
         );
       });
     });
@@ -375,7 +380,7 @@ describe('LogViewerPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('source=frontend'),
-          expect.anything()
+          expect.anything(),
         );
       });
     });
@@ -409,7 +414,7 @@ describe('LogViewerPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('search=error'),
-          expect.anything()
+          expect.anything(),
         );
       });
     });
@@ -451,9 +456,9 @@ describe('LogViewerPage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        const nextButton = screen.getAllByRole('button').find(btn =>
-          btn.querySelector('[data-testid="caret-right-icon"]')
-        );
+        const nextButton = screen
+          .getAllByRole('button')
+          .find((btn) => btn.querySelector('[data-testid="caret-right-icon"]'));
         if (nextButton) {
           fireEvent.click(nextButton);
         }
@@ -462,7 +467,7 @@ describe('LogViewerPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('page=2'),
-          expect.anything()
+          expect.anything(),
         );
       });
     });
@@ -509,10 +514,11 @@ describe('LogViewerPage', () => {
         }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            data: { logs: mockLogs, pagination: mockPagination },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { logs: mockLogs, pagination: mockPagination },
+            }),
         });
       });
 
@@ -540,10 +546,11 @@ describe('LogViewerPage', () => {
         }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            data: { logs: [], pagination: { ...mockPagination, total: 0, totalPages: 0 } },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { logs: [], pagination: { ...mockPagination, total: 0, totalPages: 0 } },
+            }),
         });
       });
 

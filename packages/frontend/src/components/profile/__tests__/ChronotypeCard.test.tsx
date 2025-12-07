@@ -7,9 +7,21 @@ import { render, screen } from '@testing-library/react';
 import { ChronotypeCard } from '../ChronotypeCard';
 
 vi.mock('@phosphor-icons/react', () => ({
-  Sun: ({ className }: { className?: string }) => <span data-testid="sun-icon" className={className}>☀️</span>,
-  Moon: ({ className }: { className?: string }) => <span data-testid="moon-icon" className={className}>🌙</span>,
-  SunHorizon: ({ className }: { className?: string }) => <span data-testid="sun-horizon-icon" className={className}>🌅</span>,
+  Sun: ({ className }: { className?: string }) => (
+    <span data-testid="sun-icon" className={className}>
+      ☀️
+    </span>
+  ),
+  Moon: ({ className }: { className?: string }) => (
+    <span data-testid="moon-icon" className={className}>
+      🌙
+    </span>
+  ),
+  SunHorizon: ({ className }: { className?: string }) => (
+    <span data-testid="sun-horizon-icon" className={className}>
+      🌅
+    </span>
+  ),
 }));
 
 describe('ChronotypeCard', () => {
@@ -106,7 +118,9 @@ describe('ChronotypeCard', () => {
 
   describe('styling', () => {
     it('should render card container', () => {
-      const { container } = render(<ChronotypeCard type="morning" confidence={0.8} peakHours={[8]} />);
+      const { container } = render(
+        <ChronotypeCard type="morning" confidence={0.8} peakHours={[8]} />,
+      );
 
       expect(container.querySelector('.bg-white')).toBeInTheDocument();
       expect(container.querySelector('.rounded-2xl')).toBeInTheDocument();

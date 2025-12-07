@@ -61,7 +61,9 @@ function StatusIndicator({ status, size = 'md' }: StatusIndicatorProps) {
   }[status];
 
   return (
-    <span className={`${sizeClass} ${colorClass} rounded-full inline-block ${status !== 'error' ? 'animate-pulse' : ''}`} />
+    <span
+      className={`${sizeClass} ${colorClass} inline-block rounded-full ${status !== 'error' ? 'animate-pulse' : ''}`}
+    />
   );
 }
 
@@ -89,10 +91,10 @@ function PipelineLayerCard({
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm transition-shadow hover:shadow-md">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+          <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
             {iconMap[layer.id] || <Activity size={20} />}
           </div>
           <div>
@@ -103,17 +105,23 @@ function PipelineLayerCard({
         <StatusIndicator status={layer.status} />
       </div>
 
-      <div className="flex justify-between text-center mt-2">
+      <div className="mt-2 flex justify-between text-center">
         <div className="flex-1">
           <div className="text-base font-bold text-gray-900">{layer.processedCount}</div>
           <div className="text-xs text-gray-500">处理数</div>
         </div>
         <div className="flex-1">
-          <div className="text-base font-bold text-gray-900">{layer.avgLatencyMs}<span className="text-sm font-medium">ms</span></div>
+          <div className="text-base font-bold text-gray-900">
+            {layer.avgLatencyMs}
+            <span className="text-sm font-medium">ms</span>
+          </div>
           <div className="text-xs text-gray-500">延迟</div>
         </div>
         <div className="flex-1">
-          <div className="text-base font-bold text-emerald-600">{(layer.successRate * 100).toFixed(1)}<span className="text-sm font-medium">%</span></div>
+          <div className="text-base font-bold text-emerald-600">
+            {(layer.successRate * 100).toFixed(1)}
+            <span className="text-sm font-medium">%</span>
+          </div>
           <div className="text-xs text-gray-500">成功率</div>
         </div>
       </div>
@@ -125,30 +133,37 @@ function PipelineLayerCard({
 function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-        <div className="text-center text-gray-400 py-8">加载中...</div>
+      <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="py-8 text-center text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+    <motion.div
+      variants={fadeInVariants}
+      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
+    >
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Activity className="text-blue-500" />
           Pipeline 实时状态
         </h2>
         <div className="flex items-center gap-2 text-sm">
           <StatusIndicator status={data.systemHealth} size="sm" />
           <span className="text-gray-600">
-            {data.systemHealth === 'healthy' ? '系统健康' : data.systemHealth === 'degraded' ? '部分降级' : '异常'}
+            {data.systemHealth === 'healthy'
+              ? '系统健康'
+              : data.systemHealth === 'degraded'
+                ? '部分降级'
+                : '异常'}
           </span>
-          <span className="text-gray-400 ml-2">|</span>
+          <span className="ml-2 text-gray-400">|</span>
           <span className="text-gray-500">吞吐量: {data.totalThroughput}/s</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {data.layers.map((layer) => (
           <PipelineLayerCard key={layer.id} layer={layer} />
         ))}
@@ -178,16 +193,16 @@ function AlgorithmCard({
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm">
+      <div className="mb-3 flex items-center justify-between">
         <h4 className="font-medium text-gray-800">{algo.name}</h4>
-        <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs">
           {(algo.weight * 100).toFixed(1)}%
         </span>
       </div>
 
       {/* 权重进度条 */}
-      <div className="h-2 bg-gray-200 rounded-full mb-3 overflow-hidden">
+      <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-200">
         <div
           className={`h-full bg-gradient-to-r ${colorMap[algo.id] || 'from-gray-400 to-gray-500'} transition-all duration-500`}
           style={{ width: `${algo.weight * 100}%` }}
@@ -216,54 +231,66 @@ function AlgorithmCard({
 function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-        <div className="text-center text-gray-400 py-8">加载中...</div>
+      <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="py-8 text-center text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+    <motion.div
+      variants={fadeInVariants}
+      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
+    >
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Brain className="text-purple-500" />
           算法运行状态
         </h2>
         <div className="text-sm text-gray-500">
-          集成共识率: <span className="font-bold text-purple-600">{(data.ensembleConsensusRate * 100).toFixed(0)}%</span>
+          集成共识率:{' '}
+          <span className="font-bold text-purple-600">
+            {(data.ensembleConsensusRate * 100).toFixed(0)}%
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {data.algorithms.map((algo) => (
           <AlgorithmCard key={algo.id} algo={algo} />
         ))}
       </div>
 
       {/* 冷启动统计 */}
-      <div className="bg-gray-50 rounded-xl p-4">
-        <h3 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+      <div className="rounded-xl bg-gray-50 p-4">
+        <h3 className="mb-3 flex items-center gap-2 font-medium text-gray-700">
           <Lightning className="text-amber-500" size={18} />
           冷启动管理器
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">{data.coldstartStats.classifyCount}</div>
+            <div className="text-2xl font-bold text-gray-800">
+              {data.coldstartStats.classifyCount}
+            </div>
             <div className="text-xs text-gray-500">分类阶段</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">{data.coldstartStats.exploreCount}</div>
+            <div className="text-2xl font-bold text-gray-800">
+              {data.coldstartStats.exploreCount}
+            </div>
             <div className="text-xs text-gray-500">探索阶段</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">{data.coldstartStats.normalCount}</div>
+            <div className="text-2xl font-bold text-gray-800">
+              {data.coldstartStats.normalCount}
+            </div>
             <div className="text-xs text-gray-500">正常阶段</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500 mb-1">用户类型分布</div>
+            <div className="mb-1 text-xs text-gray-500">用户类型分布</div>
             <div className="flex gap-1">
               <div
-                className="h-3 bg-blue-500 rounded-l"
+                className="h-3 rounded-l bg-blue-500"
                 style={{ width: `${data.coldstartStats.userTypeDistribution.fast * 100}%` }}
                 title={`快速型 ${(data.coldstartStats.userTypeDistribution.fast * 100).toFixed(0)}%`}
               />
@@ -273,12 +300,12 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
                 title={`稳定型 ${(data.coldstartStats.userTypeDistribution.stable * 100).toFixed(0)}%`}
               />
               <div
-                className="h-3 bg-amber-500 rounded-r"
+                className="h-3 rounded-r bg-amber-500"
                 style={{ width: `${data.coldstartStats.userTypeDistribution.cautious * 100}%` }}
                 title={`谨慎型 ${(data.coldstartStats.userTypeDistribution.cautious * 100).toFixed(0)}%`}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <div className="mt-1 flex justify-between text-[10px] text-gray-400">
               <span>快速</span>
               <span>稳定</span>
               <span>谨慎</span>
@@ -294,8 +321,8 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
 function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-        <div className="text-center text-gray-400 py-8">加载中...</div>
+      <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="py-8 text-center text-gray-400">加载中...</div>
       </div>
     );
   }
@@ -303,38 +330,53 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   const { distributions } = data;
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+    <motion.div
+      variants={fadeInVariants}
+      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
+    >
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Users className="text-emerald-500" />
           用户状态监控
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* 注意力 */}
-        <div className="bg-blue-50 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-blue-800 flex items-center gap-2">
+        <div className="rounded-xl bg-blue-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="flex items-center gap-2 font-medium text-blue-800">
               <Eye size={18} />
               注意力
             </h4>
             {distributions.attention.lowAlertCount > 0 && (
-              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-600">
                 <Warning size={12} />
                 {distributions.attention.lowAlertCount}
               </span>
             )}
           </div>
-          <div className="text-3xl font-bold text-blue-600 mb-2">
+          <div className="mb-2 text-3xl font-bold text-blue-600">
             {(distributions.attention.avg * 100).toFixed(0)}%
           </div>
-          <div className="flex gap-1 h-2 rounded-full overflow-hidden">
-            <div className="bg-red-400" style={{ width: `${distributions.attention.low * 100}%` }} title="低" />
-            <div className="bg-amber-400" style={{ width: `${distributions.attention.medium * 100}%` }} title="中" />
-            <div className="bg-emerald-400" style={{ width: `${distributions.attention.high * 100}%` }} title="高" />
+          <div className="flex h-2 gap-1 overflow-hidden rounded-full">
+            <div
+              className="bg-red-400"
+              style={{ width: `${distributions.attention.low * 100}%` }}
+              title="低"
+            />
+            <div
+              className="bg-amber-400"
+              style={{ width: `${distributions.attention.medium * 100}%` }}
+              title="中"
+            />
+            <div
+              className="bg-emerald-400"
+              style={{ width: `${distributions.attention.high * 100}%` }}
+              title="高"
+            />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="mt-1 flex justify-between text-xs text-gray-500">
             <span>低 {(distributions.attention.low * 100).toFixed(0)}%</span>
             <span>中 {(distributions.attention.medium * 100).toFixed(0)}%</span>
             <span>高 {(distributions.attention.high * 100).toFixed(0)}%</span>
@@ -342,28 +384,40 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
         </div>
 
         {/* 疲劳度 */}
-        <div className="bg-amber-50 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-amber-800 flex items-center gap-2">
+        <div className="rounded-xl bg-amber-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="flex items-center gap-2 font-medium text-amber-800">
               <Gauge size={18} />
               疲劳度
             </h4>
             {distributions.fatigue.highAlertCount > 0 && (
-              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-600">
                 <Warning size={12} />
                 {distributions.fatigue.highAlertCount}
               </span>
             )}
           </div>
-          <div className="text-3xl font-bold text-amber-600 mb-2">
+          <div className="mb-2 text-3xl font-bold text-amber-600">
             {(distributions.fatigue.avg * 100).toFixed(0)}%
           </div>
-          <div className="flex gap-1 h-2 rounded-full overflow-hidden">
-            <div className="bg-emerald-400" style={{ width: `${distributions.fatigue.fresh * 100}%` }} title="清醒" />
-            <div className="bg-amber-400" style={{ width: `${distributions.fatigue.normal * 100}%` }} title="正常" />
-            <div className="bg-red-400" style={{ width: `${distributions.fatigue.tired * 100}%` }} title="疲劳" />
+          <div className="flex h-2 gap-1 overflow-hidden rounded-full">
+            <div
+              className="bg-emerald-400"
+              style={{ width: `${distributions.fatigue.fresh * 100}%` }}
+              title="清醒"
+            />
+            <div
+              className="bg-amber-400"
+              style={{ width: `${distributions.fatigue.normal * 100}%` }}
+              title="正常"
+            />
+            <div
+              className="bg-red-400"
+              style={{ width: `${distributions.fatigue.tired * 100}%` }}
+              title="疲劳"
+            />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="mt-1 flex justify-between text-xs text-gray-500">
             <span>清醒 {(distributions.fatigue.fresh * 100).toFixed(0)}%</span>
             <span>正常 {(distributions.fatigue.normal * 100).toFixed(0)}%</span>
             <span>疲劳 {(distributions.fatigue.tired * 100).toFixed(0)}%</span>
@@ -371,28 +425,41 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
         </div>
 
         {/* 动机 */}
-        <div className="bg-emerald-50 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-emerald-800 flex items-center gap-2">
+        <div className="rounded-xl bg-emerald-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="flex items-center gap-2 font-medium text-emerald-800">
               <TrendUp size={18} />
               学习动机
             </h4>
             {distributions.motivation.lowAlertCount > 0 && (
-              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-600">
                 <Warning size={12} />
                 {distributions.motivation.lowAlertCount}
               </span>
             )}
           </div>
-          <div className="text-3xl font-bold text-emerald-600 mb-2">
-            {distributions.motivation.avg > 0 ? '+' : ''}{(distributions.motivation.avg * 100).toFixed(0)}%
+          <div className="mb-2 text-3xl font-bold text-emerald-600">
+            {distributions.motivation.avg > 0 ? '+' : ''}
+            {(distributions.motivation.avg * 100).toFixed(0)}%
           </div>
-          <div className="flex gap-1 h-2 rounded-full overflow-hidden">
-            <div className="bg-red-400" style={{ width: `${distributions.motivation.frustrated * 100}%` }} title="受挫" />
-            <div className="bg-gray-400" style={{ width: `${distributions.motivation.neutral * 100}%` }} title="中性" />
-            <div className="bg-emerald-400" style={{ width: `${distributions.motivation.motivated * 100}%` }} title="积极" />
+          <div className="flex h-2 gap-1 overflow-hidden rounded-full">
+            <div
+              className="bg-red-400"
+              style={{ width: `${distributions.motivation.frustrated * 100}%` }}
+              title="受挫"
+            />
+            <div
+              className="bg-gray-400"
+              style={{ width: `${distributions.motivation.neutral * 100}%` }}
+              title="中性"
+            />
+            <div
+              className="bg-emerald-400"
+              style={{ width: `${distributions.motivation.motivated * 100}%` }}
+              title="积极"
+            />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="mt-1 flex justify-between text-xs text-gray-500">
             <span>受挫 {(distributions.motivation.frustrated * 100).toFixed(0)}%</span>
             <span>中性 {(distributions.motivation.neutral * 100).toFixed(0)}%</span>
             <span>积极 {(distributions.motivation.motivated * 100).toFixed(0)}%</span>
@@ -403,11 +470,11 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
       {/* 最近推断记录 */}
       {data.recentInferences.length > 0 && (
         <div className="mt-6">
-          <h4 className="font-medium text-gray-700 mb-3">最近状态推断</h4>
+          <h4 className="mb-3 font-medium text-gray-700">最近状态推断</h4>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-500 text-left">
+                <tr className="text-left text-gray-500">
                   <th className="pb-2 font-medium">用户ID</th>
                   <th className="pb-2 font-medium">时间</th>
                   <th className="pb-2 font-medium">注意力</th>
@@ -421,11 +488,18 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
                   <tr key={inf.id} className="border-t border-gray-100">
                     <td className="py-2 font-mono text-gray-600">{inf.id}</td>
                     <td className="py-2 text-gray-500">
-                      {new Date(inf.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      {new Date(inf.timestamp).toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
                     </td>
                     <td className="py-2">{(inf.attention * 100).toFixed(0)}%</td>
                     <td className="py-2">{(inf.fatigue * 100).toFixed(0)}%</td>
-                    <td className="py-2">{inf.motivation > 0 ? '+' : ''}{(inf.motivation * 100).toFixed(0)}%</td>
+                    <td className="py-2">
+                      {inf.motivation > 0 ? '+' : ''}
+                      {(inf.motivation * 100).toFixed(0)}%
+                    </td>
                     <td className="py-2">{(inf.confidence * 100).toFixed(0)}%</td>
                   </tr>
                 ))}
@@ -442,34 +516,39 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
 function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-        <div className="text-center text-gray-400 py-8">加载中...</div>
+      <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="py-8 text-center text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-      <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
+    <motion.div
+      variants={fadeInVariants}
+      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
+    >
+      <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
         <Brain className="text-rose-500" />
         记忆状态分布
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* 强度分布直方图 */}
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">记忆强度分布</h4>
+          <h4 className="mb-3 font-medium text-gray-700">记忆强度分布</h4>
           <div className="space-y-2">
             {data.strengthDistribution.map((range) => (
               <div key={range.range} className="flex items-center gap-2">
                 <span className="w-16 text-xs text-gray-500">{range.range}</span>
-                <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-4 flex-1 overflow-hidden rounded-full bg-gray-100">
                   <div
                     className="h-full bg-gradient-to-r from-rose-400 to-rose-500"
                     style={{ width: `${range.percentage}%` }}
                   />
                 </div>
-                <span className="w-12 text-xs text-gray-600 text-right">{range.percentage.toFixed(1)}%</span>
+                <span className="w-12 text-right text-xs text-gray-600">
+                  {range.percentage.toFixed(1)}%
+                </span>
               </div>
             ))}
           </div>
@@ -477,32 +556,36 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
 
         {/* 复习状态 */}
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">复习状态</h4>
+          <h4 className="mb-3 font-medium text-gray-700">复习状态</h4>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-red-50 rounded-lg p-3 text-center">
+            <div className="rounded-lg bg-red-50 p-3 text-center">
               <div className="text-2xl font-bold text-red-600">{data.urgentReviewCount}</div>
               <div className="text-xs text-gray-500">急需复习</div>
             </div>
-            <div className="bg-amber-50 rounded-lg p-3 text-center">
+            <div className="rounded-lg bg-amber-50 p-3 text-center">
               <div className="text-2xl font-bold text-amber-600">{data.soonReviewCount}</div>
               <div className="text-xs text-gray-500">即将复习</div>
             </div>
-            <div className="bg-emerald-50 rounded-lg p-3 text-center">
+            <div className="rounded-lg bg-emerald-50 p-3 text-center">
               <div className="text-2xl font-bold text-emerald-600">{data.stableCount}</div>
               <div className="text-xs text-gray-500">状态稳定</div>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-blue-600">{data.avgHalfLifeDays.toFixed(1)}天</div>
+            <div className="rounded-lg bg-blue-50 p-3 text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {data.avgHalfLifeDays.toFixed(1)}天
+              </div>
               <div className="text-xs text-gray-500">平均半衰期</div>
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <div className="mt-4 rounded-lg bg-gray-50 p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">今日巩固率</span>
-              <span className="text-lg font-bold text-emerald-600">{data.todayConsolidationRate.toFixed(1)}%</span>
+              <span className="text-lg font-bold text-emerald-600">
+                {data.todayConsolidationRate.toFixed(1)}%
+              </span>
             </div>
-            <div className="h-2 bg-gray-200 rounded-full mt-2 overflow-hidden">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
               <div
                 className="h-full bg-emerald-500"
                 style={{ width: `${data.todayConsolidationRate}%` }}
@@ -513,21 +596,21 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
       </div>
 
       {/* ACT-R 记忆追踪 */}
-      <div className="mt-6 pt-6 border-t border-gray-100">
-        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+      <div className="mt-6 border-t border-gray-100 pt-6">
+        <h4 className="mb-3 flex items-center gap-2 font-medium text-gray-700">
           <Brain className="text-purple-500" size={18} />
           ACT-R 记忆追踪
         </h4>
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-purple-50 rounded-lg p-3 text-center">
+          <div className="rounded-lg bg-purple-50 p-3 text-center">
             <div className="text-xl font-bold text-purple-600">20</div>
             <div className="text-xs text-gray-500">最大追踪记录</div>
           </div>
-          <div className="bg-indigo-50 rounded-lg p-3 text-center">
+          <div className="rounded-lg bg-indigo-50 p-3 text-center">
             <div className="text-xl font-bold text-indigo-600">0.3</div>
             <div className="text-xs text-gray-500">错误惩罚因子</div>
           </div>
-          <div className="bg-rose-50 rounded-lg p-3 text-center">
+          <div className="rounded-lg bg-rose-50 p-3 text-center">
             <div className="text-xl font-bold text-rose-600">0.5</div>
             <div className="text-xs text-gray-500">默认衰减率</div>
           </div>
@@ -541,8 +624,8 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
 function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   if (!data) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-        <div className="text-center text-gray-400 py-8">加载中...</div>
+      <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+        <div className="py-8 text-center text-gray-400">加载中...</div>
       </div>
     );
   }
@@ -567,17 +650,20 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   };
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl p-6">
-      <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
+    <motion.div
+      variants={fadeInVariants}
+      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
+    >
+      <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
         <Timer className="text-indigo-500" />
         功能开关状态
       </h2>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         {Object.entries(data.flags || {}).map(([key, enabled]) => (
           <div
             key={key}
-            className={`flex items-center justify-between p-3 rounded-lg ${
+            className={`flex items-center justify-between rounded-lg p-3 ${
               enabled ? 'bg-emerald-50' : 'bg-gray-50'
             }`}
           >
@@ -670,16 +756,16 @@ export default function SystemStatusPage() {
         initial="hidden"
         animate="visible"
         variants={staggerContainerVariants}
-        className="max-w-7xl mx-auto space-y-6"
+        className="mx-auto max-w-7xl space-y-6"
       >
         {/* 页面标题 */}
-        <header className="flex items-center justify-between mb-8">
+        <header className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
               <Activity className="text-blue-600" weight="duotone" />
               AMAS 系统状态
             </h1>
-            <p className="text-gray-500 mt-1">实时监控系统运行状态和性能指标</p>
+            <p className="mt-1 text-gray-500">实时监控系统运行状态和性能指标</p>
           </div>
           <div className="text-right text-sm text-gray-400">
             <div>最后更新</div>
@@ -696,7 +782,7 @@ export default function SystemStatusPage() {
         {/* 用户状态监控 */}
         <UserStatePanel data={userStateData} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* 记忆状态 */}
           <MemoryStatusPanel data={memoryData} />
 

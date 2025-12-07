@@ -19,7 +19,7 @@ export interface UseLearningTimerResult {
 
 export function useLearningTimer(): UseLearningTimerResult {
   const [responseTime, setResponseTime] = useState(0);
-  
+
   // 使用 ref 存储时间数据，避免频繁重渲染
   const wordDisplayTimeRef = useRef<number>(0);
   const dwellTimeRef = useRef<number>(0);
@@ -60,7 +60,7 @@ export function useLearningTimer(): UseLearningTimerResult {
     // 计算最终响应时间
     const finalResponseTime = Date.now() - wordDisplayTimeRef.current;
     setResponseTime(finalResponseTime);
-    
+
     return finalResponseTime;
   }, []);
 

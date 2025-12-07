@@ -16,10 +16,13 @@ export interface DecisionMetricsSectionProps {
   coldstartPhase?: string;
 }
 
-const DIFFICULTY_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+const DIFFICULTY_STYLES: Record<
+  string,
+  { bg: string; text: string; border: string; label: string }
+> = {
   easy: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', label: '简单' },
   mid: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', label: '中等' },
-  hard: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', label: '困难' }
+  hard: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', label: '困难' },
 };
 
 interface MetricCardProps {
@@ -30,8 +33,8 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, icon }: MetricCardProps) {
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-lg border border-slate-200 p-3">
-      <div className="flex items-center gap-2 mb-2 text-slate-500">
+    <div className="rounded-lg border border-slate-200 bg-white/60 p-3 backdrop-blur-sm">
+      <div className="mb-2 flex items-center gap-2 text-slate-500">
         {icon && <span className="text-slate-400">{icon}</span>}
         <span className="text-xs font-medium">{label}</span>
       </div>
@@ -46,7 +49,7 @@ export function DecisionMetricsSection({
   reward,
   totalDurationMs,
   decisionSource,
-  coldstartPhase
+  coldstartPhase,
 }: DecisionMetricsSectionProps) {
   const getDifficultyBadge = (difficulty?: string) => {
     if (!difficulty) return <span className="text-slate-400">-</span>;
@@ -55,11 +58,13 @@ export function DecisionMetricsSection({
       bg: 'bg-slate-100',
       text: 'text-slate-700',
       border: 'border-slate-200',
-      label: difficulty
+      label: difficulty,
     };
 
     return (
-      <span className={`px-2 py-0.5 text-xs rounded-full border ${style.bg} ${style.text} ${style.border}`}>
+      <span
+        className={`rounded-full border px-2 py-0.5 text-xs ${style.bg} ${style.text} ${style.border}`}
+      >
         {style.label}
       </span>
     );
@@ -69,14 +74,14 @@ export function DecisionMetricsSection({
     if (val === undefined) return <span className="text-slate-400">未定义</span>;
     if (val > 0) {
       return (
-        <span className="text-green-600 flex items-center gap-1">
+        <span className="flex items-center gap-1 text-green-600">
           <TrendUp size={14} /> +{val.toFixed(2)}
         </span>
       );
     }
     if (val < 0) {
       return (
-        <span className="text-red-600 flex items-center gap-1">
+        <span className="flex items-center gap-1 text-red-600">
           <TrendDown size={14} /> {val.toFixed(2)}
         </span>
       );
@@ -86,7 +91,7 @@ export function DecisionMetricsSection({
 
   return (
     <div>
-      <h3 className="text-xs font-bold text-slate-600 mb-3 uppercase tracking-wider">
+      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
         决策指标与策略
       </h3>
 
@@ -97,14 +102,13 @@ export function DecisionMetricsSection({
           value={getDifficultyBadge(strategy.difficulty)}
         />
 
-        <MetricCard
-          label="批次大小"
-          value={strategy.batch_size ?? '-'}
-        />
+        <MetricCard label="批次大小" value={strategy.batch_size ?? '-'} />
 
         <MetricCard
           label="新词比例"
-          value={strategy.new_ratio !== undefined ? `${(strategy.new_ratio * 100).toFixed(0)}%` : '-'}
+          value={
+            strategy.new_ratio !== undefined ? `${(strategy.new_ratio * 100).toFixed(0)}%` : '-'
+          }
         />
 
         <MetricCard
@@ -117,9 +121,9 @@ export function DecisionMetricsSection({
           label="决策置信度"
           value={
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full bg-indigo-500 rounded-full transition-all"
+                  className="h-full rounded-full bg-indigo-500 transition-all"
                   style={{ width: `${confidence * 100}%` }}
                 />
               </div>
@@ -128,10 +132,7 @@ export function DecisionMetricsSection({
           }
         />
 
-        <MetricCard
-          label="预测奖励"
-          value={getRewardDisplay(reward)}
-        />
+        <MetricCard label="预测奖励" value={getRewardDisplay(reward)} />
 
         <MetricCard
           label="计算耗时"
@@ -145,7 +146,7 @@ export function DecisionMetricsSection({
             <div className="flex flex-col gap-0.5">
               <span className="capitalize">{decisionSource}</span>
               {coldstartPhase && (
-                <span className="text-[10px] text-amber-600 font-normal">
+                <span className="text-[10px] font-normal text-amber-600">
                   冷启动: {coldstartPhase}
                 </span>
               )}

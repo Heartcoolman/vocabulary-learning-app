@@ -8,7 +8,7 @@ interface MemoryTraceChartProps {
 export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => {
   if (!trace || trace.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
+      <div className="flex h-48 items-center justify-center text-sm text-gray-400">
         暂无记忆轨迹数据
       </div>
     );
@@ -20,11 +20,11 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  const minTime = Math.min(...trace.map(t => new Date(t.timestamp).getTime()));
-  const maxTime = Math.max(...trace.map(t => new Date(t.timestamp).getTime()));
+  const minTime = Math.min(...trace.map((t) => new Date(t.timestamp).getTime()));
+  const maxTime = Math.max(...trace.map((t) => new Date(t.timestamp).getTime()));
   const timeRange = maxTime - minTime || 1;
 
-  const points = trace.map(t => {
+  const points = trace.map((t) => {
     const x = padding.left + ((new Date(t.timestamp).getTime() - minTime) / timeRange) * chartWidth;
     const y = padding.top + chartHeight - (t.isCorrect ? 1 : 0) * chartHeight;
     return { x, y, data: t };
@@ -41,7 +41,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
     <div className="w-full overflow-x-auto">
       <svg width={width} height={height} className="mx-auto">
         {/* Grid lines */}
-        {[0, 1].map(value => {
+        {[0, 1].map((value) => {
           const y = padding.top + chartHeight - value * chartHeight;
           return (
             <g key={value}>
@@ -54,13 +54,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
                 strokeWidth="1"
                 strokeDasharray="4 4"
               />
-              <text
-                x={padding.left - 10}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="10"
-                fill="#9ca3af"
-              >
+              <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
                 {value === 1 ? '正确' : '错误'}
               </text>
             </g>
@@ -89,10 +83,11 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
                 fill={isCorrect ? '#10b981' : '#ef4444'}
                 stroke="white"
                 strokeWidth="2"
-                className="transition-transform origin-center hover:scale-150 cursor-pointer"
+                className="origin-center cursor-pointer transition-transform hover:scale-150"
               >
                 <title>
-                  {formatDate(p.data.timestamp)}: {isCorrect ? '正确' : '错误'} ({p.data.responseTime.toFixed(1)}s)
+                  {formatDate(p.data.timestamp)}: {isCorrect ? '正确' : '错误'} (
+                  {p.data.responseTime.toFixed(1)}s)
                 </title>
               </circle>
             </g>
@@ -100,28 +95,30 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
         })}
 
         {/* X-axis labels */}
-        {points.filter((_, i) => i % Math.max(1, Math.ceil(points.length / 5)) === 0).map((p, i) => (
-          <text
-            key={i}
-            x={p.x}
-            y={height - padding.bottom + 20}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#9ca3af"
-          >
-            {formatDate(p.data.timestamp)}
-          </text>
-        ))}
+        {points
+          .filter((_, i) => i % Math.max(1, Math.ceil(points.length / 5)) === 0)
+          .map((p, i) => (
+            <text
+              key={i}
+              x={p.x}
+              y={height - padding.bottom + 20}
+              textAnchor="middle"
+              fontSize="10"
+              fill="#9ca3af"
+            >
+              {formatDate(p.data.timestamp)}
+            </text>
+          ))}
       </svg>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
+      <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <div className="h-3 w-3 rounded-full bg-green-500"></div>
           <span>正确</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <div className="h-3 w-3 rounded-full bg-red-500"></div>
           <span>错误</span>
         </div>
       </div>

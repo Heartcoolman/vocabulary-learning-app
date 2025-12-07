@@ -65,7 +65,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
     });
 
     if (!normalizedAccept.includes(fileExtension)) {
-      setError(`不支持的文件格式。仅支持: ${normalizedAccept.filter(e => e.startsWith('.')).join(', ')}`);
+      setError(
+        `不支持的文件格式。仅支持: ${normalizedAccept.filter((e) => e.startsWith('.')).join(', ')}`,
+      );
       return false;
     }
 
@@ -134,7 +136,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto">
+    <div className="mx-auto w-full max-w-xl">
       <input
         ref={fileInputRef}
         type="file"
@@ -157,28 +159,23 @@ const FileUpload: React.FC<FileUploadProps> = ({
           tabIndex={disabled ? -1 : 0}
           aria-label="Upload file"
           aria-disabled={disabled}
-          className={`
-            relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out
-            flex flex-col items-center justify-center text-center cursor-pointer outline-none
-            ${
-              disabled
-                ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
-                : isDragging
-                ? 'border-blue-500 bg-blue-50 scale-[1.01]'
+          className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center outline-none transition-all duration-200 ease-in-out ${
+            disabled
+              ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+              : isDragging
+                ? 'scale-[1.01] border-blue-500 bg-blue-50'
                 : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-            }
-            ${error ? 'border-red-300 bg-red-50' : ''}
-          `}
+          } ${error ? 'border-red-300 bg-red-50' : ''} `}
         >
-          <div className={`p-3 rounded-full mb-4 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
+          <div className={`mb-4 rounded-full p-3 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
             <UploadSimple
-              className={`w-6 h-6 ${isDragging ? 'text-blue-600' : 'text-gray-500'}`}
+              className={`h-6 w-6 ${isDragging ? 'text-blue-600' : 'text-gray-500'}`}
               weight="bold"
               aria-hidden="true"
             />
           </div>
 
-          <p className="text-sm font-medium text-gray-900 mb-1">
+          <p className="mb-1 text-sm font-medium text-gray-900">
             {isDragging ? '松开以上传' : '点击上传或拖拽文件到此处'}
           </p>
 
@@ -187,40 +184,38 @@ const FileUpload: React.FC<FileUploadProps> = ({
           </p>
         </div>
       ) : (
-        <div className="relative bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <FileText className="w-6 h-6 text-blue-600" weight="duotone" />
+        <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm duration-300">
+          <div className="rounded-lg bg-blue-50 p-3">
+            <FileText className="h-6 w-6 text-blue-600" weight="duotone" />
           </div>
 
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-gray-900" title={file.name}>
               {file.name}
             </p>
-            <p className="text-xs text-gray-500">
-              {formatFileSize(file.size)}
-            </p>
+            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
           </div>
 
           <button
             type="button"
             onClick={handleRemoveFile}
             disabled={disabled}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
             aria-label="Remove file"
             title="删除文件"
           >
-            <X className="w-5 h-5" weight="bold" />
+            <X className="h-5 w-5" weight="bold" />
           </button>
         </div>
       )}
 
       {error && (
         <div
-          className="mt-3 flex items-center gap-2 text-sm text-red-600 animate-in slide-in-from-top-1"
+          className="animate-in slide-in-from-top-1 mt-3 flex items-center gap-2 text-sm text-red-600"
           role="alert"
           aria-live="polite"
         >
-          <WarningCircle className="w-4 h-4 shrink-0" weight="bold" />
+          <WarningCircle className="h-4 w-4 shrink-0" weight="bold" />
           <span>{error}</span>
         </div>
       )}

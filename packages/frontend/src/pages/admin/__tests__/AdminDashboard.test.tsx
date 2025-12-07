@@ -17,9 +17,20 @@ vi.mock('@/components/ui', () => ({
     showToast: vi.fn(),
   }),
   ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+    isOpen ? (
+      <div data-testid="confirm-modal">
+        {children}
+        <button onClick={onConfirm}>确认</button>
+        <button onClick={onCancel}>取消</button>
+      </div>
+    ) : null,
   AlertModal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? <div data-testid="alert-modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+    isOpen ? (
+      <div data-testid="alert-modal">
+        {children}
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 const mockStats = {
@@ -58,7 +69,9 @@ vi.mock('@/components/Icon', async () => {
     FileText: () => <span data-testid="icon-filetext">📄</span>,
     ChartBar: () => <span data-testid="icon-chartbar">📊</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
     Warning: () => <span data-testid="icon-warning">⚠️</span>,
   };
@@ -68,7 +81,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <AdminDashboard />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 

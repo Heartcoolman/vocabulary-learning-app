@@ -8,11 +8,31 @@ import { DailyMissionCard } from '../DailyMissionCard';
 
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
-  Target: ({ className, weight }: any) => <span data-testid="icon-target" className={className}>Target</span>,
-  Clock: ({ className, weight }: any) => <span data-testid="icon-clock" className={className}>Clock</span>,
-  Lightning: ({ className, weight }: any) => <span data-testid="icon-lightning" className={className}>Lightning</span>,
-  Play: ({ className, weight }: any) => <span data-testid="icon-play" className={className}>Play</span>,
-  CheckCircle: ({ className, weight }: any) => <span data-testid="icon-check" className={className}>Check</span>,
+  Target: ({ className, weight }: any) => (
+    <span data-testid="icon-target" className={className}>
+      Target
+    </span>
+  ),
+  Clock: ({ className, weight }: any) => (
+    <span data-testid="icon-clock" className={className}>
+      Clock
+    </span>
+  ),
+  Lightning: ({ className, weight }: any) => (
+    <span data-testid="icon-lightning" className={className}>
+      Lightning
+    </span>
+  ),
+  Play: ({ className, weight }: any) => (
+    <span data-testid="icon-play" className={className}>
+      Play
+    </span>
+  ),
+  CheckCircle: ({ className, weight }: any) => (
+    <span data-testid="icon-check" className={className}>
+      Check
+    </span>
+  ),
 }));
 
 describe('DailyMissionCard', () => {

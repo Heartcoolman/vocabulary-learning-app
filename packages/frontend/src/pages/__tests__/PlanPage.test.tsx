@@ -70,7 +70,7 @@ describe('PlanPage', () => {
     return render(
       <MemoryRouter>
         <PlanPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

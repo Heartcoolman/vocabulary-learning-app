@@ -11,11 +11,13 @@ import FileUpload from '../FileUpload';
 // Mock Icon components
 vi.mock('../Icon', () => ({
   UploadSimple: ({ className }: { className?: string }) => (
-    <span data-testid="upload-icon" className={className}>Upload</span>
+    <span data-testid="upload-icon" className={className}>
+      Upload
+    </span>
   ),
   X: () => <span data-testid="x-icon">X</span>,
   FileText: () => <span data-testid="file-icon">File</span>,
-  WarningCircle: () => <span data-testid="warning-icon">Warning</span>
+  WarningCircle: () => <span data-testid="warning-icon">Warning</span>,
 }));
 
 // Helper to create a mock file
@@ -29,12 +31,12 @@ const createMockFile = (name: string, size: number, type: string): File => {
 const createMockDataTransfer = (files: File[]) => {
   return {
     files,
-    items: files.map(file => ({
+    items: files.map((file) => ({
       kind: 'file',
       type: file.type,
-      getAsFile: () => file
+      getAsFile: () => file,
     })),
-    types: ['Files']
+    types: ['Files'],
   };
 };
 
@@ -206,7 +208,7 @@ describe('FileUpload', () => {
 
       const dropEvent = new Event('drop', { bubbles: true });
       Object.defineProperty(dropEvent, 'dataTransfer', {
-        value: createMockDataTransfer([file])
+        value: createMockDataTransfer([file]),
       });
       Object.defineProperty(dropEvent, 'preventDefault', { value: vi.fn() });
 

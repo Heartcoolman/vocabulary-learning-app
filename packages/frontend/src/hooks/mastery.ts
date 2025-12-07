@@ -6,7 +6,13 @@
 
 import { useState, useCallback, useRef } from 'react';
 import apiClient from '../services/ApiClient';
-import { WordItem, QueueProgress, WordQueueManager, CompletionReason, NextWordResult } from '../services/learning/WordQueueManager';
+import {
+  WordItem,
+  QueueProgress,
+  WordQueueManager,
+  CompletionReason,
+  NextWordResult,
+} from '../services/learning/WordQueueManager';
 import { AmasProcessResult, LearningEventInput, AdjustWordsParams } from '../types/amas';
 
 // ==================== API Functions ====================
@@ -100,35 +106,38 @@ export function useSessionCache() {
     }
   }, []);
 
-  const loadSessionFromCache = useCallback((userId?: string, sessionId?: string): SessionCacheData | null => {
-    try {
-      const cached = localStorage.getItem(SESSION_CACHE_KEY);
-      if (!cached) return null;
+  const loadSessionFromCache = useCallback(
+    (userId?: string, sessionId?: string): SessionCacheData | null => {
+      try {
+        const cached = localStorage.getItem(SESSION_CACHE_KEY);
+        if (!cached) return null;
 
-      const data = JSON.parse(cached) as SessionCacheData;
+        const data = JSON.parse(cached) as SessionCacheData;
 
-      // 检查缓存是否过期
-      if (Date.now() - data.timestamp > CACHE_MAX_AGE_MS) {
-        localStorage.removeItem(SESSION_CACHE_KEY);
+        // 检查缓存是否过期
+        if (Date.now() - data.timestamp > CACHE_MAX_AGE_MS) {
+          localStorage.removeItem(SESSION_CACHE_KEY);
+          return null;
+        }
+
+        // 检查用户是否匹配
+        if (userId && data.userId && data.userId !== userId) {
+          return null;
+        }
+
+        // 检查会话 ID 是否匹配
+        if (sessionId && data.sessionId !== sessionId) {
+          return null;
+        }
+
+        return data;
+      } catch (e) {
+        console.warn('[SessionCache] Failed to load session from cache:', e);
         return null;
       }
-
-      // 检查用户是否匹配
-      if (userId && data.userId && data.userId !== userId) {
-        return null;
-      }
-
-      // 检查会话 ID 是否匹配
-      if (sessionId && data.sessionId !== sessionId) {
-        return null;
-      }
-
-      return data;
-    } catch (e) {
-      console.warn('[SessionCache] Failed to load session from cache:', e);
-      return null;
-    }
-  }, []);
+    },
+    [],
+  );
 
   const clearSessionCache = useCallback(() => {
     try {
@@ -184,7 +193,7 @@ export function useRetryQueue() {
           queueRef.current.shift();
         } else {
           // 指数退避
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, item.retryCount) * 1000));
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, item.retryCount) * 1000));
         }
       }
     }
@@ -240,50 +249,56 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
   });
   const adaptiveManagerRef = useRef<AdaptiveQueueManager | null>(null);
 
-  const initializeQueue = useCallback((words: WordItem[], config?: Partial<WordQueueConfig & { targetMasteryCount?: number }>) => {
-    if (config) {
-      const { targetMasteryCount: configTargetCount, ...restConfig } = config;
-      configRef.current = { ...configRef.current, ...restConfig };
-      // 如果服务端提供了 targetMasteryCount，更新 progress 中的 targetCount
-      if (configTargetCount !== undefined) {
-        setProgress(prev => ({ ...prev, targetCount: configTargetCount }));
+  const initializeQueue = useCallback(
+    (words: WordItem[], config?: Partial<WordQueueConfig & { targetMasteryCount?: number }>) => {
+      if (config) {
+        const { targetMasteryCount: configTargetCount, ...restConfig } = config;
+        configRef.current = { ...configRef.current, ...restConfig };
+        // 如果服务端提供了 targetMasteryCount，更新 progress 中的 targetCount
+        if (configTargetCount !== undefined) {
+          setProgress((prev) => ({ ...prev, targetCount: configTargetCount }));
+        }
       }
-    }
 
-    // 使用配置中的 targetMasteryCount（如果有），否则使用默认值
-    const effectiveTargetCount = config?.targetMasteryCount ?? targetMasteryCount;
+      // 使用配置中的 targetMasteryCount（如果有），否则使用默认值
+      const effectiveTargetCount = config?.targetMasteryCount ?? targetMasteryCount;
 
-    queueManagerRef.current = new WordQueueManager(words, {
-      masteryThreshold: configRef.current.masteryThreshold,
-      maxTotalQuestions: configRef.current.maxTotalQuestions,
-      targetMasteryCount: effectiveTargetCount,
-    });
+      queueManagerRef.current = new WordQueueManager(words, {
+        masteryThreshold: configRef.current.masteryThreshold,
+        maxTotalQuestions: configRef.current.maxTotalQuestions,
+        targetMasteryCount: effectiveTargetCount,
+      });
 
-    adaptiveManagerRef.current = new AdaptiveQueueManager();
+      adaptiveManagerRef.current = new AdaptiveQueueManager();
 
-    setAllWords(words);
-    setIsCompleted(false);
-    setCompletionReason(undefined);
-  }, [targetMasteryCount]);
+      setAllWords(words);
+      setIsCompleted(false);
+      setCompletionReason(undefined);
+    },
+    [targetMasteryCount],
+  );
 
-  const restoreQueue = useCallback((words: WordItem[], state: { progress: QueueProgress }, config?: Partial<WordQueueConfig>) => {
-    if (config) {
-      configRef.current = { ...configRef.current, ...config };
-    }
+  const restoreQueue = useCallback(
+    (words: WordItem[], state: { progress: QueueProgress }, config?: Partial<WordQueueConfig>) => {
+      if (config) {
+        configRef.current = { ...configRef.current, ...config };
+      }
 
-    queueManagerRef.current = new WordQueueManager(words, {
-      masteryThreshold: configRef.current.masteryThreshold,
-      maxTotalQuestions: configRef.current.maxTotalQuestions,
-      targetMasteryCount,
-    });
+      queueManagerRef.current = new WordQueueManager(words, {
+        masteryThreshold: configRef.current.masteryThreshold,
+        maxTotalQuestions: configRef.current.maxTotalQuestions,
+        targetMasteryCount,
+      });
 
-    adaptiveManagerRef.current = new AdaptiveQueueManager();
+      adaptiveManagerRef.current = new AdaptiveQueueManager();
 
-    setAllWords(words);
-    setProgress(state.progress);
-    setIsCompleted(false);
-    setCompletionReason(undefined);
-  }, [targetMasteryCount]);
+      setAllWords(words);
+      setProgress(state.progress);
+      setIsCompleted(false);
+      setCompletionReason(undefined);
+    },
+    [targetMasteryCount],
+  );
 
   const updateFromManager = useCallback((options?: { consume?: boolean }) => {
     const manager = queueManagerRef.current;
@@ -326,7 +341,7 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
 
     // 使用 applyAdjustments 来添加新单词
     manager.applyAdjustments({ remove: [], add: words });
-    setAllWords(prev => [...prev, ...words]);
+    setAllWords((prev) => [...prev, ...words]);
   }, []);
 
   const skipWord = useCallback((wordId: string) => {
@@ -410,125 +425,137 @@ export function useMasterySync(options: UseMasterySyncOptions) {
   const syncCounterRef = useRef(0);
   const lastSyncTimeRef = useRef(0);
 
-  const submitAnswerOptimistic = useCallback((params: SubmitAnswerParams) => {
-    const manager = getQueueManager();
-    if (!manager) return null;
-
-    // 乐观更新本地状态
-    const decision = manager.recordAnswer(params.wordId, params.isCorrect, params.responseTime);
-    return decision;
-  }, [getQueueManager]);
-
-  const syncAnswerToServer = useCallback(async (
-    params: SubmitAnswerParams & { pausedTimeMs: number },
-    localDecision: ReturnType<WordQueueManager['recordAnswer']> | null
-  ) => {
-    const sessionId = getSessionId();
-    if (!sessionId) return;
-
-    try {
-      const eventData: LearningEventInput = {
-        wordId: params.wordId,
-        isCorrect: params.isCorrect,
-        responseTime: params.responseTime,
-        sessionId,
-        pausedTimeMs: params.pausedTimeMs,
-      };
-
-      const result = await processLearningEvent(eventData);
-      onAmasResult?.(result);
-      syncCounterRef.current++;
-      lastSyncTimeRef.current = Date.now();
-    } catch (e) {
-      console.error('[MasterySync] Failed to sync answer to server:', e);
-      // 添加到重试队列
-      retryQueue.addToQueue({
-        id: `answer_${params.wordId}_${Date.now()}`,
-        action: async () => {
-          await processLearningEvent({
-            wordId: params.wordId,
-            isCorrect: params.isCorrect,
-            responseTime: params.responseTime,
-            sessionId: getSessionId(),
-          });
-        },
-        maxRetries: 3,
-      });
-    }
-  }, [getSessionId, onAmasResult, retryQueue]);
-
-  const fetchMoreWordsIfNeeded = useCallback(async (
-    activeCount: number,
-    pendingCount: number,
-    isCompleted: boolean
-  ): Promise<WordItem[]> => {
-    if (isCompleted) return [];
-
-    const threshold = 3;
-    if (activeCount + pendingCount >= threshold) return [];
-
-    const sessionId = getSessionId();
-    if (!sessionId) return [];
-
-    try {
+  const submitAnswerOptimistic = useCallback(
+    (params: SubmitAnswerParams) => {
       const manager = getQueueManager();
-      const currentWordIds = manager?.getCurrentWordIds() ?? [];
-      const masteredWordIds = manager?.getMasteredWordIds() ?? [];
+      if (!manager) return null;
 
-      const result = await getNextWords({
-        currentWordIds,
-        masteredWordIds,
-        sessionId,
-        count: 5,
-      });
+      // 乐观更新本地状态
+      const decision = manager.recordAnswer(params.wordId, params.isCorrect, params.responseTime);
+      return decision;
+    },
+    [getQueueManager],
+  );
 
-      return result.words.map(w => ({
-        id: w.id,
-        spelling: w.spelling,
-        phonetic: w.phonetic,
-        meanings: w.meanings,
-        examples: w.examples,
-        audioUrl: w.audioUrl,
-        isNew: w.isNew,
-        correctCount: 0,
-        incorrectCount: 0,
-        lastAnsweredAt: null,
-      }));
-    } catch (e) {
-      console.error('[MasterySync] Failed to fetch more words:', e);
-      return [];
-    }
-  }, [getSessionId, getQueueManager]);
+  const syncAnswerToServer = useCallback(
+    async (
+      params: SubmitAnswerParams & { pausedTimeMs: number },
+      localDecision: ReturnType<WordQueueManager['recordAnswer']> | null,
+    ) => {
+      const sessionId = getSessionId();
+      if (!sessionId) return;
 
-  const triggerQueueAdjustment = useCallback(async (
-    reason: 'fatigue' | 'struggling' | 'excelling' | 'periodic',
-    recentPerformance: { accuracy: number; avgResponseTime: number; consecutiveWrong?: number }
-  ) => {
-    const sessionId = getSessionId();
-    if (!sessionId) return;
+      try {
+        const eventData: LearningEventInput = {
+          wordId: params.wordId,
+          isCorrect: params.isCorrect,
+          responseTime: params.responseTime,
+          sessionId,
+          pausedTimeMs: params.pausedTimeMs,
+        };
 
-    try {
-      const manager = getQueueManager();
-      const currentWordIds = manager?.getCurrentWordIds() ?? [];
-      const masteredWordIds = manager?.getMasteredWordIds() ?? [];
+        const result = await processLearningEvent(eventData);
+        onAmasResult?.(result);
+        syncCounterRef.current++;
+        lastSyncTimeRef.current = Date.now();
+      } catch (e) {
+        console.error('[MasterySync] Failed to sync answer to server:', e);
+        // 添加到重试队列
+        retryQueue.addToQueue({
+          id: `answer_${params.wordId}_${Date.now()}`,
+          action: async () => {
+            await processLearningEvent({
+              wordId: params.wordId,
+              isCorrect: params.isCorrect,
+              responseTime: params.responseTime,
+              sessionId: getSessionId(),
+            });
+          },
+          maxRetries: 3,
+        });
+      }
+    },
+    [getSessionId, onAmasResult, retryQueue],
+  );
 
-      await adjustLearningWords({
-        sessionId,
-        currentWordIds,
-        masteredWordIds,
-        adjustReason: reason,
-        recentPerformance: {
-          accuracy: recentPerformance.accuracy,
-          avgResponseTime: recentPerformance.avgResponseTime,
-          consecutiveWrong: recentPerformance.consecutiveWrong ?? 0,
-        },
-      });
+  const fetchMoreWordsIfNeeded = useCallback(
+    async (
+      activeCount: number,
+      pendingCount: number,
+      isCompleted: boolean,
+    ): Promise<WordItem[]> => {
+      if (isCompleted) return [];
 
-      onQueueAdjusted?.();
-    } catch (e) {
-      console.error('[MasterySync] Failed to adjust queue:', e);
-    }
-  }, [getSessionId, getQueueManager, onQueueAdjusted]);
+      const threshold = 3;
+      if (activeCount + pendingCount >= threshold) return [];
+
+      const sessionId = getSessionId();
+      if (!sessionId) return [];
+
+      try {
+        const manager = getQueueManager();
+        const currentWordIds = manager?.getCurrentWordIds() ?? [];
+        const masteredWordIds = manager?.getMasteredWordIds() ?? [];
+
+        const result = await getNextWords({
+          currentWordIds,
+          masteredWordIds,
+          sessionId,
+          count: 5,
+        });
+
+        return result.words.map((w) => ({
+          id: w.id,
+          spelling: w.spelling,
+          phonetic: w.phonetic,
+          meanings: w.meanings,
+          examples: w.examples,
+          audioUrl: w.audioUrl,
+          isNew: w.isNew,
+          correctCount: 0,
+          incorrectCount: 0,
+          lastAnsweredAt: null,
+        }));
+      } catch (e) {
+        console.error('[MasterySync] Failed to fetch more words:', e);
+        return [];
+      }
+    },
+    [getSessionId, getQueueManager],
+  );
+
+  const triggerQueueAdjustment = useCallback(
+    async (
+      reason: 'fatigue' | 'struggling' | 'excelling' | 'periodic',
+      recentPerformance: { accuracy: number; avgResponseTime: number; consecutiveWrong?: number },
+    ) => {
+      const sessionId = getSessionId();
+      if (!sessionId) return;
+
+      try {
+        const manager = getQueueManager();
+        const currentWordIds = manager?.getCurrentWordIds() ?? [];
+        const masteredWordIds = manager?.getMasteredWordIds() ?? [];
+
+        await adjustLearningWords({
+          sessionId,
+          currentWordIds,
+          masteredWordIds,
+          adjustReason: reason,
+          recentPerformance: {
+            accuracy: recentPerformance.accuracy,
+            avgResponseTime: recentPerformance.avgResponseTime,
+            consecutiveWrong: recentPerformance.consecutiveWrong ?? 0,
+          },
+        });
+
+        onQueueAdjusted?.();
+      } catch (e) {
+        console.error('[MasterySync] Failed to adjust queue:', e);
+      }
+    },
+    [getSessionId, getQueueManager, onQueueAdjusted],
+  );
 
   const resetSyncCounter = useCallback(() => {
     syncCounterRef.current = 0;
@@ -566,7 +593,7 @@ class AdaptiveQueueManager {
   onAnswerSubmitted(
     isCorrect: boolean,
     responseTime: number,
-    amasState?: { fatigue: number; attention: number; motivation: number }
+    amasState?: { fatigue: number; attention: number; motivation: number },
   ): { should: boolean; reason?: string } {
     this.recentAnswers.push({ isCorrect, responseTime });
     if (this.recentAnswers.length > this.windowSize) {
@@ -602,7 +629,7 @@ class AdaptiveQueueManager {
       return { accuracy: 1, avgResponseTime: 0 };
     }
 
-    const correctCount = this.recentAnswers.filter(a => a.isCorrect).length;
+    const correctCount = this.recentAnswers.filter((a) => a.isCorrect).length;
     const totalTime = this.recentAnswers.reduce((sum, a) => sum + a.responseTime, 0);
 
     return {

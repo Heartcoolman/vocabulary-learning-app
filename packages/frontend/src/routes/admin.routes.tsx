@@ -25,9 +25,7 @@ const AMASExplainabilityPage = lazy(() => import('../pages/admin/AMASExplainabil
  * 懒加载包装组件
  */
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<PageLoader />}>
-    {children}
-  </Suspense>
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
 /**
@@ -36,78 +34,138 @@ const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
 const adminChildren: AppRoute[] = [
   {
     index: true,
-    element: <LazyWrapper><AdminDashboard /></LazyWrapper>,
-    meta: { title: '管理后台', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <AdminDashboard />
+      </LazyWrapper>
+    ),
+    meta: { title: '管理后台', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'users',
-    element: <LazyWrapper><UserManagementPage /></LazyWrapper>,
-    meta: { title: '用户管理', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <UserManagementPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '用户管理', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'users/:userId',
-    element: <LazyWrapper><UserDetailPage /></LazyWrapper>,
-    meta: { title: '用户详情', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <UserDetailPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '用户详情', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'users/:userId/words',
-    element: <LazyWrapper><WordDetailPage /></LazyWrapper>,
-    meta: { title: '用户单词', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <WordDetailPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '用户单词', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'wordbooks',
-    element: <LazyWrapper><AdminWordBooks /></LazyWrapper>,
-    meta: { title: '词书管理', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <AdminWordBooks />
+      </LazyWrapper>
+    ),
+    meta: { title: '词书管理', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'batch-import',
-    element: <LazyWrapper><BatchImportPage /></LazyWrapper>,
-    meta: { title: '批量导入', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <BatchImportPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '批量导入', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'algorithm-config',
-    element: <LazyWrapper><AlgorithmConfigPage /></LazyWrapper>,
-    meta: { title: '算法配置', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <AlgorithmConfigPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '算法配置', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'config-history',
-    element: <LazyWrapper><ConfigHistoryPage /></LazyWrapper>,
-    meta: { title: '配置历史', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <ConfigHistoryPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '配置历史', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'experiments',
-    element: <LazyWrapper><ExperimentDashboard /></LazyWrapper>,
-    meta: { title: '实验管理', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <ExperimentDashboard />
+      </LazyWrapper>
+    ),
+    meta: { title: '实验管理', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'logs',
-    element: <LazyWrapper><LogViewerPage /></LazyWrapper>,
-    meta: { title: '日志查看', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <LogViewerPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '日志查看', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'log-alerts',
-    element: <LazyWrapper><LogAlertsPage /></LazyWrapper>,
-    meta: { title: '日志告警', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <LogAlertsPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '日志告警', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'optimization',
-    element: <LazyWrapper><OptimizationDashboard /></LazyWrapper>,
-    meta: { title: '优化仪表盘', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <OptimizationDashboard />
+      </LazyWrapper>
+    ),
+    meta: { title: '优化仪表盘', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'causal-analysis',
-    element: <LazyWrapper><CausalInferencePage /></LazyWrapper>,
-    meta: { title: '因果分析', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <CausalInferencePage />
+      </LazyWrapper>
+    ),
+    meta: { title: '因果分析', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'llm-advisor',
-    element: <LazyWrapper><LLMAdvisorPage /></LazyWrapper>,
-    meta: { title: 'LLM顾问', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <LLMAdvisorPage />
+      </LazyWrapper>
+    ),
+    meta: { title: 'LLM顾问', requireAuth: true, requireAdmin: true },
   },
   {
     path: 'amas-explainability',
-    element: <LazyWrapper><AMASExplainabilityPage /></LazyWrapper>,
-    meta: { title: 'AMAS可解释性', requireAuth: true, requireAdmin: true }
+    element: (
+      <LazyWrapper>
+        <AMASExplainabilityPage />
+      </LazyWrapper>
+    ),
+    meta: { title: 'AMAS可解释性', requireAuth: true, requireAdmin: true },
   },
 ];
 
@@ -126,6 +184,6 @@ export const adminRoutes: AppRoute[] = [
       </ProtectedRoute>
     ),
     meta: { title: '管理后台', requireAuth: true, requireAdmin: true },
-    children: adminChildren
-  }
+    children: adminChildren,
+  },
 ];

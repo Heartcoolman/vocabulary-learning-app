@@ -107,7 +107,7 @@ describe('AchievementPage', () => {
     return render(
       <MemoryRouter>
         <AchievementPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

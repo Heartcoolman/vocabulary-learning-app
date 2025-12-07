@@ -46,7 +46,10 @@ const mockAuthContext = {
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockAuthContext,
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  AuthContext: { Provider: ({ children }: any) => children, Consumer: ({ children }: any) => children(mockAuthContext) },
+  AuthContext: {
+    Provider: ({ children }: any) => children,
+    Consumer: ({ children }: any) => children(mockAuthContext),
+  },
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -61,10 +64,22 @@ const createMotionComponent = (tag: string) => {
   return ({ children, ...props }: any) => {
     // Filter out framer-motion specific props
     const {
-      initial, animate, exit, transition, variants,
-      whileHover, whileTap, whileFocus, whileInView,
-      layout, layoutId, drag, dragConstraints, onDrag,
-      style, ...rest
+      initial,
+      animate,
+      exit,
+      transition,
+      variants,
+      whileHover,
+      whileTap,
+      whileFocus,
+      whileInView,
+      layout,
+      layoutId,
+      drag,
+      dragConstraints,
+      onDrag,
+      style,
+      ...rest
     } = props;
     return createElement(tag, { ...rest, style }, children);
   };
@@ -99,7 +114,8 @@ vi.mock('framer-motion', () => ({
     tbody: createMotionComponent('tbody'),
     thead: createMotionComponent('thead'),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => createElement(Fragment, null, children),
+  AnimatePresence: ({ children }: { children: React.ReactNode }) =>
+    createElement(Fragment, null, children),
   useAnimation: () => ({
     start: vi.fn(),
     stop: vi.fn(),
@@ -131,23 +147,84 @@ const defaultPipelineStatus = {
   systemHealth: 'healthy',
   totalThroughput: 150,
   layers: [
-    { id: 'PERCEPTION', name: 'Perception', nameCn: '感知层', processedCount: 1500, avgLatencyMs: 5, successRate: 0.99, status: 'healthy' },
-    { id: 'MODELING', name: 'Modeling', nameCn: '建模层', processedCount: 1400, avgLatencyMs: 8, successRate: 0.98, status: 'healthy' },
-    { id: 'LEARNING', name: 'Learning', nameCn: '学习层', processedCount: 1300, avgLatencyMs: 12, successRate: 0.97, status: 'healthy' },
-    { id: 'DECISION', name: 'Decision', nameCn: '决策层', processedCount: 1200, avgLatencyMs: 10, successRate: 0.99, status: 'healthy' },
-    { id: 'EVALUATION', name: 'Evaluation', nameCn: '评估层', processedCount: 1100, avgLatencyMs: 6, successRate: 0.98, status: 'healthy' },
-    { id: 'OPTIMIZATION', name: 'Optimization', nameCn: '优化层', processedCount: 1000, avgLatencyMs: 15, successRate: 0.96, status: 'healthy' },
+    {
+      id: 'PERCEPTION',
+      name: 'Perception',
+      nameCn: '感知层',
+      processedCount: 1500,
+      avgLatencyMs: 5,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'MODELING',
+      name: 'Modeling',
+      nameCn: '建模层',
+      processedCount: 1400,
+      avgLatencyMs: 8,
+      successRate: 0.98,
+      status: 'healthy',
+    },
+    {
+      id: 'LEARNING',
+      name: 'Learning',
+      nameCn: '学习层',
+      processedCount: 1300,
+      avgLatencyMs: 12,
+      successRate: 0.97,
+      status: 'healthy',
+    },
+    {
+      id: 'DECISION',
+      name: 'Decision',
+      nameCn: '决策层',
+      processedCount: 1200,
+      avgLatencyMs: 10,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'EVALUATION',
+      name: 'Evaluation',
+      nameCn: '评估层',
+      processedCount: 1100,
+      avgLatencyMs: 6,
+      successRate: 0.98,
+      status: 'healthy',
+    },
+    {
+      id: 'OPTIMIZATION',
+      name: 'Optimization',
+      nameCn: '优化层',
+      processedCount: 1000,
+      avgLatencyMs: 15,
+      successRate: 0.96,
+      status: 'healthy',
+    },
   ],
 };
 
 vi.mock('../services/aboutApi', () => ({
   getPipelineLayerStatus: vi.fn(() => Promise.resolve(defaultPipelineStatus)),
-  getAlgorithmStatus: vi.fn(() => Promise.resolve({ ensembleConsensusRate: 0.85, algorithms: [], coldstartStats: {} })),
+  getAlgorithmStatus: vi.fn(() =>
+    Promise.resolve({ ensembleConsensusRate: 0.85, algorithms: [], coldstartStats: {} }),
+  ),
   getUserStateStatus: vi.fn(() => Promise.resolve({ distributions: {}, recentInferences: [] })),
-  getMemoryStatus: vi.fn(() => Promise.resolve({ strengthDistribution: [], urgentReviewCount: 0, soonReviewCount: 0, stableCount: 0 })),
+  getMemoryStatus: vi.fn(() =>
+    Promise.resolve({
+      strengthDistribution: [],
+      urgentReviewCount: 0,
+      soonReviewCount: 0,
+      stableCount: 0,
+    }),
+  ),
   getFeatureFlags: vi.fn(() => Promise.resolve({ flags: {} })),
-  simulate: vi.fn(() => Promise.resolve({ outputStrategy: {}, decisionProcess: {}, explanation: {} })),
-  getOverviewStats: vi.fn(() => Promise.resolve({ todayDecisions: 0, activeUsers: 0, avgResponseTime: 0 })),
+  simulate: vi.fn(() =>
+    Promise.resolve({ outputStrategy: {}, decisionProcess: {}, explanation: {} }),
+  ),
+  getOverviewStats: vi.fn(() =>
+    Promise.resolve({ todayDecisions: 0, activeUsers: 0, avgResponseTime: 0 }),
+  ),
   getDashboardMetrics: vi.fn(() => Promise.resolve({ metrics: [] })),
 }));
 
@@ -209,12 +286,12 @@ const localStorageMock = {
     delete localStorageStore[key];
   }),
   clear: vi.fn(() => {
-    Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
+    Object.keys(localStorageStore).forEach((key) => delete localStorageStore[key]);
   }),
   get length() {
     return Object.keys(localStorageStore).length;
   },
-  key: vi.fn((index: number) => Object.keys(localStorageStore)[index] ?? null)
+  key: vi.fn((index: number) => Object.keys(localStorageStore)[index] ?? null),
 };
 
 vi.stubGlobal('localStorage', localStorageMock);
@@ -232,12 +309,12 @@ const sessionStorageMock = {
     delete sessionStorageStore[key];
   }),
   clear: vi.fn(() => {
-    Object.keys(sessionStorageStore).forEach(key => delete sessionStorageStore[key]);
+    Object.keys(sessionStorageStore).forEach((key) => delete sessionStorageStore[key]);
   }),
   get length() {
     return Object.keys(sessionStorageStore).length;
   },
-  key: vi.fn((index: number) => Object.keys(sessionStorageStore)[index] ?? null)
+  key: vi.fn((index: number) => Object.keys(sessionStorageStore)[index] ?? null),
 };
 
 vi.stubGlobal('sessionStorage', sessionStorageMock);
@@ -338,7 +415,7 @@ export const resetSpeechSynthesisMock = () => {
 const intersectionObserverMock = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
-  disconnect: vi.fn()
+  disconnect: vi.fn(),
 }));
 
 vi.stubGlobal('IntersectionObserver', intersectionObserverMock);
@@ -348,7 +425,7 @@ vi.stubGlobal('IntersectionObserver', intersectionObserverMock);
 const resizeObserverMock = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
-  disconnect: vi.fn()
+  disconnect: vi.fn(),
 }));
 
 vi.stubGlobal('ResizeObserver', resizeObserverMock);
@@ -365,8 +442,8 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn()
-  }))
+    dispatchEvent: vi.fn(),
+  })),
 });
 
 // ==================== Scroll Mock ====================
@@ -386,8 +463,8 @@ beforeEach(() => {
 // ==================== Test Utilities ====================
 
 export function clearStorageMocks(): void {
-  Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
-  Object.keys(sessionStorageStore).forEach(key => delete sessionStorageStore[key]);
+  Object.keys(localStorageStore).forEach((key) => delete localStorageStore[key]);
+  Object.keys(sessionStorageStore).forEach((key) => delete sessionStorageStore[key]);
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();
   sessionStorageMock.getItem.mockClear();
@@ -398,7 +475,7 @@ export function mockSuccessfulFetch<T>(data: T): void {
   mockFetch.mockResolvedValueOnce({
     ok: true,
     status: 200,
-    json: async () => ({ success: true, data })
+    json: async () => ({ success: true, data }),
   });
 }
 
@@ -406,7 +483,7 @@ export function mockFailedFetch(error: string, status = 400): void {
   mockFetch.mockResolvedValueOnce({
     ok: false,
     status,
-    json: async () => ({ success: false, error })
+    json: async () => ({ success: false, error }),
   });
 }
 
@@ -428,10 +505,7 @@ export function runAllTimers(): Promise<void> {
 
 // ==================== Wait Utilities ====================
 
-export function waitFor(
-  callback: () => boolean | Promise<boolean>,
-  timeout = 5000
-): Promise<void> {
+export function waitFor(callback: () => boolean | Promise<boolean>, timeout = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
 
@@ -458,5 +532,5 @@ export function waitFor(
 }
 
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

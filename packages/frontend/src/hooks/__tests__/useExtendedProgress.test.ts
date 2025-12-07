@@ -210,10 +210,11 @@ describe('useExtendedProgress', () => {
       });
 
       expect(mockStorageService.getWords).toHaveBeenCalled();
-      expect(mockStorageService.getWordLearningStates).toHaveBeenCalledWith(
-        'user-123',
-        ['word-1', 'word-2', 'word-3']
-      );
+      expect(mockStorageService.getWordLearningStates).toHaveBeenCalledWith('user-123', [
+        'word-1',
+        'word-2',
+        'word-3',
+      ]);
     });
 
     it('should fetch records for calculations', async () => {
@@ -301,9 +302,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const dailyMilestone = result.current.progress?.milestones?.find(
-        (m) => m.id === 'daily'
-      );
+      const dailyMilestone = result.current.progress?.milestones?.find((m) => m.id === 'daily');
       expect(dailyMilestone).toBeDefined();
       expect(dailyMilestone?.title).toBe('每日目标');
       expect(dailyMilestone?.target).toBe(50);
@@ -317,9 +316,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const weeklyMilestone = result.current.progress?.milestones?.find(
-        (m) => m.id === 'weekly'
-      );
+      const weeklyMilestone = result.current.progress?.milestones?.find((m) => m.id === 'weekly');
       expect(weeklyMilestone).toBeDefined();
       expect(weeklyMilestone?.title).toBe('本周目标');
     });
@@ -331,9 +328,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const streakMilestone = result.current.progress?.milestones?.find(
-        (m) => m.id === 'streak'
-      );
+      const streakMilestone = result.current.progress?.milestones?.find((m) => m.id === 'streak');
       expect(streakMilestone).toBeDefined();
       expect(streakMilestone?.title).toBe('学习连胜');
     });
@@ -345,9 +340,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const masteryMilestone = result.current.progress?.milestones?.find(
-        (m) => m.id === 'mastery'
-      );
+      const masteryMilestone = result.current.progress?.milestones?.find((m) => m.id === 'mastery');
       expect(masteryMilestone).toBeDefined();
       expect(masteryMilestone?.title).toBe('词汇掌握');
     });

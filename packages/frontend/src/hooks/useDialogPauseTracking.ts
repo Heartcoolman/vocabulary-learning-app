@@ -55,7 +55,7 @@ export interface UseDialogPauseTrackingReturn {
  * ```
  */
 export function useDialogPauseTracking(
-  options: UseDialogPauseTrackingOptions = {}
+  options: UseDialogPauseTrackingOptions = {},
 ): UseDialogPauseTrackingReturn {
   const { onPauseChange, enableTracking = true } = options;
 
@@ -69,42 +69,48 @@ export function useDialogPauseTracking(
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // 对话框打开回调
-  const onDialogOpen = useCallback((reason?: string) => {
-    // 如果已经有对话框打开，不重复记录
-    if (dialogOpenTimeRef.current !== null) {
-      return;
-    }
+  const onDialogOpen = useCallback(
+    (reason?: string) => {
+      // 如果已经有对话框打开，不重复记录
+      if (dialogOpenTimeRef.current !== null) {
+        return;
+      }
 
-    dialogOpenTimeRef.current = Date.now();
-    setIsDialogOpen(true);
+      dialogOpenTimeRef.current = Date.now();
+      setIsDialogOpen(true);
 
-    // 埋点：学习暂停事件
-    if (enableTracking) {
-      trackingService.trackLearningPause(reason || 'dialog_opened');
-    }
-  }, [enableTracking]);
+      // 埋点：学习暂停事件
+      if (enableTracking) {
+        trackingService.trackLearningPause(reason || 'dialog_opened');
+      }
+    },
+    [enableTracking],
+  );
 
   // 对话框关闭回调
-  const onDialogClose = useCallback((reason?: string) => {
-    if (dialogOpenTimeRef.current === null) {
-      return;
-    }
+  const onDialogClose = useCallback(
+    (reason?: string) => {
+      if (dialogOpenTimeRef.current === null) {
+        return;
+      }
 
-    const duration = Date.now() - dialogOpenTimeRef.current;
-    const newPausedTime = pausedTime + duration;
+      const duration = Date.now() - dialogOpenTimeRef.current;
+      const newPausedTime = pausedTime + duration;
 
-    setPausedTime(newPausedTime);
-    dialogOpenTimeRef.current = null;
-    setIsDialogOpen(false);
+      setPausedTime(newPausedTime);
+      dialogOpenTimeRef.current = null;
+      setIsDialogOpen(false);
 
-    // 埋点：学习恢复事件
-    if (enableTracking) {
-      trackingService.trackLearningResume(reason || 'dialog_closed');
-    }
+      // 埋点：学习恢复事件
+      if (enableTracking) {
+        trackingService.trackLearningResume(reason || 'dialog_closed');
+      }
 
-    // 触发回调
-    onPauseChange?.(newPausedTime);
-  }, [pausedTime, enableTracking, onPauseChange]);
+      // 触发回调
+      onPauseChange?.(newPausedTime);
+    },
+    [pausedTime, enableTracking, onPauseChange],
+  );
 
   // 获取当前累计暂停时间（包含当前打开中的对话框时间）
   const getPausedTime = useCallback(() => {
@@ -160,7 +166,7 @@ export function useDialogPauseTracking(
  */
 export function useDialogPauseTrackingWithStates(
   dialogStates: boolean[],
-  options: UseDialogPauseTrackingOptions = {}
+  options: UseDialogPauseTrackingOptions = {},
 ): Omit<UseDialogPauseTrackingReturn, 'onDialogOpen' | 'onDialogClose'> {
   const { onPauseChange, enableTracking = true } = options;
 
@@ -171,7 +177,7 @@ export function useDialogPauseTrackingWithStates(
   const dialogOpenTimeRef = useRef<number | null>(null);
 
   // 检测是否有任意对话框打开
-  const isAnyDialogOpen = dialogStates.some(state => state);
+  const isAnyDialogOpen = dialogStates.some((state) => state);
 
   // 当对话框打开/关闭时，记录暂停时间并上报埋点
   useEffect(() => {

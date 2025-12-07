@@ -27,7 +27,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={false} onClose={vi.fn()}>
           <div>Modal Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.queryByText('Modal Content')).not.toBeInTheDocument();
@@ -37,7 +37,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Modal Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByText('Modal Content')).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} title="Test Title">
           <div>Modal Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByText('Test Title')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Modal Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByTestId('icon-x')).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} showCloseButton={false}>
           <div>Modal Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.queryByTestId('icon-x')).not.toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('Modal', () => {
         <Modal isOpen={true} onClose={vi.fn()}>
           <p>Paragraph content</p>
           <button>Action button</button>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByText('Paragraph content')).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -104,7 +104,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} maxWidth="sm">
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -115,7 +115,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} maxWidth="lg">
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -126,7 +126,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} maxWidth="xl">
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -142,7 +142,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={onClose}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const closeButton = screen.getByLabelText('关闭');
@@ -158,7 +158,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={onClose}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const overlay = document.querySelector('.bg-black\\/50');
@@ -174,7 +174,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={onClose} closeOnOverlayClick={false}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const overlay = document.querySelector('.bg-black\\/50');
@@ -190,7 +190,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={onClose}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       await act(async () => {
@@ -208,7 +208,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
@@ -228,7 +228,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()} title="Test Title">
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -239,7 +239,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       const dialog = screen.getByRole('dialog');
@@ -250,7 +250,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(screen.getByLabelText('关闭')).toBeInTheDocument();
@@ -264,7 +264,7 @@ describe('Modal', () => {
       render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(document.body.style.overflow).toBe('hidden');
@@ -274,13 +274,13 @@ describe('Modal', () => {
       const { rerender } = render(
         <Modal isOpen={true} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       rerender(
         <Modal isOpen={false} onClose={vi.fn()}>
           <div>Content</div>
-        </Modal>
+        </Modal>,
       );
 
       expect(document.body.style.overflow).toBe('');
@@ -300,7 +300,7 @@ describe('ConfirmModal', () => {
           onConfirm={vi.fn()}
           title="Confirm Action"
           message="Are you sure?"
-        />
+        />,
       );
 
       expect(screen.getByText('Confirm Action')).toBeInTheDocument();
@@ -314,7 +314,7 @@ describe('ConfirmModal', () => {
           onConfirm={vi.fn()}
           title="Confirm"
           message="This action cannot be undone."
-        />
+        />,
       );
 
       expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument();
@@ -328,7 +328,7 @@ describe('ConfirmModal', () => {
           onConfirm={vi.fn()}
           title="Confirm"
           message="Message"
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
@@ -345,7 +345,7 @@ describe('ConfirmModal', () => {
           message="Message"
           confirmText="Delete"
           cancelText="Keep"
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
@@ -365,7 +365,7 @@ describe('ConfirmModal', () => {
           onConfirm={onConfirm}
           title="Confirm"
           message="Message"
-        />
+        />,
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
@@ -385,7 +385,7 @@ describe('ConfirmModal', () => {
           onConfirm={vi.fn()}
           title="Confirm"
           message="Message"
-        />
+        />,
       );
 
       const cancelButton = screen.getByRole('button', { name: '取消' });
@@ -409,7 +409,7 @@ describe('ConfirmModal', () => {
           title="Confirm"
           message="Message"
           isLoading={true}
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: '处理中...' })).toBeInTheDocument();
@@ -424,7 +424,7 @@ describe('ConfirmModal', () => {
           title="Confirm"
           message="Message"
           isLoading={true}
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: '处理中...' })).toBeDisabled();
@@ -444,7 +444,7 @@ describe('ConfirmModal', () => {
           title="Confirm"
           message="Message"
           variant="danger"
-        />
+        />,
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
@@ -460,7 +460,7 @@ describe('ConfirmModal', () => {
           title="Confirm"
           message="Message"
           variant="warning"
-        />
+        />,
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
@@ -476,7 +476,7 @@ describe('ConfirmModal', () => {
           title="Confirm"
           message="Message"
           variant="info"
-        />
+        />,
       );
 
       const confirmButton = screen.getByRole('button', { name: '确定' });
@@ -491,12 +491,7 @@ describe('AlertModal', () => {
   describe('rendering', () => {
     it('should render title', () => {
       render(
-        <AlertModal
-          isOpen={true}
-          onClose={vi.fn()}
-          title="Alert Title"
-          message="Alert message"
-        />
+        <AlertModal isOpen={true} onClose={vi.fn()} title="Alert Title" message="Alert message" />,
       );
 
       expect(screen.getByText('Alert Title')).toBeInTheDocument();
@@ -509,21 +504,14 @@ describe('AlertModal', () => {
           onClose={vi.fn()}
           title="Alert"
           message="This is an alert message."
-        />
+        />,
       );
 
       expect(screen.getByText('This is an alert message.')).toBeInTheDocument();
     });
 
     it('should render default button text', () => {
-      render(
-        <AlertModal
-          isOpen={true}
-          onClose={vi.fn()}
-          title="Alert"
-          message="Message"
-        />
-      );
+      render(<AlertModal isOpen={true} onClose={vi.fn()} title="Alert" message="Message" />);
 
       expect(screen.getByRole('button', { name: '确定' })).toBeInTheDocument();
     });
@@ -536,21 +524,14 @@ describe('AlertModal', () => {
           title="Alert"
           message="Message"
           buttonText="Got it"
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: 'Got it' })).toBeInTheDocument();
     });
 
     it('should not show close button', () => {
-      render(
-        <AlertModal
-          isOpen={true}
-          onClose={vi.fn()}
-          title="Alert"
-          message="Message"
-        />
-      );
+      render(<AlertModal isOpen={true} onClose={vi.fn()} title="Alert" message="Message" />);
 
       expect(screen.queryByLabelText('关闭')).not.toBeInTheDocument();
     });
@@ -561,14 +542,7 @@ describe('AlertModal', () => {
   describe('interactions', () => {
     it('should call onClose when button clicked', async () => {
       const onClose = vi.fn();
-      render(
-        <AlertModal
-          isOpen={true}
-          onClose={onClose}
-          title="Alert"
-          message="Message"
-        />
-      );
+      render(<AlertModal isOpen={true} onClose={onClose} title="Alert" message="Message" />);
 
       const button = screen.getByRole('button', { name: '确定' });
       await act(async () => {
@@ -590,7 +564,7 @@ describe('AlertModal', () => {
           title="Alert"
           message="Message"
           variant="success"
-        />
+        />,
       );
 
       const button = screen.getByRole('button', { name: '确定' });
@@ -605,7 +579,7 @@ describe('AlertModal', () => {
           title="Alert"
           message="Message"
           variant="error"
-        />
+        />,
       );
 
       const button = screen.getByRole('button', { name: '确定' });
@@ -620,7 +594,7 @@ describe('AlertModal', () => {
           title="Alert"
           message="Message"
           variant="warning"
-        />
+        />,
       );
 
       const button = screen.getByRole('button', { name: '确定' });
@@ -628,14 +602,7 @@ describe('AlertModal', () => {
     });
 
     it('should apply info variant styles by default', () => {
-      render(
-        <AlertModal
-          isOpen={true}
-          onClose={vi.fn()}
-          title="Alert"
-          message="Message"
-        />
-      );
+      render(<AlertModal isOpen={true} onClose={vi.fn()} title="Alert" message="Message" />);
 
       const button = screen.getByRole('button', { name: '确定' });
       expect(button.classList.contains('bg-blue-500')).toBe(true);

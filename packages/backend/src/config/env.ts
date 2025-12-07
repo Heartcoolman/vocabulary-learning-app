@@ -1,42 +1,232 @@
+/**
+ * 后端环境变量配置
+ *
+ * 使用 Zod 进行运行时验证，确保环境变量的类型安全和完整性
+ * 所有环境变量都通过此文件统一访问，避免直接使用 process.env
+ */
+
 import { config } from 'dotenv';
+import { z } from 'zod';
 import { startupLogger } from '../logger';
 
+// 加载 .env 文件
 config();
 
-// 验证必需的环境变量
-const JWT_SECRET = process.env.JWT_SECRET;
-const DATABASE_URL = process.env.DATABASE_URL;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+/**
+ * 环境变量 Schema 定义
+ */
+const envSchema = z.object({
+  // ============================================
+  // 数据库配置
+  // ============================================
+  DATABASE_URL: z.string().url('DATABASE_URL 必须是有效的 URL'),
 
-// 强制要求配置 DATABASE_URL
-if (!DATABASE_URL) {
-  startupLogger.error('配置错误：DATABASE_URL 环境变量未设置');
-  startupLogger.error('请在 .env 文件中设置: DATABASE_URL=postgresql://user:password@host:port/dbname');
-  process.exit(1);
+  // ============================================
+  // JWT 配置
+  // ============================================
+  JWT_SECRET: z
+    .string()
+    .min(16, 'JWT_SECRET 长度至少为 16 个字符')
+    .refine(
+      (val) => {
+        // 生产环境不允许使用默认值
+        if (process.env.NODE_ENV === 'production') {
+          return (
+            val !== 'default_secret_change_me' &&
+            val !== 'dev_only_weak_secret_change_in_production'
+          );
+        }
+        return true;
+      },
+      {
+        message: '生产环境必须配置强随机 JWT_SECRET',
+      },
+    ),
+
+  JWT_EXPIRES_IN: z.string().default('24h'),
+
+  // ============================================
+  // 服务器配置
+  // ============================================
+  PORT: z
+    .string()
+    .default('3000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive().max(65535, 'PORT 必须在 1-65535 范围内')),
+
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
+  // ============================================
+  // CORS 配置
+  // ============================================
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+
+  // ============================================
+  // 反向代理配置
+  // ============================================
+  TRUST_PROXY: z
+    .string()
+    .default('false')
+    .transform((val) => {
+      if (val === 'false' || val === '0') return false;
+      if (val === 'true' || val === '1') return 1;
+      const num = parseInt(val, 10);
+      return isNaN(num) ? val : num;
+    }),
+
+  // ============================================
+  // Worker 配置
+  // ============================================
+  WORKER_LEADER: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  // ============================================
+  // AMAS 算法配置
+  // ============================================
+  DELAYED_REWARD_DELAY_MS: z
+    .string()
+    .default('86400000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(60000, 'DELAYED_REWARD_DELAY_MS 最小值为 60000（60秒）')),
+
+  // ============================================
+  // 速率限制配置
+  // ============================================
+  RATE_LIMIT_MAX: z
+    .string()
+    .default('100')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive()),
+
+  RATE_LIMIT_WINDOW_MS: z
+    .string()
+    .default('60000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive()),
+
+  // ============================================
+  // 日志配置
+  // ============================================
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+
+  // ============================================
+  // 监控配置
+  // ============================================
+  HEALTHCHECK_ENDPOINT: z.string().default('/health'),
+  METRICS_ENDPOINT: z.string().optional(),
+
+  // ============================================
+  // Sentry 配置
+  // ============================================
+  SENTRY_DSN: z.string().url('SENTRY_DSN 必须是有效的 URL').optional(),
+  APP_VERSION: z.string().optional(),
+
+  // ============================================
+  // Redis 配置（可选）
+  // ============================================
+  REDIS_URL: z.string().url('REDIS_URL 必须是有效的 URL').optional(),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z
+    .string()
+    .default('6379')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive().max(65535)),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z
+    .string()
+    .default('0')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().nonnegative().max(15, 'Redis DB 索引必须在 0-15 范围内')),
+});
+
+/**
+ * 环境变量类型
+ */
+export type Env = z.infer<typeof envSchema>;
+
+/**
+ * 验证并解析环境变量
+ */
+function validateEnv(): Env {
+  try {
+    const parsed = envSchema.parse({
+      DATABASE_URL: process.env.DATABASE_URL,
+      JWT_SECRET: process.env.JWT_SECRET,
+      JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      CORS_ORIGIN: process.env.CORS_ORIGIN,
+      TRUST_PROXY: process.env.TRUST_PROXY,
+      WORKER_LEADER: process.env.WORKER_LEADER,
+      DELAYED_REWARD_DELAY_MS: process.env.DELAYED_REWARD_DELAY_MS,
+      RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+      RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
+      LOG_LEVEL: process.env.LOG_LEVEL,
+      HEALTHCHECK_ENDPOINT: process.env.HEALTHCHECK_ENDPOINT,
+      METRICS_ENDPOINT: process.env.METRICS_ENDPOINT,
+      SENTRY_DSN: process.env.SENTRY_DSN,
+      APP_VERSION: process.env.APP_VERSION,
+      REDIS_URL: process.env.REDIS_URL,
+      REDIS_HOST: process.env.REDIS_HOST,
+      REDIS_PORT: process.env.REDIS_PORT,
+      REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+      REDIS_DB: process.env.REDIS_DB,
+    });
+
+    // 开发环境警告
+    if (parsed.NODE_ENV === 'development') {
+      if (
+        parsed.JWT_SECRET === 'default_secret_change_me' ||
+        parsed.JWT_SECRET === 'dev_only_weak_secret_change_in_production'
+      ) {
+        startupLogger.warn('⚠️ 使用默认 JWT_SECRET，仅适用于开发环境');
+        startupLogger.warn('⚠️ 生产环境部署前请务必修改为强随机字符串');
+      }
+    }
+
+    // 生产环境检查
+    if (parsed.NODE_ENV === 'production') {
+      // 检查 Sentry 配置
+      if (!parsed.SENTRY_DSN) {
+        startupLogger.warn('⚠️ 生产环境未配置 SENTRY_DSN，错误追踪将不可用');
+      }
+
+      // 检查版本号
+      if (!parsed.APP_VERSION) {
+        startupLogger.warn('⚠️ 生产环境未配置 APP_VERSION，版本追踪将不可用');
+      }
+
+      // 检查 CORS 配置
+      if (parsed.CORS_ORIGIN.includes('localhost')) {
+        startupLogger.warn('⚠️ 生产环境使用了 localhost CORS 源，这可能是配置错误');
+      }
+    }
+
+    startupLogger.info(`环境变量验证成功 (环境: ${parsed.NODE_ENV})`);
+    return parsed;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      startupLogger.error('环境变量验证失败:');
+      error.errors.forEach((err) => {
+        startupLogger.error(`  - ${err.path.join('.')}: ${err.message}`);
+      });
+      throw new Error('环境变量配置错误，请检查 .env 文件');
+    }
+    throw error;
+  }
 }
 
-// 生产环境强制要求配置 JWT_SECRET
-if (NODE_ENV === 'production' && (!JWT_SECRET || JWT_SECRET === 'default_secret_change_me')) {
-  startupLogger.error('安全错误：生产环境必须配置强随机 JWT_SECRET');
-  startupLogger.error('请在 .env 文件中设置: JWT_SECRET=<your_strong_random_secret>');
-  process.exit(1);
-}
-
-// 开发环境警告弱密钥
-if (NODE_ENV === 'development' && (!JWT_SECRET || JWT_SECRET === 'default_secret_change_me')) {
-  startupLogger.warn('警告：使用默认 JWT_SECRET，仅适用于开发环境');
-  startupLogger.warn('生产环境部署前请务必修改为强随机字符串');
-}
-
-export const env = {
-  PORT: process.env.PORT || '3000',
-  NODE_ENV,
-  DATABASE_URL,
-  JWT_SECRET: JWT_SECRET || 'dev_only_weak_secret_change_in_production',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  // 反向代理配置：仅在受控反代后面时启用，设为代理层数(如1)或false禁用
-  TRUST_PROXY: process.env.TRUST_PROXY || 'false',
-  // Worker主节点标识：多实例部署时仅主节点运行cron任务
-  WORKER_LEADER: process.env.WORKER_LEADER === 'true',
-};
+/**
+ * 导出验证后的环境变量
+ *
+ * @example
+ * ```ts
+ * import { env } from './config/env';
+ *
+ * console.log(`Server running on port ${env.PORT}`);
+ * console.log(`JWT expires in ${env.JWT_EXPIRES_IN}`);
+ * ```
+ */
+export const env = validateEnv();

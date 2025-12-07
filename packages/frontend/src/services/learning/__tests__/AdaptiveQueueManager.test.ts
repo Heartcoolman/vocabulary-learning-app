@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   AdaptiveQueueManager,
   UserStateSnapshot,
-  RecentPerformance
+  RecentPerformance,
 } from '../AdaptiveQueueManager';
 
 describe('AdaptiveQueueManager', () => {
@@ -179,7 +179,7 @@ describe('AdaptiveQueueManager', () => {
       const normalState: UserStateSnapshot = {
         fatigue: 0.5,
         attention: 0.7,
-        motivation: 0.8
+        motivation: 0.8,
       };
       const result1 = manager.onAnswerSubmitted(true, 2000, normalState);
       expect(result1.should).toBe(false);
@@ -188,7 +188,7 @@ describe('AdaptiveQueueManager', () => {
       const fatigueState: UserStateSnapshot = {
         fatigue: 0.85, // 超过阈值 0.8
         attention: 0.4,
-        motivation: 0.3
+        motivation: 0.3,
       };
       const result2 = manager.onAnswerSubmitted(true, 2000, fatigueState);
       expect(result2.should).toBe(true);
@@ -337,7 +337,7 @@ describe('AdaptiveQueueManager', () => {
       const lowAttentionState: UserStateSnapshot = {
         fatigue: 0.4,
         attention: 0.3, // 低注意力
-        motivation: 0.6
+        motivation: 0.6,
       };
 
       // 低注意力会导致更频繁的检查
@@ -353,7 +353,7 @@ describe('AdaptiveQueueManager', () => {
       const highMotivationState: UserStateSnapshot = {
         fatigue: 0.2,
         attention: 0.9,
-        motivation: 0.95
+        motivation: 0.95,
       };
 
       // 高动机状态下正常学习

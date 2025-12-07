@@ -2,15 +2,9 @@ import app from './app';
 import { env } from './config/env';
 import prisma from './config/database';
 import { connectRedis, disconnectRedis } from './config/redis';
-import {
-  startDelayedRewardWorker,
-  stopDelayedRewardWorker
-} from './workers/delayed-reward.worker';
+import { startDelayedRewardWorker, stopDelayedRewardWorker } from './workers/delayed-reward.worker';
 import { startOptimizationWorker } from './workers/optimization.worker';
-import {
-  startLLMAdvisorWorker,
-  stopLLMAdvisorWorker
-} from './workers/llm-advisor.worker';
+import { startLLMAdvisorWorker, stopLLMAdvisorWorker } from './workers/llm-advisor.worker';
 import { startGlobalMonitoring, stopGlobalMonitoring } from './amas/monitoring/monitoring-service';
 import { startAlertMonitoring, stopAlertMonitoring } from './monitoring/monitoring-service';
 import { getSharedDecisionRecorder } from './amas/services/decision-recorder.service';
@@ -20,7 +14,7 @@ import {
   initSentry,
   captureException as sentryCaptureException,
   flush as sentryFlush,
-  close as sentryClose
+  close as sentryClose,
 } from './config/sentry';
 
 const PORT = parseInt(env.PORT, 10);
@@ -53,7 +47,7 @@ async function startServer() {
     // 仅在主节点或单实例模式下启动cron worker
     // 多实例部署时，设置 WORKER_LEADER=true 仅在一个实例上启用
     const shouldRunWorkers = env.WORKER_LEADER || env.NODE_ENV === 'development';
-    
+
     if (shouldRunWorkers) {
       // 启动延迟奖励Worker
       delayedRewardWorkerTask = startDelayedRewardWorker();
@@ -76,7 +70,10 @@ async function startServer() {
 
     // 启动服务器
     app.listen(PORT, () => {
-      startupLogger.info({ port: PORT, env: env.NODE_ENV, corsOrigin: env.CORS_ORIGIN }, 'Server running');
+      startupLogger.info(
+        { port: PORT, env: env.NODE_ENV, corsOrigin: env.CORS_ORIGIN },
+        'Server running',
+      );
 
       // Optimization #4: 仅在leader实例启动监控，避免多实例重复监控
       if (shouldRunWorkers) {
@@ -92,13 +89,17 @@ async function startServer() {
         // Day 13: 启动Alert监控和Webhook通知系统
         try {
           startAlertMonitoring();
-          startupLogger.info('Alert monitoring and webhook notification system started (leader mode)');
+          startupLogger.info(
+            'Alert monitoring and webhook notification system started (leader mode)',
+          );
         } catch (error) {
           startupLogger.error({ err: error }, 'Failed to start alert monitoring');
           // 告警监控启动失败不应阻止服务器运行
         }
       } else {
-        startupLogger.info('Monitoring skipped (not leader node, set WORKER_LEADER=true to enable)');
+        startupLogger.info(
+          'Monitoring skipped (not leader node, set WORKER_LEADER=true to enable)',
+        );
       }
     });
   } catch (error) {
@@ -156,7 +157,7 @@ async function gracefulShutdown(signal: string) {
 
   // 停止HTTP指标采集并flush队列
   try {
-    if (process.env.NODE_ENV !== 'test') {
+    if (env.NODE_ENV !== 'test') {
       const { stopMetricsCollection } = require('./middleware/metrics.middleware');
       await stopMetricsCollection();
       startupLogger.info('Metrics collection stopped');

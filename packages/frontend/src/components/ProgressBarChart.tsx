@@ -30,13 +30,16 @@ const ProgressBarChart: React.FC<ProgressBarChartProps> = ({ data, height = 40 }
 
         return (
           <div key={index} className="flex items-center gap-3" role="listitem">
-            <div className="w-24 flex-shrink-0 text-sm font-medium text-gray-700 truncate" title={item.label}>
+            <div
+              className="w-24 flex-shrink-0 truncate text-sm font-medium text-gray-700"
+              title={item.label}
+            >
               {item.label}
             </div>
 
-            <div className="flex-1 relative">
+            <div className="relative flex-1">
               <div
-                className="w-full bg-gray-200 rounded-full overflow-hidden"
+                className="w-full overflow-hidden rounded-full bg-gray-200"
                 style={{ height: `${height}px` }}
                 role="progressbar"
                 aria-valuenow={clampedPercentage}
@@ -45,13 +48,13 @@ const ProgressBarChart: React.FC<ProgressBarChartProps> = ({ data, height = 40 }
                 aria-label={`${item.label}: ${clampedPercentage.toFixed(0)}%`}
               >
                 <div
-                  className={`h-full ${barColor} transition-all duration-500 ease-out rounded-full`}
+                  className={`h-full ${barColor} rounded-full transition-all duration-500 ease-out`}
                   style={{ width: `${clampedPercentage}%` }}
                 />
               </div>
             </div>
 
-            <div className="w-12 flex-shrink-0 text-sm font-semibold text-gray-600 text-right">
+            <div className="w-12 flex-shrink-0 text-right text-sm font-semibold text-gray-600">
               {clampedPercentage.toFixed(0)}%
             </div>
           </div>

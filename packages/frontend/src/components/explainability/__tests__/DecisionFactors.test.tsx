@@ -9,12 +9,36 @@ import type { DecisionFactor } from '../../../types/explainability';
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  Brain: ({ className }: any) => <span data-testid="icon-brain" className={className}>Brain</span>,
-  Clock: ({ className }: any) => <span data-testid="icon-clock" className={className}>Clock</span>,
-  Target: ({ className }: any) => <span data-testid="icon-target" className={className}>Target</span>,
-  Lightning: ({ className }: any) => <span data-testid="icon-lightning" className={className}>Lightning</span>,
-  ChartLine: ({ className }: any) => <span data-testid="icon-chartline" className={className}>ChartLine</span>,
-  Info: ({ className }: any) => <span data-testid="icon-info" className={className}>Info</span>,
+  Brain: ({ className }: any) => (
+    <span data-testid="icon-brain" className={className}>
+      Brain
+    </span>
+  ),
+  Clock: ({ className }: any) => (
+    <span data-testid="icon-clock" className={className}>
+      Clock
+    </span>
+  ),
+  Target: ({ className }: any) => (
+    <span data-testid="icon-target" className={className}>
+      Target
+    </span>
+  ),
+  Lightning: ({ className }: any) => (
+    <span data-testid="icon-lightning" className={className}>
+      Lightning
+    </span>
+  ),
+  ChartLine: ({ className }: any) => (
+    <span data-testid="icon-chartline" className={className}>
+      ChartLine
+    </span>
+  ),
+  Info: ({ className }: any) => (
+    <span data-testid="icon-info" className={className}>
+      Info
+    </span>
+  ),
 }));
 
 const mockFactors: DecisionFactor[] = [

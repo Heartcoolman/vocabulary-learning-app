@@ -135,7 +135,7 @@ describe('useLearningData', () => {
       const userId = 'user-123';
       // Make API slow to test loading state
       mockApiClient.adminGetUserLearningData.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockUserLearningData), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockUserLearningData), 100)),
       );
 
       const { result } = renderHook(() => useLearningData(userId));
@@ -320,9 +320,9 @@ describe('useLearningData', () => {
       const userId = 'user-123';
       let resolvePromise: (value: unknown) => void;
       mockApiClient.adminGetUserLearningData.mockReturnValue(
-        new Promise(resolve => {
+        new Promise((resolve) => {
           resolvePromise = resolve;
-        })
+        }),
       );
 
       const { result } = renderHook(() => useLearningData(userId));
@@ -414,10 +414,9 @@ describe('useLearningData', () => {
     });
 
     it('should refetch when userId changes', async () => {
-      const { result, rerender } = renderHook(
-        ({ userId }) => useLearningData(userId),
-        { initialProps: { userId: 'user-123' } }
-      );
+      const { result, rerender } = renderHook(({ userId }) => useLearningData(userId), {
+        initialProps: { userId: 'user-123' },
+      });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -442,7 +441,7 @@ describe('useLearningData', () => {
     it('should refetch when limit changes', async () => {
       const { result, rerender } = renderHook(
         ({ userId, limit }) => useLearningData(userId, limit),
-        { initialProps: { userId: 'user-123', limit: 50 } }
+        { initialProps: { userId: 'user-123', limit: 50 } },
       );
 
       await waitFor(() => {

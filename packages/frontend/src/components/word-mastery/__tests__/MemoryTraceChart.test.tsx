@@ -110,7 +110,13 @@ describe('MemoryTraceChart', () => {
   describe('data point styling', () => {
     it('should render correct answers with green color', () => {
       const correctOnlyTrace: ReviewTraceRecord[] = [
-        { id: '1', timestamp: '2024-01-01T10:00:00Z', isCorrect: true, responseTime: 2.0, secondsAgo: 0 },
+        {
+          id: '1',
+          timestamp: '2024-01-01T10:00:00Z',
+          isCorrect: true,
+          responseTime: 2.0,
+          secondsAgo: 0,
+        },
       ];
       render(<MemoryTraceChart trace={correctOnlyTrace} />);
 
@@ -120,7 +126,13 @@ describe('MemoryTraceChart', () => {
 
     it('should render incorrect answers with red color', () => {
       const incorrectOnlyTrace: ReviewTraceRecord[] = [
-        { id: '1', timestamp: '2024-01-01T10:00:00Z', isCorrect: false, responseTime: 2.0, secondsAgo: 0 },
+        {
+          id: '1',
+          timestamp: '2024-01-01T10:00:00Z',
+          isCorrect: false,
+          responseTime: 2.0,
+          secondsAgo: 0,
+        },
       ];
       render(<MemoryTraceChart trace={incorrectOnlyTrace} />);
 
@@ -137,20 +149,20 @@ describe('MemoryTraceChart', () => {
 
       // Check title elements for tooltip content
       const titles = document.querySelectorAll('title');
-      const titleTexts = Array.from(titles).map(t => t.textContent);
+      const titleTexts = Array.from(titles).map((t) => t.textContent);
 
-      expect(titleTexts.some(t => t?.includes('2.5s'))).toBe(true);
-      expect(titleTexts.some(t => t?.includes('5.0s'))).toBe(true);
+      expect(titleTexts.some((t) => t?.includes('2.5s'))).toBe(true);
+      expect(titleTexts.some((t) => t?.includes('5.0s'))).toBe(true);
     });
 
     it('should include correctness in tooltip', () => {
       render(<MemoryTraceChart trace={mockTrace} />);
 
       const titles = document.querySelectorAll('title');
-      const titleTexts = Array.from(titles).map(t => t.textContent);
+      const titleTexts = Array.from(titles).map((t) => t.textContent);
 
-      expect(titleTexts.some(t => t?.includes('正确'))).toBe(true);
-      expect(titleTexts.some(t => t?.includes('错误'))).toBe(true);
+      expect(titleTexts.some((t) => t?.includes('正确'))).toBe(true);
+      expect(titleTexts.some((t) => t?.includes('错误'))).toBe(true);
     });
   });
 
@@ -159,7 +171,13 @@ describe('MemoryTraceChart', () => {
   describe('single data point', () => {
     it('should handle single data point', () => {
       const singleTrace: ReviewTraceRecord[] = [
-        { id: '1', timestamp: '2024-01-01T10:00:00Z', isCorrect: true, responseTime: 2.0, secondsAgo: 0 },
+        {
+          id: '1',
+          timestamp: '2024-01-01T10:00:00Z',
+          isCorrect: true,
+          responseTime: 2.0,
+          secondsAgo: 0,
+        },
       ];
       render(<MemoryTraceChart trace={singleTrace} />);
 
@@ -216,9 +234,7 @@ describe('MemoryTraceChart', () => {
       render(<MemoryTraceChart trace={mockTrace} />);
 
       const legendDots = document.querySelectorAll('.rounded-full');
-      const greenDot = Array.from(legendDots).find(dot =>
-        dot.classList.contains('bg-green-500')
-      );
+      const greenDot = Array.from(legendDots).find((dot) => dot.classList.contains('bg-green-500'));
       expect(greenDot).toBeInTheDocument();
     });
 
@@ -226,9 +242,7 @@ describe('MemoryTraceChart', () => {
       render(<MemoryTraceChart trace={mockTrace} />);
 
       const legendDots = document.querySelectorAll('.rounded-full');
-      const redDot = Array.from(legendDots).find(dot =>
-        dot.classList.contains('bg-red-500')
-      );
+      const redDot = Array.from(legendDots).find((dot) => dot.classList.contains('bg-red-500'));
       expect(redDot).toBeInTheDocument();
     });
   });

@@ -50,10 +50,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   return (
-    <div className="absolute top-4 right-4 z-20">
+    <div className="absolute right-4 top-4 z-20">
       <motion.div
         layout
-        className="bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl overflow-hidden"
+        className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900/90 backdrop-blur-md"
         transition={g3SpringSnappy}
       >
         {/* 头部控制栏 */}
@@ -61,13 +61,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           {/* 暂停/播放按钮 */}
           <button
             onClick={onTogglePause}
-            className={`
-              p-2 rounded-lg transition-colors
-              ${isPaused
+            className={`rounded-lg p-2 transition-colors ${
+              isPaused
                 ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-              }
-            `}
+            } `}
             title={isPaused ? '继续' : '暂停'}
           >
             {isPaused ? <Play size={18} /> : <Pause size={18} />}
@@ -76,20 +74,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           {/* 故障注入下拉 */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
-              ${isExpanded
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
+              isExpanded
                 ? 'bg-amber-500/20 text-amber-400'
                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-              }
-            `}
+            } `}
           >
             <Lightning size={16} weight="fill" />
             <span className="text-sm font-medium">故障注入</span>
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
+            <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
               <CaretDown size={14} />
             </motion.div>
           </button>
@@ -105,28 +98,26 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               transition={g3SpringSnappy}
               className="border-t border-slate-700"
             >
-              <div className="p-3 space-y-2">
-                <p className="text-xs text-slate-500 mb-3">
-                  选择故障类型，观察系统如何响应
-                </p>
+              <div className="space-y-2 p-3">
+                <p className="mb-3 text-xs text-slate-500">选择故障类型，观察系统如何响应</p>
 
                 {FAULT_OPTIONS.map((option) => (
                   <button
                     key={option.type}
                     onClick={() => handleInjectFault(option.type)}
                     disabled={isInjecting}
-                    className={`
-                      w-full flex items-center gap-3 p-2.5 rounded-lg
-                      bg-slate-800/50 hover:bg-slate-800 transition-colors
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
+                    className={`flex w-full items-center gap-3 rounded-lg bg-slate-800/50 p-2.5 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg"
                       style={{ backgroundColor: `${option.color}20` }}
                     >
                       {isInjecting ? (
-                        <CircleNotch size={16} className="animate-spin" style={{ color: option.color }} />
+                        <CircleNotch
+                          size={16}
+                          className="animate-spin"
+                          style={{ color: option.color }}
+                        />
                       ) : option.type === 'anomaly' ? (
                         <Warning size={16} style={{ color: option.color }} />
                       ) : (
@@ -134,29 +125,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                       )}
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="text-sm font-medium text-slate-200">
-                        {option.label}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {option.description}
-                      </div>
+                      <div className="text-sm font-medium text-slate-200">{option.label}</div>
+                      <div className="text-xs text-slate-500">{option.description}</div>
                     </div>
                   </button>
                 ))}
 
                 {/* 最近注入结果 */}
                 {lastInjection && (
-                  <div className="mt-3 p-2.5 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <div className="text-xs text-slate-400 mb-1">最近注入结果</div>
-                    <div className="text-sm text-amber-400">
-                      {lastInjection.expectedOutcome}
-                    </div>
+                  <div className="mt-3 rounded-lg border border-slate-700 bg-slate-800/50 p-2.5">
+                    <div className="mb-1 text-xs text-slate-400">最近注入结果</div>
+                    <div className="text-sm text-amber-400">{lastInjection.expectedOutcome}</div>
                     {lastInjection.guardRailTriggers.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
+                      <div className="mt-2 flex flex-wrap gap-1">
                         {lastInjection.guardRailTriggers.map((trigger: string) => (
                           <span
                             key={trigger}
-                            className="px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded"
+                            className="rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-400"
                           >
                             {trigger}
                           </span>

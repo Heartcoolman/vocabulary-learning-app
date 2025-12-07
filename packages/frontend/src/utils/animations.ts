@@ -266,11 +266,7 @@ export const celebrationVariants: Variants = {
  * @param baseDelay 基础延迟（秒）
  * @param stagger 错开间隔（秒）
  */
-export function getStaggeredTransition(
-  index: number,
-  baseDelay = 0.1,
-  stagger = 0.05
-): Transition {
+export function getStaggeredTransition(index: number, baseDelay = 0.1, stagger = 0.05): Transition {
   return {
     ...g3SpringStandard,
     delay: baseDelay + index * stagger,
@@ -283,11 +279,7 @@ export function getStaggeredTransition(
  * @param damping 阻尼 (10-50)
  * @param mass 质量 (0.5-2)
  */
-export function createG3Spring(
-  stiffness: number,
-  damping: number,
-  mass = 1
-): Transition {
+export function createG3Spring(stiffness: number, damping: number, mass = 1): Transition {
   return {
     type: 'spring',
     stiffness,
@@ -303,7 +295,7 @@ export function createG3Spring(
  */
 export function createG3Tween(
   duration: number = G3_DURATION.normal,
-  easing: CubicBezier = G3_EASING.standard
+  easing: CubicBezier = G3_EASING.standard,
 ): Transition {
   return {
     type: 'tween',

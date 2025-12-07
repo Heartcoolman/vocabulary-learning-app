@@ -7,6 +7,7 @@
 ### 1. 数据层基础设施 ✅
 
 #### 1.1 数据模型和类型定义 ✅
+
 - 位置：`src/types/models.ts`
 - 新增类型：
   - `WordState` - 单词状态枚举（new, learning, reviewing, mastered）
@@ -18,6 +19,7 @@
   - `AnswerRecord` - 添加了 responseTime、dwellTime、sessionId、masteryLevelBefore、masteryLevelAfter 字段
 
 #### 1.2 数据库迁移和存储服务扩展 ✅
+
 - 位置：`backend/prisma/schema.prisma`
 - 新增表：
   - `WordLearningState` - 单词学习状态表
@@ -33,6 +35,7 @@
 ### 2. 核心算法引擎实现 ✅
 
 #### 2.1 间隔重复算法引擎（SpacedRepetitionEngine）✅
+
 - 位置：`src/services/algorithms/SpacedRepetitionEngine.ts`
 - 功能：
   - `calculateNextReviewDate` - 计算下次复习时间
@@ -43,6 +46,7 @@
 - 支持可配置的复习间隔序列（默认：1, 3, 7, 15, 30天）
 
 #### 2.2 单词综合评分引擎（WordScoreCalculator）✅
+
 - 位置：`src/services/algorithms/WordScoreCalculator.ts`
 - 功能：
   - `calculateScore` - 计算综合得分
@@ -56,6 +60,7 @@
 - 评分公式：`总分 = 正确率×40 + 速度×30 + 稳定性×20 + 熟练度×10`
 
 #### 2.3 优先级队列调度引擎（PriorityQueueScheduler）✅
+
 - 位置：`src/services/algorithms/PriorityQueueScheduler.ts`
 - 功能：
   - `generateLearningQueue` - 生成学习队列
@@ -67,6 +72,7 @@
 - 支持可配置的优先级权重和新单词比例
 
 #### 2.4 自适应难度引擎（AdaptiveDifficultyEngine）✅
+
 - 位置：`src/services/algorithms/AdaptiveDifficultyEngine.ts`
 - 功能：
   - `adjustDifficulty` - 根据连续答对/答错调整难度
@@ -80,6 +86,7 @@
   - 最小调整间隔：1个会话
 
 #### 2.5 单词状态管理器（WordStateManager）✅
+
 - 位置：`src/services/algorithms/WordStateManager.ts`
 - 功能：
   - `initializeWordState` - 初始化单词状态
@@ -96,6 +103,7 @@
 ### 3. 服务层整合和业务逻辑 ✅
 
 #### 3.1 核心服务（SpacedRepetitionService）✅
+
 - 位置：`src/services/algorithms/SpacedRepetitionService.ts`
 - 功能：
   - `startSession` - 开始学习会话
@@ -118,6 +126,7 @@
   - 自动记录手动调整的时间和原因
 
 #### 3.2 LearningService 集成新算法 ✅
+
 - 位置：`src/services/LearningService.ts`
 - 重构内容：
   - `startSession` - 使用优先级队列生成学习列表
@@ -136,6 +145,7 @@
   - 自动回退到原有逻辑（如果智能算法失败）
 
 #### 3.3 算法配置服务（AlgorithmConfigService）✅
+
 - 位置：`src/services/algorithms/AlgorithmConfigService.ts`
 - 功能：
   - `getConfig` - 获取当前算法配置
@@ -173,7 +183,7 @@ const session = await srService.startSession(
   userId,
   availableWordIds,
   20, // 目标单词数量
-  0.75 // 用户整体正确率
+  0.75, // 用户整体正确率
 );
 
 // 提交答题
@@ -184,13 +194,13 @@ const result = await srService.submitAnswer(
   responseTime,
   dwellTime,
   selectedAnswer,
-  correctAnswer
+  correctAnswer,
 );
 
 console.log('答题结果:', {
   掌握程度: result.wordState.masteryLevel,
   得分: result.wordScore.totalScore,
-  下次复习: new Date(result.nextReviewDate).toLocaleString()
+  下次复习: new Date(result.nextReviewDate).toLocaleString(),
 });
 
 // 结束会话
@@ -206,7 +216,7 @@ import LearningService from './LearningService';
 const session = await LearningService.startSession(
   wordIds,
   userId, // 传入 userId 启用智能算法
-  20 // 目标单词数量
+  20, // 目标单词数量
 );
 
 // 提交答题（启用智能算法）
@@ -214,7 +224,7 @@ await LearningService.submitAnswer(
   wordId,
   answer,
   isCorrect,
-  userId // 传入 userId 启用智能算法
+  userId, // 传入 userId 启用智能算法
 );
 
 // 获取单词状态
@@ -242,7 +252,7 @@ await srService.batchUpdateWords(
   userId,
   [wordId1, wordId2, wordId3],
   'mastered',
-  '批量标记为已掌握'
+  '批量标记为已掌握',
 );
 ```
 
@@ -264,11 +274,11 @@ const newConfig = await configService.updateConfig(
       newWord: 50,
       errorRate: 25,
       overdueTime: 15,
-      wordScore: 10
-    }
+      wordScore: 10,
+    },
   },
   adminUserId,
-  '调整优先级权重，增加新单词比例'
+  '调整优先级权重，增加新单词比例',
 );
 
 // 验证配置

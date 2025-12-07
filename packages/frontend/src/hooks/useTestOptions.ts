@@ -104,12 +104,7 @@ function randomShuffle<T>(array: T[]): T[] {
  * ```
  */
 export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsReturn {
-  const {
-    correctAnswer,
-    distractors = [],
-    numberOfOptions = 4,
-    shuffleOptions = true
-  } = config;
+  const { correctAnswer, distractors = [], numberOfOptions = 4, shuffleOptions = true } = config;
 
   const [selectedOption, setSelectedOption] = useState<TestOption | null>(null);
   const [optionsSeed, setOptionsSeed] = useState(() => Date.now());
@@ -119,17 +114,15 @@ export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsRetu
     const correct: TestOption = {
       id: 'correct',
       text: correctAnswer,
-      isCorrect: true
+      isCorrect: true,
     };
 
     // 生成干扰项选项
-    const incorrectOptions = distractors
-      .slice(0, numberOfOptions - 1)
-      .map((text, index) => ({
-        id: `distractor-${index}`,
-        text,
-        isCorrect: false
-      }));
+    const incorrectOptions = distractors.slice(0, numberOfOptions - 1).map((text, index) => ({
+      id: `distractor-${index}`,
+      text,
+      isCorrect: false,
+    }));
 
     const allOptions = [correct, ...incorrectOptions];
 
@@ -168,7 +161,7 @@ export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsRetu
     selectedOption,
     selectOption,
     isAnswered: selectedOption !== null,
-    resetSelection
+    resetSelection,
   };
 }
 
@@ -197,13 +190,17 @@ export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsRetu
  */
 export function useTestOptionsGenerator<T extends { id: string; meanings: string[] }>(
   config: TestOptionsGeneratorConfig<T>,
-  generateOptions: (word: T, allWords: T[], count: number) => { options: string[]; correctAnswer: string }
+  generateOptions: (
+    word: T,
+    allWords: T[],
+    count: number,
+  ) => { options: string[]; correctAnswer: string },
 ): TestOptionsGeneratorReturn {
   const {
     currentWord,
     allWords,
     numberOfOptions = 4,
-    fallbackDistractors = ['未知释义', '其他含义', '暂无解释']
+    fallbackDistractors = ['未知释义', '其他含义', '暂无解释'],
   } = config;
 
   const [testOptions, setTestOptions] = useState<string[]>([]);
@@ -222,11 +219,11 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
       // 回退方案：确保至少2个选项，使用预设干扰项
       const correctAnswer = currentWord.meanings[0];
       // 从干扰项中随机选择一个，确保至少有2个选项
-      const randomDistractor = fallbackDistractors[Math.floor(Math.random() * fallbackDistractors.length)];
+      const randomDistractor =
+        fallbackDistractors[Math.floor(Math.random() * fallbackDistractors.length)];
       // 随机打乱顺序
-      const fallbackOptions = Math.random() > 0.5
-        ? [correctAnswer, randomDistractor]
-        : [randomDistractor, correctAnswer];
+      const fallbackOptions =
+        Math.random() > 0.5 ? [correctAnswer, randomDistractor] : [randomDistractor, correctAnswer];
       setTestOptions(fallbackOptions);
     }
   }, [currentWord, allWords, numberOfOptions, questionIndex, generateOptions, fallbackDistractors]);
@@ -235,13 +232,13 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
    * 重新生成选项（递增 questionIndex 强制触发重新生成）
    */
   const regenerateOptions = useCallback(() => {
-    setQuestionIndex(prev => prev + 1);
+    setQuestionIndex((prev) => prev + 1);
   }, []);
 
   return {
     options: testOptions,
     regenerateOptions,
-    questionIndex
+    questionIndex,
   };
 }
 
@@ -258,7 +255,7 @@ export function generateTestOptions(
   correctAnswer: string,
   distractors: string[],
   numberOfOptions: number = 4,
-  shuffle: boolean = true
+  shuffle: boolean = true,
 ): string[] {
   // 确保至少有2个选项
   const requiredDistractors = Math.max(1, numberOfOptions - 1);

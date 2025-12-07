@@ -9,14 +9,12 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
-
     "test:1:backend-services": "pnpm --filter @danci/backend test:unit:services",
     "test:2:backend-amas": "pnpm --filter @danci/backend test:unit:amas",
     "test:3:backend-api": "pnpm --filter @danci/backend test:integration",
     "test:4:frontend-components": "pnpm --filter @danci/frontend test:components",
     "test:5:frontend-pages": "pnpm --filter @danci/frontend test:pages",
     "test:6:e2e": "playwright test",
-
     "test:backend": "pnpm --filter @danci/backend test",
     "test:backend:unit": "pnpm --filter @danci/backend test:unit",
     "test:backend:integration": "pnpm --filter @danci/backend test:integration",
@@ -24,22 +22,27 @@
     "test:native": "pnpm --filter @danci/native test",
     "test:shared": "pnpm --filter @danci/shared test",
     "test:e2e": "playwright test",
-
     "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "clean": "turbo run clean && rm -rf node_modules",
     "prisma:generate": "pnpm --filter @danci/backend prisma:generate",
     "prisma:migrate": "pnpm --filter @danci/backend prisma:migrate",
     "prisma:studio": "pnpm --filter @danci/backend prisma:studio",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^4.0.15",
+    "prettier": "^3.7.4",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "turbo": "^2.3.0",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.15",
-    "@vitest/coverage-v8": "^4.0.15",
-    "@types/uuid": "^10.0.0",
-    "@playwright/test": "^1.48.0"
+    "vitest": "^4.0.15"
   }
 }

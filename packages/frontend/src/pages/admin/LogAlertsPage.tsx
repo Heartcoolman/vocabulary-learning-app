@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Bell,
-  Plus,
-  Trash,
-  Warning,
-  CircleNotch,
-  Pencil,
-  X
-} from '../../components/Icon';
+import { Bell, Plus, Trash, Warning, CircleNotch, Pencil, X } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
 
@@ -90,7 +82,7 @@ export default function LogAlertsPage() {
       setIsLoading(true);
       const response = await fetch('/api/admin/logs/log-alerts', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
 
@@ -122,7 +114,7 @@ export default function LogAlertsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(formData),
       });
@@ -158,7 +150,7 @@ export default function LogAlertsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(formData),
       });
@@ -168,7 +160,7 @@ export default function LogAlertsPage() {
       }
 
       const updatedRule = await response.json();
-      setRules(rules.map(r => r.id === updatedRule.id ? updatedRule : r));
+      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       setShowEditModal(false);
       setEditingRule(null);
       resetForm();
@@ -194,7 +186,7 @@ export default function LogAlertsPage() {
       const response = await fetch(`/api/admin/logs/log-alerts/${deletingRuleId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
 
@@ -202,7 +194,7 @@ export default function LogAlertsPage() {
         throw new Error('删除告警规则失败');
       }
 
-      setRules(rules.filter(r => r.id !== deletingRuleId));
+      setRules(rules.filter((r) => r.id !== deletingRuleId));
       setShowDeleteConfirm(false);
       setDeletingRuleId(null);
       toast.success('告警规则已删除');
@@ -223,7 +215,7 @@ export default function LogAlertsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify({
           ...rule,
@@ -236,7 +228,7 @@ export default function LogAlertsPage() {
       }
 
       const updatedRule = await response.json();
-      setRules(rules.map(r => r.id === updatedRule.id ? updatedRule : r));
+      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       toast.success(updatedRule.enabled ? '规则已启用' : '规则已禁用');
     } catch (error) {
       adminLogger.error({ err: error, ruleId: rule.id }, '切换规则状态失败');
@@ -338,27 +330,34 @@ export default function LogAlertsPage() {
    * 切换日志级别选择
    */
   const toggleLevel = (level: LogLevel) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       levels: prev.levels.includes(level)
-        ? prev.levels.filter(l => l !== level)
+        ? prev.levels.filter((l) => l !== level)
         : [...prev.levels, level],
     }));
   };
 
   if (isLoading) {
     return (
-      <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
+      <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="text-center">
-          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
-          <p className="text-gray-600" role="status" aria-live="polite">加载告警规则中...</p>
+          <CircleNotch
+            className="mx-auto mb-4 animate-spin"
+            size={48}
+            weight="bold"
+            color="#3b82f6"
+          />
+          <p className="text-gray-600" role="status" aria-live="polite">
+            加载告警规则中...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-g3-fade-in">
+    <div className="mx-auto max-w-7xl animate-g3-fade-in p-8">
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -366,12 +365,12 @@ export default function LogAlertsPage() {
             <Bell size={32} weight="duotone" className="text-blue-500" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">日志告警规则</h1>
-              <p className="text-gray-600 mt-1">配置和管理日志监控告警规则</p>
+              <p className="mt-1 text-gray-600">配置和管理日志监控告警规则</p>
             </div>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            className="flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             <Plus size={20} weight="bold" />
             创建规则
@@ -381,26 +380,26 @@ export default function LogAlertsPage() {
 
       {/* 规则列表 */}
       {rules.length === 0 ? (
-        <div className="text-center py-16 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl">
+        <div className="rounded-xl border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm">
           <Bell size={64} weight="duotone" className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">暂无告警规则</h3>
-          <p className="text-gray-600 mb-6">点击上方"创建规则"按钮添加第一个告警规则</p>
+          <h3 className="mb-2 text-xl font-bold text-gray-900">暂无告警规则</h3>
+          <p className="mb-6 text-gray-600">点击上方"创建规则"按钮添加第一个告警规则</p>
         </div>
       ) : (
         <div className="space-y-4">
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl hover:shadow-lg transition-all duration-200"
+              className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm transition-all duration-200 hover:shadow-lg"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="mb-2 flex items-center gap-3">
                     <h3 className="text-xl font-bold text-gray-900">{rule.name}</h3>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleRuleEnabled(rule)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                        className={`rounded-full px-3 py-1 text-sm font-medium transition-all ${
                           rule.enabled
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -411,19 +410,17 @@ export default function LogAlertsPage() {
                     </div>
                   </div>
 
-                  {rule.description && (
-                    <p className="text-gray-600 mb-4">{rule.description}</p>
-                  )}
+                  {rule.description && <p className="mb-4 text-gray-600">{rule.description}</p>}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {/* 触发级别 */}
                     <div>
                       <span className="text-sm font-medium text-gray-700">触发级别</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {rule.levels.map(level => (
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {rule.levels.map((level) => (
                           <span
                             key={level}
-                            className={`px-2 py-1 rounded text-xs font-medium ${getLevelColor(level)}`}
+                            className={`rounded px-2 py-1 text-xs font-medium ${getLevelColor(level)}`}
                           >
                             {level}
                           </span>
@@ -435,7 +432,7 @@ export default function LogAlertsPage() {
                     {rule.module && (
                       <div>
                         <span className="text-sm font-medium text-gray-700">模块匹配</span>
-                        <p className="text-sm text-gray-600 mt-1 font-mono">{rule.module}</p>
+                        <p className="mt-1 font-mono text-sm text-gray-600">{rule.module}</p>
                       </div>
                     )}
 
@@ -443,14 +440,16 @@ export default function LogAlertsPage() {
                     {rule.messagePattern && (
                       <div>
                         <span className="text-sm font-medium text-gray-700">消息匹配</span>
-                        <p className="text-sm text-gray-600 mt-1 font-mono">{rule.messagePattern}</p>
+                        <p className="mt-1 font-mono text-sm text-gray-600">
+                          {rule.messagePattern}
+                        </p>
                       </div>
                     )}
 
                     {/* 阈值 */}
                     <div>
                       <span className="text-sm font-medium text-gray-700">触发阈值</span>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="mt-1 text-sm text-gray-600">
                         {rule.threshold} 次 / {rule.windowMinutes} 分钟
                       </p>
                     </div>
@@ -458,13 +457,16 @@ export default function LogAlertsPage() {
                     {/* 冷却时间 */}
                     <div>
                       <span className="text-sm font-medium text-gray-700">冷却时间</span>
-                      <p className="text-sm text-gray-600 mt-1">{rule.cooldownMinutes} 分钟</p>
+                      <p className="mt-1 text-sm text-gray-600">{rule.cooldownMinutes} 分钟</p>
                     </div>
 
                     {/* Webhook */}
                     <div>
                       <span className="text-sm font-medium text-gray-700">Webhook URL</span>
-                      <p className="text-sm text-gray-600 mt-1 truncate font-mono" title={rule.webhookUrl}>
+                      <p
+                        className="mt-1 truncate font-mono text-sm text-gray-600"
+                        title={rule.webhookUrl}
+                      >
                         {rule.webhookUrl}
                       </p>
                     </div>
@@ -476,17 +478,17 @@ export default function LogAlertsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 ml-4">
+                <div className="ml-4 flex items-center gap-2">
                   <button
                     onClick={() => openEditModal(rule)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    className="rounded-lg p-2 text-blue-600 transition-all hover:bg-blue-50"
                     title="编辑规则"
                   >
                     <Pencil size={20} weight="bold" />
                   </button>
                   <button
                     onClick={() => openDeleteConfirm(rule.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    className="rounded-lg p-2 text-red-600 transition-all hover:bg-red-50"
                     title="删除规则"
                   >
                     <Trash size={20} weight="bold" />
@@ -533,14 +535,12 @@ export default function LogAlertsPage() {
 
       {/* 删除确认对话框 */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-g3-slide-up">
-            <div className="text-center mb-6">
-              <Warning size={64} weight="duotone" className="text-red-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">确认删除</h3>
-              <p className="text-gray-600">
-                确定要删除这个告警规则吗？此操作不可撤销。
-              </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
+          <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
+            <div className="mb-6 text-center">
+              <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
+              <h3 className="mb-2 text-2xl font-bold text-gray-900">确认删除</h3>
+              <p className="text-gray-600">确定要删除这个告警规则吗？此操作不可撤销。</p>
             </div>
 
             <div className="flex gap-4">
@@ -550,14 +550,14 @@ export default function LogAlertsPage() {
                   setDeletingRuleId(null);
                 }}
                 disabled={isSaving}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
               >
                 取消
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isSaving}
-                className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all duration-200 shadow-lg disabled:opacity-50"
+                className="flex-1 rounded-xl bg-red-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-red-600 disabled:opacity-50"
               >
                 {isSaving ? '删除中...' : '确认删除'}
               </button>
@@ -594,14 +594,11 @@ function RuleFormModal({
   const allLevels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full my-8 animate-g3-slide-up">
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50 p-6">
+      <div className="my-8 w-full max-w-2xl animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-6 flex items-center justify-between">
           <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
-          <button
-            onClick={onCancel}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-all"
-          >
+          <button onClick={onCancel} className="rounded-lg p-2 transition-all hover:bg-gray-100">
             <X size={24} weight="bold" />
           </button>
         </div>
@@ -609,44 +606,42 @@ function RuleFormModal({
         <div className="space-y-6">
           {/* 规则名称 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               规则名称 <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="例如：高频错误日志告警"
             />
           </div>
 
           {/* 规则描述 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              规则描述
-            </label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">规则描述</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="简要描述此规则的用途"
             />
           </div>
 
           {/* 触发级别 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               触发级别（多选） <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
-              {allLevels.map(level => (
+              {allLevels.map((level) => (
                 <button
                   key={level}
                   type="button"
                   onClick={() => toggleLevel(level)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                     formData.levels.includes(level)
                       ? `${getLevelColor(level)} ring-2 ring-offset-2`
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -660,90 +655,94 @@ function RuleFormModal({
 
           {/* 模块匹配 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              模块匹配（可选）
-            </label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">模块匹配（可选）</label>
             <input
               type="text"
               value={formData.module}
               onChange={(e) => setFormData({ ...formData, module: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="例如：amas.*（留空表示匹配所有模块）"
             />
-            <p className="text-xs text-gray-500 mt-1">支持正则表达式</p>
+            <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
           </div>
 
           {/* 消息正则匹配 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               消息正则匹配（可选）
             </label>
             <input
               type="text"
               value={formData.messagePattern}
               onChange={(e) => setFormData({ ...formData, messagePattern: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="例如：database.*error（留空表示匹配所有消息）"
             />
-            <p className="text-xs text-gray-500 mt-1">支持正则表达式</p>
+            <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
           </div>
 
           {/* 阈值和时间窗口 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 阈值（次数） <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 min="1"
                 value={formData.threshold}
-                onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) =>
+                  setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })
+                }
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 时间窗口（分钟） <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 min="1"
                 value={formData.windowMinutes}
-                onChange={(e) => setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) =>
+                  setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })
+                }
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* Webhook URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Webhook URL <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
               value={formData.webhookUrl}
               onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="https://example.com/webhook"
             />
-            <p className="text-xs text-gray-500 mt-1">告警触发时将发送 POST 请求到此 URL</p>
+            <p className="mt-1 text-xs text-gray-500">告警触发时将发送 POST 请求到此 URL</p>
           </div>
 
           {/* 冷却时间 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               冷却时间（分钟） <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
               min="0"
               value={formData.cooldownMinutes}
-              onChange={(e) => setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(e) =>
+                setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })
+              }
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-500 mt-1">同一规则在冷却时间内不会重复发送告警</p>
+            <p className="mt-1 text-xs text-gray-500">同一规则在冷却时间内不会重复发送告警</p>
           </div>
 
           {/* 启用状态 */}
@@ -753,7 +752,7 @@ function RuleFormModal({
               id="enabled"
               checked={formData.enabled}
               onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-              className="w-5 h-5 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500"
             />
             <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
               创建后立即启用
@@ -762,18 +761,18 @@ function RuleFormModal({
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex gap-4 mt-8">
+        <div className="mt-8 flex gap-4">
           <button
             onClick={onCancel}
             disabled={isSaving}
-            className="flex-1 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 disabled:opacity-50"
+            className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
           >
             取消
           </button>
           <button
             onClick={onSubmit}
             disabled={isSaving}
-            className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg disabled:opacity-50"
+            className="flex-1 rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-blue-600 disabled:opacity-50"
           >
             {isSaving ? '保存中...' : '保存'}
           </button>

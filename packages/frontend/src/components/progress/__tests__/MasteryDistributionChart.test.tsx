@@ -92,7 +92,9 @@ describe('MasteryDistributionChart', () => {
         { level: 5, count: 0, percentage: 0 },
       ];
 
-      const { container } = render(<MasteryDistributionChart distribution={distributionWithLowCount} />);
+      const { container } = render(
+        <MasteryDistributionChart distribution={distributionWithLowCount} />,
+      );
 
       const bars = container.querySelectorAll('.rounded-t-lg');
       const smallBar = bars[1] as HTMLElement;

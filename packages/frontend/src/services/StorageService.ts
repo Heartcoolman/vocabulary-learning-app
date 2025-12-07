@@ -7,7 +7,7 @@ import {
   WordScore,
   AlgorithmConfig,
   ConfigHistory,
-  WordState
+  WordState,
 } from '../types/models';
 import ApiClient from './ApiClient';
 import { storageLogger } from '../utils/logger';
@@ -263,7 +263,10 @@ class StorageService {
 
         // 安全阈值：最多获取10000条记录，防止无限循环
         if (allRecords.length >= 10000) {
-          storageLogger.warn({ wordId, totalFetched: allRecords.length }, '答题记录数量超过安全阈值，停止获取');
+          storageLogger.warn(
+            { wordId, totalFetched: allRecords.length },
+            '答题记录数量超过安全阈值，停止获取',
+          );
           break;
         }
       }
@@ -279,7 +282,7 @@ class StorageService {
     try {
       const [words, recordsResult] = await Promise.all([
         this.getWords(),
-        ApiClient.getRecords({ pageSize: 100 })
+        ApiClient.getRecords({ pageSize: 100 }),
       ]);
       const records = recordsResult.records;
       const wordStats = new Map<string, WordStatistics>();
@@ -445,7 +448,7 @@ class StorageService {
   async getWordsByScoreRange(
     _userId: string,
     minScore: number,
-    maxScore: number
+    maxScore: number,
   ): Promise<WordScore[]> {
     try {
       const scores = await ApiClient.getWordsByScoreRange(minScore, maxScore);
@@ -477,7 +480,7 @@ class StorageService {
   async updateAlgorithmConfig(
     configId: string,
     config: Partial<AlgorithmConfig>,
-    changeReason?: string
+    changeReason?: string,
   ): Promise<void> {
     try {
       await ApiClient.updateAlgorithmConfig(configId, config, changeReason);

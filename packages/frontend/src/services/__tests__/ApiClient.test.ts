@@ -87,7 +87,7 @@ describe('ApiClient', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-        })
+        }),
       );
     });
 
@@ -110,7 +110,7 @@ describe('ApiClient', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer test-jwt-token',
           }),
-        })
+        }),
       );
     });
 
@@ -129,13 +129,10 @@ describe('ApiClient', () => {
 
       await ApiClient.getRecords({ page: 2, pageSize: 10 });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('page=2'),
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('page=2'), expect.any(Object));
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('pageSize=10'),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -159,7 +156,7 @@ describe('ApiClient', () => {
         expect.stringContaining('/api/auth/login'),
         expect.objectContaining({
           method: 'POST',
-        })
+        }),
       );
     });
 
@@ -187,7 +184,7 @@ describe('ApiClient', () => {
             email: 'test@example.com',
             password: 'password123',
           }),
-        })
+        }),
       );
     });
   });
@@ -222,7 +219,7 @@ describe('ApiClient', () => {
         expect.stringContaining('/api/study-config'),
         expect.objectContaining({
           method: 'PUT',
-        })
+        }),
       );
     });
   });
@@ -243,7 +240,7 @@ describe('ApiClient', () => {
         expect.stringContaining('/api/words/word-123'),
         expect.objectContaining({
           method: 'DELETE',
-        })
+        }),
       );
     });
   });
@@ -304,10 +301,7 @@ describe('ApiClient', () => {
     it('should store token in localStorage when setToken is called', () => {
       ApiClient.setToken('new-jwt-token');
 
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'auth_token',
-        'new-jwt-token'
-      );
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_token', 'new-jwt-token');
       expect(ApiClient.getToken()).toBe('new-jwt-token');
     });
 
@@ -336,7 +330,7 @@ describe('ApiClient', () => {
             const error = new Error('The operation was aborted');
             error.name = 'AbortError';
             setTimeout(() => reject(error), 100);
-          })
+          }),
       );
 
       await expect(ApiClient.getWords()).rejects.toThrow('请求超时');
@@ -465,7 +459,7 @@ describe('ApiClient', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ wordIds: ['word-1', 'word-2'] }),
-        })
+        }),
       );
     });
 

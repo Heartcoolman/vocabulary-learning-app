@@ -63,9 +63,27 @@ describe('WordBookDetailPage', () => {
   };
 
   const mockWords = [
-    { id: 'word-1', spelling: 'apple', phonetic: 'æpl', meanings: ['苹果'], examples: ['I eat an apple.'] },
-    { id: 'word-2', spelling: 'banana', phonetic: 'bəˈnænə', meanings: ['香蕉'], examples: ['A yellow banana.'] },
-    { id: 'word-3', spelling: 'cherry', phonetic: 'ˈtʃeri', meanings: ['樱桃'], examples: ['Cherry blossom.'] },
+    {
+      id: 'word-1',
+      spelling: 'apple',
+      phonetic: 'æpl',
+      meanings: ['苹果'],
+      examples: ['I eat an apple.'],
+    },
+    {
+      id: 'word-2',
+      spelling: 'banana',
+      phonetic: 'bəˈnænə',
+      meanings: ['香蕉'],
+      examples: ['A yellow banana.'],
+    },
+    {
+      id: 'word-3',
+      spelling: 'cherry',
+      phonetic: 'ˈtʃeri',
+      meanings: ['樱桃'],
+      examples: ['Cherry blossom.'],
+    },
   ];
 
   beforeEach(() => {

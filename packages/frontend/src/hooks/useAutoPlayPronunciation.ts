@@ -61,7 +61,7 @@ export interface UseAutoPlayPronunciationReturn {
  * ```
  */
 export function useAutoPlayPronunciation(
-  config: UseAutoPlayPronunciationConfig
+  config: UseAutoPlayPronunciationConfig,
 ): UseAutoPlayPronunciationReturn {
   const {
     word,
@@ -71,7 +71,7 @@ export function useAutoPlayPronunciation(
     showResult = false,
     onPlayStart,
     onPlayEnd,
-    onPlayError
+    onPlayError,
   } = config;
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -166,6 +166,6 @@ export function useAutoPlayPronunciation(
     play,
     stop,
     setEnabled: setIsEnabled,
-    isEnabled
+    isEnabled,
   };
 }

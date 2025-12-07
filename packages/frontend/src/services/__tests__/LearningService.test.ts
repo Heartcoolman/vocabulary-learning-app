@@ -166,17 +166,15 @@ describe('LearningService', () => {
     });
 
     it('should throw error when starting session with empty word IDs', async () => {
-      await expect(LearningService.startSession([])).rejects.toThrow(
-        '词库为空，无法开始学习'
-      );
+      await expect(LearningService.startSession([])).rejects.toThrow('词库为空，无法开始学习');
     });
 
     it('should throw error when no valid words are found', async () => {
       mockStorageService.getWords.mockResolvedValue([]);
 
-      await expect(
-        LearningService.startSession(['non-existent-word'])
-      ).rejects.toThrow('未找到有效的单词');
+      await expect(LearningService.startSession(['non-existent-word'])).rejects.toThrow(
+        '未找到有效的单词',
+      );
     });
 
     it('should initialize SR service when userId is provided', async () => {
@@ -312,11 +310,7 @@ describe('LearningService', () => {
     it('should generate test options with correct answer', async () => {
       const correctWord = mockWords[0];
 
-      const result = LearningService.generateTestOptions(
-        correctWord,
-        mockWords,
-        4
-      );
+      const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
 
       expect(result.options).toContain(result.correctAnswer);
       expect(result.correctAnswer).toBe('你好');
@@ -326,11 +320,7 @@ describe('LearningService', () => {
     it('should generate options with minimum 2 options', async () => {
       const correctWord = mockWords[0];
 
-      const result = LearningService.generateTestOptions(
-        correctWord,
-        mockWords,
-        2
-      );
+      const result = LearningService.generateTestOptions(correctWord, mockWords, 2);
 
       expect(result.options.length).toBeGreaterThanOrEqual(1);
     });
@@ -341,11 +331,7 @@ describe('LearningService', () => {
 
       // 多次生成，检查是否有不同的顺序
       for (let i = 0; i < 10; i++) {
-        const result = LearningService.generateTestOptions(
-          correctWord,
-          mockWords,
-          4
-        );
+        const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
         results.push(result.options);
       }
 
@@ -361,37 +347,25 @@ describe('LearningService', () => {
         meanings: [],
       };
 
-      expect(() =>
-        LearningService.generateTestOptions(wordWithoutMeaning, mockWords, 4)
-      ).toThrow('缺少释义，无法生成测验选项');
+      expect(() => LearningService.generateTestOptions(wordWithoutMeaning, mockWords, 4)).toThrow(
+        '缺少释义，无法生成测验选项',
+      );
     });
 
     it('should handle option count limits', async () => {
       const correctWord = mockWords[0];
 
-      const result1 = LearningService.generateTestOptions(
-        correctWord,
-        mockWords,
-        1
-      );
+      const result1 = LearningService.generateTestOptions(correctWord, mockWords, 1);
       expect(result1.options.length).toBeGreaterThanOrEqual(1);
 
-      const result2 = LearningService.generateTestOptions(
-        correctWord,
-        mockWords,
-        10
-      );
+      const result2 = LearningService.generateTestOptions(correctWord, mockWords, 10);
       expect(result2.options.length).toBeLessThanOrEqual(4);
     });
 
     it('should not include duplicate meanings', async () => {
       const correctWord = mockWords[0];
 
-      const result = LearningService.generateTestOptions(
-        correctWord,
-        mockWords,
-        4
-      );
+      const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
 
       const uniqueOptions = new Set(result.options);
       expect(uniqueOptions.size).toBe(result.options.length);
@@ -428,13 +402,7 @@ describe('LearningService', () => {
     it('should submit answer and save record', async () => {
       await LearningService.startSession(['word-1', 'word-2']);
 
-      const result = await LearningService.submitAnswer(
-        'word-1',
-        '你好',
-        true,
-        2000,
-        5000
-      );
+      const result = await LearningService.submitAnswer('word-1', '你好', true, 2000, 5000);
 
       expect(mockStorageService.saveAnswerRecordExtended).toHaveBeenCalled();
     });
@@ -443,20 +411,12 @@ describe('LearningService', () => {
       await LearningService.startSession(['word-1']);
 
       await expect(
-        LearningService.submitAnswer(
-          'non-existent',
-          '答案',
-          true,
-          2000,
-          5000
-        )
+        LearningService.submitAnswer('non-existent', '答案', true, 2000, 5000),
       ).rejects.toThrow('单词不存在');
     });
 
     it('should return feedback info when userId is provided', async () => {
-      const { SpacedRepetitionService } = await import(
-        '../algorithms/SpacedRepetitionService'
-      );
+      const { SpacedRepetitionService } = await import('../algorithms/SpacedRepetitionService');
       const mockSRInstance = {
         startSession: vi.fn(),
         endSession: vi.fn(),
@@ -483,7 +443,7 @@ describe('LearningService', () => {
         clearUserCache: vi.fn(),
       };
       (SpacedRepetitionService as ReturnType<typeof vi.fn>).mockImplementation(
-        () => mockSRInstance
+        () => mockSRInstance,
       );
 
       // Re-import to get new instance
@@ -493,14 +453,7 @@ describe('LearningService', () => {
 
       await service.startSession(['word-1', 'word-2'], 'user-123');
 
-      const result = await service.submitAnswer(
-        'word-1',
-        '你好',
-        true,
-        2000,
-        5000,
-        'user-123'
-      );
+      const result = await service.submitAnswer('word-1', '你好', true, 2000, 5000, 'user-123');
 
       // 由于 SR service mock 可能未正确初始化，结果可能为 null
       // 主要验证流程不会抛出错误
@@ -581,19 +534,15 @@ describe('LearningService', () => {
 
       await LearningService.deleteState(userId, wordId);
 
-      expect(mockApiClient.deleteWordLearningState).toHaveBeenCalledWith(
-        wordId
-      );
+      expect(mockApiClient.deleteWordLearningState).toHaveBeenCalledWith(wordId);
     });
 
     it('should handle delete state error', async () => {
-      mockApiClient.deleteWordLearningState.mockRejectedValue(
-        new Error('Delete failed')
-      );
+      mockApiClient.deleteWordLearningState.mockRejectedValue(new Error('Delete failed'));
 
-      await expect(
-        LearningService.deleteState('user-123', 'word-1')
-      ).rejects.toThrow('删除单词学习状态失败');
+      await expect(LearningService.deleteState('user-123', 'word-1')).rejects.toThrow(
+        '删除单词学习状态失败',
+      );
     });
   });
 });

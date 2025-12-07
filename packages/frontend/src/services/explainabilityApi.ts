@@ -4,7 +4,7 @@ import type {
   CounterfactualInput,
   CounterfactualResult,
   LearningCurveData,
-  DecisionTimelineResponse
+  DecisionTimelineResponse,
 } from '../types/explainability';
 
 export const explainabilityApi = {
@@ -20,7 +20,10 @@ export const explainabilityApi = {
     return await apiClient.getAmasLearningCurve(days);
   },
 
-  getDecisionTimeline: async (limit: number = 50, cursor?: string): Promise<DecisionTimelineResponse> => {
+  getDecisionTimeline: async (
+    limit: number = 50,
+    cursor?: string,
+  ): Promise<DecisionTimelineResponse> => {
     return await apiClient.getDecisionTimeline(limit, cursor);
-  }
+  },
 };

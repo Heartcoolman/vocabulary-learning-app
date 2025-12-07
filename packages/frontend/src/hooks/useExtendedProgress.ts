@@ -47,7 +47,7 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
 
       // 获取所有单词和学习状态
       const words = await StorageService.getWords();
-      const wordIds = words.map(w => w.id);
+      const wordIds = words.map((w) => w.id);
       const wordStates = await StorageService.getWordLearningStates(userId, wordIds);
 
       // 计算掌握度分布
@@ -56,7 +56,7 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
         masteryMap.set(level, 0);
       }
 
-      wordStates.forEach(state => {
+      wordStates.forEach((state) => {
         if (state) {
           const count = masteryMap.get(state.masteryLevel) || 0;
           masteryMap.set(state.masteryLevel, count + 1);
@@ -77,7 +77,7 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
       const records = await apiClient.getRecords({ pageSize: 1000 });
       const weeklyRecordsMap = new Map<string, boolean>();
 
-      records.records.forEach(record => {
+      records.records.forEach((record) => {
         const recordDate = new Date(record.timestamp);
         if (recordDate >= weekStart) {
           weeklyRecordsMap.set(record.wordId, true);
@@ -88,11 +88,9 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
       const weeklyTarget = basicProgress.todayTarget * 7;
 
       // 计算连续学习天数
-      const studyDates = new Set(
-        records.records.map(r => new Date(r.timestamp).toDateString())
-      );
+      const studyDates = new Set(records.records.map((r) => new Date(r.timestamp).toDateString()));
       const sortedDates = Array.from(studyDates)
-        .map(d => new Date(d).getTime())
+        .map((d) => new Date(d).getTime())
         .sort((a, b) => b - a);
 
       let learningStreak = 0;
@@ -127,12 +125,12 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
         const dayEnd = new Date(dayStart);
         dayEnd.setHours(23, 59, 59, 999);
 
-        const dayRecords = records.records.filter(r => {
+        const dayRecords = records.records.filter((r) => {
           const recordDate = new Date(r.timestamp);
           return recordDate >= dayStart && recordDate <= dayEnd;
         });
 
-        const uniqueWords = new Set(dayRecords.map(r => r.wordId));
+        const uniqueWords = new Set(dayRecords.map((r) => r.wordId));
         monthlyTrend.push(uniqueWords.size);
       }
 
@@ -173,9 +171,9 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
           title: '词汇掌握',
           description: '达到熟悉及以上等级',
           target: words.length,
-          current: wordStates.filter(s => s && s.masteryLevel >= 3).length,
+          current: wordStates.filter((s) => s && s.masteryLevel >= 3).length,
           icon: 'star',
-          achieved: wordStates.filter(s => s && s.masteryLevel >= 3).length >= words.length * 0.5,
+          achieved: wordStates.filter((s) => s && s.masteryLevel >= 3).length >= words.length * 0.5,
           color: 'green',
         },
       ];

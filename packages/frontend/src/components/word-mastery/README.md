@@ -18,8 +18,8 @@
 
 ```typescript
 interface WordMasteryDetailModalProps {
-  wordId: string;      // 单词ID（必填）
-  isOpen: boolean;     // 模态框开启状态
+  wordId: string; // 单词ID（必填）
+  isOpen: boolean; // 模态框开启状态
   onClose: () => void; // 关闭回调函数
 }
 ```
@@ -45,9 +45,7 @@ function MyComponent() {
 
   return (
     <>
-      <button onClick={() => handleWordClick('word-id-123')}>
-        查看详情
-      </button>
+      <button onClick={() => handleWordClick('word-id-123')}>查看详情</button>
 
       {selectedWordId && (
         <WordMasteryDetailModal
@@ -64,24 +62,29 @@ function MyComponent() {
 ### 设计特点
 
 #### 1. Loading 状态处理
+
 - 显示 Loading 动画，提供良好的用户体验
 - 使用并发加载（Promise.all）优化加载性能
 
 #### 2. 错误处理
+
 - 捕获并展示加载错误
 - 提供重试按钮
 - 使用 Toast 提示（通过 logger）记录错误
 
 #### 3. 数据为空时的 Empty State
+
 - 当单词无学习记录时显示友好的空状态提示
 - 引导用户开始学习
 
 #### 4. 响应式设计
+
 - 使用 Tailwind CSS 实现响应式布局
 - 移动端友好的网格布局
 - 适配小屏幕的滚动区域
 
 #### 5. 动画效果
+
 - 使用 Framer Motion 实现流畅的进入/退出动画
 - 各区块采用渐进式加载动画（stagger effect）
 
@@ -142,7 +145,7 @@ const handleWordClick = (wordId: string) => {
 // ��单词列表渲染中
 <div key={word.id} onClick={() => handleWordClick(word.id)} className="cursor-pointer">
   <MasteryWordItem {...props} />
-</div>
+</div>;
 ```
 
 ## 依赖

@@ -12,7 +12,7 @@ describe('MasteryProgress', () => {
     targetCount: 20,
     totalQuestions: 35,
     activeCount: 5,
-    pendingCount: 5
+    pendingCount: 5,
   };
 
   // ==================== Rendering Tests ====================
@@ -59,40 +59,26 @@ describe('MasteryProgress', () => {
 
   describe('progress calculation', () => {
     it('should show 0% when no progress', () => {
-      render(
-        <MasteryProgress
-          progress={{ ...defaultProgress, masteredCount: 0 }}
-        />
-      );
+      render(<MasteryProgress progress={{ ...defaultProgress, masteredCount: 0 }} />);
 
       expect(screen.getByText('0%')).toBeInTheDocument();
     });
 
     it('should show 100% when completed', () => {
-      render(
-        <MasteryProgress
-          progress={{ ...defaultProgress, masteredCount: 20 }}
-        />
-      );
+      render(<MasteryProgress progress={{ ...defaultProgress, masteredCount: 20 }} />);
 
       expect(screen.getByText('100%')).toBeInTheDocument();
     });
 
     it('should handle zero target count', () => {
-      render(
-        <MasteryProgress
-          progress={{ ...defaultProgress, targetCount: 0 }}
-        />
-      );
+      render(<MasteryProgress progress={{ ...defaultProgress, targetCount: 0 }} />);
 
       expect(screen.getByText('0%')).toBeInTheDocument();
     });
 
     it('should cap percentage at 100', () => {
       render(
-        <MasteryProgress
-          progress={{ ...defaultProgress, masteredCount: 25, targetCount: 20 }}
-        />
+        <MasteryProgress progress={{ ...defaultProgress, masteredCount: 25, targetCount: 20 }} />,
       );
 
       expect(screen.getByText('100%')).toBeInTheDocument();
@@ -103,45 +89,25 @@ describe('MasteryProgress', () => {
 
   describe('word status', () => {
     it('should show new word status', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          currentWordStatus="new"
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} currentWordStatus="new" />);
 
       expect(screen.getByText('新词')).toBeInTheDocument();
     });
 
     it('should show learning status', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          currentWordStatus="learning"
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} currentWordStatus="learning" />);
 
       expect(screen.getByText('学习中')).toBeInTheDocument();
     });
 
     it('should show almost mastered status', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          currentWordStatus="almost"
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} currentWordStatus="almost" />);
 
       expect(screen.getByText('即将掌握')).toBeInTheDocument();
     });
 
     it('should show mastered status', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          currentWordStatus="mastered"
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} currentWordStatus="mastered" />);
 
       expect(screen.getByText('已掌握')).toBeInTheDocument();
     });
@@ -158,23 +124,13 @@ describe('MasteryProgress', () => {
 
   describe('completion state', () => {
     it('should show completion title when completed', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          isCompleted={true}
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} isCompleted={true} />);
 
       expect(screen.getByText('目标达成')).toBeInTheDocument();
     });
 
     it('should show completion badge when completed', () => {
-      render(
-        <MasteryProgress
-          progress={defaultProgress}
-          isCompleted={true}
-        />
-      );
+      render(<MasteryProgress progress={defaultProgress} isCompleted={true} />);
 
       expect(screen.getByText('完成')).toBeInTheDocument();
     });
@@ -185,7 +141,7 @@ describe('MasteryProgress', () => {
           progress={defaultProgress}
           currentWordStatus="learning"
           isCompleted={true}
-        />
+        />,
       );
 
       expect(screen.queryByText('学习中')).not.toBeInTheDocument();
@@ -193,10 +149,7 @@ describe('MasteryProgress', () => {
 
     it('should use green color when completed', () => {
       const { container } = render(
-        <MasteryProgress
-          progress={defaultProgress}
-          isCompleted={true}
-        />
+        <MasteryProgress progress={defaultProgress} isCompleted={true} />,
       );
 
       // 完成时图标背景变绿色，百分比颜色保持 text-gray-500
@@ -211,9 +164,7 @@ describe('MasteryProgress', () => {
     it('should have proper region role', () => {
       render(<MasteryProgress progress={defaultProgress} />);
 
-      expect(
-        screen.getByRole('region', { name: '掌握模式学习进度' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: '掌握模式学习进度' })).toBeInTheDocument();
     });
 
     it('should have accessible progress bar values', () => {
@@ -238,10 +189,7 @@ describe('MasteryProgress', () => {
   describe('custom styling', () => {
     it('should apply custom className', () => {
       const { container } = render(
-        <MasteryProgress
-          progress={defaultProgress}
-          className="custom-class"
-        />
+        <MasteryProgress progress={defaultProgress} className="custom-class" />,
       );
 
       expect(container.firstChild).toHaveClass('custom-class');

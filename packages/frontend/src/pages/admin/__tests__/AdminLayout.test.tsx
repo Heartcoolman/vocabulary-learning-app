@@ -21,7 +21,12 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/ApiClient', () => ({
   default: {
-    getCurrentUser: vi.fn().mockResolvedValue({ id: 'admin-1', username: 'admin', email: 'admin@test.com', role: 'ADMIN' }),
+    getCurrentUser: vi.fn().mockResolvedValue({
+      id: 'admin-1',
+      username: 'admin',
+      email: 'admin@test.com',
+      role: 'ADMIN',
+    }),
   },
 }));
 
@@ -47,7 +52,9 @@ vi.mock('@/components/Icon', async () => {
     Clock: () => <span data-testid="icon-clock">🕐</span>,
     ArrowLeft: () => <span data-testid="icon-arrow">←</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });
@@ -56,7 +63,7 @@ const renderWithRouter = (initialEntries = ['/admin']) => {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AdminLayout />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 

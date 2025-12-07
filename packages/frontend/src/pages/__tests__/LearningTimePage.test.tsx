@@ -15,7 +15,9 @@ vi.mock('react-router-dom', async () => {
 
 // Mock data matching actual component expectations
 const mockTimePreference = {
-  timePref: Array(24).fill(0).map((_, i) => i >= 9 && i <= 11 ? 0.8 : 0.3),
+  timePref: Array(24)
+    .fill(0)
+    .map((_, i) => (i >= 9 && i <= 11 ? 0.8 : 0.3)),
   preferredSlots: [
     { hour: 9, score: 0.85, confidence: 0.9 },
     { hour: 10, score: 0.82, confidence: 0.88 },
@@ -66,7 +68,7 @@ describe('LearningTimePage', () => {
     return render(
       <MemoryRouter>
         <LearningTimePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

@@ -21,7 +21,7 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
   onClose,
   wordBookId,
   onImportSuccess,
-  isAdminMode = false
+  isAdminMode = false,
 }) => {
   const [step, setStep] = useState<ImportStep>('upload');
   const [parsedData, setParsedData] = useState<WordImportData[]>([]);
@@ -112,12 +112,12 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
         setFailedCount(response.failed);
 
         if (response.errors && response.errors.length > 0) {
-          setErrors(prev => [...prev, ...response.errors!]);
+          setErrors((prev) => [...prev, ...response.errors!]);
         }
       }
 
       if (Array.isArray(response) ? response.length > 0 : response.imported > 0) {
-         onImportSuccess(Array.isArray(response) ? response.length : response.imported);
+        onImportSuccess(Array.isArray(response) ? response.length : response.imported);
       }
 
       setStep('result');
@@ -145,7 +145,7 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
       animate="visible"
       exit="exit"
       variants={fadeInVariants}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
@@ -154,15 +154,14 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
         animate="visible"
         exit="exit"
         variants={scaleInVariants}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
       >
-
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-xl font-bold text-gray-900">批量导入单词</h2>
           <button
             onClick={handleClose}
             disabled={isImporting}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             aria-label="Close modal"
           >
             <X size={20} />
@@ -170,26 +169,23 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-
           {step === 'upload' && (
             <div className="space-y-6">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-900">
                   <FileText size={16} />
                   文件格式要求
                 </h3>
-                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <ul className="list-inside list-disc space-y-1 text-sm text-blue-700">
                   <li>支持 CSV 或 JSON 格式</li>
-                  <li>必须包含字段: spelling (拼写), phonetic (音标), meanings (释义), examples (例句)</li>
+                  <li>
+                    必须包含字段: spelling (拼写), phonetic (音标), meanings (释义), examples (例句)
+                  </li>
                   <li>CSV使用竖线 "|" 分隔多个释义或例句</li>
                 </ul>
               </div>
 
-              <FileUpload
-                onFileSelect={handleFileSelect}
-                accept=".csv,.json"
-                maxSizeMB={5}
-              />
+              <FileUpload onFileSelect={handleFileSelect} accept=".csv,.json" maxSizeMB={5} />
             </div>
           )}
 
@@ -204,10 +200,10 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
                 </h3>
                 <button
                   onClick={() => {
-                     setFile(null);
-                     setParsedData([]);
-                     setErrors([]);
-                     setStep('upload');
+                    setFile(null);
+                    setParsedData([]);
+                    setErrors([]);
+                    setStep('upload');
                   }}
                   className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
                 >
@@ -216,28 +212,26 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
               </div>
 
               {errors.length > 0 ? (
-                <div className="bg-red-50 border border-red-100 rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-red-800 font-medium mb-2">
+                <div className="rounded-lg border border-red-100 bg-red-50 p-4">
+                  <div className="mb-2 flex items-center gap-2 font-medium text-red-800">
                     <Warning size={18} weight="bold" />
                     发现 {errors.length} 个错误
                   </div>
-                  <ul className="list-disc list-inside text-sm text-red-600 space-y-1 max-h-40 overflow-y-auto">
+                  <ul className="max-h-40 list-inside list-disc space-y-1 overflow-y-auto text-sm text-red-600">
                     {errors.map((err, idx) => (
                       <li key={idx}>{err}</li>
                     ))}
                   </ul>
-                  <p className="mt-3 text-sm text-red-700">
-                    请修改文件后重新上传。
-                  </p>
+                  <p className="mt-3 text-sm text-red-700">请修改文件后重新上传。</p>
                 </div>
               ) : (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="overflow-hidden rounded-lg border border-gray-200">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-600">
                         <tr>
-                          <th className="px-4 py-3 w-1/4">拼写</th>
-                          <th className="px-4 py-3 w-1/4">音标</th>
+                          <th className="w-1/4 px-4 py-3">拼写</th>
+                          <th className="w-1/4 px-4 py-3">音标</th>
                           <th className="px-4 py-3">释义预览</th>
                         </tr>
                       </thead>
@@ -245,8 +239,8 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
                         {parsedData.slice(0, 5).map((word, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium text-gray-900">{word.spelling}</td>
-                            <td className="px-4 py-3 text-gray-600 font-mono">{word.phonetic}</td>
-                            <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                            <td className="px-4 py-3 font-mono text-gray-600">{word.phonetic}</td>
+                            <td className="max-w-xs truncate px-4 py-3 text-gray-600">
                               {word.meanings.join(', ')}
                             </td>
                           </tr>
@@ -255,7 +249,7 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
                     </table>
                   </div>
                   {parsedData.length > 5 && (
-                    <div className="bg-gray-50 px-4 py-2 text-xs text-center text-gray-500 border-t border-gray-200">
+                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-center text-xs text-gray-500">
                       还有 {parsedData.length - 5} 条数据未显示...
                     </div>
                   )}
@@ -265,8 +259,8 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
           )}
 
           {step === 'importing' && (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <CircleNotch size={48} weight="bold" className="text-blue-500 animate-spin" />
+            <div className="flex flex-col items-center justify-center space-y-4 py-12">
+              <CircleNotch size={48} weight="bold" className="animate-spin text-blue-500" />
               <h3 className="text-lg font-medium text-gray-900">
                 {isCancelling ? '正在取消...' : '正在导入...'}
               </h3>
@@ -279,42 +273,46 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
           )}
 
           {step === 'result' && (
-            <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
+            <div className="flex flex-col items-center justify-center space-y-6 py-8 text-center">
               {importError ? (
-                <div className="p-4 rounded-full bg-red-100 text-red-600 mb-2">
+                <div className="mb-2 rounded-full bg-red-100 p-4 text-red-600">
                   <X size={48} weight="bold" />
                 </div>
               ) : failedCount === 0 ? (
-                <div className="p-4 rounded-full bg-green-100 text-green-600 mb-2">
+                <div className="mb-2 rounded-full bg-green-100 p-4 text-green-600">
                   <CheckCircle size={48} weight="bold" />
                 </div>
               ) : (
-                <div className="p-4 rounded-full bg-amber-100 text-amber-600 mb-2">
+                <div className="mb-2 rounded-full bg-amber-100 p-4 text-amber-600">
                   <Warning size={48} weight="bold" />
                 </div>
               )}
 
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="mb-2 text-2xl font-bold text-gray-900">
                   {importError ? '导入失败' : failedCount === 0 ? '导入成功' : '部分导入完成'}
                 </h3>
 
                 {importError ? (
-                  <p className="text-red-600 max-w-md mx-auto">{importError}</p>
+                  <p className="mx-auto max-w-md text-red-600">{importError}</p>
                 ) : (
                   <div className="space-y-1 text-gray-600">
-                    <p>成功导入: <span className="font-bold text-green-600">{importedCount}</span></p>
+                    <p>
+                      成功导入: <span className="font-bold text-green-600">{importedCount}</span>
+                    </p>
                     {failedCount > 0 && (
-                      <p>导入失败: <span className="font-bold text-red-600">{failedCount}</span></p>
+                      <p>
+                        导入失败: <span className="font-bold text-red-600">{failedCount}</span>
+                      </p>
                     )}
                   </div>
                 )}
               </div>
 
               {!importError && errors.length > 0 && (
-                <div className="w-full bg-amber-50 border border-amber-100 rounded-lg p-4 text-left max-h-40 overflow-y-auto">
-                  <p className="text-sm font-semibold text-amber-800 mb-2">失败详情:</p>
-                  <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
+                <div className="max-h-40 w-full overflow-y-auto rounded-lg border border-amber-100 bg-amber-50 p-4 text-left">
+                  <p className="mb-2 text-sm font-semibold text-amber-800">失败详情:</p>
+                  <ul className="list-inside list-disc space-y-1 text-xs text-amber-700">
                     {errors.map((err, idx) => (
                       <li key={idx}>{err}</li>
                     ))}
@@ -323,43 +321,38 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
               )}
             </div>
           )}
-
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+        <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
           {step === 'preview' ? (
-             <>
+            <>
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-200 transition-colors"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-200"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmImport}
                 disabled={errors.length > 0 || parsedData.length === 0}
-                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 确认导入
               </button>
-             </>
+            </>
           ) : step === 'result' ? (
-             <button
-               onClick={handleClose}
-               className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
-             >
-               完成
-             </button>
+            <button
+              onClick={handleClose}
+              className="rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+            >
+              完成
+            </button>
           ) : step === 'upload' ? (
-             <button
-                onClick={handleClose}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900"
-             >
-               取消
-             </button>
+            <button onClick={handleClose} className="px-4 py-2 text-gray-700 hover:text-gray-900">
+              取消
+            </button>
           ) : null}
         </div>
-
       </motion.div>
     </motion.div>
   );

@@ -2,7 +2,18 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { CaretDown, Clock, TrendUp, Trophy, CalendarCheck, ChartBar, Target, UserCircle, List, X } from './Icon';
+import {
+  CaretDown,
+  Clock,
+  TrendUp,
+  Trophy,
+  CalendarCheck,
+  ChartBar,
+  Target,
+  UserCircle,
+  List,
+  X,
+} from './Icon';
 import { fadeInVariants, g3SpringStandard } from '../utils/animations';
 
 /**
@@ -62,7 +73,15 @@ export default function Navigation() {
   };
 
   const isInsightsActive = () => {
-    return ['/statistics', '/learning-time', '/trend-report', '/achievements', '/plan', '/word-mastery', '/habit-profile'].includes(location.pathname);
+    return [
+      '/statistics',
+      '/learning-time',
+      '/trend-report',
+      '/achievements',
+      '/plan',
+      '/word-mastery',
+      '/habit-profile',
+    ].includes(location.pathname);
   };
 
   const linkClass = (path: string) => {
@@ -98,14 +117,14 @@ export default function Navigation() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
+      className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md"
       role="banner"
     >
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="mx-auto max-w-7xl px-4 py-4">
         <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center space-x-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+            className="flex items-center space-x-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="返回首页"
           >
             <h1 className="text-2xl font-bold text-gray-900">词汇学习</h1>
@@ -113,7 +132,7 @@ export default function Navigation() {
 
           {/* 桌面端导航 */}
           <nav
-            className="hidden lg:flex items-center space-x-2"
+            className="hidden items-center space-x-2 lg:flex"
             role="navigation"
             aria-label="主导航"
           >
@@ -151,10 +170,11 @@ export default function Navigation() {
               <div className="relative" ref={insightsRef}>
                 <button
                   onClick={() => setIsInsightsOpen(!isInsightsOpen)}
-                  className={`px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 flex items-center gap-1 ${isInsightsActive()
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                    }`}
+                  className={`flex items-center gap-1 rounded-lg px-4 py-2 text-base font-medium transition-all duration-200 ${
+                    isInsightsActive()
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'text-gray-700 hover:scale-105 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95'
+                  }`}
                   aria-expanded={isInsightsOpen}
                   aria-haspopup="true"
                 >
@@ -174,7 +194,7 @@ export default function Navigation() {
                       animate="visible"
                       exit="exit"
                       variants={fadeInVariants}
-                      className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                      className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                     >
                       {insightsLinks.map(({ path, icon: Icon, label }) => (
                         <Link
@@ -228,16 +248,12 @@ export default function Navigation() {
           {/* 移动端汉堡菜单按钮 */}
           <button
             ref={hamburgerRef}
-            className="lg:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 lg:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-expanded={isMobileMenuOpen}
             aria-label={isMobileMenuOpen ? '关闭菜单' : '打开菜单'}
           >
-            {isMobileMenuOpen ? (
-              <X size={24} weight="bold" />
-            ) : (
-              <List size={24} weight="bold" />
-            )}
+            {isMobileMenuOpen ? <X size={24} weight="bold" /> : <List size={24} weight="bold" />}
           </button>
         </div>
 
@@ -250,7 +266,7 @@ export default function Navigation() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden mt-4 pb-4 border-t border-gray-200 pt-4"
+              className="mt-4 border-t border-gray-200 pb-4 pt-4 lg:hidden"
             >
               <nav className="flex flex-col space-y-2" role="navigation" aria-label="移动端导航">
                 <Link to="/" className={mobileLinkClass('/')}>
@@ -269,7 +285,7 @@ export default function Navigation() {
                 {/* 学习洞察子菜单 */}
                 {isAuthenticated && (
                   <>
-                    <div className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                    <div className="px-4 py-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
                       学习洞察
                     </div>
                     {insightsLinks.map(({ path, icon: Icon, label }) => (
@@ -293,7 +309,7 @@ export default function Navigation() {
                 )}
 
                 {/* 分隔线 */}
-                <div className="border-t border-gray-200 my-2" />
+                <div className="my-2 border-t border-gray-200" />
 
                 {/* 认证相关 */}
                 {isAuthenticated ? (

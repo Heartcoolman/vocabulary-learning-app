@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Lightning, Coffee } from '@phosphor-icons/react';
 import ApiClient from '../services/ApiClient';
@@ -14,14 +14,16 @@ interface ModeOption {
 const MODE_ICONS: Record<string, React.ReactNode> = {
   standard: <GraduationCap size={20} weight="fill" />,
   cram: <Lightning size={20} weight="fill" />,
-  relaxed: <Coffee size={20} weight="fill" />
+  relaxed: <Coffee size={20} weight="fill" />,
 };
 
 interface LearningModeSelectorProps {
   minimal?: boolean;
 }
 
-export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ minimal = false }) => {
+const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
+  minimal = false,
+}) => {
   const toast = useToast();
   const [currentMode, setCurrentMode] = useState('standard');
   const [modes, setModes] = useState<ModeOption[]>([]);
@@ -75,9 +77,10 @@ export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ mini
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={minimal
-          ? 'p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors'
-          : 'btn-ghost flex items-center gap-1.5 px-2 py-1.5 text-sm'
+        className={
+          minimal
+            ? 'rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600'
+            : 'btn-ghost flex items-center gap-1.5 px-2 py-1.5 text-sm'
         }
         aria-label="选择学习模式"
         title="切换学习模式"
@@ -87,7 +90,7 @@ export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ mini
           <>
             <span className="hidden sm:inline">模式</span>
             <span className="text-xs text-gray-500">
-              {modes.find(m => m.id === currentMode)?.name}
+              {modes.find((m) => m.id === currentMode)?.name}
             </span>
           </>
         )}
@@ -112,42 +115,36 @@ export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ mini
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.18 }}
-              className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-lg p-4 w-80 z-50 border border-gray-200"
+              className="absolute left-0 top-full z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
             >
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                选择学习模式
-              </h3>
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">选择学习模式</h3>
 
               <div className="space-y-2">
-                {modes.map(mode => (
+                {modes.map((mode) => (
                   <button
                     key={mode.id}
                     onClick={() => handleModeChange(mode.id)}
                     disabled={isLoading}
-                    className={`w-full text-left p-3 rounded-lg transition-all ${
+                    className={`w-full rounded-lg p-3 text-left transition-all ${
                       currentMode === mode.id
-                        ? 'bg-blue-50 border-2 border-blue-500 shadow-sm'
-                        : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
-                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        ? 'border-2 border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                    } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="mb-1 flex items-center gap-2">
                       {MODE_ICONS[mode.id]}
                       <span className="font-semibold text-gray-900">{mode.name}</span>
                       {currentMode === mode.id && (
-                        <span className="ml-auto text-xs text-blue-600 font-medium">
-                          当前
-                        </span>
+                        <span className="ml-auto text-xs font-medium text-blue-600">当前</span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600 pl-7">{mode.description}</div>
+                    <div className="pl-7 text-sm text-gray-600">{mode.description}</div>
                   </button>
                 ))}
               </div>
 
               {isLoading && (
-                <div className="mt-3 text-center text-sm text-gray-500">
-                  正在切换模式...
-                </div>
+                <div className="mt-3 text-center text-sm text-gray-500">正在切换模式...</div>
               )}
             </motion.div>
           </>
@@ -156,3 +153,5 @@ export const LearningModeSelector: React.FC<LearningModeSelectorProps> = ({ mini
     </div>
   );
 };
+
+export const LearningModeSelector = memo(LearningModeSelectorComponent);

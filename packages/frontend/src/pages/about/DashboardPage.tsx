@@ -7,9 +7,29 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GitBranch, Clock, CircleNotch, WarningCircle, Lightning, Target, Database, Flask, WifiHigh, WifiSlash } from '../../components/Icon';
-import { getMixedDecisions, getDecisionDetail, subscribeToDecisions } from '../../services/aboutApi';
-import type { RecentDecision, DecisionDetail, MixedDecisions, SSEDecisionEvent } from '../../services/aboutApi';
+import {
+  GitBranch,
+  Clock,
+  CircleNotch,
+  WarningCircle,
+  Lightning,
+  Target,
+  Database,
+  Flask,
+  WifiHigh,
+  WifiSlash,
+} from '../../components/Icon';
+import {
+  getMixedDecisions,
+  getDecisionDetail,
+  subscribeToDecisions,
+} from '../../services/aboutApi';
+import type {
+  RecentDecision,
+  DecisionDetail,
+  MixedDecisions,
+  SSEDecisionEvent,
+} from '../../services/aboutApi';
 import { DecisionDetailPanel } from './components/DecisionDetailPanel';
 import { amasLogger } from '../../utils/logger';
 
@@ -23,65 +43,70 @@ interface DecisionCardProps {
 const DIFFICULTY_STYLES: Record<string, string> = {
   easy: 'bg-green-100 text-green-700 border-green-200',
   mid: 'bg-amber-100 text-amber-700 border-amber-200',
-  hard: 'bg-red-100 text-red-700 border-red-200'
+  hard: 'bg-red-100 text-red-700 border-red-200',
 };
 
 function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardProps) {
-  const difficultyStyle = DIFFICULTY_STYLES[decision.strategy.difficulty?.toLowerCase() || ''] ||
+  const difficultyStyle =
+    DIFFICULTY_STYLES[decision.strategy.difficulty?.toLowerCase() || ''] ||
     'bg-slate-100 text-slate-600 border-slate-200';
 
-  const sourceStyle = source === 'real' 
-    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-    : 'bg-purple-100 text-purple-700 border-purple-200';
+  const sourceStyle =
+    source === 'real'
+      ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+      : 'bg-purple-100 text-purple-700 border-purple-200';
 
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('zh-CN', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     });
   };
 
-  const baseClasses = 'p-3 mb-3 rounded-lg cursor-pointer border transition-all duration-200 group hover:shadow-md hover:scale-[1.01]';
+  const baseClasses =
+    'p-3 mb-3 rounded-lg cursor-pointer border transition-all duration-200 group hover:shadow-md hover:scale-[1.01]';
   const selectedClasses = isSelected
     ? 'bg-indigo-50/80 border-indigo-500 shadow-sm ring-1 ring-indigo-200'
     : 'bg-white border-slate-200 hover:border-indigo-200';
 
   return (
     <div onClick={onClick} className={`${baseClasses} ${selectedClasses}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-1.5 text-xs font-mono text-slate-500">
+      <div className="mb-2 flex items-start justify-between">
+        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500">
           <Clock size={12} />
           <span>{formatTime(decision.timestamp)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${sourceStyle}`}>
+          <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${sourceStyle}`}>
             {source === 'real' ? '真实' : '模拟'}
           </span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium uppercase tracking-wider ${difficultyStyle}`}>
+          <span
+            className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${difficultyStyle}`}
+          >
             {decision.strategy.difficulty || 'N/A'}
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-1">
-        <div className={`p-1 rounded-md ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 group-hover:text-indigo-500'}`}>
+      <div className="mb-1 flex items-center gap-2">
+        <div
+          className={`rounded-md p-1 ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 group-hover:text-indigo-500'}`}
+        >
           <GitBranch size={16} />
         </div>
         <div className="overflow-hidden">
-          <p className="text-sm font-semibold text-slate-800 truncate">
-            {decision.pseudoId}
-          </p>
+          <p className="truncate text-sm font-semibold text-slate-800">{decision.pseudoId}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100/80">
-        <span className="text-[10px] text-slate-400 uppercase flex items-center gap-1">
+      <div className="mt-2 flex items-center justify-between border-t border-slate-100/80 pt-2">
+        <span className="flex items-center gap-1 text-[10px] uppercase text-slate-400">
           <Lightning size={12} />
           {decision.decisionSource}
         </span>
-        <span className="text-[10px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="font-mono text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
           ID: {decision.decisionId.slice(-4)}
         </span>
       </div>
@@ -109,14 +134,15 @@ export default function DashboardPage() {
   const hasSelectedRef = useRef(false);
 
   // 合并并排序决策列表
-  const allDecisions: DecisionWithSource[] = mixedData ? [
-    ...mixedData.real.map(d => ({ ...d, source: 'real' as const })),
-    ...mixedData.virtual.map(d => ({ ...d, source: 'virtual' as const }))
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
+  const allDecisions: DecisionWithSource[] = mixedData
+    ? [
+        ...mixedData.real.map((d) => ({ ...d, source: 'real' as const })),
+        ...mixedData.virtual.map((d) => ({ ...d, source: 'virtual' as const })),
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    : [];
 
-  const filteredDecisions = activeTab === 'all'
-    ? allDecisions
-    : allDecisions.filter(d => d.source === activeTab);
+  const filteredDecisions =
+    activeTab === 'all' ? allDecisions : allDecisions.filter((d) => d.source === activeTab);
 
   // SSE 事件处理：添加新决策到列表
   const handleNewDecision = useCallback((event: SSEDecisionEvent) => {
@@ -126,14 +152,14 @@ export default function DashboardPage() {
       timestamp: event.timestamp,
       decisionSource: event.decisionSource,
       strategy: event.strategy,
-      dominantFactor: event.dominantFactor
+      dominantFactor: event.dominantFactor,
     };
 
-    setMixedData(prev => {
+    setMixedData((prev) => {
       if (!prev) {
         return {
           real: event.source === 'real' ? [newDecision] : [],
-          virtual: event.source === 'virtual' ? [newDecision] : []
+          virtual: event.source === 'virtual' ? [newDecision] : [],
         };
       }
 
@@ -141,12 +167,18 @@ export default function DashboardPage() {
       if (event.source === 'real') {
         return {
           ...prev,
-          real: [newDecision, ...prev.real.filter(d => d.decisionId !== event.decisionId)].slice(0, 50)
+          real: [newDecision, ...prev.real.filter((d) => d.decisionId !== event.decisionId)].slice(
+            0,
+            50,
+          ),
         };
       } else {
         return {
           ...prev,
-          virtual: [newDecision, ...prev.virtual.filter(d => d.decisionId !== event.decisionId)].slice(0, 50)
+          virtual: [
+            newDecision,
+            ...prev.virtual.filter((d) => d.decisionId !== event.decisionId),
+          ].slice(0, 50),
         };
       }
     });
@@ -168,8 +200,8 @@ export default function DashboardPage() {
 
         // 自动选择第一条
         const allDecs = [
-          ...data.real.map(d => ({ ...d, source: 'real' as const })),
-          ...data.virtual.map(d => ({ ...d, source: 'virtual' as const }))
+          ...data.real.map((d) => ({ ...d, source: 'real' as const })),
+          ...data.virtual.map((d) => ({ ...d, source: 'virtual' as const })),
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         if (allDecs.length > 0 && !hasSelectedRef.current) {
@@ -210,7 +242,7 @@ export default function DashboardPage() {
           setIsSSEConnected(false);
           amasLogger.warn('[Dashboard] SSE connection error');
         }
-      }
+      },
     );
 
     return () => {
@@ -240,7 +272,10 @@ export default function DashboardPage() {
           }
         }
       } catch (err) {
-        amasLogger.error({ err, decisionId: selectedId, source: selectedSource }, '获取决策详情失败');
+        amasLogger.error(
+          { err, decisionId: selectedId, source: selectedSource },
+          '获取决策详情失败',
+        );
         if (isMounted) {
           setSelectedDecision(null);
           const errorMessage = err instanceof Error ? err.message : String(err);
@@ -273,27 +308,27 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
-
+    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Left Sidebar */}
-      <aside className="w-[300px] flex flex-col flex-shrink-0 border-r border-slate-200 bg-white/90 backdrop-blur-lg shadow-xl z-10">
-
+      <aside className="z-10 flex w-[300px] flex-shrink-0 flex-col border-r border-slate-200 bg-white/90 shadow-xl backdrop-blur-lg">
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-200 bg-white/50">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+        <div className="border-b border-slate-200 bg-white/50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
               <Target size={18} weight="fill" className="text-indigo-500" />
               近期决策
             </h2>
-            {isLoadingList && <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />}
+            {isLoadingList && (
+              <CircleNotch size={16} weight="bold" className="animate-spin text-indigo-400" />
+            )}
           </div>
           {/* Tab Filter */}
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
             <button
               onClick={() => setActiveTab('all')}
-              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all ${
-                activeTab === 'all' 
-                  ? 'bg-white text-slate-700 shadow-sm' 
+              className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-all ${
+                activeTab === 'all'
+                  ? 'bg-white text-slate-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -301,9 +336,9 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab('real')}
-              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all flex items-center justify-center gap-1 ${
-                activeTab === 'real' 
-                  ? 'bg-emerald-50 text-emerald-700 shadow-sm' 
+              className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
+                activeTab === 'real'
+                  ? 'bg-emerald-50 text-emerald-700 shadow-sm'
                   : 'text-slate-500 hover:text-emerald-600'
               }`}
             >
@@ -312,9 +347,9 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab('virtual')}
-              className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-all flex items-center justify-center gap-1 ${
-                activeTab === 'virtual' 
-                  ? 'bg-purple-50 text-purple-700 shadow-sm' 
+              className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
+                activeTab === 'virtual'
+                  ? 'bg-purple-50 text-purple-700 shadow-sm'
                   : 'text-slate-500 hover:text-purple-600'
               }`}
             >
@@ -327,14 +362,17 @@ export default function DashboardPage() {
         {/* Sidebar List */}
         <div className="flex-1 overflow-y-auto p-3">
           {error ? (
-            <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-center p-4">
+            <div className="flex h-40 flex-col items-center justify-center p-4 text-center text-slate-400">
               <WarningCircle size={32} weight="fill" className="mb-2 text-red-300" />
               <p className="text-xs">{error}</p>
             </div>
           ) : filteredDecisions.length === 0 && !isLoadingList ? (
-            <div className="text-center py-10 text-slate-400 text-xs">
-              {activeTab === 'real' ? '暂无真实决策记录，请先在学习页面使用系统' : 
-               activeTab === 'virtual' ? '暂无模拟决策数据' : '暂无决策记录'}
+            <div className="py-10 text-center text-xs text-slate-400">
+              {activeTab === 'real'
+                ? '暂无真实决策记录，请先在学习页面使用系统'
+                : activeTab === 'virtual'
+                  ? '暂无模拟决策数据'
+                  : '暂无决策记录'}
             </div>
           ) : (
             <div className="space-y-1">
@@ -342,7 +380,9 @@ export default function DashboardPage() {
                 <DecisionCard
                   key={`${decision.source}-${decision.decisionId}`}
                   decision={decision}
-                  isSelected={selectedId === decision.decisionId && selectedSource === decision.source}
+                  isSelected={
+                    selectedId === decision.decisionId && selectedSource === decision.source
+                  }
                   onClick={() => handleDecisionClick(decision.decisionId, decision.source)}
                   source={decision.source}
                 />
@@ -352,7 +392,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[10px] text-center text-slate-400 flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 border-t border-slate-200 bg-slate-50/50 p-3 text-center text-[10px] text-slate-400">
           {isSSEConnected ? (
             <>
               <WifiHigh size={14} weight="fill" className="text-green-500" />
@@ -368,16 +408,16 @@ export default function DashboardPage() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative flex flex-col h-full overflow-hidden">
+      <main className="relative flex h-full flex-1 flex-col overflow-hidden">
         {isLoadingDetail && (
-          <div className="absolute top-4 right-4 z-20 bg-white/80 backdrop-blur px-3 py-1 rounded-full shadow-sm border border-slate-200 flex items-center gap-2 text-xs text-slate-500">
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-sm backdrop-blur">
             <CircleNotch size={14} weight="bold" className="animate-spin text-indigo-500" />
             Loading details...
           </div>
         )}
 
         {detailError && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-md shadow-sm text-sm flex items-center gap-2">
+          <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 shadow-sm">
             <WarningCircle size={16} weight="fill" />
             {detailError}
           </div>

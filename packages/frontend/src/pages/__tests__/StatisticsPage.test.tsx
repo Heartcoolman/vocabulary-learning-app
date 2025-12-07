@@ -91,7 +91,7 @@ describe('StatisticsPage', () => {
     return render(
       <MemoryRouter>
         <StatisticsPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

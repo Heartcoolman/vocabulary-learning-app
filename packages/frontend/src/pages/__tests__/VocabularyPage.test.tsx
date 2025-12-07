@@ -80,15 +80,28 @@ vi.mock('../../components/ui', async () => {
         <div data-testid="modal">
           <h2>{title}</h2>
           {children}
-          <button onClick={onClose} data-testid="close-modal">关闭</button>
+          <button onClick={onClose} data-testid="close-modal">
+            关闭
+          </button>
         </div>
       ) : null,
-    ConfirmModal: ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isLoading }: any) =>
+    ConfirmModal: ({
+      isOpen,
+      onClose,
+      onConfirm,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      isLoading,
+    }: any) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           <h2>{title}</h2>
           <p>{message}</p>
-          <button onClick={onConfirm} disabled={isLoading}>{confirmText}</button>
+          <button onClick={onConfirm} disabled={isLoading}>
+            {confirmText}
+          </button>
           <button onClick={onClose}>{cancelText}</button>
         </div>
       ) : null,
@@ -125,7 +138,7 @@ describe('VocabularyPage', () => {
     return render(
       <MemoryRouter>
         <VocabularyPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
@@ -412,9 +425,12 @@ describe('VocabularyPage', () => {
       fireEvent.change(searchInput, { target: { value: 'apple' } });
 
       // Wait for debounce and API call
-      await waitFor(() => {
-        expect(apiClient.searchWords).toHaveBeenCalledWith('apple');
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(apiClient.searchWords).toHaveBeenCalledWith('apple');
+        },
+        { timeout: 1000 },
+      );
     });
 
     it('should display search results', async () => {
@@ -427,10 +443,13 @@ describe('VocabularyPage', () => {
       const searchInput = screen.getByPlaceholderText('搜索单词...');
       fireEvent.change(searchInput, { target: { value: 'apple' } });
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-        expect(screen.getByText('/ˈæp.əl/')).toBeInTheDocument();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+          expect(screen.getByText('/ˈæp.əl/')).toBeInTheDocument();
+        },
+        { timeout: 1000 },
+      );
     });
 
     it('should clear search input', async () => {

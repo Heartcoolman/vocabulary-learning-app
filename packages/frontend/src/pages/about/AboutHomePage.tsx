@@ -115,48 +115,35 @@ function StageCard({
     <motion.div
       layout
       onClick={onClick}
-      className={`
-        relative overflow-hidden rounded-2xl border cursor-pointer
-        transition-colors duration-300
-        ${isOpen
-          ? 'bg-white border-slate-300 shadow-lg'
-          : 'bg-white/60 border-slate-200 hover:border-slate-300 hover:bg-white/80'
-        }
-      `}
+      className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-colors duration-300 ${
+        isOpen
+          ? 'border-slate-300 bg-white shadow-lg'
+          : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white/80'
+      } `}
       initial={false}
       animate={{ height: isOpen ? 'auto' : 120 }}
       transition={g3SpringStandard}
     >
       {/* 左侧强调色条 */}
-      <div className={`absolute top-0 left-0 w-1 h-full ${accentColor}`} />
+      <div className={`absolute left-0 top-0 h-full w-1 ${accentColor}`} />
 
       <div className="p-6">
         {/* 头部：图标 + 标题 + 展开指示器 */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className={`
-                p-3 rounded-xl transition-colors duration-200
-                ${isOpen ? `${bgColor} text-slate-700` : 'bg-slate-100 text-slate-500'}
-              `}
+              className={`rounded-xl p-3 transition-colors duration-200 ${isOpen ? `${bgColor} text-slate-700` : 'bg-slate-100 text-slate-500'} `}
             >
               {icon}
             </div>
             <div>
               <h3
-                className={`
-                  text-lg font-bold transition-colors duration-200
-                  ${isOpen ? 'text-slate-900' : 'text-slate-700'}
-                `}
+                className={`text-lg font-bold transition-colors duration-200 ${isOpen ? 'text-slate-900' : 'text-slate-700'} `}
               >
                 {title}
-                <span className="ml-2 text-sm font-normal text-slate-400">
-                  {subtitle}
-                </span>
+                <span className="ml-2 text-sm font-normal text-slate-400">{subtitle}</span>
               </h3>
-              {!isOpen && (
-                <p className="text-sm text-slate-500 line-clamp-1">{description}</p>
-              )}
+              {!isOpen && <p className="line-clamp-1 text-sm text-slate-500">{description}</p>}
             </div>
           </div>
           <motion.div
@@ -178,7 +165,7 @@ function StageCard({
               transition={{ duration: 0.2 }}
               className="pl-[60px] pt-2"
             >
-              <p className="text-slate-600 mb-4 leading-relaxed">{description}</p>
+              <p className="mb-4 leading-relaxed text-slate-600">{description}</p>
               <ul className="space-y-2">
                 {details.map((detail, idx) => (
                   <motion.li
@@ -189,7 +176,7 @@ function StageCard({
                     className="flex items-start gap-2 text-sm text-slate-500"
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${accentColor}`}
+                      className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${accentColor}`}
                     />
                     {detail}
                   </motion.li>
@@ -214,21 +201,21 @@ export default function AboutHomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-4xl">
         {/* 标题区 */}
         <motion.div
           initial="hidden"
           animate="visible"
           variants={fadeInVariants}
-          className="text-center mb-16"
+          className="mb-16 text-center"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
+          <h1 className="mb-4 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
             AMAS{' '}
             <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               智能引擎
             </span>
           </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-slate-600">
             <span className="text-slate-400">Adaptive Multi-modal Assessment System</span>
             <br />
             像私教一样懂你的自适应学习系统
@@ -240,7 +227,7 @@ export default function AboutHomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex justify-center items-center gap-2 mb-8 text-sm text-slate-400"
+          className="mb-8 flex items-center justify-center gap-2 text-sm text-slate-400"
         >
           <span>感知</span>
           <span>→</span>
@@ -274,7 +261,7 @@ export default function AboutHomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-center text-sm text-slate-400 mt-12"
+          className="mt-12 text-center text-sm text-slate-400"
         >
           点击卡片展开查看详情 · 前往「模拟演示」体验决策过程
         </motion.p>

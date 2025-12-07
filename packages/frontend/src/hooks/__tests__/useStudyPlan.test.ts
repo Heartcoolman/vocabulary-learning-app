@@ -360,7 +360,7 @@ describe('useStudyPlan', () => {
       });
 
       expect(result.current.plan?.todayStudied).toBeGreaterThan(
-        result.current.plan?.todayTarget ?? 0
+        result.current.plan?.todayTarget ?? 0,
       );
     });
   });

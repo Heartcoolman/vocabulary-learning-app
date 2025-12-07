@@ -38,23 +38,19 @@ describe('useAutoPlayPronunciation', () => {
 
   describe('initial state', () => {
     it('should start with isPlaying false', () => {
-      const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { result } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
       expect(result.current.isPlaying).toBe(false);
     });
 
     it('should start with isEnabled based on config', () => {
       const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello', enabled: false })
+        useAutoPlayPronunciation({ word: 'hello', enabled: false }),
       );
       expect(result.current.isEnabled).toBe(false);
     });
 
     it('should default isEnabled to true', () => {
-      const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { result } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
       expect(result.current.isEnabled).toBe(true);
     });
   });
@@ -66,7 +62,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           wordId: '1',
           delay: 300,
-        })
+        }),
       );
 
       // Should not play immediately
@@ -85,7 +81,7 @@ describe('useAutoPlayPronunciation', () => {
         useAutoPlayPronunciation({
           word: undefined,
           delay: 300,
-        })
+        }),
       );
 
       await act(async () => {
@@ -101,7 +97,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           enabled: false,
           delay: 300,
-        })
+        }),
       );
 
       await act(async () => {
@@ -117,7 +113,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           showResult: true,
           delay: 300,
-        })
+        }),
       );
 
       await act(async () => {
@@ -135,7 +131,7 @@ describe('useAutoPlayPronunciation', () => {
             wordId,
             delay: 300,
           }),
-        { initialProps: { wordId: '1' } }
+        { initialProps: { wordId: '1' } },
       );
 
       await act(async () => {
@@ -159,7 +155,7 @@ describe('useAutoPlayPronunciation', () => {
         useAutoPlayPronunciation({
           word: 'hello',
           delay: 500,
-        })
+        }),
       );
 
       await act(async () => {
@@ -182,7 +178,7 @@ describe('useAutoPlayPronunciation', () => {
         useAutoPlayPronunciation({
           word: 'hello',
           enabled: false, // Disable auto play
-        })
+        }),
       );
 
       await act(async () => {
@@ -196,7 +192,7 @@ describe('useAutoPlayPronunciation', () => {
       const { result } = renderHook(() =>
         useAutoPlayPronunciation({
           word: undefined,
-        })
+        }),
       );
 
       await act(async () => {
@@ -213,7 +209,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           enabled: false,
           onPlayStart,
-        })
+        }),
       );
 
       await act(async () => {
@@ -230,7 +226,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           enabled: false,
           onPlayEnd,
-        })
+        }),
       );
 
       await act(async () => {
@@ -250,7 +246,7 @@ describe('useAutoPlayPronunciation', () => {
           word: 'hello',
           enabled: false,
           onPlayError,
-        })
+        }),
       );
 
       await act(async () => {
@@ -266,14 +262,14 @@ describe('useAutoPlayPronunciation', () => {
         () =>
           new Promise<void>((resolve) => {
             resolvePlay = resolve;
-          })
+          }),
       );
 
       const { result } = renderHook(() =>
         useAutoPlayPronunciation({
           word: 'hello',
           enabled: false,
-        })
+        }),
       );
 
       // Start playing - use act without async to avoid waiting for promise
@@ -295,9 +291,7 @@ describe('useAutoPlayPronunciation', () => {
 
   describe('stop', () => {
     it('should call AudioService.stopAudio when stop() is called', () => {
-      const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { result } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
 
       act(() => {
         result.current.stop();
@@ -312,14 +306,14 @@ describe('useAutoPlayPronunciation', () => {
         () =>
           new Promise<void>((resolve) => {
             resolvePlay = resolve;
-          })
+          }),
       );
 
       const { result } = renderHook(() =>
         useAutoPlayPronunciation({
           word: 'hello',
           enabled: false,
-        })
+        }),
       );
 
       // Start playing - use act without async to avoid waiting for promise
@@ -348,7 +342,7 @@ describe('useAutoPlayPronunciation', () => {
         useAutoPlayPronunciation({
           word: 'hello',
           delay: 300,
-        })
+        }),
       );
 
       // Advance partially
@@ -364,7 +358,7 @@ describe('useAutoPlayPronunciation', () => {
   describe('setEnabled', () => {
     it('should update isEnabled when setEnabled is called', () => {
       const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello', enabled: true })
+        useAutoPlayPronunciation({ word: 'hello', enabled: true }),
       );
 
       expect(result.current.isEnabled).toBe(true);
@@ -379,7 +373,7 @@ describe('useAutoPlayPronunciation', () => {
     it('should sync isEnabled with external enabled prop changes', () => {
       const { result, rerender } = renderHook(
         ({ enabled }) => useAutoPlayPronunciation({ word: 'hello', enabled }),
-        { initialProps: { enabled: true } }
+        { initialProps: { enabled: true } },
       );
 
       expect(result.current.isEnabled).toBe(true);
@@ -396,7 +390,7 @@ describe('useAutoPlayPronunciation', () => {
         useAutoPlayPronunciation({
           word: 'hello',
           delay: 300,
-        })
+        }),
       );
 
       // Unmount before timer fires
@@ -411,9 +405,7 @@ describe('useAutoPlayPronunciation', () => {
     });
 
     it('should stop audio on unmount', () => {
-      const { unmount } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { unmount } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
 
       unmount();
 
@@ -428,7 +420,7 @@ describe('useAutoPlayPronunciation', () => {
             wordId: word,
             delay: 300,
           }),
-        { initialProps: { word: 'hello' } }
+        { initialProps: { word: 'hello' } },
       );
 
       // Advance partially
@@ -459,9 +451,7 @@ describe('useAutoPlayPronunciation', () => {
 
   describe('return values', () => {
     it('should return correct interface properties', () => {
-      const { result } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { result } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
 
       expect(result.current).toHaveProperty('isPlaying');
       expect(result.current).toHaveProperty('play');
@@ -477,9 +467,7 @@ describe('useAutoPlayPronunciation', () => {
     });
 
     it('should return stable function references', () => {
-      const { result, rerender } = renderHook(() =>
-        useAutoPlayPronunciation({ word: 'hello' })
-      );
+      const { result, rerender } = renderHook(() => useAutoPlayPronunciation({ word: 'hello' }));
 
       const initialPlay = result.current.play;
       const initialStop = result.current.stop;

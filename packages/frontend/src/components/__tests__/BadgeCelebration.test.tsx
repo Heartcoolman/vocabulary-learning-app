@@ -67,7 +67,7 @@ describe('BadgeCelebration', () => {
   describe('visibility', () => {
     it('should not render when isVisible is false', () => {
       const { container } = render(
-        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={false} />
+        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={false} />,
       );
       expect(container.firstChild).toBeNull();
     });
@@ -235,7 +235,7 @@ describe('BadgeCelebration', () => {
 
     it('should clear timer on unmount', () => {
       const { unmount } = render(
-        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />
+        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />,
       );
 
       unmount();

@@ -14,7 +14,7 @@ import {
   ChartLine,
   Brain,
   Shield,
-  CircleNotch
+  CircleNotch,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import {
@@ -26,7 +26,7 @@ import {
   triggerAnalysis,
   StoredSuggestion,
   LLMConfig,
-  WorkerStatus
+  WorkerStatus,
 } from '../../services/llmAdvisorApi';
 
 /**
@@ -54,9 +54,12 @@ export default function LLMAdvisorPage() {
       const [configData, suggestionsData] = await Promise.all([
         getLLMConfig(),
         getSuggestions({
-          status: statusFilter === 'all' ? undefined : statusFilter as 'pending' | 'approved' | 'rejected' | 'partial',
-          limit: 20
-        })
+          status:
+            statusFilter === 'all'
+              ? undefined
+              : (statusFilter as 'pending' | 'approved' | 'rejected' | 'partial'),
+          limit: 20,
+        }),
       ]);
 
       setConfig(configData.config);
@@ -158,7 +161,7 @@ export default function LLMAdvisorPage() {
   // 全选/取消全选
   const toggleSelectAll = () => {
     if (!selectedSuggestion) return;
-    const allIds = selectedSuggestion.parsedSuggestion.suggestions.map(s => s.id);
+    const allIds = selectedSuggestion.parsedSuggestion.suggestions.map((s) => s.id);
     if (selectedItems.size === allIds.length) {
       setSelectedItems(new Set());
     } else {
@@ -168,14 +171,14 @@ export default function LLMAdvisorPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <CircleNotch className="animate-spin" size={48} weight="bold" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -188,7 +191,7 @@ export default function LLMAdvisorPage() {
         <button
           onClick={handleTrigger}
           disabled={triggering || !config?.enabled}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {triggering ? (
             <CircleNotch className="animate-spin" size={18} />
@@ -200,10 +203,10 @@ export default function LLMAdvisorPage() {
       </div>
 
       {/* 状态卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* 配置状态 */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
             <Gear size={20} className="text-gray-500" />
             <span className="font-medium">配置状态</span>
           </div>
@@ -230,15 +233,17 @@ export default function LLMAdvisorPage() {
         </div>
 
         {/* Worker 状态 */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
             <ArrowsClockwise size={20} className="text-gray-500" />
             <span className="font-medium">Worker 状态</span>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">自动分析</span>
-              <span className={workerStatus?.autoAnalysisEnabled ? 'text-green-600' : 'text-gray-400'}>
+              <span
+                className={workerStatus?.autoAnalysisEnabled ? 'text-green-600' : 'text-gray-400'}
+              >
                 {workerStatus?.autoAnalysisEnabled ? '已启用' : '未启用'}
               </span>
             </div>
@@ -252,20 +257,20 @@ export default function LLMAdvisorPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">待审核</span>
-              <span className="text-orange-600 font-medium">{workerStatus?.pendingCount || 0}</span>
+              <span className="font-medium text-orange-600">{workerStatus?.pendingCount || 0}</span>
             </div>
           </div>
         </div>
 
         {/* 健康状态 */}
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
             <Brain size={20} className="text-gray-500" />
             <span className="font-medium">LLM 服务</span>
           </div>
           <div className="flex items-center gap-2">
             {!health ? (
-              <CircleNotch size={24} className="text-gray-400 animate-spin" />
+              <CircleNotch size={24} className="animate-spin text-gray-400" />
             ) : health.status === 'healthy' ? (
               <CheckCircle size={24} className="text-green-500" />
             ) : health.status === 'disabled' ? (
@@ -273,11 +278,17 @@ export default function LLMAdvisorPage() {
             ) : (
               <Warning size={24} className="text-yellow-500" />
             )}
-            <span className={
-              !health ? 'text-gray-400' :
-              health.status === 'healthy' ? 'text-green-600' :
-              health.status === 'disabled' ? 'text-gray-500' : 'text-yellow-600'
-            }>
+            <span
+              className={
+                !health
+                  ? 'text-gray-400'
+                  : health.status === 'healthy'
+                    ? 'text-green-600'
+                    : health.status === 'disabled'
+                      ? 'text-gray-500'
+                      : 'text-yellow-600'
+              }
+            >
               {!health ? '检查中...' : health.message || '未知'}
             </span>
           </div>
@@ -285,16 +296,17 @@ export default function LLMAdvisorPage() {
       </div>
 
       {/* 建议列表 */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="rounded-xl border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h2 className="font-semibold text-gray-900">
-            建议列表 {total > 0 && <span className="text-gray-500 font-normal text-sm">({total})</span>}
+            建议列表{' '}
+            {total > 0 && <span className="text-sm font-normal text-gray-500">({total})</span>}
           </h2>
           <div className="flex items-center gap-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
             >
               <option value="all">全部</option>
               <option value="pending">待审核</option>
@@ -302,7 +314,7 @@ export default function LLMAdvisorPage() {
               <option value="rejected">已拒绝</option>
               <option value="partial">部分采纳</option>
             </select>
-            <button onClick={loadData} className="p-2 hover:bg-gray-100 rounded-lg">
+            <button onClick={loadData} className="rounded-lg p-2 hover:bg-gray-100">
               <ArrowsClockwise size={18} />
             </button>
           </div>
@@ -353,7 +365,7 @@ export default function LLMAdvisorPage() {
 // 建议行组件
 function SuggestionRow({
   suggestion,
-  onView
+  onView,
 }: {
   suggestion: StoredSuggestion;
   onView: () => void;
@@ -362,39 +374,41 @@ function SuggestionRow({
     pending: 'bg-orange-100 text-orange-700',
     approved: 'bg-green-100 text-green-700',
     rejected: 'bg-red-100 text-red-700',
-    partial: 'bg-blue-100 text-blue-700'
+    partial: 'bg-blue-100 text-blue-700',
   };
 
   const statusLabels = {
     pending: '待审核',
     approved: '已通过',
     rejected: '已拒绝',
-    partial: '部分采纳'
+    partial: '部分采纳',
   };
 
   return (
-    <div className="p-4 hover:bg-gray-50 transition-colors">
+    <div className="p-4 transition-colors hover:bg-gray-50">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-1">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[suggestion.status]}`}>
+          <div className="mb-1 flex items-center gap-3">
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[suggestion.status]}`}
+            >
               {statusLabels[suggestion.status]}
             </span>
             <span className="text-sm text-gray-500">
-              {new Date(suggestion.weekStart).toLocaleDateString()} - {new Date(suggestion.weekEnd).toLocaleDateString()}
+              {new Date(suggestion.weekStart).toLocaleDateString()} -{' '}
+              {new Date(suggestion.weekEnd).toLocaleDateString()}
             </span>
           </div>
-          <p className="text-gray-900 font-medium">{suggestion.parsedSuggestion.analysis.summary}</p>
-          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+          <p className="font-medium text-gray-900">
+            {suggestion.parsedSuggestion.analysis.summary}
+          </p>
+          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
             <span>建议项: {suggestion.parsedSuggestion.suggestions.length}</span>
             <span>置信度: {(suggestion.parsedSuggestion.confidence * 100).toFixed(0)}%</span>
             <span>数据质量: {suggestion.parsedSuggestion.dataQuality}</span>
           </div>
         </div>
-        <button
-          onClick={onView}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
+        <button onClick={onView} className="rounded-lg p-2 hover:bg-gray-100">
           <Eye size={20} />
         </button>
       </div>
@@ -412,7 +426,7 @@ function SuggestionDetail({
   onReject,
   onClose,
   approving,
-  rejecting
+  rejecting,
 }: {
   suggestion: StoredSuggestion;
   selectedItems: Set<string>;
@@ -430,31 +444,31 @@ function SuggestionDetail({
   const riskColors = {
     low: 'text-green-600 bg-green-50',
     medium: 'text-yellow-600 bg-yellow-50',
-    high: 'text-red-600 bg-red-50'
+    high: 'text-red-600 bg-red-50',
   };
 
   const typeIcons = {
     param_bound: <ChartLine size={16} />,
     threshold: <Gear size={16} />,
     reward_weight: <Lightbulb size={16} />,
-    safety_threshold: <Shield size={16} />
+    safety_threshold: <Shield size={16} />,
   };
 
   const typeLabels = {
     param_bound: '参数边界',
     threshold: '阈值',
     reward_weight: '奖励权重',
-    safety_threshold: '安全阈值'
+    safety_threshold: '安全阈值',
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white">
         {/* 头部 */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-2">
+        <div className="border-b border-gray-200 p-6">
+          <div className="mb-2 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">建议详情</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <button onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100">
               <XCircle size={24} />
             </button>
           </div>
@@ -462,19 +476,19 @@ function SuggestionDetail({
         </div>
 
         {/* 内容 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {/* 分析结果 */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium text-green-800 mb-2">关键发现</h3>
+            <div className="rounded-lg bg-green-50 p-4">
+              <h3 className="mb-2 font-medium text-green-800">关键发现</h3>
               <ul className="space-y-1 text-sm text-green-700">
                 {suggestion.parsedSuggestion.analysis.keyFindings.map((finding, i) => (
                   <li key={i}>• {finding}</li>
                 ))}
               </ul>
             </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <h3 className="font-medium text-orange-800 mb-2">需关注问题</h3>
+            <div className="rounded-lg bg-orange-50 p-4">
+              <h3 className="mb-2 font-medium text-orange-800">需关注问题</h3>
               <ul className="space-y-1 text-sm text-orange-700">
                 {suggestion.parsedSuggestion.analysis.concerns.map((concern, i) => (
                   <li key={i}>• {concern}</li>
@@ -485,7 +499,7 @@ function SuggestionDetail({
 
           {/* 建议项列表 */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex items-center justify-between">
               <h3 className="font-medium text-gray-900">
                 建议项 ({suggestion.parsedSuggestion.suggestions.length})
               </h3>
@@ -494,7 +508,9 @@ function SuggestionDetail({
                   onClick={onToggleSelectAll}
                   className="text-sm text-purple-600 hover:underline"
                 >
-                  {selectedItems.size === suggestion.parsedSuggestion.suggestions.length ? '取消全选' : '全选'}
+                  {selectedItems.size === suggestion.parsedSuggestion.suggestions.length
+                    ? '取消全选'
+                    : '全选'}
                 </button>
               )}
             </div>
@@ -503,12 +519,14 @@ function SuggestionDetail({
               {suggestion.parsedSuggestion.suggestions.map((item) => (
                 <div
                   key={item.id}
-                  className={`border rounded-lg overflow-hidden ${
-                    isPending && selectedItems.has(item.id) ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                  className={`overflow-hidden rounded-lg border ${
+                    isPending && selectedItems.has(item.id)
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200'
                   }`}
                 >
                   <div
-                    className="p-4 flex items-center gap-4 cursor-pointer"
+                    className="flex cursor-pointer items-center gap-4 p-4"
                     onClick={() => isPending && onToggleItem(item.id)}
                   >
                     {isPending && (
@@ -516,7 +534,7 @@ function SuggestionDetail({
                         type="checkbox"
                         checked={selectedItems.has(item.id)}
                         onChange={() => onToggleItem(item.id)}
-                        className="w-4 h-4 text-purple-600"
+                        className="h-4 w-4 text-purple-600"
                         onClick={(e) => e.stopPropagation()}
                       />
                     )}
@@ -527,11 +545,13 @@ function SuggestionDetail({
                     <div className="flex-1">
                       <span className="font-medium">{item.target}</span>
                       <span className="mx-2 text-gray-400">→</span>
-                      <span className="text-purple-600 font-medium">
+                      <span className="font-medium text-purple-600">
                         {item.currentValue} → {item.suggestedValue}
                       </span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${riskColors[item.risk]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${riskColors[item.risk]}`}
+                    >
                       风险: {item.risk}
                     </span>
                     <span className="text-sm text-gray-500">优先级: {item.priority}</span>
@@ -540,20 +560,20 @@ function SuggestionDetail({
                         e.stopPropagation();
                         setExpanded(expanded === item.id ? null : item.id);
                       }}
-                      className="p-1 hover:bg-gray-100 rounded"
+                      className="rounded p-1 hover:bg-gray-100"
                     >
                       {expanded === item.id ? <CaretUp size={16} /> : <CaretDown size={16} />}
                     </button>
                   </div>
                   {expanded === item.id && (
-                    <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50">
+                    <div className="border-t border-gray-100 bg-gray-50 px-4 pb-4 pt-2">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500 mb-1">调整原因</p>
+                          <p className="mb-1 text-gray-500">调整原因</p>
                           <p className="text-gray-900">{item.reason}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 mb-1">预期影响</p>
+                          <p className="mb-1 text-gray-500">预期影响</p>
                           <p className="text-gray-900">{item.expectedImpact}</p>
                         </div>
                       </div>
@@ -565,15 +585,15 @@ function SuggestionDetail({
           </div>
 
           {/* 下周关注 */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-medium text-blue-800 mb-1">下周关注重点</h3>
+          <div className="rounded-lg bg-blue-50 p-4">
+            <h3 className="mb-1 font-medium text-blue-800">下周关注重点</h3>
             <p className="text-sm text-blue-700">{suggestion.parsedSuggestion.nextReviewFocus}</p>
           </div>
         </div>
 
         {/* 底部操作 */}
         {isPending && (
-          <div className="p-6 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 p-6">
             <span className="text-sm text-gray-500">
               已选择 {selectedItems.size} / {suggestion.parsedSuggestion.suggestions.length} 项
             </span>
@@ -581,14 +601,14 @@ function SuggestionDetail({
               <button
                 onClick={onReject}
                 disabled={rejecting || approving}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {rejecting ? '拒绝中...' : '全部拒绝'}
               </button>
               <button
                 onClick={onApprove}
                 disabled={selectedItems.size === 0 || approving || rejecting}
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {approving ? '应用中...' : `应用选中项 (${selectedItems.size})`}
               </button>

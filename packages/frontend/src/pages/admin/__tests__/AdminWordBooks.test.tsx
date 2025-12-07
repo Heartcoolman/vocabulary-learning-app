@@ -9,7 +9,13 @@ import { MemoryRouter } from 'react-router-dom';
 import AdminWordBooks from '../AdminWordBooks';
 
 const mockWordBooks = [
-  { id: 'wb1', name: 'TOEFL词汇', description: 'TOEFL考试核心词汇', wordCount: 500, type: 'SYSTEM' },
+  {
+    id: 'wb1',
+    name: 'TOEFL词汇',
+    description: 'TOEFL考试核心词汇',
+    wordCount: 500,
+    type: 'SYSTEM',
+  },
   { id: 'wb2', name: 'GRE词汇', description: 'GRE考试必备词汇', wordCount: 800, type: 'SYSTEM' },
 ];
 
@@ -26,8 +32,20 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/services/ApiClient', () => ({
   default: {
     adminGetSystemWordBooks: vi.fn().mockResolvedValue([
-      { id: 'wb1', name: 'TOEFL词汇', description: 'TOEFL考试核心词汇', wordCount: 500, type: 'SYSTEM' },
-      { id: 'wb2', name: 'GRE词汇', description: 'GRE考试必备词汇', wordCount: 800, type: 'SYSTEM' },
+      {
+        id: 'wb1',
+        name: 'TOEFL词汇',
+        description: 'TOEFL考试核心词汇',
+        wordCount: 500,
+        type: 'SYSTEM',
+      },
+      {
+        id: 'wb2',
+        name: 'GRE词汇',
+        description: 'GRE考试必备词汇',
+        wordCount: 800,
+        type: 'SYSTEM',
+      },
     ]),
     adminCreateSystemWordBook: vi.fn().mockResolvedValue({ id: 'wb3' }),
     adminDeleteSystemWordBook: vi.fn().mockResolvedValue(undefined),
@@ -45,9 +63,20 @@ vi.mock('@/components/ui', () => ({
     showToast: vi.fn(),
   }),
   ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+    isOpen ? (
+      <div data-testid="confirm-modal">
+        {children}
+        <button onClick={onConfirm}>确认</button>
+        <button onClick={onCancel}>取消</button>
+      </div>
+    ) : null,
   Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? <div data-testid="modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+    isOpen ? (
+      <div data-testid="modal">
+        {children}
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/Icon', async () => {
@@ -56,7 +85,9 @@ vi.mock('@/components/Icon', async () => {
     ...actual,
     Books: ({ size }: { size?: number }) => <span data-testid="icon-books">📚</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });
@@ -67,16 +98,19 @@ vi.mock('lucide-react', () => ({
 }));
 
 vi.mock('@/components', () => ({
-  BatchImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
-    isOpen ? <div data-testid="batch-import-modal">Import Modal<button onClick={onClose}>Close</button></div> : null
-  ),
+  BatchImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid="batch-import-modal">
+        Import Modal<button onClick={onClose}>Close</button>
+      </div>
+    ) : null,
 }));
 
 const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <AdminWordBooks />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -174,7 +208,7 @@ describe('AdminWordBooks', () => {
 
       await waitFor(() => {
         expect(apiClient.adminCreateSystemWordBook).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'New WordBook' })
+          expect.objectContaining({ name: 'New WordBook' }),
         );
       });
     });

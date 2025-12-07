@@ -12,12 +12,7 @@ interface LineChartProps {
   height?: number;
 }
 
-const LineChart: React.FC<LineChartProps> = ({
-  data,
-  title,
-  yAxisLabel,
-  height = 300
-}) => {
+const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height = 300 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,7 +61,7 @@ const LineChart: React.FC<LineChartProps> = ({
   const chartWidth = dimensions.width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  const values = data.map(d => d.value);
+  const values = data.map((d) => d.value);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const valueRange = maxValue - minValue || 1;
@@ -90,9 +85,7 @@ const LineChart: React.FC<LineChartProps> = ({
 
   return (
     <div ref={containerRef} className="w-full">
-      {title && (
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
-      )}
+      {title && <h3 className="mb-4 text-lg font-semibold text-gray-800">{title}</h3>}
 
       <svg
         width={dimensions.width}
@@ -114,7 +107,7 @@ const LineChart: React.FC<LineChartProps> = ({
             y={padding.top + chartHeight / 2}
             textAnchor="middle"
             transform={`rotate(-90, 15, ${padding.top + chartHeight / 2})`}
-            className="text-xs fill-gray-600"
+            className="fill-gray-600 text-xs"
           >
             {yAxisLabel}
           </text>
@@ -136,7 +129,7 @@ const LineChart: React.FC<LineChartProps> = ({
                 x={padding.left - 10}
                 y={y + 4}
                 textAnchor="end"
-                className="text-xs fill-gray-500"
+                className="fill-gray-500 text-xs"
               >
                 {value.toFixed(0)}
               </text>
@@ -145,7 +138,7 @@ const LineChart: React.FC<LineChartProps> = ({
         })}
 
         <polygon
-          points={`${padding.left},${padding.top + chartHeight} ${points.map(p => `${p.x},${p.y}`).join(' ')} ${padding.left + chartWidth},${padding.top + chartHeight}`}
+          points={`${padding.left},${padding.top + chartHeight} ${points.map((p) => `${p.x},${p.y}`).join(' ')} ${padding.left + chartWidth},${padding.top + chartHeight}`}
           fill="url(#lineGradient)"
         />
 
@@ -167,7 +160,7 @@ const LineChart: React.FC<LineChartProps> = ({
               fill="#3b82f6"
               stroke="white"
               strokeWidth="2"
-              className="transition-all duration-200 cursor-pointer"
+              className="cursor-pointer transition-all duration-200"
               onMouseEnter={() => setHoveredPoint(index)}
               onMouseLeave={() => setHoveredPoint(null)}
             />
@@ -186,7 +179,7 @@ const LineChart: React.FC<LineChartProps> = ({
                   x={point.x}
                   y={point.y - 30}
                   textAnchor="middle"
-                  className="text-xs fill-white font-medium"
+                  className="fill-white text-xs font-medium"
                 >
                   {point.data.date}
                 </text>
@@ -194,7 +187,7 @@ const LineChart: React.FC<LineChartProps> = ({
                   x={point.x}
                   y={point.y - 18}
                   textAnchor="middle"
-                  className="text-xs fill-white font-semibold"
+                  className="fill-white text-xs font-semibold"
                 >
                   {point.data.value.toFixed(1)}
                 </text>
@@ -214,7 +207,7 @@ const LineChart: React.FC<LineChartProps> = ({
                 x={x}
                 y={padding.top + chartHeight + 20}
                 textAnchor={i === 0 ? 'start' : i === filtered.length - 1 ? 'end' : 'middle'}
-                className="text-xs fill-gray-600"
+                className="fill-gray-600 text-xs"
               >
                 {point.date}
               </text>

@@ -19,7 +19,9 @@ vi.mock('../Icon', () => ({
   Warning: () => <span data-testid="warning-icon">Warning</span>,
   CheckCircle: () => <span data-testid="check-icon">Check</span>,
   CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-icon" className={className}>Loading</span>
+    <span data-testid="loading-icon" className={className}>
+      Loading
+    </span>
   ),
   FileText: () => <span data-testid="file-icon">File</span>,
 }));
@@ -86,7 +88,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
       expect(container.firstChild).toBeNull();
     });
@@ -98,7 +100,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
       expect(screen.getByText('批量导入单词')).toBeInTheDocument();
     });
@@ -114,7 +116,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByText('文件格式要求')).toBeInTheDocument();
@@ -128,7 +130,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByTestId('file-upload')).toBeInTheDocument();
@@ -141,7 +143,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByText('取消')).toBeInTheDocument();
@@ -154,7 +156,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const cancelButton = screen.getByText('取消');
@@ -174,7 +176,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -192,7 +194,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -210,7 +212,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -230,7 +232,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -250,7 +252,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -268,7 +270,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -295,7 +297,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -320,7 +322,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -338,7 +340,7 @@ describe('BatchImportModal', () => {
   describe('import process', () => {
     it('should show importing state', async () => {
       vi.mocked(apiClient.batchImportWords).mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ imported: 1, failed: 0 }), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve({ imported: 1, failed: 0 }), 100)),
       );
 
       render(
@@ -347,7 +349,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -370,7 +372,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -382,7 +384,10 @@ describe('BatchImportModal', () => {
       });
 
       await waitFor(() => {
-        expect(vi.mocked(apiClient.batchImportWords)).toHaveBeenCalledWith('test-book', expect.any(Array));
+        expect(vi.mocked(apiClient.batchImportWords)).toHaveBeenCalledWith(
+          'test-book',
+          expect.any(Array),
+        );
       });
     });
 
@@ -396,7 +401,7 @@ describe('BatchImportModal', () => {
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
           isAdminMode={true}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -410,7 +415,7 @@ describe('BatchImportModal', () => {
       await waitFor(() => {
         expect(vi.mocked(apiClient.adminBatchAddWordsToSystemWordBook)).toHaveBeenCalledWith(
           'test-book',
-          expect.any(Array)
+          expect.any(Array),
         );
       });
     });
@@ -426,7 +431,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -441,9 +446,12 @@ describe('BatchImportModal', () => {
       fireEvent.click(confirmButton);
 
       // Wait for result step with longer timeout
-      await waitFor(() => {
-        expect(screen.getByText('导入成功')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('导入成功')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should show partial success result', async () => {
@@ -455,7 +463,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -470,9 +478,12 @@ describe('BatchImportModal', () => {
       fireEvent.click(confirmButton);
 
       // Wait for result step with longer timeout
-      await waitFor(() => {
-        expect(screen.getByText('部分导入完成')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('部分导入完成')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should show error result when import fails', async () => {
@@ -484,7 +495,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -499,9 +510,12 @@ describe('BatchImportModal', () => {
       fireEvent.click(confirmButton);
 
       // Wait for result step with longer timeout
-      await waitFor(() => {
-        expect(screen.getByText('导入失败')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('导入失败')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should call onImportSuccess with count', async () => {
@@ -511,7 +525,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -526,9 +540,12 @@ describe('BatchImportModal', () => {
       fireEvent.click(confirmButton);
 
       // Wait for callback with longer timeout
-      await waitFor(() => {
-        expect(mockOnImportSuccess).toHaveBeenCalledWith(1);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(mockOnImportSuccess).toHaveBeenCalledWith(1);
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should have finish button in result step', async () => {
@@ -538,7 +555,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       const selectButton = screen.getByText('Select File');
@@ -553,9 +570,12 @@ describe('BatchImportModal', () => {
       fireEvent.click(confirmButton);
 
       // Wait for result step with longer timeout
-      await waitFor(() => {
-        expect(screen.getByText('完成')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('完成')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 
@@ -569,7 +589,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -582,7 +602,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
@@ -595,7 +615,7 @@ describe('BatchImportModal', () => {
           onClose={mockOnClose}
           wordBookId="test-book"
           onImportSuccess={mockOnImportSuccess}
-        />
+        />,
       );
 
       expect(screen.getByLabelText('Close modal')).toBeInTheDocument();

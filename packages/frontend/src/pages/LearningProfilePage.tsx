@@ -104,10 +104,10 @@ const LearningProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin">
-            <Lightning className="w-8 h-8 text-blue-500" weight="bold" />
+            <Lightning className="h-8 w-8 text-blue-500" weight="bold" />
           </div>
           <p className="text-gray-600">正在加载学习档案...</p>
         </div>
@@ -117,18 +117,18 @@ const LearningProfilePage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-          <div className="flex items-center gap-3 mb-4">
-            <WarningCircle className="w-6 h-6 text-red-500" weight="bold" />
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+          <div className="mb-4 flex items-center gap-3">
+            <WarningCircle className="h-6 w-6 text-red-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">加载失败</h2>
           </div>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={handleRetry}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
-            <ArrowClockwise className="w-4 h-4" weight="bold" />
+            <ArrowClockwise className="h-4 w-4" weight="bold" />
             重新加载
           </button>
         </div>
@@ -138,37 +138,37 @@ const LearningProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-4xl">
         {/* 页面头部 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">学习档案分析</h1>
+          <h1 className="mb-2 text-3xl font-bold text-gray-800">学习档案分析</h1>
           <p className="text-gray-600">了解你的学习特点，优化学习策略</p>
         </div>
 
         {/* 生物钟分析卡片 */}
         {chronotype && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Clock className="w-6 h-6 text-amber-500" weight="bold" />
+          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+            <div className="mb-4 flex items-center gap-3">
+              <Clock className="h-6 w-6 text-amber-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">生物钟分析</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* 基本信息 */}
               <div>
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">生物钟类型</p>
+                  <p className="mb-1 text-sm text-gray-600">生物钟类型</p>
                   <p className="text-2xl font-bold text-amber-600">
                     {getChronotypeLabel(chronotype.category)}
                   </p>
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">置信度</p>
+                  <p className="mb-1 text-sm text-gray-600">置信度</p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="h-2 flex-1 rounded-full bg-gray-200">
                       <div
-                        className="bg-amber-500 h-2 rounded-full"
+                        className="h-2 rounded-full bg-amber-500"
                         style={{ width: `${chronotype.confidence * 100}%` }}
                       />
                     </div>
@@ -179,13 +179,13 @@ const LearningProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-600 mb-2">黄金学习时段</p>
-                  <div className="flex gap-2 flex-wrap">
+                  <p className="mb-2 text-sm text-gray-600">黄金学习时段</p>
+                  <div className="flex flex-wrap gap-2">
                     {chronotype.peakHours.length > 0 ? (
                       chronotype.peakHours.map((hour) => (
                         <span
                           key={hour}
-                          className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium"
+                          className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-700"
                         >
                           {`${hour}:00-${hour + 1}:00`}
                         </span>
@@ -198,32 +198,32 @@ const LearningProfilePage: React.FC = () => {
               </div>
 
               {/* 建议 */}
-              <div className="bg-amber-50 rounded-lg p-4">
-                <p className="text-sm font-semibold text-amber-900 mb-2">学习建议</p>
-                <p className="text-sm text-amber-800">
-                  {getChronotypeAdvice(chronotype.category)}
-                </p>
+              <div className="rounded-lg bg-amber-50 p-4">
+                <p className="mb-2 text-sm font-semibold text-amber-900">学习建议</p>
+                <p className="text-sm text-amber-800">{getChronotypeAdvice(chronotype.category)}</p>
               </div>
             </div>
 
             {/* 性能数据图表 */}
             {chronotype.learningHistory && chronotype.learningHistory.length > 0 && (
-              <div className="mt-6 pt-6 border-t">
-                <p className="text-sm font-semibold text-gray-800 mb-3">按时段性能分析</p>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              <div className="mt-6 border-t pt-6">
+                <p className="mb-3 text-sm font-semibold text-gray-800">按时段性能分析</p>
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
                   {chronotype.learningHistory.map((item) => (
                     <div key={item.hour} className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">{item.hour}:00</div>
+                      <div className="mb-1 text-xs text-gray-600">{item.hour}:00</div>
                       <div className="flex flex-col items-center gap-1">
                         <div
-                          className="w-full bg-amber-200 rounded"
+                          className="w-full rounded bg-amber-200"
                           style={{
                             height: `${Math.max(20, item.performance * 40)}px`,
                             opacity: item.sampleCount > 0 ? 1 : 0.5,
                           }}
                         />
                         <span className="text-xs text-gray-500">
-                          {item.sampleCount > 0 ? `${(item.performance * 100).toFixed(0)}%` : '无数据'}
+                          {item.sampleCount > 0
+                            ? `${(item.performance * 100).toFixed(0)}%`
+                            : '无数据'}
                         </span>
                       </div>
                     </div>
@@ -236,28 +236,28 @@ const LearningProfilePage: React.FC = () => {
 
         {/* 学习风格分析卡片 */}
         {learningStyle && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Brain className="w-6 h-6 text-blue-500" weight="bold" />
+          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+            <div className="mb-4 flex items-center gap-3">
+              <Brain className="h-6 w-6 text-blue-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">学习风格分析</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* 基本信息 */}
               <div>
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">主要学习风格</p>
+                  <p className="mb-1 text-sm text-gray-600">主要学习风格</p>
                   <p className="text-2xl font-bold text-blue-600">
                     {getLearningStyleLabel(learningStyle.style)}
                   </p>
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">置信度</p>
+                  <p className="mb-1 text-sm text-gray-600">置信度</p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="h-2 flex-1 rounded-full bg-gray-200">
                       <div
-                        className="bg-blue-500 h-2 rounded-full"
+                        className="h-2 rounded-full bg-blue-500"
                         style={{ width: `${learningStyle.confidence * 100}%` }}
                       />
                     </div>
@@ -269,48 +269,48 @@ const LearningProfilePage: React.FC = () => {
 
                 {/* 风格分布 */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-3">学习风格分布</p>
+                  <p className="mb-3 text-sm font-semibold text-gray-800">学习风格分布</p>
                   <div className="space-y-2">
                     <div>
-                      <div className="flex justify-between items-center mb-1">
+                      <div className="mb-1 flex items-center justify-between">
                         <span className="text-sm text-gray-600">视觉学习</span>
                         <span className="text-sm font-medium text-gray-700">
                           {(learningStyle.scores.visual * 100).toFixed(0)}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 w-full rounded-full bg-gray-200">
                         <div
-                          className="bg-blue-400 h-2 rounded-full"
+                          className="h-2 rounded-full bg-blue-400"
                           style={{ width: `${learningStyle.scores.visual * 100}%` }}
                         />
                       </div>
                     </div>
 
                     <div>
-                      <div className="flex justify-between items-center mb-1">
+                      <div className="mb-1 flex items-center justify-between">
                         <span className="text-sm text-gray-600">听觉学习</span>
                         <span className="text-sm font-medium text-gray-700">
                           {(learningStyle.scores.auditory * 100).toFixed(0)}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 w-full rounded-full bg-gray-200">
                         <div
-                          className="bg-green-400 h-2 rounded-full"
+                          className="h-2 rounded-full bg-green-400"
                           style={{ width: `${learningStyle.scores.auditory * 100}%` }}
                         />
                       </div>
                     </div>
 
                     <div>
-                      <div className="flex justify-between items-center mb-1">
+                      <div className="mb-1 flex items-center justify-between">
                         <span className="text-sm text-gray-600">动觉学习</span>
                         <span className="text-sm font-medium text-gray-700">
                           {(learningStyle.scores.kinesthetic * 100).toFixed(0)}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 w-full rounded-full bg-gray-200">
                         <div
-                          className="bg-purple-400 h-2 rounded-full"
+                          className="h-2 rounded-full bg-purple-400"
                           style={{ width: `${learningStyle.scores.kinesthetic * 100}%` }}
                         />
                       </div>
@@ -320,8 +320,8 @@ const LearningProfilePage: React.FC = () => {
               </div>
 
               {/* 建议 */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm font-semibold text-blue-900 mb-2">学习建议</p>
+              <div className="rounded-lg bg-blue-50 p-4">
+                <p className="mb-2 text-sm font-semibold text-blue-900">学习建议</p>
                 <p className="text-sm text-blue-800">
                   {getLearningStyleAdvice(learningStyle.style)}
                 </p>
@@ -331,27 +331,19 @@ const LearningProfilePage: React.FC = () => {
         )}
 
         {/* 认知能力提示卡片 */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-md p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <Lightning className="w-6 h-6 text-purple-500" weight="bold" />
+        <div className="rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-6 shadow-md">
+          <div className="mb-3 flex items-center gap-3">
+            <Lightning className="h-6 w-6 text-purple-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">个性化学习建议</h2>
           </div>
           <div className="space-y-2 text-sm text-gray-700">
             {chronotype && learningStyle && (
               <>
-                <p>
-                  根据你的生物钟和学习风格分析，我们为你推荐：
-                </p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>
-                    在{getChronotypeLabel(chronotype.category)}的黄金时段进行高效学习
-                  </li>
-                  <li>
-                    采用{getLearningStyleLabel(learningStyle.style)}的学习方法
-                  </li>
-                  <li>
-                    定期复习数据以获得更精准的学习建议
-                  </li>
+                <p>根据你的生物钟和学习风格分析，我们为你推荐：</p>
+                <ul className="ml-2 list-inside list-disc space-y-1">
+                  <li>在{getChronotypeLabel(chronotype.category)}的黄金时段进行高效学习</li>
+                  <li>采用{getLearningStyleLabel(learningStyle.style)}的学习方法</li>
+                  <li>定期复习数据以获得更精准的学习建议</li>
                 </ul>
               </>
             )}

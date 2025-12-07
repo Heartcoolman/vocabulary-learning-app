@@ -266,7 +266,7 @@ describe('mastery', () => {
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'mastery_session_cache',
-        expect.any(String)
+        expect.any(String),
       );
     });
 
@@ -619,7 +619,7 @@ describe('mastery', () => {
             responseTime: 2000,
             pausedTimeMs: 0,
           },
-          { mastered: false }
+          { mastered: false },
         );
       });
 
@@ -642,7 +642,7 @@ describe('mastery', () => {
             responseTime: 2000,
             pausedTimeMs: 0,
           },
-          null
+          null,
         );
       });
 

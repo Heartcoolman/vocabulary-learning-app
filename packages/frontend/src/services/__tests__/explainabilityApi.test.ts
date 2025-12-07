@@ -179,7 +179,9 @@ describe('explainabilityApi', () => {
     it('should handle API error', async () => {
       mockApiClient.runCounterfactualAnalysis.mockRejectedValue(new Error('Analysis failed'));
 
-      await expect(explainabilityApi.runCounterfactual(mockInput)).rejects.toThrow('Analysis failed');
+      await expect(explainabilityApi.runCounterfactual(mockInput)).rejects.toThrow(
+        'Analysis failed',
+      );
     });
   });
 
@@ -349,7 +351,9 @@ describe('explainabilityApi', () => {
     it('should handle API error', async () => {
       mockApiClient.getDecisionTimeline.mockRejectedValue(new Error('Timeline fetch failed'));
 
-      await expect(explainabilityApi.getDecisionTimeline()).rejects.toThrow('Timeline fetch failed');
+      await expect(explainabilityApi.getDecisionTimeline()).rejects.toThrow(
+        'Timeline fetch failed',
+      );
     });
   });
 });

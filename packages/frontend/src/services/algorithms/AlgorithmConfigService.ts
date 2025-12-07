@@ -21,19 +21,19 @@ export class AlgorithmConfigService {
   /**
    * 加载配置（从 StorageService）
    * 如果后端没有配置，则使用默认配置
-   * 
+   *
    * @returns 当前配置
    */
   async loadConfig(): Promise<AlgorithmConfig> {
     try {
       // 从 StorageService 加载配置
       const config = await StorageService.getAlgorithmConfig();
-      
+
       if (config) {
         this.currentConfig = config;
         return config;
       }
-      
+
       // 如果没有配置，使用默认配置
       this.currentConfig = this.getDefaultConfig();
       return this.currentConfig;
@@ -46,7 +46,7 @@ export class AlgorithmConfigService {
 
   /**
    * 获取当前算法配置
-   * 
+   *
    * @returns 当前配置
    */
   async getConfig(): Promise<AlgorithmConfig> {
@@ -67,7 +67,7 @@ export class AlgorithmConfigService {
    */
   async updateConfig(
     updates: Partial<AlgorithmConfig>,
-    changeReason?: string
+    changeReason?: string,
   ): Promise<AlgorithmConfig> {
     // 获取当前配置
     const currentConfig = await this.getConfig();
@@ -113,7 +113,7 @@ export class AlgorithmConfigService {
 
   /**
    * 获取配置历史记录
-   * 
+   *
    * @param limit 返回的记录数量限制
    * @returns 配置历史记录列表
    */
@@ -121,28 +121,28 @@ export class AlgorithmConfigService {
     try {
       // 从 StorageService 加载历史记录
       const history = await StorageService.getConfigHistory(limit);
-      
+
       // 更新本地缓存
       this.configHistory = history;
-      
+
       return history;
     } catch (error) {
       learningLogger.error({ err: error }, '获取配置历史失败');
-      
+
       // 如果从后端加载失败，返回本地缓存
       const sortedHistory = [...this.configHistory].sort((a, b) => b.timestamp - a.timestamp);
-      
+
       if (limit && limit > 0) {
         return sortedHistory.slice(0, limit);
       }
-      
+
       return sortedHistory;
     }
   }
 
   /**
    * 验证配置的合法性
-   * 
+   *
    * @param config 要验证的配置
    * @returns 验证结果
    */
@@ -150,7 +150,7 @@ export class AlgorithmConfigService {
     const errors: string[] = [];
 
     // 验证优先级权重总和为100
-    const priorityWeightsSum = 
+    const priorityWeightsSum =
       config.priorityWeights.newWord +
       config.priorityWeights.errorRate +
       config.priorityWeights.overdueTime +
@@ -161,7 +161,7 @@ export class AlgorithmConfigService {
     }
 
     // 验证单词得分权重总和为100
-    const scoreWeightsSum = 
+    const scoreWeightsSum =
       config.scoreWeights.accuracy +
       config.scoreWeights.speed +
       config.scoreWeights.stability +
@@ -184,7 +184,7 @@ export class AlgorithmConfigService {
       }
 
       // 检查间隔是否为正数
-      if (config.reviewIntervals.some(interval => interval <= 0)) {
+      if (config.reviewIntervals.some((interval) => interval <= 0)) {
         errors.push('复习间隔必须为正数');
       }
     }
@@ -209,7 +209,7 @@ export class AlgorithmConfigService {
       errors.push('掌握程度阈值不能为空');
     } else {
       // 检查级别是否连续
-      const levels = config.masteryThresholds.map(t => t.level).sort((a, b) => a - b);
+      const levels = config.masteryThresholds.map((t) => t.level).sort((a, b) => a - b);
       for (let i = 0; i < levels.length; i++) {
         if (levels[i] !== i + 1) {
           errors.push('掌握程度级别必须从1开始连续');
@@ -232,10 +232,12 @@ export class AlgorithmConfigService {
     }
 
     // 验证速度阈值
-    if (config.speedThresholds.excellent <= 0 ||
-        config.speedThresholds.good <= config.speedThresholds.excellent ||
-        config.speedThresholds.average <= config.speedThresholds.good ||
-        config.speedThresholds.slow <= config.speedThresholds.average) {
+    if (
+      config.speedThresholds.excellent <= 0 ||
+      config.speedThresholds.good <= config.speedThresholds.excellent ||
+      config.speedThresholds.average <= config.speedThresholds.good ||
+      config.speedThresholds.slow <= config.speedThresholds.average
+    ) {
       errors.push('速度阈值必须递增：优秀 < 良好 < 一般 < 较慢');
     }
 
@@ -249,10 +251,16 @@ export class AlgorithmConfigService {
     if (config.newWordRatio.lowAccuracy < 0 || config.newWordRatio.lowAccuracy > 1) {
       errors.push('低正确率新单词比例必须在0-1之间');
     }
-    if (config.newWordRatio.highAccuracyThreshold < 0 || config.newWordRatio.highAccuracyThreshold > 1) {
+    if (
+      config.newWordRatio.highAccuracyThreshold < 0 ||
+      config.newWordRatio.highAccuracyThreshold > 1
+    ) {
       errors.push('高正确率阈值必须在0-1之间');
     }
-    if (config.newWordRatio.lowAccuracyThreshold < 0 || config.newWordRatio.lowAccuracyThreshold > 1) {
+    if (
+      config.newWordRatio.lowAccuracyThreshold < 0 ||
+      config.newWordRatio.lowAccuracyThreshold > 1
+    ) {
       errors.push('低正确率阈值必须在0-1之间');
     }
     if (config.newWordRatio.lowAccuracyThreshold >= config.newWordRatio.highAccuracyThreshold) {
@@ -261,7 +269,7 @@ export class AlgorithmConfigService {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -283,37 +291,37 @@ export class AlgorithmConfigService {
         newWord: 40,
         errorRate: 30,
         overdueTime: 20,
-        wordScore: 10
+        wordScore: 10,
       },
       masteryThresholds: [
         { level: 1, requiredCorrectStreak: 2, minAccuracy: 0.6, minScore: 40 },
         { level: 2, requiredCorrectStreak: 3, minAccuracy: 0.7, minScore: 50 },
         { level: 3, requiredCorrectStreak: 4, minAccuracy: 0.75, minScore: 60 },
         { level: 4, requiredCorrectStreak: 5, minAccuracy: 0.8, minScore: 70 },
-        { level: 5, requiredCorrectStreak: 6, minAccuracy: 0.85, minScore: 80 }
+        { level: 5, requiredCorrectStreak: 6, minAccuracy: 0.85, minScore: 80 },
       ],
       scoreWeights: {
         accuracy: 40,
         speed: 30,
         stability: 20,
-        proficiency: 10
+        proficiency: 10,
       },
       speedThresholds: {
         excellent: 3000,
         good: 5000,
         average: 10000,
-        slow: 15000
+        slow: 15000,
       },
       newWordRatio: {
         default: 0.3,
         highAccuracy: 0.5,
         lowAccuracy: 0.1,
         highAccuracyThreshold: 0.85,
-        lowAccuracyThreshold: 0.65
+        lowAccuracyThreshold: 0.65,
       },
       isDefault: true,
       createdAt: Date.now(),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
   }
 

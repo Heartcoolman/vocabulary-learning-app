@@ -28,11 +28,14 @@ export function Modal({
   closeOnOverlayClick = true,
   maxWidth = 'md',
 }: ModalProps) {
-  const handleEscape = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
+  const handleEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [onClose],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -66,7 +69,7 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className={`relative bg-white rounded-2xl shadow-xl ${maxWidthClasses[maxWidth]} w-full`}
+            className={`relative rounded-2xl bg-white shadow-xl ${maxWidthClasses[maxWidth]} w-full`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? 'modal-title' : undefined}
@@ -82,7 +85,7 @@ export function Modal({
                 {showCloseButton && (
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                     aria-label="关闭"
                   >
                     <X size={20} weight="bold" />
@@ -135,19 +138,19 @@ export function ConfirmModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm">
-      <p className="text-gray-600 mb-6">{message}</p>
+      <p className="mb-6 text-gray-600">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+          className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 font-medium text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:opacity-50"
         >
           {cancelText}
         </button>
         <button
           onClick={handleConfirm}
           disabled={isLoading}
-          className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-offset-2 ${variantStyles[variant]}`}
+          className={`flex-1 rounded-lg px-4 py-2.5 font-medium text-white transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 active:scale-95 disabled:opacity-50 ${variantStyles[variant]}`}
         >
           {isLoading ? '处理中...' : confirmText}
         </button>
@@ -182,10 +185,10 @@ export function AlertModal({
 }: AlertModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm" showCloseButton={false}>
-      <p className="text-gray-600 mb-6">{message}</p>
+      <p className="mb-6 text-gray-600">{message}</p>
       <button
         onClick={onClose}
-        className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-offset-2 ${alertVariantStyles[variant]}`}
+        className={`w-full rounded-lg px-4 py-2.5 font-medium text-white transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 active:scale-95 ${alertVariantStyles[variant]}`}
       >
         {buttonText}
       </button>

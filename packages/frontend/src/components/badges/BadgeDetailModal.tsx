@@ -1,17 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import ApiClient from '../../services/ApiClient';
-import {
-  Trophy,
-  Star,
-  Fire,
-  Brain,
-  Target,
-  CheckCircle,
-  X,
-  Info,
-  CircleNotch
-} from '../Icon';
+import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
 import { uiLogger } from '../../utils/logger';
 
 interface BadgeDetailModalProps {
@@ -101,29 +91,26 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-g3-fade-in"
+      className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full mx-4 animate-g3-slide-up relative"
+        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
           aria-label="关闭"
         >
           <X size={16} weight="bold" color="#6b7280" />
         </button>
 
         {/* 徽章图标 */}
-        <div className="text-center mb-6">
+        <div className="mb-6 text-center">
           <div
-            className={`
-              w-24 h-24 mx-auto rounded-full flex items-center justify-center
-              ${isUnlocked ? categoryColor.bg : 'bg-gray-200'}
-            `}
+            className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full ${isUnlocked ? categoryColor.bg : 'bg-gray-200'} `}
           >
             <CategoryIcon
               size={48}
@@ -134,12 +121,10 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
         </div>
 
         {/* 徽章名称 */}
-        <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-          {badge.name}
-        </h2>
+        <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">{badge.name}</h2>
 
         {/* 等级星星 */}
-        <div className="flex items-center justify-center gap-1 mb-4">
+        <div className="mb-4 flex items-center justify-center gap-1">
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
@@ -151,34 +136,31 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
         </div>
 
         {/* 类别标签 */}
-        <div className="flex justify-center mb-4">
+        <div className="mb-4 flex justify-center">
           <span
-            className={`
-              px-3 py-1 rounded-full text-sm font-medium
-              ${categoryColor.bg} ${categoryColor.text}
-            `}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${categoryColor.bg} ${categoryColor.text} `}
           >
             {getCategoryName(badge.category)}
           </span>
         </div>
 
         {/* 描述 */}
-        <p className="text-center text-gray-600 mb-6">{badge.description}</p>
+        <p className="mb-6 text-center text-gray-600">{badge.description}</p>
 
         {/* 解锁状态 */}
         {isUnlocked ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
             <CheckCircle size={24} weight="fill" color="#22c55e" className="mx-auto mb-2" />
-            <p className="text-green-700 font-medium">已解锁</p>
+            <p className="font-medium text-green-700">已解锁</p>
             <p className="text-sm text-green-600">
               {new Date(badge.unlockedAt!).toLocaleString('zh-CN')}
             </p>
           </div>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="mb-3 flex items-center gap-2">
               <Info size={20} weight="fill" color="#6b7280" />
-              <span className="text-gray-700 font-medium">解锁进度</span>
+              <span className="font-medium text-gray-700">解锁进度</span>
             </div>
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
@@ -186,32 +168,30 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
               </div>
             ) : badgeProgress ? (
               <>
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                <div className="mb-2 h-3 w-full rounded-full bg-gray-200">
                   <div
-                    className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                    className="h-3 rounded-full bg-blue-500 transition-all duration-500"
                     style={{ width: `${badgeProgress.percentage}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-600 text-center">
+                <p className="text-center text-sm text-gray-600">
                   {badgeProgress.currentValue} / {badgeProgress.targetValue}
-                  <span className="ml-2 text-blue-600 font-medium">
+                  <span className="ml-2 font-medium text-blue-600">
                     ({badgeProgress.percentage}%)
                   </span>
                 </p>
               </>
             ) : (
-              <p className="text-sm text-gray-500 text-center">
-                继续学习以解锁此徽章
-              </p>
+              <p className="text-center text-sm text-gray-500">继续学习以解锁此徽章</p>
             )}
           </div>
         )}
 
         {/* 奖励说明 */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="mb-2 flex items-center gap-2">
             <Trophy size={20} weight="duotone" color="#2563eb" />
-            <span className="text-blue-900 font-medium">奖励说明</span>
+            <span className="font-medium text-blue-900">奖励说明</span>
           </div>
           <p className="text-sm text-blue-700">
             获得此徽章将提升你的成就等级，解锁更多学习内容和个性化功能。
@@ -221,7 +201,7 @@ export default function BadgeDetailModal({ badge, onClose }: BadgeDetailModalPro
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="w-full mt-6 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200"
+          className="mt-6 w-full rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200"
         >
           关闭
         </button>

@@ -98,7 +98,7 @@ describe('WordMasteryPage', () => {
     return render(
       <MemoryRouter>
         <WordMasteryPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

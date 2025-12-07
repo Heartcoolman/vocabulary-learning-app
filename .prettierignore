@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build outputs
+dist
+build
+.next
+out
+.turbo
+
+# Logs
+*.log
+
+# Cache
+.cache
+.parcel-cache
+.eslintcache
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Misc
+coverage
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Generated files
+*.min.js
+*.min.css
+
+# Package manager
+package-lock.json
+yarn.lock

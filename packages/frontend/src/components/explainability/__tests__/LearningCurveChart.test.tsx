@@ -81,9 +81,7 @@ describe('LearningCurveChart', () => {
 
   describe('data handling', () => {
     it('should handle single data point', () => {
-      const singlePoint: LearningCurvePoint[] = [
-        { date: '2024-01-01', mastery: 50 },
-      ];
+      const singlePoint: LearningCurvePoint[] = [{ date: '2024-01-01', mastery: 50 }];
       render(<LearningCurveChart data={singlePoint} />);
 
       const circles = document.querySelectorAll('circle');
@@ -124,9 +122,7 @@ describe('LearningCurveChart', () => {
     });
 
     it('should clamp mastery values above 100', () => {
-      const overMaxData: LearningCurvePoint[] = [
-        { date: '2024-01-01', mastery: 150 },
-      ];
+      const overMaxData: LearningCurvePoint[] = [{ date: '2024-01-01', mastery: 150 }];
       render(<LearningCurveChart data={overMaxData} />);
 
       // Should still render without error
@@ -151,18 +147,14 @@ describe('LearningCurveChart', () => {
 
   describe('date formatting', () => {
     it('should format dates as MM/DD', () => {
-      const dataWithDates: LearningCurvePoint[] = [
-        { date: '2024-01-15', mastery: 50 },
-      ];
+      const dataWithDates: LearningCurvePoint[] = [{ date: '2024-01-15', mastery: 50 }];
       render(<LearningCurveChart data={dataWithDates} />);
 
       expect(screen.getByText('01/15')).toBeInTheDocument();
     });
 
     it('should handle various date formats', () => {
-      const dataWithDate: LearningCurvePoint[] = [
-        { date: '2024-12-31', mastery: 50 },
-      ];
+      const dataWithDate: LearningCurvePoint[] = [{ date: '2024-12-31', mastery: 50 }];
       render(<LearningCurveChart data={dataWithDate} />);
 
       expect(screen.getByText('12/31')).toBeInTheDocument();
@@ -190,7 +182,9 @@ describe('LearningCurveChart', () => {
       render(<LearningCurveChart data={mockData} />);
 
       const paths = document.querySelectorAll('path');
-      const areaPath = Array.from(paths).find(p => p.getAttribute('fill') === 'url(#curveGradient)');
+      const areaPath = Array.from(paths).find(
+        (p) => p.getAttribute('fill') === 'url(#curveGradient)',
+      );
       expect(areaPath).toBeInTheDocument();
     });
 
@@ -198,7 +192,7 @@ describe('LearningCurveChart', () => {
       render(<LearningCurveChart data={mockData} />);
 
       const paths = document.querySelectorAll('path');
-      const linePath = Array.from(paths).find(p => p.getAttribute('stroke') === '#6366f1');
+      const linePath = Array.from(paths).find((p) => p.getAttribute('stroke') === '#6366f1');
       expect(linePath).toBeInTheDocument();
     });
 
@@ -206,7 +200,7 @@ describe('LearningCurveChart', () => {
       render(<LearningCurveChart data={mockData} />);
 
       const circles = document.querySelectorAll('circle');
-      circles.forEach(circle => {
+      circles.forEach((circle) => {
         expect(circle.getAttribute('fill')).toBe('#fff');
         expect(circle.getAttribute('stroke')).toBe('#6366f1');
       });

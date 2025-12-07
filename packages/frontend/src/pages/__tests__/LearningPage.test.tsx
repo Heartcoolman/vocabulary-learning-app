@@ -36,12 +36,20 @@ vi.mock('framer-motion', () => ({
 vi.mock('../../components/Icon', () => ({
   Confetti: () => <span data-testid="confetti-icon">confetti</span>,
   Books: () => <span data-testid="books-icon">books</span>,
-  CircleNotch: ({ className }: any) => <span data-testid="loading-icon" className={className}>loading</span>,
+  CircleNotch: ({ className }: any) => (
+    <span data-testid="loading-icon" className={className}>
+      loading
+    </span>
+  ),
   Clock: () => <span data-testid="clock-icon">clock</span>,
   WarningCircle: () => <span data-testid="warning-icon">warning</span>,
   Brain: () => <span data-testid="brain-icon">brain</span>,
   ChartPie: () => <span data-testid="chart-icon">chart</span>,
-  Lightbulb: ({ weight }: any) => <span data-testid="lightbulb-icon" data-weight={weight}>lightbulb</span>,
+  Lightbulb: ({ weight }: any) => (
+    <span data-testid="lightbulb-icon" data-weight={weight}>
+      lightbulb
+    </span>
+  ),
 }));
 
 // Mock services - 使用相对路径
@@ -109,12 +117,18 @@ vi.mock('../../components/MasteryProgress', () => ({
 
 // Mock components from index barrel file
 vi.mock('../../components', () => ({
-  StatusModal: ({ isOpen, onClose }: any) => (
-    isOpen ? <div data-testid="status-modal"><button onClick={onClose}>关闭</button></div> : null
-  ),
-  SuggestionModal: ({ isOpen, onClose }: any) => (
-    isOpen ? <div data-testid="suggestion-modal"><button onClick={onClose}>关闭</button></div> : null
-  ),
+  StatusModal: ({ isOpen, onClose }: any) =>
+    isOpen ? (
+      <div data-testid="status-modal">
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
+  SuggestionModal: ({ isOpen, onClose }: any) =>
+    isOpen ? (
+      <div data-testid="suggestion-modal">
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('../../components/LearningModeSelector', () => ({
@@ -122,9 +136,12 @@ vi.mock('../../components/LearningModeSelector', () => ({
 }));
 
 vi.mock('../../components/explainability/ExplainabilityModal', () => ({
-  default: ({ isOpen, onClose }: any) => (
-    isOpen ? <div data-testid="explainability-modal"><button onClick={onClose}>关闭</button></div> : null
-  ),
+  default: ({ isOpen, onClose }: any) =>
+    isOpen ? (
+      <div data-testid="explainability-modal">
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 // Mock logger
@@ -197,8 +214,22 @@ const mockProgress = {
 
 const mockAllWords = [
   mockWord,
-  { id: 'word-2', spelling: 'world', phonetic: 'wɜːrld', meanings: ['世界'], examples: [], isNew: false },
-  { id: 'word-3', spelling: 'test', phonetic: 'test', meanings: ['测试'], examples: [], isNew: true },
+  {
+    id: 'word-2',
+    spelling: 'world',
+    phonetic: 'wɜːrld',
+    meanings: ['世界'],
+    examples: [],
+    isNew: false,
+  },
+  {
+    id: 'word-3',
+    spelling: 'test',
+    phonetic: 'test',
+    meanings: ['测试'],
+    examples: [],
+    isNew: true,
+  },
 ];
 
 // Mock useMasteryLearning hook

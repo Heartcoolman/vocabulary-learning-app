@@ -24,7 +24,7 @@ describe('AboutLayout', () => {
             <Route path="system-status" element={<div>System Status Content</div>} />
           </Route>
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

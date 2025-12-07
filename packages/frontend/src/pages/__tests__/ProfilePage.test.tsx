@@ -91,7 +91,7 @@ describe('ProfilePage', () => {
     return render(
       <MemoryRouter>
         <ProfilePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

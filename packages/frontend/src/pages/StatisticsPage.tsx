@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ChartBar, Target, CheckCircle, Clock, TrendUp, ArrowLeft, CircleNotch, Warning } from '../components/Icon';
+import {
+  ChartBar,
+  Target,
+  CheckCircle,
+  Clock,
+  TrendUp,
+  ArrowLeft,
+  CircleNotch,
+  Warning,
+} from '../components/Icon';
 import StorageService from '../services/StorageService';
 import ApiClient from '../services/ApiClient';
 import { learningLogger } from '../utils/logger';
@@ -53,14 +62,14 @@ export default function StatisticsPage() {
         if (!mounted) return;
 
         // 批量获取所有单词的学习状态（避免 N+1 查询）
-        const wordIds = words.map(w => w.id);
+        const wordIds = words.map((w) => w.id);
         const wordStates = await StorageService.getWordLearningStates(user.id, wordIds);
         if (!mounted) return;
 
         // 统计掌握程度分布
-        const masteryDistribution = [0, 1, 2, 3, 4, 5].map(level => ({
+        const masteryDistribution = [0, 1, 2, 3, 4, 5].map((level) => ({
           level,
-          count: wordStates.filter(state => state && state.masteryLevel === level).length
+          count: wordStates.filter((state) => state && state.masteryLevel === level).length,
         }));
 
         // 获取真实的学习统计数据
@@ -80,7 +89,7 @@ export default function StatisticsPage() {
         };
 
         const studyDates = new Set(
-          recordsResult.records.map((r: any) => normalizeToDateString(new Date(r.timestamp)))
+          recordsResult.records.map((r: any) => normalizeToDateString(new Date(r.timestamp))),
         );
         const studyDays = studyDates.size;
 
@@ -150,7 +159,7 @@ export default function StatisticsPage() {
             masteryDistribution,
             overallAccuracy: studyStats.correctRate,
             studyDays,
-            consecutiveDays
+            consecutiveDays,
           });
           setDailyAccuracy(dailySeries);
           setWeekdayHeat(heat);
@@ -173,13 +182,16 @@ export default function StatisticsPage() {
     };
   }, [user]);
 
-
-
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+          <CircleNotch
+            className="mx-auto mb-4 animate-spin"
+            size={48}
+            weight="bold"
+            color="#3b82f6"
+          />
           <p className="text-gray-600">正在加载统计数据...</p>
         </div>
       </div>
@@ -188,14 +200,14 @@ export default function StatisticsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
-        <div className="text-center max-w-md px-4">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
+        <div className="max-w-md px-4 text-center">
           <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
+          <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             返回学习
           </button>
@@ -209,14 +221,14 @@ export default function StatisticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 py-8 px-4 animate-g3-fade-in">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen animate-g3-fade-in bg-gradient-to-br from-slate-50 via-white to-blue-50/30 px-4 py-8">
+      <div className="mx-auto max-w-6xl">
         {/* 页面标题 */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-200 hover:scale-105 hover:bg-gray-50 active:scale-95"
               aria-label="返回"
             >
               <ArrowLeft size={20} weight="bold" />
@@ -226,76 +238,71 @@ export default function StatisticsPage() {
         </div>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* 总学习单词数 */}
-          <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+            <div className="mb-4 flex items-center justify-between">
               <ChartBar size={32} weight="duotone" color="#3b82f6" />
             </div>
-            <p className="text-sm text-gray-600 mb-1">总学习单词</p>
+            <p className="mb-1 text-sm text-gray-600">总学习单词</p>
             <p className="text-3xl font-bold text-gray-900">{statistics.totalWords}</p>
           </div>
 
           {/* 整体正确率 */}
-          <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+            <div className="mb-4 flex items-center justify-between">
               <Target size={32} weight="duotone" color="#a855f7" />
             </div>
-            <p className="text-sm text-gray-600 mb-1">整体正确率</p>
+            <p className="mb-1 text-sm text-gray-600">整体正确率</p>
             <p className="text-3xl font-bold text-gray-900">
               {(statistics.overallAccuracy * 100).toFixed(1)}%
             </p>
           </div>
 
           {/* 学习天数 */}
-          <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+            <div className="mb-4 flex items-center justify-between">
               <Clock size={32} weight="duotone" color="#f59e0b" />
             </div>
-            <p className="text-sm text-gray-600 mb-1">学习天数</p>
+            <p className="mb-1 text-sm text-gray-600">学习天数</p>
             <p className="text-3xl font-bold text-gray-900">{statistics.studyDays}</p>
           </div>
 
           {/* 连续学习天数 */}
-          <div className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+            <div className="mb-4 flex items-center justify-between">
               <TrendUp size={32} weight="duotone" color="#16a34a" />
             </div>
-            <p className="text-sm text-gray-600 mb-1">连续学习</p>
+            <p className="mb-1 text-sm text-gray-600">连续学习</p>
             <p className="text-3xl font-bold text-gray-900">{statistics.consecutiveDays} 天</p>
           </div>
         </div>
 
         {/* 掌握程度分布 */}
-        <div className="p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
             <CheckCircle size={24} weight="duotone" color="#3b82f6" />
             掌握程度分布
           </h2>
           <div className="space-y-4">
             {statistics.masteryDistribution.map(({ level, count }) => {
-              const percentage = statistics.totalWords > 0
-                ? (count / statistics.totalWords) * 100
-                : 0;
+              const percentage =
+                statistics.totalWords > 0 ? (count / statistics.totalWords) * 100 : 0;
 
               return (
                 <div key={level} className="flex items-center gap-4">
-                  <div className="w-20 text-sm font-medium text-gray-700">
-                    {level} 级
-                  </div>
-                  <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden">
+                  <div className="w-20 text-sm font-medium text-gray-700">{level} 级</div>
+                  <div className="h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500 flex items-center justify-end pr-3"
+                      className="flex h-full items-center justify-end bg-gradient-to-r from-blue-400 to-blue-600 pr-3 transition-all duration-500"
                       style={{ width: `${percentage}%` }}
                     >
                       {count > 0 && (
-                        <span className="text-xs font-medium text-white">
-                          {count} 个
-                        </span>
+                        <span className="text-xs font-medium text-white">{count} 个</span>
                       )}
                     </div>
                   </div>
-                  <div className="w-16 text-sm text-gray-600 text-right">
+                  <div className="w-16 text-right text-sm text-gray-600">
                     {percentage.toFixed(1)}%
                   </div>
                 </div>
@@ -305,22 +312,22 @@ export default function StatisticsPage() {
         </div>
 
         {/* 每日正确率趋势（近似遗忘曲线） */}
-        <div className="p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">每日正确率趋势</h2>
-          <div className="h-64 flex items-end gap-2 overflow-x-auto pb-4">
+        <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+          <h2 className="mb-6 text-xl font-bold text-gray-900">每日正确率趋势</h2>
+          <div className="flex h-64 items-end gap-2 overflow-x-auto pb-4">
             {dailyAccuracy.length === 0 ? (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <div className="flex h-full w-full items-center justify-center text-gray-400">
                 暂无学习记录
               </div>
             ) : (
               dailyAccuracy.map((point) => (
-                <div key={point.date} className="flex flex-col items-center gap-2 min-w-[40px]">
+                <div key={point.date} className="flex min-w-[40px] flex-col items-center gap-2">
                   <div
-                    className="w-8 bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all duration-300 hover:from-blue-600 hover:to-blue-500"
+                    className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-300 hover:from-blue-600 hover:to-blue-500"
                     style={{ height: `${Math.max(8, point.accuracy * 2)}px` }}
                     title={`${point.date}: ${point.accuracy}%`}
                   />
-                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                  <span className="whitespace-nowrap text-xs text-gray-500">
                     {point.date.slice(5)}
                   </span>
                 </div>
@@ -328,15 +335,13 @@ export default function StatisticsPage() {
             )}
           </div>
           {dailyAccuracy.length > 0 && (
-            <p className="text-sm text-gray-500 mt-2 text-center">
-              最近14天每日正确率
-            </p>
+            <p className="mt-2 text-center text-sm text-gray-500">最近14天每日正确率</p>
           )}
         </div>
 
         {/* 学习热力图（按星期统计） */}
-        <div className="p-8 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">每周学习分布</h2>
+        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+          <h2 className="mb-6 text-xl font-bold text-gray-900">每周学习分布</h2>
           <div className="grid grid-cols-7 gap-3">
             {['日', '一', '二', '三', '四', '五', '六'].map((label, idx) => {
               const count = weekdayHeat[idx] ?? 0;
@@ -345,17 +350,23 @@ export default function StatisticsPage() {
               return (
                 <div
                   key={label}
-                  className="rounded-xl border border-gray-200/60 p-4 flex flex-col items-center gap-2 transition-all duration-200 hover:shadow-md"
+                  className="flex flex-col items-center gap-2 rounded-xl border border-gray-200/60 p-4 transition-all duration-200 hover:shadow-md"
                   style={{ backgroundColor: `rgba(59, 130, 246, ${intensity})` }}
                   title={`星期${label}：${count} 次练习`}
                 >
-                  <span className={`text-sm font-medium ${intensity > 0.5 ? 'text-white' : 'text-gray-700'}`}>
+                  <span
+                    className={`text-sm font-medium ${intensity > 0.5 ? 'text-white' : 'text-gray-700'}`}
+                  >
                     周{label}
                   </span>
-                  <span className={`text-2xl font-bold ${intensity > 0.5 ? 'text-white' : 'text-gray-900'}`}>
+                  <span
+                    className={`text-2xl font-bold ${intensity > 0.5 ? 'text-white' : 'text-gray-900'}`}
+                  >
                     {count}
                   </span>
-                  <span className={`text-xs ${intensity > 0.5 ? 'text-white/80' : 'text-gray-500'}`}>
+                  <span
+                    className={`text-xs ${intensity > 0.5 ? 'text-white/80' : 'text-gray-500'}`}
+                  >
                     次
                   </span>
                 </div>

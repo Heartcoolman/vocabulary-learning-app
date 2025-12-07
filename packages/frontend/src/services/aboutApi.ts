@@ -308,7 +308,7 @@ function getAuthToken(): string | null {
 function buildHeaders(additionalHeaders?: Record<string, string>): HeadersInit {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...additionalHeaders
+    ...additionalHeaders,
   };
 
   const token = getAuthToken();
@@ -362,7 +362,7 @@ async function parseJsonResponse<T>(response: Response, errorPrefix: string): Pr
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Response> {
   const { timeout = DEFAULT_TIMEOUT, signal: externalSignal } = options;
 
@@ -406,7 +406,10 @@ async function fetchWithTimeout(
  * @param params 模拟参数
  * @param options 请求选项（超时、取消信号）
  */
-export async function simulate(params: SimulateRequest, options?: RequestOptions): Promise<SimulateResponse> {
+export async function simulate(
+  params: SimulateRequest,
+  options?: RequestOptions,
+): Promise<SimulateResponse> {
   const response = await fetchWithTimeout(
     `${API_BASE}/simulate`,
     {
@@ -414,7 +417,7 @@ export async function simulate(params: SimulateRequest, options?: RequestOptions
       headers: buildHeaders(),
       body: JSON.stringify(params),
     },
-    options
+    options,
   );
 
   return parseJsonResponse<SimulateResponse>(response, '模拟请求失败');
@@ -428,7 +431,7 @@ export async function getOverviewStats(options?: RequestOptions): Promise<Overvi
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/overview`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<OverviewStats>(response, '获取统计失败');
 }
@@ -437,11 +440,13 @@ export async function getOverviewStats(options?: RequestOptions): Promise<Overvi
  * 获取算法分布
  * @param options 请求选项（超时、取消信号）
  */
-export async function getAlgorithmDistribution(options?: RequestOptions): Promise<AlgorithmDistribution> {
+export async function getAlgorithmDistribution(
+  options?: RequestOptions,
+): Promise<AlgorithmDistribution> {
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/algorithm-distribution`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<AlgorithmDistribution>(response, '获取算法分布失败');
 }
@@ -454,7 +459,7 @@ export async function getPerformanceMetrics(options?: RequestOptions): Promise<P
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/performance`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<PerformanceMetrics>(response, '获取性能指标失败');
 }
@@ -463,11 +468,13 @@ export async function getPerformanceMetrics(options?: RequestOptions): Promise<P
  * 获取优化事件日志
  * @param options 请求选项（超时、取消信号）
  */
-export async function getOptimizationEvents(options?: RequestOptions): Promise<OptimizationEvent[]> {
+export async function getOptimizationEvents(
+  options?: RequestOptions,
+): Promise<OptimizationEvent[]> {
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/optimization-events`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<OptimizationEvent[]>(response, '获取优化事件失败');
 }
@@ -480,7 +487,7 @@ export async function getMasteryRadar(options?: RequestOptions): Promise<Mastery
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/mastery-radar`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<MasteryRadarData>(response, '获取掌握度雷达失败');
 }
@@ -493,7 +500,7 @@ export async function getStateDistribution(options?: RequestOptions): Promise<St
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/state-distribution`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<StateDistribution>(response, '获取状态分布失败');
 }
@@ -511,15 +518,14 @@ export interface MixedDecisions {
  * @param mixed 是否同时返回真实和模拟数据
  * @param options 请求选项（超时、取消信号）
  */
-export async function getRecentDecisions(mixed?: boolean, options?: RequestOptions): Promise<RecentDecision[] | MixedDecisions> {
+export async function getRecentDecisions(
+  mixed?: boolean,
+  options?: RequestOptions,
+): Promise<RecentDecision[] | MixedDecisions> {
   const url = mixed
     ? `${API_BASE}/stats/recent-decisions?mixed=true`
     : `${API_BASE}/stats/recent-decisions`;
-  const response = await fetchWithTimeout(
-    url,
-    { headers: buildHeaders() },
-    options
-  );
+  const response = await fetchWithTimeout(url, { headers: buildHeaders() }, options);
   return parseJsonResponse<RecentDecision[] | MixedDecisions>(response, '获取近期决策失败');
 }
 
@@ -531,7 +537,7 @@ export async function getMixedDecisions(options?: RequestOptions): Promise<Mixed
   const response = await fetchWithTimeout(
     `${API_BASE}/stats/recent-decisions?mixed=true`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<MixedDecisions>(response, '获取混合决策失败');
 }
@@ -547,17 +553,14 @@ export async function getMixedDecisions(options?: RequestOptions): Promise<Mixed
 export async function getDecisionDetail(
   decisionId: string,
   source?: 'real' | 'virtual',
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<DecisionDetail | null> {
-  const url = source === 'virtual'
-    ? `${API_BASE}/decision/${encodeURIComponent(decisionId)}?source=virtual`
-    : `${API_BASE}/decision/${encodeURIComponent(decisionId)}`;
+  const url =
+    source === 'virtual'
+      ? `${API_BASE}/decision/${encodeURIComponent(decisionId)}?source=virtual`
+      : `${API_BASE}/decision/${encodeURIComponent(decisionId)}`;
 
-  const response = await fetchWithTimeout(
-    url,
-    { headers: buildHeaders() },
-    options
-  );
+  const response = await fetchWithTimeout(url, { headers: buildHeaders() }, options);
 
   // 404表示决策不存在，返回null
   if (response.status === 404) return null;
@@ -576,7 +579,7 @@ export async function getPipelineSnapshot(options?: RequestOptions): Promise<Pip
   const response = await fetchWithTimeout(
     `${API_BASE}/pipeline/snapshot`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<PipelineSnapshot>(response, '获取管道快照失败');
 }
@@ -586,11 +589,14 @@ export async function getPipelineSnapshot(options?: RequestOptions): Promise<Pip
  * @param packetId 数据包ID
  * @param options 请求选项（超时、取消信号）
  */
-export async function getPacketTrace(packetId: string, options?: RequestOptions): Promise<PacketTrace> {
+export async function getPacketTrace(
+  packetId: string,
+  options?: RequestOptions,
+): Promise<PacketTrace> {
   const response = await fetchWithTimeout(
     `${API_BASE}/pipeline/trace/${encodeURIComponent(packetId)}`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<PacketTrace>(response, '获取数据包轨迹失败');
 }
@@ -600,7 +606,10 @@ export async function getPacketTrace(packetId: string, options?: RequestOptions)
  * @param request 故障注入请求参数
  * @param options 请求选项（超时、取消信号）
  */
-export async function injectFault(request: FaultInjectionRequest, options?: RequestOptions): Promise<FaultInjectionResponse> {
+export async function injectFault(
+  request: FaultInjectionRequest,
+  options?: RequestOptions,
+): Promise<FaultInjectionResponse> {
   const response = await fetchWithTimeout(
     `${API_BASE}/pipeline/inject-fault`,
     {
@@ -608,7 +617,7 @@ export async function injectFault(request: FaultInjectionRequest, options?: Requ
       headers: buildHeaders(),
       body: JSON.stringify(request),
     },
-    options
+    options,
   );
   return parseJsonResponse<FaultInjectionResponse>(response, '故障注入失败');
 }
@@ -664,7 +673,13 @@ export interface AlgorithmStatusResponse {
 export interface UserStateDistributions {
   attention: { avg: number; low: number; medium: number; high: number; lowAlertCount: number };
   fatigue: { avg: number; fresh: number; normal: number; tired: number; highAlertCount: number };
-  motivation: { avg: number; frustrated: number; neutral: number; motivated: number; lowAlertCount: number };
+  motivation: {
+    avg: number;
+    frustrated: number;
+    neutral: number;
+    motivated: number;
+    lowAlertCount: number;
+  };
   cognitive: { memory: number; speed: number; stability: number };
 }
 
@@ -713,11 +728,13 @@ export interface MemoryStatusResponse {
  * 获取 Pipeline 各层实时运行状态
  * @param options 请求选项（超时、取消信号）
  */
-export async function getPipelineLayerStatus(options?: RequestOptions): Promise<PipelineStatusResponse> {
+export async function getPipelineLayerStatus(
+  options?: RequestOptions,
+): Promise<PipelineStatusResponse> {
   const response = await fetchWithTimeout(
     `${API_BASE}/system/pipeline-status`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<PipelineStatusResponse>(response, '获取 Pipeline 状态失败');
 }
@@ -726,11 +743,13 @@ export async function getPipelineLayerStatus(options?: RequestOptions): Promise<
  * 获取算法实时运行状态
  * @param options 请求选项（超时、取消信号）
  */
-export async function getAlgorithmStatus(options?: RequestOptions): Promise<AlgorithmStatusResponse> {
+export async function getAlgorithmStatus(
+  options?: RequestOptions,
+): Promise<AlgorithmStatusResponse> {
   const response = await fetchWithTimeout(
     `${API_BASE}/system/algorithm-status`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<AlgorithmStatusResponse>(response, '获取算法状态失败');
 }
@@ -739,11 +758,13 @@ export async function getAlgorithmStatus(options?: RequestOptions): Promise<Algo
  * 获取用户状态分布实时监控数据
  * @param options 请求选项（超时、取消信号）
  */
-export async function getUserStateStatus(options?: RequestOptions): Promise<UserStateStatusResponse> {
+export async function getUserStateStatus(
+  options?: RequestOptions,
+): Promise<UserStateStatusResponse> {
   const response = await fetchWithTimeout(
     `${API_BASE}/system/user-state-status`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<UserStateStatusResponse>(response, '获取用户状态监控数据失败');
 }
@@ -756,7 +777,7 @@ export async function getMemoryStatus(options?: RequestOptions): Promise<MemoryS
   const response = await fetchWithTimeout(
     `${API_BASE}/system/memory-status`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<MemoryStatusResponse>(response, '获取记忆状态失败');
 }
@@ -776,7 +797,7 @@ export async function getFeatureFlags(options?: RequestOptions): Promise<Feature
   const response = await fetchWithTimeout(
     `${API_BASE}/feature-flags`,
     { headers: buildHeaders() },
-    options
+    options,
   );
   return parseJsonResponse<FeatureFlagsStatus>(response, '获取功能开关状态失败');
 }
@@ -836,7 +857,7 @@ export interface SSEConnectedEvent {
 export function subscribeToDecisions(
   onDecision: (event: SSEDecisionEvent) => void,
   onConnected?: (event: SSEConnectedEvent) => void,
-  onError?: (error: Event) => void
+  onError?: (error: Event) => void,
 ): () => void {
   const eventSource = new EventSource(`${API_BASE}/decisions/stream`);
 

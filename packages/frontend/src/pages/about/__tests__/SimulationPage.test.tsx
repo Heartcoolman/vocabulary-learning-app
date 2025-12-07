@@ -92,7 +92,7 @@ describe('SimulationPage', () => {
     return render(
       <MemoryRouter>
         <SimulationPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

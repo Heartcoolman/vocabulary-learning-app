@@ -39,7 +39,9 @@ vi.mock('@/hooks/useStudyProgress', () => ({
 vi.mock('@/components/dashboard/ProgressOverviewCard', () => ({
   ProgressOverviewCard: ({ data }: { data: any }) => (
     <div data-testid="progress-overview-card">
-      <span>Today: {data.todayStudied}/{data.todayTarget}</span>
+      <span>
+        Today: {data.todayStudied}/{data.todayTarget}
+      </span>
       <span>Correct Rate: {data.correctRate}%</span>
     </div>
   ),
@@ -50,7 +52,9 @@ vi.mock('@/components/Icon', async () => {
   return {
     ...actual,
     CircleNotch: ({ className }: { className: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });
@@ -242,7 +246,7 @@ describe('StudyProgressPage', () => {
       render(<StudyProgressPage />);
 
       const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
-      dayLabels.forEach(day => {
+      dayLabels.forEach((day) => {
         expect(screen.getByText(day)).toBeInTheDocument();
       });
     });

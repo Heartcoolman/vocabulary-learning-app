@@ -98,7 +98,7 @@ describe('BadgeGalleryPage', () => {
     return render(
       <MemoryRouter>
         <BadgeGalleryPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

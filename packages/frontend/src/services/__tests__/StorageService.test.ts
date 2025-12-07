@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Word, AnswerRecord, WordLearningState, WordScore, WordState } from '../../types/models';
+import type {
+  Word,
+  AnswerRecord,
+  WordLearningState,
+  WordScore,
+  WordState,
+} from '../../types/models';
 
 // Mock ApiClient
 vi.mock('../ApiClient', () => ({
@@ -379,7 +385,9 @@ describe('StorageService', () => {
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
         vi.mocked(ApiClient.saveWordLearningState).mockRejectedValue(new Error('Save failed'));
 
-        await expect(StorageService.saveWordLearningState(mockState)).rejects.toThrow('Save failed');
+        await expect(StorageService.saveWordLearningState(mockState)).rejects.toThrow(
+          'Save failed',
+        );
       });
     });
 
@@ -561,7 +569,9 @@ describe('StorageService', () => {
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
         // 模拟长时间请求
-        vi.mocked(ApiClient.getWords).mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), 5000)));
+        vi.mocked(ApiClient.getWords).mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve([]), 5000)),
+        );
 
         // 第一次调用
         const sync1 = StorageService.syncToCloud();
@@ -870,14 +880,59 @@ describe('StorageService', () => {
       it('should calculate study statistics correctly', async () => {
         const StorageService = await getStorageService();
         const mockWords: Word[] = [
-          { id: 'word-1', spelling: 'hello', phonetic: '', meanings: [], examples: [], createdAt: Date.now(), updatedAt: Date.now() },
-          { id: 'word-2', spelling: 'world', phonetic: '', meanings: [], examples: [], createdAt: Date.now(), updatedAt: Date.now() },
-          { id: 'word-3', spelling: 'test', phonetic: '', meanings: [], examples: [], createdAt: Date.now(), updatedAt: Date.now() },
+          {
+            id: 'word-1',
+            spelling: 'hello',
+            phonetic: '',
+            meanings: [],
+            examples: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          {
+            id: 'word-2',
+            spelling: 'world',
+            phonetic: '',
+            meanings: [],
+            examples: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          {
+            id: 'word-3',
+            spelling: 'test',
+            phonetic: '',
+            meanings: [],
+            examples: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
         ];
         const mockRecords: AnswerRecord[] = [
-          { id: 'r1', wordId: 'word-1', selectedAnswer: 'a', correctAnswer: 'a', isCorrect: true, timestamp: Date.now() - 100000 },
-          { id: 'r2', wordId: 'word-1', selectedAnswer: 'a', correctAnswer: 'a', isCorrect: true, timestamp: Date.now() },
-          { id: 'r3', wordId: 'word-2', selectedAnswer: 'b', correctAnswer: 'a', isCorrect: false, timestamp: Date.now() },
+          {
+            id: 'r1',
+            wordId: 'word-1',
+            selectedAnswer: 'a',
+            correctAnswer: 'a',
+            isCorrect: true,
+            timestamp: Date.now() - 100000,
+          },
+          {
+            id: 'r2',
+            wordId: 'word-1',
+            selectedAnswer: 'a',
+            correctAnswer: 'a',
+            isCorrect: true,
+            timestamp: Date.now(),
+          },
+          {
+            id: 'r3',
+            wordId: 'word-2',
+            selectedAnswer: 'b',
+            correctAnswer: 'a',
+            isCorrect: false,
+            timestamp: Date.now(),
+          },
         ];
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
@@ -1134,7 +1189,11 @@ describe('StorageService', () => {
 
         await StorageService.updateAlgorithmConfig('config-1', configUpdate, 'Testing update');
 
-        expect(ApiClient.updateAlgorithmConfig).toHaveBeenCalledWith('config-1', configUpdate, 'Testing update');
+        expect(ApiClient.updateAlgorithmConfig).toHaveBeenCalledWith(
+          'config-1',
+          configUpdate,
+          'Testing update',
+        );
       });
     });
 

@@ -21,7 +21,7 @@ import {
   CaretDown,
   CaretUp,
   Lightbulb,
-  Trophy
+  Trophy,
 } from '../../components/Icon';
 import apiClient from '../../services/ApiClient';
 import { adminLogger } from '../../utils/logger';
@@ -64,20 +64,20 @@ interface OptimizationDiagnostics {
 // ==================== Sub Components ====================
 
 const LoadingSpinner = () => (
-  <div className="min-h-[400px] flex items-center justify-center">
+  <div className="flex min-h-[400px] items-center justify-center">
     <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
   </div>
 );
 
 const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
-  <div className="p-8 min-h-[400px] flex items-center justify-center animate-g3-fade-in">
-    <div className="text-center max-w-md" role="alert" aria-live="assertive">
+  <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
+    <div className="max-w-md text-center" role="alert" aria-live="assertive">
       <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">加载失败</h2>
-      <p className="text-gray-600 mb-6">{error}</p>
+      <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
+      <p className="mb-6 text-gray-600">{error}</p>
       <button
         onClick={onRetry}
-        className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+        className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
       >
         重试
       </button>
@@ -85,7 +85,13 @@ const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }
   </div>
 );
 
-const MetricCard = ({ label, value, icon: Icon, trend, subtext }: {
+const MetricCard = ({
+  label,
+  value,
+  icon: Icon,
+  trend,
+  subtext,
+}: {
   label: string;
   value: string | number;
   icon: any;
@@ -95,29 +101,46 @@ const MetricCard = ({ label, value, icon: Icon, trend, subtext }: {
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white/90 backdrop-blur rounded-xl border border-gray-200 p-5 shadow-sm"
+    className="rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur"
   >
-    <div className="flex justify-between items-start mb-2">
-      <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
+    <div className="mb-2 flex items-start justify-between">
+      <div className="rounded-lg bg-gray-50 p-2 text-gray-500">
         <Icon size={20} weight="duotone" />
       </div>
       {trend && (
-        <span className={`text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 ${
-          trend === 'positive' ? 'bg-green-100 text-green-700' :
-          trend === 'negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
-        }`}>
-          {trend === 'positive' ? <ArrowUp size={12} weight="bold" /> : trend === 'negative' ? <ArrowDown size={12} weight="bold" /> : <Minus size={12} weight="bold" />}
+        <span
+          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+            trend === 'positive'
+              ? 'bg-green-100 text-green-700'
+              : trend === 'negative'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {trend === 'positive' ? (
+            <ArrowUp size={12} weight="bold" />
+          ) : trend === 'negative' ? (
+            <ArrowDown size={12} weight="bold" />
+          ) : (
+            <Minus size={12} weight="bold" />
+          )}
           {trend === 'positive' ? '优化中' : trend === 'negative' ? '需调整' : '稳定'}
         </span>
       )}
     </div>
     <div className="text-2xl font-bold text-gray-900">{value}</div>
-    <div className="text-sm text-gray-500 mt-1">{label}</div>
-    {subtext && <div className="text-xs text-gray-400 mt-2 border-t border-gray-100 pt-2">{subtext}</div>}
+    <div className="mt-1 text-sm text-gray-500">{label}</div>
+    {subtext && (
+      <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400">{subtext}</div>
+    )}
   </motion.div>
 );
 
-const ParamCard = ({ name, value, space }: {
+const ParamCard = ({
+  name,
+  value,
+  space,
+}: {
   name: string;
   value: number;
   space: { min: number; max: number; step: number };
@@ -125,15 +148,15 @@ const ParamCard = ({ name, value, space }: {
   const percentage = ((value - space.min) / (space.max - space.min)) * 100;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex justify-between items-start mb-2">
+    <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mb-2 flex items-start justify-between">
         <span className="text-sm font-medium text-gray-700">{name}</span>
-        <span className="text-sm font-mono font-bold text-blue-600">{value.toFixed(4)}</span>
+        <span className="font-mono text-sm font-bold text-blue-600">{value.toFixed(4)}</span>
       </div>
 
-      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+      <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -149,18 +172,18 @@ const ParamCard = ({ name, value, space }: {
 const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
   // 防御性检查：确保 history 是数组
   const safeHistory = Array.isArray(history) ? history : [];
-  
+
   if (safeHistory.length === 0) {
     return (
-      <div className="text-center text-gray-400 py-12">
+      <div className="py-12 text-center text-gray-400">
         <Database size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
         <p>暂无历史数据</p>
       </div>
     );
   }
 
-  const maxValue = Math.max(...safeHistory.map(h => h.value));
-  const minValue = Math.min(...safeHistory.map(h => h.value));
+  const maxValue = Math.max(...safeHistory.map((h) => h.value));
+  const minValue = Math.min(...safeHistory.map((h) => h.value));
   const range = maxValue - minValue;
 
   return (
@@ -171,21 +194,21 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
         });
 
         return (
-          <div key={index} className="flex items-center gap-3 group">
-            <span className="text-xs text-gray-500 w-24 shrink-0">{date}</span>
-            <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden relative">
+          <div key={index} className="group flex items-center gap-3">
+            <span className="w-24 shrink-0 text-xs text-gray-500">{date}</span>
+            <div className="relative h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${height}%` }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-lg"
+                className="h-full rounded-lg bg-gradient-to-r from-green-400 to-green-600"
               />
             </div>
-            <span className="text-sm font-mono font-medium text-gray-700 w-20 text-right">
+            <span className="w-20 text-right font-mono text-sm font-medium text-gray-700">
               {item.value.toFixed(4)}
             </span>
           </div>
@@ -199,7 +222,9 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
 
 export default function OptimizationDashboard() {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<'suggestion' | 'history' | 'best' | 'control' | 'diagnostics'>('suggestion');
+  const [activeTab, setActiveTab] = useState<
+    'suggestion' | 'history' | 'best' | 'control' | 'diagnostics'
+  >('suggestion');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -230,7 +255,7 @@ export default function OptimizationDashboard() {
         apiClient.getOptimizationSuggestion(),
         apiClient.getOptimizationHistory(),
         apiClient.getBestOptimizationParams(),
-        apiClient.getOptimizationDiagnostics()
+        apiClient.getOptimizationDiagnostics(),
       ]);
 
       setSuggestion(suggestionData);
@@ -319,26 +344,23 @@ export default function OptimizationDashboard() {
     { id: 'history', label: '优化历史', icon: Clock },
     { id: 'best', label: '最佳参数', icon: Target },
     { id: 'control', label: '优化控制', icon: Gear },
-    { id: 'diagnostics', label: '诊断信息', icon: Activity }
+    { id: 'diagnostics', label: '诊断信息', icon: Activity },
   ] as const;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 bg-gray-50 min-h-screen">
-
+    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
             <Lightning className="text-amber-500" weight="duotone" />
             优化分析仪表盘
           </h1>
-          <p className="text-gray-500 mt-1">
-            贝叶斯优化 - 自适应参数调优与性能追踪
-          </p>
+          <p className="mt-1 text-gray-500">贝叶斯优化 - 自适应参数调优与性能追踪</p>
         </div>
         <button
           onClick={loadAllData}
-          className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
+          className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
           title="刷新数据"
         >
           <ArrowsClockwise size={18} weight="bold" />
@@ -346,7 +368,7 @@ export default function OptimizationDashboard() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="历史评估次数"
           value={history.length}
@@ -355,9 +377,19 @@ export default function OptimizationDashboard() {
         />
         <MetricCard
           label="最佳性能值"
-          value={bestParams?.value !== null && bestParams?.value !== undefined ? bestParams.value.toFixed(4) : 'N/A'}
+          value={
+            bestParams?.value !== null && bestParams?.value !== undefined
+              ? bestParams.value.toFixed(4)
+              : 'N/A'
+          }
           icon={Trophy}
-          trend={bestParams?.value && bestParams.value > 0.8 ? 'positive' : bestParams?.value && bestParams.value > 0.6 ? 'neutral' : 'negative'}
+          trend={
+            bestParams?.value && bestParams.value > 0.8
+              ? 'positive'
+              : bestParams?.value && bestParams.value > 0.6
+                ? 'neutral'
+                : 'negative'
+          }
           subtext="目标：最大化学习效果"
         />
         <MetricCard
@@ -368,7 +400,7 @@ export default function OptimizationDashboard() {
         />
         <MetricCard
           label="优化状态"
-          value={history.length >= 10 ? "收敛中" : "探索中"}
+          value={history.length >= 10 ? '收敛中' : '探索中'}
           icon={TrendUp}
           trend={history.length >= 10 ? 'positive' : 'neutral'}
           subtext={`建议至少 20 次评估`}
@@ -376,9 +408,9 @@ export default function OptimizationDashboard() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        <div className="flex border-b border-gray-200 overflow-x-auto">
-          {tabs.map(tab => {
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex overflow-x-auto border-b border-gray-200">
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
 
@@ -386,10 +418,10 @@ export default function OptimizationDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-2 whitespace-nowrap px-6 py-4 font-medium transition-colors ${
                   isActive
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'border-b-2 border-blue-600 bg-blue-50/50 text-blue-600'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 <Icon size={18} weight={isActive ? 'bold' : 'regular'} />
@@ -407,10 +439,10 @@ export default function OptimizationDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <Info size={20} className="text-blue-600 shrink-0 mt-0.5" weight="bold" />
+              <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <Info size={20} className="mt-0.5 shrink-0 text-blue-600" weight="bold" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">下一个推荐参数组合</p>
+                  <p className="mb-1 font-medium">下一个推荐参数组合</p>
                   <p className="text-blue-700">
                     基于贝叶斯优化算法，根据历史评估结果推荐下一组最有潜力的参数配置。
                   </p>
@@ -419,7 +451,7 @@ export default function OptimizationDashboard() {
 
               {suggestion && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {Object.entries(suggestion.params).map(([name, value]) => (
                       <ParamCard
                         key={name}
@@ -431,12 +463,12 @@ export default function OptimizationDashboard() {
                   </div>
 
                   {/* Evaluation Input */}
-                  <div className="mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6">
+                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
                       <CheckCircle size={20} className="text-green-600" weight="bold" />
                       记录评估结果
                     </h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="mb-4 text-sm text-gray-600">
                       应用上述推荐参数后，请输入观察到的性能值（0-1之间，越大越好）：
                     </p>
                     <div className="flex gap-3">
@@ -447,13 +479,13 @@ export default function OptimizationDashboard() {
                         max="1"
                         value={evaluationValue}
                         onChange={(e) => setEvaluationValue(e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                         placeholder="例如: 0.85"
                       />
                       <button
                         onClick={handleRecordEvaluation}
                         disabled={evaluating}
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="rounded-lg bg-green-600 px-6 py-2 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {evaluating ? '记录中...' : '提交评估'}
                       </button>
@@ -463,7 +495,7 @@ export default function OptimizationDashboard() {
               )}
 
               {!suggestion && (
-                <div className="text-center text-gray-400 py-12">
+                <div className="py-12 text-center text-gray-400">
                   <WarningCircle size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无优化建议</p>
                 </div>
@@ -478,38 +510,36 @@ export default function OptimizationDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                <Clock size={20} className="text-amber-600 shrink-0 mt-0.5" weight="bold" />
+              <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50 p-4">
+                <Clock size={20} className="mt-0.5 shrink-0 text-amber-600" weight="bold" />
                 <div className="text-sm text-amber-800">
-                  <p className="font-medium mb-1">历史评估记录</p>
-                  <p className="text-amber-700">
-                    显示过去所有参数评估的性能值，帮助追踪优化进度。
-                  </p>
+                  <p className="mb-1 font-medium">历史评估记录</p>
+                  <p className="text-amber-700">显示过去所有参数评估的性能值，帮助追踪优化进度。</p>
                 </div>
               </div>
 
               <HistoryChart history={history} />
 
               {history.length > 0 && (
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="mt-6 rounded-lg bg-gray-50 p-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-2xl font-bold text-gray-900">
-                        {Math.max(...history.map(h => h.value)).toFixed(4)}
+                        {Math.max(...history.map((h) => h.value)).toFixed(4)}
                       </div>
-                      <div className="text-sm text-gray-500 mt-1">最高值</div>
+                      <div className="mt-1 text-sm text-gray-500">最高值</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-gray-900">
                         {(history.reduce((sum, h) => sum + h.value, 0) / history.length).toFixed(4)}
                       </div>
-                      <div className="text-sm text-gray-500 mt-1">平均值</div>
+                      <div className="mt-1 text-sm text-gray-500">平均值</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-gray-900">
-                        {Math.min(...history.map(h => h.value)).toFixed(4)}
+                        {Math.min(...history.map((h) => h.value)).toFixed(4)}
                       </div>
-                      <div className="text-sm text-gray-500 mt-1">最低值</div>
+                      <div className="mt-1 text-sm text-gray-500">最低值</div>
                     </div>
                   </div>
                 </div>
@@ -524,10 +554,10 @@ export default function OptimizationDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-100 rounded-lg">
-                <Target size={20} className="text-green-600 shrink-0 mt-0.5" weight="bold" />
+              <div className="flex items-start gap-3 rounded-lg border border-green-100 bg-green-50 p-4">
+                <Target size={20} className="mt-0.5 shrink-0 text-green-600" weight="bold" />
                 <div className="text-sm text-green-800">
-                  <p className="font-medium mb-1">当前最佳参数配置</p>
+                  <p className="mb-1 font-medium">当前最佳参数配置</p>
                   <p className="text-green-700">
                     在所有评估中表现最好的参数组合，建议应用到生产环境。
                   </p>
@@ -536,8 +566,8 @@ export default function OptimizationDashboard() {
 
               {bestParams?.params && bestParams.value !== null && (
                 <>
-                  <div className="p-6 bg-gradient-to-br from-green-50 to-white rounded-lg border border-green-100">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="rounded-lg border border-green-100 bg-gradient-to-br from-green-50 to-white p-6">
+                    <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">最佳性能值</h3>
                       <span className="text-3xl font-bold text-green-600">
                         {bestParams.value?.toFixed(4)}
@@ -545,12 +575,14 @@ export default function OptimizationDashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {Object.entries(bestParams.params).map(([name, value]) => (
-                      <div key={name} className="bg-white rounded-lg border border-gray-200 p-4">
-                        <div className="flex justify-between items-center">
+                      <div key={name} className="rounded-lg border border-gray-200 bg-white p-4">
+                        <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-700">{name}</span>
-                          <span className="text-lg font-mono font-bold text-gray-900">{value.toFixed(4)}</span>
+                          <span className="font-mono text-lg font-bold text-gray-900">
+                            {value.toFixed(4)}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -559,7 +591,7 @@ export default function OptimizationDashboard() {
               )}
 
               {!bestParams?.params && (
-                <div className="text-center text-gray-400 py-12">
+                <div className="py-12 text-center text-gray-400">
                   <Target size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无最佳参数</p>
                 </div>
@@ -574,21 +606,19 @@ export default function OptimizationDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-100 rounded-lg">
-                <Gear size={20} className="text-purple-600 shrink-0 mt-0.5" weight="bold" />
+              <div className="flex items-start gap-3 rounded-lg border border-purple-100 bg-purple-50 p-4">
+                <Gear size={20} className="mt-0.5 shrink-0 text-purple-600" weight="bold" />
                 <div className="text-sm text-purple-800">
-                  <p className="font-medium mb-1">优化器控制面板</p>
-                  <p className="text-purple-700">
-                    手动触发优化周期或重置优化器状态。
-                  </p>
+                  <p className="mb-1 font-medium">优化器控制面板</p>
+                  <p className="text-purple-700">手动触发优化周期或重置优化器状态。</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {/* Trigger Optimization */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                    <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
                       <Play size={24} weight="fill" />
                     </div>
                     <div>
@@ -599,16 +629,16 @@ export default function OptimizationDashboard() {
                   <button
                     onClick={handleTriggerOptimization}
                     disabled={triggering}
-                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {triggering ? '触发中...' : '触发优化'}
                   </button>
                 </div>
 
                 {/* Reset Optimizer */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-red-50 rounded-lg text-red-600">
+                    <div className="rounded-lg bg-red-50 p-3 text-red-600">
                       <ArrowCounterClockwise size={24} weight="bold" />
                     </div>
                     <div>
@@ -619,7 +649,7 @@ export default function OptimizationDashboard() {
                   <button
                     onClick={() => setShowResetConfirm(true)}
                     disabled={resetting}
-                    className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {resetting ? '重置中...' : '重置优化器'}
                   </button>
@@ -635,29 +665,31 @@ export default function OptimizationDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <Activity size={20} className="text-gray-600 shrink-0 mt-0.5" weight="bold" />
+              <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <Activity size={20} className="mt-0.5 shrink-0 text-gray-600" weight="bold" />
                 <div className="text-sm text-gray-800">
-                  <p className="font-medium mb-1">优化器诊断信息</p>
-                  <p className="text-gray-600">
-                    查看优化器内部状态和详细配置信息。
-                  </p>
+                  <p className="mb-1 font-medium">优化器诊断信息</p>
+                  <p className="text-gray-600">查看优化器内部状态和详细配置信息。</p>
                 </div>
               </div>
 
               {diagnostics && (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
                   <button
                     onClick={() => setExpandedDiagnostics(!expandedDiagnostics)}
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
                   >
                     <span className="font-medium text-gray-900">查看详细信息</span>
-                    {expandedDiagnostics ? <CaretUp size={20} weight="bold" /> : <CaretDown size={20} weight="bold" />}
+                    {expandedDiagnostics ? (
+                      <CaretUp size={20} weight="bold" />
+                    ) : (
+                      <CaretDown size={20} weight="bold" />
+                    )}
                   </button>
 
                   {expandedDiagnostics && (
-                    <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                      <pre className="text-xs text-gray-700 overflow-x-auto p-4 bg-white rounded border border-gray-200 font-mono">
+                    <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+                      <pre className="overflow-x-auto rounded border border-gray-200 bg-white p-4 font-mono text-xs text-gray-700">
                         {JSON.stringify(diagnostics, null, 2)}
                       </pre>
                     </div>
@@ -666,7 +698,7 @@ export default function OptimizationDashboard() {
               )}
 
               {!diagnostics && (
-                <div className="text-center text-gray-400 py-12">
+                <div className="py-12 text-center text-gray-400">
                   <Activity size={48} className="mx-auto mb-4 opacity-50" weight="thin" />
                   <p>暂无诊断信息</p>
                 </div>

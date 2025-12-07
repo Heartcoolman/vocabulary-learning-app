@@ -5,7 +5,11 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, onClick, className, ...props }: any) => <div onClick={onClick} className={className}>{children}</div>,
+    div: ({ children, onClick, className, ...props }: any) => (
+      <div onClick={onClick} className={className}>
+        {children}
+      </div>
+    ),
     p: ({ children, className, ...props }: any) => <p className={className}>{children}</p>,
     li: ({ children, className, ...props }: any) => <li className={className}>{children}</li>,
     span: ({ children, className, ...props }: any) => <span className={className}>{children}</span>,
@@ -46,7 +50,7 @@ describe('AboutHomePage', () => {
     return render(
       <MemoryRouter>
         <AboutHomePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
@@ -182,7 +186,7 @@ describe('AboutHomePage', () => {
 
       // Just verify all stages are rendered with their distinct styling
       const stages = ['感知层', '建模层', '学习层', '决策层'];
-      stages.forEach(stage => {
+      stages.forEach((stage) => {
         expect(screen.getByText(stage)).toBeInTheDocument();
       });
     });
@@ -209,7 +213,7 @@ describe('AboutHomePage', () => {
 
       // Stage cards should be clickable
       const stages = screen.getAllByText(/层$/);
-      stages.forEach(stage => {
+      stages.forEach((stage) => {
         const card = stage.closest('div[class*="cursor-pointer"]');
         if (card) {
           expect(card).toBeInTheDocument();

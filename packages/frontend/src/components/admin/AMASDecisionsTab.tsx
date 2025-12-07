@@ -90,7 +90,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     endDate: '',
     decisionSource: '',
     sortBy: 'timestamp' as 'timestamp' | 'confidence' | 'duration',
-    sortOrder: 'desc' as 'asc' | 'desc'
+    sortOrder: 'desc' as 'asc' | 'desc',
   });
 
   // 修复：将 filters 对象的各个属性作为独立依赖项，避免对象引用变化导致的不必要重新渲染
@@ -102,7 +102,15 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
       return;
     }
     loadDecisions();
-  }, [userId, pagination.page, filters.startDate, filters.endDate, filters.decisionSource, filters.sortBy, filters.sortOrder]);
+  }, [
+    userId,
+    pagination.page,
+    filters.startDate,
+    filters.endDate,
+    filters.decisionSource,
+    filters.sortBy,
+    filters.sortOrder,
+  ]);
 
   const loadDecisions = async () => {
     // 空值保护：确保 userId 有效
@@ -113,30 +121,31 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     }
     try {
       setLoading(true);
-      const response = await ApiClient.adminGetUserDecisions(userId, {
+      const response = (await ApiClient.adminGetUserDecisions(userId, {
         page: pagination.page,
         pageSize: pagination.pageSize,
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         decisionSource: filters.decisionSource || undefined,
         sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      }) as DecisionsApiResponse;
+        sortOrder: filters.sortOrder,
+      })) as DecisionsApiResponse;
 
       setDecisions(response.data.decisions || []);
 
       // 只在分页数据有实际变化时才更新 pagination，避免无限循环
       const newPagination = response.data.pagination;
-      if (newPagination && (
-        newPagination.total !== pagination.total ||
-        newPagination.totalPages !== pagination.totalPages ||
-        newPagination.pageSize !== pagination.pageSize
-      )) {
-        setPagination(prev => ({
+      if (
+        newPagination &&
+        (newPagination.total !== pagination.total ||
+          newPagination.totalPages !== pagination.totalPages ||
+          newPagination.pageSize !== pagination.pageSize)
+      ) {
+        setPagination((prev) => ({
           ...prev,
           total: newPagination.total,
           totalPages: newPagination.totalPages,
-          pageSize: newPagination.pageSize
+          pageSize: newPagination.pageSize,
         }));
       }
 
@@ -155,7 +164,10 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     detailRequestCancelledRef.current = false;
     try {
       setDetailLoading(true);
-      const response = await ApiClient.adminGetDecisionDetail(userId, decisionId) as DecisionDetailApiResponse;
+      const response = (await ApiClient.adminGetDecisionDetail(
+        userId,
+        decisionId,
+      )) as DecisionDetailApiResponse;
       // 如果请求被取消，不更新状态
       if (detailRequestCancelledRef.current) return;
       setDecisionDetail(response.data || null);
@@ -190,7 +202,11 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   }
 
   if (error && decisions.length === 0) {
-    return <div style={styles.container}><div style={styles.error}>{error}</div></div>;
+    return (
+      <div style={styles.container}>
+        <div style={styles.error}>{error}</div>
+      </div>
+    );
   }
 
   return (
@@ -216,7 +232,9 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
               <div style={styles.statLabel}>决策来源</div>
               <div style={{ fontSize: '12px', marginTop: '4px' }}>
                 {Object.entries(statistics.decisionSourceDistribution).map(([source, count]) => (
-                  <div key={source}>{source}: {count}</div>
+                  <div key={source}>
+                    {source}: {count}
+                  </div>
                 ))}
               </div>
             </div>
@@ -273,21 +291,29 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
               <tr key={d.decisionId} style={styles.tr}>
                 <td style={styles.td}>{new Date(d.timestamp).toLocaleString('zh-CN')}</td>
                 <td style={styles.td}>
-                  <span style={{
-                    ...styles.badge,
-                    ...(d.decisionSource === 'ensemble' ? styles.badgeEnsemble : styles.badgeColdstart)
-                  }}>
+                  <span
+                    style={{
+                      ...styles.badge,
+                      ...(d.decisionSource === 'ensemble'
+                        ? styles.badgeEnsemble
+                        : styles.badgeColdstart),
+                    }}
+                  >
                     {d.decisionSource}
                   </span>
                 </td>
-                <td style={styles.td}>{d.strategy.difficulty}, {d.strategy.batch_size}词</td>
+                <td style={styles.td}>
+                  {d.strategy.difficulty}, {d.strategy.batch_size}词
+                </td>
                 <td style={styles.td}>
                   <div style={styles.progressBarContainer}>
                     <div style={{ ...styles.progressBar, width: `${d.confidence * 100}%` }} />
                   </div>
                   <span style={{ fontSize: '12px' }}>{(d.confidence * 100).toFixed(0)}%</span>
                 </td>
-                <td style={styles.td}>{d.reward !== null && d.reward !== undefined ? d.reward.toFixed(3) : '-'}</td>
+                <td style={styles.td}>
+                  {d.reward !== null && d.reward !== undefined ? d.reward.toFixed(3) : '-'}
+                </td>
                 <td style={styles.td}>{d.totalDurationMs ? `${d.totalDurationMs}ms` : '-'}</td>
                 <td style={styles.td}>
                   <button
@@ -302,9 +328,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           </tbody>
         </table>
 
-        {decisions.length === 0 && (
-          <div style={styles.emptyState}>暂无决策记录</div>
-        )}
+        {decisions.length === 0 && <div style={styles.emptyState}>暂无决策记录</div>}
       </div>
 
       {/* 分页 */}
@@ -336,7 +360,9 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h3>决策详情</h3>
-              <button onClick={closeDetail} style={styles.closeButton}>×</button>
+              <button onClick={closeDetail} style={styles.closeButton}>
+                ×
+              </button>
             </div>
 
             {detailLoading ? (
@@ -347,16 +373,31 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 <div style={styles.section}>
                   <h4 style={styles.sectionTitle}>基本信息</h4>
                   <div style={styles.infoGrid}>
-                    <div><strong>决策ID:</strong> {decisionDetail.decision.decisionId}</div>
-                    <div><strong>时间:</strong> {new Date(decisionDetail.decision.timestamp).toLocaleString('zh-CN')}</div>
-                    <div><strong>来源:</strong> {decisionDetail.decision.decisionSource}</div>
-                    <div><strong>置信度:</strong> {(decisionDetail.decision.confidence * 100).toFixed(1)}%</div>
+                    <div>
+                      <strong>决策ID:</strong> {decisionDetail.decision.decisionId}
+                    </div>
+                    <div>
+                      <strong>时间:</strong>{' '}
+                      {new Date(decisionDetail.decision.timestamp).toLocaleString('zh-CN')}
+                    </div>
+                    <div>
+                      <strong>来源:</strong> {decisionDetail.decision.decisionSource}
+                    </div>
+                    <div>
+                      <strong>置信度:</strong>{' '}
+                      {(decisionDetail.decision.confidence * 100).toFixed(1)}%
+                    </div>
                     {decisionDetail.decision.coldstartPhase && (
-                      <div><strong>冷启动阶段:</strong> {decisionDetail.decision.coldstartPhase}</div>
+                      <div>
+                        <strong>冷启动阶段:</strong> {decisionDetail.decision.coldstartPhase}
+                      </div>
                     )}
-                    {decisionDetail.decision.reward !== null && decisionDetail.decision.reward !== undefined && (
-                      <div><strong>奖励:</strong> {decisionDetail.decision.reward.toFixed(3)}</div>
-                    )}
+                    {decisionDetail.decision.reward !== null &&
+                      decisionDetail.decision.reward !== undefined && (
+                        <div>
+                          <strong>奖励:</strong> {decisionDetail.decision.reward.toFixed(3)}
+                        </div>
+                      )}
                   </div>
                 </div>
 
@@ -365,14 +406,16 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                   <div style={styles.section}>
                     <h4 style={styles.sectionTitle}>用户状态快照</h4>
                     <div style={styles.stateGrid}>
-                      {Object.entries(decisionDetail.insight.stateSnapshot).map(([key, value]: [string, any]) => (
-                        <div key={key} style={styles.stateItem}>
-                          <span style={styles.stateLabel}>{key}:</span>
-                          <span style={styles.stateValue}>
-                            {typeof value === 'number' ? value.toFixed(2) : JSON.stringify(value)}
-                          </span>
-                        </div>
-                      ))}
+                      {Object.entries(decisionDetail.insight.stateSnapshot).map(
+                        ([key, value]: [string, any]) => (
+                          <div key={key} style={styles.stateItem}>
+                            <span style={styles.stateLabel}>{key}:</span>
+                            <span style={styles.stateValue}>
+                              {typeof value === 'number' ? value.toFixed(2) : JSON.stringify(value)}
+                            </span>
+                          </div>
+                        ),
+                      )}
                     </div>
                   </div>
                 )}
@@ -386,16 +429,27 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                         <div key={index} style={styles.pipelineStage}>
                           <div style={styles.stageHeader}>
                             <span style={styles.stageIcon}>
-                              {stage.status === 'SUCCESS' ? '✓' :
-                               stage.status === 'FAILED' ? '✗' :
-                               stage.status === 'STARTED' ? '⏳' : '─'}
+                              {stage.status === 'SUCCESS'
+                                ? '✓'
+                                : stage.status === 'FAILED'
+                                  ? '✗'
+                                  : stage.status === 'STARTED'
+                                    ? '⏳'
+                                    : '─'}
                             </span>
                             <span style={styles.stageName}>{stage.stageName || stage.stage}</span>
-                            <span style={{ ...styles.stageStatus, color: stage.status === 'SUCCESS' ? '#22c55e' : '#ef4444' }}>
+                            <span
+                              style={{
+                                ...styles.stageStatus,
+                                color: stage.status === 'SUCCESS' ? '#22c55e' : '#ef4444',
+                              }}
+                            >
                               {stage.status}
                             </span>
                             <span style={styles.stageDuration}>
-                              {stage.durationMs !== null && stage.durationMs !== undefined ? `${stage.durationMs}ms` : '-'}
+                              {stage.durationMs !== null && stage.durationMs !== undefined
+                                ? `${stage.durationMs}ms`
+                                : '-'}
                             </span>
                           </div>
                           {stage.outputSummary && (
@@ -425,10 +479,18 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                   <div style={styles.section}>
                     <h4 style={styles.sectionTitle}>上下文</h4>
                     <div style={styles.infoGrid}>
-                      <div><strong>单词:</strong> {decisionDetail.context.answerRecord.wordSpelling}</div>
-                      <div><strong>正确:</strong> {decisionDetail.context.answerRecord.isCorrect ? '是' : '否'}</div>
+                      <div>
+                        <strong>单词:</strong> {decisionDetail.context.answerRecord.wordSpelling}
+                      </div>
+                      <div>
+                        <strong>正确:</strong>{' '}
+                        {decisionDetail.context.answerRecord.isCorrect ? '是' : '否'}
+                      </div>
                       {decisionDetail.context.answerRecord.responseTime && (
-                        <div><strong>反应时间:</strong> {decisionDetail.context.answerRecord.responseTime}ms</div>
+                        <div>
+                          <strong>反应时间:</strong>{' '}
+                          {decisionDetail.context.answerRecord.responseTime}ms
+                        </div>
                       )}
                     </div>
                   </div>
@@ -446,51 +508,51 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    padding: '20px'
+    padding: '20px',
   },
   statsPanel: {
     backgroundColor: '#f9fafb',
     padding: '20px',
     borderRadius: '8px',
-    marginBottom: '20px'
+    marginBottom: '20px',
   },
   statsTitle: {
     fontSize: '18px',
     fontWeight: 'bold',
-    marginBottom: '16px'
+    marginBottom: '16px',
   },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px'
+    gap: '16px',
   },
   statCard: {
     backgroundColor: '#fff',
     padding: '16px',
     borderRadius: '6px',
-    border: '1px solid #e5e7eb'
+    border: '1px solid #e5e7eb',
   },
   statLabel: {
     fontSize: '14px',
     color: '#6b7280',
-    marginBottom: '8px'
+    marginBottom: '8px',
   },
   statValue: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#111827'
+    color: '#111827',
   },
   filterBar: {
     display: 'flex',
     gap: '12px',
     marginBottom: '20px',
-    flexWrap: 'wrap' as any
+    flexWrap: 'wrap' as any,
   },
   filterInput: {
     padding: '8px 12px',
     border: '1px solid #d1d5db',
     borderRadius: '4px',
-    fontSize: '14px'
+    fontSize: '14px',
   },
   refreshButton: {
     padding: '8px 16px',
@@ -499,16 +561,16 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
   },
   tableContainer: {
     overflowX: 'auto' as any,
     border: '1px solid #e5e7eb',
-    borderRadius: '8px'
+    borderRadius: '8px',
   },
   table: {
     width: '100%',
-    borderCollapse: 'collapse' as any
+    borderCollapse: 'collapse' as any,
   },
   th: {
     backgroundColor: '#f9fafb',
@@ -517,29 +579,29 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 'bold',
     color: '#374151',
-    borderBottom: '2px solid #e5e7eb'
+    borderBottom: '2px solid #e5e7eb',
   },
   tr: {
-    borderBottom: '1px solid #f3f4f6'
+    borderBottom: '1px solid #f3f4f6',
   },
   td: {
     padding: '12px',
     fontSize: '14px',
-    color: '#111827'
+    color: '#111827',
   },
   badge: {
     padding: '4px 8px',
     borderRadius: '4px',
     fontSize: '12px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   badgeEnsemble: {
     backgroundColor: '#dbeafe',
-    color: '#1e40af'
+    color: '#1e40af',
   },
   badgeColdstart: {
     backgroundColor: '#fef3c7',
-    color: '#92400e'
+    color: '#92400e',
   },
   progressBarContainer: {
     width: '80px',
@@ -547,12 +609,12 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#e5e7eb',
     borderRadius: '4px',
     display: 'inline-block',
-    marginRight: '8px'
+    marginRight: '8px',
   },
   progressBar: {
     height: '100%',
     backgroundColor: '#3b82f6',
-    borderRadius: '4px'
+    borderRadius: '4px',
   },
   detailButton: {
     padding: '6px 12px',
@@ -560,19 +622,19 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #d1d5db',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
   },
   emptyState: {
     padding: '40px',
     textAlign: 'center' as any,
-    color: '#6b7280'
+    color: '#6b7280',
   },
   pagination: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     gap: '16px',
-    marginTop: '20px'
+    marginTop: '20px',
   },
   paginationButton: {
     padding: '8px 16px',
@@ -580,11 +642,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #d1d5db',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
   },
   paginationInfo: {
     fontSize: '14px',
-    color: '#6b7280'
+    color: '#6b7280',
   },
   modalOverlay: {
     position: 'fixed' as any,
@@ -596,7 +658,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
   },
   modalContent: {
     backgroundColor: '#fff',
@@ -604,14 +666,14 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: '900px',
     maxHeight: '90vh',
     width: '90%',
-    overflow: 'auto' as any
+    overflow: 'auto' as any,
   },
   modalHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '20px',
-    borderBottom: '1px solid #e5e7eb'
+    borderBottom: '1px solid #e5e7eb',
   },
   closeButton: {
     fontSize: '28px',
@@ -619,88 +681,88 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
     color: '#6b7280',
-    lineHeight: 1
+    lineHeight: 1,
   },
   modalBody: {
-    padding: '20px'
+    padding: '20px',
   },
   section: {
-    marginBottom: '24px'
+    marginBottom: '24px',
   },
   sectionTitle: {
     fontSize: '16px',
     fontWeight: 'bold',
     marginBottom: '12px',
-    color: '#111827'
+    color: '#111827',
   },
   infoGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '12px',
-    fontSize: '14px'
+    fontSize: '14px',
   },
   stateGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '8px'
+    gap: '8px',
   },
   stateItem: {
     padding: '8px',
     backgroundColor: '#f9fafb',
     borderRadius: '4px',
-    fontSize: '13px'
+    fontSize: '13px',
   },
   stateLabel: {
     fontWeight: 'bold',
-    marginRight: '4px'
+    marginRight: '4px',
   },
   stateValue: {
-    color: '#6b7280'
+    color: '#6b7280',
   },
   pipelineContainer: {
     display: 'flex',
     flexDirection: 'column' as any,
-    gap: '12px'
+    gap: '12px',
   },
   pipelineStage: {
     padding: '12px',
     backgroundColor: '#f9fafb',
     borderRadius: '6px',
-    borderLeft: '4px solid #3b82f6'
+    borderLeft: '4px solid #3b82f6',
   },
   stageHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginBottom: '8px'
+    marginBottom: '8px',
   },
   stageIcon: {
     fontSize: '18px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   stageName: {
     fontSize: '14px',
     fontWeight: 'bold',
-    flex: 1
+    flex: 1,
   },
   stageStatus: {
     fontSize: '12px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   stageDuration: {
     fontSize: '12px',
-    color: '#6b7280'
+    color: '#6b7280',
   },
   stageSummary: {
     fontSize: '12px',
     color: '#6b7280',
-    marginLeft: '30px'
+    marginLeft: '30px',
   },
   stageError: {
     fontSize: '12px',
     color: '#ef4444',
     marginLeft: '30px',
-    marginTop: '4px'
+    marginTop: '4px',
   },
   jsonBlock: {
     backgroundColor: '#f3f4f6',
@@ -708,14 +770,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '4px',
     fontSize: '12px',
     overflow: 'auto' as any,
-    maxHeight: '300px'
+    maxHeight: '300px',
   },
   error: {
     padding: '12px',
     backgroundColor: '#fee',
     color: '#c33',
-    borderRadius: '4px'
-  }
+    borderRadius: '4px',
+  },
 };
 
 export default AMASDecisionsTab;

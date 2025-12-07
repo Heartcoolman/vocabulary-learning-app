@@ -131,9 +131,7 @@ describe('aboutApi', () => {
         hint_level: 1,
       },
       explanation: {
-        factors: [
-          { name: 'attention', value: 0.8, impact: 'positive', percentage: 30 },
-        ],
+        factors: [{ name: 'attention', value: 0.8, impact: 'positive', percentage: 30 }],
         summary: 'Good attention level suggests continuing with current difficulty',
       },
     };
@@ -148,7 +146,7 @@ describe('aboutApi', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(mockRequest),
-        })
+        }),
       );
       expect(result).toEqual(mockResponse);
     });
@@ -165,7 +163,7 @@ describe('aboutApi', () => {
           headers: expect.objectContaining({
             Authorization: 'Bearer test-token',
           }),
-        })
+        }),
       );
     });
 
@@ -196,10 +194,7 @@ describe('aboutApi', () => {
 
       const result = await getOverviewStats();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/about/stats/overview',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/about/stats/overview', expect.any(Object));
       expect(result).toEqual(mockStats);
     });
   });
@@ -222,7 +217,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/algorithm-distribution',
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual(mockDistribution);
     });
@@ -245,10 +240,7 @@ describe('aboutApi', () => {
 
       const result = await getPerformanceMetrics();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/about/stats/performance',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/about/stats/performance', expect.any(Object));
       expect(result).toEqual(mockMetrics);
     });
   });
@@ -274,7 +266,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/optimization-events',
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual(mockEvents);
     });
@@ -295,10 +287,7 @@ describe('aboutApi', () => {
 
       const result = await getMasteryRadar();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/about/stats/mastery-radar',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/about/stats/mastery-radar', expect.any(Object));
       expect(result).toEqual(mockRadar);
     });
   });
@@ -319,7 +308,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/state-distribution',
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual(mockDistribution);
     });
@@ -346,7 +335,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/recent-decisions',
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual(mockDecisions);
     });
@@ -362,7 +351,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/recent-decisions?mixed=true',
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -382,7 +371,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/stats/recent-decisions?mixed=true',
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual(mockMixed);
     });
@@ -408,10 +397,7 @@ describe('aboutApi', () => {
 
       const result = await getDecisionDetail('decision-1');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/about/decision/decision-1',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/about/decision/decision-1', expect.any(Object));
       expect(result).toEqual(mockDetail);
     });
 
@@ -422,7 +408,7 @@ describe('aboutApi', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/about/decision/decision-1?source=virtual',
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -460,10 +446,7 @@ describe('aboutApi', () => {
 
         const result = await getPipelineSnapshot();
 
-        expect(mockFetch).toHaveBeenCalledWith(
-          '/api/about/pipeline/snapshot',
-          expect.any(Object)
-        );
+        expect(mockFetch).toHaveBeenCalledWith('/api/about/pipeline/snapshot', expect.any(Object));
         expect(result).toEqual(mockSnapshot);
       });
     });
@@ -483,7 +466,7 @@ describe('aboutApi', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           '/api/about/pipeline/trace/packet-1',
-          expect.any(Object)
+          expect.any(Object),
         );
         expect(result).toEqual(mockTrace);
       });
@@ -513,7 +496,7 @@ describe('aboutApi', () => {
           expect.objectContaining({
             method: 'POST',
             body: JSON.stringify(mockRequest),
-          })
+          }),
         );
         expect(result).toEqual(mockResponse);
       });
@@ -536,7 +519,7 @@ describe('aboutApi', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           '/api/about/system/pipeline-status',
-          expect.any(Object)
+          expect.any(Object),
         );
         expect(result).toEqual(mockStatus);
       });
@@ -560,7 +543,7 @@ describe('aboutApi', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           '/api/about/system/algorithm-status',
-          expect.any(Object)
+          expect.any(Object),
         );
         expect(result).toEqual(mockStatus);
       });
@@ -588,7 +571,7 @@ describe('aboutApi', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           '/api/about/system/user-state-status',
-          expect.any(Object)
+          expect.any(Object),
         );
         expect(result).toEqual(mockStatus);
       });
@@ -610,7 +593,7 @@ describe('aboutApi', () => {
 
         expect(mockFetch).toHaveBeenCalledWith(
           '/api/about/system/memory-status',
-          expect.any(Object)
+          expect.any(Object),
         );
         expect(result).toEqual(mockStatus);
       });
@@ -627,10 +610,7 @@ describe('aboutApi', () => {
 
         const result = await getFeatureFlags();
 
-        expect(mockFetch).toHaveBeenCalledWith(
-          '/api/about/feature-flags',
-          expect.any(Object)
-        );
+        expect(mockFetch).toHaveBeenCalledWith('/api/about/feature-flags', expect.any(Object));
         expect(result).toEqual(mockFlags);
       });
     });
@@ -684,9 +664,7 @@ describe('aboutApi', () => {
       abortError.name = 'AbortError';
       mockFetch.mockRejectedValueOnce(abortError);
 
-      await expect(
-        getOverviewStats({ signal: controller.signal })
-      ).rejects.toThrow();
+      await expect(getOverviewStats({ signal: controller.signal })).rejects.toThrow();
     });
   });
 
@@ -700,7 +678,10 @@ describe('aboutApi', () => {
         onerror: null as ((event: Event) => void) | null,
       };
 
-      vi.stubGlobal('EventSource', vi.fn(() => mockEventSource));
+      vi.stubGlobal(
+        'EventSource',
+        vi.fn(() => mockEventSource),
+      );
 
       const onDecision = vi.fn();
       const onConnected = vi.fn();

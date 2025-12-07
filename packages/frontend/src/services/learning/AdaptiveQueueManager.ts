@@ -52,7 +52,7 @@ export class AdaptiveQueueManager {
     isCorrect: boolean,
     responseTime: number,
     userState?: UserStateSnapshot,
-    currentWordDifficulty: number = 0.5
+    currentWordDifficulty: number = 0.5,
   ): AdjustmentCheckResult {
     this.answerCount++;
     this.updatePerformance(isCorrect, responseTime);
@@ -94,7 +94,7 @@ export class AdaptiveQueueManager {
       }
 
       learningLogger.info(
-        `[AdaptiveQueue] 触发调整: ${reason} (间隔:${dynamicInterval}, 趋势:${trend.direction}, 难度建议:${suggestedDifficulty || 'none'})`
+        `[AdaptiveQueue] 触发调整: ${reason} (间隔:${dynamicInterval}, 趋势:${trend.direction}, 难度建议:${suggestedDifficulty || 'none'})`,
       );
 
       return {
@@ -102,7 +102,7 @@ export class AdaptiveQueueManager {
         reason,
         trend: trend.direction,
         trendMagnitude: trend.magnitude,
-        suggestedDifficulty
+        suggestedDifficulty,
       };
     }
 
@@ -117,17 +117,17 @@ export class AdaptiveQueueManager {
       return {
         accuracy: 0.5, // 默认中等准确率
         avgResponseTime: 3000, // 默认3秒
-        consecutiveWrong: this.consecutiveWrong
+        consecutiveWrong: this.consecutiveWrong,
       };
     }
 
-    const correctCount = this.recentAnswers.filter(a => a.isCorrect).length;
+    const correctCount = this.recentAnswers.filter((a) => a.isCorrect).length;
     const totalTime = this.recentAnswers.reduce((sum, a) => sum + a.responseTime, 0);
 
     return {
       accuracy: correctCount / this.recentAnswers.length,
       avgResponseTime: totalTime / this.recentAnswers.length,
-      consecutiveWrong: this.consecutiveWrong
+      consecutiveWrong: this.consecutiveWrong,
     };
   }
 
@@ -159,7 +159,7 @@ export class AdaptiveQueueManager {
    */
   private calculateAdaptiveInterval(
     userState: UserStateSnapshot | undefined,
-    performance: RecentPerformance
+    performance: RecentPerformance,
   ): number {
     // 挣扎中：需要立即干预
     if (performance.consecutiveWrong >= 2 || performance.accuracy < 0.4) {
@@ -197,7 +197,7 @@ export class AdaptiveQueueManager {
 
     const calculateAccuracy = (answers: typeof this.recentAnswers): number => {
       if (answers.length === 0) return 0.5;
-      return answers.filter(a => a.isCorrect).length / answers.length;
+      return answers.filter((a) => a.isCorrect).length / answers.length;
     };
 
     const accuracyDiff = calculateAccuracy(newHalf) - calculateAccuracy(oldHalf);
@@ -218,7 +218,7 @@ export class AdaptiveQueueManager {
    */
   private detectDifficultyMismatch(
     performance: RecentPerformance,
-    currentDifficulty: number
+    currentDifficulty: number,
   ): 'harder' | 'easier' | null {
     // 表现优秀但难度太低：建议增加难度
     if (performance.accuracy > 0.9 && currentDifficulty < 0.3) {

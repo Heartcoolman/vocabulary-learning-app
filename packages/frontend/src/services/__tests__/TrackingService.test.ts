@@ -287,7 +287,7 @@ describe('TrackingService', () => {
             'Content-Type': 'application/json',
             Authorization: 'Bearer test-token',
           }),
-        })
+        }),
       );
     });
 

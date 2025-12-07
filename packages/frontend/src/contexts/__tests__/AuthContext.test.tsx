@@ -56,9 +56,7 @@ vi.mock('@/utils/logger', () => ({
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Test wrapper component
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
+const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>;
 
 // Test consumer component
 const TestConsumer = () => {
@@ -69,10 +67,21 @@ const TestConsumer = () => {
       <span data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'unauthenticated'}</span>
       <span data-testid="user-email">{user?.email || 'no-user'}</span>
       <span data-testid="user-id">{user?.id || 'no-id'}</span>
-      <button data-testid="login-btn" onClick={() => login('test@test.com', 'password')}>Login</button>
-      <button data-testid="logout-btn" onClick={() => logout()}>Logout</button>
-      <button data-testid="register-btn" onClick={() => register('test@test.com', 'password', 'testuser')}>Register</button>
-      <button data-testid="refresh-btn" onClick={() => refreshUser()}>Refresh</button>
+      <button data-testid="login-btn" onClick={() => login('test@test.com', 'password')}>
+        Login
+      </button>
+      <button data-testid="logout-btn" onClick={() => logout()}>
+        Logout
+      </button>
+      <button
+        data-testid="register-btn"
+        onClick={() => register('test@test.com', 'password', 'testuser')}
+      >
+        Register
+      </button>
+      <button data-testid="refresh-btn" onClick={() => refreshUser()}>
+        Refresh
+      </button>
     </div>
   );
 };
@@ -131,9 +140,7 @@ describe('AuthContext', () => {
       // renderHook captures errors in result.error instead of throwing
       const { result } = renderHook(() => useAuth());
 
-      expect(result.error).toEqual(
-        new Error('useAuth必须在AuthProvider内部使用')
-      );
+      expect(result.error).toEqual(new Error('useAuth必须在AuthProvider内部使用'));
 
       consoleSpy.mockRestore();
     });
@@ -174,7 +181,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('test@example.com', 'wrongpassword');
-        })
+        }),
       ).rejects.toThrow('Invalid credentials');
 
       expect(result.current.user).toBeNull();
@@ -211,7 +218,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('test@example.com', 'password');
-        })
+        }),
       ).rejects.toThrow('登录响应中缺少认证令牌');
     });
   });
@@ -313,7 +320,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register('existing@example.com', 'password', 'user');
-        })
+        }),
       ).rejects.toThrow('Email already exists');
 
       expect(result.current.user).toBeNull();
@@ -333,7 +340,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register('new@example.com', 'password', 'newuser');
-        })
+        }),
       ).rejects.toThrow('注册响应中缺少认证令牌');
     });
   });
@@ -342,9 +349,7 @@ describe('AuthContext', () => {
     it('should refresh token', async () => {
       const updatedUser = { ...mockUser, username: 'updateduser' };
       mockGetToken.mockReturnValue('valid-token');
-      mockGetCurrentUser
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(updatedUser);
+      mockGetCurrentUser.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(updatedUser);
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -388,7 +393,7 @@ describe('AuthContext', () => {
       mockGetToken.mockReturnValue('valid-token');
       // Delay the getCurrentUser to observe loading state
       mockGetCurrentUser.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockUser), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockUser), 100)),
       );
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -464,7 +469,7 @@ describe('AuthContext', () => {
       render(
         <AuthProvider>
           <TestConsumer />
-        </AuthProvider>
+        </AuthProvider>,
       );
 
       await waitFor(() => {
@@ -482,7 +487,7 @@ describe('AuthContext', () => {
       render(
         <AuthProvider>
           <TestConsumer />
-        </AuthProvider>
+        </AuthProvider>,
       );
 
       await waitFor(() => {

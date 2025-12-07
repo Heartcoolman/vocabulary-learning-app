@@ -80,7 +80,7 @@ describe('HistoryPage', () => {
     return render(
       <MemoryRouter>
         <HistoryPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

@@ -306,7 +306,7 @@ describe('useStudyProgress', () => {
       });
 
       expect(result.current.progress?.todayStudied).toBeGreaterThan(
-        result.current.progress?.todayTarget ?? 0
+        result.current.progress?.todayTarget ?? 0,
       );
     });
   });

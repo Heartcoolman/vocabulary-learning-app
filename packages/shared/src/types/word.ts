@@ -1,23 +1,131 @@
-export interface Word {
-  id: string;
+/**
+ * 单词相关类型定义
+ */
+
+import { BaseEntity, ID, Timestamp } from './common';
+
+/**
+ * 单词
+ */
+export interface Word extends BaseEntity {
   spelling: string;
-  phonetic?: string;
-  definition: string;
-  example?: string;
+  phonetic?: string | null;
+  meanings: string[];
+  examples: string[];
+  audioUrl?: string | null;
+  wordBookId?: ID;
   frequency?: number;
   difficulty?: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-export type WordBookType = 'SYSTEM' | 'CUSTOM';
+/**
+ * 创建单词DTO
+ */
+export interface CreateWordDto {
+  spelling: string;
+  phonetic?: string | null;
+  meanings: string[];
+  examples: string[];
+  audioUrl?: string | null;
+}
 
-export interface WordBook {
-  id: string;
+/**
+ * 更新单词DTO
+ */
+export interface UpdateWordDto {
+  spelling?: string;
+  phonetic?: string | null;
+  meanings?: string[];
+  examples?: string[];
+  audioUrl?: string | null;
+}
+
+/**
+ * 词书类型
+ */
+export type WordBookType = 'SYSTEM' | 'USER';
+
+/**
+ * 词书
+ */
+export interface WordBook extends BaseEntity {
+  name: string;
+  description?: string | null;
+  type: WordBookType;
+  userId?: ID | null;
+  isPublic: boolean;
+  wordCount: number;
+  coverImage?: string | null;
+}
+
+/**
+ * 创建词书DTO
+ */
+export interface CreateWordBookDto {
   name: string;
   description?: string;
-  type: WordBookType;
-  wordCount: number;
-  createdAt: Date;
-  updatedAt: Date;
+  coverImage?: string;
+}
+
+/**
+ * 更新词书DTO
+ */
+export interface UpdateWordBookDto {
+  name?: string;
+  description?: string;
+  coverImage?: string;
+}
+
+/**
+ * 单词状态
+ */
+export enum WordState {
+  NEW = 'NEW',
+  LEARNING = 'LEARNING',
+  REVIEWING = 'REVIEWING',
+  MASTERED = 'MASTERED',
+}
+
+/**
+ * 单词学习状态
+ */
+export interface WordLearningState extends BaseEntity {
+  userId: ID;
+  wordId: ID;
+  state: WordState;
+  masteryLevel: number;
+  easeFactor: number;
+  reviewCount: number;
+  lastReviewDate: Timestamp | null;
+  nextReviewDate: Timestamp | null;
+  currentInterval: number;
+  consecutiveCorrect: number;
+  consecutiveWrong: number;
+}
+
+/**
+ * 单词综合评分
+ */
+export interface WordScore extends BaseEntity {
+  userId: ID;
+  wordId: ID;
+  totalScore: number;
+  accuracyScore: number;
+  speedScore: number;
+  stabilityScore: number;
+  proficiencyScore: number;
+  totalAttempts: number;
+  correctAttempts: number;
+  averageResponseTime: number;
+  averageDwellTime: number;
+  recentAccuracy: number;
+}
+
+/**
+ * 单词统计信息
+ */
+export interface WordStatistics {
+  attempts: number;
+  correct: number;
+  lastStudied: Timestamp;
 }

@@ -31,10 +31,12 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
     return { x, y };
   };
 
-  const polygonPoints = data.map((d, i) => {
-    const p = getPoint(i, d.value);
-    return `${p.x},${p.y}`;
-  }).join(' ');
+  const polygonPoints = data
+    .map((d, i) => {
+      const p = getPoint(i, d.value);
+      return `${p.x},${p.y}`;
+    })
+    .join(' ');
 
   // Axis lines
   const axisLines = data.map((_, i) => {
@@ -55,23 +57,19 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
 
   // Grid levels
   const gridLevels = [0.25, 0.5, 0.75, 1.0].map((level, idx) => {
-    const points = data.map((_, i) => {
-      const p = getPoint(i, level);
-      return `${p.x},${p.y}`;
-    }).join(' ');
+    const points = data
+      .map((_, i) => {
+        const p = getPoint(i, level);
+        return `${p.x},${p.y}`;
+      })
+      .join(' ');
     return (
-      <polygon
-        key={`grid-${idx}`}
-        points={points}
-        fill="none"
-        stroke="#e5e7eb"
-        strokeWidth="1"
-      />
+      <polygon key={`grid-${idx}`} points={points} fill="none" stroke="#e5e7eb" strokeWidth="1" />
     );
   });
 
   return (
-    <div className="flex flex-col items-center justify-center py-6 animate-fade-in">
+    <div className="flex animate-fade-in flex-col items-center justify-center py-6">
       <div className="relative">
         <svg width={size} height={size} className="overflow-visible">
           {/* Background Grid */}
@@ -92,21 +90,14 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
             const p = getPoint(i, d.value);
             return (
               <g key={`point-${i}`}>
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r="4"
-                  fill="#6366f1"
-                  stroke="white"
-                  strokeWidth="2"
-                />
+                <circle cx={p.x} cy={p.y} r="4" fill="#6366f1" stroke="white" strokeWidth="2" />
                 {/* Labels */}
                 <text
                   x={getPoint(i, 1.2).x}
                   y={getPoint(i, 1.2).y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="text-xs font-medium fill-gray-600 dark:fill-gray-400"
+                  className="fill-gray-600 text-xs font-medium dark:fill-gray-400"
                 >
                   {d.label}
                 </text>
@@ -116,7 +107,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
                   y={getPoint(i, 1.2).y + 14}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="text-xs font-bold fill-indigo-600 dark:fill-indigo-400"
+                  className="fill-indigo-600 text-xs font-bold dark:fill-indigo-400"
                 >
                   {d.value.toFixed(2)}
                 </text>
@@ -126,12 +117,12 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
         </svg>
       </div>
 
-      <div className="mt-6 text-center max-w-md">
-        <h4 className="font-medium text-gray-900 dark:text-white mb-2">算法混合策略</h4>
+      <div className="mt-6 max-w-md text-center">
+        <h4 className="mb-2 font-medium text-gray-900 dark:text-white">算法混合策略</h4>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           当前决策主要由
-          <span className="font-bold text-indigo-600 dark:text-indigo-400 mx-1">
-             {data.reduce((prev, current) => (prev.value > current.value) ? prev : current).label}
+          <span className="mx-1 font-bold text-indigo-600 dark:text-indigo-400">
+            {data.reduce((prev, current) => (prev.value > current.value ? prev : current)).label}
           </span>
           主导，结合其他模型进行平衡。
         </p>

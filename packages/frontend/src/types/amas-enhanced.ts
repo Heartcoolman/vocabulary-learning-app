@@ -430,7 +430,7 @@ export type TimePreferenceResponse = TimePreference | InsufficientDataResponse;
  * 判断是否为数据不足响应
  */
 export function isInsufficientData(
-  response: TimePreferenceResponse
+  response: TimePreferenceResponse,
 ): response is InsufficientDataResponse {
   return 'insufficientData' in response && response.insufficientData === true;
 }

@@ -32,7 +32,7 @@ vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
       validateConfig = vi.fn().mockReturnValue({ isValid: true, errors: [] });
       updateConfig = vi.fn().mockResolvedValue(mockConfig);
       resetToDefault = vi.fn().mockResolvedValue(mockConfig);
-    }
+    },
   };
 });
 
@@ -59,7 +59,9 @@ vi.mock('@/components/Icon', async () => {
     Plus: () => <span data-testid="icon-plus">+</span>,
     Trash: () => <span data-testid="icon-trash">🗑️</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });

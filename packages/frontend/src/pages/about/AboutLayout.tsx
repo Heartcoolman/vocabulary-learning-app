@@ -6,14 +6,7 @@
  */
 
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import {
-  Sparkle,
-  SlidersHorizontal,
-  Pulse,
-  ChartBar,
-  Cpu,
-  SignIn
-} from '../../components/Icon';
+import { Sparkle, SlidersHorizontal, Pulse, ChartBar, Cpu, SignIn } from '../../components/Icon';
 
 /** 菜单项配置 */
 const menuItems = [
@@ -30,11 +23,11 @@ export default function AboutLayout() {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* 侧边栏 */}
-      <aside className="w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200/60 flex flex-col">
+      <aside className="flex w-64 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-sm">
         {/* 标题区 */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="border-b border-gray-200 p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
               <Sparkle size={24} weight="fill" className="text-white" />
             </div>
             <div>
@@ -45,7 +38,7 @@ export default function AboutLayout() {
         </div>
 
         {/* 导航菜单 */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 space-y-2 p-4">
           {menuItems.map((item) => {
             // 特殊处理：/about 精确匹配
             const finalActive = item.exact
@@ -58,47 +51,30 @@ export default function AboutLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl
-                  transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
-                  ${finalActive
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                  finalActive
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25'
                     : 'text-gray-700 hover:bg-gray-100'
-                  }
-                `}
+                } `}
               >
-                <IconComponent
-                  size={20}
-                  weight={finalActive ? 'fill' : 'regular'}
-                />
-                <span className={finalActive ? 'font-medium' : ''}>
-                  {item.label}
-                </span>
+                <IconComponent size={20} weight={finalActive ? 'fill' : 'regular'} />
+                <span className={finalActive ? 'font-medium' : ''}>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* 底部登录按钮 */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="border-t border-gray-200 p-4">
           <Link
             to="/login"
-            className="
-              flex items-center justify-center gap-2 w-full px-4 py-3
-              bg-gradient-to-r from-green-500 to-emerald-500
-              text-white font-medium rounded-xl
-              shadow-lg shadow-green-500/25
-              transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
-              hover:shadow-xl hover:shadow-green-500/30
-            "
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 font-medium text-white shadow-lg shadow-green-500/25 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-green-500/30 active:scale-[0.98]"
           >
             <SignIn size={20} weight="bold" />
             开始学习
           </Link>
 
-          <p className="mt-3 text-xs text-center text-gray-400">
-            登录后体验完整功能
-          </p>
+          <p className="mt-3 text-center text-xs text-gray-400">登录后体验完整功能</p>
         </div>
       </aside>
 

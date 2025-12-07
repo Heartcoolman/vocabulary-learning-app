@@ -14,7 +14,7 @@ import {
   CheckCircle,
   Warning,
   CircleNotch,
-  ArrowLeft
+  ArrowLeft,
 } from '../components/Icon';
 
 /**
@@ -57,7 +57,7 @@ export default function BadgeGalleryPage() {
     // 转换为 Badge 类型
     const badgeForModal: Badge = {
       ...badge,
-      unlockedAt: badge.unlocked ? badge.unlockedAt : undefined
+      unlockedAt: badge.unlocked ? badge.unlockedAt : undefined,
     };
     setSelectedBadge(badgeForModal);
   };
@@ -134,15 +134,19 @@ export default function BadgeGalleryPage() {
   };
 
   // 过滤徽章
-  const filteredBadges = activeCategory === 'ALL'
-    ? badges
-    : badges.filter(b => b.category === activeCategory);
+  const filteredBadges =
+    activeCategory === 'ALL' ? badges : badges.filter((b) => b.category === activeCategory);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="text-center">
-          <CircleNotch className="animate-spin mx-auto mb-4" size={48} weight="bold" color="#3b82f6" />
+          <CircleNotch
+            className="mx-auto mb-4 animate-spin"
+            size={48}
+            weight="bold"
+            color="#3b82f6"
+          />
           <p className="text-gray-600">正在加载成就画廊...</p>
         </div>
       </div>
@@ -151,14 +155,14 @@ export default function BadgeGalleryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center animate-g3-fade-in">
-        <div className="text-center max-w-md px-4" role="alert">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
+        <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">出错了</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
+          <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={loadAllBadges}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -169,32 +173,32 @@ export default function BadgeGalleryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8 animate-g3-fade-in">
+      <div className="mx-auto max-w-6xl animate-g3-fade-in px-4 py-8">
         {/* 页面标题 */}
         <header className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
+          <div className="mb-4 flex items-center gap-4">
             <button
               onClick={() => navigate('/achievements')}
-              className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
               aria-label="返回"
             >
               <ArrowLeft size={20} weight="bold" color="#6b7280" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
                 <Trophy size={32} weight="duotone" color="#f59e0b" />
                 成就画廊
               </h1>
-              <p className="text-gray-600 mt-1">浏览所有可获得的成就徽章</p>
+              <p className="mt-1 text-gray-600">浏览所有可获得的成就徽章</p>
             </div>
           </div>
         </header>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Medal size={24} weight="duotone" color="#ca8a04" />
               </div>
               <div>
@@ -204,9 +208,9 @@ export default function BadgeGalleryPage() {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Star size={24} weight="duotone" color="#2563eb" />
               </div>
               <div>
@@ -216,9 +220,9 @@ export default function BadgeGalleryPage() {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle size={24} weight="duotone" color="#16a34a" />
               </div>
               <div>
@@ -232,10 +236,10 @@ export default function BadgeGalleryPage() {
         </div>
 
         {/* 类别筛选 */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="mb-6 flex flex-wrap gap-2">
           <button
             onClick={() => setActiveCategory('ALL')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+            className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
               activeCategory === 'ALL'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -243,14 +247,14 @@ export default function BadgeGalleryPage() {
           >
             全部
           </button>
-          {(['STREAK', 'ACCURACY', 'COGNITIVE', 'MILESTONE'] as BadgeCategory[]).map(category => {
+          {(['STREAK', 'ACCURACY', 'COGNITIVE', 'MILESTONE'] as BadgeCategory[]).map((category) => {
             const CategoryIcon = getCategoryIcon(category);
             const color = getCategoryColor(category);
             return (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
                   activeCategory === category
                     ? 'bg-blue-500 text-white shadow-sm'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -269,7 +273,7 @@ export default function BadgeGalleryPage() {
 
         {/* 徽章网格 */}
         {filteredBadges.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {filteredBadges.map((badge) => {
               const CategoryIcon = getCategoryIcon(badge.category);
               const categoryColor = getCategoryColor(badge.category);
@@ -280,22 +284,15 @@ export default function BadgeGalleryPage() {
                 <div
                   key={badge.id}
                   onClick={() => openBadgeDetail(badge)}
-                  className={`
-                    relative p-4 rounded-2xl border-2 cursor-pointer
-                    transition-all duration-200 hover:scale-105 hover:shadow-lg
-                    ${
-                      isUnlocked
-                        ? `${tierColor.bg} ${tierColor.border}`
-                        : 'bg-gray-100 border-gray-300 opacity-60'
-                    }
-                  `}
+                  className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                    isUnlocked
+                      ? `${tierColor.bg} ${tierColor.border}`
+                      : 'border-gray-300 bg-gray-100 opacity-60'
+                  } `}
                 >
                   {/* 徽章图标 */}
                   <div
-                    className={`
-                      w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-3
-                      ${isUnlocked ? categoryColor.bg : 'bg-gray-200'}
-                    `}
+                    className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full ${isUnlocked ? categoryColor.bg : 'bg-gray-200'} `}
                   >
                     <CategoryIcon
                       size={32}
@@ -305,12 +302,14 @@ export default function BadgeGalleryPage() {
                   </div>
 
                   {/* 徽章名称 */}
-                  <h3 className={`text-center font-bold mb-1 ${isUnlocked ? tierColor.text : 'text-gray-500'}`}>
+                  <h3
+                    className={`mb-1 text-center font-bold ${isUnlocked ? tierColor.text : 'text-gray-500'}`}
+                  >
                     {badge.name}
                   </h3>
 
                   {/* 等级星星 */}
-                  <div className="flex items-center justify-center gap-0.5 mb-2">
+                  <div className="mb-2 flex items-center justify-center gap-0.5">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
@@ -324,21 +323,19 @@ export default function BadgeGalleryPage() {
                   {/* 进度条（未解锁时显示） */}
                   {!isUnlocked && badge.progress !== undefined && (
                     <div className="mt-2">
-                      <div className="w-full bg-gray-300 rounded-full h-1.5">
+                      <div className="h-1.5 w-full rounded-full bg-gray-300">
                         <div
-                          className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                          className="h-1.5 rounded-full bg-blue-500 transition-all duration-500"
                           style={{ width: `${badge.progress}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-500 text-center mt-1">
-                        {badge.progress}%
-                      </p>
+                      <p className="mt-1 text-center text-xs text-gray-500">{badge.progress}%</p>
                     </div>
                   )}
 
                   {/* 已解锁标记 */}
                   {isUnlocked && (
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute right-2 top-2">
                       <CheckCircle size={20} weight="fill" color="#22c55e" />
                     </div>
                   )}
@@ -347,15 +344,13 @@ export default function BadgeGalleryPage() {
             })}
           </div>
         ) : (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-8 text-center">
+          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-8 text-center">
             <Trophy size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-blue-800 mb-2">暂无徽章</h2>
-            <p className="text-blue-600 mb-4">
-              继续学习，解锁更多成就徽章！
-            </p>
+            <h2 className="mb-2 text-xl font-bold text-blue-800">暂无徽章</h2>
+            <p className="mb-4 text-blue-600">继续学习，解锁更多成就徽章！</p>
             <button
               onClick={() => navigate('/learning')}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95"
+              className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               开始学习
             </button>
@@ -363,9 +358,7 @@ export default function BadgeGalleryPage() {
         )}
 
         {/* 徽章详情弹窗 */}
-        {selectedBadge && (
-          <BadgeDetailModal badge={selectedBadge} onClose={closeBadgeDetail} />
-        )}
+        {selectedBadge && <BadgeDetailModal badge={selectedBadge} onClose={closeBadgeDetail} />}
       </div>
     </div>
   );

@@ -68,7 +68,13 @@ vi.mock('../../../utils/logger', () => ({
 
 const mockLatestDecision: AmasProcessResult = {
   sessionId: 'test-session-1',
-  selectedWord: { id: 'word-1', spelling: 'test', phonetic: '/test/', meanings: ['测试'], examples: [] },
+  selectedWord: {
+    id: 'word-1',
+    spelling: 'test',
+    phonetic: '/test/',
+    meanings: ['测试'],
+    examples: [],
+  },
   explanation: '选择此单词是因为它匹配当前学习状态。',
   confidence: 0.85,
   state: {
@@ -86,9 +92,7 @@ const mockExplanationResponse = {
   reasoning: '基于多因素分析选择此单词',
   state: { attention: 0.7, fatigue: 0.3, motivation: 0.8 },
   difficultyFactors: { length: 0.5, accuracy: 0.6, frequency: 0.4, forgetting: 0.3 },
-  factors: [
-    { name: '记忆强度', score: 0.6, weight: 0.4, explanation: '记忆痕迹', icon: 'memory' },
-  ],
+  factors: [{ name: '记忆强度', score: 0.6, weight: 0.4, explanation: '记忆痕迹', icon: 'memory' }],
   weights: { thompson: 0.5, linucb: 0.25, actr: 0.15, heuristic: 0.1 },
 };
 
@@ -122,7 +126,7 @@ describe('ExplainabilityModal', () => {
           isOpen={false}
           onClose={vi.fn()}
           latestDecision={mockLatestDecision}
-        />
+        />,
       );
 
       expect(screen.queryByText('AMAS 决策透视')).not.toBeInTheDocument();
@@ -130,11 +134,7 @@ describe('ExplainabilityModal', () => {
 
     it('should render when isOpen is true', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByText('AMAS 决策透视')).toBeInTheDocument();
@@ -142,11 +142,7 @@ describe('ExplainabilityModal', () => {
 
     it('should render subtitle', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByText('为什么选择这个词？')).toBeInTheDocument();
@@ -154,11 +150,7 @@ describe('ExplainabilityModal', () => {
 
     it('should render all tab buttons', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByText('决策因素')).toBeInTheDocument();
@@ -169,11 +161,7 @@ describe('ExplainabilityModal', () => {
 
     it('should render close button', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByTestId('icon-x')).toBeInTheDocument();
@@ -181,11 +169,7 @@ describe('ExplainabilityModal', () => {
 
     it('should render footer', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByText(/Powered by AMAS/)).toBeInTheDocument();
@@ -197,15 +181,11 @@ describe('ExplainabilityModal', () => {
   describe('loading state', () => {
     it('should show loading spinner initially', async () => {
       (explainabilityApi.getDecisionExplanation as any).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockExplanationResponse), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockExplanationResponse), 100)),
       );
 
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       expect(screen.getByText('正在解析 AI 决策...')).toBeInTheDocument();
@@ -217,11 +197,7 @@ describe('ExplainabilityModal', () => {
   describe('tab navigation', () => {
     it('should show DecisionFactors by default', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {
@@ -231,11 +207,7 @@ describe('ExplainabilityModal', () => {
 
     it('should switch to WeightRadarChart tab', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {
@@ -251,11 +223,7 @@ describe('ExplainabilityModal', () => {
 
     it('should switch to LearningCurveChart tab', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {
@@ -271,11 +239,7 @@ describe('ExplainabilityModal', () => {
 
     it('should switch to CounterfactualPanel tab', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {
@@ -296,11 +260,7 @@ describe('ExplainabilityModal', () => {
     it('should call onClose when close button clicked', async () => {
       const onClose = vi.fn();
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={onClose}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={onClose} latestDecision={mockLatestDecision} />,
       );
 
       const closeButton = screen.getByTestId('icon-x').parentElement;
@@ -314,11 +274,7 @@ describe('ExplainabilityModal', () => {
     it('should call onClose when overlay clicked', async () => {
       const onClose = vi.fn();
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={onClose}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={onClose} latestDecision={mockLatestDecision} />,
       );
 
       const overlay = document.querySelector('.backdrop-blur-sm');
@@ -339,11 +295,7 @@ describe('ExplainabilityModal', () => {
       (explainabilityApi.getLearningCurve as any).mockRejectedValue(new Error('API Error'));
 
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       // Component should still show content using latestDecision fallback
@@ -354,13 +306,7 @@ describe('ExplainabilityModal', () => {
     });
 
     it('should handle missing latestDecision', () => {
-      render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={null}
-        />
-      );
+      render(<ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={null} />);
 
       // Should not crash and show loading or empty state
       expect(screen.getByText('AMAS 决策透视')).toBeInTheDocument();
@@ -372,11 +318,7 @@ describe('ExplainabilityModal', () => {
   describe('content display', () => {
     it('should display AI reasoning', async () => {
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {
@@ -388,11 +330,7 @@ describe('ExplainabilityModal', () => {
       (explainabilityApi.getLearningCurve as any).mockResolvedValue({ points: [] });
 
       render(
-        <ExplainabilityModal
-          isOpen={true}
-          onClose={vi.fn()}
-          latestDecision={mockLatestDecision}
-        />
+        <ExplainabilityModal isOpen={true} onClose={vi.fn()} latestDecision={mockLatestDecision} />,
       );
 
       await waitFor(() => {

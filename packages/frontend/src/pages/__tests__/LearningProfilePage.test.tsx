@@ -27,7 +27,7 @@ const mockChronotypeData = {
 
 const mockLearningStyleData = {
   style: 'visual' as const,
-  confidence: 0.80,
+  confidence: 0.8,
   scores: {
     visual: 0.75,
     auditory: 0.45,
@@ -68,7 +68,7 @@ describe('LearningProfilePage', () => {
     return render(
       <MemoryRouter>
         <LearningProfilePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

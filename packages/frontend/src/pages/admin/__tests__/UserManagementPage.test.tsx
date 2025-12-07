@@ -86,7 +86,12 @@ vi.mock('@/services/ApiClient', () => ({
 // Mock Modal component
 vi.mock('@/components/ui', () => ({
   Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? <div data-testid="modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+    isOpen ? (
+      <div data-testid="modal">
+        {children}
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/Icon', async () => {
@@ -102,7 +107,9 @@ vi.mock('@/components/Icon', async () => {
     Target: () => <span data-testid="icon-target">🎯</span>,
     Clock: () => <span data-testid="icon-clock">🕐</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
   };
 });
@@ -111,7 +118,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <UserManagementPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -188,7 +195,7 @@ describe('UserManagementPage', () => {
 
       await waitFor(() => {
         expect(apiClient.adminGetUsers).toHaveBeenCalledWith(
-          expect.objectContaining({ search: 'test' })
+          expect.objectContaining({ search: 'test' }),
         );
       });
     });
@@ -226,7 +233,11 @@ describe('UserManagementPage', () => {
 
       // Then check pagination info exists - text contains "共找到" and "个用户"
       const paginationInfo = screen.getByText((content, element) => {
-        return element?.tagName === 'P' && content.includes('共找到') && element?.textContent?.includes('个用户');
+        return (
+          element?.tagName === 'P' &&
+          content.includes('共找到') &&
+          element?.textContent?.includes('个用户')
+        );
       });
       expect(paginationInfo).toBeInTheDocument();
     });
@@ -273,10 +284,13 @@ describe('UserManagementPage', () => {
 
       renderWithRouter();
 
-      await waitFor(() => {
-        // Component shows "暂无用户数据" when users array is empty
-        expect(screen.getByText('暂无用户数据')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          // Component shows "暂无用户数据" when users array is empty
+          expect(screen.getByText('暂无用户数据')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 

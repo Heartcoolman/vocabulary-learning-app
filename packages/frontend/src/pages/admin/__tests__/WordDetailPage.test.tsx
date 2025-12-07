@@ -9,7 +9,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import WordDetailPage from '../WordDetailPage';
 
 const mockHistory = {
-  word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: ['I like apple.', 'An apple a day keeps the doctor away.'] },
+  word: {
+    id: 'w1',
+    spelling: 'apple',
+    phonetic: 'ˈæpl',
+    meanings: ['苹果'],
+    examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
+  },
   records: [
     { id: 'r1', isCorrect: true, responseTime: 1500, timestamp: '2024-01-15T10:00:00Z' },
     { id: 'r2', isCorrect: false, responseTime: 3000, timestamp: '2024-01-14T10:00:00Z' },
@@ -45,7 +51,13 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/services/ApiClient', () => ({
   default: {
     adminGetWordLearningHistory: vi.fn().mockResolvedValue({
-      word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: ['I like apple.', 'An apple a day keeps the doctor away.'] },
+      word: {
+        id: 'w1',
+        spelling: 'apple',
+        phonetic: 'ˈæpl',
+        meanings: ['苹果'],
+        examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
+      },
       records: [
         { id: 'r1', isCorrect: true, responseTime: 1500, timestamp: '2024-01-15T10:00:00Z' },
         { id: 'r2', isCorrect: false, responseTime: 3000, timestamp: '2024-01-14T10:00:00Z' },
@@ -103,7 +115,7 @@ const renderWithRouter = () => {
       <Routes>
         <Route path="/admin/users/:userId/words" element={<WordDetailPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -161,14 +173,20 @@ describe('WordDetailPage', () => {
     it('should display score history', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Score history section should be visible
-      await waitFor(() => {
-        expect(screen.getByText(/当前得分/)).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/当前得分/)).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 
@@ -186,22 +204,31 @@ describe('WordDetailPage', () => {
     it('should show flag button for records', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Flag icons should be present for learning records
-      await waitFor(() => {
-        expect(screen.getAllByTestId('icon-flag').length).toBeGreaterThan(0);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getAllByTestId('icon-flag').length).toBeGreaterThan(0);
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('should open flag dialog when flag clicked', async () => {
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Click the main "标记异常" button (not the per-record flag icons)
       const flagButton = screen.getByText('标记异常');
@@ -217,9 +244,12 @@ describe('WordDetailPage', () => {
       const apiClient = (await import('@/services/ApiClient')).default;
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
 
       // Click the main "标记异常" button
       const flagButton = screen.getByText('标记异常');
@@ -238,9 +268,12 @@ describe('WordDetailPage', () => {
       const submitButton = screen.getByText('确认标记');
       fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(apiClient.adminFlagAnomalyRecord).toHaveBeenCalled();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(apiClient.adminFlagAnomalyRecord).toHaveBeenCalled();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 
@@ -272,9 +305,12 @@ describe('WordDetailPage', () => {
 
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText(/错误|失败|加载/)).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/错误|失败|加载/)).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
     });
   });
 
@@ -294,9 +330,12 @@ describe('WordDetailPage', () => {
 
       renderWithRouter();
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+        },
+        { timeout: 5000 },
+      );
 
       // Verify the component rendered successfully - section title is "完整学习历史"
       expect(screen.getByText('完整学习历史')).toBeInTheDocument();

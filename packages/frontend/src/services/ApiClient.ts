@@ -1,5 +1,6 @@
 import { Word, AnswerRecord, WordBook, StudyConfig } from '../types/models';
 import { apiLogger } from '../utils/logger';
+import { env } from '../config/env';
 
 /**
  * JWT解码后的payload结构
@@ -219,7 +220,6 @@ interface Statistics {
   correctRate: number;
 }
 
-
 /**
  * 学习进度
  */
@@ -279,13 +279,15 @@ export interface UserLearningData {
   correctRecords: number;
   averageAccuracy: number;
   totalWordsLearned: number;
-  recentRecords: Array<AnswerRecord & {
-    word: {
-      spelling: string;
-      phonetic: string;
-      meanings: string[];
-    };
-  }>;
+  recentRecords: Array<
+    AnswerRecord & {
+      word: {
+        spelling: string;
+        phonetic: string;
+        meanings: string[];
+      };
+    }
+  >;
 }
 
 /**
@@ -462,17 +464,15 @@ interface ApiWordLearningState {
 /**
  * 转换WordLearningState的日期字段为时间戳
  */
-function convertLearningStateDates(state: ApiWordLearningState): import('../types/models').WordLearningState {
+function convertLearningStateDates(
+  state: ApiWordLearningState,
+): import('../types/models').WordLearningState {
   return {
     ...state,
     // 将 string 类型的 state 转换为 WordState 枚举
     state: state.state as import('../types/models').WordState,
-    lastReviewDate: state.lastReviewDate
-      ? new Date(state.lastReviewDate).getTime()
-      : null,
-    nextReviewDate: state.nextReviewDate
-      ? new Date(state.nextReviewDate).getTime()
-      : null,
+    lastReviewDate: state.lastReviewDate ? new Date(state.lastReviewDate).getTime() : null,
+    nextReviewDate: state.nextReviewDate ? new Date(state.nextReviewDate).getTime() : null,
     createdAt: new Date(state.createdAt).getTime(),
     updatedAt: new Date(state.updatedAt).getTime(),
   };
@@ -660,7 +660,7 @@ class ApiClient {
   private onUnauthorizedCallback: (() => void) | null = null;
   private defaultTimeout: number = DEFAULT_TIMEOUT;
 
-  constructor(baseUrl: string = import.meta.env.VITE_API_URL || '') {
+  constructor(baseUrl: string = env.apiUrl) {
     this.baseUrl = baseUrl;
 
     // 从localStorage读取token并验证有效性
@@ -759,7 +759,7 @@ class ApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    timeout: number = this.defaultTimeout
+    timeout: number = this.defaultTimeout,
   ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -824,7 +824,7 @@ class ApiClient {
         throw new ApiError(
           data.error || `请求失败: ${response.status}`,
           response.status,
-          data.code
+          data.code,
         );
       }
 
@@ -858,7 +858,7 @@ class ApiClient {
   private async requestFull<T>(
     endpoint: string,
     options: RequestInit = {},
-    timeout: number = this.defaultTimeout
+    timeout: number = this.defaultTimeout,
   ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -1014,7 +1014,10 @@ class ApiClient {
   /**
    * 更新单词
    */
-  async updateWord(wordId: string, wordData: Partial<Omit<Word, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Word> {
+  async updateWord(
+    wordId: string,
+    wordData: Partial<Omit<Word, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<Word> {
     const apiWord = await this.request<ApiWord>(`/api/words/${wordId}`, {
       method: 'PUT',
       body: JSON.stringify(wordData),
@@ -1047,11 +1050,14 @@ class ApiClient {
    * @param query 搜索关键词
    * @param limit 返回结果数量限制
    */
-  async searchWords(query: string, limit: number = 20): Promise<(Word & { wordBook?: { id: string; name: string; type: string } })[]> {
-    const apiWords = await this.request<(ApiWord & { wordBook?: { id: string; name: string; type: string } })[]>(
-      `/api/words/search?q=${encodeURIComponent(query)}&limit=${limit}`
-    );
-    return apiWords.map(w => ({
+  async searchWords(
+    query: string,
+    limit: number = 20,
+  ): Promise<(Word & { wordBook?: { id: string; name: string; type: string } })[]> {
+    const apiWords = await this.request<
+      (ApiWord & { wordBook?: { id: string; name: string; type: string } })[]
+    >(`/api/words/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    return apiWords.map((w) => ({
       ...convertApiWord(w),
       wordBook: w.wordBook,
     }));
@@ -1062,7 +1068,6 @@ class ApiClient {
   /**
    * 分页结果类型
    */
-
 
   /**
    * 获取学习记录（支持分页）
@@ -1097,9 +1102,10 @@ class ApiClient {
     // 后端返回的是 Date 字符串，这里统一转换为时间戳（毫秒）以与本地模型对齐
     const records = (body.data || []).map((record) => ({
       ...record,
-      timestamp: typeof record.timestamp === 'string'
-        ? new Date(record.timestamp).getTime()
-        : record.timestamp,
+      timestamp:
+        typeof record.timestamp === 'string'
+          ? new Date(record.timestamp).getTime()
+          : record.timestamp,
     })) as AnswerRecord[];
 
     // 默认分页信息：pageSize 使用请求参数或合理默认值（避免空数据时 pageSize 为 0）
@@ -1174,7 +1180,11 @@ class ApiClient {
   /**
    * 创建用户词书
    */
-  async createWordBook(data: { name: string; description?: string; coverImage?: string }): Promise<WordBook> {
+  async createWordBook(data: {
+    name: string;
+    description?: string;
+    coverImage?: string;
+  }): Promise<WordBook> {
     const apiWordBook = await this.request<ApiWordBook>('/api/wordbooks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -1185,7 +1195,10 @@ class ApiClient {
   /**
    * 更新词书
    */
-  async updateWordBook(id: string, data: { name?: string; description?: string; coverImage?: string }): Promise<WordBook> {
+  async updateWordBook(
+    id: string,
+    data: { name?: string; description?: string; coverImage?: string },
+  ): Promise<WordBook> {
     const apiWordBook = await this.request<ApiWordBook>(`/api/wordbooks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -1213,7 +1226,10 @@ class ApiClient {
   /**
    * 向词书添加单词
    */
-  async addWordToWordBook(wordBookId: string, wordData: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<Word> {
+  async addWordToWordBook(
+    wordBookId: string,
+    wordData: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Word> {
     const apiWord = await this.request<ApiWord>(`/api/wordbooks/${wordBookId}/words`, {
       method: 'POST',
       body: JSON.stringify(wordData),
@@ -1259,7 +1275,9 @@ class ApiClient {
    * 获取今日学习单词
    */
   async getTodayWords(): Promise<TodayWordsResponse> {
-    const response = await this.request<{ words: ApiWord[]; progress: StudyProgress }>('/api/study-config/today-words');
+    const response = await this.request<{ words: ApiWord[]; progress: StudyProgress }>(
+      '/api/study-config/today-words',
+    );
     return {
       words: response.words.map(convertApiWord),
       progress: response.progress,
@@ -1278,7 +1296,11 @@ class ApiClient {
   /**
    * 获取用户列表（管理员）
    */
-  async adminGetUsers(params?: { page?: number; pageSize?: number; search?: string }): Promise<AdminUsersResponse> {
+  async adminGetUsers(params?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  }): Promise<AdminUsersResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
@@ -1324,20 +1346,24 @@ class ApiClient {
       state?: 'new' | 'learning' | 'reviewing' | 'mastered';
       sortBy?: 'score' | 'accuracy' | 'reviewCount' | 'lastReview';
       sortOrder?: 'asc' | 'desc';
-    }
+    },
   ): Promise<UserWordsResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     if (params?.scoreRange) queryParams.append('scoreRange', params.scoreRange);
-    if (params?.masteryLevel !== undefined) queryParams.append('masteryLevel', params.masteryLevel.toString());
-    if (params?.minAccuracy !== undefined) queryParams.append('minAccuracy', params.minAccuracy.toString());
+    if (params?.masteryLevel !== undefined)
+      queryParams.append('masteryLevel', params.masteryLevel.toString());
+    if (params?.minAccuracy !== undefined)
+      queryParams.append('minAccuracy', params.minAccuracy.toString());
     if (params?.state) queryParams.append('state', params.state);
     if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
     const query = queryParams.toString();
-    return this.request<UserWordsResponse>(`/api/admin/users/${userId}/words${query ? `?${query}` : ''}`);
+    return this.request<UserWordsResponse>(
+      `/api/admin/users/${userId}/words${query ? `?${query}` : ''}`,
+    );
   }
 
   /**
@@ -1348,10 +1374,9 @@ class ApiClient {
 
     const response = await fetch(url, {
       headers: {
-        'Authorization': this.token ? `Bearer ${this.token}` : '',
+        Authorization: this.token ? `Bearer ${this.token}` : '',
       },
     });
-
 
     if (!response.ok) {
       throw new Error('导出失败');
@@ -1426,11 +1451,14 @@ class ApiClient {
   /**
    * 更新系统词库（管理员）
    */
-  async adminUpdateSystemWordBook(id: string, data: {
-    name?: string;
-    description?: string;
-    coverImage?: string;
-  }): Promise<WordBook> {
+  async adminUpdateSystemWordBook(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      coverImage?: string;
+    },
+  ): Promise<WordBook> {
     const apiWordBook = await this.request<ApiWordBook>(`/api/admin/wordbooks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -1450,11 +1478,17 @@ class ApiClient {
   /**
    * 批量添加单词到系统词库（管理员）
    */
-  async adminBatchAddWordsToSystemWordBook(wordBookId: string, words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {
-    const apiWords = await this.request<ApiWord[]>(`/api/admin/wordbooks/${wordBookId}/words/batch`, {
-      method: 'POST',
-      body: JSON.stringify({ words }),
-    });
+  async adminBatchAddWordsToSystemWordBook(
+    wordBookId: string,
+    words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[],
+  ): Promise<Word[]> {
+    const apiWords = await this.request<ApiWord[]>(
+      `/api/admin/wordbooks/${wordBookId}/words/batch`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ words }),
+      },
+    );
     return apiWords.map(convertApiWord);
   }
 
@@ -1471,37 +1505,29 @@ class ApiClient {
   async adminGetWordLearningHistory(
     userId: string,
     wordId: string,
-    limit?: number
+    limit?: number,
   ): Promise<WordLearningHistory> {
     const query = limit ? `?limit=${limit}` : '';
     return this.request<WordLearningHistory>(
-      `/api/admin/users/${userId}/words/${wordId}/history${query}`
+      `/api/admin/users/${userId}/words/${wordId}/history${query}`,
     );
   }
 
   /**
    * 获取单词得分历史（管理员）
    */
-  async adminGetWordScoreHistory(
-    userId: string,
-    wordId: string
-  ): Promise<WordScoreHistory> {
+  async adminGetWordScoreHistory(userId: string, wordId: string): Promise<WordScoreHistory> {
     return this.request<WordScoreHistory>(
-      `/api/admin/users/${userId}/words/${wordId}/score-history`
+      `/api/admin/users/${userId}/words/${wordId}/score-history`,
     );
   }
 
   /**
    * 获取用户学习热力图数据（管理员）
    */
-  async adminGetUserLearningHeatmap(
-    userId: string,
-    days?: number
-  ): Promise<UserLearningHeatmap[]> {
+  async adminGetUserLearningHeatmap(userId: string, days?: number): Promise<UserLearningHeatmap[]> {
     const query = days ? `?days=${days}` : '';
-    return this.request<UserLearningHeatmap[]>(
-      `/api/admin/users/${userId}/heatmap${query}`
-    );
+    return this.request<UserLearningHeatmap[]>(`/api/admin/users/${userId}/heatmap${query}`);
   }
 
   /**
@@ -1514,27 +1540,19 @@ class ApiClient {
       recordId?: string;
       reason: string;
       notes?: string;
-    }
+    },
   ): Promise<AnomalyFlag> {
-    return this.request<AnomalyFlag>(
-      `/api/admin/users/${userId}/words/${wordId}/flag`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    );
+    return this.request<AnomalyFlag>(`/api/admin/users/${userId}/words/${wordId}/flag`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   /**
    * 获取异常标记列表（管理员）
    */
-  async adminGetAnomalyFlags(
-    userId: string,
-    wordId: string
-  ): Promise<AnomalyFlag[]> {
-    return this.request<AnomalyFlag[]>(
-      `/api/admin/users/${userId}/words/${wordId}/flags`
-    );
+  async adminGetAnomalyFlags(userId: string, wordId: string): Promise<AnomalyFlag[]> {
+    return this.request<AnomalyFlag[]>(`/api/admin/users/${userId}/words/${wordId}/flags`);
   }
 
   // ==================== 学习状态相关 ====================
@@ -1545,7 +1563,9 @@ class ApiClient {
    * - 返回null表示数据不存在（404）
    * - 其他错误会被抛出，调用方需要处理
    */
-  async getWordLearningState(wordId: string): Promise<import('../types/models').WordLearningState | null> {
+  async getWordLearningState(
+    wordId: string,
+  ): Promise<import('../types/models').WordLearningState | null> {
     try {
       const state = await this.request<ApiWordLearningState>(`/api/word-states/${wordId}`);
       return state ? convertLearningStateDates(state) : null;
@@ -1565,21 +1585,27 @@ class ApiClient {
    * 修复：区分"数据不存在"和"请求失败"
    * 修复：正确处理后端返回的 { wordId, state } 格式
    */
-  async getWordLearningStates(wordIds: string[]): Promise<import('../types/models').WordLearningState[]> {
+  async getWordLearningStates(
+    wordIds: string[],
+  ): Promise<import('../types/models').WordLearningState[]> {
     // 空数组直接返回，避免无效请求
     if (!wordIds || wordIds.length === 0) {
       return [];
     }
     try {
       // 后端返回格式: { wordId: string, state: ApiWordLearningState | null }[]
-      const response = await this.request<Array<{ wordId: string; state: ApiWordLearningState | null }>>('/api/word-states/batch', {
+      const response = await this.request<
+        Array<{ wordId: string; state: ApiWordLearningState | null }>
+      >('/api/word-states/batch', {
         method: 'POST',
         body: JSON.stringify({ wordIds }),
       });
       // 过滤掉 state 为 null 的条目，只转换有状态的单词
       return response
-        .filter((item): item is { wordId: string; state: ApiWordLearningState } => item.state !== null)
-        .map(item => convertLearningStateDates(item.state));
+        .filter(
+          (item): item is { wordId: string; state: ApiWordLearningState } => item.state !== null,
+        )
+        .map((item) => convertLearningStateDates(item.state));
     } catch (error) {
       // 404表示无数据，返回空数组
       if (error instanceof ApiError && error.isNotFound) {
@@ -1606,7 +1632,7 @@ class ApiClient {
         nextReviewDate,
         currentInterval,
         consecutiveCorrect,
-        consecutiveWrong
+        consecutiveWrong,
       } = state;
 
       // 构建请求体，确保不包含 userId 和 wordId
@@ -1620,7 +1646,7 @@ class ApiClient {
         nextReviewDate: nextReviewDate ? new Date(nextReviewDate).toISOString() : undefined,
         currentInterval,
         consecutiveCorrect,
-        consecutiveWrong
+        consecutiveWrong,
       };
 
       await this.request<void>(`/api/word-states/${state.wordId}`, {
@@ -1649,9 +1675,13 @@ class ApiClient {
   /**
    * 按状态获取单词
    */
-  async getWordsByState(state: import('../types/models').WordState): Promise<import('../types/models').WordLearningState[]> {
+  async getWordsByState(
+    state: import('../types/models').WordState,
+  ): Promise<import('../types/models').WordLearningState[]> {
     try {
-      const states = await this.request<ApiWordLearningState[]>(`/api/word-states/by-state/${state}`);
+      const states = await this.request<ApiWordLearningState[]>(
+        `/api/word-states/by-state/${state}`,
+      );
       return states.map(convertLearningStateDates);
     } catch (error) {
       apiLogger.error({ err: error }, '按状态获取单词失败');
@@ -1710,9 +1740,14 @@ class ApiClient {
   /**
    * 按得分范围获取单词得分
    */
-  async getWordsByScoreRange(minScore: number, maxScore: number): Promise<import('../types/models').WordScore[]> {
+  async getWordsByScoreRange(
+    minScore: number,
+    maxScore: number,
+  ): Promise<import('../types/models').WordScore[]> {
     try {
-      const scores = await this.request<ApiWordScore[]>(`/api/word-scores/range?minScore=${minScore}&maxScore=${maxScore}`);
+      const scores = await this.request<ApiWordScore[]>(
+        `/api/word-scores/range?minScore=${minScore}&maxScore=${maxScore}`,
+      );
       return scores.map(convertWordScoreDates);
     } catch (error) {
       apiLogger.error({ err: error }, '按得分范围获取单词失败');
@@ -1725,7 +1760,9 @@ class ApiClient {
   /**
    * 将后端扁平字段转换为前端嵌套对象
    */
-  private normalizeAlgorithmConfig(raw: ApiAlgorithmConfig): import('../types/models').AlgorithmConfig {
+  private normalizeAlgorithmConfig(
+    raw: ApiAlgorithmConfig,
+  ): import('../types/models').AlgorithmConfig {
     if (!raw) throw new Error('算法配置为空');
     return {
       id: raw.id,
@@ -1772,7 +1809,7 @@ class ApiClient {
    * 将前端嵌套对象转换为后端扁平字段
    */
   private denormalizeAlgorithmConfig(
-    config: Partial<import('../types/models').AlgorithmConfig>
+    config: Partial<import('../types/models').AlgorithmConfig>,
   ): Record<string, unknown> {
     const flat: Record<string, unknown> = { ...config };
     if (config.priorityWeights) {
@@ -1826,7 +1863,7 @@ class ApiClient {
   async updateAlgorithmConfig(
     configId: string,
     config: Partial<import('../types/models').AlgorithmConfig>,
-    changeReason?: string
+    changeReason?: string,
   ): Promise<import('../types/models').AlgorithmConfig> {
     try {
       const payload = this.denormalizeAlgorithmConfig(config);
@@ -1865,7 +1902,7 @@ class ApiClient {
     try {
       const query = limit ? `?limit=${limit}` : '';
       const raw = await this.request<ApiConfigHistory[]>(`/api/algorithm-config/history${query}`);
-      return raw.map(h => ({
+      return raw.map((h) => ({
         id: h.id,
         configId: h.configId,
         changedBy: h.changedBy,
@@ -1984,7 +2021,7 @@ class ApiClient {
    * 根据用户状态和表现动态调整当前学习的单词
    */
   async adjustLearningWords(
-    params: import('../types/amas').AdjustWordsParams
+    params: import('../types/amas').AdjustWordsParams,
   ): Promise<import('../types/amas').AdjustWordsResponse> {
     return this.request<import('../types/amas').AdjustWordsResponse>('/api/learning/adjust-words', {
       method: 'POST',
@@ -1998,7 +2035,7 @@ class ApiClient {
    * 处理学习事件，获取自适应学习策略
    */
   async processLearningEvent(
-    eventData: import('../types/amas').LearningEventInput
+    eventData: import('../types/amas').LearningEventInput,
   ): Promise<import('../types/amas').AmasProcessResult> {
     try {
       return await this.request<import('../types/amas').AmasProcessResult>('/api/amas/process', {
@@ -2073,13 +2110,16 @@ class ApiClient {
    * 批量处理历史学习事件
    */
   async batchProcessEvents(
-    events: import('../types/amas').LearningEventInput[]
+    events: import('../types/amas').LearningEventInput[],
   ): Promise<import('../types/amas').BatchProcessResult> {
     try {
-      return await this.request<import('../types/amas').BatchProcessResult>('/api/amas/batch-process', {
-        method: 'POST',
-        body: JSON.stringify({ events }),
-      });
+      return await this.request<import('../types/amas').BatchProcessResult>(
+        '/api/amas/batch-process',
+        {
+          method: 'POST',
+          body: JSON.stringify({ events }),
+        },
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '批量处理事件失败');
       throw error;
@@ -2093,7 +2133,9 @@ class ApiClient {
    */
   async getTimePreferences(): Promise<import('../types/amas-enhanced').TimePreferenceResponse> {
     try {
-      return await this.request<import('../types/amas-enhanced').TimePreferenceResponse>('/api/amas/time-preferences');
+      return await this.request<import('../types/amas-enhanced').TimePreferenceResponse>(
+        '/api/amas/time-preferences',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取时间偏好失败');
       throw error;
@@ -2104,9 +2146,13 @@ class ApiClient {
    * 检查当前是否为黄金学习时间
    * Requirements: 1.2
    */
-  async getGoldenTime(): Promise<import('../types/amas-enhanced').GoldenTimeResult & { message: string }> {
+  async getGoldenTime(): Promise<
+    import('../types/amas-enhanced').GoldenTimeResult & { message: string }
+  > {
     try {
-      return await this.request<import('../types/amas-enhanced').GoldenTimeResult & { message: string }>('/api/amas/golden-time');
+      return await this.request<
+        import('../types/amas-enhanced').GoldenTimeResult & { message: string }
+      >('/api/amas/golden-time');
     } catch (error) {
       apiLogger.error({ err: error }, '获取黄金时间失败');
       throw error;
@@ -2117,9 +2163,13 @@ class ApiClient {
    * 获取当前趋势状态
    * Requirements: 2.1
    */
-  async getCurrentTrend(): Promise<import('../types/amas-enhanced').TrendInfo & { stateDescription: string }> {
+  async getCurrentTrend(): Promise<
+    import('../types/amas-enhanced').TrendInfo & { stateDescription: string }
+  > {
     try {
-      return await this.request<import('../types/amas-enhanced').TrendInfo & { stateDescription: string }>('/api/amas/trend');
+      return await this.request<
+        import('../types/amas-enhanced').TrendInfo & { stateDescription: string }
+      >('/api/amas/trend');
     } catch (error) {
       apiLogger.error({ err: error }, '获取趋势状态失败');
       throw error;
@@ -2169,7 +2219,9 @@ class ApiClient {
    */
   async getTrendReport(): Promise<import('../types/amas-enhanced').TrendReport> {
     try {
-      return await this.request<import('../types/amas-enhanced').TrendReport>('/api/amas/trend/report');
+      return await this.request<import('../types/amas-enhanced').TrendReport>(
+        '/api/amas/trend/report',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取趋势报告失败');
       throw error;
@@ -2182,7 +2234,9 @@ class ApiClient {
    */
   async getIntervention(): Promise<import('../types/amas-enhanced').InterventionResult> {
     try {
-      return await this.request<import('../types/amas-enhanced').InterventionResult>('/api/amas/trend/intervention');
+      return await this.request<import('../types/amas-enhanced').InterventionResult>(
+        '/api/amas/trend/intervention',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取干预建议失败');
       throw error;
@@ -2193,9 +2247,15 @@ class ApiClient {
    * 获取用户所有徽章
    * Requirements: 3.2
    */
-  async getUserBadges(): Promise<{ badges: import('../types/amas-enhanced').Badge[]; count: number }> {
+  async getUserBadges(): Promise<{
+    badges: import('../types/amas-enhanced').Badge[];
+    count: number;
+  }> {
     try {
-      return await this.request<{ badges: import('../types/amas-enhanced').Badge[]; count: number }>('/api/badges');
+      return await this.request<{
+        badges: import('../types/amas-enhanced').Badge[];
+        count: number;
+      }>('/api/badges');
     } catch (error) {
       apiLogger.error({ err: error }, '获取用户徽章失败');
       throw error;
@@ -2214,7 +2274,10 @@ class ApiClient {
     try {
       return await this.request<{
         badges: Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>;
-        grouped: Record<string, Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>>;
+        grouped: Record<
+          string,
+          Array<import('../types/amas-enhanced').Badge & { unlocked: boolean }>
+        >;
         totalCount: number;
         unlockedCount: number;
       }>('/api/badges/all');
@@ -2228,9 +2291,18 @@ class ApiClient {
    * 获取徽章详情
    * Requirements: 3.5
    */
-  async getBadgeDetails(badgeId: string): Promise<import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }> {
+  async getBadgeDetails(
+    badgeId: string,
+  ): Promise<
+    import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }
+  > {
     try {
-      return await this.request<import('../types/amas-enhanced').BadgeDefinition & { unlocked: boolean; unlockedAt?: string }>(`/api/badges/${badgeId}`);
+      return await this.request<
+        import('../types/amas-enhanced').BadgeDefinition & {
+          unlocked: boolean;
+          unlockedAt?: string;
+        }
+      >(`/api/badges/${badgeId}`);
     } catch (error) {
       apiLogger.error({ err: error }, '获取徽章详情失败');
       throw error;
@@ -2243,7 +2315,9 @@ class ApiClient {
    */
   async getBadgeProgress(badgeId: string): Promise<import('../types/amas-enhanced').BadgeProgress> {
     try {
-      return await this.request<import('../types/amas-enhanced').BadgeProgress>(`/api/badges/${badgeId}/progress`);
+      return await this.request<import('../types/amas-enhanced').BadgeProgress>(
+        `/api/badges/${badgeId}/progress`,
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取徽章进度失败');
       throw error;
@@ -2277,7 +2351,9 @@ class ApiClient {
    */
   async getLearningPlan(): Promise<import('../types/amas-enhanced').LearningPlan | null> {
     try {
-      const result = await this.request<import('../types/amas-enhanced').LearningPlan | null>('/api/plan');
+      const result = await this.request<import('../types/amas-enhanced').LearningPlan | null>(
+        '/api/plan',
+      );
       return result;
     } catch (error) {
       // 404表示用户尚未创建学习计划，返回null
@@ -2293,12 +2369,17 @@ class ApiClient {
    * 生成学习计划
    * Requirements: 4.1, 4.2, 4.4, 4.5
    */
-  async generateLearningPlan(options?: import('../types/amas-enhanced').PlanOptions): Promise<import('../types/amas-enhanced').LearningPlan> {
+  async generateLearningPlan(
+    options?: import('../types/amas-enhanced').PlanOptions,
+  ): Promise<import('../types/amas-enhanced').LearningPlan> {
     try {
-      return await this.request<import('../types/amas-enhanced').LearningPlan>('/api/plan/generate', {
-        method: 'POST',
-        body: JSON.stringify(options || {}),
-      });
+      return await this.request<import('../types/amas-enhanced').LearningPlan>(
+        '/api/plan/generate',
+        {
+          method: 'POST',
+          body: JSON.stringify(options || {}),
+        },
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '生成学习计划失败');
       throw error;
@@ -2309,9 +2390,13 @@ class ApiClient {
    * 获取计划进度
    * Requirements: 4.3, 4.4
    */
-  async getPlanProgress(): Promise<import('../types/amas-enhanced').PlanProgress & { status: string }> {
+  async getPlanProgress(): Promise<
+    import('../types/amas-enhanced').PlanProgress & { status: string }
+  > {
     try {
-      return await this.request<import('../types/amas-enhanced').PlanProgress & { status: string }>('/api/plan/progress');
+      return await this.request<import('../types/amas-enhanced').PlanProgress & { status: string }>(
+        '/api/plan/progress',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取计划进度失败');
       throw error;
@@ -2322,7 +2407,9 @@ class ApiClient {
    * 调整学习计划
    * Requirements: 4.3
    */
-  async adjustLearningPlan(reason?: string): Promise<import('../types/amas-enhanced').LearningPlan> {
+  async adjustLearningPlan(
+    reason?: string,
+  ): Promise<import('../types/amas-enhanced').LearningPlan> {
     try {
       return await this.request<import('../types/amas-enhanced').LearningPlan>('/api/plan/adjust', {
         method: 'PUT',
@@ -2414,7 +2501,9 @@ class ApiClient {
    * 获取显著变化
    * Requirements: 5.5
    */
-  async getSignificantChanges(range: import('../types/amas-enhanced').DateRangeOption = 30): Promise<{
+  async getSignificantChanges(
+    range: import('../types/amas-enhanced').DateRangeOption = 30,
+  ): Promise<{
     changes: Array<import('../types/amas-enhanced').SignificantChange & { description: string }>;
     range: number;
     hasSignificantChanges: boolean;
@@ -2422,7 +2511,9 @@ class ApiClient {
   }> {
     try {
       return await this.request<{
-        changes: Array<import('../types/amas-enhanced').SignificantChange & { description: string }>;
+        changes: Array<
+          import('../types/amas-enhanced').SignificantChange & { description: string }
+        >;
         range: number;
         hasSignificantChanges: boolean;
         summary: string;
@@ -2441,7 +2532,9 @@ class ApiClient {
    */
   async getWordMasteryStats(): Promise<import('../types/word-mastery').UserMasteryStats> {
     try {
-      return await this.request<import('../types/word-mastery').UserMasteryStats>('/api/word-mastery/stats');
+      return await this.request<import('../types/word-mastery').UserMasteryStats>(
+        '/api/word-mastery/stats',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取单词精通度统计失败');
       throw error;
@@ -2456,7 +2549,7 @@ class ApiClient {
    */
   async batchProcessWordMastery(
     wordIds: string[],
-    userFatigue?: number
+    userFatigue?: number,
   ): Promise<import('../types/word-mastery').MasteryEvaluation[]> {
     try {
       // 客户端验证
@@ -2467,17 +2560,23 @@ class ApiClient {
         throw new Error('wordIds 数组不能超过100个');
       }
       // 验证所有元素都是非空字符串
-      if (!wordIds.every(id => typeof id === 'string' && id.trim().length > 0)) {
+      if (!wordIds.every((id) => typeof id === 'string' && id.trim().length > 0)) {
         throw new Error('wordIds 中所有元素必须是非空字符串');
       }
-      if (userFatigue !== undefined && (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)) {
+      if (
+        userFatigue !== undefined &&
+        (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)
+      ) {
         throw new Error('userFatigue 必须是 0-1 之间的数字');
       }
 
-      return await this.request<import('../types/word-mastery').MasteryEvaluation[]>('/api/word-mastery/batch', {
-        method: 'POST',
-        body: JSON.stringify({ wordIds, userFatigue }),
-      });
+      return await this.request<import('../types/word-mastery').MasteryEvaluation[]>(
+        '/api/word-mastery/batch',
+        {
+          method: 'POST',
+          body: JSON.stringify({ wordIds, userFatigue }),
+        },
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '批量处理单词精通度失败');
       throw error;
@@ -2492,14 +2591,17 @@ class ApiClient {
    */
   async getWordMasteryDetail(
     wordId: string,
-    userFatigue?: number
+    userFatigue?: number,
   ): Promise<import('../types/word-mastery').MasteryEvaluation> {
     try {
       // 客户端验证
       if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0) {
         throw new Error('wordId 必须是非空字符串');
       }
-      if (userFatigue !== undefined && (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)) {
+      if (
+        userFatigue !== undefined &&
+        (typeof userFatigue !== 'number' || userFatigue < 0 || userFatigue > 1)
+      ) {
         throw new Error('userFatigue 必须是 0-1 之间的数字');
       }
 
@@ -2510,7 +2612,7 @@ class ApiClient {
       const query = queryParams.toString();
 
       return await this.request<import('../types/word-mastery').MasteryEvaluation>(
-        `/api/word-mastery/${wordId}${query ? `?${query}` : ''}`
+        `/api/word-mastery/${wordId}${query ? `?${query}` : ''}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取单词精通度详情失败');
@@ -2526,7 +2628,7 @@ class ApiClient {
    */
   async getWordMasteryTrace(
     wordId: string,
-    limit?: number
+    limit?: number,
   ): Promise<import('../types/word-mastery').WordMasteryTrace> {
     try {
       // 客户端验证
@@ -2544,7 +2646,7 @@ class ApiClient {
       const query = queryParams.toString();
 
       return await this.request<import('../types/word-mastery').WordMasteryTrace>(
-        `/api/word-mastery/${wordId}/trace${query ? `?${query}` : ''}`
+        `/api/word-mastery/${wordId}/trace${query ? `?${query}` : ''}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取单词学习轨迹失败');
@@ -2560,14 +2662,17 @@ class ApiClient {
    */
   async getWordMasteryInterval(
     wordId: string,
-    targetRecall?: number
+    targetRecall?: number,
   ): Promise<import('../types/word-mastery').WordMasteryIntervalResponse> {
     try {
       // 客户端验证
       if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0) {
         throw new Error('wordId 必须是非空字符串');
       }
-      if (targetRecall !== undefined && (typeof targetRecall !== 'number' || targetRecall <= 0 || targetRecall >= 1)) {
+      if (
+        targetRecall !== undefined &&
+        (typeof targetRecall !== 'number' || targetRecall <= 0 || targetRecall >= 1)
+      ) {
         throw new Error('targetRecall 必须是大于0小于1的数字');
       }
 
@@ -2578,7 +2683,7 @@ class ApiClient {
       const query = queryParams.toString();
 
       return await this.request<import('../types/word-mastery').WordMasteryIntervalResponse>(
-        `/api/word-mastery/${wordId}/interval${query ? `?${query}` : ''}`
+        `/api/word-mastery/${wordId}/interval${query ? `?${query}` : ''}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取复习间隔预测失败');
@@ -2595,7 +2700,9 @@ class ApiClient {
    */
   async getHabitProfile(): Promise<import('../types/habit-profile').HabitProfileResponse> {
     try {
-      return await this.request<import('../types/habit-profile').HabitProfileResponse>('/api/habit-profile');
+      return await this.request<import('../types/habit-profile').HabitProfileResponse>(
+        '/api/habit-profile',
+      );
     } catch (error) {
       apiLogger.error({ err: error }, '获取习惯画像失败');
       throw error;
@@ -2607,11 +2714,13 @@ class ApiClient {
    * POST /api/habit-profile/initialize
    * 用于数据恢复或首次生成习惯画像
    */
-  async initializeHabitProfile(): Promise<import('../types/habit-profile').InitializeProfileResponse> {
+  async initializeHabitProfile(): Promise<
+    import('../types/habit-profile').InitializeProfileResponse
+  > {
     try {
       return await this.request<import('../types/habit-profile').InitializeProfileResponse>(
         '/api/habit-profile/initialize',
-        { method: 'POST' }
+        { method: 'POST' },
       );
     } catch (error) {
       apiLogger.error({ err: error }, '初始化习惯画像失败');
@@ -2624,7 +2733,9 @@ class ApiClient {
    * POST /api/habit-profile/end-session
    * @param sessionId 学习会话ID（必填）
    */
-  async endHabitSession(sessionId: string): Promise<import('../types/habit-profile').EndSessionResponse> {
+  async endHabitSession(
+    sessionId: string,
+  ): Promise<import('../types/habit-profile').EndSessionResponse> {
     try {
       // 客户端验证
       if (!sessionId || typeof sessionId !== 'string' || sessionId.trim().length === 0) {
@@ -2636,7 +2747,7 @@ class ApiClient {
         {
           method: 'POST',
           body: JSON.stringify({ sessionId }),
-        }
+        },
       );
     } catch (error) {
       apiLogger.error({ err: error }, '结束学习会话失败');
@@ -2653,7 +2764,7 @@ class ApiClient {
     try {
       return await this.request<import('../types/habit-profile').PersistProfileResponse>(
         '/api/habit-profile/persist',
-        { method: 'POST' }
+        { method: 'POST' },
       );
     } catch (error) {
       apiLogger.error({ err: error }, '持久化习惯画像失败');
@@ -2668,7 +2779,9 @@ class ApiClient {
    * GET /api/amas/explain-decision
    * @param decisionId 决策ID（可选，不传则使用最近一次决策）
    */
-  async getAmasDecisionExplanation(decisionId?: string): Promise<import('../types/explainability').DecisionExplanation> {
+  async getAmasDecisionExplanation(
+    decisionId?: string,
+  ): Promise<import('../types/explainability').DecisionExplanation> {
     try {
       const queryParams = new URLSearchParams();
       if (decisionId) {
@@ -2677,7 +2790,7 @@ class ApiClient {
       const query = queryParams.toString();
 
       return await this.request<import('../types/explainability').DecisionExplanation>(
-        `/api/amas/explain-decision${query ? `?${query}` : ''}`
+        `/api/amas/explain-decision${query ? `?${query}` : ''}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取决策解释失败');
@@ -2690,14 +2803,16 @@ class ApiClient {
    * POST /api/amas/counterfactual
    * @param input 反事实输入参数
    */
-  async runCounterfactualAnalysis(input: import('../types/explainability').CounterfactualInput): Promise<import('../types/explainability').CounterfactualResult> {
+  async runCounterfactualAnalysis(
+    input: import('../types/explainability').CounterfactualInput,
+  ): Promise<import('../types/explainability').CounterfactualResult> {
     try {
       return await this.request<import('../types/explainability').CounterfactualResult>(
         '/api/amas/counterfactual',
         {
           method: 'POST',
           body: JSON.stringify(input),
-        }
+        },
       );
     } catch (error) {
       apiLogger.error({ err: error }, '反事实分析失败');
@@ -2710,13 +2825,15 @@ class ApiClient {
    * GET /api/amas/learning-curve
    * @param days 查询天数，默认30天
    */
-  async getAmasLearningCurve(days: number = 30): Promise<import('../types/explainability').LearningCurveData> {
+  async getAmasLearningCurve(
+    days: number = 30,
+  ): Promise<import('../types/explainability').LearningCurveData> {
     try {
       const queryParams = new URLSearchParams();
       queryParams.append('days', days.toString());
 
       return await this.request<import('../types/explainability').LearningCurveData>(
-        `/api/amas/learning-curve?${queryParams.toString()}`
+        `/api/amas/learning-curve?${queryParams.toString()}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取学习曲线失败');
@@ -2730,7 +2847,10 @@ class ApiClient {
    * @param limit 返回数量限制
    * @param cursor 分页游标
    */
-  async getDecisionTimeline(limit: number = 50, cursor?: string): Promise<import('../types/explainability').DecisionTimelineResponse> {
+  async getDecisionTimeline(
+    limit: number = 50,
+    cursor?: string,
+  ): Promise<import('../types/explainability').DecisionTimelineResponse> {
     try {
       const queryParams = new URLSearchParams();
       queryParams.append('limit', limit.toString());
@@ -2739,7 +2859,7 @@ class ApiClient {
       }
 
       return await this.request<import('../types/explainability').DecisionTimelineResponse>(
-        `/api/amas/decision-timeline?${queryParams.toString()}`
+        `/api/amas/decision-timeline?${queryParams.toString()}`,
       );
     } catch (error) {
       apiLogger.error({ err: error }, '获取决策时间线失败');
@@ -2755,7 +2875,7 @@ class ApiClient {
       meanings: string[];
       examples: string[];
       audioUrl?: string;
-    }>
+    }>,
   ): Promise<{ imported: number; failed: number; errors?: string[] }> {
     if (!wordBookId || typeof wordBookId !== 'string' || wordBookId.trim().length === 0) {
       throw new Error('wordBookId 必须是非空字符串');
@@ -2773,7 +2893,7 @@ class ApiClient {
         {
           method: 'POST',
           body: JSON.stringify({ words }),
-        }
+        },
       );
     } catch (error) {
       apiLogger.error({ err: error }, '批量导入单词失败');
@@ -2800,7 +2920,7 @@ class ApiClient {
    */
   async recordOptimizationEvaluation(
     params: Record<string, number>,
-    value: number
+    value: number,
   ): Promise<{ recorded: boolean }> {
     return this.request('/api/optimization/evaluate', {
       method: 'POST',
@@ -2823,11 +2943,13 @@ class ApiClient {
    * 获取优化历史
    * GET /api/optimization/history
    */
-  async getOptimizationHistory(): Promise<Array<{
-    params: Record<string, number>;
-    value: number;
-    timestamp: string;
-  }>> {
+  async getOptimizationHistory(): Promise<
+    Array<{
+      params: Record<string, number>;
+      value: number;
+      timestamp: string;
+    }>
+  > {
     return this.request('/api/optimization/history');
   }
 
@@ -2898,13 +3020,15 @@ class ApiClient {
    */
   async compareStrategies(
     strategyA: number,
-    strategyB: number
+    strategyB: number,
   ): Promise<{
     difference: number;
     pValue: number;
     significant: boolean;
   }> {
-    return this.request(`/api/evaluation/causal/compare?strategyA=${strategyA}&strategyB=${strategyB}`);
+    return this.request(
+      `/api/evaluation/causal/compare?strategyA=${strategyA}&strategyB=${strategyB}`,
+    );
   }
 
   /**
@@ -2942,7 +3066,7 @@ class ApiClient {
    */
   async recordExperimentMetric(
     experimentId: string,
-    reward: number
+    reward: number,
   ): Promise<{ recorded: boolean }> {
     return this.request(`/api/evaluation/variant/${experimentId}/metric`, {
       method: 'POST',
@@ -3294,23 +3418,27 @@ class ApiClient {
    * 获取用户决策列表
    * GET /api/admin/users/:userId/decisions
    */
-  async adminGetUserDecisions(userId: string, params: {
-    page: number;
-    pageSize: number;
-    startDate?: string;
-    endDate?: string;
-    decisionSource?: string;
-    minConfidence?: number;
-    sortBy?: 'timestamp' | 'confidence' | 'duration';
-    sortOrder?: 'asc' | 'desc';
-  }) {
+  async adminGetUserDecisions(
+    userId: string,
+    params: {
+      page: number;
+      pageSize: number;
+      startDate?: string;
+      endDate?: string;
+      decisionSource?: string;
+      minConfidence?: number;
+      sortBy?: 'timestamp' | 'confidence' | 'duration';
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
     const query = new URLSearchParams();
     query.append('page', params.page.toString());
     query.append('pageSize', params.pageSize.toString());
     if (params.startDate) query.append('startDate', params.startDate);
     if (params.endDate) query.append('endDate', params.endDate);
     if (params.decisionSource) query.append('decisionSource', params.decisionSource);
-    if (params.minConfidence !== undefined) query.append('minConfidence', params.minConfidence.toString());
+    if (params.minConfidence !== undefined)
+      query.append('minConfidence', params.minConfidence.toString());
     if (params.sortBy) query.append('sortBy', params.sortBy);
     if (params.sortOrder) query.append('sortOrder', params.sortOrder);
 
@@ -3357,7 +3485,9 @@ class ApiClient {
     if (params?.limit !== undefined) query.append('limit', params.limit.toString());
     if (params?.offset !== undefined) query.append('offset', params.offset.toString());
     const queryStr = query.toString();
-    return this.request<LLMAdvisorSuggestionsResponse>(`/api/llm-advisor/suggestions${queryStr ? `?${queryStr}` : ''}`);
+    return this.request<LLMAdvisorSuggestionsResponse>(
+      `/api/llm-advisor/suggestions${queryStr ? `?${queryStr}` : ''}`,
+    );
   }
 
   /**
@@ -3375,11 +3505,11 @@ class ApiClient {
   async approveLLMAdvisorSuggestion(
     id: string,
     selectedItems: string[],
-    notes?: string
+    notes?: string,
   ): Promise<LLMStoredSuggestion> {
     return this.request<LLMStoredSuggestion>(`/api/llm-advisor/suggestions/${id}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ selectedItems, notes })
+      body: JSON.stringify({ selectedItems, notes }),
     });
   }
 
@@ -3390,7 +3520,7 @@ class ApiClient {
   async rejectLLMAdvisorSuggestion(id: string, notes?: string): Promise<LLMStoredSuggestion> {
     return this.request<LLMStoredSuggestion>(`/api/llm-advisor/suggestions/${id}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ notes })
+      body: JSON.stringify({ notes }),
     });
   }
 
@@ -3418,7 +3548,6 @@ class ApiClient {
     return this.request<LLMAdvisorPendingCountResponse>('/api/llm-advisor/pending-count');
   }
 }
-
 
 // 导出单例
 export default new ApiClient();
