@@ -152,6 +152,13 @@ pub fn compute_quadratic_form(l: &[f64], x: &[f64], d: usize) -> f64 {
     z.iter().map(|&v| v * v).sum()
 }
 
+/// 计算置信宽度 (UCB 置信区间)
+/// 返回 sqrt(x^T * A^{-1} * x)，其中 A^{-1} 通过 Cholesky 分解 L 表示
+/// 这是 UCB 算法中用于计算探索项的关键函数
+pub fn compute_confidence_width(l: &[f64], x: &[f64], d: usize) -> f64 {
+    compute_quadratic_form(l, x, d).sqrt()
+}
+
 /// 矩阵向量乘法 (行优先存储)
 pub fn mat_vec_mul(a: &[f64], x: &[f64], d: usize) -> Vec<f64> {
     let mut result = vec![0.0; d];
@@ -262,5 +269,17 @@ mod tests {
         // x^T * I^{-1} * x = x^T * x = 9 + 16 = 25
         let result = compute_quadratic_form(&l, &x, d);
         assert!((result - 25.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_compute_confidence_width() {
+        let d = 2;
+        // L = I (单位矩阵)
+        let l = vec![1.0, 0.0, 0.0, 1.0];
+        let x = vec![3.0, 4.0];
+
+        // sqrt(x^T * I^{-1} * x) = sqrt(25) = 5
+        let result = compute_confidence_width(&l, &x, d);
+        assert!((result - 5.0).abs() < 1e-10);
     }
 }

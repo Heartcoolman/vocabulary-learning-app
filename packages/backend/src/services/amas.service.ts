@@ -374,9 +374,9 @@ class AMASService {
       this.getUserStats(userId),
       sessionId
         ? LearningObjectivesService.getUserObjectives(userId).catch((error) => {
-            serviceLogger.warn({ err: error, userId }, '获取学习目标失败');
-            return null;
-          })
+          serviceLogger.warn({ err: error, userId }, '获取学习目标失败');
+          return null;
+        })
         : Promise.resolve(null),
       this.getWordReviewHistory(userId, event.wordId)
     ]);
@@ -467,8 +467,8 @@ class AMASService {
       // 校验并安全化 interval_scale
       const safeIntervalScale = Number.isFinite(result.strategy.interval_scale) &&
         result.strategy.interval_scale > 0
-          ? result.strategy.interval_scale
-          : 1.0; // 异常值回退到默认值 1.0
+        ? result.strategy.interval_scale
+        : 1.0; // 异常值回退到默认值 1.0
 
       // 使用事务保证原子性：读取当前状态、计算新值、更新状态和得分
       // 注：复习间隔现在基于个性化半衰期计算，在事务内部完成
@@ -501,8 +501,8 @@ class AMASService {
 
         // 基于新半衰期计算最优复习间隔
         const optimalInterval = computeOptimalInterval(halfLifeUpdate.newHalfLife, 0.8);
-        // 结合策略的 interval_scale 调整，取整以匹配数据库 Int 类型
-        const finalIntervalDays = Math.round(optimalInterval * safeIntervalScale);
+        // 结合策略的 interval_scale 调整，确保最小间隔为 1 天，防止立即复习循环
+        const finalIntervalDays = Math.max(1, Math.round(optimalInterval * safeIntervalScale));
         const finalNextReviewDate = new Date(rawEvent.timestamp + finalIntervalDays * 24 * 60 * 60 * 1000);
 
         const upsertedState = await tx.wordLearningState.upsert({

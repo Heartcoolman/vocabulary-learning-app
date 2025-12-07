@@ -126,16 +126,19 @@ router.get('/strategy', authMiddleware, async (req: AuthRequest, res, next) => {
     const userId = req.user!.id;
     const strategy = await amasService.getCurrentStrategy(userId);
 
-    if (!strategy) {
-      return res.status(404).json({
-        success: false,
-        message: '用户策略未初始化'
-      });
-    }
+    // 如果没有策略，返回默认策略
+    const defaultStrategy = {
+      interval_scale: 1.0,
+      new_ratio: 0.2,
+      batch_size: 10,
+      hint_level: 1,
+      difficulty: 'normal' as const
+    };
 
     res.json({
       success: true,
-      data: strategy
+      data: strategy || defaultStrategy,
+      initialized: !!strategy
     });
   } catch (error) {
     next(error);

@@ -54,6 +54,14 @@ export {
   ACTRState
 } from './modeling/actr-memory';
 
+export {
+  ACTRMemoryNativeWrapper,
+  createACTRMemoryNativeWrapper,
+  createACTRMemoryNativeWrapperFallback,
+  type ACTRWrapperConfig,
+  type ACTRWrapperStats
+} from './modeling/actr-memory-native';
+
 // ==================== 学习层 ====================
 export {
   BaseLearner,
@@ -86,6 +94,14 @@ export {
   ThompsonContext,
   ThompsonSamplingState
 } from './learning/thompson-sampling';
+
+export {
+  ThompsonSamplingNativeWrapper,
+  createThompsonSamplingNativeWrapper,
+  createThompsonSamplingNativeWrapperFallback,
+  type ThompsonSamplingWrapperConfig,
+  type ThompsonSamplingWrapperStats
+} from './learning/thompson-sampling-native';
 
 export {
   HeuristicLearner,
@@ -144,6 +160,14 @@ export {
 } from './evaluation/causal-inference';
 
 export {
+  CausalInferenceNativeWrapper,
+  createCausalInferenceNativeWrapper,
+  createCausalInferenceNativeWrapperFallback,
+  type CausalInferenceWrapperConfig,
+  type CausalInferenceWrapperStats
+} from './evaluation/causal-inference-native';
+
+export {
   DelayedRewardAggregator,
   RewardSchedule,
   DelayedRewardEvent,
@@ -186,3 +210,15 @@ export {
   ProcessOptions,
   ProcessResult
 } from './engine';
+
+// ==================== 通用工具 ====================
+export {
+  CircuitBreaker,
+  CircuitState,
+  CircuitBreakerOptions,
+  CircuitBreakerWrapperOptions,
+  createDefaultCircuitBreaker,
+  withCircuitBreaker,
+  withCircuitBreakerAsync,
+  createCircuitBreakerWrapper
+} from './common/circuit-breaker';

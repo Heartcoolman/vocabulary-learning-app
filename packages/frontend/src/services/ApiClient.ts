@@ -785,6 +785,7 @@ class ApiClient {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // 启用 HttpOnly Cookie 认证
         signal: controller.signal, // 始终使用内部 controller，确保超时控制生效
       });
 
@@ -882,6 +883,7 @@ class ApiClient {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // 启用 HttpOnly Cookie 认证
         signal: controller.signal, // 始终使用内部 controller，确保超时控制生效
       });
 

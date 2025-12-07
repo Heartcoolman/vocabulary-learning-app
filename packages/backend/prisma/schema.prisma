@@ -66,7 +66,7 @@ model Word {
   wordBookId     String
   anomalyFlags   AnomalyFlag[]
   records        AnswerRecord[]
-  wordFrequency  WordFrequency?
+  word_frequency word_frequency?
   learningStates WordLearningState[]
   reviewTraces   WordReviewTrace[]
   wordScores     WordScore[]
@@ -77,20 +77,6 @@ model Word {
   @@index([spelling])
   @@index([wordBookId, createdAt])
   @@map("words")
-}
-
-model WordFrequency {
-  id             String   @id @default(uuid())
-  wordId         String   @unique
-  frequencyScore Decimal  @db.Decimal(5, 4)
-  corpusSource   String?
-  rawFrequency   Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  word           Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
-
-  @@index([frequencyScore])
-  @@map("word_frequencies")
 }
 
 model AnswerRecord {
@@ -112,15 +98,11 @@ model AnswerRecord {
 
   @@id([id, timestamp])
   @@unique([userId, wordId, timestamp], name: "unique_user_word_timestamp")
-  @@index([userId])
-  @@index([wordId])
-  @@index([sessionId])
-  @@index([userId, timestamp], map: "idx_answer_records_user_time")
   @@index([wordId, timestamp])
   @@index([userId, isCorrect])
   @@index([sessionId, timestamp])
-  @@index([userId, wordId, isCorrect]) // 优化：单词正确率统计查询
-  @@index([userId, timestamp(sort: Desc)], map: "idx_answer_records_user_time_desc") // 优化：最近答题记录查询
+  @@index([timestamp(sort: Desc)])
+  @@index([userId, timestamp])
   @@map("answer_records")
 }
 
@@ -165,7 +147,7 @@ model WordLearningState {
   currentInterval    Int       @default(1)
   consecutiveCorrect Int       @default(0)
   consecutiveWrong   Int       @default(0)
-  halfLife           Float     @default(1.0) // 个性化半衰期（天），基于用户表现动态调整
+  halfLife           Float     @default(1.0) // 个性化遗忘曲线半衰期（天）
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -179,8 +161,6 @@ model WordLearningState {
   @@index([userId, state])
   @@index([userId, masteryLevel])
   @@index([userId, nextReviewDate])
-  @@index([userId, nextReviewDate, state]) // 优化：到期复习词筛选
-  @@index([userId, halfLife]) // 优化：按半衰期排序的复习优先级
   @@map("word_learning_states")
 }
 
@@ -292,7 +272,6 @@ model AmasUserState {
   cognitiveProfile Json     @default("{\"mem\": 0.5, \"speed\": 0.5, \"stability\": 0.5}")
   habitProfile     Json?
   trendState       String?
-  coldStartState   Json?    // 冷启动状态：{phase, userType, probeIndex, updateCount, settledStrategy}
   lastUpdateTs     BigInt   @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -329,7 +308,6 @@ model LearningSession {
   rewardQueues       RewardQueue[]
 
   @@index([userId, startedAt])
-  @@index([userId, endedAt])
   @@map("learning_sessions")
 }
 
@@ -345,6 +323,7 @@ model FeatureVector {
   @@id([sessionId, featureVersion])
   @@unique([answerRecordId, featureVersion])
   @@index([featureVersion, createdAt])
+  @@index([answerRecordId], map: "idx_feature_vectors_answerRecordId")
   @@map("feature_vectors")
 }
 
@@ -368,7 +347,6 @@ model RewardQueue {
   status         RewardStatus     @default(PENDING)
   idempotencyKey String           @unique
   lastError      String?
-  retryCount     Int              @default(0)  // 独立的重试次数字段，替代从 lastError 解析
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   answerRecordId String?
@@ -566,6 +544,7 @@ model WordReviewTrace {
   @@id([id, timestamp])
   @@index([userId, wordId])
   @@index([userId, wordId, timestamp])
+  @@index([timestamp(sort: Desc)])
   @@map("word_review_traces")
 }
 
@@ -589,7 +568,6 @@ model DecisionRecord {
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
   isSimulation    Boolean                 @default(false)
-  pipelineStages  PipelineStage[]
 
   @@id([id, timestamp])
   @@unique([decisionId, timestamp])
@@ -598,8 +576,6 @@ model DecisionRecord {
   @@index([timestamp])
   @@index([sessionId])
   @@index([isSimulation])
-  @@index([sessionId, timestamp])
-  @@index([decisionSource, timestamp])
   @@map("decision_records")
 }
 
@@ -630,21 +606,19 @@ model DecisionInsight {
 
 /// 决策流水线阶段记录
 model PipelineStage {
-  id                      String              @id @default(cuid())
-  decisionRecordId        String
-  decisionRecordTimestamp DateTime            @default(now()) // DecisionRecord 复合主键的 timestamp 部分，添加默认值以兼容现有数据
-  stage                   PipelineStageType
-  stageName               String
-  status                  PipelineStageStatus
-  startedAt               DateTime
-  endedAt                 DateTime?
-  durationMs              Int?
-  inputSummary            Json?
-  outputSummary           Json?
-  metadata                Json?
-  errorMessage            String?
-  createdAt               DateTime            @default(now())
-  decisionRecord          DecisionRecord      @relation(fields: [decisionRecordId, decisionRecordTimestamp], references: [id, timestamp], onDelete: Cascade)
+  id               String              @id @default(cuid())
+  decisionRecordId String
+  stage            PipelineStageType
+  stageName        String
+  status           PipelineStageStatus
+  startedAt        DateTime
+  endedAt          DateTime?
+  durationMs       Int?
+  inputSummary     Json?
+  outputSummary    Json?
+  metadata         Json?
+  errorMessage     String?
+  createdAt        DateTime            @default(now())
 
   @@index([decisionRecordId, stage])
   @@index([stage])
@@ -652,9 +626,17 @@ model PipelineStage {
   @@map("pipeline_stages")
 }
 
-/// @deprecated 已废弃，使用 WordFrequency 模型代替
-/// 此模型功能与 WordFrequency (82-94行) 重复，请在数据迁移完成后删除
-/// 保留此注释作为数据库迁移提示，实际使用 WordFrequency 模型
+model word_frequency {
+  word_id         String   @id
+  frequency_rank  Int
+  frequency_score Decimal  @db.Decimal(5, 4)
+  corpus_source   String
+  updated_at      DateTime
+  words           Word     @relation(fields: [word_id], references: [id], onDelete: Cascade)
+
+  @@index([frequency_rank], map: "idx_word_frequency_rank")
+  @@index([corpus_source], map: "idx_word_frequency_source")
+}
 
 enum UserRole {
   USER
@@ -725,121 +707,7 @@ enum PipelineStageStatus {
   SKIPPED
 }
 
-/// 多目标优化框架 - 用户学习目标配置
-model UserLearningObjectives {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  mode      String   @default("daily")  // 'exam' | 'daily' | 'travel' | 'custom'
-
-  // 主要目标
-  primaryObjective String @default("accuracy")
-
-  // 约束条件
-  minAccuracy      Float?
-  maxDailyTime     Int?    // 分钟
-  targetRetention  Float?
-
-  // 权重配置
-  weightShortTerm  Float   @default(0.4)
-  weightLongTerm   Float   @default(0.4)
-  weightEfficiency Float   @default(0.2)
-
-  // 元数据
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("user_learning_objectives")
-}
-
-/// 多目标优化框架 - 目标历史追踪（用于A/B测试）
-model ObjectiveHistory {
-  id          String   @id @default(uuid())
-  userId      String
-  objectiveId String
-
-  // 切换原因
-  reason      String   // 'manual' | 'auto_adjust' | 'experiment'
-
-  // 效果数据
-  beforeMetrics Json   // 切换前的学习指标
-  afterMetrics  Json   // 切换后的学习指标
-
-  timestamp   DateTime @default(now())
-
-  @@index([userId, timestamp])
-  @@map("objective_history")
-}
-
-// ==================== 日志可视化系统 ====================
-
-/// 系统日志存储表
-model SystemLog {
-  id        String    @id @default(uuid())
-  level     LogLevel
-  message   String
-  module    String?
-  source    LogSource @default(BACKEND)
-
-  // 结构化数据
-  context   Json?
-  error     Json?     // { message, stack, name, code }
-
-  // 请求追踪
-  requestId String?
-  userId    String?
-
-  // 客户端信息（前端日志）
-  clientIp  String?
-  userAgent String?
-
-  // 元数据
-  app       String    @default("danci")
-  env       String    @default("production")
-
-  timestamp DateTime  @default(now())
-
-  @@index([timestamp])
-  @@index([level])
-  @@index([module])
-  @@index([source])
-  @@index([userId])
-  @@index([requestId])
-  @@index([timestamp, level])
-  @@index([module, level])
-  @@index([source, timestamp])
-  @@map("system_logs")
-}
-
-/// 日志告警规则
-model LogAlertRule {
-  id             String     @id @default(uuid())
-  name           String
-  description    String?
-  enabled        Boolean    @default(true)
-
-  // 触发条件
-  levels         LogLevel[] // 匹配的日志级别
-  module         String?    // 匹配的模块（可选）
-  messagePattern String?    // 消息正则匹配（可选）
-
-  // 触发阈值
-  threshold      Int        // 触发数量阈值
-  windowMinutes  Int        // 时间窗口（分钟）
-
-  // 通知配置
-  webhookUrl     String?
-
-  // 冷却
-  cooldownMinutes Int       @default(30)
-  lastTriggeredAt DateTime?
-
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  @@map("log_alert_rules")
-}
-
-/// 日志级别枚举
+/// 日志级别
 enum LogLevel {
   TRACE
   DEBUG
@@ -849,97 +717,36 @@ enum LogLevel {
   FATAL
 }
 
-/// 日志来源枚举
+/// 日志来源
 enum LogSource {
   BACKEND
-  FRONTEND
+  WORKER
+  SCHEDULER
+  MIGRATION
 }
 
-// ==================== LLM 顾问系统 ====================
+/// 系统日志表
+model SystemLog {
+  id        String    @id @default(uuid())
+  level     LogLevel
+  message   String
+  module    String?
+  source    LogSource @default(BACKEND)
+  context   Json?
+  error     Json?
+  requestId String?
+  userId    String?
+  clientIp  String?
+  userAgent String?
+  app       String?
+  env       String?
+  timestamp DateTime  @default(now())
 
-/// LLM 顾问建议记录
-model LLMAdvisorSuggestion {
-  id               String   @id @default(cuid())
-
-  // 统计周期
-  weekStart        DateTime
-  weekEnd          DateTime
-
-  // 输入数据快照
-  statsSnapshot    Json     // WeeklyStats
-
-  // LLM 输出
-  rawResponse      String   @db.Text
-  parsedSuggestion Json     // LLMSuggestion
-
-  // 审核状态
-  status           String   @default("pending")  // pending | approved | rejected | partial
-
-  // 审核信息
-  reviewedBy       String?
-  reviewedAt       DateTime?
-  reviewNotes      String?
-  appliedItems     Json?    // 实际应用的建议项ID列表
-
-  // 元数据
-  createdAt        DateTime @default(now())
-
-  @@index([status])
-  @@index([weekStart])
-  @@index([createdAt])
-  @@index([status, reviewedAt])
-  @@map("llm_advisor_suggestions")
-}
-
-/// 用户学习状态快照（用于 LLM 分析）
-model UserLearningState {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  fatigue    Float    @default(0)
-  motivation Float    @default(0)
-  attention  Float    @default(0.7)
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
-
-  @@index([updatedAt])
-  @@map("user_learning_states")
-}
-
-// ==================== 用户交互埋点系统 ====================
-
-/// 用户交互统计（用于学习风格分析）
-model UserInteractionStats {
-  id                  String   @id @default(uuid())
-  userId              String   @unique
-  pronunciationClicks Int      @default(0)   // 发音按钮点击次数（用于听觉偏好分析）
-  pauseCount          Int      @default(0)   // 学习暂停次数
-  pageSwitchCount     Int      @default(0)   // 页面切换次数
-  totalInteractions   Int      @default(0)   // 总交互次数
-  totalSessionDuration Int     @default(0)   // 总会话时长（毫秒）
-  lastActivityTime    DateTime @default(now())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  @@index([userId])
-  @@index([lastActivityTime])
-  @@map("user_interaction_stats")
-}
-
-/// 用户交互事件记录（原始事件数据）
-model UserTrackingEvent {
-  id        String   @id @default(uuid())
-  userId    String
-  sessionId String
-  eventType String   // pronunciation_click, learning_pause, learning_resume, page_switch, etc.
-  eventData String?  // JSON 格式的事件详情
-  timestamp DateTime @default(now())
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([eventType])
   @@index([timestamp])
-  @@index([userId, timestamp])
-  @@index([userId, eventType])
-  @@map("user_tracking_events")
+  @@index([level])
+  @@index([module])
+  @@index([source])
+  @@index([userId])
+  @@index([requestId])
+  @@map("system_logs")
 }

@@ -35,6 +35,89 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
+ * 环形缓冲区 - O(1) 时间复杂度的 push 和 shift 操作
+ *
+ * 性能优势:
+ * - 避免数组 shift() 的 O(n) 元素移动
+ * - 固定容量，无内存重分配
+ * - 适用于滑动窗口场景
+ */
+class RingBuffer<T> {
+  private buffer: (T | undefined)[];
+  private head = 0;
+  private tail = 0;
+  private _size = 0;
+
+  constructor(private capacity: number) {
+    this.buffer = new Array(capacity);
+  }
+
+  get size(): number {
+    return this._size;
+  }
+
+  push(item: T): T | undefined {
+    const evicted =
+      this._size === this.capacity ? this.buffer[this.head] : undefined;
+    this.buffer[this.tail] = item;
+    this.tail = (this.tail + 1) % this.capacity;
+
+    if (this._size < this.capacity) {
+      this._size++;
+    } else {
+      this.head = (this.head + 1) % this.capacity;
+    }
+    return evicted;
+  }
+
+  shift(): T | undefined {
+    if (this._size === 0) return undefined;
+    const item = this.buffer[this.head];
+    this.buffer[this.head] = undefined;
+    this.head = (this.head + 1) % this.capacity;
+    this._size--;
+    return item;
+  }
+
+  /** 获取第一个元素（不移除） */
+  first(): T | undefined {
+    return this._size > 0 ? this.buffer[this.head] : undefined;
+  }
+
+  /** 获取最后一个元素（不移除） */
+  last(): T | undefined {
+    if (this._size === 0) return undefined;
+    const lastIdx = (this.tail - 1 + this.capacity) % this.capacity;
+    return this.buffer[lastIdx];
+  }
+
+  /** 获取指定索引的元素 */
+  get(index: number): T | undefined {
+    if (index < 0 || index >= this._size) return undefined;
+    return this.buffer[(this.head + index) % this.capacity];
+  }
+
+  /** 迭代器支持 */
+  *[Symbol.iterator](): Iterator<T> {
+    for (let i = 0; i < this._size; i++) {
+      yield this.buffer[(this.head + i) % this.capacity] as T;
+    }
+  }
+
+  toArray(): T[] {
+    return [...this];
+  }
+
+  /** 清空缓冲区 */
+  clear(): void {
+    this.buffer = new Array(this.capacity);
+    this.head = 0;
+    this.tail = 0;
+    this._size = 0;
+  }
+}
+
+/**
  * 趋势分析器
  *
  * 冷启动策略:
@@ -52,8 +135,12 @@ export class TrendAnalyzer {
   private readonly minSamples: number;
   private readonly emaAlpha: number; // 7天EMA: 2/(7+1)=0.25
 
-  /** 样本历史 (滚动窗口) */
-  private samples: Sample[] = [];
+  /**
+   * 样本历史 (滚动窗口)
+   * 使用环形缓冲区以获得 O(1) 的 push/shift 操作
+   * 容量设为窗口天数的3倍以应对高频采样
+   */
+  private samples: RingBuffer<Sample>;
 
   /** 最近计算的状态 */
   private lastState: TrendState = 'flat';
@@ -64,6 +151,9 @@ export class TrendAnalyzer {
     this.windowMs = windowDays * 24 * 60 * 60 * 1000;
     this.minSamples = minSamples;
     this.emaAlpha = 0.25;
+    // 容量 = 窗口天数 * 3，假设每天最多3次采样
+    // 如超出容量，旧数据会自动被覆盖
+    this.samples = new RingBuffer<Sample>(windowDays * 3);
   }
 
   /**
@@ -81,20 +171,25 @@ export class TrendAnalyzer {
     this.samples.push({ ts: timestamp, ability: safeAbility });
 
     // 保持按时间排序 (允许少量乱序)
-    if (
-      this.samples.length >= 2 &&
-      this.samples[this.samples.length - 2].ts > timestamp
-    ) {
-      this.samples.sort((a, b) => a.ts - b.ts);
+    // 注意：当发生乱序时，需要转换为数组排序再重建环形缓冲区
+    const lastSample = this.samples.get(this.samples.size - 2);
+    if (this.samples.size >= 2 && lastSample && lastSample.ts > timestamp) {
+      const sorted = this.samples.toArray().sort((a, b) => a.ts - b.ts);
+      this.samples.clear();
+      for (const sample of sorted) {
+        this.samples.push(sample);
+      }
     }
 
-    // 滚动窗口截断
+    // 滚动窗口截断 - O(1) shift 操作
     const windowStart = timestamp - this.windowMs;
-    while (this.samples.length > 0 && this.samples[0].ts < windowStart) {
+    let firstSample = this.samples.first();
+    while (this.samples.size > 0 && firstSample && firstSample.ts < windowStart) {
       this.samples.shift();
+      firstSample = this.samples.first();
     }
 
-    if (this.samples.length < 2) {
+    if (this.samples.size < 2) {
       this.lastState = 'flat';
       this.lastSlope = 0;
       this.lastConfidence = 0;
@@ -104,7 +199,7 @@ export class TrendAnalyzer {
     const { slopePerDay, volatility, method } = this.computeSlopeAndVolatility();
     const state = this.classifyState(slopePerDay, volatility);
     const confidence = this.computeConfidence(
-      this.samples.length,
+      this.samples.size,
       slopePerDay,
       volatility,
       method
@@ -144,15 +239,17 @@ export class TrendAnalyzer {
    * 计算斜率和波动性
    */
   private computeSlopeAndVolatility(): SlopeResult {
-    const n = this.samples.length;
-    const t0 = this.samples[0].ts;
+    const n = this.samples.size;
+    const firstSample = this.samples.first()!;
+    const t0 = firstSample.ts;
     const xs: number[] = new Array(n);
     const ys: number[] = new Array(n);
 
-    // 转换为天数和能力值
+    // 转换为天数和能力值 - 使用 get() 访问环形缓冲区
     for (let i = 0; i < n; i++) {
-      xs[i] = (this.samples[i].ts - t0) / (24 * 60 * 60 * 1000); // 转为天数
-      ys[i] = this.samples[i].ability;
+      const sample = this.samples.get(i)!;
+      xs[i] = (sample.ts - t0) / (24 * 60 * 60 * 1000); // 转为天数
+      ys[i] = sample.ability;
     }
 
     const spanDays = xs[n - 1] - xs[0];
@@ -258,9 +355,10 @@ export class TrendAnalyzer {
     method: 'regression' | 'ema'
   ): number {
     // 样本越多、时间跨度越大、波动越低，置信度越高
+    const firstSample = this.samples.first()!;
+    const lastSample = this.samples.last()!;
     const spanDays = Math.max(
-      (this.samples[this.samples.length - 1].ts - this.samples[0].ts) /
-        (24 * 60 * 60 * 1000),
+      (lastSample.ts - firstSample.ts) / (24 * 60 * 60 * 1000),
       1e-6
     );
 

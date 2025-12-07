@@ -40,8 +40,13 @@ router.get(
       const { decisionId } = req.validatedQuery as any;
       const result = await explainabilityService.getDecisionExplanation(req.user!.id, decisionId);
 
+      // 如果没有决策记录，返回空数据而不是404
       if (!result) {
-        return res.status(404).json({ success: false, message: 'Decision not found' });
+        return res.json({
+          success: true,
+          data: null,
+          message: '暂无决策记录，开始学习后将自动生成'
+        });
       }
 
       res.json({ success: true, data: result });

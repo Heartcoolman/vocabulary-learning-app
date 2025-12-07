@@ -301,3 +301,94 @@ export function createDefaultCircuitBreaker(
     onStateChange
   });
 }
+
+/**
+ * 熔断器包装器回调选项
+ */
+export interface CircuitBreakerWrapperOptions {
+  /** 成功回调 */
+  onSuccess?: () => void;
+  /** 失败回调 */
+  onFailure?: (e: Error) => void;
+}
+
+/**
+ * 使用熔断器包装同步函数
+ * @param breaker 熔断器实例
+ * @param fn 主函数
+ * @param fallback 降级函数
+ * @param options 可选回调
+ * @returns 执行结果
+ */
+export function withCircuitBreaker<T>(
+  breaker: CircuitBreaker,
+  fn: () => T,
+  fallback: () => T,
+  options?: CircuitBreakerWrapperOptions
+): T {
+  if (!breaker.canExecute()) {
+    return fallback();
+  }
+
+  try {
+    const result = fn();
+    breaker.recordSuccess();
+    options?.onSuccess?.();
+    return result;
+  } catch (e) {
+    breaker.recordFailure(e instanceof Error ? e.message : String(e));
+    options?.onFailure?.(e instanceof Error ? e : new Error(String(e)));
+    return fallback();
+  }
+}
+
+/**
+ * 使用熔断器包装异步函数
+ * @param breaker 熔断器实例
+ * @param fn 主函数
+ * @param fallback 降级函数
+ * @param options 可选回调
+ * @returns Promise执行结果
+ */
+export async function withCircuitBreakerAsync<T>(
+  breaker: CircuitBreaker,
+  fn: () => Promise<T>,
+  fallback: () => Promise<T>,
+  options?: CircuitBreakerWrapperOptions
+): Promise<T> {
+  if (!breaker.canExecute()) {
+    return fallback();
+  }
+
+  try {
+    const result = await fn();
+    breaker.recordSuccess();
+    options?.onSuccess?.();
+    return result;
+  } catch (e) {
+    breaker.recordFailure(e instanceof Error ? e.message : String(e));
+    options?.onFailure?.(e instanceof Error ? e : new Error(String(e)));
+    return fallback();
+  }
+}
+
+/**
+ * 创建带熔断器的函数包装
+ * @param breaker 熔断器实例
+ * @param primaryFn 主函数
+ * @param fallbackFn 降级函数
+ * @returns 包装后的函数
+ */
+export function createCircuitBreakerWrapper<TArgs extends unknown[], TResult>(
+  breaker: CircuitBreaker,
+  primaryFn: (...args: TArgs) => TResult,
+  fallbackFn: (...args: TArgs) => TResult
+): (...args: TArgs) => TResult {
+  return (...args: TArgs) => {
+    return withCircuitBreaker(
+      breaker,
+      () => primaryFn(...args),
+      () => fallbackFn(...args)
+    );
+  };
+}

@@ -1,2 +1,15 @@
-[build]
-rustflags = ["-C", "target-cpu=native"]
+# Note: target-cpu=native is commented out for cross-platform compatibility
+# Uncomment for local development if you want maximum performance on your machine
+# [build]
+# rustflags = ["-C", "target-cpu=native"]
+
+# Cross-compilation linker settings
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+
+# Apple Silicon cross-compilation from Intel Mac
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

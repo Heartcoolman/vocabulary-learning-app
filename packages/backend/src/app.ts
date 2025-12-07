@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { httpLoggerMiddleware } from './logger/http';
@@ -138,6 +139,9 @@ if (process.env.NODE_ENV !== 'test') {
   });
   app.use('/api/auth', authLimiter);
 }
+
+// Cookie 解析（用于 HttpOnly Cookie 认证）
+app.use(cookieParser());
 
 // 解析JSON并限制请求体大小（防止大包攻击）
 app.use(express.json({ limit: '200kb' }));

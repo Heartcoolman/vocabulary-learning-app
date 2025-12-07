@@ -3,16 +3,36 @@ import { AuthRequest } from '../types';
 import authService from '../services/auth.service';
 import { logger } from '../logger';
 
+/**
+ * 从请求中提取认证 token
+ * 优先从 HttpOnly Cookie 读取，回退到 Authorization Header
+ */
+function extractToken(req: AuthRequest): string | null {
+  // 优先从 Cookie 读取 (HttpOnly Cookie 更安全)
+  const cookieToken = req.cookies?.auth_token;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  // 回退到 Authorization Header (保持向后兼容)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+
+  return null;
+}
+
 export async function authMiddleware(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractToken(req);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      logger.warn({ path: req.path, hasAuth: !!authHeader }, '[Auth] 未提供认证令牌');
+    if (!token) {
+      logger.warn({ path: req.path }, '[Auth] 未提供认证令牌');
       return res.status(401).json({
         success: false,
         error: '未提供认证令牌',
@@ -20,7 +40,6 @@ export async function authMiddleware(
       });
     }
 
-    const token = authHeader.replace('Bearer ', '');
     logger.debug({ path: req.path, tokenLength: token.length }, '[Auth] 验证 token');
 
     const user = await authService.verifyToken(token);
@@ -56,15 +75,14 @@ export async function optionalAuthMiddleware(
   next: NextFunction
 ) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractToken(req);
 
     // 没有 token，允许继续但不设置 user
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       logger.debug({ path: req.path }, '[Auth] 可选认证：未提供 token，继续处理');
       return next();
     }
 
-    const token = authHeader.replace('Bearer ', '');
     logger.debug({ path: req.path, tokenLength: token.length }, '[Auth] 可选认证：验证 token');
 
     const user = await authService.verifyToken(token);
