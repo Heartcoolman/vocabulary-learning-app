@@ -1,6 +1,6 @@
 module.exports = {
-  // TypeScript/JavaScript 文件 - 只在packages目录下运行eslint
-  'packages/**/*.{ts,tsx}': ['pnpm exec eslint --fix', 'pnpm exec prettier --write'],
+  // TypeScript/JavaScript 文件 - 只格式化，不运行 eslint（太慢）
+  'packages/**/*.{ts,tsx}': ['pnpm exec prettier --write'],
 
   // 根目录的JS配置文件
   '*.{js,cjs,mjs}': ['pnpm exec prettier --write'],
