@@ -7,7 +7,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { render, screen } from '@testing-library/react';
 import { ReactNode } from 'react';
 
-// Mock apiClient - must be defined before vi.mock
+// Mock authClient - must be defined before vi.mock
 const mockLogin = vi.fn();
 const mockLogout = vi.fn();
 const mockRegister = vi.fn();
@@ -17,8 +17,8 @@ const mockClearToken = vi.fn();
 const mockGetToken = vi.fn();
 const mockSetOnUnauthorized = vi.fn();
 
-vi.mock('@/services/ApiClient', () => ({
-  default: {
+vi.mock('../../services/client', () => ({
+  authClient: {
     login: (...args: unknown[]) => mockLogin(...args),
     logout: (...args: unknown[]) => mockLogout(...args),
     register: (...args: unknown[]) => mockRegister(...args),
@@ -35,7 +35,7 @@ const mockSetCurrentUser = vi.fn();
 const mockClearLocalData = vi.fn();
 const mockInit = vi.fn();
 
-vi.mock('@/services/StorageService', () => ({
+vi.mock('../../services/StorageService', () => ({
   default: {
     setCurrentUser: (...args: unknown[]) => mockSetCurrentUser(...args),
     clearLocalData: (...args: unknown[]) => mockClearLocalData(...args),
@@ -43,8 +43,8 @@ vi.mock('@/services/StorageService', () => ({
   },
 }));
 
-// Mock logger
-vi.mock('@/utils/logger', () => ({
+// Mock logger (override global mock with authLogger)
+vi.mock('../../utils/logger', () => ({
   authLogger: {
     error: vi.fn(),
     info: vi.fn(),
@@ -52,7 +52,12 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-// Import after mocks
+// Unmock AuthContext to test the real implementation
+// This overrides the global mock in setup.ts
+vi.unmock('../AuthContext');
+vi.unmock('../../contexts/AuthContext');
+
+// Import the real AuthContext after unmocking
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Test wrapper component
@@ -137,10 +142,15 @@ describe('AuthContext', () => {
       // Suppress console.error for this test
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // renderHook captures errors in result.error instead of throwing
-      const { result } = renderHook(() => useAuth());
+      // Wrap renderHook in try-catch to capture the thrown error
+      let thrownError: Error | null = null;
+      try {
+        renderHook(() => useAuth());
+      } catch (error) {
+        thrownError = error as Error;
+      }
 
-      expect(result.error).toEqual(new Error('useAuth必须在AuthProvider内部使用'));
+      expect(thrownError).toEqual(new Error('useAuth必须在AuthProvider内部使用'));
 
       consoleSpy.mockRestore();
     });

@@ -11,7 +11,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import type { Word, AnswerRecord } from '../../types/models';
 
 /**
@@ -83,7 +83,7 @@ function convertToCSV(data: unknown[], headers: string[]): string {
 
   // 添加数据行
   for (const row of data) {
-    const values = headers.map(header => {
+    const values = headers.map((header) => {
       const value = (row as Record<string, unknown>)[header];
       // 处理包含逗号或换行的值
       if (typeof value === 'string' && (value.includes(',') || value.includes('\n'))) {
@@ -195,7 +195,7 @@ async function exportRecords(
   if (params.startDate || params.endDate) {
     const startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
     const endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
-    filteredRecords = records.filter(r => r.timestamp >= startTime && r.timestamp <= endTime);
+    filteredRecords = records.filter((r) => r.timestamp >= startTime && r.timestamp <= endTime);
   }
 
   // 根据格式导出
@@ -210,7 +210,14 @@ async function exportRecords(
     filename = `records-export-${dateStr}.json`;
   } else {
     // CSV格式
-    const headers = ['wordId', 'timestamp', 'selectedAnswer', 'correctAnswer', 'isCorrect', 'responseTime'];
+    const headers = [
+      'wordId',
+      'timestamp',
+      'selectedAnswer',
+      'correctAnswer',
+      'isCorrect',
+      'responseTime',
+    ];
     data = convertToCSV(filteredRecords, headers);
     filename = `records-export-${dateStr}.csv`;
   }
@@ -248,7 +255,7 @@ async function exportProgress(
   // 获取各种进度数据
   const [studyConfig, statistics] = await Promise.all([
     apiClient.getStudyConfig(),
-    apiClient.getStatistics(),
+    apiClient.getUserStatistics(),
   ]);
 
   onProgress?.({
@@ -276,13 +283,15 @@ async function exportProgress(
     filename = `progress-export-${dateStr}.json`;
   } else {
     // CSV格式 - 简化版
-    const flatData = [{
-      dailyWordCount: studyConfig.dailyWordCount,
-      studyMode: studyConfig.studyMode,
-      todayLearned: statistics.todayLearned,
-      totalLearned: statistics.totalLearned,
-      averageAccuracy: statistics.averageAccuracy,
-    }];
+    const flatData = [
+      {
+        dailyWordCount: studyConfig.dailyWordCount,
+        studyMode: studyConfig.studyMode,
+        totalWords: statistics.totalWords,
+        totalRecords: statistics.totalRecords,
+        correctRate: statistics.correctRate,
+      },
+    ];
     const headers = Object.keys(flatData[0]);
     data = convertToCSV(flatData, headers);
     filename = `progress-export-${dateStr}.csv`;
@@ -448,9 +457,10 @@ export function useExportData(options?: {
  * 下载导出的数据
  */
 export function downloadExportData(result: ExportDataResult): void {
-  const blob = result.data instanceof Blob
-    ? result.data
-    : new Blob([result.data], { type: 'text/plain;charset=utf-8' });
+  const blob =
+    result.data instanceof Blob
+      ? result.data
+      : new Blob([result.data], { type: 'text/plain;charset=utf-8' });
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

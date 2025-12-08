@@ -1,30 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Word } from '../types/models';
-import {
-  ArrowLeft,
-  Star,
-  Target,
-  Clock,
-  MagnifyingGlass,
-  CheckCircle,
-  Warning,
-  ArrowClockwise,
-  WarningCircle,
-} from '../components/Icon';
+import { ArrowLeft, MagnifyingGlass, WarningCircle } from '../components/Icon';
 import LearningService from '../services/LearningService';
 import StorageService from '../services/StorageService';
 import { useToast } from '../components/ui';
 import { uiLogger } from '../utils/logger';
-
-interface WordWithState extends Word {
-  masteryLevel: number;
-  score: number;
-  nextReviewDate: string;
-  accuracy: number;
-  studyCount: number;
-}
+import VirtualWordList, { type WordWithState } from '../components/VirtualWordList';
 
 type SortField = 'score' | 'accuracy' | 'studyCount' | 'masteryLevel';
 type SortOrder = 'asc' | 'desc';
@@ -41,6 +23,10 @@ export default function WordListPage() {
   const [filteredWords, setFilteredWords] = useState<WordWithState[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 列表容器引用，用于计算虚拟滚动高度
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState(600);
 
   // 筛选条件
   const [filterMasteryLevel, setFilterMasteryLevel] = useState<number | null>(null);
@@ -98,6 +84,7 @@ export default function WordListPage() {
 
         return {
           ...word,
+          phonetic: word.phonetic || '',
           masteryLevel: state?.masteryLevel || 0,
           score: scoreData?.totalScore || 0,
           nextReviewDate: state?.nextReviewDate
@@ -184,6 +171,24 @@ export default function WordListPage() {
   useEffect(() => {
     applyFiltersAndSort();
   }, [applyFiltersAndSort]);
+
+  // 计算列表容器高度，用于虚拟滚动
+  useEffect(() => {
+    const calculateHeight = () => {
+      if (listContainerRef.current) {
+        // 获取视口高度，减去头部区域（约320px）和底部边距
+        const viewportHeight = window.innerHeight;
+        const headerHeight = 320; // 大约的头部高度（标题 + 筛选区域）
+        const bottomPadding = 32;
+        const availableHeight = viewportHeight - headerHeight - bottomPadding;
+        setListHeight(Math.max(400, availableHeight)); // 最小高度400px
+      }
+    };
+
+    calculateHeight();
+    window.addEventListener('resize', calculateHeight);
+    return () => window.removeEventListener('resize', calculateHeight);
+  }, []);
 
   // const handleSort = (field: SortField) => {
   //   if (sortField === field) {
@@ -374,99 +379,21 @@ export default function WordListPage() {
           </div>
         </div>
 
-        {/* 单词列表 */}
-        {filteredWords.length === 0 ? (
-          <div className="py-12 text-center">
-            <MagnifyingGlass size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
-            <p className="text-lg text-gray-500">没有找到符合条件的单词</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredWords.map((word) => (
-              <div
-                key={word.id}
-                className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-[1.01] hover:shadow-md"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  {/* 单词信息 */}
-                  <div className="flex-1">
-                    <h3 className="mb-1 text-2xl font-bold text-gray-900">{word.spelling}</h3>
-                    <p className="mb-2 text-gray-600">/{word.phonetic}/</p>
-                    <p className="text-gray-700">{word.meanings[0]}</p>
-                  </div>
-
-                  {/* 学习状态 */}
-                  <div className="flex flex-wrap gap-6">
-                    {/* 掌握程度 */}
-                    <div className="flex flex-col items-center">
-                      <span className="mb-1 text-xs text-gray-500">掌握程度</span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, index) => (
-                          <Star
-                            key={index}
-                            size={16}
-                            weight={index < word.masteryLevel ? 'fill' : 'regular'}
-                            color={index < word.masteryLevel ? '#f59e0b' : '#d1d5db'}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 单词得分 */}
-                    <div className="flex flex-col items-center">
-                      <span className="mb-1 text-xs text-gray-500">得分</span>
-                      <div className="flex items-center gap-1">
-                        <Target size={16} weight="duotone" color="#3b82f6" />
-                        <span className="text-lg font-bold text-gray-900">
-                          {Math.round(word.score)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* 下次复习 */}
-                    <div className="flex flex-col items-center">
-                      <span className="mb-1 text-xs text-gray-500">下次复习</span>
-                      <div className="flex items-center gap-1">
-                        <Clock size={16} weight="duotone" color="#8b5cf6" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {word.nextReviewDate}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* 手动调整按钮 */}
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => handleAdjustWord(word, 'mastered')}
-                        className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 transition-all duration-200 hover:scale-105 hover:bg-green-200 active:scale-95"
-                        title="标记为已掌握"
-                      >
-                        <CheckCircle size={14} weight="bold" />
-                        已掌握
-                      </button>
-                      <button
-                        onClick={() => handleAdjustWord(word, 'needsPractice')}
-                        className="flex items-center gap-1 rounded-lg bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-all duration-200 hover:scale-105 hover:bg-yellow-200 active:scale-95"
-                        title="标记为需要重点学习"
-                      >
-                        <Warning size={14} weight="bold" />
-                        重点学习
-                      </button>
-                      <button
-                        onClick={() => handleAdjustWord(word, 'reset')}
-                        className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95"
-                        title="重置学习进度"
-                      >
-                        <ArrowClockwise size={14} weight="bold" />
-                        重置
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* 单词列表 - 使用虚拟滚动优化大列表性能 */}
+        <div ref={listContainerRef}>
+          {filteredWords.length === 0 ? (
+            <div className="py-12 text-center">
+              <MagnifyingGlass size={80} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
+              <p className="text-lg text-gray-500">没有找到符合条件的单词</p>
+            </div>
+          ) : (
+            <VirtualWordList
+              words={filteredWords}
+              onAdjustWord={handleAdjustWord}
+              containerHeight={listHeight}
+            />
+          )}
+        </div>
 
         {/* 确认对话框 */}
         {showConfirmDialog && selectedWord && (

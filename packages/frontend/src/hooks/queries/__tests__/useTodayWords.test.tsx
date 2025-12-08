@@ -6,18 +6,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTodayWords, useTodayWordsCompat } from '../useTodayWords';
-import apiClient, { TodayWordsResponse, StudyProgress } from '../../../services/ApiClient';
+import apiClient, { TodayWordsResponse, StudyProgress } from '../../../services/client';
 import type { Word } from '../../../types/models';
 import React from 'react';
 
-// Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+// Mock services/client
+vi.mock('../../../services/client', () => ({
   default: {
     getTodayWords: vi.fn(),
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getTodayWords: ReturnType<typeof vi.fn>;
 };
 
@@ -94,9 +94,7 @@ describe('useTodayWords', () => {
     });
 
     it('should handle loading state', () => {
-      mockApiClient.getTodayWords.mockImplementation(
-        () => new Promise(() => {}),
-      );
+      mockApiClient.getTodayWords.mockImplementation(() => new Promise(() => {}));
       const queryClient = createTestQueryClient();
 
       const { result } = renderHook(() => useTodayWords(), {
@@ -183,9 +181,7 @@ describe('useTodayWordsCompat', () => {
     });
 
     it('should return null when no data', () => {
-      mockApiClient.getTodayWords.mockImplementation(
-        () => new Promise(() => {}),
-      );
+      mockApiClient.getTodayWords.mockImplementation(() => new Promise(() => {}));
       const queryClient = createTestQueryClient();
 
       const { result } = renderHook(() => useTodayWordsCompat(), {

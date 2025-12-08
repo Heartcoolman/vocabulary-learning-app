@@ -9,7 +9,7 @@ import {
   ConfigHistory,
   WordState,
 } from '../types/models';
-import ApiClient from './ApiClient';
+import ApiClient from './client';
 import { storageLogger } from '../utils/logger';
 
 export interface SyncStatus {

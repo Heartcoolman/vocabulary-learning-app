@@ -12,7 +12,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ElementType } from 'react';
-import { motion } from 'framer-motion';
 import {
   Brain,
   Lightning,
@@ -38,7 +37,6 @@ import {
   OptimizationEvent,
   MasteryRadarData,
 } from '../../services/aboutApi';
-import { fadeInVariants, staggerContainerVariants } from '../../utils/animations';
 import { amasLogger } from '../../utils/logger';
 
 // ==================== 配置 ====================
@@ -63,10 +61,7 @@ function SystemVitality({
 }) {
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-      <motion.div
-        variants={fadeInVariants}
-        className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-      >
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Target size={80} weight="fill" className="text-emerald-500" />
         </div>
@@ -83,12 +78,9 @@ function SystemVitality({
               : '暂无数据'}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        variants={fadeInVariants}
-        className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-      >
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Atom size={80} weight="fill" className="text-blue-500" />
         </div>
@@ -103,12 +95,9 @@ function SystemVitality({
             {performance ? `置信度 ${Math.round(performance.causalConfidence * 100)}%` : '暂无数据'}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        variants={fadeInVariants}
-        className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-      >
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Lightning size={80} weight="fill" className="text-amber-500" />
         </div>
@@ -123,12 +112,9 @@ function SystemVitality({
             活跃用户: {overview?.activeUsers ?? 0}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        variants={fadeInVariants}
-        className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-      >
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Timer size={80} weight="fill" className="text-purple-500" />
         </div>
@@ -144,7 +130,7 @@ function SystemVitality({
             P99 &lt; {performance?.p99InferenceMs ?? 0}ms
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -167,10 +153,7 @@ function MemberCard({
   const trend = useMemo(() => Array.from({ length: 10 }, () => 40 + Math.random() * 40), []);
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-xl border border-gray-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md"
-    >
+    <div className="animate-g3-fade-in rounded-xl border border-gray-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
       <div className="mb-4 flex items-start justify-between">
         <div
           className={`rounded-lg bg-current bg-opacity-10 p-2.5 ${config.color.replace('text-', 'bg-')}`}
@@ -191,15 +174,14 @@ function MemberCard({
       {/* Sparkline Visualization */}
       <div className="flex h-8 items-end gap-1 opacity-50">
         {trend.map((h, i) => (
-          <motion.div
+          <div
             key={i}
-            initial={{ height: 0 }}
-            animate={{ height: `${h}%` }}
-            className={`flex-1 rounded-t-sm ${config.color.replace('text-', 'bg-')}`}
+            style={{ height: `${h}%`, transitionDelay: `${i * 50}ms` }}
+            className={`flex-1 rounded-t-sm transition-all duration-500 ${config.color.replace('text-', 'bg-')}`}
           />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -218,10 +200,7 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
     .join(' ');
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
       <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Brain className="text-rose-500" />
         群体掌握度评估
@@ -270,7 +249,7 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
           </text>
         </svg>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -293,16 +272,13 @@ function LearningModeDistribution() {
   };
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
       <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Target className="text-blue-500" />
         学习模式分布
       </h3>
       <div className="space-y-4">
-        {Object.entries(modeData).map(([id, value]) => {
+        {Object.entries(modeData).map(([id, value], idx) => {
           const config = modeConfig[id as keyof typeof modeConfig];
           return (
             <div key={id}>
@@ -311,11 +287,9 @@ function LearningModeDistribution() {
                 <span className="font-mono text-sm text-gray-500">{(value * 100).toFixed(0)}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${value * 100}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                  className={`h-full ${config.color} rounded-full`}
+                <div
+                  style={{ width: `${value * 100}%`, transitionDelay: `${idx * 100}ms` }}
+                  className={`h-full ${config.color} rounded-full transition-all duration-700 ease-out`}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">{config.desc}</p>
@@ -323,7 +297,7 @@ function LearningModeDistribution() {
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -344,10 +318,7 @@ function HalfLifeDistribution() {
   const avgHalfLife = 4.2;
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
       <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Timer className="text-purple-500" />
         半衰期分布
@@ -357,32 +328,27 @@ function HalfLifeDistribution() {
         <div className="text-sm text-gray-500">平均半衰期（天）</div>
       </div>
       <div className="space-y-2">
-        {halfLifeData.map((item) => (
+        {halfLifeData.map((item, idx) => (
           <div key={item.range} className="flex items-center gap-2">
             <span className="w-16 text-xs text-gray-500">{item.range}</span>
             <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${item.percentage}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500"
+              <div
+                style={{ width: `${item.percentage}%`, transitionDelay: `${idx * 100}ms` }}
+                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-700 ease-out"
               />
             </div>
             <span className="w-10 text-right text-xs text-gray-600">{item.percentage}%</span>
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 // 6. 优化事件时间轴 (OptimizationTimeline)
 function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="col-span-1 rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2"
-    >
+    <div className="col-span-1 animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2">
       <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Flask className="text-amber-500" />
         自进化事件日志
@@ -426,7 +392,7 @@ function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
           ))}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -477,12 +443,7 @@ export default function StatsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors md:p-10">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainerVariants}
-        className="mx-auto max-w-7xl"
-      >
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
         <header className="mb-10 flex items-end justify-between">
           <div>
@@ -547,7 +508,7 @@ export default function StatsPage() {
             <HalfLifeDistribution />
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

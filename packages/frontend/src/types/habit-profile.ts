@@ -1,24 +1,15 @@
 /**
  * 习惯画像相关类型定义
  * 与后端 backend/src/amas/modeling/habit-recognizer.ts 保持一致
+ *
+ * 注意: HabitProfile 已迁移到 @danci/shared，此处只保留前端专用的响应类型
  */
 
-/**
- * 习惯画像（内存实时计算）
- */
-export interface HabitProfile {
-  timePref: number[]; // 24小时归一化直方图
-  rhythmPref: {
-    sessionMedianMinutes: number;
-    batchMedian: number;
-  };
-  preferredTimeSlots: number[]; // 偏好时间段小时数组，如 [9, 14, 20]
-  samples: {
-    timeEvents: number;
-    sessions: number;
-    batches: number;
-  };
-}
+// HabitProfile 从 @danci/shared 导入
+import type { HabitProfile } from '@danci/shared';
+
+// 重新导出以保持向后兼容
+export type { HabitProfile };
 
 /**
  * 数据库存储的习惯画像

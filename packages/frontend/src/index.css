@@ -281,6 +281,22 @@ body {
   }
 }
 
+/* G3 右侧滑入 - 用于 Toast 通知 */
+@keyframes g3SlideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(100px, 0, 0) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(-4px, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 /* 焦点样式优化 */
 *:focus-visible {
   outline: 2px solid #3b82f6;
@@ -865,4 +881,150 @@ body {
   .btn-secondary::before {
     display: none;
   }
+}
+
+/* ========================================
+ * CSS 动画替代 framer-motion
+ * 用于简单动画场景，减少 bundle 大小
+ * ======================================== */
+
+/* 淡入动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 淡入上滑动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 淡入下滑动画 */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 展开动画 */
+@keyframes expandDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+/* 收起动画 */
+@keyframes collapseUp {
+  from {
+    opacity: 1;
+    max-height: 1000px;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+  }
+}
+
+/* Stagger 子元素动画 */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 动画工具类 */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.2s ease-out forwards;
+}
+
+.animate-expand {
+  animation: expandDown 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+.animate-collapse {
+  animation: collapseUp 0.2s ease-out forwards;
+  overflow: hidden;
+}
+
+/* Stagger 动画延迟 */
+.stagger-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-item:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-item:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-item:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-item:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-item:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-item:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-item:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* 按钮 hover/active 效果 */
+.btn-scale {
+  transition: transform 0.15s ease-out;
+}
+
+.btn-scale:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.btn-scale:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* 旋转动画 */
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.transition-rotate {
+  transition: transform 0.2s ease-out;
 }

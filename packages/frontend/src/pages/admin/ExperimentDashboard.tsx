@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import type { Icon } from '@phosphor-icons/react';
 import {
   Activity,
   UsersThree,
@@ -17,7 +17,7 @@ import {
   ChartBar,
   Gear,
 } from '../../components/Icon';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 
 // --- Types (Matching Backend) ---
@@ -93,12 +93,16 @@ const StatusBadge = ({ status }: { status: ExperimentStatus['status'] }) => {
   );
 };
 
-const MetricCard = ({ label, value, subtext, icon: Icon, trend }: any) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur"
-  >
+interface MetricCardProps {
+  label: string;
+  value: string | number;
+  subtext?: string | React.ReactNode;
+  icon: Icon;
+  trend?: 'positive' | 'negative' | null;
+}
+
+const MetricCard = ({ label, value, subtext, icon: Icon, trend }: MetricCardProps) => (
+  <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur">
     <div className="mb-2 flex items-start justify-between">
       <div className="rounded-lg bg-gray-50 p-2 text-gray-500">
         <Icon size={20} weight="duotone" />
@@ -122,7 +126,7 @@ const MetricCard = ({ label, value, subtext, icon: Icon, trend }: any) => (
     {subtext && (
       <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400">{subtext}</div>
     )}
-  </motion.div>
+  </div>
 );
 
 const ConfidenceIntervalChart = ({
@@ -177,11 +181,8 @@ const ConfidenceIntervalChart = ({
       />
 
       {/* Effect Size Dot */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.5 }}
-        className="group absolute top-1/2 z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform cursor-help rounded-full border-2 border-white bg-blue-600 shadow-md"
+      <div
+        className="group absolute top-1/2 z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform cursor-help rounded-full border-2 border-white bg-blue-600 shadow-md transition-transform duration-500"
         style={{ left: `${effectPos}%` }}
       >
         {/* Tooltip */}
@@ -190,7 +191,7 @@ const ConfidenceIntervalChart = ({
             Effect: +{(effectSize * 100).toFixed(1)}%
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Labels */}
       <div
@@ -288,8 +289,9 @@ const CreateExperimentModal = ({
 
       adminLogger.info({ experimentId: result.id }, '实验创建成功');
       onSuccess();
-    } catch (error: any) {
-      const message = error?.message || '创建实验失败';
+    } catch (error) {
+      const err = error as Error;
+      const message = err?.message || '创建实验失败';
       adminLogger.error({ err: error }, '创建实验失败');
       setErrorMessage(message);
     } finally {
@@ -299,11 +301,7 @@ const CreateExperimentModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
-      >
+      <div className="max-h-[90vh] w-full max-w-2xl animate-g3-scale-in overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="border-b border-gray-200 p-6">
           <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
             <Plus className="text-blue-600" weight="bold" />
@@ -407,7 +405,7 @@ const CreateExperimentModal = ({
             </button>
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -426,9 +424,10 @@ export default function ExperimentDashboard() {
     try {
       const result = await apiClient.getExperimentStatus('thompson-vs-linucb');
       setData(result);
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '加载实验数据失败');
-      setError(e?.message || '加载实验数据失败');
+      setError(err?.message || '加载实验数据失败');
     } finally {
       setLoading(false);
     }
@@ -524,7 +523,7 @@ export default function ExperimentDashboard() {
               ? 'Result is statistically significant'
               : 'Result is NOT significant yet'
           }
-          trend={data.isSignificant ? 'positive' : 'neutral'}
+          trend={data.isSignificant ? 'positive' : null}
         />
         <MetricCard
           label="Effect Size (提升幅度)"
@@ -652,10 +651,8 @@ export default function ExperimentDashboard() {
           </section>
 
           {/* 4. Recommendation / Decision Engine */}
-          <motion.section
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`relative overflow-hidden rounded-xl border-2 p-6 shadow-sm ${
+          <section
+            className={`relative animate-g3-fade-in overflow-hidden rounded-xl border-2 p-6 shadow-sm ${
               data.status === 'completed'
                 ? 'border-indigo-100 bg-gradient-to-br from-indigo-50 to-white'
                 : 'border-gray-200 bg-white'
@@ -707,7 +704,7 @@ export default function ExperimentDashboard() {
                 </div>
               )}
             </div>
-          </motion.section>
+          </section>
 
           {/* 5. 数据收集状态与实时追踪 */}
           <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

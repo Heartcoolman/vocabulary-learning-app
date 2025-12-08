@@ -12,8 +12,8 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
-import type { WordBook } from '../../types/models';
+import { adminClient } from '../../services/client';
+import type { WordBook, Word } from '../../types/models';
 
 /**
  * 创建系统词库的参数
@@ -77,7 +77,7 @@ export function useCreateSystemWordBook() {
 
   return useMutation<WordBook, Error, CreateSystemWordBookParams>({
     mutationFn: async (params) => {
-      return await apiClient.adminCreateSystemWordBook(params);
+      return await adminClient.createSystemWordBook(params);
     },
     onSuccess: () => {
       // 刷新词库列表
@@ -113,7 +113,7 @@ export function useUpdateSystemWordBook() {
 
   return useMutation<WordBook, Error, UpdateSystemWordBookParams>({
     mutationFn: async ({ id, ...data }) => {
-      return await apiClient.adminUpdateSystemWordBook(id, data);
+      return await adminClient.updateSystemWordBook(id, data);
     },
     onSuccess: (data) => {
       // 刷新词库列表
@@ -147,7 +147,7 @@ export function useDeleteSystemWordBook() {
 
   return useMutation<void, Error, string>({
     mutationFn: async (id: string) => {
-      await apiClient.adminDeleteSystemWordBook(id);
+      await adminClient.deleteSystemWordBook(id);
     },
     onSuccess: () => {
       // 刷新词库列表
@@ -182,9 +182,10 @@ export function useDeleteSystemWordBook() {
 export function useBatchAddWords() {
   const queryClient = useQueryClient();
 
-  return useMutation<{ count: number; words: any[] }, Error, BatchAddWordsParams>({
+  return useMutation<{ count: number; words: Word[] }, Error, BatchAddWordsParams>({
     mutationFn: async ({ wordBookId, words }) => {
-      return await apiClient.adminBatchAddWordsToSystemWordBook(wordBookId, words);
+      const result = await adminClient.batchAddWordsToSystemWordBook(wordBookId, words);
+      return { count: result.length, words: result };
     },
     onSuccess: (_, variables) => {
       // 刷新词库详情
@@ -235,14 +236,11 @@ export function useExportUserWords() {
     mutationFn: async ({ userId, format }) => {
       // 注意：这个需要修改 ApiClient 来返回 Blob
       // 目前假设已经实现
-      const response = await fetch(
-        `/api/admin/users/${userId}/words/export?format=${format}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+      const response = await fetch(`/api/admin/users/${userId}/words/export?format=${format}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
-      );
+      });
 
       if (!response.ok) {
         throw new Error('导出失败');
@@ -288,7 +286,7 @@ export function useFlagAnomaly() {
 
   return useMutation<any, Error, FlagAnomalyParams>({
     mutationFn: async ({ userId, wordId, ...data }) => {
-      return await apiClient.adminFlagAnomalyRecord(userId, wordId, data);
+      return await adminClient.flagAnomalyRecord(userId, wordId, data);
     },
     onSuccess: (_, variables) => {
       // 刷新异常标记列表
@@ -326,15 +324,15 @@ export function useBatchDeleteUsers() {
 
   return useMutation<BatchOperationResult, Error, string[]>({
     mutationFn: async (userIds: string[]) => {
-      const results = await Promise.allSettled(
-        userIds.map((id) => apiClient.adminDeleteUser(id)),
-      );
+      const results = await Promise.allSettled(userIds.map((id) => adminClient.deleteUser(id)));
 
       const success = results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.filter((r) => r.status === 'rejected').length;
       const errors = results
         .map((r, i) =>
-          r.status === 'rejected' ? { id: userIds[i], error: r.reason?.message || '未知错误' } : null,
+          r.status === 'rejected'
+            ? { id: userIds[i], error: r.reason?.message || '未知错误' }
+            : null,
         )
         .filter((e): e is { id: string; error: string } => e !== null);
 
@@ -374,7 +372,7 @@ export function useBatchUpdateUserRoles() {
   >({
     mutationFn: async (operations) => {
       const results = await Promise.allSettled(
-        operations.map((op) => apiClient.adminUpdateUserRole(op.userId, op.role)),
+        operations.map((op) => adminClient.updateUserRole(op.userId, op.role)),
       );
 
       const success = results.filter((r) => r.status === 'fulfilled').length;

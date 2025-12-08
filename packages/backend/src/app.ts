@@ -39,13 +39,20 @@ import logViewerRoutes from './routes/log-viewer.routes';
 import llmAdvisorRoutes from './routes/llm-advisor.routes';
 import experimentRoutes from './routes/experiment.routes';
 import trackingRoutes from './routes/tracking.routes';
+import healthRoutes from './routes/health.routes';
 
 const app = express();
 
 // 反向代理配置：仅在明确配置且受控反代后面时启用
 // 攻击者可伪造 X-Forwarded-For 绕过限流，因此默认禁用
-if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
-  const proxyValue = env.TRUST_PROXY === 'true' ? 1 : parseInt(env.TRUST_PROXY, 10) || false;
+if (env.TRUST_PROXY !== false) {
+  // TRUST_PROXY 已在 env.ts 中转换为 number | string | false
+  // number: 直接使用 (跳过的代理数量)
+  // string: 转换为数字或传递给 express (如 'loopback', 'linklocal' 等)
+  const proxyValue =
+    typeof env.TRUST_PROXY === 'number'
+      ? env.TRUST_PROXY
+      : parseInt(String(env.TRUST_PROXY), 10) || env.TRUST_PROXY;
   if (proxyValue) {
     app.set('trust proxy', proxyValue);
     logger.info({ trustProxy: proxyValue }, 'Trust proxy enabled');
@@ -206,6 +213,9 @@ app.use('/api/llm-advisor', llmAdvisorRoutes);
 app.use('/api/users/profile', profileRoutes);
 app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
+
+// 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
+app.use('/health', healthRoutes);
 
 // 404处理
 app.use((req, res) => {

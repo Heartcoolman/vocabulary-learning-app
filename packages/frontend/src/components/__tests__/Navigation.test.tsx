@@ -16,6 +16,12 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
+// Mock animations
+vi.mock('../../utils/animations', () => ({
+  fadeInVariants: {},
+  g3SpringStandard: { type: 'spring', stiffness: 500, damping: 30 },
+}));
+
 // Mock Icon components
 vi.mock('../Icon', () => ({
   CaretDown: () => <span data-testid="caret-down">▼</span>,

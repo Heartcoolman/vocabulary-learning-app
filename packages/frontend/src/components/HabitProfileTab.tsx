@@ -8,19 +8,17 @@ import {
   ArrowCounterClockwise,
   Lightbulb,
 } from './Icon';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import HabitHeatmap from './HabitHeatmap';
 import ChronotypeCard from './ChronotypeCard';
 import LearningStyleCard from './LearningStyleCard';
 import type { HabitProfile } from '../types/habit-profile';
+import type { CognitiveProfile } from '../types/cognitive';
 import { learningLogger } from '../utils/logger';
 
 const HabitProfileTab: React.FC = () => {
   const [profile, setProfile] = useState<HabitProfile | null>(null);
-  const [cognitiveProfile, setCognitiveProfile] = useState<{
-    chronotype: any;
-    learningStyle: any;
-  } | null>(null);
+  const [cognitiveProfile, setCognitiveProfile] = useState<CognitiveProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<'save' | 'init' | null>(null);

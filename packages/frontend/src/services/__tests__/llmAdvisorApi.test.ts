@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock ApiClient
-vi.mock('../ApiClient', () => ({
+vi.mock('../client', () => ({
   default: {
     getLLMAdvisorConfig: vi.fn(),
     checkLLMAdvisorHealth: vi.fn(),
@@ -41,9 +41,9 @@ import {
   type LLMSuggestion,
   type WeeklyStats,
 } from '../llmAdvisorApi';
-import apiClient from '../ApiClient';
+import apiClient from '../client';
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getLLMAdvisorConfig: ReturnType<typeof vi.fn>;
   checkLLMAdvisorHealth: ReturnType<typeof vi.fn>;
   getLLMAdvisorSuggestions: ReturnType<typeof vi.fn>;

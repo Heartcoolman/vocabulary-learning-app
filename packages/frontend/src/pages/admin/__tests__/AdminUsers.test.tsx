@@ -6,16 +6,39 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminUsers from '../AdminUsers';
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
 const mockUsers = [
-  { id: 'u1', username: 'user1', email: 'user1@test.com', role: 'USER', createdAt: '2024-01-01' },
+  {
+    id: 'u1',
+    username: 'user1',
+    email: 'user1@test.com',
+    role: 'USER' as const,
+    createdAt: '2024-01-01',
+    totalWordsLearned: 100,
+    averageScore: 85.5,
+    accuracy: 0.85,
+    lastLearningTime: '2024-01-15',
+  },
   {
     id: 'u2',
     username: 'admin1',
     email: 'admin1@test.com',
-    role: 'ADMIN',
+    role: 'ADMIN' as const,
     createdAt: '2024-01-02',
+    totalWordsLearned: 200,
+    averageScore: 92.0,
+    accuracy: 0.92,
+    lastLearningTime: '2024-01-14',
   },
 ];
 
@@ -26,7 +49,7 @@ const mockPagination = {
   totalPages: 1,
 };
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     adminGetUsers: vi.fn().mockResolvedValue({
       users: [
@@ -36,6 +59,8 @@ vi.mock('@/services/ApiClient', () => ({
           email: 'user1@test.com',
           role: 'USER',
           createdAt: '2024-01-01',
+          totalWordsLearned: 100,
+          averageScore: 85.5,
         },
         {
           id: 'u2',
@@ -43,6 +68,8 @@ vi.mock('@/services/ApiClient', () => ({
           email: 'admin1@test.com',
           role: 'ADMIN',
           createdAt: '2024-01-02',
+          totalWordsLearned: 200,
+          averageScore: 92.0,
         },
       ],
       pagination: { total: 2, page: 1, pageSize: 20, totalPages: 1 },
@@ -83,12 +110,17 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
-const renderWithRouter = () => {
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
   return render(
-    <MemoryRouter>
-      <AdminUsers />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
   );
+};
+
+const renderWithRouter = () => {
+  return renderWithProviders(<AdminUsers />);
 };
 
 describe('AdminUsers', () => {
@@ -153,7 +185,7 @@ describe('AdminUsers', () => {
     });
 
     it('should call API with search term', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
       const user = userEvent.setup();
 
@@ -192,7 +224,7 @@ describe('AdminUsers', () => {
     });
 
     it('should call API when toggling role', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
 
       await waitFor(() => {
@@ -222,7 +254,7 @@ describe('AdminUsers', () => {
     });
 
     it('should call delete API when confirmed', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
 
       await waitFor(() => {
@@ -246,9 +278,12 @@ describe('AdminUsers', () => {
 
   describe('pagination', () => {
     it('should display pagination info when multiple pages', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockResolvedValue({
         users: mockUsers,
+        total: 2,
+        page: 1,
+        pageSize: 20,
         pagination: { ...mockPagination, totalPages: 2 },
       });
 
@@ -260,9 +295,12 @@ describe('AdminUsers', () => {
     });
 
     it('should show pagination buttons when multiple pages', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockResolvedValue({
         users: mockUsers,
+        total: 2,
+        page: 1,
+        pageSize: 20,
         pagination: { ...mockPagination, totalPages: 3 },
       });
 
@@ -277,9 +315,12 @@ describe('AdminUsers', () => {
 
   describe('empty state', () => {
     it('should show empty message when no users', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockResolvedValue({
         users: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
         pagination: { ...mockPagination, total: 0 },
       });
 
@@ -293,7 +334,7 @@ describe('AdminUsers', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockRejectedValue(new Error('加载失败'));
 
       renderWithRouter();

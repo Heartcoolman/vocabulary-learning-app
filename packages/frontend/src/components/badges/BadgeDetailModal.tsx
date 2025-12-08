@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
-import ApiClient from '../../services/ApiClient';
+import { amasClient } from '../../services/client';
 import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
 import { uiLogger } from '../../utils/logger';
 
@@ -27,7 +27,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
   const loadBadgeProgress = async () => {
     try {
       setIsLoading(true);
-      const progress = await ApiClient.getBadgeProgress(badge.id);
+      const progress = await amasClient.getBadgeProgress(badge.id);
       setBadgeProgress(progress);
     } catch (err) {
       uiLogger.error({ err, badgeId: badge.id }, '加载徽章进度失败');
@@ -227,11 +227,8 @@ const compareBadge = (prev: Badge, next: Badge): boolean => {
 /**
  * Memoized BadgeDetailModal component
  */
-const BadgeDetailModal = React.memo(
-  BadgeDetailModalComponent,
-  (prevProps, nextProps) => {
-    return prevProps.onClose === nextProps.onClose && compareBadge(prevProps.badge, nextProps.badge);
-  },
-);
+const BadgeDetailModal = React.memo(BadgeDetailModalComponent, (prevProps, nextProps) => {
+  return prevProps.onClose === nextProps.onClose && compareBadge(prevProps.badge, nextProps.badge);
+});
 
 export default BadgeDetailModal;

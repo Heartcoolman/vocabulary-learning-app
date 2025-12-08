@@ -1,5 +1,4 @@
 import { useEffect, ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
 import { useToastStore, ToastType } from '../../stores';
 
@@ -68,37 +67,31 @@ export function ToastProvider({ children }: ToastProviderProps) {
         aria-live="polite"
         aria-atomic="true"
       >
-        <AnimatePresence mode="popLayout">
-          {toasts.map((toast) => {
-            const Icon = toastIcons[toast.type];
-            return (
-              <motion.div
-                key={toast.id}
-                initial={{ opacity: 0, x: 100, scale: 0.9 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 100, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-                className={`pointer-events-auto flex min-w-[280px] max-w-[400px] items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${toastStyles[toast.type]}`}
-                role="alert"
+        {toasts.map((toast) => {
+          const Icon = toastIcons[toast.type];
+          return (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex min-w-[280px] max-w-[400px] animate-g3-slide-in-right items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${toastStyles[toast.type]}`}
+              role="alert"
+            >
+              <Icon
+                size={20}
+                weight="fill"
+                color={iconColors[toast.type]}
+                className="mt-0.5 flex-shrink-0"
+              />
+              <p className="flex-1 text-sm font-medium">{toast.message}</p>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="flex-shrink-0 rounded p-1 transition-colors hover:bg-black/5"
+                aria-label="关闭"
               >
-                <Icon
-                  size={20}
-                  weight="fill"
-                  color={iconColors[toast.type]}
-                  className="mt-0.5 flex-shrink-0"
-                />
-                <p className="flex-1 text-sm font-medium">{toast.message}</p>
-                <button
-                  onClick={() => removeToast(toast.id)}
-                  className="flex-shrink-0 rounded p-1 transition-colors hover:bg-black/5"
-                  aria-label="关闭"
-                >
-                  <X size={16} weight="bold" />
-                </button>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </>
   );

@@ -60,7 +60,7 @@ export default function StudyProgressPage() {
           <h2 className="mb-2 text-xl font-bold text-gray-900">无法加载进度数据</h2>
           <p className="mb-6 text-gray-600">{error || '获取数据时发生错误'}</p>
           <button
-            onClick={refresh}
+            onClick={() => refresh()}
             className="rounded-lg border border-gray-300 bg-white px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
           >
             重试

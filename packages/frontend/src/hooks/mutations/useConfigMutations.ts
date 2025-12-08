@@ -12,7 +12,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import { amasClient, wordBookClient } from '../../services/client';
 
 import type { AlgorithmConfig, StudyConfig } from '../../types/models';
 
@@ -47,7 +47,7 @@ export function useUpdateAlgorithmConfig() {
 
   return useMutation<AlgorithmConfig, Error, UpdateAlgorithmConfigParams>({
     mutationFn: async ({ configId, config, changeReason }) => {
-      return await apiClient.updateAlgorithmConfig(configId, config, changeReason);
+      return await amasClient.updateAlgorithmConfig(configId, config, changeReason);
     },
     onSuccess: () => {
       // 使所有相关查询失效，触发重新获取
@@ -70,7 +70,7 @@ export function useResetAlgorithmConfig() {
 
   return useMutation<AlgorithmConfig, Error, string>({
     mutationFn: async (configId: string) => {
-      return await apiClient.resetAlgorithmConfig(configId);
+      return await amasClient.resetAlgorithmConfig(configId);
     },
     onSuccess: () => {
       // 使所有相关查询失效，触发重新获取
@@ -93,7 +93,7 @@ export function useUpdateStudyConfig() {
 
   return useMutation<StudyConfig, Error, UpdateStudyConfigParams>({
     mutationFn: async (data) => {
-      return await apiClient.updateStudyConfig(data);
+      return await wordBookClient.updateStudyConfig(data);
     },
     onSuccess: () => {
       // 使所有相关查询失效，触发重新获取

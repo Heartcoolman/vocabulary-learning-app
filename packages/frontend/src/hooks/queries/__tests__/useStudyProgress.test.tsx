@@ -6,17 +6,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useStudyProgress, useStudyProgressWithRefresh } from '../useStudyProgress';
-import apiClient, { StudyProgress } from '../../../services/ApiClient';
+import apiClient, { StudyProgress } from '../../../services/client';
 import React from 'react';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getStudyProgress: vi.fn(),
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getStudyProgress: ReturnType<typeof vi.fn>;
 };
 
@@ -168,9 +168,7 @@ describe('useStudyProgressWithRefresh', () => {
     });
 
     it('should return null when no data', () => {
-      mockApiClient.getStudyProgress.mockImplementation(
-        () => new Promise(() => {}),
-      );
+      mockApiClient.getStudyProgress.mockImplementation(() => new Promise(() => {}));
       const queryClient = createTestQueryClient();
 
       const { result } = renderHook(() => useStudyProgressWithRefresh(), {

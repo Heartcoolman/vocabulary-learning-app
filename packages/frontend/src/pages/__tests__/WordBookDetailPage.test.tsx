@@ -23,7 +23,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: mockApiClient,
 }));
 

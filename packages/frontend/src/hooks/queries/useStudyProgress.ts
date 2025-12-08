@@ -1,6 +1,6 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { StudyProgress } from '../../services/ApiClient';
+import apiClient, { StudyProgress } from '../../services/client';
 
 /**
  * 获取学习进度的 Query Hook

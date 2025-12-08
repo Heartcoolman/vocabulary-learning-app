@@ -3,6 +3,7 @@ import { PerformanceProfiler, performanceMonitor } from '../../utils/performance
 import { DailyMissionCard } from '../../components/dashboard/DailyMissionCard';
 import { ProgressOverviewCard } from '../../components/dashboard/ProgressOverviewCard';
 import { MasteryWordItem } from '../../components/word-mastery/MasteryWordItem';
+import { adminLogger } from '../../utils/logger';
 
 /**
  * PerformanceTestPage - 用于测试React.memo优化效果的页面
@@ -13,7 +14,7 @@ const PerformanceTestPage: React.FC = () => {
 
   // Stable callback using useCallback
   const handleStart = useCallback(() => {
-    console.log('Start learning clicked');
+    adminLogger.debug('Start learning clicked');
   }, []);
 
   // Mock data for testing
@@ -22,6 +23,7 @@ const PerformanceTestPage: React.FC = () => {
     todayTarget: 50,
     totalStudied: 1234,
     correctRate: 85,
+    weeklyTrend: [20, 25, 22, 30, 28, 25, 25],
   };
 
   const masteryData = {
@@ -29,6 +31,7 @@ const PerformanceTestPage: React.FC = () => {
     spelling: 'abundant',
     meanings: 'adj. 大量的；丰富的；充裕的',
     mastery: {
+      wordId: 'test-word-1',
       score: 0.85,
       confidence: 0.9,
       isLearned: true,
@@ -36,6 +39,7 @@ const PerformanceTestPage: React.FC = () => {
         srsLevel: 5,
         actrRecall: 0.88,
         recentAccuracy: 0.92,
+        userFatigue: 0.1,
       },
       suggestion: '继续保持，定期复习即可',
     },

@@ -4,7 +4,7 @@ import apiClient, {
   UserDetailedStatistics,
   UserLearningData,
   UserLearningHeatmap,
-} from '../../services/ApiClient';
+} from '../../services/client';
 
 /**
  * 获取用户详细统计数据的 Query Hook
@@ -39,15 +39,17 @@ export function useUserLearningData(userId: string, limit: number = 100) {
 
 /**
  * 获取用户学习热力图数据的 Query Hook
+ * @param userId 用户ID
+ * @param days 天数（可选，默认获取所有数据）
  */
-export function useUserLearningHeatmap(userId: string, startDate: string, endDate: string) {
+export function useUserLearningHeatmap(userId: string, days?: number) {
   return useQuery({
-    queryKey: queryKeys.admin.userLearning.heatmap(userId, startDate, endDate),
+    queryKey: queryKeys.admin.userLearning.heatmap(userId, days?.toString() ?? '', ''),
     queryFn: async () => {
-      const data = await apiClient.adminGetUserLearningHeatmap(userId, startDate, endDate);
+      const data = await apiClient.adminGetUserLearningHeatmap(userId, days);
       return data;
     },
-    enabled: !!userId && !!startDate && !!endDate,
+    enabled: !!userId,
     staleTime: 10 * 60 * 1000, // 热力图数据可以缓存更久
   });
 }
@@ -62,7 +64,7 @@ export function useUserLearningRecords(
     pageSize?: number;
     startDate?: string;
     endDate?: string;
-  } = {}
+  } = {},
 ) {
   const { page = 1, pageSize = 50, startDate, endDate } = params;
 
@@ -74,12 +76,8 @@ export function useUserLearningRecords(
       endDate,
     }),
     queryFn: async () => {
-      const data = await apiClient.adminGetUserLearningRecords(userId, {
-        page,
-        pageSize,
-        startDate,
-        endDate,
-      });
+      // 使用 adminGetUserLearningData，传入 pageSize 作为 limit
+      const data = await apiClient.adminGetUserLearningData(userId, pageSize);
       return data;
     },
     enabled: !!userId,
@@ -94,21 +92,20 @@ export function useUserLearningTrend(userId: string, days: number = 30) {
   return useQuery({
     queryKey: queryKeys.admin.userLearning.trend(userId, days),
     queryFn: async () => {
-      // 使用学习记录数据计算趋势
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
-
-      const heatmapData = await apiClient.adminGetUserLearningHeatmap(userId, startDate, endDate);
+      // 使用热力图数据计算趋势，传入天数参数
+      const heatmapData = await apiClient.adminGetUserLearningHeatmap(userId, days);
 
       // 计算趋势指标
       const totalActivity = heatmapData.reduce((sum, day) => sum + day.activityLevel, 0);
-      const averageActivity = totalActivity / heatmapData.length;
+      const averageActivity = heatmapData.length > 0 ? totalActivity / heatmapData.length : 0;
       const averageAccuracy =
-        heatmapData.reduce((sum, day) => sum + day.accuracy, 0) / heatmapData.length;
+        heatmapData.length > 0
+          ? heatmapData.reduce((sum, day) => sum + day.accuracy, 0) / heatmapData.length
+          : 0;
       const averageScore =
-        heatmapData.reduce((sum, day) => sum + day.averageScore, 0) / heatmapData.length;
+        heatmapData.length > 0
+          ? heatmapData.reduce((sum, day) => sum + day.averageScore, 0) / heatmapData.length
+          : 0;
 
       return {
         heatmapData,
@@ -132,7 +129,7 @@ export function useBatchUserStatistics(userIds: string[]) {
     queryKey: queryKeys.admin.userStatistics.batch(userIds),
     queryFn: async () => {
       const results = await Promise.allSettled(
-        userIds.map((userId) => apiClient.adminGetUserStatistics(userId))
+        userIds.map((userId) => apiClient.adminGetUserStatistics(userId)),
       );
 
       return results

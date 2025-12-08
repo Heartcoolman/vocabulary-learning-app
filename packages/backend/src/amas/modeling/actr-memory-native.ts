@@ -15,19 +15,14 @@
  */
 
 import type {
-  ACTRMemoryNative as ACTRMemoryNativeClass,
-  ACTRConfig as NativeACTRConfig,
-  ReviewTrace as NativeReviewTrace,
+  ActrMemoryNative as ACTRMemoryNativeClass,
+  MemoryTrace as NativeMemoryTrace,
   ActivationResult as NativeActivationResult,
   RecallPrediction as NativeRecallPrediction,
   IntervalPrediction as NativeIntervalPrediction,
 } from '@danci/native';
 
-import {
-  CircuitBreaker,
-  CircuitBreakerOptions,
-  CircuitState,
-} from '../common/circuit-breaker';
+import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
 import { SmartRouter, RouteDecision } from '../common/smart-router';
 
@@ -114,16 +109,18 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   NativeModule = require('@danci/native');
 } catch (e) {
-  amasLogger.warn('[ACTRMemoryNativeWrapper] Native module not available, will use TypeScript fallback');
+  amasLogger.warn(
+    '[ACTRMemoryNativeWrapper] Native module not available, will use TypeScript fallback',
+  );
 }
 
 // ==================== 熔断器默认配置 ====================
 
 const DEFAULT_CIRCUIT_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
-  failureThreshold: 0.5,  // 50% 失败率触发熔断
-  windowSize: 20,         // 20 个样本的滑动窗口
-  openDurationMs: 60000,  // 60 秒后尝试半开
-  halfOpenProbe: 3,       // 半开状态允许 3 个探测请求
+  failureThreshold: 0.5, // 50% 失败率触发熔断
+  windowSize: 20, // 20 个样本的滑动窗口
+  openDurationMs: 60000, // 60 秒后尝试半开
+  halfOpenProbe: 3, // 半开状态允许 3 个探测请求
 };
 
 // ==================== ACTRMemoryNativeWrapper 类 ====================
@@ -195,7 +192,10 @@ export class ACTRMemoryNativeWrapper {
       },
       onEvent: (evt) => {
         if (evt.type === 'open') {
-          amasLogger.warn({ reason: evt.reason }, '[ACTRMemoryNativeWrapper] Circuit breaker opened');
+          amasLogger.warn(
+            { reason: evt.reason },
+            '[ACTRMemoryNativeWrapper] Circuit breaker opened',
+          );
         } else if (evt.type === 'close') {
           amasLogger.info('[ACTRMemoryNativeWrapper] Circuit breaker closed, native recovered');
         }
@@ -203,20 +203,16 @@ export class ACTRMemoryNativeWrapper {
     });
 
     // 尝试初始化 Native 模块
-    if (this.nativeEnabled && NativeModule?.ACTRMemoryNative) {
+    // 注意：Native 导出的是 ActrMemoryNative（有 type alias ACTRMemoryNative）
+    if (this.nativeEnabled && NativeModule?.ActrMemoryNative) {
       try {
-        const nativeConfig: NativeACTRConfig = {
-          decay,
-          threshold,
-          noiseScale,
-          maxSearchSeconds,
-        };
-        this.native = new NativeModule.ACTRMemoryNative(nativeConfig);
+        // ActrMemoryNative 构造函数接受 (decay?, threshold?, noiseScale?) 参数
+        this.native = new NativeModule.ActrMemoryNative(decay, threshold, noiseScale);
         amasLogger.info('[ACTRMemoryNativeWrapper] Native module initialized');
       } catch (e) {
         amasLogger.warn(
           { error: e instanceof Error ? e.message : String(e) },
-          '[ACTRMemoryNativeWrapper] Failed to initialize native module'
+          '[ACTRMemoryNativeWrapper] Failed to initialize native module',
         );
         this.native = null;
       }
@@ -245,11 +241,7 @@ export class ACTRMemoryNativeWrapper {
    * @param addNoise 是否添加噪声
    * @returns 激活度值
    */
-  computeActivation(
-    trace: ReviewTrace[],
-    decay?: number,
-    addNoise = true
-  ): number {
+  computeActivation(trace: ReviewTrace[], decay?: number, addNoise = true): number {
     const method: NativeMethod = 'selectAction';
 
     // 使用智能路由决策
@@ -269,7 +261,8 @@ export class ACTRMemoryNativeWrapper {
       const startTime = performance.now();
       try {
         const nativeTrace = this.toNativeTrace(trace);
-        const result = this.native.computeActivation(nativeTrace, decay, addNoise);
+        // Native computeActivationFromSecondsAgo 方法专门处理 secondsAgo 格式
+        const result = this.native.computeActivationFromSecondsAgo(nativeTrace);
 
         // 记录成功
         const durationMs = performance.now() - startTime;
@@ -288,7 +281,7 @@ export class ACTRMemoryNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ACTRMemoryNativeWrapper] Native computeActivation failed, falling back'
+          '[ACTRMemoryNativeWrapper] Native computeActivation failed, falling back',
         );
       }
     }
@@ -327,7 +320,8 @@ export class ACTRMemoryNativeWrapper {
       const startTime = performance.now();
       try {
         const nativeTrace = this.toNativeTrace(trace);
-        const result = this.native.computeFullActivation(nativeTrace);
+        // 使用 predictRecall 方法获取完整结果
+        const recallResult = this.native.predictRecall(nativeTrace);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -335,7 +329,12 @@ export class ACTRMemoryNativeWrapper {
         this.circuitBreaker.recordSuccess();
         this.stats.nativeCalls++;
 
-        return this.fromNativeActivationResult(result);
+        // 转换为 ActivationResult 格式
+        return {
+          baseActivation: recallResult.activation,
+          activation: recallResult.activation,
+          recallProbability: recallResult.recallProbability,
+        };
       } catch (e) {
         const error = e instanceof Error ? e : new Error(String(e));
         recordNativeFailure();
@@ -344,7 +343,7 @@ export class ACTRMemoryNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ACTRMemoryNativeWrapper] Native computeFullActivation failed, falling back'
+          '[ACTRMemoryNativeWrapper] Native computeFullActivation failed, falling back',
         );
       }
     }
@@ -361,11 +360,7 @@ export class ACTRMemoryNativeWrapper {
    * 智能路由决策: 强制使用 TypeScript
    * 原因: 简单公式计算，NAPI 调用开销远大于计算本身
    */
-  computeRecallProbability(
-    activation: number,
-    threshold?: number,
-    noiseScale?: number
-  ): number {
+  computeRecallProbability(activation: number, threshold?: number, noiseScale?: number): number {
     // 简单公式，强制使用 TypeScript (配置中已设置 forceRoute: USE_TYPESCRIPT)
     const decision = SmartRouter.decide('actr.computeRecallProbability', {
       nativeAvailable: this.shouldUseNative(),
@@ -389,11 +384,7 @@ export class ACTRMemoryNativeWrapper {
    * 智能路由决策: 强制使用 Native
    * 原因: 包含约60次二分搜索迭代，Native 优势明显
    */
-  computeOptimalInterval(
-    trace: ReviewTrace[],
-    targetProbability: number,
-    decay?: number
-  ): number {
+  computeOptimalInterval(trace: ReviewTrace[], targetProbability: number, decay?: number): number {
     const method: NativeMethod = 'selectAction';
 
     // 复杂操作，强制使用 Native (配置中已设置 forceRoute: USE_NATIVE)
@@ -413,7 +404,11 @@ export class ACTRMemoryNativeWrapper {
       const startTime = performance.now();
       try {
         const nativeTrace = this.toNativeTrace(trace);
-        const result = this.native.computeOptimalInterval(nativeTrace, targetProbability, decay);
+        // 如果提供了自定义 decay，使用带 decay 的方法
+        const result =
+          decay !== undefined
+            ? this.native.computeOptimalIntervalWithDecay(nativeTrace, targetProbability, decay)
+            : this.native.computeOptimalInterval(nativeTrace, targetProbability);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -430,7 +425,7 @@ export class ACTRMemoryNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ACTRMemoryNativeWrapper] Native computeOptimalInterval failed, falling back'
+          '[ACTRMemoryNativeWrapper] Native computeOptimalInterval failed, falling back',
         );
       }
     }
@@ -485,7 +480,7 @@ export class ACTRMemoryNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ACTRMemoryNativeWrapper] Native computeMemoryStrength failed, falling back'
+          '[ACTRMemoryNativeWrapper] Native computeMemoryStrength failed, falling back',
         );
       }
     }
@@ -566,7 +561,7 @@ export class ACTRMemoryNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ACTRMemoryNativeWrapper] Native predictOptimalInterval failed, falling back'
+          '[ACTRMemoryNativeWrapper] Native predictOptimalInterval failed, falling back',
         );
       }
     }
@@ -596,11 +591,7 @@ export class ACTRMemoryNativeWrapper {
    *
    * 注意: 当前由于 Action 类型转换复杂，实际委托给 fallback 处理
    */
-  selectAction(
-    state: UserState,
-    actions: Action[],
-    context: ACTRContext
-  ): ActionSelection<Action> {
+  selectAction(state: UserState, actions: Action[], context: ACTRContext): ActionSelection<Action> {
     // 使用智能路由决策
     const decision = SmartRouter.decide('actr.selectAction', {
       dataSize: actions.length,
@@ -626,12 +617,7 @@ export class ACTRMemoryNativeWrapper {
    * 智能路由决策: 强制使用 TypeScript
    * 原因: 简单计数更新，NAPI 开销大于计算
    */
-  update(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: ACTRContext
-  ): void {
+  update(state: UserState, action: Action, reward: number, context: ACTRContext): void {
     // 简单更新操作，强制使用 TypeScript (配置中已设置 forceRoute: USE_TYPESCRIPT)
     const decision = SmartRouter.decide('actr.update', {
       nativeAvailable: this.shouldUseNative(),
@@ -666,7 +652,13 @@ export class ACTRMemoryNativeWrapper {
     // 如果有 Native 实例，也同步状态
     if (this.native) {
       try {
-        this.native.setState(state);
+        // Native ActrState 格式与 ACTRState 兼容
+        this.native.setState({
+          decay: state.decay,
+          threshold: state.threshold,
+          noiseScale: state.noiseScale,
+          updateCount: state.updateCount,
+        });
       } catch (e) {
         amasLogger.warn({ error: e }, '[ACTRMemoryNativeWrapper] setState to native failed');
       }
@@ -746,9 +738,7 @@ export class ACTRMemoryNativeWrapper {
     const fallbackCaps = this.fallback.getCapabilities();
     return {
       ...fallbackCaps,
-      primaryUseCase:
-        fallbackCaps.primaryUseCase +
-        ' (Native 加速版本，支持熔断降级)',
+      primaryUseCase: fallbackCaps.primaryUseCase + ' (Native 加速版本，支持熔断降级)',
     };
   }
 
@@ -850,12 +840,15 @@ export class ACTRMemoryNativeWrapper {
   // ==================== 类型转换方法 ====================
 
   /**
-   * 转换 ReviewTrace 到 Native 格式
+   * 转换 ReviewTrace 到 Native MemoryTrace 格式
+   * Native MemoryTrace 使用 timestamp (表示 seconds ago) 和 isCorrect
    */
-  private toNativeTrace(trace: ReviewTrace[]): NativeReviewTrace[] {
-    return trace.map(t => ({
-      secondsAgo: t.secondsAgo,
-      isCorrect: t.isCorrect,
+  private toNativeTrace(trace: ReviewTrace[]): NativeMemoryTrace[] {
+    return trace.map((t) => ({
+      // Native MemoryTrace 的 timestamp 字段表示 "seconds ago"
+      timestamp: t.secondsAgo,
+      // isCorrect 默认为 true（假设没有错误记录的复习都是正确的）
+      isCorrect: t.isCorrect ?? true,
     }));
   }
 
@@ -899,9 +892,7 @@ export class ACTRMemoryNativeWrapper {
 /**
  * 创建 ACTRMemoryNativeWrapper 实例
  */
-export function createACTRMemoryNativeWrapper(
-  config?: ACTRWrapperConfig
-): ACTRMemoryNativeWrapper {
+export function createACTRMemoryNativeWrapper(config?: ACTRWrapperConfig): ACTRMemoryNativeWrapper {
   return new ACTRMemoryNativeWrapper(config);
 }
 
@@ -909,7 +900,7 @@ export function createACTRMemoryNativeWrapper(
  * 创建禁用 Native 的 ACTRMemoryNativeWrapper (用于测试)
  */
 export function createACTRMemoryNativeWrapperFallback(
-  config?: Omit<ACTRWrapperConfig, 'useNative'>
+  config?: Omit<ACTRWrapperConfig, 'useNative'>,
 ): ACTRMemoryNativeWrapper {
   return new ACTRMemoryNativeWrapper({ ...config, useNative: false });
 }

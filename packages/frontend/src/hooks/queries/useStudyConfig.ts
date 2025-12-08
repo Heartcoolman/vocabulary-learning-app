@@ -11,7 +11,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import type { StudyConfig } from '../../types/models';
 
 /**
@@ -80,10 +80,19 @@ export function useTodayWords(enabled = true) {
   return useQuery<TodayWordsResponse>({
     queryKey: queryKeys.studyConfig.todayWords(),
     queryFn: async () => {
-      const response = await apiClient.request<{ success: boolean; data: TodayWordsResponse }>(
-        '/api/study-config/today-words'
-      );
-      return response.data;
+      const response = await apiClient.getTodayWords();
+      return {
+        words: response.words.map((w) => ({
+          id: w.id,
+          spelling: w.spelling,
+          phonetic: w.phonetic ?? '',
+          meanings: w.meanings,
+          examples: w.examples,
+          audioUrl: w.audioUrl ?? undefined,
+          isNew: true as boolean, // 默认为新词
+        })),
+        progress: response.progress,
+      };
     },
     staleTime: 1000 * 30, // 30秒
     gcTime: 1000 * 60 * 5, // 5分钟
@@ -104,10 +113,7 @@ export function useStudyProgress(enabled = true) {
   return useQuery<StudyProgressResponse>({
     queryKey: queryKeys.studyConfig.progress(),
     queryFn: async () => {
-      const response = await apiClient.request<{ success: boolean; data: StudyProgressResponse }>(
-        '/api/study-config/progress'
-      );
-      return response.data;
+      return await apiClient.getStudyProgress();
     },
     staleTime: 1000 * 30, // 30秒
     gcTime: 1000 * 60 * 5, // 5分钟

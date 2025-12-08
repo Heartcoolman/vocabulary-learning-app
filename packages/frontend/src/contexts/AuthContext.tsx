@@ -7,7 +7,7 @@ import {
   useMemo,
   ReactNode,
 } from 'react';
-import apiClient, { User } from '../services/ApiClient';
+import { authClient, User } from '../services/client';
 import StorageService from '../services/StorageService';
 import { authLogger } from '../utils/logger';
 
@@ -41,13 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const loadUser = useCallback(async (isMounted: () => boolean) => {
     try {
-      const token = apiClient.getToken();
+      const token = authClient.getToken();
       if (!token) {
         if (isMounted()) setLoading(false);
         return;
       }
 
-      const userData = await apiClient.getCurrentUser();
+      const userData = await authClient.getCurrentUser();
       if (!isMounted()) return; // 组件已卸载，停止后续操作
 
       setUser(userData);
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLogger.error({ err: error }, '加载用户信息失败');
       if (!isMounted()) return; // 组件已卸载，停止后续操作
 
-      apiClient.clearToken();
+      authClient.clearToken();
       setUser(null);
       await StorageService.setCurrentUser(null);
     } finally {
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isMounted = () => mounted;
 
     // 注册全局 401 回调：当 token 失效时自动清空状态
-    apiClient.setOnUnauthorized(() => {
+    authClient.setOnUnauthorized(() => {
       if (mounted) {
         setUser(null);
         setLoading(false);
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 清理函数：恢复回调并标记组件已卸载
     return () => {
       mounted = false;
-      apiClient.setOnUnauthorized(null);
+      authClient.setOnUnauthorized(null);
     };
   }, [loadUser]);
 
@@ -96,11 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const { user: userData, token } = await apiClient.login(email, password);
+      const { user: userData, token } = await authClient.login(email, password);
       if (!token) {
         throw new Error('登录响应中缺少认证令牌');
       }
-      apiClient.setToken(token);
+      authClient.setToken(token);
       setUser(userData);
       // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
@@ -115,11 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const register = useCallback(async (email: string, password: string, username: string) => {
     try {
-      const { user: userData, token } = await apiClient.register(email, password, username);
+      const { user: userData, token } = await authClient.register(email, password, username);
       if (!token) {
         throw new Error('注册响应中缺少认证令牌');
       }
-      apiClient.setToken(token);
+      authClient.setToken(token);
       setUser(userData);
       // setCurrentUser 内部会调用 init()，无需重复调用
       await StorageService.setCurrentUser(userData.id);
@@ -134,11 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
-      await apiClient.logout();
+      await authClient.logout();
     } catch (error) {
       authLogger.error({ err: error }, '退出登录失败');
     } finally {
-      apiClient.clearToken();
+      authClient.clearToken();
       setUser(null);
       await StorageService.setCurrentUser(null);
       await StorageService.clearLocalData();

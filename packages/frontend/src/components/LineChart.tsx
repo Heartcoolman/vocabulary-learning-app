@@ -5,7 +5,7 @@ export interface LineChartData {
   value: number;
 }
 
-interface LineChartProps {
+export interface LineChartProps {
   data: LineChartData[];
   title?: string;
   yAxisLabel?: string;

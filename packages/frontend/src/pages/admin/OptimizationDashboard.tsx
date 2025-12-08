@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import type { Icon } from '@phosphor-icons/react';
 import {
   Activity,
   ArrowsClockwise,
@@ -23,7 +23,7 @@ import {
   Lightbulb,
   Trophy,
 } from '../../components/Icon';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 import { useToast, ConfirmModal } from '../../components/ui';
 
@@ -88,24 +88,20 @@ const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }
 const MetricCard = ({
   label,
   value,
-  icon: Icon,
+  icon: IconComponent,
   trend,
   subtext,
 }: {
   label: string;
   value: string | number;
-  icon: any;
+  icon: Icon;
   trend?: 'positive' | 'negative' | 'neutral';
   subtext?: string;
 }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur"
-  >
+  <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur">
     <div className="mb-2 flex items-start justify-between">
       <div className="rounded-lg bg-gray-50 p-2 text-gray-500">
-        <Icon size={20} weight="duotone" />
+        <IconComponent size={20} weight="duotone" />
       </div>
       {trend && (
         <span
@@ -133,7 +129,7 @@ const MetricCard = ({
     {subtext && (
       <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400">{subtext}</div>
     )}
-  </motion.div>
+  </div>
 );
 
 const ParamCard = ({
@@ -201,11 +197,9 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
           <div key={index} className="group flex items-center gap-3">
             <span className="w-24 shrink-0 text-xs text-gray-500">{date}</span>
             <div className="relative h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${height}%` }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="h-full rounded-lg bg-gradient-to-r from-green-400 to-green-600"
+              <div
+                style={{ width: `${height}%`, transitionDelay: `${index * 50}ms` }}
+                className="h-full rounded-lg bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
               />
             </div>
             <span className="w-20 text-right font-mono text-sm font-medium text-gray-700">
@@ -262,9 +256,10 @@ export default function OptimizationDashboard() {
       setHistory(historyData);
       setBestParams(bestData);
       setDiagnostics(diagnosticsData);
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '加载优化数据失败');
-      setError(e?.message || '加载优化数据失败');
+      setError(err?.message || '加载优化数据失败');
     } finally {
       setLoading(false);
     }
@@ -281,9 +276,10 @@ export default function OptimizationDashboard() {
       adminLogger.info({ result }, '优化触发成功');
       toast.success('优化已触发');
       await loadAllData();
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '触发优化失败');
-      toast.error('触发优化失败：' + e.message);
+      toast.error('触发优化失败：' + err.message);
     } finally {
       setTriggering(false);
     }
@@ -297,9 +293,10 @@ export default function OptimizationDashboard() {
       adminLogger.info({ result }, '优化器重置成功');
       toast.success('优化器已重置');
       await loadAllData();
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '重置优化器失败');
-      toast.error('重置优化器失败：' + e.message);
+      toast.error('重置优化器失败：' + err.message);
     } finally {
       setResetting(false);
     }
@@ -323,9 +320,10 @@ export default function OptimizationDashboard() {
       adminLogger.info({ params: suggestion.params, value }, '评估记录成功');
       toast.success('评估已记录');
       await loadAllData();
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '记录评估失败');
-      toast.error('记录评估失败：' + e.message);
+      toast.error('记录评估失败：' + err.message);
     } finally {
       setEvaluating(false);
     }
@@ -434,11 +432,7 @@ export default function OptimizationDashboard() {
         <div className="p-6">
           {/* Tab 1: Optimization Suggestion */}
           {activeTab === 'suggestion' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+            <div className="animate-g3-fade-in space-y-6">
               <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
                 <Info size={20} className="mt-0.5 shrink-0 text-blue-600" weight="bold" />
                 <div className="text-sm text-blue-800">
@@ -500,16 +494,12 @@ export default function OptimizationDashboard() {
                   <p>暂无优化建议</p>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* Tab 2: Optimization History */}
           {activeTab === 'history' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+            <div className="animate-g3-fade-in space-y-6">
               <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50 p-4">
                 <Clock size={20} className="mt-0.5 shrink-0 text-amber-600" weight="bold" />
                 <div className="text-sm text-amber-800">
@@ -544,16 +534,12 @@ export default function OptimizationDashboard() {
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* Tab 3: Best Parameters */}
           {activeTab === 'best' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+            <div className="animate-g3-fade-in space-y-6">
               <div className="flex items-start gap-3 rounded-lg border border-green-100 bg-green-50 p-4">
                 <Target size={20} className="mt-0.5 shrink-0 text-green-600" weight="bold" />
                 <div className="text-sm text-green-800">
@@ -596,16 +582,12 @@ export default function OptimizationDashboard() {
                   <p>暂无最佳参数</p>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* Tab 4: Control Panel */}
           {activeTab === 'control' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+            <div className="animate-g3-fade-in space-y-6">
               <div className="flex items-start gap-3 rounded-lg border border-purple-100 bg-purple-50 p-4">
                 <Gear size={20} className="mt-0.5 shrink-0 text-purple-600" weight="bold" />
                 <div className="text-sm text-purple-800">
@@ -655,16 +637,12 @@ export default function OptimizationDashboard() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Tab 5: Diagnostics */}
           {activeTab === 'diagnostics' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
+            <div className="animate-g3-fade-in space-y-6">
               <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <Activity size={20} className="mt-0.5 shrink-0 text-gray-600" weight="bold" />
                 <div className="text-sm text-gray-800">
@@ -703,7 +681,7 @@ export default function OptimizationDashboard() {
                   <p>暂无诊断信息</p>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
         </div>
       </div>

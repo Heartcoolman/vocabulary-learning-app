@@ -23,7 +23,7 @@ const mockExperimentStatus = {
   isActive: true,
 };
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     getExperimentStatus: vi.fn().mockResolvedValue({
       status: 'running' as const,
@@ -42,6 +42,7 @@ vi.mock('@/services/ApiClient', () => ({
       isActive: true,
     }),
     toggleExperiment: vi.fn().mockResolvedValue(undefined),
+    createExperiment: vi.fn().mockResolvedValue({ id: 'new-exp-id' }),
   },
 }));
 
@@ -185,7 +186,7 @@ describe('ExperimentDashboard', () => {
 
   describe('completed experiment', () => {
     it('should show winner when experiment is completed', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
         ...mockExperimentStatus,
         status: 'completed',
@@ -203,7 +204,7 @@ describe('ExperimentDashboard', () => {
 
   describe('stopped experiment', () => {
     it('should show stopped status', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
         ...mockExperimentStatus,
         status: 'stopped',
@@ -229,7 +230,7 @@ describe('ExperimentDashboard', () => {
     });
 
     it('should indicate when results are not significant', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
         ...mockExperimentStatus,
         isSignificant: false,
@@ -247,7 +248,7 @@ describe('ExperimentDashboard', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getExperimentStatus).mockRejectedValue(new Error('API Error'));
 
       render(<ExperimentDashboard />);

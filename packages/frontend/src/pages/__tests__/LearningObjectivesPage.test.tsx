@@ -13,8 +13,10 @@ const { mockApiClient } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: mockApiClient,
+  apiClient: mockApiClient,
+  ApiClient: mockApiClient,
 }));
 
 import LearningObjectivesPage from '../LearningObjectivesPage';

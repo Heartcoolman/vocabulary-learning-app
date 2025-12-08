@@ -38,7 +38,7 @@ const mockHabitProfile = {
   },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getHabitProfile: vi.fn(),
     initializeHabitProfile: vi.fn(),
@@ -105,7 +105,7 @@ vi.mock('../../components/profile/HabitHeatmap', () => ({
   ),
 }));
 
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 
 describe('HabitProfilePage', () => {
   beforeEach(() => {

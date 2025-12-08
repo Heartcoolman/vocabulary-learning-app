@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Sun, Moon, SunHorizon, TrendUp, Sparkle } from './Icon';
 
 // 支持 'neutral' 作为 'intermediate' 的别名
@@ -74,11 +73,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-gray-50 p-6">
         <div className="flex items-center gap-3">
@@ -93,11 +88,9 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
 
               {/* Confidence Bar */}
               <div className="ml-1 h-1.5 w-16 overflow-hidden rounded-full bg-gray-200">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${profile.confidence * 100}%` }}
-                  transition={{ duration: 1, ease: 'easeOut' }}
-                  className={`h-full bg-gradient-to-r ${config.gradient}`}
+                <div
+                  style={{ width: `${profile.confidence * 100}%` }}
+                  className={`h-full bg-gradient-to-r transition-all duration-1000 ease-out ${config.gradient}`}
                 />
               </div>
             </div>
@@ -123,15 +116,14 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
             {hours.map((hour) => {
               const isPeak = profile.peakHours.includes(hour);
               return (
-                <motion.div
+                <div
                   key={hour}
-                  initial={{ height: '20%' }}
-                  animate={{
+                  style={{
                     height: isPeak ? '100%' : '30%',
                     opacity: isPeak ? 1 : 0.3,
+                    transitionDelay: `${hour * 20}ms`,
                   }}
-                  transition={{ delay: hour * 0.02 }}
-                  className={`group relative flex-1 cursor-default rounded-sm ${isPeak ? `bg-gradient-to-t ${config.gradient}` : 'bg-gray-300'} `}
+                  className={`group relative flex-1 cursor-default rounded-sm transition-all duration-300 ${isPeak ? `bg-gradient-to-t ${config.gradient}` : 'bg-gray-300'} `}
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 group-hover:block">
@@ -146,7 +138,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
@@ -157,7 +149,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 import type {
   DecisionExplanation,
   CounterfactualInput,
@@ -26,7 +26,7 @@ export function useAmasDecisionExplanation(
   decisionId?: string,
   options?: {
     enabled?: boolean;
-  }
+  },
 ) {
   return useQuery({
     queryKey: queryKeys.amas.explanation(decisionId),

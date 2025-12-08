@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { UserOverview, User as UserDetail } from '../../services/ApiClient';
+import apiClient, { UserOverview, User as UserDetail } from '../../services/client';
 import {
   UsersThree,
   MagnifyingGlass,

@@ -66,8 +66,8 @@ interface LogQueryResult {
     userId: string | null;
     clientIp: string | null;
     userAgent: string | null;
-    app: string;
-    env: string;
+    app: string | null;
+    env: string | null;
     timestamp: Date;
   }>;
   total: number;
@@ -178,15 +178,9 @@ class LogStorageService {
         skipDuplicates: true,
       });
 
-      serviceLogger.debug(
-        { count: logsToFlush.length },
-        '成功刷新日志到数据库'
-      );
+      serviceLogger.debug({ count: logsToFlush.length }, '成功刷新日志到数据库');
     } catch (err) {
-      serviceLogger.error(
-        { err, count: logsToFlush.length },
-        '批量写入日志失败'
-      );
+      serviceLogger.error({ err, count: logsToFlush.length }, '批量写入日志失败');
 
       // 写入失败时，将日志放回缓冲区（仅在缓冲区不会溢出时）
       if (this.buffer.length + logsToFlush.length <= this.BATCH_SIZE * 10) {
@@ -347,9 +341,7 @@ class LogStorageService {
         LIMIT 24
       `;
 
-      const byHourRaw = await prisma.$queryRaw<
-        Array<{ hour: string; count: bigint }>
-      >(byHourQuery);
+      const byHourRaw = await prisma.$queryRaw<Array<{ hour: string; count: bigint }>>(byHourQuery);
 
       const byHour = byHourRaw.map((row) => ({
         hour: row.hour,
@@ -417,10 +409,7 @@ class LogStorageService {
         },
       });
 
-      serviceLogger.info(
-        { count: result.count, daysToKeep, cutoffDate },
-        '成功清理过期日志'
-      );
+      serviceLogger.info({ count: result.count, daysToKeep, cutoffDate }, '成功清理过期日志');
 
       return result.count;
     } catch (err) {

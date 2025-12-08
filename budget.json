@@ -1,0 +1,88 @@
+[
+  {
+    "resourceSizes": [
+      {
+        "resourceType": "total",
+        "budget": 450
+      },
+      {
+        "resourceType": "script",
+        "budget": 300
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 50
+      },
+      {
+        "resourceType": "image",
+        "budget": 100
+      },
+      {
+        "resourceType": "font",
+        "budget": 100
+      },
+      {
+        "resourceType": "document",
+        "budget": 50
+      },
+      {
+        "resourceType": "third-party",
+        "budget": 100
+      }
+    ],
+    "resourceCounts": [
+      {
+        "resourceType": "total",
+        "budget": 100
+      },
+      {
+        "resourceType": "script",
+        "budget": 20
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 5
+      },
+      {
+        "resourceType": "image",
+        "budget": 30
+      },
+      {
+        "resourceType": "font",
+        "budget": 5
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 2000,
+        "comment": "首屏加载时间 < 2s"
+      },
+      {
+        "metric": "interactive",
+        "budget": 3000,
+        "comment": "可交互时间 (TTI) < 3s"
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 2500,
+        "comment": "最大内容绘制 (LCP) < 2.5s"
+      },
+      {
+        "metric": "cumulative-layout-shift",
+        "budget": 0.1,
+        "comment": "累积布局偏�� (CLS) < 0.1"
+      },
+      {
+        "metric": "total-blocking-time",
+        "budget": 200,
+        "comment": "总阻塞时间 (TBT) < 200ms"
+      },
+      {
+        "metric": "speed-index",
+        "budget": 3000,
+        "comment": "速度指数 < 3s"
+      }
+    ]
+  }
+]

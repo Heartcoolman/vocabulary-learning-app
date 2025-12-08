@@ -5,7 +5,7 @@
  */
 
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
-import apiClient from '../../services/ApiClient';
+import { learningClient } from '../../services/client';
 
 /**
  * 获取下一批单词的参数
@@ -134,12 +134,12 @@ export const nextWordsKeys = {
  */
 export function useNextWords(
   params: NextWordsParams,
-  queryOptions?: Omit<UseQueryOptions<NextWordsResult, Error>, 'queryKey' | 'queryFn'>
+  queryOptions?: Omit<UseQueryOptions<NextWordsResult, Error>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery<NextWordsResult, Error>({
     queryKey: nextWordsKeys.detail(params),
     queryFn: async () => {
-      return await apiClient.getNextWords(params);
+      return await learningClient.getNextWords(params);
     },
     // 默认禁用自动查询，需要手动触发
     enabled: false,
@@ -183,5 +183,5 @@ export function useNextWords(
  * ```
  */
 export async function fetchNextWords(params: NextWordsParams): Promise<NextWordsResult> {
-  return await apiClient.getNextWords(params);
+  return await learningClient.getNextWords(params);
 }

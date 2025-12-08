@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 import StorageService from '../../services/StorageService';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -72,7 +72,7 @@ export function useStatistics() {
       };
 
       const studyDates = new Set(
-        recordsResult.records.map((r: any) => normalizeToDateString(new Date(r.timestamp))),
+        recordsResult.records.map((r) => normalizeToDateString(new Date(r.timestamp))),
       );
       const studyDays = studyDates.size;
 
@@ -109,7 +109,7 @@ export function useStatistics() {
 
       // 生成每日正确率序列
       const dailyMap = new Map<string, { correct: number; total: number }>();
-      recordsResult.records.forEach((r: any) => {
+      recordsResult.records.forEach((r) => {
         const day = new Date(r.timestamp).toISOString().split('T')[0];
         const entry = dailyMap.get(day) || { correct: 0, total: 0 };
         entry.total += 1;
@@ -125,8 +125,8 @@ export function useStatistics() {
         }));
 
       // 生成按星期的练习热度
-      const heat = Array(7).fill(0);
-      recordsResult.records.forEach((r: any) => {
+      const heat = Array(7).fill(0) as number[];
+      recordsResult.records.forEach((r) => {
         const weekday = new Date(r.timestamp).getDay();
         heat[weekday] += 1;
       });

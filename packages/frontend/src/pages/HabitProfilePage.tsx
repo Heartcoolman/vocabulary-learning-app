@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import apiClient from '../services/ApiClient';
-import { HabitProfileResponse } from '../types/habit-profile';
+import apiClient from '../services/client';
+import { HabitProfileResponse, HabitProfile, StoredHabitProfile } from '../types/habit-profile';
 import ChronotypeCard from '../components/ChronotypeCard';
 import { RhythmCard } from '../components/profile/RhythmCard';
 import { MotivationCard } from '../components/profile/MotivationCard';
@@ -91,7 +91,7 @@ const HabitProfilePage: React.FC = () => {
     return { type, confidence, peakHours };
   };
 
-  const getRhythm = (profile: any) => {
+  const getRhythm = (profile: HabitProfile | StoredHabitProfile | null | undefined) => {
     const median = profile?.rhythmPref?.sessionMedianMinutes || 0;
     let type: 'fast' | 'slow' | 'mixed' = 'mixed';
     if (median > 0 && median < 15) type = 'fast';

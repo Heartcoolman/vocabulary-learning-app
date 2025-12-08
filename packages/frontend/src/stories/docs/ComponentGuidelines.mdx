@@ -1,0 +1,87 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Component Guidelines" />
+
+# Component Guidelines
+
+本文档提供了组件开发和使用的最佳实践指南。
+
+## 组件设计原则
+
+### 1. 单一职责
+
+每个组件应该只做一件事。
+
+### 2. 可组合性
+
+组件应该可以灵活组合使用。
+
+### 3. 可访问性
+
+所有组件都应该支持无障碍访问。
+
+## 命名规范
+
+### 组件命名
+
+- 使用 PascalCase 命名组件
+- 名称应该清晰描述组件的功能
+
+### Props 命名
+
+- 布尔值 props 使用 is、has、can 前缀
+- 事件处理函数使用 on 前缀
+
+## 样式指南
+
+### 使用 Tailwind CSS
+
+```tsx
+<div className="rounded-card bg-white p-6 shadow-elevated">
+  <h3 className="text-lg font-semibold text-gray-900">标题</h3>
+</div>
+```
+
+### 预定义组件类
+
+```tsx
+<button className="btn-primary">主要</button>
+<button className="btn-secondary">次要</button>
+<div className="card-elevated">卡片</div>
+<input className="input-enhanced" />
+```
+
+## 动画指南
+
+### 使用 G3 动画系统
+
+```tsx
+<div className="animate-g3-fade-in">淡入</div>
+<button className="transition-all duration-g3-fast ease-g3">
+  按钮
+</button>
+```
+
+## 性能优化
+
+### 使用 React.memo
+
+对于纯展示组件使用 memo 优化：
+
+```tsx
+const WordCard = memo(function WordCard({ word }) {
+  return <div>{word.spelling}</div>;
+});
+```
+
+### 避免不必要的重渲染
+
+使用 useCallback 和 useMemo。
+
+## 代码审查清单
+
+- [ ] 组件有清晰的类型定义
+- [ ] Props 有合理的默认值
+- [ ] 支持基本的无障碍访问
+- [ ] 使用了正确的设计令牌
+- [ ] 动画使用了 G3 系统

@@ -3,17 +3,17 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useSyncProgress, syncProgress } from '../useSyncProgress';
-import ApiClient from '../../../services/ApiClient';
+import { learningClient } from '../../../services/client';
 import type { SyncProgressParams } from '../useSyncProgress';
 
-// Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+// Mock learningClient
+vi.mock('../../../services/client', () => ({
+  learningClient: {
     syncMasteryProgress: vi.fn(),
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockLearningClient = learningClient as unknown as {
   syncMasteryProgress: ReturnType<typeof vi.fn>;
 };
 
@@ -50,7 +50,7 @@ describe('useSyncProgress', () => {
   });
 
   it('should sync progress successfully', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useSyncProgress(), {
@@ -66,13 +66,13 @@ describe('useSyncProgress', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledWith(mockParams);
   });
 
   it('should handle sync progress error', async () => {
     const error = new Error('Sync failed');
-    mockApiClient.syncMasteryProgress.mockRejectedValue(error);
+    mockLearningClient.syncMasteryProgress.mockRejectedValue(error);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useSyncProgress({ retry: false }), {
@@ -89,7 +89,7 @@ describe('useSyncProgress', () => {
   });
 
   it('should call onSuccess callback', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
     const onSuccess = vi.fn();
     const queryClient = createTestQueryClient();
 
@@ -108,7 +108,7 @@ describe('useSyncProgress', () => {
 
   it('should call onError callback', async () => {
     const error = new Error('Sync failed');
-    mockApiClient.syncMasteryProgress.mockRejectedValue(error);
+    mockLearningClient.syncMasteryProgress.mockRejectedValue(error);
     const onError = vi.fn();
     const queryClient = createTestQueryClient();
 
@@ -129,7 +129,7 @@ describe('useSyncProgress', () => {
   });
 
   it('should use mutateAsync', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useSyncProgress(), {
@@ -138,11 +138,11 @@ describe('useSyncProgress', () => {
 
     await result.current.mutateAsync(mockParams);
 
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
   });
 
   it('should handle multiple sync requests', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useSyncProgress(), {
@@ -159,14 +159,14 @@ describe('useSyncProgress', () => {
     const newParams = { ...mockParams, totalQuestions: 50 };
     result.current.mutate(newParams);
     await waitFor(() => {
-      expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledTimes(2);
+      expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledTimes(2);
     });
 
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenLastCalledWith(newParams);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenLastCalledWith(newParams);
   });
 
   it('should reset mutation state', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useSyncProgress(), {
@@ -195,17 +195,17 @@ describe('syncProgress', () => {
   });
 
   it('should sync progress directly', async () => {
-    mockApiClient.syncMasteryProgress.mockResolvedValue(undefined);
+    mockLearningClient.syncMasteryProgress.mockResolvedValue(undefined);
 
     await syncProgress(mockParams);
 
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledWith(mockParams);
   });
 
   it('should handle API error', async () => {
     const error = new Error('Sync failed');
-    mockApiClient.syncMasteryProgress.mockRejectedValue(error);
+    mockLearningClient.syncMasteryProgress.mockRejectedValue(error);
 
     await expect(syncProgress(mockParams)).rejects.toThrow('Sync failed');
   });

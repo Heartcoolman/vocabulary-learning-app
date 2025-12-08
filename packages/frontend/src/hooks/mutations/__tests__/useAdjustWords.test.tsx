@@ -2,22 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import {
-  useAdjustWords,
-  adjustWords,
-  shouldAdjustQueue,
-} from '../useAdjustWords';
-import ApiClient from '../../../services/ApiClient';
+import { useAdjustWords, adjustWords, shouldAdjustQueue } from '../useAdjustWords';
+import { learningClient } from '../../../services/client';
 import type { AdjustWordsParams, AdjustWordsResponse } from '../../../types/amas';
 
-// Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+// Mock learningClient
+vi.mock('../../../services/client', () => ({
+  learningClient: {
     adjustLearningWords: vi.fn(),
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockLearningClient = learningClient as unknown as {
   adjustLearningWords: ReturnType<typeof vi.fn>;
 };
 
@@ -87,7 +83,7 @@ describe('useAdjustWords', () => {
   });
 
   it('should adjust words successfully', async () => {
-    mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+    mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useAdjustWords(), {
@@ -103,13 +99,13 @@ describe('useAdjustWords', () => {
     });
 
     expect(result.current.data).toEqual(mockResponse);
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledWith(mockParams);
   });
 
   it('should handle adjustment error', async () => {
     const error = new Error('Adjustment failed');
-    mockApiClient.adjustLearningWords.mockRejectedValue(error);
+    mockLearningClient.adjustLearningWords.mockRejectedValue(error);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useAdjustWords({ retry: false }), {
@@ -126,7 +122,7 @@ describe('useAdjustWords', () => {
   });
 
   it('should call onSuccess callback with adjustment data', async () => {
-    mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+    mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
     const onSuccess = vi.fn();
     const queryClient = createTestQueryClient();
 
@@ -148,7 +144,7 @@ describe('useAdjustWords', () => {
 
   it('should call onError callback', async () => {
     const error = new Error('Adjustment failed');
-    mockApiClient.adjustLearningWords.mockRejectedValue(error);
+    mockLearningClient.adjustLearningWords.mockRejectedValue(error);
     const onError = vi.fn();
     const queryClient = createTestQueryClient();
 
@@ -169,7 +165,7 @@ describe('useAdjustWords', () => {
   });
 
   it('should use mutateAsync', async () => {
-    mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+    mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useAdjustWords(), {
@@ -179,11 +175,11 @@ describe('useAdjustWords', () => {
     const response = await result.current.mutateAsync(mockParams);
 
     expect(response).toEqual(mockResponse);
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledTimes(1);
   });
 
   it('should handle different adjustment reasons', async () => {
-    mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+    mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useAdjustWords(), {
@@ -201,10 +197,10 @@ describe('useAdjustWords', () => {
       const params = { ...mockParams, adjustReason: reason };
       await result.current.mutateAsync(params);
 
-      expect(mockApiClient.adjustLearningWords).toHaveBeenCalledWith(params);
+      expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledWith(params);
     }
 
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledTimes(4);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledTimes(4);
   });
 });
 
@@ -214,18 +210,18 @@ describe('adjustWords', () => {
   });
 
   it('should adjust words directly', async () => {
-    mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+    mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
 
     const result = await adjustWords(mockParams);
 
     expect(result).toEqual(mockResponse);
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.adjustLearningWords).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledWith(mockParams);
   });
 
   it('should handle API error', async () => {
     const error = new Error('Adjustment failed');
-    mockApiClient.adjustLearningWords.mockRejectedValue(error);
+    mockLearningClient.adjustLearningWords.mockRejectedValue(error);
 
     await expect(adjustWords(mockParams)).rejects.toThrow('Adjustment failed');
   });
@@ -235,7 +231,7 @@ describe('shouldAdjustQueue', () => {
   it('should return true for high fatigue', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.8, attention: 0.7, motivation: 0.7 },
-      { accuracy: 0.8, avgResponseTime: 5000, consecutiveWrong: 0 }
+      { accuracy: 0.8, avgResponseTime: 5000, consecutiveWrong: 0 },
     );
 
     expect(result.shouldAdjust).toBe(true);
@@ -245,7 +241,7 @@ describe('shouldAdjustQueue', () => {
   it('should return true for low accuracy', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.3, attention: 0.7, motivation: 0.7 },
-      { accuracy: 0.4, avgResponseTime: 5000, consecutiveWrong: 0 }
+      { accuracy: 0.4, avgResponseTime: 5000, consecutiveWrong: 0 },
     );
 
     expect(result.shouldAdjust).toBe(true);
@@ -255,7 +251,7 @@ describe('shouldAdjustQueue', () => {
   it('should return true for consecutive wrong answers', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.3, attention: 0.7, motivation: 0.7 },
-      { accuracy: 0.7, avgResponseTime: 5000, consecutiveWrong: 3 }
+      { accuracy: 0.7, avgResponseTime: 5000, consecutiveWrong: 3 },
     );
 
     expect(result.shouldAdjust).toBe(true);
@@ -265,7 +261,7 @@ describe('shouldAdjustQueue', () => {
   it('should return true for slow response time', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.3, attention: 0.7, motivation: 0.7 },
-      { accuracy: 0.7, avgResponseTime: 12000, consecutiveWrong: 0 }
+      { accuracy: 0.7, avgResponseTime: 12000, consecutiveWrong: 0 },
     );
 
     expect(result.shouldAdjust).toBe(true);
@@ -275,7 +271,7 @@ describe('shouldAdjustQueue', () => {
   it('should return true for excellent performance', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.3, attention: 0.9, motivation: 0.9 },
-      { accuracy: 0.95, avgResponseTime: 2500, consecutiveWrong: 0 }
+      { accuracy: 0.95, avgResponseTime: 2500, consecutiveWrong: 0 },
     );
 
     expect(result.shouldAdjust).toBe(true);
@@ -285,7 +281,7 @@ describe('shouldAdjustQueue', () => {
   it('should return false for normal performance', () => {
     const result = shouldAdjustQueue(
       { fatigue: 0.4, attention: 0.7, motivation: 0.7 },
-      { accuracy: 0.75, avgResponseTime: 5000, consecutiveWrong: 1 }
+      { accuracy: 0.75, avgResponseTime: 5000, consecutiveWrong: 1 },
     );
 
     expect(result.shouldAdjust).toBe(false);
@@ -304,10 +300,7 @@ describe('shouldAdjustQueue', () => {
   });
 
   it('should handle missing performance data', () => {
-    const result = shouldAdjustQueue(
-      { fatigue: 0.8, attention: 0.7, motivation: 0.7 },
-      undefined
-    );
+    const result = shouldAdjustQueue({ fatigue: 0.8, attention: 0.7, motivation: 0.7 }, undefined);
 
     expect(result.shouldAdjust).toBe(true);
     expect(result.reason).toBe('fatigue');

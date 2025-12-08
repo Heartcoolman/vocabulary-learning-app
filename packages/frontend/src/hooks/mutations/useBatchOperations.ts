@@ -12,7 +12,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import { wordClient, learningClient } from '../../services/client';
 import type { Word, AnswerRecord } from '../../types/models';
 import { WordImportData } from '../../utils/importParsers';
 
@@ -241,7 +241,7 @@ export function useBatchImport(options?: {
 
       // 使用后端的批量导入API
       try {
-        const result = await apiClient.batchImportWords(wordBookId, words);
+        const result = await wordClient.batchImportWords(wordBookId, words);
 
         options?.onProgress?.({
           progress: 100,
@@ -261,9 +261,7 @@ export function useBatchImport(options?: {
           wordIds: [], // 后端可能不返回ID列表
         };
       } catch (error) {
-        throw new Error(
-          `批量导入失败: ${error instanceof Error ? error.message : '未知错误'}`,
-        );
+        throw new Error(`批量导入失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     },
     onSuccess: (result) => {
@@ -320,7 +318,7 @@ export function useBatchDelete(options?: {
           // 逐个删除（假设后端没有批量删除API）
           const deletePromises = batch.map(async (wordId) => {
             try {
-              await apiClient.deleteWord(wordId);
+              await wordClient.deleteWord(wordId);
               return wordId;
             } catch (error) {
               throw error;
@@ -385,9 +383,7 @@ export function useBatchCreateRecords(options?: {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      params: BatchCreateRecordsParams,
-    ): Promise<BatchCreateRecordsResult> => {
+    mutationFn: async (params: BatchCreateRecordsParams): Promise<BatchCreateRecordsResult> => {
       const { records, batchSize = 100 } = params;
 
       const { results, errors } = await processBatches(
@@ -396,7 +392,7 @@ export function useBatchCreateRecords(options?: {
         async (batch) => {
           // 使用后端的批量创建API
           try {
-            const created = await apiClient.batchCreateRecords(batch);
+            const created = await learningClient.batchCreateRecords(batch);
             return created;
           } catch (error) {
             throw error;
@@ -492,8 +488,6 @@ export function useBatchOperations(options?: {
 
     // 全局状态
     isAnyPending:
-      importMutation.isPending ||
-      deleteMutation.isPending ||
-      createRecordsMutation.isPending,
+      importMutation.isPending || deleteMutation.isPending || createRecordsMutation.isPending,
   };
 }

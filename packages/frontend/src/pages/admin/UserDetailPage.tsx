@@ -1,31 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exportUserWords } from '../../hooks/queries/useUserDetail';
-import {
-  User,
-  ChartBar,
-  Target,
-  Clock,
-  TrendUp,
-  Books,
-  ArrowLeft,
-  MagnifyingGlass,
-  CaretLeft,
-  CaretRight,
-  WarningCircle,
-} from '../../components/Icon';
-import {
-  Flame,
-  CaretDown,
-  ArrowUp,
-  ArrowDown,
-  ListDashes,
-  Brain,
-  Download,
-  CalendarBlank,
-  ChartLine,
-  Lightning,
-} from '@phosphor-icons/react';
+import { ChartBar, ArrowLeft, WarningCircle } from '../../components/Icon';
+import { ListDashes, Brain, ChartLine } from '@phosphor-icons/react';
 import LearningRecordsTab from '../../components/admin/LearningRecordsTab';
 import AMASDecisionsTab from '../../components/admin/AMASDecisionsTab';
 import { useToast } from '../../components/ui';
@@ -33,14 +10,17 @@ import { adminLogger } from '../../utils/logger';
 import { useLearningData } from '../../hooks/useLearningData';
 import { useUserStatistics, useUserWords } from '../../hooks/queries';
 
-interface FilterState {
-  scoreRange?: 'low' | 'medium' | 'high';
-  masteryLevel?: number;
-  minAccuracy?: number;
-  state?: 'new' | 'learning' | 'reviewing' | 'mastered';
-  sortBy: 'score' | 'accuracy' | 'reviewCount' | 'lastReview';
-  sortOrder: 'asc' | 'desc';
-}
+// Import sub-components
+import {
+  UserBasicInfo,
+  UserStatistics,
+  UserWordList,
+  UserAnalytics,
+  type FilterState,
+  type AnalyticsData,
+} from './components/UserDetail';
+
+type TabType = 'overview' | 'records' | 'decisions' | 'analytics';
 
 export default function UserDetailPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -55,9 +35,7 @@ export default function UserDetailPage() {
 
   const [showFilters, setShowFilters] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'records' | 'decisions' | 'analytics'>(
-    'overview',
-  );
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   // 使用新的 React Query hooks
   const {
@@ -78,93 +56,59 @@ export default function UserDetailPage() {
   });
 
   const words = wordsResponse?.words || [];
-  const pagination = wordsResponse?.pagination;
+  const pagination = wordsResponse?.pagination || {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+  };
   const error = statsError || wordsError;
 
   // 使用 useLearningData hook 获取学习数据
   const { data: learningData, loading: learningDataLoading } = useLearningData(userId || '', 100);
 
-  const handleExport = async (format: 'csv' | 'excel') => {
-    if (!userId) return;
+  // Event handlers
+  const handleExport = useCallback(
+    async (format: 'csv' | 'excel') => {
+      if (!userId) return;
 
-    try {
-      setIsExporting(true);
-      await exportUserWords(userId, format);
-      toast.success(`${format.toUpperCase()} 导出成功`);
-    } catch (err) {
-      adminLogger.error({ err, userId, format }, '导出用户单词失败');
-      toast.error('导出失败，请重试');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+      try {
+        setIsExporting(true);
+        await exportUserWords(userId, format);
+        toast.success(`${format.toUpperCase()} 导出成功`);
+      } catch (err) {
+        adminLogger.error({ err, userId, format }, '导出用户单词失败');
+        toast.error('导出失败，请重试');
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [userId, toast],
+  );
 
-  const handleFilterChange = (newFilters: Partial<FilterState>) => {
+  const handleFilterChange = useCallback((newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
     setPage(1);
-  };
+  }, []);
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
-  const toggleSortOrder = () => {
+  const handleToggleFilters = useCallback(() => {
+    setShowFilters((prev) => !prev);
+  }, []);
+
+  const handleToggleSortOrder = useCallback(() => {
     setFilters((prev) => ({
       ...prev,
       sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc',
     }));
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
-
-  const getMasteryLevelLabel = (level: number) => {
-    const labels = ['新单词', '初识', '熟悉', '掌握', '熟练', '精通'];
-    return labels[level] || '未知';
-  };
-
-  const getMasteryLevelColor = (level: number) => {
-    const colors = [
-      'text-gray-500',
-      'text-blue-500',
-      'text-green-500',
-      'text-yellow-500',
-      'text-orange-500',
-      'text-purple-500',
-    ];
-    return colors[level] || 'text-gray-500';
-  };
-
-  const getStateLabel = (state: string) => {
-    const labels: Record<string, string> = {
-      NEW: '新单词',
-      LEARNING: '学习中',
-      REVIEWING: '复习中',
-      MASTERED: '已掌握',
-    };
-    return labels[state] || state;
-  };
-
-  const getStateColor = (state: string) => {
-    const colors: Record<string, string> = {
-      NEW: 'bg-gray-100 text-gray-700',
-      LEARNING: 'bg-blue-100 text-blue-700',
-      REVIEWING: 'bg-yellow-100 text-yellow-700',
-      MASTERED: 'bg-green-100 text-green-700',
-    };
-    return colors[state] || 'bg-gray-100 text-gray-700';
-  };
+  }, []);
 
   // 计算学习分析数据
-  const analyticsData = useMemo(() => {
+  const analyticsData: AnalyticsData | null = useMemo(() => {
     if (!learningData || !learningData.recentRecords || learningData.recentRecords.length === 0) {
       return null;
     }
@@ -264,7 +208,8 @@ export default function UserDetailPage() {
       Object.entries(learningPattern).find(([_, count]) => count === maxPattern)?.[0] || 'unknown';
 
     // 6. 薄弱环节识别（错误率高的单词）
-    const wordErrorMap = new Map<string, { total: number; errors: number; word: any }>();
+    type WordInfo = { spelling: string; phonetic: string; meanings: string[] };
+    const wordErrorMap = new Map<string, { total: number; errors: number; word: WordInfo }>();
     records.forEach((r) => {
       if (!wordErrorMap.has(r.wordId)) {
         wordErrorMap.set(r.wordId, { total: 0, errors: 0, word: r.word });
@@ -302,6 +247,7 @@ export default function UserDetailPage() {
     };
   }, [learningData]);
 
+  // Loading state
   if (isLoadingStats && !statistics) {
     return (
       <div className="p-8">
@@ -315,13 +261,16 @@ export default function UserDetailPage() {
     );
   }
 
+  // Error state
   if (error && !statistics) {
     return (
       <div className="p-8">
         <div className="py-12 text-center">
           <WarningCircle size={64} weight="fill" className="mx-auto mb-4 text-red-500" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <p className="mb-6 text-gray-600">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <button
             onClick={() => navigate('/admin/users')}
             className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
@@ -345,19 +294,7 @@ export default function UserDetailPage() {
       </button>
 
       {/* 用户信息头部 */}
-      {statistics && (
-        <div className="mb-8">
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <User size={32} weight="bold" className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{statistics.user.username}</h1>
-              <p className="text-gray-600">{statistics.user.email}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {statistics && <UserBasicInfo statistics={statistics} />}
 
       {/* 标签页导航 */}
       <div className="mb-6 flex border-b border-gray-200">
@@ -422,451 +359,24 @@ export default function UserDetailPage() {
       {/* 标签页内容 */}
       {activeTab === 'overview' ? (
         <>
-          {/* 统计卡片 */}
-          {statistics && (
-            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {/* 总学习单词数 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <Books size={32} weight="duotone" className="text-blue-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">
-                  {statistics.totalWordsLearned}
-                </div>
-                <div className="text-sm text-gray-600">总学习单词数</div>
-              </div>
-
-              {/* 平均得分 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <Target size={32} weight="duotone" className="text-purple-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">
-                  {statistics.averageScore.toFixed(1)}
-                </div>
-                <div className="text-sm text-gray-600">平均单词得分</div>
-              </div>
-
-              {/* 整体正确率 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <ChartBar size={32} weight="duotone" className="text-green-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">
-                  {statistics.accuracy.toFixed(1)}%
-                </div>
-                <div className="text-sm text-gray-600">整体正确率</div>
-              </div>
-
-              {/* 学习天数 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <Clock size={32} weight="duotone" className="text-orange-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">{statistics.studyDays}</div>
-                <div className="text-sm text-gray-600">学习天数</div>
-              </div>
-
-              {/* 连续学习天数 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <Flame size={32} weight="duotone" className="text-red-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">
-                  {statistics.consecutiveDays}
-                </div>
-                <div className="text-sm text-gray-600">连续学习天数</div>
-              </div>
-
-              {/* 总学习时长 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <TrendUp size={32} weight="duotone" className="text-indigo-500" />
-                </div>
-                <div className="mb-1 text-3xl font-bold text-gray-900">
-                  {statistics.totalStudyTime}
-                </div>
-                <div className="text-sm text-gray-600">总学习时长（分钟）</div>
-              </div>
-            </div>
-          )}
-
           {/* 掌握程度分布 */}
-          {statistics && (
-            <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-xl font-bold text-gray-900">掌握程度分布</h2>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                {Object.entries(statistics.masteryDistribution).map(([level, count]) => {
-                  const levelNum = parseInt(level.replace('level', ''));
-                  return (
-                    <div key={level} className="rounded-lg bg-gray-50 p-4 text-center">
-                      <div className={`mb-1 text-2xl font-bold ${getMasteryLevelColor(levelNum)}`}>
-                        {count}
-                      </div>
-                      <div className="text-sm text-gray-600">{getMasteryLevelLabel(levelNum)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {statistics && <UserStatistics masteryDistribution={statistics.masteryDistribution} />}
 
           {/* 单词列表 */}
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">单词列表</h2>
-                <div className="flex items-center gap-3">
-                  {/* 导出按钮 */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleExport('csv')}
-                      disabled={isExporting || isLoadingWords || words.length === 0}
-                      className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-white transition-all hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="导出为CSV格式"
-                    >
-                      {isExporting ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
-                      ) : (
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      )}
-                      <span>{isExporting ? '导出中...' : '导出CSV'}</span>
-                    </button>
-                    <button
-                      onClick={() => handleExport('excel')}
-                      disabled={isExporting || isLoadingWords || words.length === 0}
-                      className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="导出为Excel格式"
-                    >
-                      {isExporting ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
-                      ) : (
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      )}
-                      <span>{isExporting ? '导出中...' : '导出Excel'}</span>
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
-                  >
-                    <MagnifyingGlass size={16} weight="bold" />
-                    <span>筛选和排序</span>
-                    <CaretDown
-                      size={16}
-                      weight="bold"
-                      className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* 筛选器 */}
-              {showFilters && (
-                <div className="grid grid-cols-1 gap-4 rounded-lg bg-gray-50 p-4 md:grid-cols-2 lg:grid-cols-4">
-                  {/* 得分范围 */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">得分范围</label>
-                    <select
-                      value={filters.scoreRange || ''}
-                      onChange={(e) =>
-                        handleFilterChange({
-                          scoreRange: e.target.value as any,
-                        })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">全部</option>
-                      <option value="low">低分 (0-40)</option>
-                      <option value="medium">中等 (40-80)</option>
-                      <option value="high">高分 (80-100)</option>
-                    </select>
-                  </div>
-
-                  {/* 掌握程度 */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">掌握程度</label>
-                    <select
-                      value={filters.masteryLevel !== undefined ? filters.masteryLevel : ''}
-                      onChange={(e) =>
-                        handleFilterChange({
-                          masteryLevel:
-                            e.target.value === '' ? undefined : parseInt(e.target.value),
-                        })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">全部</option>
-                      <option value="0">新单词</option>
-                      <option value="1">初识</option>
-                      <option value="2">熟悉</option>
-                      <option value="3">掌握</option>
-                      <option value="4">熟练</option>
-                      <option value="5">精通</option>
-                    </select>
-                  </div>
-
-                  {/* 学习状态 */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">学习状态</label>
-                    <select
-                      value={filters.state || ''}
-                      onChange={(e) =>
-                        handleFilterChange({
-                          state: e.target.value as any,
-                        })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">全部</option>
-                      <option value="new">新单词</option>
-                      <option value="learning">学习中</option>
-                      <option value="reviewing">复习中</option>
-                      <option value="mastered">已掌握</option>
-                    </select>
-                  </div>
-
-                  {/* 排序方式 */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">排序方式</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={filters.sortBy}
-                        onChange={(e) =>
-                          handleFilterChange({
-                            sortBy: e.target.value as any,
-                          })
-                        }
-                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="score">单词得分</option>
-                        <option value="accuracy">正确率</option>
-                        <option value="reviewCount">学习次数</option>
-                        <option value="lastReview">最近学习时间</option>
-                      </select>
-                      <button
-                        onClick={toggleSortOrder}
-                        className="rounded-lg bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200"
-                        title={filters.sortOrder === 'asc' ? '升序' : '降序'}
-                      >
-                        {filters.sortOrder === 'asc' ? (
-                          <ArrowUp size={20} weight="bold" />
-                        ) : (
-                          <ArrowDown size={20} weight="bold" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 单词表格 */}
-            {isLoadingWords ? (
-              <div className="p-12 text-center">
-                <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-                <p className="text-gray-600">加载中...</p>
-              </div>
-            ) : words.length === 0 ? (
-              <div className="p-12 text-center">
-                <Books size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
-                <p className="text-lg text-gray-500">暂无单词数据</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b border-gray-200 bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                          单词
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          得分
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          掌握程度
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          正确率
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          学习次数
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          最近学习
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          下次复习
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                          状态
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {words.map((wordDetail) => (
-                        <tr
-                          key={wordDetail.word.id}
-                          className="cursor-pointer transition-colors hover:bg-gray-50"
-                          onClick={() =>
-                            navigate(`/admin/users/${userId}/words?wordId=${wordDetail.word.id}`)
-                          }
-                        >
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="font-medium text-gray-900 transition-colors hover:text-blue-600">
-                                {wordDetail.word.spelling}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {wordDetail.word.phonetic}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`font-bold ${
-                                wordDetail.score >= 80
-                                  ? 'text-green-600'
-                                  : wordDetail.score >= 40
-                                    ? 'text-yellow-600'
-                                    : 'text-red-600'
-                              }`}
-                            >
-                              {wordDetail.score.toFixed(0)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`font-medium ${getMasteryLevelColor(
-                                wordDetail.masteryLevel,
-                              )}`}
-                            >
-                              {getMasteryLevelLabel(wordDetail.masteryLevel)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`font-medium ${
-                                wordDetail.accuracy >= 80
-                                  ? 'text-green-600'
-                                  : wordDetail.accuracy >= 60
-                                    ? 'text-yellow-600'
-                                    : 'text-red-600'
-                              }`}
-                            >
-                              {wordDetail.accuracy.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-gray-900">{wordDetail.reviewCount}</span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm text-gray-600">
-                              {formatDate(wordDetail.lastReviewDate)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm text-gray-600">
-                              {formatDate(wordDetail.nextReviewDate)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getStateColor(
-                                wordDetail.state,
-                              )}`}
-                            >
-                              {getStateLabel(wordDetail.state)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 分页 */}
-                {pagination.totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-gray-200 p-6">
-                    <div className="text-sm text-gray-600">
-                      显示第 {(pagination.page - 1) * pagination.pageSize + 1} -{' '}
-                      {Math.min(pagination.page * pagination.pageSize, pagination.total)} 条，共{' '}
-                      {pagination.total} 条
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePageChange(pagination.page - 1)}
-                        disabled={pagination.page === 1}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <CaretLeft size={16} weight="bold" />
-                      </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                          .filter((page) => {
-                            return (
-                              page === 1 ||
-                              page === pagination.totalPages ||
-                              Math.abs(page - pagination.page) <= 2
-                            );
-                          })
-                          .map((page, index, array) => {
-                            const showEllipsis = index > 0 && page - array[index - 1] > 1;
-                            return (
-                              <span key={page} className="contents">
-                                {showEllipsis && <span className="px-2 text-gray-400">...</span>}
-                                <button
-                                  onClick={() => handlePageChange(page)}
-                                  className={`rounded-lg px-4 py-2 transition-all ${
-                                    page === pagination.page
-                                      ? 'bg-blue-500 text-white'
-                                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {page}
-                                </button>
-                              </span>
-                            );
-                          })}
-                      </div>
-                      <button
-                        onClick={() => handlePageChange(pagination.page + 1)}
-                        disabled={pagination.page === pagination.totalPages}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <CaretRight size={16} weight="bold" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          <UserWordList
+            userId={userId || ''}
+            words={words}
+            pagination={pagination}
+            isLoading={isLoadingWords}
+            isExporting={isExporting}
+            filters={filters}
+            showFilters={showFilters}
+            onFilterChange={handleFilterChange}
+            onPageChange={handlePageChange}
+            onToggleFilters={handleToggleFilters}
+            onToggleSortOrder={handleToggleSortOrder}
+            onExport={handleExport}
+          />
         </>
       ) : activeTab === 'records' ? (
         <LearningRecordsTab userId={userId || ''} />
@@ -874,263 +384,12 @@ export default function UserDetailPage() {
         <AMASDecisionsTab userId={userId || ''} />
       ) : (
         /* 学习分析标签页 */
-        <div className="space-y-6">
-          {learningDataLoading ? (
-            <div className="flex min-h-[400px] items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-                <p className="text-gray-600">加载学习数据中...</p>
-              </div>
-            </div>
-          ) : !analyticsData ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
-              <CalendarBlank size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
-              <p className="text-lg text-gray-500">暂无学习数据</p>
-              <p className="mt-2 text-sm text-gray-400">用户尚未开始学习</p>
-            </div>
-          ) : (
-            <>
-              {/* 学习概况卡片 */}
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                {/* 平均响应时间 */}
-                <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <Lightning size={32} weight="duotone" className="text-yellow-500" />
-                  </div>
-                  <div className="mb-1 text-3xl font-bold text-gray-900">
-                    {analyticsData.avgResponseTime.toFixed(1)}s
-                  </div>
-                  <div className="text-sm text-gray-600">平均响应时间</div>
-                </div>
-
-                {/* 学习偏好时段 */}
-                <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <Clock size={32} weight="duotone" className="text-indigo-500" />
-                  </div>
-                  <div className="mb-1 text-3xl font-bold text-gray-900">
-                    {analyticsData.preferredTime === 'morning' && '上午'}
-                    {analyticsData.preferredTime === 'afternoon' && '下午'}
-                    {analyticsData.preferredTime === 'evening' && '傍晚'}
-                    {analyticsData.preferredTime === 'night' && '深夜'}
-                    {analyticsData.preferredTime === 'unknown' && '未知'}
-                  </div>
-                  <div className="text-sm text-gray-600">学习偏好时段</div>
-                </div>
-
-                {/* 最活跃时段 */}
-                <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <Flame size={32} weight="duotone" className="text-orange-500" />
-                  </div>
-                  <div className="mb-1 text-3xl font-bold text-gray-900">
-                    {analyticsData.peakHours.length > 0 ? `${analyticsData.peakHours[0]}:00` : '-'}
-                  </div>
-                  <div className="text-sm text-gray-600">最活跃时段</div>
-                </div>
-              </div>
-
-              {/* 30天学习活动热力图 */}
-              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
-                  <CalendarBlank size={24} weight="duotone" className="text-blue-500" />
-                  30天学习活动热力图
-                </h2>
-                <div className="grid grid-cols-10 gap-2">
-                  {analyticsData.heatmapData.map((day, index) => {
-                    const maxCount = Math.max(...analyticsData.heatmapData.map((d) => d.count));
-                    const intensity = maxCount > 0 ? day.count / maxCount : 0;
-                    const bgColor =
-                      day.count === 0
-                        ? 'bg-gray-100'
-                        : intensity > 0.7
-                          ? 'bg-green-600'
-                          : intensity > 0.4
-                            ? 'bg-green-400'
-                            : 'bg-green-200';
-
-                    return (
-                      <div
-                        key={index}
-                        className={`aspect-square ${bgColor} rounded transition-all hover:scale-110`}
-                        title={`${day.date}: ${day.count}次学习, 正确率${(day.accuracy * 100).toFixed(0)}%`}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-                  <span>少</span>
-                  <div className="flex gap-1">
-                    <div className="h-4 w-4 rounded bg-gray-100" />
-                    <div className="h-4 w-4 rounded bg-green-200" />
-                    <div className="h-4 w-4 rounded bg-green-400" />
-                    <div className="h-4 w-4 rounded bg-green-600" />
-                  </div>
-                  <span>多</span>
-                </div>
-              </div>
-
-              {/* 学习时段分布 */}
-              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-xl font-bold text-gray-900">24小时学习时段分布</h2>
-                <div className="flex h-64 items-end gap-1">
-                  {analyticsData.hourDistribution.map((count, hour) => {
-                    const maxCount = Math.max(...analyticsData.hourDistribution);
-                    const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                    const isPeak = analyticsData.peakHours.includes(hour);
-
-                    return (
-                      <div
-                        key={hour}
-                        className="flex flex-1 flex-col items-center gap-1"
-                        title={`${hour}:00 - ${count}次学习`}
-                      >
-                        <div
-                          className={`w-full rounded-t transition-all ${
-                            isPeak
-                              ? 'bg-gradient-to-t from-orange-500 to-orange-400'
-                              : 'bg-gradient-to-t from-blue-500 to-blue-400'
-                          } hover:opacity-80`}
-                          style={{ height: `${height}%` }}
-                        />
-                        {hour % 3 === 0 && <span className="text-xs text-gray-500">{hour}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 准确率趋势 */}
-              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-xl font-bold text-gray-900">每日准确率趋势</h2>
-                <div className="flex h-64 items-end gap-2">
-                  {analyticsData.dailyAccuracyTrend.map((point, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-1 flex-col items-center gap-1"
-                      title={`${point.date}: ${point.accuracy?.toFixed(1)}%`}
-                    >
-                      <div
-                        className={`w-full rounded-t transition-all ${
-                          (point.accuracy || 0) >= 80
-                            ? 'bg-gradient-to-t from-green-500 to-green-400'
-                            : (point.accuracy || 0) >= 60
-                              ? 'bg-gradient-to-t from-yellow-500 to-yellow-400'
-                              : 'bg-gradient-to-t from-red-500 to-red-400'
-                        } hover:opacity-80`}
-                        style={{ height: `${point.accuracy}%` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-4 text-center text-sm text-gray-500">
-                  最近 {analyticsData.dailyAccuracyTrend.length} 天
-                </p>
-              </div>
-
-              {/* 学习模式分析 */}
-              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-xl font-bold text-gray-900">学习模式分析</h2>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div className="rounded-lg bg-blue-50 p-4 text-center">
-                    <div className="mb-1 text-2xl font-bold text-blue-600">
-                      {analyticsData.learningPattern.morning}
-                    </div>
-                    <div className="text-sm text-gray-600">上午 (6-12点)</div>
-                  </div>
-                  <div className="rounded-lg bg-green-50 p-4 text-center">
-                    <div className="mb-1 text-2xl font-bold text-green-600">
-                      {analyticsData.learningPattern.afternoon}
-                    </div>
-                    <div className="text-sm text-gray-600">下午 (12-18点)</div>
-                  </div>
-                  <div className="rounded-lg bg-orange-50 p-4 text-center">
-                    <div className="mb-1 text-2xl font-bold text-orange-600">
-                      {analyticsData.learningPattern.evening}
-                    </div>
-                    <div className="text-sm text-gray-600">傍晚 (18-24点)</div>
-                  </div>
-                  <div className="rounded-lg bg-purple-50 p-4 text-center">
-                    <div className="mb-1 text-2xl font-bold text-purple-600">
-                      {analyticsData.learningPattern.night}
-                    </div>
-                    <div className="text-sm text-gray-600">深夜 (0-6点)</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 薄弱环节识别 */}
-              {analyticsData.weakWords.length > 0 && (
-                <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
-                    <Target size={24} weight="duotone" className="text-red-500" />
-                    薄弱环节识别
-                  </h2>
-                  <div className="space-y-3">
-                    {analyticsData.weakWords.map((word, index) => (
-                      <div
-                        key={word.wordId}
-                        className="flex items-center justify-between rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="text-lg font-semibold text-gray-400">#{index + 1}</div>
-                          <div>
-                            <div className="font-medium text-gray-900">{word.spelling}</div>
-                            <div className="text-sm text-gray-500">{word.phonetic}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500">学习次数</div>
-                            <div className="font-semibold text-gray-900">{word.total}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500">错误次数</div>
-                            <div className="font-semibold text-red-600">{word.errors}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500">错误率</div>
-                            <div
-                              className={`font-bold ${
-                                word.errorRate >= 0.7
-                                  ? 'text-red-600'
-                                  : word.errorRate >= 0.5
-                                    ? 'text-orange-600'
-                                    : 'text-yellow-600'
-                              }`}
-                            >
-                              {(word.errorRate * 100).toFixed(0)}%
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 导出学习报告按钮 */}
-              <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="mb-1 text-lg font-semibold text-gray-900">导出学习报告</h3>
-                    <p className="text-sm text-gray-600">
-                      导出包含学习轨迹、行为分析和效果评估的完整报告
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleExport('excel')}
-                    disabled={isExporting}
-                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Download size={20} weight="bold" />
-                    <span>{isExporting ? '导出中...' : '导出报告'}</span>
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <UserAnalytics
+          analyticsData={analyticsData}
+          isLoading={learningDataLoading}
+          isExporting={isExporting}
+          onExport={handleExport}
+        />
       )}
     </div>
   );

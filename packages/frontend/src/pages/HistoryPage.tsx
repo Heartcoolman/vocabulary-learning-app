@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StorageService from '../services/StorageService';
-import ApiClient from '../services/ApiClient';
+import ApiClient from '../services/client';
 import { handleError } from '../utils/errorHandler';
 import { learningLogger } from '../utils/logger';
 import {

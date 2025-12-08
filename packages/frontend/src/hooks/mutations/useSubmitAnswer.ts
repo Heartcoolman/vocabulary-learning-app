@@ -12,10 +12,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { processLearningEvent } from '../mastery';
-import type {
-  LearningEventInput,
-  AmasProcessResult
-} from '../../types/amas';
+import type { LearningEventInput, AmasProcessResult } from '../../types/amas';
+import { learningLogger } from '../../utils/logger';
 
 // ==================== 类型定义 ====================
 
@@ -140,26 +138,23 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
    * 执行乐观更新
    * 立即更新本地状态，不等待服务器响应
    */
-  const performOptimisticUpdate = useCallback(
-    (params: SubmitAnswerParams): LocalWordDecision => {
-      // 简单的本地决策逻辑（实际会被服务器结果覆盖）
-      // 这里只是为了提供即时反馈
-      const decision: LocalWordDecision = {
-        wordId: params.wordId,
-        shouldContinue: !params.isCorrect, // 错误则继续，正确可能结束
-        isMastered: params.isCorrect, // 简化判断，实际由服务器决定
-        suggestedRepeats: params.isCorrect ? 0 : 1,
-        correctCount: params.isCorrect ? 1 : 0,
-        incorrectCount: params.isCorrect ? 0 : 1,
-      };
+  const performOptimisticUpdate = useCallback((params: SubmitAnswerParams): LocalWordDecision => {
+    // 简单的本地决策逻辑（实际会被服务器结果覆盖）
+    // 这里只是为了提供即时反馈
+    const decision: LocalWordDecision = {
+      wordId: params.wordId,
+      shouldContinue: !params.isCorrect, // 错误则继续，正确可能结束
+      isMastered: params.isCorrect, // 简化判断，实际由服务器决定
+      suggestedRepeats: params.isCorrect ? 0 : 1,
+      correctCount: params.isCorrect ? 1 : 0,
+      incorrectCount: params.isCorrect ? 0 : 1,
+    };
 
-      // 触发乐观更新回调
-      callbacksRef.current.onOptimisticUpdate?.(decision);
+    // 触发乐观更新回调
+    callbacksRef.current.onOptimisticUpdate?.(decision);
 
-      return decision;
-    },
-    [],
-  );
+    return decision;
+  }, []);
 
   /**
    * 构建完整的学习事件数据
@@ -187,12 +182,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
   /**
    * 主 Mutation
    */
-  const mutation = useMutation<
-    AmasProcessResult,
-    Error,
-    SubmitAnswerParams,
-    OptimisticContext
-  >({
+  const mutation = useMutation<AmasProcessResult, Error, SubmitAnswerParams, OptimisticContext>({
     // Mutation 函数：提交答题到服务器
     mutationFn: async (params: SubmitAnswerParams) => {
       const eventData = buildLearningEvent(params);
@@ -238,7 +228,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
 
     // 错误：回滚乐观更新
     onError: (error, _params, context) => {
-      console.error('[useSubmitAnswer] Error:', error);
+      learningLogger.error({ err: error }, '[useSubmitAnswer] Error');
 
       if (context?.previousAmasResult) {
         // 回滚到之前的状态

@@ -1,7 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import StudySettingsPage from '../StudySettingsPage';
+import type { StudyConfig, WordBook } from '../../types/models';
 
 // Mock 导航
 const mockNavigate = vi.fn();
@@ -13,14 +15,30 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock API Client
-const mockWordBooks = [
+// Mock logger - 需要导出所有 logger 实例
+vi.mock('../../utils/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  learningLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  apiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  uiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  authLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  storageLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  amasLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  adminLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  trackingLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+// Mock 数据
+const mockWordBooks: WordBook[] = [
   {
     id: 'book-1',
     name: 'CET-4 词汇',
     description: '大学英语四级核心词汇',
     wordCount: 4500,
     type: 'SYSTEM',
+    isPublic: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
   {
     id: 'book-2',
@@ -28,22 +46,21 @@ const mockWordBooks = [
     description: '大学英语六级核心词汇',
     wordCount: 5500,
     type: 'SYSTEM',
+    isPublic: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
 ];
 
-const mockStudyConfig = {
+const mockStudyConfig: StudyConfig = {
+  id: 'config-1',
+  userId: 'user-1',
   selectedWordBookIds: ['book-1'],
   dailyWordCount: 20,
   studyMode: 'sequential',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
 };
-
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getAllAvailableWordBooks: vi.fn(),
-    getStudyConfig: vi.fn(),
-    updateStudyConfig: vi.fn(),
-  },
-}));
 
 // Mock useToast
 const mockToast = {
@@ -61,23 +78,53 @@ vi.mock('../../components/ui', async () => {
   };
 });
 
-// Mock logger
-vi.mock('../../utils/logger', () => ({
-  uiLogger: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
+// Mock ApiClient (仍需要 mock 它因为 loadWordBooks 直接调用)
+const mockGetAllAvailableWordBooks = vi.fn();
+vi.mock('../../services/client', () => ({
+  default: {
+    getAllAvailableWordBooks: () => mockGetAllAvailableWordBooks(),
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+// Mock React Query hooks
+const mockUseStudyConfig = vi.fn();
+const mockMutateAsync = vi.fn();
+const mockUseUpdateStudyConfig = vi.fn();
+
+vi.mock('../../hooks/queries', () => ({
+  useStudyConfig: () => mockUseStudyConfig(),
+}));
+
+vi.mock('../../hooks/mutations', () => ({
+  useUpdateStudyConfig: () => mockUseUpdateStudyConfig(),
+}));
+
+// 创建测试用的 QueryClient
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
 
 describe('StudySettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getAllAvailableWordBooks as any).mockResolvedValue(mockWordBooks);
-    (apiClient.getStudyConfig as any).mockResolvedValue(mockStudyConfig);
-    (apiClient.updateStudyConfig as any).mockResolvedValue(mockStudyConfig);
+    mockGetAllAvailableWordBooks.mockResolvedValue(mockWordBooks);
+    mockUseStudyConfig.mockReturnValue({
+      data: mockStudyConfig,
+      isLoading: false,
+      error: null,
+    });
+    mockMutateAsync.mockResolvedValue(mockStudyConfig);
+    mockUseUpdateStudyConfig.mockReturnValue({
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    });
   });
 
   afterEach(() => {
@@ -85,10 +132,13 @@ describe('StudySettingsPage', () => {
   });
 
   const renderComponent = () => {
+    const queryClient = createTestQueryClient();
     return render(
-      <MemoryRouter>
-        <StudySettingsPage />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <StudySettingsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
   };
 
@@ -127,6 +177,11 @@ describe('StudySettingsPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseStudyConfig.mockReturnValue({
+        data: null,
+        isLoading: true,
+        error: null,
+      });
       renderComponent();
       expect(screen.getByText('正在加载...')).toBeInTheDocument();
     });
@@ -208,7 +263,7 @@ describe('StudySettingsPage', () => {
       fireEvent.click(saveButton);
 
       await waitFor(() => {
-        expect(apiClient.updateStudyConfig).toHaveBeenCalled();
+        expect(mockMutateAsync).toHaveBeenCalled();
         expect(mockToast.success).toHaveBeenCalledWith('学习设置已保存');
       });
     });
@@ -229,10 +284,13 @@ describe('StudySettingsPage', () => {
     });
 
     it('should disable save button when no book is selected', async () => {
-      (apiClient.getStudyConfig as any).mockResolvedValue({
-        selectedWordBookIds: [],
-        dailyWordCount: 20,
-        studyMode: 'sequential',
+      mockUseStudyConfig.mockReturnValue({
+        data: {
+          ...mockStudyConfig,
+          selectedWordBookIds: [],
+        },
+        isLoading: false,
+        error: null,
       });
 
       renderComponent();
@@ -263,7 +321,7 @@ describe('StudySettingsPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (apiClient.getAllAvailableWordBooks as any).mockRejectedValue(new Error('加载失败'));
+      mockGetAllAvailableWordBooks.mockRejectedValue(new Error('加载失败'));
 
       renderComponent();
 
@@ -273,7 +331,7 @@ describe('StudySettingsPage', () => {
     });
 
     it('should show empty state when no word books available', async () => {
-      (apiClient.getAllAvailableWordBooks as any).mockResolvedValue([]);
+      mockGetAllAvailableWordBooks.mockResolvedValue([]);
 
       renderComponent();
 

@@ -10,7 +10,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   Activity,
   Brain,
@@ -39,7 +38,6 @@ import {
   MemoryStatusResponse,
   FeatureFlagsStatus,
 } from '../../services/aboutApi';
-import { fadeInVariants, staggerContainerVariants } from '../../utils/animations';
 import { amasLogger } from '../../utils/logger';
 
 // ==================== 类型定义 ====================
@@ -140,10 +138,7 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
   }
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Activity className="text-blue-500" />
@@ -168,7 +163,7 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
           <PipelineLayerCard key={layer.id} layer={layer} />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -238,10 +233,7 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
   }
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Brain className="text-purple-500" />
@@ -313,7 +305,7 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -330,10 +322,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   const { distributions } = data;
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Users className="text-emerald-500" />
@@ -508,7 +497,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -523,10 +512,7 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
   }
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
         <Brain className="text-rose-500" />
         记忆状态分布
@@ -616,7 +602,7 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -650,10 +636,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   };
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm"
-    >
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
         <Timer className="text-indigo-500" />
         功能开关状态
@@ -676,7 +659,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -752,12 +735,7 @@ export default function SystemStatusPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-6 md:p-10">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainerVariants}
-        className="mx-auto max-w-7xl space-y-6"
-      >
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* 页面标题 */}
         <header className="mb-8 flex items-center justify-between">
           <div>
@@ -789,7 +767,7 @@ export default function SystemStatusPage() {
           {/* 功能开关 */}
           <FeatureFlagsPanel data={featureFlags} />
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

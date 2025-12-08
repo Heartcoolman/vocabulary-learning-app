@@ -10,21 +10,26 @@ import {
   useResetAlgorithmConfig,
   useUpdateStudyConfig,
 } from '../useConfigMutations';
-import apiClient from '../../../services/ApiClient';
+import { amasClient, wordBookClient } from '../../../services/client';
 import type { AlgorithmConfig, StudyConfig } from '../../../types/models';
 
-// Mock apiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+// Mock modular clients
+vi.mock('../../../services/client', () => ({
+  amasClient: {
     updateAlgorithmConfig: vi.fn(),
     resetAlgorithmConfig: vi.fn(),
+  },
+  wordBookClient: {
     updateStudyConfig: vi.fn(),
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockAmasClient = amasClient as unknown as {
   updateAlgorithmConfig: ReturnType<typeof vi.fn>;
   resetAlgorithmConfig: ReturnType<typeof vi.fn>;
+};
+
+const mockWordBookClient = wordBookClient as unknown as {
   updateStudyConfig: ReturnType<typeof vi.fn>;
 };
 
@@ -64,9 +69,7 @@ const mockAlgorithmConfig: AlgorithmConfig = {
     overdueTime: 25,
     wordScore: 15,
   },
-  masteryThresholds: [
-    { level: 1, requiredCorrectStreak: 3, minAccuracy: 0.7, minScore: 60 },
-  ],
+  masteryThresholds: [{ level: 1, requiredCorrectStreak: 3, minAccuracy: 0.7, minScore: 60 }],
   scoreWeights: {
     accuracy: 40,
     speed: 30,
@@ -112,7 +115,7 @@ describe('useUpdateAlgorithmConfig', () => {
         ...mockAlgorithmConfig,
         consecutiveCorrectThreshold: 6,
       };
-      mockApiClient.updateAlgorithmConfig.mockResolvedValueOnce(updatedConfig);
+      mockAmasClient.updateAlgorithmConfig.mockResolvedValueOnce(updatedConfig);
 
       const { result } = renderHook(() => useUpdateAlgorithmConfig(), {
         wrapper: createWrapper(),
@@ -132,17 +135,17 @@ describe('useUpdateAlgorithmConfig', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.updateAlgorithmConfig).toHaveBeenCalledWith(
+      expect(mockAmasClient.updateAlgorithmConfig).toHaveBeenCalledWith(
         'test-config-id',
         { consecutiveCorrectThreshold: 6 },
-        '测试更新'
+        '测试更新',
       );
       expect(result.current.data).toEqual(updatedConfig);
     });
 
     it('应该正确处理更新错误', async () => {
       const error = new Error('更新失败');
-      mockApiClient.updateAlgorithmConfig.mockRejectedValueOnce(error);
+      mockAmasClient.updateAlgorithmConfig.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useUpdateAlgorithmConfig(), {
         wrapper: createWrapper(),
@@ -167,7 +170,7 @@ describe('useUpdateAlgorithmConfig', () => {
       const queryClient = createTestQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      mockApiClient.updateAlgorithmConfig.mockResolvedValueOnce(mockAlgorithmConfig);
+      mockAmasClient.updateAlgorithmConfig.mockResolvedValueOnce(mockAlgorithmConfig);
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -200,7 +203,7 @@ describe('useResetAlgorithmConfig', () => {
   describe('重置算法配置', () => {
     it('应该成功重置算法配置', async () => {
       const resetConfig = { ...mockAlgorithmConfig, isDefault: true };
-      mockApiClient.resetAlgorithmConfig.mockResolvedValueOnce(resetConfig);
+      mockAmasClient.resetAlgorithmConfig.mockResolvedValueOnce(resetConfig);
 
       const { result } = renderHook(() => useResetAlgorithmConfig(), {
         wrapper: createWrapper(),
@@ -214,13 +217,13 @@ describe('useResetAlgorithmConfig', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.resetAlgorithmConfig).toHaveBeenCalledWith('test-config-id');
+      expect(mockAmasClient.resetAlgorithmConfig).toHaveBeenCalledWith('test-config-id');
       expect(result.current.data).toEqual(resetConfig);
     });
 
     it('应该正确处理重置错误', async () => {
       const error = new Error('重置失败');
-      mockApiClient.resetAlgorithmConfig.mockRejectedValueOnce(error);
+      mockAmasClient.resetAlgorithmConfig.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useResetAlgorithmConfig(), {
         wrapper: createWrapper(),
@@ -250,7 +253,7 @@ describe('useUpdateStudyConfig', () => {
         ...mockStudyConfig,
         dailyWordCount: 50,
       };
-      mockApiClient.updateStudyConfig.mockResolvedValueOnce(updatedConfig);
+      mockWordBookClient.updateStudyConfig.mockResolvedValueOnce(updatedConfig);
 
       const { result } = renderHook(() => useUpdateStudyConfig(), {
         wrapper: createWrapper(),
@@ -268,7 +271,7 @@ describe('useUpdateStudyConfig', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.updateStudyConfig).toHaveBeenCalledWith({
+      expect(mockWordBookClient.updateStudyConfig).toHaveBeenCalledWith({
         selectedWordBookIds: ['book-1', 'book-2'],
         dailyWordCount: 50,
         studyMode: 'sequential',
@@ -278,7 +281,7 @@ describe('useUpdateStudyConfig', () => {
 
     it('应该正确处理更新错误', async () => {
       const error = new Error('更新失败');
-      mockApiClient.updateStudyConfig.mockRejectedValueOnce(error);
+      mockWordBookClient.updateStudyConfig.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useUpdateStudyConfig(), {
         wrapper: createWrapper(),
@@ -302,7 +305,7 @@ describe('useUpdateStudyConfig', () => {
       const queryClient = createTestQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      mockApiClient.updateStudyConfig.mockResolvedValueOnce(mockStudyConfig);
+      mockWordBookClient.updateStudyConfig.mockResolvedValueOnce(mockStudyConfig);
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

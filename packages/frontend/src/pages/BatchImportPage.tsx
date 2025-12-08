@@ -10,7 +10,7 @@ import {
   BookOpen,
   X,
 } from '../components/Icon';
-import apiClient from '../services/ApiClient';
+import { adminClient } from '../services/client';
 import { FileUpload } from '../components';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
 import { WordBook } from '../types/models';
@@ -49,7 +49,7 @@ export default function BatchImportPage() {
   } = useQuery({
     queryKey: queryKeys.wordbooks.lists(),
     queryFn: async () => {
-      const books = await apiClient.adminGetSystemWordBooks();
+      const books = await adminClient.getSystemWordBooks();
       if (books.length > 0 && !selectedBookId) {
         setSelectedBookId(books[0].id);
       }

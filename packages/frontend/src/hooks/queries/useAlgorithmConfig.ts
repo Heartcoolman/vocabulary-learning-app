@@ -10,7 +10,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../types/models';
 
 /**
@@ -57,16 +57,16 @@ export function useConfigHistory(limit?: number, enabled = true) {
  *
  * 特点：
  * - 较长的缓存时间，因为预设列表很少变化
+ *
+ * 注意：此功能暂未实现，返回空数组
  */
 export function useAlgorithmConfigPresets() {
   return useQuery<AlgorithmConfig[]>({
     queryKey: queryKeys.algorithmConfig.presets(),
     queryFn: async () => {
-      // 假设后端有这个接口，如果没有需要实现
-      const response = await apiClient.request<{ success: boolean; data: AlgorithmConfig[] }>(
-        '/api/algorithm-config/presets'
-      );
-      return response.data;
+      // TODO: 等后端实现预设列表接口后再启用
+      // 暂时返回空数组
+      return [];
     },
     staleTime: 1000 * 60 * 10, // 10分钟
     gcTime: 1000 * 60 * 60, // 1小时

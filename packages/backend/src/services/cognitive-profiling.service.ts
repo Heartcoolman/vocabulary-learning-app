@@ -1,5 +1,5 @@
-import { ChronotypeDetector } from '../amas/modeling/chronotype';
-import { LearningStyleProfiler } from '../amas/modeling/learning-style';
+import { ChronotypeDetector, ChronotypeProfile } from '../amas/modeling/chronotype';
+import { LearningStyleProfiler, LearningStyleProfile } from '../amas/modeling/learning-style';
 
 export const MIN_PROFILING_RECORDS = 20;
 export const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h cache
@@ -24,8 +24,8 @@ const getLearningStyleProfiler = (): LearningStyleProfiler => {
   return learningStyleProfiler;
 };
 
-const chronotypeCache = new Map<string, CacheEntry<any>>();
-const learningStyleCache = new Map<string, CacheEntry<any>>();
+const chronotypeCache = new Map<string, CacheEntry<ChronotypeProfile>>();
+const learningStyleCache = new Map<string, CacheEntry<LearningStyleProfile>>();
 
 export class InsufficientDataError extends Error {
   code = 'INSUFFICIENT_DATA';
@@ -68,36 +68,36 @@ const ensureSufficientData = (sampleCount?: number) => {
   }
 };
 
-export const getChronotypeProfile = async (userId: string) => {
+export const getChronotypeProfile = async (userId: string): Promise<ChronotypeProfile> => {
   const uid = assertUserId(userId);
   const cached = fromCache(chronotypeCache, uid);
   if (cached) return cached;
-  let result: any;
+  let result: ChronotypeProfile;
   try {
     result = await getChronotypeDetector().analyzeChronotype(uid);
-  } catch (err: any) {
-    throw new AnalysisError(err?.message ?? 'Chronotype analysis failed');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Chronotype analysis failed';
+    throw new AnalysisError(message);
   }
   if (!result) throw new AnalysisError('Chronotype analysis returned empty result');
-  ensureSufficientData(result.sampleCount ?? result.count ?? result.samples);
-  const profile = result.profile ?? result;
-  return saveCache(chronotypeCache, uid, profile);
+  ensureSufficientData(result.sampleCount);
+  return saveCache(chronotypeCache, uid, result);
 };
 
-export const getLearningStyleProfile = async (userId: string) => {
+export const getLearningStyleProfile = async (userId: string): Promise<LearningStyleProfile> => {
   const uid = assertUserId(userId);
   const cached = fromCache(learningStyleCache, uid);
   if (cached) return cached;
-  let result: any;
+  let result: LearningStyleProfile;
   try {
     result = await getLearningStyleProfiler().detectLearningStyle(uid);
-  } catch (err: any) {
-    throw new AnalysisError(err?.message ?? 'Learning style analysis failed');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Learning style analysis failed';
+    throw new AnalysisError(message);
   }
   if (!result) throw new AnalysisError('Learning style analysis returned empty result');
-  ensureSufficientData(result.sampleCount ?? result.count ?? result.samples);
-  const profile = result.profile ?? result;
-  return saveCache(learningStyleCache, uid, profile);
+  ensureSufficientData(result.sampleCount);
+  return saveCache(learningStyleCache, uid, result);
 };
 
 export const invalidateCognitiveCacheForUser = (userId: string) => {

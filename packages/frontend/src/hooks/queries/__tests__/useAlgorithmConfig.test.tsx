@@ -6,11 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAlgorithmConfig, useConfigHistory } from '../useAlgorithmConfig';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../../types/models';
 
 // Mock apiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getAlgorithmConfig: vi.fn(),
     getConfigHistory: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('../../../services/ApiClient', () => ({
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getAlgorithmConfig: ReturnType<typeof vi.fn>;
   getConfigHistory: ReturnType<typeof vi.fn>;
   request: ReturnType<typeof vi.fn>;
@@ -95,6 +95,8 @@ const mockHistory: ConfigHistory[] = [
     previousValue: mockConfig,
     newValue: { ...mockConfig, consecutiveCorrectThreshold: 6 },
     timestamp: Date.now(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
 ];
 
@@ -196,7 +198,9 @@ describe('useConfigHistory', () => {
       });
 
       // 当 enabled 为 false 时，不应该发起请求
-      expect(result.current.isPending).toBe(false);
+      // React Query v5: isPending 为 true（没有数据），但 fetchStatus 为 'idle'（没有在请求）
+      expect(result.current.fetchStatus).toBe('idle');
+      expect(result.current.isLoading).toBe(false);
       expect(mockApiClient.getConfigHistory).not.toHaveBeenCalled();
     });
   });

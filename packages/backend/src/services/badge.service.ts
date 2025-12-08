@@ -5,7 +5,38 @@
  */
 
 import prisma from '../config/database';
-import { BadgeCategory } from '@prisma/client';
+import {
+  BadgeCategory,
+  BadgeDefinition as PrismaBadgeDefinition,
+  UserBadge as PrismaUserBadge,
+  Prisma,
+  PrismaClient,
+} from '@prisma/client';
+
+// ============================================
+// Prisma 关联类型定义
+// ============================================
+
+/**
+ * UserBadge 带 badge 关联的类型
+ */
+type UserBadgeWithBadge = PrismaUserBadge & {
+  badge: PrismaBadgeDefinition;
+};
+
+/**
+ * 用于检查是否有 badge 表（旧版模式兼容）
+ */
+type PrismaClientWithOptionalBadge = PrismaClient & {
+  badge?: {
+    findMany: () => Promise<PrismaBadgeDefinition[]>;
+  };
+};
+
+/**
+ * NewBadgeResult 数组，附带可选的 awarded 属性（用于测试兼容）
+ */
+type NewBadgeResultArray = NewBadgeResult[] & { awarded?: NewBadgeResult[] };
 
 // ============================================
 // 类型定义
@@ -100,79 +131,77 @@ class BadgeService {
   /**
    * 获取用户所有徽章
    * Requirements: 3.2
-   * 
+   *
    * Property 9: 返回的徽章包含所有必需字段
-   * 
+   *
    * @param userId 用户ID
    * @returns 用户徽章数组
    */
   async getUserBadges(userId: string): Promise<UserBadge[]> {
-    const userBadges = (await prisma.userBadge.findMany({
-      where: { userId },
-      include: {
-        badge: true
-      },
-      orderBy: [
-        { unlockedAt: 'desc' }
-      ]
-    })) ?? [];
+    const userBadges =
+      ((await prisma.userBadge.findMany({
+        where: { userId },
+        include: {
+          badge: true,
+        },
+        orderBy: [{ unlockedAt: 'desc' }],
+      })) as UserBadgeWithBadge[]) ?? [];
 
-    return userBadges.map(ub => ({
+    return userBadges.map((ub: UserBadgeWithBadge) => ({
       id: ub.id,
-      badgeId: (ub as any).badgeId ?? ub.id,
-      name: (ub as any).name ?? (ub as any).badge?.name ?? '',
-      description: (ub as any).description ?? (ub as any).badge?.description ?? '',
-      iconUrl: (ub as any).iconUrl ?? (ub as any).badge?.iconUrl ?? '',
-      category: (ub as any).category ?? (ub as any).badge?.category ?? 'STREAK',
-      tier: (ub as any).tier ?? 1,
-      unlockedAt: ub.unlockedAt ?? new Date()
+      badgeId: ub.badgeId ?? ub.id,
+      name: ub.badge?.name ?? '',
+      description: ub.badge?.description ?? '',
+      iconUrl: ub.badge?.iconUrl ?? '',
+      category: ub.badge?.category ?? 'STREAK',
+      tier: ub.tier ?? 1,
+      unlockedAt: ub.unlockedAt ?? new Date(),
     }));
   }
 
   /**
    * 检查并授予新徽章
    * Requirements: 3.1, 3.3, 3.4
-   * 
+   *
    * Property 8: 满足条件时创建新的UserBadge记录
    * Property 10: 检查所有四种条件类型
-   * 
+   *
    * @param userId 用户ID
    * @returns 新获得的徽章数组
    */
-  async checkAndAwardBadges(userId: string): Promise<NewBadgeResult[] & { awarded?: NewBadgeResult[] }> {
+  async checkAndAwardBadges(userId: string): Promise<NewBadgeResultArray> {
     // 获取用户统计数据 (Requirements: 3.4)
     const stats = await this.getUserStats(userId);
 
     // 获取所有徽章定义（兼容 prisma.badge 与 badgeDefinition）
-    const prismaAny = prisma as any;
-    const allBadges =
-      (prismaAny.badge && (await prismaAny.badge.findMany())) ||
+    const prismaWithBadge = prisma as PrismaClientWithOptionalBadge;
+    const allBadges: PrismaBadgeDefinition[] =
+      (prismaWithBadge.badge && (await prismaWithBadge.badge.findMany())) ||
       (await prisma.badgeDefinition.findMany()) ||
       [];
 
     // 获取用户已有的徽章
-    const existingBadges = (await prisma.userBadge.findMany({
-      where: { userId },
-      select: { badgeId: true, tier: true }
-    })) ?? [];
-    const existingBadgeKeys = new Set(
-      existingBadges.map(b => `${b.badgeId}:${b.tier}`)
-    );
+    const existingBadges =
+      (await prisma.userBadge.findMany({
+        where: { userId },
+        select: { badgeId: true, tier: true },
+      })) ?? [];
+    const existingBadgeKeys = new Set(existingBadges.map((b) => `${b.badgeId}:${b.tier}`));
 
     const newBadges: NewBadgeResult[] = [];
 
     // 检查每个徽章的条件
     for (const badge of allBadges) {
       const badgeKey = `${badge.id}:${badge.tier}`;
-      
+
       // 跳过已获得的徽章
       if (existingBadgeKeys.has(badgeKey)) {
         continue;
       }
 
-      const condition = (badge as any).condition
+      const condition: BadgeCondition = badge.condition
         ? (badge.condition as unknown as BadgeCondition)
-        : ({ type: 'streak', value: 1 } as BadgeCondition);
+        : { type: 'streak', value: 1 };
       const isEligible = this.checkBadgeEligibility(condition, stats);
 
       if (isEligible) {
@@ -182,8 +211,8 @@ class BadgeService {
             userId,
             badgeId: badge.id,
             tier: badge.tier,
-            unlockedAt: new Date()
-          }
+            unlockedAt: new Date(),
+          },
         });
 
         newBadges.push({
@@ -195,33 +224,31 @@ class BadgeService {
             iconUrl: badge.iconUrl,
             category: badge.category,
             tier: badge.tier,
-            unlockedAt: userBadge.unlockedAt
+            unlockedAt: userBadge.unlockedAt,
           },
           isNew: true,
-          unlockedAt: userBadge.unlockedAt
+          unlockedAt: userBadge.unlockedAt,
         });
       }
     }
 
     // 兼容测试：在数组上附加 awarded 属性，同时保持原有数组行为
-    (newBadges as any).awarded = newBadges;
-    return newBadges as any;
+    const result = newBadges as NewBadgeResultArray;
+    result.awarded = newBadges;
+    return result;
   }
 
   /**
    * 获取徽章详情
    * Requirements: 3.5
-   * 
+   *
    * @param badgeId 徽章ID
    * @param userId 可选的用户ID（用于检查是否已解锁）
    * @returns 徽章详情
    */
-  async getBadgeDetails(
-    badgeId: string,
-    userId?: string
-  ): Promise<BadgeDetails | null> {
+  async getBadgeDetails(badgeId: string, userId?: string): Promise<BadgeDetails | null> {
     const badge = await prisma.badgeDefinition.findUnique({
-      where: { id: badgeId }
+      where: { id: badgeId },
     });
 
     if (!badge) {
@@ -233,7 +260,7 @@ class BadgeService {
 
     if (userId) {
       const userBadge = await prisma.userBadge.findFirst({
-        where: { userId, badgeId }
+        where: { userId, badgeId },
       });
       if (userBadge) {
         unlocked = true;
@@ -250,24 +277,21 @@ class BadgeService {
       tier: badge.tier,
       condition: badge.condition as unknown as BadgeCondition,
       unlocked,
-      unlockedAt
+      unlockedAt,
     };
   }
 
   /**
    * 获取徽章进度
    * Requirements: 3.5
-   * 
+   *
    * @param userId 用户ID
    * @param badgeId 徽章ID
    * @returns 徽章进度
    */
-  async getBadgeProgress(
-    userId: string,
-    badgeId: string
-  ): Promise<BadgeProgress | null> {
+  async getBadgeProgress(userId: string, badgeId: string): Promise<BadgeProgress | null> {
     const badge = await prisma.badgeDefinition.findUnique({
-      where: { id: badgeId }
+      where: { id: badgeId },
     });
 
     if (!badge) {
@@ -286,7 +310,7 @@ class BadgeService {
       badgeId,
       currentValue,
       targetValue,
-      percentage
+      percentage,
     };
   }
 
@@ -298,25 +322,22 @@ class BadgeService {
    */
   async getAllBadgesWithStatus(userId: string): Promise<BadgeDetails[]> {
     const allBadges = await prisma.badgeDefinition.findMany({
-      orderBy: [
-        { category: 'asc' },
-        { tier: 'asc' }
-      ]
+      orderBy: [{ category: 'asc' }, { tier: 'asc' }],
     });
 
     const userBadges = await prisma.userBadge.findMany({
       where: { userId },
-      select: { badgeId: true, tier: true, unlockedAt: true }
+      select: { badgeId: true, tier: true, unlockedAt: true },
     });
 
     const userBadgeMap = new Map(
-      userBadges.map(ub => [`${ub.badgeId}:${ub.tier}`, ub.unlockedAt])
+      userBadges.map((ub) => [`${ub.badgeId}:${ub.tier}`, ub.unlockedAt]),
     );
 
     // 获取用户统计数据用于计算未解锁徽章的进度
     const stats = await this.getUserStats(userId);
 
-    return allBadges.map(badge => {
+    return allBadges.map((badge) => {
       const unlockedAt = userBadgeMap.get(`${badge.id}:${badge.tier}`);
       const isUnlocked = !!unlockedAt;
       const condition = badge.condition as unknown as BadgeCondition;
@@ -341,7 +362,7 @@ class BadgeService {
         condition,
         unlocked: isUnlocked,
         unlockedAt: unlockedAt || undefined,
-        progress
+        progress,
       };
     });
   }
@@ -350,20 +371,20 @@ class BadgeService {
    * 获取所有徽章（兼容测试）
    */
   async getAllBadges(): Promise<BadgeDetails[]> {
-    const prismaAny = prisma as any;
-    const badges =
-      (prismaAny.badge && (await prismaAny.badge.findMany())) ||
+    const prismaWithBadge = prisma as PrismaClientWithOptionalBadge;
+    const badges: PrismaBadgeDefinition[] =
+      (prismaWithBadge.badge && (await prismaWithBadge.badge.findMany())) ||
       (await prisma.badgeDefinition.findMany());
 
-    return badges.map((badge: any) => ({
+    return badges.map((badge: PrismaBadgeDefinition) => ({
       id: badge.id,
       name: badge.name,
       description: badge.description,
       iconUrl: badge.iconUrl,
       category: badge.category,
       tier: badge.tier ?? 1,
-      condition: badge.condition ?? {},
-      unlocked: false
+      condition: (badge.condition as unknown as BadgeCondition) ?? { type: 'streak', value: 1 },
+      unlocked: false,
     }));
   }
 
@@ -396,7 +417,7 @@ class BadgeService {
       totalWordsLearned,
       totalSessions,
       recentAccuracy,
-      cognitiveImprovement
+      cognitiveImprovement,
     };
   }
 
@@ -404,10 +425,7 @@ class BadgeService {
    * 检查徽章资格
    * Requirements: 3.4
    */
-  private checkBadgeEligibility(
-    condition: BadgeCondition,
-    stats: UserStats
-  ): boolean {
+  private checkBadgeEligibility(condition: BadgeCondition, stats: UserStats): boolean {
     switch (condition.type) {
       case 'streak':
         return stats.consecutiveDays >= condition.value;
@@ -436,10 +454,7 @@ class BadgeService {
   /**
    * 检查认知提升条件
    */
-  private checkCognitiveImprovement(
-    condition: BadgeCondition,
-    stats: UserStats
-  ): boolean {
+  private checkCognitiveImprovement(condition: BadgeCondition, stats: UserStats): boolean {
     // 如果没有足够的历史数据，不满足条件
     if (!stats.cognitiveImprovement.hasData) {
       return false;
@@ -471,10 +486,7 @@ class BadgeService {
   /**
    * 获取条件的当前值
    */
-  private getCurrentValueForCondition(
-    condition: BadgeCondition,
-    stats: UserStats
-  ): number {
+  private getCurrentValueForCondition(condition: BadgeCondition, stats: UserStats): number {
     switch (condition.type) {
       case 'streak':
         return stats.consecutiveDays;
@@ -490,12 +502,12 @@ class BadgeService {
           return Math.min(
             stats.cognitiveImprovement.memory,
             stats.cognitiveImprovement.speed,
-            stats.cognitiveImprovement.stability
+            stats.cognitiveImprovement.stability,
           );
         }
         // 只允许有效的数值类型 metric，防止返回布尔值或无效值
         const validMetrics = ['memory', 'speed', 'stability'] as const;
-        if (validMetrics.includes(metric as typeof validMetrics[number])) {
+        if (validMetrics.includes(metric as (typeof validMetrics)[number])) {
           return stats.cognitiveImprovement[metric as 'memory' | 'speed' | 'stability'];
         }
         return 0;
@@ -512,7 +524,7 @@ class BadgeService {
     const records = await prisma.answerRecord.findMany({
       where: { userId },
       select: { timestamp: true },
-      orderBy: { timestamp: 'desc' }
+      orderBy: { timestamp: 'desc' },
     });
 
     if (records.length === 0) return 0;
@@ -524,11 +536,11 @@ class BadgeService {
     }
 
     const sortedDates = Array.from(dates).sort().reverse();
-    
+
     // 检查今天是否学习
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
+
     if (sortedDates[0] !== today && sortedDates[0] !== yesterday) {
       return 0;
     }
@@ -538,9 +550,7 @@ class BadgeService {
     for (let i = 1; i < sortedDates.length; i++) {
       const currentDate = new Date(sortedDates[i - 1]);
       const prevDate = new Date(sortedDates[i]);
-      const diffDays = Math.floor(
-        (currentDate.getTime() - prevDate.getTime()) / 86400000
-      );
+      const diffDays = Math.floor((currentDate.getTime() - prevDate.getTime()) / 86400000);
 
       if (diffDays === 1) {
         consecutiveDays++;
@@ -559,8 +569,8 @@ class BadgeService {
     const count = await prisma.wordLearningState.count({
       where: {
         userId,
-        reviewCount: { gt: 0 }
-      }
+        reviewCount: { gt: 0 },
+      },
     });
     return count;
   }
@@ -573,8 +583,8 @@ class BadgeService {
       by: ['sessionId'],
       where: {
         userId,
-        sessionId: { not: null }
-      }
+        sessionId: { not: null },
+      },
     });
     return sessions.length;
   }
@@ -587,12 +597,12 @@ class BadgeService {
       where: { userId },
       orderBy: { timestamp: 'desc' },
       take: 50,
-      select: { isCorrect: true }
+      select: { isCorrect: true },
     });
 
     if (recentRecords.length === 0) return 0;
 
-    const correctCount = recentRecords.filter(r => r.isCorrect).length;
+    const correctCount = recentRecords.filter((r) => r.isCorrect).length;
     return correctCount / recentRecords.length;
   }
 
@@ -600,9 +610,7 @@ class BadgeService {
    * 计算认知提升
    * 返回包含 hasData 标志的结果，区分"无数据"和"提升为0"
    */
-  private async calculateCognitiveImprovement(
-    userId: string
-  ): Promise<CognitiveImprovementData> {
+  private async calculateCognitiveImprovement(userId: string): Promise<CognitiveImprovementData> {
     // 获取30天前和当前的状态
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -611,14 +619,14 @@ class BadgeService {
       prisma.userStateHistory.findFirst({
         where: {
           userId,
-          date: { lte: thirtyDaysAgo }
+          date: { lte: thirtyDaysAgo },
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
       }),
       prisma.userStateHistory.findFirst({
         where: { userId },
-        orderBy: { date: 'desc' }
-      })
+        orderBy: { date: 'desc' },
+      }),
     ]);
 
     // 没有足够的历史数据时，标记为无数据
@@ -630,7 +638,7 @@ class BadgeService {
       memory: currentState.memory - pastState.memory,
       speed: currentState.speed - pastState.speed,
       stability: currentState.stability - pastState.stability,
-      hasData: true
+      hasData: true,
     };
   }
 }

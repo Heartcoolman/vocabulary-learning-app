@@ -5,18 +5,28 @@ interface HabitHeatmapProps {
 }
 
 const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
-  const maxValue = useMemo(() => {
-    if (!timePref || timePref.length === 0) return 1;
-    return Math.max(...timePref, 1);
-  }, [timePref]);
+  const hasData = timePref && timePref.length > 0;
 
-  if (!timePref || timePref.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-gray-400">
-        <p>暂无时间偏好数据</p>
-      </div>
-    );
-  }
+  const maxValue = useMemo(() => {
+    if (!hasData) return 1;
+    return Math.max(...timePref, 1);
+  }, [timePref, hasData]);
+
+  const groupedHours = useMemo(() => {
+    if (!hasData) return [];
+    const groups = [];
+    for (let i = 0; i < 24; i += 3) {
+      const segment = timePref.slice(i, i + 3);
+      const avgValue = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+      groups.push({
+        start: i,
+        end: i + 2,
+        value: avgValue,
+        label: `${i}:00 - ${i + 2}:59`,
+      });
+    }
+    return groups;
+  }, [timePref, hasData]);
 
   const getColor = (value: number): string => {
     if (value === 0) return 'bg-gray-100';
@@ -38,20 +48,13 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
     return '频繁';
   };
 
-  const groupedHours = useMemo(() => {
-    const groups = [];
-    for (let i = 0; i < 24; i += 3) {
-      const segment = timePref.slice(i, i + 3);
-      const avgValue = segment.reduce((sum, val) => sum + val, 0) / segment.length;
-      groups.push({
-        start: i,
-        end: i + 2,
-        value: avgValue,
-        label: `${i}:00 - ${i + 2}:59`,
-      });
-    }
-    return groups;
-  }, [timePref]);
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center py-8 text-gray-400">
+        <p>暂无时间偏好数据</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

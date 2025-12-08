@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import apiClient from '../services/ApiClient';
+import { wordBookClient } from '../services/client';
 import { learningLogger } from '../utils/logger';
 
 export interface StudyProgressData {
@@ -28,7 +28,7 @@ export const useStudyProgress = (): UseStudyProgressReturn => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.getStudyProgress();
+      const response = await wordBookClient.getStudyProgress();
       setProgress(response);
     } catch (err) {
       learningLogger.error({ err }, '获取学习进度失败');

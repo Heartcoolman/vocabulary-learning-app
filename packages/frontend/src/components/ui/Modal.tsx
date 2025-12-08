@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X } from '../Icon';
 
 interface ModalProps {
@@ -48,58 +47,48 @@ export function Modal({
     };
   }, [isOpen, handleEscape]);
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/50"
-            onClick={closeOnOverlayClick ? onClose : undefined}
-            aria-hidden="true"
-          />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 animate-g3-fade-in bg-black/50"
+        onClick={closeOnOverlayClick ? onClose : undefined}
+        aria-hidden="true"
+      />
 
-          {/* Modal Content */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className={`relative rounded-2xl bg-white shadow-xl ${maxWidthClasses[maxWidth]} w-full`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={title ? 'modal-title' : undefined}
-          >
-            {/* Header */}
-            {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-6 pb-0">
-                {title && (
-                  <h2 id="modal-title" className="text-xl font-bold text-gray-900">
-                    {title}
-                  </h2>
-                )}
-                {showCloseButton && (
-                  <button
-                    onClick={onClose}
-                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-                    aria-label="关闭"
-                  >
-                    <X size={20} weight="bold" />
-                  </button>
-                )}
-              </div>
+      {/* Modal Content */}
+      <div
+        className={`relative animate-g3-scale-in rounded-2xl bg-white shadow-xl ${maxWidthClasses[maxWidth]} w-full`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+      >
+        {/* Header */}
+        {(title || showCloseButton) && (
+          <div className="flex items-center justify-between p-6 pb-0">
+            {title && (
+              <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+                {title}
+              </h2>
             )}
+            {showCloseButton && (
+              <button
+                onClick={onClose}
+                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                aria-label="关闭"
+              >
+                <X size={20} weight="bold" />
+              </button>
+            )}
+          </div>
+        )}
 
-            {/* Body */}
-            <div className="p-6">{children}</div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+        {/* Body */}
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 /**
  * 获取所有徽章（包含解锁状态）的 Query Hook

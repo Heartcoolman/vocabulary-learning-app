@@ -5,7 +5,7 @@ import apiClient, {
   WordScoreHistory,
   UserLearningHeatmap,
   AnomalyFlag,
-} from '../../services/ApiClient';
+} from '../../services/client';
 import {
   ArrowLeft,
   ChartBar,

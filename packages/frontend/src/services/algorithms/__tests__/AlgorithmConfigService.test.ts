@@ -238,9 +238,13 @@ describe('AlgorithmConfigService', () => {
         {
           id: 'history-1',
           configId: 'config-1',
-          changes: { consecutiveCorrectThreshold: 6 },
+          changedBy: 'user-1',
+          previousValue: { consecutiveCorrectThreshold: 5 },
+          newValue: { consecutiveCorrectThreshold: 6 },
           changeReason: 'Test change',
           timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
       vi.mocked(StorageService.getConfigHistory).mockResolvedValue(mockHistory);
@@ -265,9 +269,13 @@ describe('AlgorithmConfigService', () => {
         {
           id: 'history-1',
           configId: 'config-1',
-          changes: { consecutiveCorrectThreshold: 6 },
+          changedBy: 'user-1',
+          previousValue: { consecutiveCorrectThreshold: 5 },
+          newValue: { consecutiveCorrectThreshold: 6 },
           changeReason: 'Test change',
           timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
       vi.mocked(StorageService.getConfigHistory).mockResolvedValueOnce(mockHistory);

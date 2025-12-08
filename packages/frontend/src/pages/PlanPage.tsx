@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ApiClient from '../services/ApiClient';
+import ApiClient from '../services/client';
 import { handleError } from '../utils/errorHandler';
 import { LearningPlan, PlanProgress, PlanOptions } from '../types/amas-enhanced';
 import {

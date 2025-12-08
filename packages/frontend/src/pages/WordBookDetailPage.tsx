@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import AudioService from '../services/AudioService';
 import { Word, WordBook } from '../types/models';
 import {

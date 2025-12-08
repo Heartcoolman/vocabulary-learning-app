@@ -1,10 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { X, Warning, CheckCircle, CircleNotch, FileText } from './Icon';
-import { fadeInVariants, scaleInVariants } from '../utils/animations';
 import FileUpload from './FileUpload';
 import { parseImportFile, WordImportData } from '../utils/importParsers';
-import apiClient from '../services/ApiClient';
+import { adminClient, wordClient } from '../services/client';
 
 interface BatchImportModalProps {
   isOpen: boolean;
@@ -91,8 +89,8 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
     try {
       // 根据是否为管理员模式选择相应的 API
       const response = isAdminMode
-        ? await apiClient.adminBatchAddWordsToSystemWordBook(wordBookId, parsedData)
-        : await apiClient.batchImportWords(wordBookId, parsedData);
+        ? await adminClient.batchAddWordsToSystemWordBook(wordBookId, parsedData)
+        : await wordClient.batchImportWords(wordBookId, parsedData);
 
       if (isCancelledRef.current) {
         setIsCancelling(false);
@@ -140,22 +138,12 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      variants={fadeInVariants}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+    <div
+      className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        variants={scaleInVariants}
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
-      >
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-scale-in flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-xl font-bold text-gray-900">批量导入单词</h2>
           <button
@@ -353,8 +341,8 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
             </button>
           ) : null}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 
@@ -363,17 +351,14 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
  * Note: This component has complex internal state, so memo primarily prevents
  * re-renders from parent component updates when props haven't changed
  */
-const BatchImportModal = React.memo(
-  BatchImportModalComponent,
-  (prevProps, nextProps) => {
-    return (
-      prevProps.isOpen === nextProps.isOpen &&
-      prevProps.onClose === nextProps.onClose &&
-      prevProps.wordBookId === nextProps.wordBookId &&
-      prevProps.onImportSuccess === nextProps.onImportSuccess &&
-      prevProps.isAdminMode === nextProps.isAdminMode
-    );
-  },
-);
+const BatchImportModal = React.memo(BatchImportModalComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.wordBookId === nextProps.wordBookId &&
+    prevProps.onImportSuccess === nextProps.onImportSuccess &&
+    prevProps.isAdminMode === nextProps.isAdminMode
+  );
+});
 
 export default BatchImportModal;

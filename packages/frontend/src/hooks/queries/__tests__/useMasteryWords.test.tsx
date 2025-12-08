@@ -11,13 +11,13 @@ import {
   useBatchMasteryEvaluation,
   useMasteryWords,
 } from '../useMasteryWords';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 import type { Word } from '../../../types/models';
 import type { UserMasteryStats, MasteryEvaluation } from '../../../types/word-mastery';
 import React from 'react';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getLearnedWords: vi.fn(),
     getWordMasteryStats: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../../../services/ApiClient', () => ({
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getLearnedWords: ReturnType<typeof vi.fn>;
   getWordMasteryStats: ReturnType<typeof vi.fn>;
   batchProcessWordMastery: ReturnType<typeof vi.fn>;
@@ -56,9 +56,10 @@ const mockStats: UserMasteryStats = {
   totalWords: 100,
   masteredWords: 30,
   learningWords: 50,
+  newWords: 20,
   needReviewCount: 20,
   averageScore: 0.75,
-  recentProgress: 0.8,
+  averageRecall: 0.8,
 };
 
 const mockMasteryData: MasteryEvaluation[] = [
@@ -66,21 +67,25 @@ const mockMasteryData: MasteryEvaluation[] = [
     wordId: '1',
     score: 0.85,
     isLearned: true,
-    memoryStrength: 0.9,
-    forgettingRate: 0.1,
-    reviewCount: 5,
-    lastReviewDate: new Date().toISOString(),
-    nextReviewDate: new Date().toISOString(),
+    confidence: 0.9,
+    factors: {
+      srsLevel: 5,
+      actrRecall: 0.9,
+      recentAccuracy: 0.85,
+      userFatigue: 0.1,
+    },
   },
   {
     wordId: '2',
     score: 0.65,
     isLearned: false,
-    memoryStrength: 0.7,
-    forgettingRate: 0.3,
-    reviewCount: 3,
-    lastReviewDate: new Date().toISOString(),
-    nextReviewDate: new Date().toISOString(),
+    confidence: 0.7,
+    factors: {
+      srsLevel: 3,
+      actrRecall: 0.7,
+      recentAccuracy: 0.65,
+      userFatigue: 0.3,
+    },
   },
 ];
 

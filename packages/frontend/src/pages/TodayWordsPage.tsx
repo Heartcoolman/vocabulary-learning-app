@@ -37,7 +37,7 @@ export default function TodayWordsPage() {
           <h2 className="mb-2 text-xl font-bold text-gray-800">无法加载学习计划</h2>
           <p className="mb-6 text-gray-600">{error || '无法生成今日学习计划'}</p>
           <button
-            onClick={refresh}
+            onClick={() => refresh()}
             className="rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
           >
             重新加载

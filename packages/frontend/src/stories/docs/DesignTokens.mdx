@@ -1,0 +1,92 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Documentation/Design Tokens" />
+
+# Design Tokens
+
+设计令牌是构建一致 UI 的基础。
+
+## 颜色系统
+
+### 主色调 - Blue
+
+- blue-50: #eff6ff
+- blue-500: #3b82f6
+- blue-600: #2563eb
+- blue-700: #1d4ed8
+
+### 中性色 - Gray
+
+- gray-50: #f9fafb
+- gray-100: #f3f4f6
+- gray-500: #6b7280
+- gray-700: #374151
+- gray-900: #111827
+
+### 功能色
+
+- Success: #22c55e (green-500)
+- Error: #ef4444 (red-500)
+- Warning: #f59e0b (amber-500)
+- Info: #3b82f6 (blue-500)
+
+## 间距系统
+
+基于 4px 的间距系统：
+
+- space-1: 4px
+- space-2: 8px
+- space-3: 12px
+- space-4: 16px
+- space-6: 24px
+- space-8: 32px
+
+## 字体系统
+
+### 字体大小
+
+- text-xs: 12px
+- text-sm: 14px
+- text-base: 16px
+- text-lg: 18px
+- text-xl: 20px
+- text-2xl: 24px
+
+### 字重
+
+- font-normal: 400
+- font-medium: 500
+- font-semibold: 600
+- font-bold: 700
+
+## 阴影系统
+
+```css
+shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.04)
+shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.05)
+shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.08)
+```
+
+## 圆角系统
+
+- rounded-card: 16px
+- rounded-button: 12px
+- rounded-input: 10px
+- rounded-badge: 8px
+
+## G3 动画系统
+
+### 缓动函数
+
+```css
+--ease-g3-standard: cubic-bezier(0.2, 0, 0, 1)
+--ease-g3-enter: cubic-bezier(0.05, 0.7, 0.1, 1)
+--ease-g3-exit: cubic-bezier(0.3, 0, 0.8, 0.15)
+```
+
+### 时长
+
+- instant: 120ms
+- fast: 180ms
+- normal: 240ms
+- slow: 320ms

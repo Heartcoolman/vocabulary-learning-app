@@ -68,21 +68,21 @@ vi.mock('../../../utils/logger', () => ({
 
 const mockLatestDecision: AmasProcessResult = {
   sessionId: 'test-session-1',
-  selectedWord: {
-    id: 'word-1',
-    spelling: 'test',
-    phonetic: '/test/',
-    meanings: ['测试'],
-    examples: [],
+  strategy: {
+    interval_scale: 1.0,
+    new_ratio: 0.3,
+    difficulty: 'mid',
+    batch_size: 10,
+    hint_level: 1,
   },
   explanation: '选择此单词是因为它匹配当前学习状态。',
-  confidence: 0.85,
   state: {
     attention: 0.7,
     fatigue: 0.3,
     motivation: 0.8,
     memory: 0.6,
     speed: 0.5,
+    stability: 0.7,
   },
 };
 

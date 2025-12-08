@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
-import type { WordItem, QueueProgress, CompletionReason } from '../services/learning/WordQueueManager';
+import type {
+  WordItem,
+  QueueProgress,
+  CompletionReason,
+} from '../services/learning/WordQueueManager';
 import type { AmasProcessResult } from '../types/amas';
 
 import {
@@ -218,7 +222,11 @@ export function useMasteryLearning(
       const adaptive = wordQueue.adaptiveManagerRef.current;
       if (adaptive) {
         const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
+        if (should && reason)
+          sync.triggerQueueAdjustment(
+            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
+            adaptive.getRecentPerformance(),
+          );
       }
       const pausedTimeMs = getDialogPausedTime?.() ?? 0;
       if (pausedTimeMs > 0) resetDialogPausedTime?.();

@@ -13,9 +13,9 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useStudyPlan, StudyPlan } from '../useStudyPlan';
 import type { Word } from '../../types/models';
 
-// Mock API client
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock client
+vi.mock('../../services/client', () => ({
+  wordBookClient: {
     getTodayWords: vi.fn(),
   },
 }));
@@ -30,9 +30,9 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 // Import the mocked module to get reference
-import apiClient from '../../services/ApiClient';
+import { wordBookClient } from '../../services/client';
 
-const mockApiClient = apiClient as {
+const mockWordBookClient = wordBookClient as unknown as {
   getTodayWords: ReturnType<typeof vi.fn>;
 };
 
@@ -70,7 +70,7 @@ describe('useStudyPlan', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.getTodayWords.mockResolvedValue(mockTodayWordsResponse);
+    mockWordBookClient.getTodayWords.mockResolvedValue(mockTodayWordsResponse);
   });
 
   // ==================== 数据获取测试 ====================
@@ -83,7 +83,7 @@ describe('useStudyPlan', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockApiClient.getTodayWords).toHaveBeenCalledTimes(1);
+      expect(mockWordBookClient.getTodayWords).toHaveBeenCalledTimes(1);
       expect(result.current.plan).not.toBeNull();
       expect(result.current.error).toBeNull();
     });
@@ -121,7 +121,7 @@ describe('useStudyPlan', () => {
       const promise = new Promise<typeof mockTodayWordsResponse>((resolve) => {
         resolvePromise = resolve;
       });
-      mockApiClient.getTodayWords.mockReturnValueOnce(promise);
+      mockWordBookClient.getTodayWords.mockReturnValueOnce(promise);
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -149,7 +149,7 @@ describe('useStudyPlan', () => {
     });
 
     it('should set loading to false after failed fetch', async () => {
-      mockApiClient.getTodayWords.mockRejectedValueOnce(new Error('API error'));
+      mockWordBookClient.getTodayWords.mockRejectedValueOnce(new Error('API error'));
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -165,7 +165,7 @@ describe('useStudyPlan', () => {
 
   describe('错误处理', () => {
     it('should set error message on API failure', async () => {
-      mockApiClient.getTodayWords.mockRejectedValueOnce(new Error('Network error'));
+      mockWordBookClient.getTodayWords.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -178,7 +178,7 @@ describe('useStudyPlan', () => {
     });
 
     it('should clear error on successful refresh', async () => {
-      mockApiClient.getTodayWords.mockRejectedValueOnce(new Error('First call failed'));
+      mockWordBookClient.getTodayWords.mockRejectedValueOnce(new Error('First call failed'));
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -187,7 +187,7 @@ describe('useStudyPlan', () => {
       });
 
       // Reset mock for successful fetch
-      mockApiClient.getTodayWords.mockResolvedValueOnce(mockTodayWordsResponse);
+      mockWordBookClient.getTodayWords.mockResolvedValueOnce(mockTodayWordsResponse);
 
       await act(async () => {
         await result.current.refresh();
@@ -218,7 +218,7 @@ describe('useStudyPlan', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockApiClient.getTodayWords).toHaveBeenCalledTimes(1);
+      expect(mockWordBookClient.getTodayWords).toHaveBeenCalledTimes(1);
 
       // Update mock data for refresh
       const updatedResponse = {
@@ -228,13 +228,13 @@ describe('useStudyPlan', () => {
           todayStudied: 30,
         },
       };
-      mockApiClient.getTodayWords.mockResolvedValueOnce(updatedResponse);
+      mockWordBookClient.getTodayWords.mockResolvedValueOnce(updatedResponse);
 
       await act(async () => {
         await result.current.refresh();
       });
 
-      expect(mockApiClient.getTodayWords).toHaveBeenCalledTimes(2);
+      expect(mockWordBookClient.getTodayWords).toHaveBeenCalledTimes(2);
       expect(result.current.plan?.todayStudied).toBe(30);
     });
 
@@ -249,7 +249,7 @@ describe('useStudyPlan', () => {
       const promise = new Promise<typeof mockTodayWordsResponse>((resolve) => {
         resolvePromise = resolve;
       });
-      mockApiClient.getTodayWords.mockReturnValueOnce(promise);
+      mockWordBookClient.getTodayWords.mockReturnValueOnce(promise);
 
       act(() => {
         result.current.refresh();
@@ -273,7 +273,7 @@ describe('useStudyPlan', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      mockApiClient.getTodayWords.mockRejectedValueOnce(new Error('Refresh failed'));
+      mockWordBookClient.getTodayWords.mockRejectedValueOnce(new Error('Refresh failed'));
 
       await act(async () => {
         await result.current.refresh();
@@ -311,7 +311,7 @@ describe('useStudyPlan', () => {
           correctRate: 0,
         },
       };
-      mockApiClient.getTodayWords.mockResolvedValueOnce(emptyResponse);
+      mockWordBookClient.getTodayWords.mockResolvedValueOnce(emptyResponse);
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -331,7 +331,7 @@ describe('useStudyPlan', () => {
           correctRate: 1.0,
         },
       };
-      mockApiClient.getTodayWords.mockResolvedValueOnce(perfectResponse);
+      mockWordBookClient.getTodayWords.mockResolvedValueOnce(perfectResponse);
 
       const { result } = renderHook(() => useStudyPlan());
 
@@ -351,7 +351,7 @@ describe('useStudyPlan', () => {
           todayTarget: 50,
         },
       };
-      mockApiClient.getTodayWords.mockResolvedValueOnce(exceededResponse);
+      mockWordBookClient.getTodayWords.mockResolvedValueOnce(exceededResponse);
 
       const { result } = renderHook(() => useStudyPlan());
 

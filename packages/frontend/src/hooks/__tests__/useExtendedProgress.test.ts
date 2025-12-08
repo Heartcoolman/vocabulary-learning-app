@@ -13,11 +13,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useExtendedProgress, ExtendedProgressData } from '../useExtendedProgress';
 import type { Word, WordLearningState } from '../../types/models';
+import { WordState } from '../../types';
 
-// Mock API client
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock client
+vi.mock('../../services/client', () => ({
+  wordBookClient: {
     getStudyProgress: vi.fn(),
+  },
+  learningClient: {
     getRecords: vi.fn(),
   },
 }));
@@ -39,15 +42,18 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+import { wordBookClient, learningClient } from '../../services/client';
 import StorageService from '../../services/StorageService';
 
-const mockApiClient = apiClient as {
+const mockWordBookClient = wordBookClient as unknown as {
   getStudyProgress: ReturnType<typeof vi.fn>;
+};
+
+const mockLearningClient = learningClient as unknown as {
   getRecords: ReturnType<typeof vi.fn>;
 };
 
-const mockStorageService = StorageService as {
+const mockStorageService = StorageService as unknown as {
   getWords: ReturnType<typeof vi.fn>;
   getWordLearningStates: ReturnType<typeof vi.fn>;
 };
@@ -88,7 +94,7 @@ describe('useExtendedProgress', () => {
       id: 'state-1',
       userId: 'user-123',
       wordId: 'word-1',
-      state: 'mastered',
+      state: WordState.MASTERED,
       masteryLevel: 5,
       easeFactor: 2.5,
       reviewCount: 10,
@@ -104,7 +110,7 @@ describe('useExtendedProgress', () => {
       id: 'state-2',
       userId: 'user-123',
       wordId: 'word-2',
-      state: 'learning',
+      state: WordState.LEARNING,
       masteryLevel: 3,
       easeFactor: 2.3,
       reviewCount: 5,
@@ -120,7 +126,7 @@ describe('useExtendedProgress', () => {
       id: 'state-3',
       userId: 'user-123',
       wordId: 'word-3',
-      state: 'new',
+      state: WordState.NEW,
       masteryLevel: 1,
       easeFactor: 2.5,
       reviewCount: 1,
@@ -155,8 +161,8 @@ describe('useExtendedProgress', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.getStudyProgress.mockResolvedValue(mockBasicProgress);
-    mockApiClient.getRecords.mockResolvedValue(mockRecords);
+    mockWordBookClient.getStudyProgress.mockResolvedValue(mockBasicProgress);
+    mockLearningClient.getRecords.mockResolvedValue(mockRecords);
     mockStorageService.getWords.mockResolvedValue(mockWords);
     mockStorageService.getWordLearningStates.mockResolvedValue(mockWordStates);
   });
@@ -197,7 +203,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockApiClient.getStudyProgress).toHaveBeenCalled();
+      expect(mockWordBookClient.getStudyProgress).toHaveBeenCalled();
       expect(result.current.progress?.todayStudied).toBe(25);
       expect(result.current.progress?.todayTarget).toBe(50);
     });
@@ -224,7 +230,7 @@ describe('useExtendedProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockApiClient.getRecords).toHaveBeenCalledWith({ pageSize: 1000 });
+      expect(mockLearningClient.getRecords).toHaveBeenCalledWith({ pageSize: 1000 });
     });
   });
 
@@ -362,7 +368,7 @@ describe('useExtendedProgress', () => {
 
     it('should handle no learning streak', async () => {
       // Mock records with no recent activity
-      mockApiClient.getRecords.mockResolvedValueOnce({
+      mockLearningClient.getRecords.mockResolvedValueOnce({
         records: [
           {
             id: 'r1',
@@ -416,7 +422,7 @@ describe('useExtendedProgress', () => {
 
   describe('错误处理', () => {
     it('should handle API error', async () => {
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(new Error('API error'));
+      mockWordBookClient.getStudyProgress.mockRejectedValueOnce(new Error('API error'));
 
       const { result } = renderHook(() => useExtendedProgress('user-123'));
 
@@ -429,7 +435,7 @@ describe('useExtendedProgress', () => {
     });
 
     it('should clear error on successful refresh', async () => {
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(new Error('First call failed'));
+      mockWordBookClient.getStudyProgress.mockRejectedValueOnce(new Error('First call failed'));
 
       const { result } = renderHook(() => useExtendedProgress('user-123'));
 
@@ -438,7 +444,7 @@ describe('useExtendedProgress', () => {
       });
 
       // Reset mock for successful fetch
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockBasicProgress);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockBasicProgress);
 
       await act(async () => {
         await result.current.refresh();
@@ -473,7 +479,7 @@ describe('useExtendedProgress', () => {
       });
 
       // API should be called again
-      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(2);
+      expect(mockWordBookClient.getStudyProgress).toHaveBeenCalledTimes(2);
     });
   });
 

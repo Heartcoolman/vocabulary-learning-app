@@ -4,8 +4,65 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
+import { LearningStrategy, DifficultyLevel } from '@danci/shared';
+
+// ============================================
+// 类型定义
+// ============================================
+
+/**
+ * Pipeline 阶段的输入/输出摘要类型
+ */
+type PipelineSummary = Record<string, unknown>;
+
+/**
+ * 用户状态快照类型（用于 insight.stateSnapshot）
+ */
+type StateSnapshotValue = string | number | boolean | null | Record<string, unknown>;
+
+/**
+ * 决策中的选中动作类型
+ */
+interface SelectedAction {
+  difficulty: DifficultyLevel;
+  batch_size: number;
+  interval_scale?: number;
+  new_ratio?: number;
+  hint_level?: number;
+}
+
+/**
+ * 决策详情中的 Decision 数据
+ */
+interface DecisionData {
+  decisionId: string;
+  timestamp: string;
+  decisionSource: string;
+  confidence: number;
+  coldstartPhase?: string;
+  reward?: number | null;
+  selectedAction?: SelectedAction;
+}
+
+/**
+ * 决策详情中的 Insight 数据（用户洞察）
+ */
+interface DecisionInsight {
+  stateSnapshot?: Record<string, StateSnapshotValue>;
+}
+
+/**
+ * 决策详情中的上下文数据
+ */
+interface DecisionContext {
+  answerRecord: {
+    wordSpelling: string;
+    isCorrect: boolean;
+    responseTime?: number;
+  };
+}
 
 interface DecisionListItem {
   decisionId: string;
@@ -37,16 +94,16 @@ interface PipelineStage {
   durationMs?: number | null;
   startedAt: string;
   endedAt?: string | null;
-  inputSummary?: any;
-  outputSummary?: any;
+  inputSummary?: PipelineSummary;
+  outputSummary?: PipelineSummary;
   errorMessage?: string | null;
 }
 
 interface DecisionDetail {
-  decision: any;
-  insight?: any;
+  decision: DecisionData;
+  insight?: DecisionInsight;
   pipeline: PipelineStage[];
-  context?: any;
+  context?: DecisionContext;
 }
 
 // API 响应类型定义
@@ -407,7 +464,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                     <h4 style={styles.sectionTitle}>用户状态快照</h4>
                     <div style={styles.stateGrid}>
                       {Object.entries(decisionDetail.insight.stateSnapshot).map(
-                        ([key, value]: [string, any]) => (
+                        ([key, value]: [string, StateSnapshotValue]) => (
                           <div key={key} style={styles.stateItem}>
                             <span style={styles.stateLabel}>{key}:</span>
                             <span style={styles.stateValue}>
@@ -546,7 +603,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '12px',
     marginBottom: '20px',
-    flexWrap: 'wrap' as any,
+    flexWrap: 'wrap',
   },
   filterInput: {
     padding: '8px 12px',
@@ -564,18 +621,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
   },
   tableContainer: {
-    overflowX: 'auto' as any,
+    overflowX: 'auto',
     border: '1px solid #e5e7eb',
     borderRadius: '8px',
   },
   table: {
     width: '100%',
-    borderCollapse: 'collapse' as any,
+    borderCollapse: 'collapse',
   },
   th: {
     backgroundColor: '#f9fafb',
     padding: '12px',
-    textAlign: 'left' as any,
+    textAlign: 'left',
     fontSize: '14px',
     fontWeight: 'bold',
     color: '#374151',
@@ -626,7 +683,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyState: {
     padding: '40px',
-    textAlign: 'center' as any,
+    textAlign: 'center',
     color: '#6b7280',
   },
   pagination: {
@@ -649,7 +706,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#6b7280',
   },
   modalOverlay: {
-    position: 'fixed' as any,
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
@@ -666,7 +723,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: '900px',
     maxHeight: '90vh',
     width: '90%',
-    overflow: 'auto' as any,
+    overflow: 'auto',
   },
   modalHeader: {
     display: 'flex',
@@ -721,7 +778,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   pipelineContainer: {
     display: 'flex',
-    flexDirection: 'column' as any,
+    flexDirection: 'column',
     gap: '12px',
   },
   pipelineStage: {
@@ -769,7 +826,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px',
     borderRadius: '4px',
     fontSize: '12px',
-    overflow: 'auto' as any,
+    overflow: 'auto',
     maxHeight: '300px',
   },
   error: {

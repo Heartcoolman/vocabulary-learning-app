@@ -35,7 +35,7 @@ vi.mock('../../services/StorageService', () => ({
 }));
 
 // Mock API Client
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getStateHistory: vi.fn(),
     getCognitiveGrowth: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock('../../utils/errorHandler', () => ({
 }));
 
 import StorageService from '../../services/StorageService';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('HistoryPage', () => {
   beforeEach(() => {

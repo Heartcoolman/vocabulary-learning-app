@@ -9,15 +9,15 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useLearningData } from '../useLearningData';
 
 // Mock API client
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     adminGetUserLearningData: vi.fn(),
   },
 }));
 
 // Import the mocked module to get reference
-import apiClient from '../../services/ApiClient';
-const mockApiClient = apiClient as {
+import apiClient from '../../services/client';
+const mockApiClient = apiClient as unknown as {
   adminGetUserLearningData: ReturnType<typeof vi.fn>;
 };
 

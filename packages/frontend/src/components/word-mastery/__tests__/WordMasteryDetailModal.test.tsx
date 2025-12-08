@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { WordMasteryDetailModal } from '../WordMasteryDetailModal';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -80,7 +80,7 @@ vi.mock('../MemoryTraceChart', () => ({
 }));
 
 // Mock API
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getLearnedWords: vi.fn(),
     getWordMasteryDetail: vi.fn(),

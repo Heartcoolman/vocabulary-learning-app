@@ -85,6 +85,18 @@ export interface LearningCurveData {
   averageAttention: number;
 }
 
+/**
+ * AMAS 选择的动作
+ */
+export interface AMASSelectedAction {
+  difficulty?: 'easy' | 'mid' | 'hard';
+  batch_size?: number;
+  interval_scale?: number;
+  new_ratio?: number;
+  hint_level?: number;
+  type?: string;
+}
+
 export interface DecisionTimelineItem {
   answerId: string;
   wordId: string;
@@ -92,7 +104,7 @@ export interface DecisionTimelineItem {
   decision: {
     decisionId: string;
     confidence: number;
-    selectedAction: any;
+    selectedAction: AMASSelectedAction;
   };
 }
 

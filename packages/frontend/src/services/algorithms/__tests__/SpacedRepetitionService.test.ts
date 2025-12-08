@@ -347,7 +347,7 @@ describe('SpacedRepetitionService', () => {
   describe('getWordScore', () => {
     it('should return word score from storage', async () => {
       const score = createMockWordScore({ wordId: 'word-1' });
-      vi.mocked(mockStorage.loadScore).mockResolvedValue(score);
+      vi.mocked(mockStorage.loadScore!).mockResolvedValue(score);
 
       const result = await service.getWordScore('user-1', 'word-1');
 
@@ -355,7 +355,7 @@ describe('SpacedRepetitionService', () => {
     });
 
     it('should return null for non-existent score', async () => {
-      vi.mocked(mockStorage.loadScore).mockResolvedValue(null);
+      vi.mocked(mockStorage.loadScore!).mockResolvedValue(null);
 
       const result = await service.getWordScore('user-1', 'nonexistent');
 

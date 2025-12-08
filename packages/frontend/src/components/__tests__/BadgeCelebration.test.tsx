@@ -46,12 +46,9 @@ describe('BadgeCelebration', () => {
     description: '连续学习7天',
     tier: 3,
     category: 'STREAK',
-    progress: 1,
-    maxProgress: 1,
+    iconUrl: '/badges/star.png',
+    progress: 100,
     unlockedAt: '2024-01-15T10:30:00Z',
-    isUnlocked: true,
-    iconName: 'star',
-    condition: 'streak >= 7',
   };
 
   beforeEach(() => {

@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect, memo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   CaretDown,
@@ -14,13 +13,13 @@ import {
   List,
   X,
 } from './Icon';
-import { fadeInVariants, g3SpringStandard } from '../utils/animations';
 
 /**
  * Navigation 组件 - 顶部导航栏
  * 提供应用内页面导航，支持移动端响应式
+ * 使用 React.memo 优化：该组件在所有页面都存在，避免不必要的重渲染
  */
-export default function Navigation() {
+function NavigationComponent() {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
@@ -179,37 +178,28 @@ export default function Navigation() {
                   aria-haspopup="true"
                 >
                   学习洞察
-                  <motion.div
-                    animate={{ rotate: isInsightsOpen ? 180 : 0 }}
-                    transition={g3SpringStandard}
+                  <span
+                    className={`transition-rotate inline-block ${isInsightsOpen ? 'rotate-180' : ''}`}
                   >
                     <CaretDown size={16} weight="bold" />
-                  </motion.div>
+                  </span>
                 </button>
 
-                <AnimatePresence>
-                  {isInsightsOpen && (
-                    <motion.div
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      variants={fadeInVariants}
-                      className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-                    >
-                      {insightsLinks.map(({ path, icon: Icon, label }) => (
-                        <Link
-                          key={path}
-                          to={path}
-                          className={dropdownLinkClass(path)}
-                          onClick={() => setIsInsightsOpen(false)}
-                        >
-                          <Icon size={18} weight="bold" />
-                          {label}
-                        </Link>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {isInsightsOpen && (
+                  <div className="animate-fade-in-down absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                    {insightsLinks.map(({ path, icon: Icon, label }) => (
+                      <Link
+                        key={path}
+                        to={path}
+                        className={dropdownLinkClass(path)}
+                        onClick={() => setIsInsightsOpen(false)}
+                      >
+                        <Icon size={18} weight="bold" />
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -258,74 +248,74 @@ export default function Navigation() {
         </div>
 
         {/* 移动端菜单 */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              ref={mobileMenuRef}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="mt-4 border-t border-gray-200 pb-4 pt-4 lg:hidden"
-            >
-              <nav className="flex flex-col space-y-2" role="navigation" aria-label="移动端导航">
-                <Link to="/" className={mobileLinkClass('/')}>
-                  学习
-                </Link>
-                <Link to="/vocabulary" className={mobileLinkClass('/vocabulary')}>
-                  词库管理
-                </Link>
-                <Link to="/study-settings" className={mobileLinkClass('/study-settings')}>
-                  学习设置
-                </Link>
-                <Link to="/history" className={mobileLinkClass('/history')}>
-                  学习历史
-                </Link>
+        {isMobileMenuOpen && (
+          <div
+            ref={mobileMenuRef}
+            className="animate-expand mt-4 border-t border-gray-200 pb-4 pt-4 lg:hidden"
+          >
+            <nav className="flex flex-col space-y-2" role="navigation" aria-label="移动端导航">
+              <Link to="/" className={mobileLinkClass('/')}>
+                学习
+              </Link>
+              <Link to="/vocabulary" className={mobileLinkClass('/vocabulary')}>
+                词库管理
+              </Link>
+              <Link to="/study-settings" className={mobileLinkClass('/study-settings')}>
+                学习设置
+              </Link>
+              <Link to="/history" className={mobileLinkClass('/history')}>
+                学习历史
+              </Link>
 
-                {/* 学习洞察子菜单 */}
-                {isAuthenticated && (
-                  <>
-                    <div className="px-4 py-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                      学习洞察
-                    </div>
-                    {insightsLinks.map(({ path, icon: Icon, label }) => (
-                      <Link
-                        key={path}
-                        to={path}
-                        className={`${mobileLinkClass(path)} flex items-center gap-2 pl-8`}
-                      >
-                        <Icon size={18} weight="bold" />
-                        {label}
-                      </Link>
-                    ))}
-                  </>
-                )}
+              {/* 学习洞察子菜单 */}
+              {isAuthenticated && (
+                <>
+                  <div className="px-4 py-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                    学习洞察
+                  </div>
+                  {insightsLinks.map(({ path, icon: Icon, label }) => (
+                    <Link
+                      key={path}
+                      to={path}
+                      className={`${mobileLinkClass(path)} flex items-center gap-2 pl-8`}
+                    >
+                      <Icon size={18} weight="bold" />
+                      {label}
+                    </Link>
+                  ))}
+                </>
+              )}
 
-                {/* 管理后台 */}
-                {isAuthenticated && user?.role === 'ADMIN' && (
-                  <Link to="/admin" className={mobileLinkClass('/admin')}>
-                    管理后台
-                  </Link>
-                )}
+              {/* 管理后台 */}
+              {isAuthenticated && user?.role === 'ADMIN' && (
+                <Link to="/admin" className={mobileLinkClass('/admin')}>
+                  管理后台
+                </Link>
+              )}
 
-                {/* 分隔线 */}
-                <div className="my-2 border-t border-gray-200" />
+              {/* 分隔线 */}
+              <div className="my-2 border-t border-gray-200" />
 
-                {/* 认证相关 */}
-                {isAuthenticated ? (
-                  <Link to="/profile" className={mobileLinkClass('/profile')}>
-                    {user?.username || '个人资料'}
-                  </Link>
-                ) : (
-                  <Link to="/login" className={mobileLinkClass('/login')}>
-                    登录
-                  </Link>
-                )}
-              </nav>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {/* 认证相关 */}
+              {isAuthenticated ? (
+                <Link to="/profile" className={mobileLinkClass('/profile')}>
+                  {user?.username || '个人资料'}
+                </Link>
+              ) : (
+                <Link to="/login" className={mobileLinkClass('/login')}>
+                  登录
+                </Link>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
 }
+
+// Navigation 组件无 props，使用默认浅比较即可
+// 内部使用 useLocation 和 useAuth hooks，当这些 hooks 的值变化时会触发重渲染
+const Navigation = memo(NavigationComponent);
+
+export default Navigation;

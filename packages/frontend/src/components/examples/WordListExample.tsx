@@ -1,4 +1,5 @@
 import { useWords, useCreateWord, useDeleteWord } from '../../hooks/queries/useWords';
+import { uiLogger } from '../../utils/logger';
 
 /**
  * React Query 使用示例组件
@@ -17,13 +18,15 @@ export function WordListExample() {
   const handleCreateWord = async () => {
     try {
       await createWordMutation.mutateAsync({
-        word: 'example',
-        translation: '示例',
-        wordbookId: 'default-wordbook-id',
+        spelling: 'example',
+        phonetic: '/ɪɡˈzæmpəl/',
+        meanings: ['示例', '例子'],
+        examples: ['This is an example sentence.'],
+        wordBookId: 'default-wordbook-id',
       });
-      console.log('单词创建成功！');
+      uiLogger.info('单词创建成功');
     } catch (err) {
-      console.error('创建失败：', err);
+      uiLogger.error({ err }, '创建失败');
     }
   };
 
@@ -31,9 +34,9 @@ export function WordListExample() {
   const handleDeleteWord = async (id: string) => {
     try {
       await deleteWordMutation.mutateAsync(id);
-      console.log('单词删除成功！');
+      uiLogger.info('单词删除成功');
     } catch (err) {
-      console.error('删除失败：', err);
+      uiLogger.error({ err }, '删除失败');
     }
   };
 
@@ -93,8 +96,8 @@ export function WordListExample() {
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{word.word}</h3>
-                <p className="text-gray-600">{word.translation}</p>
+                <h3 className="text-lg font-semibold text-gray-900">{word.spelling}</h3>
+                <p className="text-gray-600">{word.meanings.join(', ')}</p>
               </div>
               <button
                 onClick={() => handleDeleteWord(word.id)}

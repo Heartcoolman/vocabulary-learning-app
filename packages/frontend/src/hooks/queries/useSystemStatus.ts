@@ -221,8 +221,7 @@ export function useServiceHealth(serviceName: string, enabled = true) {
   const { data: status } = useSystemStatus(enabled);
 
   return {
-    isHealthy:
-      status?.services.find((s) => s.name === serviceName)?.status === 'healthy' ?? false,
+    isHealthy: status?.services.find((s) => s.name === serviceName)?.status === 'healthy' || false,
     service: status?.services.find((s) => s.name === serviceName),
   };
 }

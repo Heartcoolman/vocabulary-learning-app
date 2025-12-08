@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { X, Clock, Fire, ChartLine, Warning, CheckCircle, CircleNotch, Lightbulb } from '../Icon';
 import { Modal } from '../ui/Modal';
 import { MemoryTraceChart } from './MemoryTraceChart';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import { learningLogger } from '../../utils/logger';
 import type {
   MasteryEvaluation,
@@ -63,7 +62,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 
       setData({
         spelling: wordData.spelling,
-        phonetic: wordData.phonetic,
+        phonetic: wordData.phonetic ?? '',
         meanings: wordData.meanings,
         mastery: masteryData,
         trace: traceData.trace,
@@ -187,12 +186,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 
         {/* 掌握度评估 */}
         {data.mastery && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="rounded-xl border border-gray-200 bg-white p-6"
-          >
+          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
               <ChartLine size={24} className="text-purple-500" />
               掌握度评估
@@ -275,17 +269,12 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
 
         {/* 学习轨迹图表 */}
         {data.trace.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="rounded-xl border border-gray-200 bg-white p-6"
-          >
+          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
               <Fire size={24} className="text-orange-500" weight="fill" />
               学习轨迹
@@ -294,17 +283,12 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
               <p className="text-sm text-gray-500">共 {data.trace.length} 次复习记录</p>
             </div>
             <MemoryTraceChart trace={data.trace} />
-          </motion.div>
+          </div>
         )}
 
         {/* 评估结果历史 */}
         {data.trace.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="rounded-xl border border-gray-200 bg-white p-6"
-          >
+          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
               <Clock size={24} className="text-blue-500" />
               评估历史
@@ -349,17 +333,12 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                 显示最近 10 条记录，共 {data.trace.length} 条
               </p>
             )}
-          </motion.div>
+          </div>
         )}
 
         {/* 复习建议 */}
         {data.interval && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6"
-          >
+          <div className="animate-g3-fade-in rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
               <Clock size={24} className="text-blue-500" />
               复习建议
@@ -388,7 +367,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                 </span>
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* 空状态 */}

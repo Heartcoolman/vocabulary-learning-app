@@ -8,8 +8,20 @@ import { MemoryRouter } from 'react-router-dom';
 import AdminLayout from '../AdminLayout';
 
 const mockNavigate = vi.fn();
-const mockAdminUser = { id: 'admin-1', username: 'admin', email: 'admin@test.com', role: 'ADMIN' };
-const mockNormalUser = { id: 'user-1', username: 'user', email: 'user@test.com', role: 'USER' };
+const mockAdminUser = {
+  id: 'admin-1',
+  username: 'admin',
+  email: 'admin@test.com',
+  role: 'ADMIN' as const,
+  createdAt: '2024-01-01',
+};
+const mockNormalUser = {
+  id: 'user-1',
+  username: 'user',
+  email: 'user@test.com',
+  role: 'USER' as const,
+  createdAt: '2024-01-01',
+};
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -19,7 +31,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     getCurrentUser: vi.fn().mockResolvedValue({
       id: 'admin-1',
@@ -98,7 +110,7 @@ describe('AdminLayout', () => {
     });
 
     it('should redirect non-admin users', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getCurrentUser).mockResolvedValue(mockNormalUser);
 
       renderWithRouter();
@@ -109,7 +121,7 @@ describe('AdminLayout', () => {
     });
 
     it('should redirect to login on auth error', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.getCurrentUser).mockRejectedValue(new Error('Unauthorized'));
 
       renderWithRouter();

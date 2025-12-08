@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadSimple, NotePencil } from '../../components/Icon';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import { Books, CircleNotch } from '../../components/Icon';
 import { BatchImportModal } from '../../components';
 import { WordBook } from '../../types/models';

@@ -22,4 +22,6 @@ export * from './useAdminMutations';
 // 学习相关 mutations
 export * from './useSyncProgress';
 export * from './useAdjustWords';
-export * from './useWordMutations';
+// Note: useWordMutations exports useCreateWord, useUpdateWord, useDeleteWord, useBatchCreateWords
+// which conflict with queries/useWords.ts exports. We only export useWordMutations here.
+export { useWordMutations } from './useWordMutations';

@@ -19,6 +19,7 @@ import {
   endHabitSession,
 } from './mastery';
 import { useSubmitAnswer, extractAmasState } from './mutations';
+import { learningLogger } from '../utils/logger';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -116,7 +117,7 @@ export function useMasteryLearningV2(
   const submitAnswerMutation = useSubmitAnswer({
     onOptimisticUpdate: (decision) => {
       // 乐观更新本地队列状态
-      console.log('[useMasteryLearningV2] Optimistic update:', decision);
+      learningLogger.debug({ decision }, '[useMasteryLearningV2] Optimistic update');
     },
     onAmasResult: (result) => {
       // 更新最新的AMAS结果
@@ -249,7 +250,11 @@ export function useMasteryLearningV2(
       const adaptive = wordQueue.adaptiveManagerRef.current;
       if (adaptive) {
         const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
+        if (should && reason)
+          sync.triggerQueueAdjustment(
+            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
+            adaptive.getRecentPerformance(),
+          );
       }
 
       // 获取暂停时间

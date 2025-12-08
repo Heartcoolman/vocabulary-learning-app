@@ -5,16 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MasteryWordItem } from '../MasteryWordItem';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 import type { MasteryEvaluation } from '../../../types/word-mastery';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
-}));
+// Note: framer-motion is no longer used in MasteryWordItem after CSS migration
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
@@ -48,7 +42,7 @@ vi.mock('./MemoryTraceChart', () => ({
 }));
 
 // Mock API
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getWordMasteryTrace: vi.fn(),
     getWordMasteryInterval: vi.fn(),

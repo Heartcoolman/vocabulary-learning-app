@@ -120,7 +120,7 @@ export default function ConfigHistoryPage() {
             ].map((filter) => (
               <button
                 key={filter.value}
-                onClick={() => setDateFilter(filter.value as any)}
+                onClick={() => setDateFilter(filter.value as typeof dateFilter)}
                 className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
                   dateFilter === filter.value
                     ? 'bg-blue-500 text-white shadow-sm'
@@ -183,7 +183,7 @@ function HistoryRecordCard({ record }: HistoryRecordCardProps) {
     });
   };
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: unknown): string => {
     if (typeof value === 'object' && value !== null) {
       return JSON.stringify(value, null, 2);
     }
@@ -191,7 +191,7 @@ function HistoryRecordCard({ record }: HistoryRecordCardProps) {
   };
 
   const getChangedFields = () => {
-    const fields: Array<{ key: string; before: any; after: any }> = [];
+    const fields: Array<{ key: string; before: unknown; after: unknown }> = [];
 
     if (typeof record.previousValue === 'object' && typeof record.newValue === 'object') {
       const allKeys = new Set([
@@ -200,8 +200,8 @@ function HistoryRecordCard({ record }: HistoryRecordCardProps) {
       ]);
 
       allKeys.forEach((key) => {
-        const before = (record.previousValue as any)[key];
-        const after = (record.newValue as any)[key];
+        const before = (record.previousValue as Record<string, unknown>)[key];
+        const after = (record.newValue as Record<string, unknown>)[key];
 
         if (JSON.stringify(before) !== JSON.stringify(after)) {
           fields.push({ key, before, after });

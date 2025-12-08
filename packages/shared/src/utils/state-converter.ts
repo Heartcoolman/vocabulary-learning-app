@@ -1,32 +1,14 @@
 /**
- * 前端展开格式的用户状态
+ * 用户状态格式转换工具
+ *
+ * 前端使用展开格式（可读性好）：attention, fatigue, motivation, memory, speed, stability
+ * 后端使用紧凑格式（节省存储）：A, F, M, C.mem, C.speed, C.stability
  */
-export interface UserStateFrontend {
-  attention: number;
-  fatigue: number;
-  motivation: number;
-  memory: number;
-  speed: number;
-  stability: number;
-  confidence?: number;
-  timestamp?: number;
-}
 
-/**
- * 后端紧凑格式的用户状态
- */
-export interface UserStateBackend {
-  A: number;
-  F: number;
-  M: number;
-  C: {
-    mem: number;
-    speed: number;
-    stability: number;
-  };
-  conf?: number;
-  ts?: number;
-}
+import { UserStateFrontend, UserStateBackend } from '../types/amas';
+
+// 重新导出类型，保持向后兼容
+export type { UserStateFrontend, UserStateBackend };
 
 /**
  * 将展开格式转换为紧凑格式（前端 -> 后端存储）

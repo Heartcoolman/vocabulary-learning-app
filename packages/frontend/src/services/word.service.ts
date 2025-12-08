@@ -7,7 +7,7 @@
  * - 集中管理单词相关的业务逻辑
  */
 
-import apiClient from './ApiClient';
+import apiClient from './client';
 import type { Word } from '../types/models';
 
 export interface CreateWordDto {
@@ -51,7 +51,7 @@ class WordService {
     // 注意：当前 ApiClient 没有 getWordById 方法
     // 我们需要从列表中过滤，或者等待后端添加此接口
     const words = await apiClient.getWords();
-    const word = words.find(w => w.id === id);
+    const word = words.find((w) => w.id === id);
     if (!word) {
       throw new Error(`单词不存在: ${id}`);
     }

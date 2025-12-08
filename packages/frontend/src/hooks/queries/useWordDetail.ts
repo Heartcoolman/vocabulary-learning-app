@@ -8,7 +8,7 @@
  * - 与 React Query 集成
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { wordService } from '../../services/word.service';
 import type { Word } from '../../types/models';
@@ -90,15 +90,7 @@ export function useWordDetail(options: UseWordDetailOptions): UseWordDetailResul
   // 只有当 id 存在且 enabled 为 true 时才执行查询
   const shouldFetch = Boolean(id && enabled);
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-    error,
-    isSuccess,
-    isError,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isFetching, error, isSuccess, isError, refetch } = useQuery({
     queryKey: queryKeys.words.detail(id),
     queryFn: async () => {
       const response = await wordService.getWordById(id);
@@ -111,7 +103,7 @@ export function useWordDetail(options: UseWordDetailOptions): UseWordDetailResul
     gcTime: staleTime * 2,
     // 失败重试配置
     retry: 2,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   return {
@@ -127,7 +119,7 @@ export function useWordDetail(options: UseWordDetailOptions): UseWordDetailResul
 
 /**
  * 批量获取单词详情的 Hook
- * 注意：这个 Hook 会并发发起多个请求
+ * 使用 useQueries 并发获取多个单词详情
  *
  * @example
  * ```tsx
@@ -145,7 +137,32 @@ export function useWordDetail(options: UseWordDetailOptions): UseWordDetailResul
  * ```
  */
 export function useWordDetails(ids: string[]) {
-  return ids.map(id => useWordDetail({ id }));
+  const staleTime = 10 * 60 * 1000;
+
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: queryKeys.words.detail(id),
+      queryFn: async () => {
+        const response = await wordService.getWordById(id);
+        return response.data;
+      },
+      enabled: Boolean(id),
+      staleTime,
+      gcTime: staleTime * 2,
+      retry: 2,
+      retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    })),
+  });
+
+  return results.map((result) => ({
+    word: result.data as Word | undefined,
+    isLoading: result.isLoading,
+    isFetching: result.isFetching,
+    error: result.error as Error | null,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    refetch: result.refetch,
+  }));
 }
 
 /**

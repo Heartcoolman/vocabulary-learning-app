@@ -22,15 +22,15 @@ vi.mock('@phosphor-icons/react', () => ({
   Coffee: () => <span data-testid="coffee-icon">Coffee</span>,
 }));
 
-// Mock ApiClient
-vi.mock('../../services/ApiClient', () => ({
+// Mock ApiClient - 需要与组件中导入的路径一致
+vi.mock('../../services/client', () => ({
   default: {
     getUserRewardProfile: vi.fn(),
     updateUserRewardProfile: vi.fn(),
   },
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 const mockApiClient = ApiClient;
 
 // Mock useToast
@@ -227,7 +227,10 @@ describe('LearningModeSelector', () => {
     });
 
     it('should update mode when selecting different mode', async () => {
-      vi.mocked(mockApiClient.updateUserRewardProfile).mockResolvedValue({});
+      vi.mocked(mockApiClient.updateUserRewardProfile).mockResolvedValue({
+        currentProfile: 'cram',
+        message: 'Profile updated successfully',
+      });
 
       render(<LearningModeSelector />);
 
@@ -285,7 +288,10 @@ describe('LearningModeSelector', () => {
     });
 
     it('should call API when selecting different mode', async () => {
-      vi.mocked(mockApiClient.updateUserRewardProfile).mockResolvedValue({});
+      vi.mocked(mockApiClient.updateUserRewardProfile).mockResolvedValue({
+        currentProfile: 'relaxed',
+        message: 'Profile updated successfully',
+      });
 
       render(<LearningModeSelector />);
 
@@ -318,7 +324,8 @@ describe('LearningModeSelector', () => {
       vi.mocked(mockApiClient.updateUserRewardProfile).mockImplementation(
         () =>
           new Promise((resolve) => {
-            resolveUpdate = () => resolve({});
+            resolveUpdate = () =>
+              resolve({ currentProfile: 'cram', message: 'Profile updated successfully' });
           }),
       );
 

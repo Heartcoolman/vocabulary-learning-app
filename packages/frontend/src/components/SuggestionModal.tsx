@@ -10,12 +10,7 @@ interface SuggestionModalProps {
   onBreak: () => void;
 }
 
-const SuggestionModalComponent = ({
-  isOpen,
-  onClose,
-  result,
-  onBreak,
-}: SuggestionModalProps) => {
+const SuggestionModalComponent = ({ isOpen, onClose, result, onBreak }: SuggestionModalProps) => {
   if (!isOpen || !result) return null;
 
   return (
@@ -68,25 +63,23 @@ const compareAmasResult = (
   return (
     prev.suggestion === next.suggestion &&
     prev.shouldBreak === next.shouldBreak &&
-    prev.reason === next.reason &&
-    prev.metrics?.cognitiveLoad === next.metrics?.cognitiveLoad &&
-    prev.metrics?.fatigueLevel === next.metrics?.fatigueLevel
+    prev.explanation === next.explanation &&
+    prev.state?.fatigue === next.state?.fatigue &&
+    prev.objectiveEvaluation?.metrics?.aggregatedScore ===
+      next.objectiveEvaluation?.metrics?.aggregatedScore
   );
 };
 
 /**
  * Memoized SuggestionModal component
  */
-const SuggestionModal = React.memo(
-  SuggestionModalComponent,
-  (prevProps, nextProps) => {
-    return (
-      prevProps.isOpen === nextProps.isOpen &&
-      prevProps.onClose === nextProps.onClose &&
-      prevProps.onBreak === nextProps.onBreak &&
-      compareAmasResult(prevProps.result, nextProps.result)
-    );
-  },
-);
+const SuggestionModal = React.memo(SuggestionModalComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.onBreak === nextProps.onBreak &&
+    compareAmasResult(prevProps.result, nextProps.result)
+  );
+});
 
 export default SuggestionModal;

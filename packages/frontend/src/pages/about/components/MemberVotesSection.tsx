@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Brain, ChartBar, Lightning, Target } from '@/components/Icon';
 import type { MemberVoteDetail } from '@/services/aboutApi';
 
@@ -74,12 +73,12 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: config.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(vote?.contribution || 0) * 100}%` }}
-                    transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      backgroundColor: config.color,
+                      width: `${(vote?.contribution || 0) * 100}%`,
+                    }}
                   />
                 </div>
               </div>

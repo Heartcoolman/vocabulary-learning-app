@@ -5,10 +5,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import AmasStatus from '../AmasStatus';
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 // Mock ApiClient - define mock functions first
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getAmasState: vi.fn(),
     getAmasColdStartPhase: vi.fn(),
@@ -16,7 +16,10 @@ vi.mock('../../services/ApiClient', () => ({
 }));
 
 // Get typed reference to mocked module
-const mockApiClient = ApiClient as jest.Mocked<typeof ApiClient>;
+const mockApiClient = ApiClient as unknown as {
+  getAmasState: ReturnType<typeof vi.fn>;
+  getAmasColdStartPhase: ReturnType<typeof vi.fn>;
+};
 
 // Mock Icon components
 vi.mock('../Icon', () => ({

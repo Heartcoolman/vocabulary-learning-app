@@ -5,7 +5,7 @@
  */
 
 import { useMutation, UseMutationOptions, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../services/ApiClient';
+import { learningClient } from '../../services/client';
 import { AdjustWordsParams, AdjustWordsResponse } from '../../types/amas';
 
 /**
@@ -22,7 +22,7 @@ export interface AdjustWordsCallbacks {
   onSettled?: (
     data: AdjustWordsResponse | undefined,
     error: Error | null,
-    params: AdjustWordsParams
+    params: AdjustWordsParams,
   ) => void;
 }
 
@@ -168,23 +168,20 @@ export interface AdjustWordsCallbacks {
  * ```
  */
 export function useAdjustWords(
-  options?: Omit<
-    UseMutationOptions<AdjustWordsResponse, Error, AdjustWordsParams>,
-    'mutationFn'
-  >
+  options?: Omit<UseMutationOptions<AdjustWordsResponse, Error, AdjustWordsParams>, 'mutationFn'>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation<AdjustWordsResponse, Error, AdjustWordsParams>({
     mutationFn: async (params: AdjustWordsParams) => {
-      return await apiClient.adjustLearningWords(params);
+      return await learningClient.adjustLearningWords(params);
     },
     onSuccess: (data, variables, context) => {
       // 可选：使相关查询失效，强制重新获取
       // queryClient.invalidateQueries({ queryKey: ['nextWords'] });
 
-      // 调用用户提供的回调
-      options?.onSuccess?.(data, variables, context);
+      // 调用用户提供的回调（React Query v5 的 onSuccess 签名）
+      options?.onSuccess?.(data, variables, context, undefined as never);
     },
     // 失败时重试一次
     retry: 1,
@@ -235,7 +232,7 @@ export function useAdjustWords(
  * ```
  */
 export async function adjustWords(params: AdjustWordsParams): Promise<AdjustWordsResponse> {
-  return await apiClient.adjustLearningWords(params);
+  return await learningClient.adjustLearningWords(params);
 }
 
 /**
@@ -270,7 +267,7 @@ export function shouldAdjustQueue(
     accuracy: number;
     avgResponseTime: number;
     consecutiveWrong: number;
-  }
+  },
 ): { shouldAdjust: boolean; reason?: AdjustWordsParams['adjustReason'] } {
   // 检查疲劳度
   if (userState && userState.fatigue > 0.7) {

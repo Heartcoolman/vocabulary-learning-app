@@ -203,6 +203,7 @@ export class SpacedRepetitionService {
     // 创建答题记录
     const answerRecord: AnswerRecord = {
       id: `record-${userId}-${wordId}-${Date.now()}`,
+      userId,
       wordId,
       selectedAnswer,
       correctAnswer,
@@ -213,6 +214,8 @@ export class SpacedRepetitionService {
       sessionId: this.currentSession?.sessionId,
       masteryLevelBefore,
       masteryLevelAfter: 0, // 稍后更新
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     // 获取最近的答题记录（用于计算稳定性）

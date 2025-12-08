@@ -1,7 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { X, ChartPie } from './Icon';
-import { fadeInVariants, scaleInVariants } from '../utils/animations';
 import AmasStatus from './AmasStatus';
 
 interface StatusModalProps {
@@ -14,20 +12,8 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
   if (!isOpen) return null;
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      variants={fadeInVariants}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm"
-    >
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        variants={scaleInVariants}
-        className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
-      >
+    <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-2 text-blue-600">
@@ -57,8 +43,8 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
             关闭
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 
@@ -66,15 +52,12 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
  * Memoized StatusModal component
  * Only re-renders when isOpen, onClose function, or refreshTrigger changes
  */
-const StatusModal = React.memo(
-  StatusModalComponent,
-  (prevProps, nextProps) => {
-    return (
-      prevProps.isOpen === nextProps.isOpen &&
-      prevProps.onClose === nextProps.onClose &&
-      prevProps.refreshTrigger === nextProps.refreshTrigger
-    );
-  },
-);
+const StatusModal = React.memo(StatusModalComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.refreshTrigger === nextProps.refreshTrigger
+  );
+});
 
 export default StatusModal;

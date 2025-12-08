@@ -11,7 +11,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock fetch
+// Unmock aboutApi to test the real implementation
+vi.unmock('../aboutApi');
+
+// Mock fetch - must be done before importing aboutApi
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
@@ -639,7 +642,7 @@ describe('aboutApi', () => {
         text: () => Promise.resolve('Server Error'),
       });
 
-      await expect(getOverviewStats()).rejects.toThrow();
+      await expect(getOverviewStats()).rejects.toThrow('HTTP 500');
     });
 
     it('should handle network error', async () => {
@@ -653,7 +656,7 @@ describe('aboutApi', () => {
       abortError.name = 'AbortError';
       mockFetch.mockRejectedValueOnce(abortError);
 
-      await expect(getOverviewStats()).rejects.toThrow('请求超时');
+      await expect(getOverviewStats()).rejects.toThrow('请求超时，请检查网络连接');
     });
 
     it('should handle request cancellation', async () => {
@@ -678,10 +681,17 @@ describe('aboutApi', () => {
         onerror: null as ((event: Event) => void) | null,
       };
 
-      vi.stubGlobal(
-        'EventSource',
-        vi.fn(() => mockEventSource),
-      );
+      // Mock EventSource as a constructor
+      class MockEventSource {
+        addEventListener = mockEventSource.addEventListener;
+        close = mockEventSource.close;
+        onerror = mockEventSource.onerror;
+        constructor(_url: string) {
+          // Store reference for assertions
+        }
+      }
+
+      vi.stubGlobal('EventSource', MockEventSource);
 
       const onDecision = vi.fn();
       const onConnected = vi.fn();

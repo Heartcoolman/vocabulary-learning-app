@@ -52,7 +52,7 @@ const mockWords: Word[] = [
   },
 ];
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getSystemWordBooks: vi.fn(),
     getUserWordBooks: vi.fn(),
@@ -63,7 +63,7 @@ vi.mock('../../services/ApiClient', () => ({
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 
 describe('useWordBooks', () => {
   let queryClient: QueryClient;

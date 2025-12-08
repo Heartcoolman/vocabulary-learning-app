@@ -63,7 +63,7 @@ const mockApiClient = vi.hoisted(() => ({
   recordOptimizationEvaluation: vi.fn(),
 }));
 
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: mockApiClient,
 }));
 

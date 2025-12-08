@@ -5,7 +5,7 @@
  */
 
 import { useMutation, UseMutationOptions } from '@tanstack/react-query';
-import apiClient from '../../services/ApiClient';
+import { learningClient } from '../../services/client';
 
 /**
  * 进度同步参数
@@ -105,11 +105,11 @@ export interface SyncProgressParams {
  * ```
  */
 export function useSyncProgress(
-  options?: Omit<UseMutationOptions<void, Error, SyncProgressParams>, 'mutationFn'>
+  options?: Omit<UseMutationOptions<void, Error, SyncProgressParams>, 'mutationFn'>,
 ) {
   return useMutation<void, Error, SyncProgressParams>({
     mutationFn: async (params: SyncProgressParams) => {
-      await apiClient.syncMasteryProgress(params);
+      await learningClient.syncMasteryProgress(params);
     },
     // 失败时重试一次
     retry: 1,
@@ -146,5 +146,5 @@ export function useSyncProgress(
  * ```
  */
 export async function syncProgress(params: SyncProgressParams): Promise<void> {
-  await apiClient.syncMasteryProgress(params);
+  await learningClient.syncMasteryProgress(params);
 }

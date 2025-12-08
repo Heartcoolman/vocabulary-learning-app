@@ -9,11 +9,11 @@ import {
   useRefreshAmasState,
   usePrefetchAmasState,
 } from '../useAmasState';
-import ApiClient from '../../../services/ApiClient';
+import ApiClient from '../../../services/client';
 import type { UserState, LearningStrategy, ColdStartPhaseInfo } from '../../../types/amas';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getAmasState: vi.fn(),
     getAmasStrategy: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../../../services/ApiClient', () => ({
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockApiClient = ApiClient as unknown as {
   getAmasState: ReturnType<typeof vi.fn>;
   getAmasStrategy: ReturnType<typeof vi.fn>;
   getAmasColdStartPhase: ReturnType<typeof vi.fn>;

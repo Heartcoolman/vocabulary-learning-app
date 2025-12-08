@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock API Client
+// Mock badges 数据
 const mockBadges = [
   {
     id: 'badge-1',
@@ -47,10 +47,10 @@ const mockBadges = [
   },
 ];
 
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getAllBadgesWithStatus: vi.fn(),
-  },
+// Mock useAllBadgesWithStatus hook
+const mockUseAllBadgesWithStatus = vi.fn();
+vi.mock('../../hooks/queries/useBadges', () => ({
+  useAllBadgesWithStatus: () => mockUseAllBadgesWithStatus(),
 }));
 
 // Mock logger
@@ -78,15 +78,19 @@ vi.mock('../../components/badges/BadgeDetailModal', () => ({
   ),
 }));
 
-import ApiClient from '../../services/ApiClient';
-
 describe('BadgeGalleryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (ApiClient.getAllBadgesWithStatus as any).mockResolvedValue({
-      badges: mockBadges,
-      totalCount: 3,
-      unlockedCount: 2,
+    // 默认返回成功状态
+    mockUseAllBadgesWithStatus.mockReturnValue({
+      data: {
+        badges: mockBadges,
+        totalCount: 3,
+        unlockedCount: 2,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
     });
   });
 
@@ -160,6 +164,13 @@ describe('BadgeGalleryPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseAllBadgesWithStatus.mockReturnValue({
+        data: null,
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
+
       renderComponent();
       expect(screen.getByText('正在加载成就画廊...')).toBeInTheDocument();
     });
@@ -300,10 +311,15 @@ describe('BadgeGalleryPage', () => {
     });
 
     it('should navigate to learning when no badges and clicking start button', async () => {
-      (ApiClient.getAllBadgesWithStatus as any).mockResolvedValue({
-        badges: [],
-        totalCount: 0,
-        unlockedCount: 0,
+      mockUseAllBadgesWithStatus.mockReturnValue({
+        data: {
+          badges: [],
+          totalCount: 0,
+          unlockedCount: 0,
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
       });
 
       renderComponent();
@@ -321,7 +337,12 @@ describe('BadgeGalleryPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (ApiClient.getAllBadgesWithStatus as any).mockRejectedValue(new Error('加载失败'));
+      mockUseAllBadgesWithStatus.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('加载失败'),
+        refetch: vi.fn(),
+      });
 
       renderComponent();
 
@@ -333,12 +354,23 @@ describe('BadgeGalleryPage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (ApiClient.getAllBadgesWithStatus as any)
-        .mockRejectedValueOnce(new Error('加载失败'))
-        .mockResolvedValueOnce({
-          badges: mockBadges,
-          totalCount: 3,
-          unlockedCount: 2,
+      const mockRefetch = vi.fn();
+      mockUseAllBadgesWithStatus
+        .mockReturnValueOnce({
+          data: null,
+          isLoading: false,
+          error: new Error('加载失败'),
+          refetch: mockRefetch,
+        })
+        .mockReturnValueOnce({
+          data: {
+            badges: mockBadges,
+            totalCount: 3,
+            unlockedCount: 2,
+          },
+          isLoading: false,
+          error: null,
+          refetch: mockRefetch,
         });
 
       renderComponent();
@@ -349,9 +381,7 @@ describe('BadgeGalleryPage', () => {
 
       fireEvent.click(screen.getByText('重试'));
 
-      await waitFor(() => {
-        expect(screen.getByText('连续学习7天')).toBeInTheDocument();
-      });
+      expect(mockRefetch).toHaveBeenCalled();
     });
   });
 
@@ -377,10 +407,15 @@ describe('BadgeGalleryPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state message when no badges', async () => {
-      (ApiClient.getAllBadgesWithStatus as any).mockResolvedValue({
-        badges: [],
-        totalCount: 0,
-        unlockedCount: 0,
+      mockUseAllBadgesWithStatus.mockReturnValue({
+        data: {
+          badges: [],
+          totalCount: 0,
+          unlockedCount: 0,
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
       });
 
       renderComponent();

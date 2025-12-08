@@ -87,13 +87,27 @@ export enum WordState {
 }
 
 /**
+ * 掌握程度等级 (0-5)
+ * 0: 完全不会
+ * 1: 初学（见过但不熟）
+ * 2: 学习中（有印象但不稳定）
+ * 3: 熟悉（基本掌握）
+ * 4: 熟练（掌握牢固）
+ * 5: 精通（完全掌握）
+ *
+ * 使用 number 类型以保持向后兼容，实际值应在 0-5 范围内
+ */
+export type MasteryLevel = number;
+
+/**
  * 单词学习状态
  */
 export interface WordLearningState extends BaseEntity {
   userId: ID;
   wordId: ID;
   state: WordState;
-  masteryLevel: number;
+  /** 掌握程度等级 (0-5) */
+  masteryLevel: MasteryLevel;
   easeFactor: number;
   reviewCount: number;
   lastReviewDate: Timestamp | null;

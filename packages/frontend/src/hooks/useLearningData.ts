@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import apiClient, { UserLearningData } from '../services/ApiClient';
+import apiClient, { UserLearningData } from '../services/client';
 import { adminLogger } from '../utils/logger';
 
 interface UseLearningDataReturn {

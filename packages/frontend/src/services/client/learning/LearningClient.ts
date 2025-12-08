@@ -1,5 +1,6 @@
 import { BaseClient, ApiError } from '../base/BaseClient';
 import { AnswerRecord, WordLearningState, WordScore, WordState } from '../../../types/models';
+import type { CreateRecordDto } from '@danci/shared';
 import { apiLogger } from '../../../utils/logger';
 
 /**
@@ -132,7 +133,7 @@ export class LearningClient extends BaseClient {
   /**
    * 保存答题记录
    */
-  async createRecord(recordData: Omit<AnswerRecord, 'id'>): Promise<AnswerRecord> {
+  async createRecord(recordData: CreateRecordDto): Promise<AnswerRecord> {
     return this.request<AnswerRecord>('/api/records', {
       method: 'POST',
       body: JSON.stringify(recordData),
@@ -142,7 +143,7 @@ export class LearningClient extends BaseClient {
   /**
    * 批量创建学习记录
    */
-  async batchCreateRecords(records: Omit<AnswerRecord, 'id'>[]): Promise<AnswerRecord[]> {
+  async batchCreateRecords(records: CreateRecordDto[]): Promise<AnswerRecord[]> {
     return this.request<AnswerRecord[]>('/api/records/batch', {
       method: 'POST',
       body: JSON.stringify({ records }),

@@ -4,9 +4,29 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import AlgorithmConfigPage from '../AlgorithmConfigPage';
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
 const mockConfig = {
+  id: 'config-1',
   reviewIntervals: [1, 3, 7, 14, 30],
   consecutiveCorrectThreshold: 5,
   consecutiveWrongThreshold: 3,
@@ -35,6 +55,29 @@ vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
     },
   };
 });
+
+// Mock React Query hooks
+const mockMutateAsync = vi.fn().mockResolvedValue(mockConfig);
+let mockIsLoading = false;
+
+vi.mock('@/hooks/queries', () => ({
+  useAlgorithmConfig: () => ({
+    data: mockIsLoading ? undefined : mockConfig,
+    isLoading: mockIsLoading,
+    error: null,
+  }),
+}));
+
+vi.mock('@/hooks/mutations', () => ({
+  useUpdateAlgorithmConfig: () => ({
+    mutateAsync: mockMutateAsync,
+    isPending: false,
+  }),
+  useResetAlgorithmConfig: () => ({
+    mutateAsync: mockMutateAsync,
+    isPending: false,
+  }),
+}));
 
 // Mock useToast hook
 vi.mock('@/components/ui', () => ({
@@ -69,12 +112,14 @@ vi.mock('@/components/Icon', async () => {
 describe('AlgorithmConfigPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsLoading = false;
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
   describe('loading state', () => {
     it('should show loading indicator initially', () => {
-      render(<AlgorithmConfigPage />);
+      mockIsLoading = true;
+      renderWithProviders(<AlgorithmConfigPage />);
 
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
       expect(screen.getByText('加载配置中...')).toBeInTheDocument();
@@ -83,7 +128,7 @@ describe('AlgorithmConfigPage', () => {
 
   describe('data display', () => {
     it('should render page title', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('算法配置')).toBeInTheDocument();
@@ -91,7 +136,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render review intervals section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('遗忘曲线参数')).toBeInTheDocument();
@@ -99,7 +144,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render difficulty adjustment section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('难度调整参数')).toBeInTheDocument();
@@ -107,7 +152,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render priority weights section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('优先级权重')).toBeInTheDocument();
@@ -115,7 +160,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render mastery thresholds section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('掌握程度阈值')).toBeInTheDocument();
@@ -123,7 +168,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render score weights section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getAllByText('单词得分权重').length).toBeGreaterThanOrEqual(1);
@@ -131,7 +176,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should render speed thresholds section', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('答题速度评分标准')).toBeInTheDocument();
@@ -141,7 +186,7 @@ describe('AlgorithmConfigPage', () => {
 
   describe('save functionality', () => {
     it('should show save button', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('保存配置')).toBeInTheDocument();
@@ -149,7 +194,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should show success message after save', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('保存配置')).toBeInTheDocument();
@@ -165,7 +210,7 @@ describe('AlgorithmConfigPage', () => {
 
   describe('reset functionality', () => {
     it('should show reset button', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('恢复默认值')).toBeInTheDocument();
@@ -173,7 +218,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should show confirm dialog when reset clicked', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('恢复默认值')).toBeInTheDocument();
@@ -188,7 +233,7 @@ describe('AlgorithmConfigPage', () => {
     });
 
     it('should close confirm dialog on cancel', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('恢复默认值')).toBeInTheDocument();
@@ -211,7 +256,7 @@ describe('AlgorithmConfigPage', () => {
   describe('validation', () => {
     it('should show validation errors when invalid', async () => {
       // 修改配置使其验证失败（权重总和不等于100）
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('保存配置')).toBeInTheDocument();
@@ -228,7 +273,7 @@ describe('AlgorithmConfigPage', () => {
 
   describe('review intervals editing', () => {
     it('should show add interval button', async () => {
-      render(<AlgorithmConfigPage />);
+      renderWithProviders(<AlgorithmConfigPage />);
 
       await waitFor(() => {
         expect(screen.getByText('添加间隔')).toBeInTheDocument();

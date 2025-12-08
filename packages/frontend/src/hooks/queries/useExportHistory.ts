@@ -11,6 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import type { ExportDataResult } from '../mutations/useExportData';
+import { storageLogger } from '../../utils/logger';
 
 /**
  * 导出历史项
@@ -109,7 +110,7 @@ export function useExportHistory(options?: {
         // 应用限制
         return filtered.slice(0, limit);
       } catch (error) {
-        console.error('解析导出历史失败:', error);
+        storageLogger.error({ err: error }, '解析导出历史失败');
         return [];
       }
     },
@@ -166,9 +167,7 @@ export function useExportStatistics(options?: { enabled?: boolean }) {
           failedCount: history.filter((h) => h.status === 'failed').length,
           totalRecords: history.reduce((sum, h) => sum + h.count, 0),
           lastExportTime:
-            history.length > 0
-              ? Math.max(...history.map((h) => h.timestamp))
-              : undefined,
+            history.length > 0 ? Math.max(...history.map((h) => h.timestamp)) : undefined,
           byType: {},
           byFormat: {},
         };
@@ -185,7 +184,7 @@ export function useExportStatistics(options?: { enabled?: boolean }) {
 
         return stats;
       } catch (error) {
-        console.error('解析导出统计失败:', error);
+        storageLogger.error({ err: error }, '解析导出统计失败');
         return {
           totalExports: 0,
           successCount: 0,
@@ -215,7 +214,7 @@ export function addExportHistory(item: Omit<ExportHistoryItem, 'id'>): void {
     try {
       history = JSON.parse(stored);
     } catch (error) {
-      console.error('解析导出历史失败:', error);
+      storageLogger.error({ err: error }, '解析导出历史失败');
     }
   }
 
@@ -235,7 +234,7 @@ export function addExportHistory(item: Omit<ExportHistoryItem, 'id'>): void {
   try {
     localStorage.setItem(storageKey, JSON.stringify(history));
   } catch (error) {
-    console.error('保存导出历史失败:', error);
+    storageLogger.error({ err: error }, '保存导出历史失败');
   }
 }
 
@@ -269,7 +268,7 @@ export function deleteExportHistoryItem(id: string): boolean {
     localStorage.setItem(storageKey, JSON.stringify(filtered));
     return true;
   } catch (error) {
-    console.error('删除导出历史失败:', error);
+    storageLogger.error({ err: error }, '删除导出历史失败');
     return false;
   }
 }

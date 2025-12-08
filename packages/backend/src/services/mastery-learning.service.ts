@@ -104,16 +104,16 @@ class MasteryLearningService {
     const target = targetCount ?? config.dailyMasteryTarget ?? config.dailyWordCount ?? 20;
 
     // 获取 AMAS 策略
-    const strategy = await amasService.getCurrentStrategy(userId)
-      ?? amasService.getDefaultStrategy();
+    const strategy =
+      (await amasService.getCurrentStrategy(userId)) ?? amasService.getDefaultStrategy();
 
     // 初始只获取少量单词（按需加载模式）
     const initialBatchSize = MasteryLearningService.INITIAL_BATCH_SIZE;
 
     logger.debug(
       `[MasteryLearning] 获取掌握模式单词: userId=${userId}, ` +
-      `target=${target}, initialBatch=${initialBatchSize}, ` +
-      `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`
+        `target=${target}, initialBatch=${initialBatchSize}, ` +
+        `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`,
     );
 
     // 使用 AMAS 策略获取初始单词
@@ -125,10 +125,10 @@ class MasteryLearningService {
         mode: 'mastery',
         targetCount: target,
         fetchCount: words.length,
-        masteryThreshold: 2,  // 默认连续2次正确(实际由AMAS决定)
-        maxQuestions: 100,    // 单次会话最大题数
-        strategy              // 返回当前策略供前端参考
-      }
+        masteryThreshold: 2, // 默认连续2次正确(实际由AMAS决定)
+        maxQuestions: 100, // 单次会话最大题数
+        strategy, // 返回当前策略供前端参考
+      },
     };
   }
 
@@ -141,15 +141,15 @@ class MasteryLearningService {
     const batchSize = count ?? MasteryLearningService.DEFAULT_NEXT_BATCH_SIZE;
 
     // 从 AMAS 获取最新策略
-    const strategy = await amasService.getCurrentStrategy(userId)
-      ?? amasService.getDefaultStrategy();
+    const strategy =
+      (await amasService.getCurrentStrategy(userId)) ?? amasService.getDefaultStrategy();
 
     const excludeIds = [...new Set([...currentWordIds, ...masteredWordIds])];
 
     logger.debug(
       `[MasteryLearning] 动态获取下一批单词: userId=${userId}, sessionId=${sessionId}, ` +
-      `count=${batchSize}, excludeCount=${excludeIds.length}, ` +
-      `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`
+        `count=${batchSize}, excludeCount=${excludeIds.length}, ` +
+        `strategy=${JSON.stringify({ new_ratio: strategy.new_ratio, difficulty: strategy.difficulty })}`,
     );
 
     // 根据策略选词
@@ -169,16 +169,15 @@ class MasteryLearningService {
     userId: string,
     count: number,
     strategy: StrategyParams,
-    excludeIds: string[]
+    excludeIds: string[],
   ): Promise<WordWithDifficulty[]> {
     // 1. 获取所有到期复习词，计算优先级
     const dueWords = await this.getDueWordsWithPriority(userId, excludeIds);
 
     // 2. 根据 AMAS difficulty 过滤
     const difficultyRange = this.mapDifficultyLevel(strategy.difficulty);
-    const filteredDueWords = dueWords.filter(w =>
-      w.difficulty >= difficultyRange.min &&
-      w.difficulty <= difficultyRange.max
+    const filteredDueWords = dueWords.filter(
+      (w) => w.difficulty >= difficultyRange.min && w.difficulty <= difficultyRange.max,
     );
 
     // 3. 按优先级排序
@@ -192,16 +191,14 @@ class MasteryLearningService {
 
     // 5. 如果复习词不足，用新词补充
     const actualNewCount = Math.max(newCount, count - reviewWords.length);
-    const newWords = await this.fetchNewWordsInRange(
-      userId,
-      actualNewCount,
-      difficultyRange,
-      [...excludeIds, ...reviewWords.map(w => w.id)]
-    );
+    const newWords = await this.fetchNewWordsInRange(userId, actualNewCount, difficultyRange, [
+      ...excludeIds,
+      ...reviewWords.map((w) => w.id),
+    ]);
 
     logger.debug(
       `[MasteryLearning] 选词结果: 复习词=${reviewWords.length}, 新词=${newWords.length}, ` +
-      `难度范围=[${difficultyRange.min.toFixed(2)}, ${difficultyRange.max.toFixed(2)}]`
+        `难度范围=[${difficultyRange.min.toFixed(2)}, ${difficultyRange.max.toFixed(2)}]`,
     );
 
     return [...reviewWords, ...newWords];
@@ -212,7 +209,7 @@ class MasteryLearningService {
    */
   private async getDueWordsWithPriority(
     userId: string,
-    excludeIds: string[]
+    excludeIds: string[],
   ): Promise<WordWithPriority[]> {
     const now = new Date();
 
@@ -222,9 +219,9 @@ class MasteryLearningService {
         userId,
         wordId: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
         nextReviewDate: { lte: now },
-        state: { in: ['LEARNING', 'REVIEWING', 'NEW'] }
+        state: { in: ['LEARNING', 'REVIEWING', 'NEW'] },
       },
-      include: { word: true }
+      include: { word: true },
     });
 
     if (dueStates.length === 0) {
@@ -232,22 +229,21 @@ class MasteryLearningService {
     }
 
     // 批量获取得分
-    const wordIds = dueStates.map(s => s.wordId);
+    const wordIds = dueStates.map((s) => s.wordId);
     const scores = await prisma.wordScore.findMany({
-      where: { userId, wordId: { in: wordIds } }
+      where: { userId, wordId: { in: wordIds } },
     });
-    const scoreMap = new Map(scores.map(s => [s.wordId, s]));
+    const scoreMap = new Map(scores.map((s) => [s.wordId, s]));
 
     // 计算每个单词的优先级和难度
-    return dueStates.map(state => {
+    return dueStates.map((state) => {
       const score = scoreMap.get(state.wordId);
       const overdueDays = state.nextReviewDate
         ? (now.getTime() - state.nextReviewDate.getTime()) / 86400000
         : 0;
       // 使用 WordScore 的 totalAttempts 和 correctAttempts 字段计算错误率
-      const errorRate = score && score.totalAttempts > 0
-        ? 1 - (score.correctAttempts / score.totalAttempts)
-        : 0;
+      const errorRate =
+        score && score.totalAttempts > 0 ? 1 - score.correctAttempts / score.totalAttempts : 0;
 
       // 优先级计算：逾期天数×5 + 错误率权重 + (100-得分)×0.3
       const priority =
@@ -267,7 +263,7 @@ class MasteryLearningService {
         audioUrl: state.word.audioUrl,
         difficulty,
         isNew: false,
-        priority
+        priority,
       };
     });
   }
@@ -279,7 +275,7 @@ class MasteryLearningService {
     userId: string,
     count: number,
     difficultyRange: DifficultyRange,
-    excludeIds: string[]
+    excludeIds: string[],
   ): Promise<WordWithDifficulty[]> {
     if (count <= 0) return [];
 
@@ -303,10 +299,10 @@ class MasteryLearningService {
         where: {
           wordBookId: { in: config.selectedWordBookIds },
           id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
-          learningStates: { none: { userId } }
+          learningStates: { none: { userId } },
         },
         take: count * 2,
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
     } else {
       // 随机模式使用 Prisma ORM 查询 + 应用层随机排序
@@ -314,9 +310,9 @@ class MasteryLearningService {
         where: {
           wordBookId: { in: config.selectedWordBookIds },
           id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
-          learningStates: { none: { userId } }
+          learningStates: { none: { userId } },
         },
-        take: count * 5 // 多取一些用于随机
+        take: count * 5, // 多取一些用于随机
       });
       // Fisher-Yates 随机打乱
       for (let i = candidates.length - 1; i > 0; i--) {
@@ -327,7 +323,7 @@ class MasteryLearningService {
     }
 
     // 计算难度并筛选
-    const wordsWithDifficulty = newWords.map(w => ({
+    const wordsWithDifficulty = newWords.map((w) => ({
       id: w.id,
       spelling: w.spelling,
       phonetic: w.phonetic,
@@ -335,20 +331,20 @@ class MasteryLearningService {
       examples: w.examples,
       audioUrl: w.audioUrl,
       difficulty: this.computeNewWordDifficulty(w),
-      isNew: true
+      isNew: true,
     }));
 
     // 按难度范围筛选
     const filtered = wordsWithDifficulty.filter(
-      w => w.difficulty >= difficultyRange.min && w.difficulty <= difficultyRange.max
+      (w) => w.difficulty >= difficultyRange.min && w.difficulty <= difficultyRange.max,
     );
 
     // Bug Fix: 如果筛选后不足，优先返回符合条件的，不足部分用其他单词补充（避免重复）
     if (filtered.length < count) {
       // 获取已筛选单词的ID集合
-      const filteredIds = new Set(filtered.map(w => w.id));
+      const filteredIds = new Set(filtered.map((w) => w.id));
       // 从原列表中找出不在filtered中的单词作为补充
-      const remaining = wordsWithDifficulty.filter(w => !filteredIds.has(w.id));
+      const remaining = wordsWithDifficulty.filter((w) => !filteredIds.has(w.id));
       // 需要补充的数量
       const needCount = count - filtered.length;
       // 合并：优先使用符合条件的，再用其他单词补充
@@ -363,10 +359,14 @@ class MasteryLearningService {
    */
   private mapDifficultyLevel(level: 'easy' | 'mid' | 'hard'): DifficultyRange {
     switch (level) {
-      case 'easy': return { min: 0, max: 0.4 };
-      case 'mid': return { min: 0.2, max: 0.7 };
-      case 'hard': return { min: 0.5, max: 1.0 };
-      default: return { min: 0.2, max: 0.7 };
+      case 'easy':
+        return { min: 0, max: 0.4 };
+      case 'mid':
+        return { min: 0.2, max: 0.7 };
+      case 'hard':
+        return { min: 0.5, max: 1.0 };
+      default:
+        return { min: 0.2, max: 0.7 };
     }
   }
 
@@ -375,7 +375,7 @@ class MasteryLearningService {
    */
   private computeWordDifficultyFromScore(
     score: { totalScore: number; correctAttempts: number; totalAttempts: number } | undefined,
-    errorRate: number
+    errorRate: number,
   ): number {
     if (!score) return 0.5;
     // 错误率高 + 得分低 = 难度高
@@ -397,14 +397,15 @@ class MasteryLearningService {
    * 生成选词说明
    */
   private explainWordSelection(strategy: StrategyParams, words: WordWithDifficulty[]): string {
-    const reviewCount = words.filter(w => !w.isNew).length;
-    const newCount = words.filter(w => w.isNew).length;
+    const reviewCount = words.filter((w) => !w.isNew).length;
+    const newCount = words.filter((w) => w.isNew).length;
 
-    const difficultyText = {
-      'easy': '简单',
-      'mid': '中等',
-      'hard': '较难'
-    }[strategy.difficulty] || '中等';
+    const difficultyText =
+      {
+        easy: '简单',
+        mid: '中等',
+        hard: '较难',
+      }[strategy.difficulty] || '中等';
 
     if (strategy.new_ratio <= 0.1) {
       return `当前状态建议巩固复习，推送${reviewCount}个${difficultyText}复习词`;
@@ -419,11 +420,7 @@ class MasteryLearningService {
    * 补充额外单词
    * 从词书中获取未学习过的单词
    */
-  private async fetchAdditionalWords(
-    userId: string,
-    count: number,
-    excludeWordIds: string[]
-  ) {
+  private async fetchAdditionalWords(userId: string, count: number, excludeWordIds: string[]) {
     const config = await studyConfigService.getUserStudyConfig(userId);
 
     if (config.selectedWordBookIds.length === 0) {
@@ -438,28 +435,30 @@ class MasteryLearningService {
           wordBookId: { in: config.selectedWordBookIds },
           id: { notIn: excludeWordIds },
           learningStates: {
-            none: { userId }  // 从未学习过的单词
-          }
+            none: { userId }, // 从未学习过的单词
+          },
         },
         take: count,
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
       logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（顺序模式）`);
       return additionalWords;
     } else {
       // 随机模式：获取更多单词后随机选取
       // 使用 PostgreSQL 原生随机排序，保证真正随机
-      const additionalWords = await prisma.$queryRaw<Array<{
-        id: string;
-        spelling: string;
-        phonetic: string;
-        meanings: string[];
-        examples: string[];
-        audioUrl: string | null;
-        wordBookId: string;
-        createdAt: Date;
-        updatedAt: Date;
-      }>>`
+      const additionalWords = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          spelling: string;
+          phonetic: string;
+          meanings: string[];
+          examples: string[];
+          audioUrl: string | null;
+          wordBookId: string;
+          createdAt: Date;
+          updatedAt: Date;
+        }>
+      >`
         SELECT w.* FROM "words" w
         WHERE w."wordBookId" = ANY(${config.selectedWordBookIds})
           AND w.id NOT IN (SELECT unnest(${excludeWordIds}::text[]))
@@ -488,23 +487,23 @@ class MasteryLearningService {
     progress: {
       actualMasteryCount: number;
       totalQuestions: number;
-    }
+    },
   ) {
     logger.debug(
       `[MasteryLearning] 同步会话进度: sessionId=${sessionId}, ` +
-      `mastered=${progress.actualMasteryCount}, questions=${progress.totalQuestions}`
+        `mastered=${progress.actualMasteryCount}, questions=${progress.totalQuestions}`,
     );
 
     try {
       await prisma.learningSession.updateMany({
         where: {
           id: sessionId,
-          userId
+          userId,
         },
         data: {
           actualMasteryCount: progress.actualMasteryCount,
-          totalQuestions: progress.totalQuestions
-        }
+          totalQuestions: progress.totalQuestions,
+        },
       });
 
       logger.debug(`[MasteryLearning] 会话进度同步成功: sessionId=${sessionId}`);
@@ -525,7 +524,7 @@ class MasteryLearningService {
   async ensureLearningSession(
     userId: string,
     targetMasteryCount: number,
-    sessionId?: string
+    sessionId?: string,
   ): Promise<string> {
     // 服务层双重校验
     if (targetMasteryCount <= 0 || targetMasteryCount > 100) {
@@ -535,7 +534,7 @@ class MasteryLearningService {
     if (sessionId) {
       // 先检查会话是否存在
       const existing = await prisma.learningSession.findUnique({
-        where: { id: sessionId }
+        where: { id: sessionId },
       });
 
       if (existing) {
@@ -547,7 +546,7 @@ class MasteryLearningService {
         // 会话属于当前用户,更新目标数
         await prisma.learningSession.update({
           where: { id: sessionId },
-          data: { targetMasteryCount }
+          data: { targetMasteryCount },
         });
 
         return sessionId;
@@ -555,7 +554,7 @@ class MasteryLearningService {
       // Bug Fix: 客户端sessionId不存在时添加警告日志
       logger.warn(
         `[MasteryLearning] 客户端提供的sessionId不存在，将创建新会话: ` +
-        `clientSessionId=${sessionId}, userId=${userId}`
+          `clientSessionId=${sessionId}, userId=${userId}`,
       );
     }
 
@@ -565,13 +564,12 @@ class MasteryLearningService {
         userId,
         targetMasteryCount,
         actualMasteryCount: 0,
-        totalQuestions: 0
-      }
+        totalQuestions: 0,
+      },
     });
 
     logger.debug(
-      `[MasteryLearning] 创建新会话: sessionId=${session.id}, ` +
-      `target=${targetMasteryCount}`
+      `[MasteryLearning] 创建新会话: sessionId=${session.id}, ` + `target=${targetMasteryCount}`,
     );
 
     return session.id;
@@ -588,15 +586,15 @@ class MasteryLearningService {
     const session = await prisma.learningSession.findFirst({
       where: {
         id: sessionId,
-        userId: userId
+        userId: userId,
       },
       select: {
         targetMasteryCount: true,
         actualMasteryCount: true,
         totalQuestions: true,
         startedAt: true,
-        endedAt: true
-      }
+        endedAt: true,
+      },
     });
 
     if (!session) {
@@ -609,7 +607,7 @@ class MasteryLearningService {
       totalQuestions: session.totalQuestions ?? 0,
       isCompleted: (session.actualMasteryCount ?? 0) >= (session.targetMasteryCount ?? 0),
       startedAt: session.startedAt,
-      endedAt: session.endedAt
+      endedAt: session.endedAt,
     };
   }
 
@@ -628,37 +626,37 @@ class MasteryLearningService {
       masteredWordIds,
       userState,
       recentPerformance,
-      adjustReason
+      adjustReason,
     } = req;
 
     logger.debug(
       `[MasteryLearning] 调整队列: userId=${userId}, sessionId=${sessionId}, ` +
-      `reason=${adjustReason}, currentWords=${currentWordIds.length}`
+        `reason=${adjustReason}, currentWords=${currentWordIds.length}`,
     );
 
     // 1. 计算目标难度范围
     const targetDifficulty = this.computeTargetDifficulty(
       userState ?? { fatigue: 0, attention: 1, motivation: 0.6 },
       recentPerformance,
-      adjustReason
+      adjustReason,
     );
 
     const nextCheckIn = this.computeNextCheckIn(recentPerformance, userState);
     const triggerConditions = {
       performance: recentPerformance,
       userState: userState ?? null,
-      targetDifficulty
+      targetDifficulty,
     };
 
     logger.debug(
-      `[MasteryLearning] 目标难度范围: [${targetDifficulty.min.toFixed(2)}, ${targetDifficulty.max.toFixed(2)}]`
+      `[MasteryLearning] 目标难度范围: [${targetDifficulty.min.toFixed(2)}, ${targetDifficulty.max.toFixed(2)}]`,
     );
 
     // 2. 批量计算当前队列单词的难度
     const difficultyMap = await this.batchComputeDifficulty(userId, currentWordIds);
 
     // 3. 确定要移除的单词（已掌握或难度不在范围内）
-    const remove = currentWordIds.filter(id => {
+    const remove = currentWordIds.filter((id) => {
       if (masteredWordIds.includes(id)) return true;
       const difficulty = difficultyMap[id] ?? 0.5;
       return difficulty > targetDifficulty.max || difficulty < targetDifficulty.min;
@@ -672,28 +670,26 @@ class MasteryLearningService {
       userId,
       targetDifficulty,
       excludeIds,
-      desiredAddCount
+      desiredAddCount,
     );
 
     // 5. 降级处理：如果候选词不足，扩大难度范围
     if (candidates.length < desiredAddCount) {
       logger.debug(
-        `[MasteryLearning] 候选词不足(${candidates.length}/${desiredAddCount})，扩大难度范围`
+        `[MasteryLearning] 候选词不足(${candidates.length}/${desiredAddCount})，扩大难度范围`,
       );
       const expandedRange = { min: 0, max: 1 };
       candidates = await this.fetchWordsInDifficultyRange(
         userId,
         expandedRange,
         excludeIds,
-        desiredAddCount
+        desiredAddCount,
       );
     }
 
     const reasonText = this.getAdjustReasonText(adjustReason, userState, recentPerformance);
 
-    logger.debug(
-      `[MasteryLearning] 调整结果: remove=${remove.length}, add=${candidates.length}`
-    );
+    logger.debug(`[MasteryLearning] 调整结果: remove=${remove.length}, add=${candidates.length}`);
 
     const elapsedSeconds = Number(process.hrtime.bigint() - adjustStarted) / 1e9;
     recordQueueAdjustmentDuration(elapsedSeconds);
@@ -701,7 +697,7 @@ class MasteryLearningService {
     return {
       adjustments: {
         remove,
-        add: candidates.map(w => ({
+        add: candidates.map((w) => ({
           id: w.id,
           spelling: w.spelling,
           phonetic: w.phonetic,
@@ -709,14 +705,14 @@ class MasteryLearningService {
           examples: w.examples,
           audioUrl: w.audioUrl ?? undefined,
           isNew: w.isNew,
-          difficulty: w.difficulty
-        }))
+          difficulty: w.difficulty,
+        })),
       },
       targetDifficulty,
       reason: reasonText,
       adjustmentReason: adjustReason,
       triggerConditions,
-      nextCheckIn
+      nextCheckIn,
     };
   }
 
@@ -726,7 +722,7 @@ class MasteryLearningService {
   private computeTargetDifficulty(
     userState: { fatigue: number; attention: number; motivation: number },
     performance: { accuracy: number; avgResponseTime: number; consecutiveWrong: number },
-    reason: AdjustWordsRequest['adjustReason']
+    reason: AdjustWordsRequest['adjustReason'],
   ): DifficultyRange {
     const { fatigue = 0, attention = 1, motivation = 0.5 } = userState ?? {};
     const { accuracy = 0.7, consecutiveWrong = 0 } = performance ?? {};
@@ -755,7 +751,7 @@ class MasteryLearningService {
    */
   private computeNextCheckIn(
     performance: { accuracy: number; avgResponseTime: number; consecutiveWrong: number },
-    userState?: { fatigue?: number; attention?: number; motivation?: number }
+    userState?: { fatigue?: number; attention?: number; motivation?: number },
   ): number {
     if (performance.consecutiveWrong >= 2 || performance.accuracy < 0.4) {
       return 1;
@@ -783,7 +779,7 @@ class MasteryLearningService {
 
     // 尝试从缓存获取
     const cached = await difficultyCacheService.getCachedBatch(userId, wordIds);
-    const pendingIds = wordIds.filter(id => cached[id] === undefined);
+    const pendingIds = wordIds.filter((id) => cached[id] === undefined);
     const cacheHits = wordIds.length - pendingIds.length;
 
     if (pendingIds.length === 0) {
@@ -791,7 +787,7 @@ class MasteryLearningService {
       recordDifficultyComputationTime(elapsedSeconds);
       logger.debug(
         `[MasteryLearning] batchComputeDifficulty cache-only total=${wordIds.length}, ` +
-        `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`
+          `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`,
       );
       return cached;
     }
@@ -799,32 +795,48 @@ class MasteryLearningService {
     const [words, scores, frequencies, learningStates] = await Promise.all([
       prisma.word.findMany({
         where: { id: { in: pendingIds } },
-        select: { id: true, spelling: true }
+        select: { id: true, spelling: true },
       }),
       prisma.wordScore.findMany({
         where: { userId, wordId: { in: pendingIds } },
-        select: { wordId: true, totalAttempts: true, correctAttempts: true }
+        select: { wordId: true, totalAttempts: true, correctAttempts: true },
       }),
-      prisma.wordFrequency.findMany({
-        where: { wordId: { in: pendingIds } },
-        select: { wordId: true, frequencyScore: true }
+      prisma.word_frequency.findMany({
+        where: { word_id: { in: pendingIds } },
+        select: { word_id: true, frequency_score: true },
       }),
       prisma.wordLearningState.findMany({
         where: { userId, wordId: { in: pendingIds } },
-        select: { wordId: true, lastReviewDate: true, reviewCount: true }
-      })
+        select: { wordId: true, lastReviewDate: true, reviewCount: true },
+      }),
     ]);
 
-    const scoreMap = new Map(scores.map(s => [s.wordId, s]));
-    const freqMap = new Map(frequencies.map(f => [f.wordId, Number(f.frequencyScore)]));
-    const stateMap = new Map(learningStates.map(ls => [ls.wordId, ls]));
+    const scoreMap = new Map(
+      scores.map((s: { wordId: string; totalAttempts: number; correctAttempts: number }) => [
+        s.wordId,
+        s,
+      ]),
+    );
+    const freqMap = new Map(
+      frequencies.map((f: { word_id: string; frequency_score: unknown }) => [
+        f.word_id,
+        Number(f.frequency_score),
+      ]),
+    );
+    const stateMap = new Map(
+      learningStates.map(
+        (ls: { wordId: string; lastReviewDate: Date | null; reviewCount: number }) => [
+          ls.wordId,
+          ls,
+        ],
+      ),
+    );
 
     const computed: Record<string, number> = {};
     for (const word of words) {
       const score = scoreMap.get(word.id);
-      const accuracy = score && score.totalAttempts > 0
-        ? score.correctAttempts / score.totalAttempts
-        : 0.5;
+      const accuracy =
+        score && score.totalAttempts > 0 ? score.correctAttempts / score.totalAttempts : 0.5;
 
       const letterCount = (word.spelling || '').replace(/[^A-Za-z]/g, '').length;
       const lengthFactor = Math.min(1, Math.max(0, (letterCount - 3) / 12));
@@ -839,14 +851,21 @@ class MasteryLearningService {
           wordId: word.id,
           lastReviewTime: state.lastReviewDate,
           reviewCount: state.reviewCount,
-          averageAccuracy: accuracy
+          averageAccuracy: accuracy,
         });
         forgettingFactor = Math.min(1, Math.max(0, 1 - retention));
       }
 
-      const difficulty = Math.min(1, Math.max(0,
-        0.2 * lengthFactor + 0.4 * (1 - accuracy) + 0.2 * frequencyFactor + 0.2 * forgettingFactor
-      ));
+      const difficulty = Math.min(
+        1,
+        Math.max(
+          0,
+          0.2 * lengthFactor +
+            0.4 * (1 - accuracy) +
+            0.2 * frequencyFactor +
+            0.2 * forgettingFactor,
+        ),
+      );
 
       computed[word.id] = difficulty;
     }
@@ -854,17 +873,17 @@ class MasteryLearningService {
     // 异步写入缓存（不阻塞）
     Promise.all(
       Object.entries(computed).map(([wordId, difficulty]) =>
-        difficultyCacheService.setCached(wordId, userId, difficulty)
-      )
-    ).catch(err => logger.warn('[MasteryLearning] Cache write failed:', err.message));
+        difficultyCacheService.setCached(wordId, userId, difficulty),
+      ),
+    ).catch((err) => logger.warn('[MasteryLearning] Cache write failed:', err.message));
 
     const finalResult = { ...cached, ...computed };
     const elapsedSeconds = Number(process.hrtime.bigint() - started) / 1e9;
     recordDifficultyComputationTime(elapsedSeconds);
     logger.debug(
       `[MasteryLearning] batchComputeDifficulty total=${wordIds.length}, ` +
-      `cacheHits=${cacheHits}, computed=${pendingIds.length}, ` +
-      `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`
+        `cacheHits=${cacheHits}, computed=${pendingIds.length}, ` +
+        `duration=${(elapsedSeconds * 1000).toFixed(1)}ms`,
     );
 
     return finalResult;
@@ -877,7 +896,7 @@ class MasteryLearningService {
     userId: string,
     range: DifficultyRange,
     excludeIds: string[],
-    count: number
+    count: number,
   ): Promise<WordWithDifficulty[]> {
     const config = await studyConfigService.getUserStudyConfig(userId);
 
@@ -910,38 +929,42 @@ class MasteryLearningService {
       candidateWords = await prisma.word.findMany({
         where: {
           wordBookId: { in: config.selectedWordBookIds },
-          id: { notIn: excludeIds }
+          id: { notIn: excludeIds },
         },
         select: {
-          id: true, spelling: true, phonetic: true,
-          meanings: true, examples: true, audioUrl: true
+          id: true,
+          spelling: true,
+          phonetic: true,
+          meanings: true,
+          examples: true,
+          audioUrl: true,
         },
         take: fetchLimit,
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
     }
 
     if (candidateWords.length === 0) return [];
 
     // 查询学习状态，判断是否新词
-    const candidateIds = candidateWords.map(w => w.id);
+    const candidateIds = candidateWords.map((w) => w.id);
     const learnedStates = await prisma.wordLearningState.findMany({
       where: { userId, wordId: { in: candidateIds } },
-      select: { wordId: true }
+      select: { wordId: true },
     });
-    const learnedSet = new Set(learnedStates.map(s => s.wordId));
+    const learnedSet = new Set(learnedStates.map((s) => s.wordId));
 
     // 计算难度
     const difficulties = await this.batchComputeDifficulty(userId, candidateIds);
 
     // 过滤出符合难度范围的单词
     return candidateWords
-      .map(word => ({
+      .map((word) => ({
         ...word,
         difficulty: difficulties[word.id] ?? 0.5,
-        isNew: !learnedSet.has(word.id)
+        isNew: !learnedSet.has(word.id),
       }))
-      .filter(w => w.difficulty >= range.min && w.difficulty <= range.max)
+      .filter((w) => w.difficulty >= range.min && w.difficulty <= range.max)
       .slice(0, count);
   }
 
@@ -951,7 +974,7 @@ class MasteryLearningService {
   private getAdjustReasonText(
     reason: AdjustWordsRequest['adjustReason'],
     userState?: { fatigue: number; attention: number; motivation: number },
-    performance?: { accuracy: number; consecutiveWrong: number }
+    performance?: { accuracy: number; consecutiveWrong: number },
   ): string {
     switch (reason) {
       case 'fatigue':

@@ -1,6 +1,6 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { UserWordDetail } from '../../services/ApiClient';
+import apiClient, { UserWordDetail } from '../../services/client';
 
 /**
  * 用户单词列表查询参数

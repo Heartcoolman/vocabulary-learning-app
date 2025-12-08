@@ -4,6 +4,8 @@
  * 提供模拟决策和统计数据的 API 调用
  */
 
+import { apiLogger } from '../utils/logger';
+
 const API_BASE = '/api/about';
 
 // ==================== 类型定义 ====================
@@ -866,7 +868,7 @@ export function subscribeToDecisions(
       const data = JSON.parse(e.data) as SSEConnectedEvent;
       onConnected?.(data);
     } catch (err) {
-      console.error('[SSE] Failed to parse connected event:', err);
+      apiLogger.error({ err }, '[SSE] Failed to parse connected event');
     }
   });
 
@@ -875,12 +877,12 @@ export function subscribeToDecisions(
       const data = JSON.parse(e.data) as SSEDecisionEvent;
       onDecision(data);
     } catch (err) {
-      console.error('[SSE] Failed to parse decision event:', err);
+      apiLogger.error({ err }, '[SSE] Failed to parse decision event');
     }
   });
 
   eventSource.onerror = (error) => {
-    console.error('[SSE] Connection error:', error);
+    apiLogger.error({ err: error }, '[SSE] Connection error');
     onError?.(error);
   };
 

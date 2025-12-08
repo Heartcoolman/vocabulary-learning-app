@@ -272,6 +272,7 @@ model AmasUserState {
   cognitiveProfile Json     @default("{\"mem\": 0.5, \"speed\": 0.5, \"stability\": 0.5}")
   habitProfile     Json?
   trendState       String?
+  coldStartState   Json?
   lastUpdateTs     BigInt   @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -720,6 +721,7 @@ enum LogLevel {
 /// 日志来源
 enum LogSource {
   BACKEND
+  FRONTEND
   WORKER
   SCHEDULER
   MIGRATION
@@ -749,4 +751,82 @@ model SystemLog {
   @@index([userId])
   @@index([requestId])
   @@map("system_logs")
+}
+
+/// 日志告警规则
+model LogAlertRule {
+  id              String     @id @default(uuid())
+  name            String
+  description     String?
+  enabled         Boolean    @default(true)
+  levels          LogLevel[]
+  module          String?
+  messagePattern  String?
+  threshold       Int
+  windowMinutes   Int
+  webhookUrl      String?
+  cooldownMinutes Int        @default(30)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([enabled])
+  @@map("log_alert_rules")
+}
+
+/// LLM 顾问建议
+model LLMAdvisorSuggestion {
+  id               String   @id @default(uuid())
+  weekStart        DateTime
+  weekEnd          DateTime
+  statsSnapshot    Json
+  rawResponse      String
+  parsedSuggestion Json
+  status           String   @default("pending")
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  reviewNotes      String?
+  appliedItems     Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("llm_advisor_suggestions")
+}
+
+/// 用户学习目标配置
+model UserLearningObjectives {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  mode             String             @default("daily")
+  primaryObjective String             @default("accuracy")
+  minAccuracy      Float?
+  maxDailyTime     Int?
+  targetRetention  Float?
+  weightShortTerm  Float              @default(0.4)
+  weightLongTerm   Float              @default(0.4)
+  weightEfficiency Float              @default(0.2)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  history          ObjectiveHistory[]
+
+  @@index([userId])
+  @@map("user_learning_objectives")
+}
+
+/// 学习目标切换历史
+model ObjectiveHistory {
+  id            String                 @id @default(uuid())
+  userId        String
+  objectiveId   String
+  reason        String
+  beforeMetrics Json
+  afterMetrics  Json
+  timestamp     DateTime               @default(now())
+  objective     UserLearningObjectives @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([objectiveId])
+  @@index([timestamp])
+  @@map("objective_history")
 }

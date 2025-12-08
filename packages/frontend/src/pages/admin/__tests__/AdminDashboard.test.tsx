@@ -5,7 +5,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminDashboard from '../AdminDashboard';
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
 // Mock useToast hook
 vi.mock('@/components/ui', () => ({
@@ -43,7 +52,7 @@ const mockStats = {
   totalRecords: 5000,
 };
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     adminGetStatistics: vi.fn().mockResolvedValue({
       totalUsers: 100,
@@ -77,12 +86,17 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
-const renderWithRouter = () => {
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
   return render(
-    <MemoryRouter>
-      <AdminDashboard />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
   );
+};
+
+const renderWithRouter = () => {
+  return renderWithProviders(<AdminDashboard />);
 };
 
 describe('AdminDashboard', () => {
@@ -171,7 +185,7 @@ describe('AdminDashboard', () => {
 
   describe('error state', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('网络错误'));
 
       renderWithRouter();
@@ -183,7 +197,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should show retry button on error', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('Error'));
 
       renderWithRouter();
@@ -194,7 +208,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should reload data when retry clicked', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics)
         .mockRejectedValueOnce(new Error('Error'))
         .mockResolvedValueOnce(mockStats);
@@ -215,7 +229,7 @@ describe('AdminDashboard', () => {
 
   describe('edge cases', () => {
     it('should handle zero total users', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
         ...mockStats,
         totalUsers: 0,
@@ -230,7 +244,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should handle zero wordbooks', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
         ...mockStats,
         totalWordBooks: 0,

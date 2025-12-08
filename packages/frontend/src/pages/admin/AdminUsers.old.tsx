@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient, { UserOverview, AdminUsersResponse } from '../../services/ApiClient';
+import apiClient, { UserOverview, AdminUsersResponse } from '../../services/client';
 import { CircleNotch } from '../../components/Icon';
 import { useToast, ConfirmModal } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';

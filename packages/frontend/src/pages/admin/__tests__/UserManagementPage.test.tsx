@@ -13,21 +13,23 @@ const mockUsers = [
     id: 'u1',
     username: 'user1',
     email: 'user1@test.com',
-    role: 'USER',
-    totalWords: 100,
-    masteredWords: 50,
-    accuracy: 0.85,
-    lastActiveAt: '2024-01-15',
+    role: 'USER' as const,
+    createdAt: '2024-01-01',
+    totalWordsLearned: 100,
+    averageScore: 78.5,
+    accuracy: 85,
+    lastLearningTime: '2024-01-15',
   },
   {
     id: 'u2',
     username: 'admin1',
     email: 'admin@test.com',
-    role: 'ADMIN',
-    totalWords: 200,
-    masteredWords: 150,
-    accuracy: 0.92,
-    lastActiveAt: '2024-01-14',
+    role: 'ADMIN' as const,
+    createdAt: '2024-01-01',
+    totalWordsLearned: 200,
+    averageScore: 85.2,
+    accuracy: 92,
+    lastLearningTime: '2024-01-14',
   },
 ];
 
@@ -48,7 +50,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     adminGetUsers: vi.fn().mockResolvedValue({
       users: [
@@ -59,7 +61,7 @@ vi.mock('@/services/ApiClient', () => ({
           role: 'USER',
           totalWordsLearned: 100,
           averageScore: 78.5,
-          accuracy: 0.85,
+          accuracy: 85,
           lastLearningTime: '2024-01-15',
           createdAt: '2024-01-01',
         },
@@ -70,7 +72,7 @@ vi.mock('@/services/ApiClient', () => ({
           role: 'ADMIN',
           totalWordsLearned: 200,
           averageScore: 85.2,
-          accuracy: 0.92,
+          accuracy: 92,
           lastLearningTime: '2024-01-14',
           createdAt: '2024-01-01',
         },
@@ -79,6 +81,13 @@ vi.mock('@/services/ApiClient', () => ({
       page: 1,
       pageSize: 20,
       pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
+    }),
+    adminGetUserById: vi.fn().mockResolvedValue({
+      id: 'u1',
+      username: 'user1',
+      email: 'user1@test.com',
+      role: 'USER',
+      createdAt: '2024-01-01',
     }),
   },
 }));
@@ -182,7 +191,7 @@ describe('UserManagementPage', () => {
     });
 
     it('should call API with search term on enter', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
       const user = userEvent.setup();
 
@@ -243,9 +252,12 @@ describe('UserManagementPage', () => {
     });
 
     it('should show pagination controls when multiple pages', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockResolvedValue({
         users: mockUsers,
+        total: 2,
+        page: 1,
+        pageSize: 20,
         pagination: { ...mockPagination, totalPages: 3 },
       });
 
@@ -260,7 +272,7 @@ describe('UserManagementPage', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockRejectedValue(new Error('网络错误'));
 
       renderWithRouter();
@@ -273,7 +285,7 @@ describe('UserManagementPage', () => {
 
   describe('empty state', () => {
     it('should show empty message when no users', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUsers).mockResolvedValue({
         users: [],
         total: 0,

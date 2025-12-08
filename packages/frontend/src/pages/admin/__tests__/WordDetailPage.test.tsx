@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import WordDetailPage from '../WordDetailPage';
 
+// Mock data matching the actual API types
 const mockHistory = {
   word: {
     id: 'w1',
@@ -16,24 +17,59 @@ const mockHistory = {
     meanings: ['苹果'],
     examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
   },
+  wordState: {
+    masteryLevel: 3,
+    easeFactor: 2.5,
+    reviewCount: 5,
+    lastReviewDate: '2024-01-15T10:00:00Z',
+    nextReviewDate: '2024-01-20T10:00:00Z',
+    state: 'learning',
+  },
+  wordScore: {
+    totalScore: 85,
+    accuracyScore: 90,
+    speedScore: 80,
+    stabilityScore: 85,
+    proficiencyScore: 85,
+    lastCalculated: '2024-01-15T10:00:00Z',
+  },
   records: [
-    { id: 'r1', isCorrect: true, responseTime: 1500, timestamp: '2024-01-15T10:00:00Z' },
-    { id: 'r2', isCorrect: false, responseTime: 3000, timestamp: '2024-01-14T10:00:00Z' },
+    {
+      id: 'r1',
+      timestamp: '2024-01-15T10:00:00Z',
+      selectedAnswer: 'apple',
+      correctAnswer: 'apple',
+      isCorrect: true,
+      responseTime: 1500,
+      dwellTime: 2000,
+      masteryLevelBefore: 2,
+      masteryLevelAfter: 3,
+    },
+    {
+      id: 'r2',
+      timestamp: '2024-01-14T10:00:00Z',
+      selectedAnswer: 'banana',
+      correctAnswer: 'apple',
+      isCorrect: false,
+      responseTime: 3000,
+      dwellTime: 4000,
+      masteryLevelBefore: 2,
+      masteryLevelAfter: 2,
+    },
   ],
 };
 
 const mockScoreHistory = {
-  wordId: 'w1',
   currentScore: 85,
   scoreHistory: [
-    { timestamp: '2024-01-15', score: 85 },
-    { timestamp: '2024-01-14', score: 75 },
+    { timestamp: '2024-01-15', score: 85, masteryLevel: 3, isCorrect: true },
+    { timestamp: '2024-01-14', score: 75, masteryLevel: 2, isCorrect: false },
   ],
 };
 
 const mockHeatmap = [
-  { date: '2024-01-15', activityLevel: 5, accuracy: 90, averageScore: 85 },
-  { date: '2024-01-14', activityLevel: 3, accuracy: 70, averageScore: 75 },
+  { date: '2024-01-15', activityLevel: 5, accuracy: 90, averageScore: 85, uniqueWords: 10 },
+  { date: '2024-01-14', activityLevel: 3, accuracy: 70, averageScore: 75, uniqueWords: 8 },
 ];
 
 const mockFlags: any[] = [];
@@ -48,37 +84,85 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    adminGetWordLearningHistory: vi.fn().mockResolvedValue({
-      word: {
-        id: 'w1',
-        spelling: 'apple',
-        phonetic: 'ˈæpl',
-        meanings: ['苹果'],
-        examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
-      },
-      records: [
-        { id: 'r1', isCorrect: true, responseTime: 1500, timestamp: '2024-01-15T10:00:00Z' },
-        { id: 'r2', isCorrect: false, responseTime: 3000, timestamp: '2024-01-14T10:00:00Z' },
-      ],
-    }),
-    adminGetWordScoreHistory: vi.fn().mockResolvedValue({
-      wordId: 'w1',
-      currentScore: 85,
-      scoreHistory: [
-        { timestamp: '2024-01-15', score: 85 },
-        { timestamp: '2024-01-14', score: 75 },
-      ],
-    }),
-    adminGetUserLearningHeatmap: vi.fn().mockResolvedValue([
-      { date: '2024-01-15', activityLevel: 5, accuracy: 90, averageScore: 85 },
-      { date: '2024-01-14', activityLevel: 3, accuracy: 70, averageScore: 75 },
-    ]),
-    adminGetAnomalyFlags: vi.fn().mockResolvedValue([]),
-    adminFlagAnomalyRecord: vi.fn().mockResolvedValue({ id: 'f1', reason: 'suspicious' }),
-  },
-}));
+// Mock API Client - override the global mock with test-specific behavior
+vi.mock('@/services/client', async () => {
+  const actual = await vi.importActual<typeof import('@/services/client')>('@/services/client');
+  return {
+    ...actual,
+    default: {
+      adminGetWordLearningHistory: vi.fn().mockResolvedValue({
+        word: {
+          id: 'w1',
+          spelling: 'apple',
+          phonetic: 'ˈæpl',
+          meanings: ['苹果'],
+          examples: ['I like apple.', 'An apple a day keeps the doctor away.'],
+        },
+        wordState: {
+          masteryLevel: 3,
+          easeFactor: 2.5,
+          reviewCount: 5,
+          lastReviewDate: '2024-01-15T10:00:00Z',
+          nextReviewDate: '2024-01-20T10:00:00Z',
+          state: 'learning',
+        },
+        wordScore: {
+          totalScore: 85,
+          accuracyScore: 90,
+          speedScore: 80,
+          stabilityScore: 85,
+          proficiencyScore: 85,
+          lastCalculated: '2024-01-15T10:00:00Z',
+        },
+        records: [
+          {
+            id: 'r1',
+            timestamp: '2024-01-15T10:00:00Z',
+            selectedAnswer: 'apple',
+            correctAnswer: 'apple',
+            isCorrect: true,
+            responseTime: 1500,
+            dwellTime: 2000,
+            masteryLevelBefore: 2,
+            masteryLevelAfter: 3,
+          },
+          {
+            id: 'r2',
+            timestamp: '2024-01-14T10:00:00Z',
+            selectedAnswer: 'banana',
+            correctAnswer: 'apple',
+            isCorrect: false,
+            responseTime: 3000,
+            dwellTime: 4000,
+            masteryLevelBefore: 2,
+            masteryLevelAfter: 2,
+          },
+        ],
+      }),
+      adminGetWordScoreHistory: vi.fn().mockResolvedValue({
+        currentScore: 85,
+        scoreHistory: [
+          { timestamp: '2024-01-15', score: 85, masteryLevel: 3, isCorrect: true },
+          { timestamp: '2024-01-14', score: 75, masteryLevel: 2, isCorrect: false },
+        ],
+      }),
+      adminGetUserLearningHeatmap: vi.fn().mockResolvedValue([
+        { date: '2024-01-15', activityLevel: 5, accuracy: 90, averageScore: 85, uniqueWords: 10 },
+        { date: '2024-01-14', activityLevel: 3, accuracy: 70, averageScore: 75, uniqueWords: 8 },
+      ]),
+      adminGetAnomalyFlags: vi.fn().mockResolvedValue([]),
+      adminFlagAnomalyRecord: vi.fn().mockResolvedValue({
+        id: 'f1',
+        userId: 'u1',
+        wordId: 'w1',
+        reason: 'suspicious',
+        notes: '',
+        flaggedBy: 'admin',
+        flaggedAt: '2024-01-15T10:00:00Z',
+      }),
+    },
+  };
+});
 
 // Mock useToast hook
 vi.mock('@/components/ui', () => ({
@@ -138,7 +222,9 @@ describe('WordDetailPage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
+        // Use getAllByText since 'apple' appears multiple times (header + records)
+        const appleTexts = screen.getAllByText('apple');
+        expect(appleTexts.length).toBeGreaterThan(0);
       });
     });
 
@@ -164,7 +250,7 @@ describe('WordDetailPage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText(/1500|1.5/)).toBeInTheDocument();
+        expect(screen.getByText(/1500|1\.5/)).toBeInTheDocument();
       });
     });
   });
@@ -175,15 +261,17 @@ describe('WordDetailPage', () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText('apple')).toBeInTheDocument();
+          const appleTexts = screen.getAllByText('apple');
+          expect(appleTexts.length).toBeGreaterThan(0);
         },
         { timeout: 3000 },
       );
 
-      // Score history section should be visible
+      // Score history section should be visible - check for the section title
       await waitFor(
         () => {
-          expect(screen.getByText(/当前得分/)).toBeInTheDocument();
+          // The score display shows "当前得分详情" section
+          expect(screen.getByText('当前得分详情')).toBeInTheDocument();
         },
         { timeout: 3000 },
       );
@@ -206,7 +294,8 @@ describe('WordDetailPage', () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText('apple')).toBeInTheDocument();
+          const appleTexts = screen.getAllByText('apple');
+          expect(appleTexts.length).toBeGreaterThan(0);
         },
         { timeout: 3000 },
       );
@@ -225,7 +314,8 @@ describe('WordDetailPage', () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText('apple')).toBeInTheDocument();
+          const appleTexts = screen.getAllByText('apple');
+          expect(appleTexts.length).toBeGreaterThan(0);
         },
         { timeout: 3000 },
       );
@@ -241,12 +331,13 @@ describe('WordDetailPage', () => {
     });
 
     it('should call flag API when submitted', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
 
       await waitFor(
         () => {
-          expect(screen.getByText('apple')).toBeInTheDocument();
+          const appleTexts = screen.getAllByText('apple');
+          expect(appleTexts.length).toBeGreaterThan(0);
         },
         { timeout: 3000 },
       );
@@ -300,7 +391,7 @@ describe('WordDetailPage', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetWordLearningHistory).mockRejectedValue(new Error('加载失败'));
 
       renderWithRouter();
@@ -317,22 +408,43 @@ describe('WordDetailPage', () => {
   describe('anomaly flags display', () => {
     it('should display existing flags', async () => {
       // Reset mock after error handling test modified it
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetWordLearningHistory).mockResolvedValue({
         word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: [] },
+        wordState: null,
+        wordScore: null,
         records: [
-          { id: 'r1', isCorrect: true, responseTime: 1500, timestamp: '2024-01-15T10:00:00Z' },
+          {
+            id: 'r1',
+            timestamp: '2024-01-15T10:00:00Z',
+            selectedAnswer: 'apple',
+            correctAnswer: 'apple',
+            isCorrect: true,
+            responseTime: 1500,
+            dwellTime: null,
+            masteryLevelBefore: null,
+            masteryLevelAfter: null,
+          },
         ],
       });
       vi.mocked(apiClient.adminGetAnomalyFlags).mockResolvedValue([
-        { id: 'f1', reason: 'suspicious', notes: 'test', createdAt: '2024-01-15' },
+        {
+          id: 'f1',
+          userId: 'u1',
+          wordId: 'w1',
+          reason: 'suspicious',
+          notes: 'test',
+          flaggedBy: 'admin',
+          flaggedAt: '2024-01-15',
+        },
       ]);
 
       renderWithRouter();
 
       await waitFor(
         () => {
-          expect(screen.getByText('apple')).toBeInTheDocument();
+          const appleTexts = screen.getAllByText('apple');
+          expect(appleTexts.length).toBeGreaterThan(0);
         },
         { timeout: 5000 },
       );

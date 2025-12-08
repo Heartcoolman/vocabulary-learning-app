@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import StorageService, { SyncStatus } from '../services/StorageService';
 import { Check, X } from './Icon';
 import { storageLogger } from '../utils/logger';
@@ -6,8 +6,9 @@ import { storageLogger } from '../utils/logger';
 /**
  * SyncIndicator - 同步状态指示器
  * 显示数据同步状态和进度
+ * 使用 React.memo 优化：避免全局状态更新时的不必要重渲染
  */
-export default function SyncIndicator() {
+function SyncIndicatorComponent() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(StorageService.getSyncStatus());
   const [showDetails, setShowDetails] = useState(false);
   const [showSuccessIcon, setShowSuccessIcon] = useState(false);
@@ -209,3 +210,9 @@ export default function SyncIndicator() {
     </div>
   );
 }
+
+// SyncIndicator 组件无外部 props，使用默认浅比较即可
+// 同步状态完全由内部 useState 和 StorageService 订阅管理
+const SyncIndicator = memo(SyncIndicatorComponent);
+
+export default SyncIndicator;

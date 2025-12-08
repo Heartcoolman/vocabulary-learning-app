@@ -3,10 +3,15 @@
  * 管理单词的综合得分，支持缓存和批量操作
  */
 
-import { WordScore, Prisma, WordBookType } from '@prisma/client';
+import { WordScore, Prisma, WordBookType, AnswerRecord } from '@prisma/client';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import prisma from '../config/database';
 
+/**
+ * WordScore 创建/更新时允许的数据字段类型
+ * 排除系统管理的字段（id, userId, wordId, createdAt, updatedAt）
+ */
+type WordScoreDataFields = Omit<WordScore, 'id' | 'userId' | 'wordId' | 'createdAt' | 'updatedAt'>;
 
 export class WordScoreService {
   // 空值标记，用于缓存穿透防护
@@ -17,20 +22,20 @@ export class WordScoreService {
    */
   async calculateScore(
     userId: string,
-    wordId: string
+    wordId: string,
   ): Promise<{ userId: string; wordId: string; score: number }> {
     const records = await prisma.answerRecord.findMany({
-      where: { userId, wordId }
+      where: { userId, wordId },
     });
 
     if (records.length === 0) {
       return { userId, wordId, score: 0 };
     }
 
-    const correct = records.filter((r: any) => r.isCorrect).length;
+    const correct = records.filter((r: AnswerRecord) => r.isCorrect).length;
     const accuracy = correct / records.length;
     const avgTime =
-      records.reduce((sum: number, r: any) => sum + (r.responseTime ?? 0), 0) /
+      records.reduce((sum: number, r: AnswerRecord) => sum + (r.responseTime ?? 0), 0) /
       Math.max(records.length, 1);
     const timeScore = Math.max(0, Math.min(1, 1 - avgTime / 5000));
     const score = Math.max(0, Math.min(1, 0.7 * accuracy + 0.3 * timeScore));
@@ -43,11 +48,11 @@ export class WordScoreService {
    */
   async getWordScores(
     userId: string,
-    wordIds: string[]
+    wordIds: string[],
   ): Promise<Array<{ userId: string; wordId: string; score?: number }>> {
     if (!wordIds?.length) return [];
     return prisma.wordScore.findMany({
-      where: { userId, wordId: { in: wordIds } }
+      where: { userId, wordId: { in: wordIds } },
     });
   }
 
@@ -57,15 +62,19 @@ export class WordScoreService {
   async updateScore(
     userId: string,
     wordId: string,
-    _result: { isCorrect: boolean; responseTime?: number }
-  ): Promise<any> {
+    _result: { isCorrect: boolean; responseTime?: number },
+  ): Promise<WordScore> {
     const { score } = await this.calculateScore(userId, wordId);
-    const payload = { userId, wordId, score, totalScore: score } as any;
+    const payload: Prisma.WordScoreCreateInput = {
+      user: { connect: { id: userId } },
+      word: { connect: { id: wordId } },
+      totalScore: score,
+    };
 
     return prisma.wordScore.upsert({
       where: { unique_user_word_score: { userId, wordId } },
       create: payload,
-      update: payload
+      update: { totalScore: score },
     });
   }
 
@@ -91,9 +100,9 @@ export class WordScoreService {
       where: {
         unique_user_word_score: {
           userId,
-          wordId
-        }
-      }
+          wordId,
+        },
+      },
     });
 
     // 存入缓存（包括空值）
@@ -139,12 +148,12 @@ export class WordScoreService {
       const scores = await prisma.wordScore.findMany({
         where: {
           userId,
-          wordId: { in: uncachedWordIds }
-        }
+          wordId: { in: uncachedWordIds },
+        },
       });
 
       // 构建查询结果的wordId集合
-      const foundWordIds = new Set(scores.map(s => s.wordId));
+      const foundWordIds = new Set(scores.map((s) => s.wordId));
 
       // 存入缓存和结果
       for (const score of scores) {
@@ -180,7 +189,7 @@ export class WordScoreService {
     // 从数据库查询
     const scores = await prisma.wordScore.findMany({
       where: { userId },
-      orderBy: { totalScore: 'desc' }
+      orderBy: { totalScore: 'desc' },
     });
 
     // 存入缓存
@@ -197,10 +206,10 @@ export class WordScoreService {
       where: {
         userId,
         totalScore: {
-          lt: threshold
-        }
+          lt: threshold,
+        },
       },
-      orderBy: { totalScore: 'asc' }
+      orderBy: { totalScore: 'asc' },
     });
   }
 
@@ -212,10 +221,10 @@ export class WordScoreService {
       where: {
         userId,
         totalScore: {
-          gt: threshold
-        }
+          gt: threshold,
+        },
       },
-      orderBy: { totalScore: 'desc' }
+      orderBy: { totalScore: 'desc' },
     });
   }
 
@@ -225,17 +234,17 @@ export class WordScoreService {
   async getWordsByScoreRange(
     userId: string,
     minScore: number,
-    maxScore: number
+    maxScore: number,
   ): Promise<WordScore[]> {
     return await prisma.wordScore.findMany({
       where: {
         userId,
         totalScore: {
           gte: minScore,
-          lte: maxScore
-        }
+          lte: maxScore,
+        },
       },
-      orderBy: { totalScore: 'desc' }
+      orderBy: { totalScore: 'desc' },
     });
   }
 
@@ -245,26 +254,33 @@ export class WordScoreService {
   async upsertWordScore(
     userId: string,
     wordId: string,
-    data: Partial<WordScore>
+    data: Partial<WordScore>,
   ): Promise<WordScore> {
     await this.assertWordAccessible(userId, wordId);
 
-    // 过滤掉userId和wordId，防止被data覆盖
-    const { userId: _, wordId: __, ...safeData } = data as any;
+    // 过滤掉不应被外部覆盖的系统字段
+    const {
+      userId: _userId,
+      wordId: _wordId,
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...safeData
+    } = data;
 
     const score = await prisma.wordScore.upsert({
       where: {
         unique_user_word_score: {
           userId,
-          wordId
-        }
+          wordId,
+        },
       },
       create: {
-        userId,
-        wordId,
-        ...safeData
-      } as any,
-      update: safeData
+        user: { connect: { id: userId } },
+        word: { connect: { id: wordId } },
+        ...safeData,
+      },
+      update: safeData,
     });
 
     // 清除相关缓存
@@ -278,14 +294,14 @@ export class WordScoreService {
    */
   async batchUpdateWordScores(
     userId: string,
-    updates: Array<{ wordId: string; data: Partial<WordScore> }>
+    updates: Array<{ wordId: string; data: Partial<WordScore> }>,
   ): Promise<void> {
-    const wordIds = [...new Set(updates.map(u => u.wordId))];
+    const wordIds = [...new Set(updates.map((u) => u.wordId))];
 
     // 批量验证权限（单次查询替代N次查询）
     const accessibleIds = await this.getAccessibleWordIds(userId, wordIds);
 
-    const inaccessibleWords = wordIds.filter(id => !accessibleIds.has(id));
+    const inaccessibleWords = wordIds.filter((id) => !accessibleIds.has(id));
     if (inaccessibleWords.length > 0) {
       throw new Error(`无权访问以下单词: ${inaccessibleWords.join(', ')}`);
     }
@@ -293,24 +309,31 @@ export class WordScoreService {
     // 使用事务批量更新
     await prisma.$transaction(
       updates.map(({ wordId, data }) => {
-        // 过滤掉userId和wordId，防止被data覆盖
-        const { userId: _, wordId: __, ...safeData } = data as any;
+        // 过滤掉不应被外部覆盖的系统字段
+        const {
+          userId: _userId,
+          wordId: _wordId,
+          id: _id,
+          createdAt: _createdAt,
+          updatedAt: _updatedAt,
+          ...safeData
+        } = data;
 
         return prisma.wordScore.upsert({
           where: {
             unique_user_word_score: {
               userId,
-              wordId
-            }
+              wordId,
+            },
           },
           create: {
-            userId,
-            wordId,
-            ...safeData
-          } as any,
-          update: safeData
+            user: { connect: { id: userId } },
+            word: { connect: { id: wordId } },
+            ...safeData,
+          },
+          update: safeData,
         });
-      })
+      }),
     );
 
     // 清除用户缓存
@@ -325,9 +348,9 @@ export class WordScoreService {
       where: {
         unique_user_word_score: {
           userId,
-          wordId
-        }
-      }
+          wordId,
+        },
+      },
     });
 
     // 清除缓存
@@ -345,22 +368,22 @@ export class WordScoreService {
         averageScore: 0,
         highScoreCount: 0,
         mediumScoreCount: 0,
-        lowScoreCount: 0
+        lowScoreCount: 0,
       };
     }
 
     const totalScore = scores.reduce((sum, s) => sum + s.totalScore, 0);
     const averageScore = totalScore / scores.length;
 
-    const highScoreCount = scores.filter(s => s.totalScore > 80).length;
-    const mediumScoreCount = scores.filter(s => s.totalScore >= 40 && s.totalScore <= 80).length;
-    const lowScoreCount = scores.filter(s => s.totalScore < 40).length;
+    const highScoreCount = scores.filter((s) => s.totalScore > 80).length;
+    const mediumScoreCount = scores.filter((s) => s.totalScore >= 40 && s.totalScore <= 80).length;
+    const lowScoreCount = scores.filter((s) => s.totalScore < 40).length;
 
     return {
       averageScore,
       highScoreCount,
       mediumScoreCount,
-      lowScoreCount
+      lowScoreCount,
     };
   }
 
@@ -392,15 +415,12 @@ export class WordScoreService {
       where: {
         id: { in: wordIds },
         wordBook: {
-          OR: [
-            { type: 'SYSTEM' },
-            { userId: userId }
-          ]
-        }
+          OR: [{ type: 'SYSTEM' }, { userId: userId }],
+        },
       },
-      select: { id: true }
+      select: { id: true },
     });
-    return new Set(words.map(w => w.id));
+    return new Set(words.map((w) => w.id));
   }
 
   /**
@@ -410,8 +430,8 @@ export class WordScoreService {
     const word = await prisma.word.findUnique({
       where: { id: wordId },
       select: {
-        wordBook: { select: { type: true, userId: true } }
-      }
+        wordBook: { select: { type: true, userId: true } },
+      },
     });
 
     if (!word?.wordBook) {

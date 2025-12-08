@@ -1,5 +1,4 @@
 import { BaseClient } from '../base/BaseClient';
-import TokenManager from '../base/TokenManager';
 
 /**
  * 用户信息
@@ -15,7 +14,7 @@ export interface User {
 /**
  * 认证响应
  */
-interface AuthResponse {
+export interface AuthResponse {
   user: User;
   token: string;
 }
@@ -23,7 +22,7 @@ interface AuthResponse {
 /**
  * 学习统计
  */
-interface Statistics {
+export interface Statistics {
   totalWords: number;
   totalRecords: number;
   correctRate: number;
@@ -39,11 +38,8 @@ interface Statistics {
  * - 获取用户统计
  */
 export class AuthClient extends BaseClient {
-  private tokenManager: TokenManager;
-
   constructor(baseUrl?: string) {
     super(baseUrl);
-    this.tokenManager = TokenManager.getInstance();
   }
 
   /**

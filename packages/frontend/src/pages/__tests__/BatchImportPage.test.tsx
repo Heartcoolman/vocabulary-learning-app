@@ -5,20 +5,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { mockNavigate, mockApiClient } = vi.hoisted(() => ({
+const { mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
-  mockApiClient: {
-    adminGetSystemWordBooks: vi.fn(),
-    batchImportWords: vi.fn(),
-  },
 }));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('@/services/ApiClient', () => ({
-  default: mockApiClient,
+// Mock React Query hooks
+const mockUseBatchImport = vi.fn();
+let mockQueryData: any = [];
+let mockQueryLoading = false;
+let mockQueryError: Error | null = null;
+
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => {
+    return {
+      data: mockQueryData,
+      isLoading: mockQueryLoading,
+      error: mockQueryError,
+    };
+  },
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/mutations/useBatchOperations', () => ({
+  useBatchImport: (options: any) => mockUseBatchImport(options),
 }));
 
 vi.mock('@/components', () => ({
@@ -48,9 +63,21 @@ describe('BatchImportPage', () => {
     { id: 'book-2', name: 'Test WordBook 2', wordCount: 50 },
   ];
 
+  const mockMutate = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.adminGetSystemWordBooks.mockResolvedValue(mockWordBooks);
+
+    // Default mock for useQuery (wordbooks)
+    mockQueryData = mockWordBooks;
+    mockQueryLoading = false;
+    mockQueryError = null;
+
+    // Default mock for useBatchImport
+    mockUseBatchImport.mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+    });
   });
 
   describe('rendering', () => {
@@ -69,8 +96,9 @@ describe('BatchImportPage', () => {
     it('should load wordbooks on mount', async () => {
       render(<BatchImportPage />);
 
+      // useQuery returns data, and wordbooks should be displayed
       await waitFor(() => {
-        expect(mockApiClient.adminGetSystemWordBooks).toHaveBeenCalled();
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
       });
     });
   });
@@ -101,12 +129,28 @@ describe('BatchImportPage', () => {
       render(<BatchImportPage />);
 
       await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      // Manually select a wordbook to enable the button
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: 'book-1' } });
+
+      await waitFor(() => {
         expect(screen.getByRole('button', { name: '下一步' })).toBeEnabled();
       });
     });
 
     it('should proceed to step 2 when next clicked', async () => {
       render(<BatchImportPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      // Manually select a wordbook to enable the button
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: 'book-1' } });
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: '下一步' })).toBeEnabled();
@@ -124,9 +168,19 @@ describe('BatchImportPage', () => {
     it('should display file format requirements', async () => {
       render(<BatchImportPage />);
 
+      // First select a wordbook to enable the "下一步" button
       await waitFor(() => {
-        fireEvent.click(screen.getByRole('button', { name: '下一步' }));
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
       });
+
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: 'book-1' } });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '下一步' })).toBeEnabled();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: '下一步' }));
 
       await waitFor(() => {
         expect(screen.getByText(/文件格式要求/)).toBeInTheDocument();
@@ -136,9 +190,19 @@ describe('BatchImportPage', () => {
     it('should have back button to step 1', async () => {
       render(<BatchImportPage />);
 
+      // First select a wordbook to enable the "下一步" button
       await waitFor(() => {
-        fireEvent.click(screen.getByRole('button', { name: '下一步' }));
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
       });
+
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: 'book-1' } });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '下一步' })).toBeEnabled();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: '下一步' }));
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: '上一步' })).toBeInTheDocument();
@@ -161,7 +225,9 @@ describe('BatchImportPage', () => {
 
   describe('error handling', () => {
     it('should display error when wordbooks fail to load', async () => {
-      mockApiClient.adminGetSystemWordBooks.mockRejectedValue(new Error('Network error'));
+      mockQueryData = [];
+      mockQueryLoading = false;
+      mockQueryError = new Error('Network error');
 
       render(<BatchImportPage />);
 
@@ -171,7 +237,9 @@ describe('BatchImportPage', () => {
     });
 
     it('should show retry option on error', async () => {
-      mockApiClient.adminGetSystemWordBooks.mockRejectedValue(new Error('Network error'));
+      mockQueryData = [];
+      mockQueryLoading = false;
+      mockQueryError = new Error('Network error');
 
       render(<BatchImportPage />);
 
@@ -183,12 +251,29 @@ describe('BatchImportPage', () => {
 
   describe('empty state', () => {
     it('should show message when no wordbooks available', async () => {
-      mockApiClient.adminGetSystemWordBooks.mockResolvedValue([]);
+      mockQueryData = [];
+      mockQueryLoading = false;
+      mockQueryError = null;
 
       render(<BatchImportPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/暂无可用词书/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('loading state', () => {
+    it('should show loading spinner when loading wordbooks', async () => {
+      mockQueryData = [];
+      mockQueryLoading = true;
+      mockQueryError = null;
+
+      render(<BatchImportPage />);
+
+      // Should show a loading indicator (spinner component)
+      await waitFor(() => {
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
       });
     });
   });

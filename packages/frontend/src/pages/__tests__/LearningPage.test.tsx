@@ -234,19 +234,22 @@ const mockAllWords = [
 
 // Mock useMasteryLearning hook
 const defaultMockReturn = {
-  currentWord: mockWord,
+  currentWord: mockWord as typeof mockWord | null,
   isLoading: false,
   isCompleted: false,
-  completionReason: undefined,
+  completionReason: undefined as string | undefined,
   progress: mockProgress,
   submitAnswer: mockSubmitAnswer,
   advanceToNext: mockAdvanceToNext,
   skipWord: vi.fn(),
   resetSession: mockResetSession,
   hasRestoredSession: false,
-  allWords: mockAllWords,
-  error: null,
-  latestAmasResult: null,
+  allWords: mockAllWords as typeof mockAllWords | [],
+  error: null as string | null,
+  latestAmasResult: null as {
+    explanation: string;
+    state: { fatigue: number; attention: number; motivation: number };
+  } | null,
 };
 
 let mockUseMasteryLearning = vi.fn(() => defaultMockReturn);

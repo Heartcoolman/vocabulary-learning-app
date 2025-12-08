@@ -12,7 +12,7 @@ import {
 import { queryKeys } from '../../lib/queryKeys';
 import type { WordBook } from '../../types/models';
 
-// Mock apiClient
+// Mock data
 const mockWordBook: WordBook = {
   id: 'new-book-1',
   name: '新建词书',
@@ -25,18 +25,21 @@ const mockWordBook: WordBook = {
   updatedAt: Date.now(),
 };
 
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock the new modular clients
+vi.mock('../../services/client', () => ({
+  wordBookClient: {
     createWordBook: vi.fn(),
     updateWordBook: vi.fn(),
     deleteWordBook: vi.fn(),
     addWordToWordBook: vi.fn(),
     removeWordFromWordBook: vi.fn(),
+  },
+  wordClient: {
     batchImportWords: vi.fn(),
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+import { wordBookClient, wordClient } from '../../services/client';
 
 describe('useWordBookMutations', () => {
   let queryClient: QueryClient;
@@ -66,7 +69,7 @@ describe('useWordBookMutations', () => {
 
   describe('useCreateWordBook', () => {
     it('should create word book successfully', async () => {
-      (apiClient.createWordBook as any).mockResolvedValue(mockWordBook);
+      (wordBookClient.createWordBook as any).mockResolvedValue(mockWordBook);
 
       const { result } = renderHook(() => useCreateWordBook(), { wrapper });
 
@@ -80,14 +83,14 @@ describe('useWordBookMutations', () => {
       });
 
       expect(result.current.data).toEqual(mockWordBook);
-      expect(apiClient.createWordBook).toHaveBeenCalledWith({
+      expect(wordBookClient.createWordBook).toHaveBeenCalledWith({
         name: '新建词书',
         description: '测试词书',
       });
     });
 
     it('should invalidate queries after creation', async () => {
-      (apiClient.createWordBook as any).mockResolvedValue(mockWordBook);
+      (wordBookClient.createWordBook as any).mockResolvedValue(mockWordBook);
 
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -111,7 +114,7 @@ describe('useWordBookMutations', () => {
 
     it('should handle errors', async () => {
       const error = new Error('创建失败');
-      (apiClient.createWordBook as any).mockRejectedValue(error);
+      (wordBookClient.createWordBook as any).mockRejectedValue(error);
 
       const { result } = renderHook(() => useCreateWordBook(), { wrapper });
 
@@ -130,7 +133,7 @@ describe('useWordBookMutations', () => {
   describe('useUpdateWordBook', () => {
     it('should update word book successfully', async () => {
       const updatedBook = { ...mockWordBook, name: '更新后的名称' };
-      (apiClient.updateWordBook as any).mockResolvedValue(updatedBook);
+      (wordBookClient.updateWordBook as any).mockResolvedValue(updatedBook);
 
       const { result } = renderHook(() => useUpdateWordBook(), { wrapper });
 
@@ -144,13 +147,15 @@ describe('useWordBookMutations', () => {
       });
 
       expect(result.current.data).toEqual(updatedBook);
-      expect(apiClient.updateWordBook).toHaveBeenCalledWith('new-book-1', { name: '更新后的名称' });
+      expect(wordBookClient.updateWordBook).toHaveBeenCalledWith('new-book-1', {
+        name: '更新后的名称',
+      });
     });
   });
 
   describe('useDeleteWordBook', () => {
     it('should delete word book successfully', async () => {
-      (apiClient.deleteWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.deleteWordBook as any).mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useDeleteWordBook(), { wrapper });
 
@@ -160,11 +165,11 @@ describe('useWordBookMutations', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(apiClient.deleteWordBook).toHaveBeenCalledWith('book-to-delete');
+      expect(wordBookClient.deleteWordBook).toHaveBeenCalledWith('book-to-delete');
     });
 
     it('should invalidate queries after deletion', async () => {
-      (apiClient.deleteWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.deleteWordBook as any).mockResolvedValue(undefined);
 
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -187,7 +192,7 @@ describe('useWordBookMutations', () => {
 
     it('should rollback on error', async () => {
       const error = new Error('删除失败');
-      (apiClient.deleteWordBook as any).mockRejectedValue(error);
+      (wordBookClient.deleteWordBook as any).mockRejectedValue(error);
 
       // 设置初始缓存数据
       const initialBooks = [mockWordBook];
@@ -225,7 +230,7 @@ describe('useWordBookMutations', () => {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      (apiClient.addWordToWordBook as any).mockResolvedValue(mockWord);
+      (wordBookClient.addWordToWordBook as any).mockResolvedValue(mockWord);
 
       const { result } = renderHook(() => useAddWordToWordBook(), { wrapper });
 
@@ -249,7 +254,7 @@ describe('useWordBookMutations', () => {
 
   describe('useRemoveWordFromWordBook', () => {
     it('should remove word from word book successfully', async () => {
-      (apiClient.removeWordFromWordBook as any).mockResolvedValue(undefined);
+      (wordBookClient.removeWordFromWordBook as any).mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useRemoveWordFromWordBook(), { wrapper });
 
@@ -262,14 +267,14 @@ describe('useWordBookMutations', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(apiClient.removeWordFromWordBook).toHaveBeenCalledWith('book-1', 'word-1');
+      expect(wordBookClient.removeWordFromWordBook).toHaveBeenCalledWith('book-1', 'word-1');
     });
   });
 
   describe('useBatchImportWords', () => {
     it('should batch import words successfully', async () => {
       const mockResult = { imported: 10, failed: 0 };
-      (apiClient.batchImportWords as any).mockResolvedValue(mockResult);
+      (wordClient.batchImportWords as any).mockResolvedValue(mockResult);
 
       const { result } = renderHook(() => useBatchImportWords(), { wrapper });
 
@@ -292,7 +297,7 @@ describe('useWordBookMutations', () => {
       });
 
       expect(result.current.data).toEqual(mockResult);
-      expect(apiClient.batchImportWords).toHaveBeenCalledWith('book-1', words);
+      expect(wordClient.batchImportWords).toHaveBeenCalledWith('book-1', words);
     });
   });
 });

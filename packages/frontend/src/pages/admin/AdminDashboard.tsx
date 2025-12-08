@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStatistics, useSystemHealth } from '../../hooks/queries';
-import apiClient from '../../services/ApiClient';
+import { amasClient } from '../../services/client';
 import {
   UsersThree,
   Sparkle,
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
     try {
       setIsAmasLoading(true);
       setAmasError(null);
-      const strategy = await apiClient.getAmasStrategy();
+      const strategy = await amasClient.getAmasStrategy();
       setAmasStrategy(strategy);
     } catch (err) {
       adminLogger.error({ err }, '加载AMAS策略失败');
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
     setResetConfirm(false);
     try {
       setIsResetting(true);
-      await apiClient.resetAmasState();
+      await amasClient.resetAmasState();
       setAlertModal({
         isOpen: true,
         title: '操作成功',

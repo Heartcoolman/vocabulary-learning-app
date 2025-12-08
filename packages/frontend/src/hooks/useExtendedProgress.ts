@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import apiClient from '../services/ApiClient';
+import { wordBookClient, learningClient } from '../services/client';
 import StorageService from '../services/StorageService';
 import { learningLogger } from '../utils/logger';
 import { Milestone } from '../components/progress/MilestoneCard';
@@ -45,7 +45,7 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
       setError(null);
 
       // 获取基础进度数据
-      const basicProgress = await apiClient.getStudyProgress();
+      const basicProgress = await wordBookClient.getStudyProgress();
 
       // 获取所有单词和学习状态
       const words = await StorageService.getWords();
@@ -76,7 +76,7 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
       weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 本周日
       weekStart.setHours(0, 0, 0, 0);
 
-      const records = await apiClient.getRecords({ pageSize: 1000 });
+      const records = await learningClient.getRecords({ pageSize: 1000 });
       const weeklyRecordsMap = new Map<string, boolean>();
 
       records.records.forEach((record) => {

@@ -49,17 +49,19 @@ vi.mock('../../utils/importParsers', () => ({
   WordImportData: {},
 }));
 
-// Mock ApiClient
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock client module
+vi.mock('../../services/client', () => ({
+  wordClient: {
     batchImportWords: vi.fn(),
-    adminBatchAddWordsToSystemWordBook: vi.fn(),
+  },
+  adminClient: {
+    batchAddWordsToSystemWordBook: vi.fn(),
   },
 }));
 
 // Get parseImportFile mock
 import { parseImportFile } from '../../utils/importParsers';
-import apiClient from '../../services/ApiClient';
+import { wordClient, adminClient } from '../../services/client';
 const mockParseImportFile = vi.mocked(parseImportFile);
 
 describe('BatchImportModal', () => {
@@ -70,12 +72,13 @@ describe('BatchImportModal', () => {
     vi.clearAllMocks();
     window.confirm = vi.fn(() => true);
     mockParseImportFile.mockResolvedValue({
+      success: true,
       data: [
         { spelling: 'test', phonetic: '/test/', meanings: ['测试'], examples: ['Test example'] },
       ],
       errors: [],
     });
-    vi.mocked(apiClient.batchImportWords).mockResolvedValue({ imported: 1, failed: 0 });
+    vi.mocked(wordClient.batchImportWords).mockResolvedValue({ imported: 1, failed: 0 });
   });
 
   // ==================== Visibility Tests ====================
@@ -287,6 +290,7 @@ describe('BatchImportModal', () => {
   describe('error display', () => {
     it('should display errors when file has issues', async () => {
       mockParseImportFile.mockResolvedValue({
+        success: false,
         data: [],
         errors: ['Missing spelling field', 'Invalid format'],
       });
@@ -312,6 +316,7 @@ describe('BatchImportModal', () => {
 
     it('should disable confirm button when errors exist', async () => {
       mockParseImportFile.mockResolvedValue({
+        success: false,
         data: [],
         errors: ['Error'],
       });
@@ -339,7 +344,7 @@ describe('BatchImportModal', () => {
 
   describe('import process', () => {
     it('should show importing state', async () => {
-      vi.mocked(apiClient.batchImportWords).mockImplementation(
+      vi.mocked(wordClient.batchImportWords).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve({ imported: 1, failed: 0 }), 100)),
       );
 
@@ -384,15 +389,24 @@ describe('BatchImportModal', () => {
       });
 
       await waitFor(() => {
-        expect(vi.mocked(apiClient.batchImportWords)).toHaveBeenCalledWith(
+        expect(vi.mocked(wordClient.batchImportWords)).toHaveBeenCalledWith(
           'test-book',
           expect.any(Array),
         );
       });
     });
 
-    it('should call adminBatchAddWordsToSystemWordBook in admin mode', async () => {
-      vi.mocked(apiClient.adminBatchAddWordsToSystemWordBook).mockResolvedValue([{ id: '1' }]);
+    it('should call batchAddWordsToSystemWordBook in admin mode', async () => {
+      vi.mocked(adminClient.batchAddWordsToSystemWordBook).mockResolvedValue([
+        {
+          id: '1',
+          spelling: 'test',
+          meanings: ['测试'],
+          examples: ['Test example'],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ]);
 
       render(
         <BatchImportModal
@@ -413,7 +427,7 @@ describe('BatchImportModal', () => {
       });
 
       await waitFor(() => {
-        expect(vi.mocked(apiClient.adminBatchAddWordsToSystemWordBook)).toHaveBeenCalledWith(
+        expect(vi.mocked(adminClient.batchAddWordsToSystemWordBook)).toHaveBeenCalledWith(
           'test-book',
           expect.any(Array),
         );
@@ -455,7 +469,7 @@ describe('BatchImportModal', () => {
     });
 
     it('should show partial success result', async () => {
-      vi.mocked(apiClient.batchImportWords).mockResolvedValue({ imported: 5, failed: 2 });
+      vi.mocked(wordClient.batchImportWords).mockResolvedValue({ imported: 5, failed: 2 });
 
       render(
         <BatchImportModal
@@ -487,7 +501,7 @@ describe('BatchImportModal', () => {
     });
 
     it('should show error result when import fails', async () => {
-      vi.mocked(apiClient.batchImportWords).mockRejectedValue(new Error('Import failed'));
+      vi.mocked(wordClient.batchImportWords).mockRejectedValue(new Error('Import failed'));
 
       render(
         <BatchImportModal

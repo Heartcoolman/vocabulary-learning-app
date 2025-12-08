@@ -12,20 +12,22 @@ import {
   type TodayWordsResponse,
   type StudyProgressResponse,
 } from '../useStudyConfig';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 import type { StudyConfig } from '../../../types/models';
 
 // Mock apiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getStudyConfig: vi.fn(),
-    request: vi.fn(),
+    getTodayWords: vi.fn(),
+    getStudyProgress: vi.fn(),
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getStudyConfig: ReturnType<typeof vi.fn>;
-  request: ReturnType<typeof vi.fn>;
+  getTodayWords: ReturnType<typeof vi.fn>;
+  getStudyProgress: ReturnType<typeof vi.fn>;
 };
 
 // 创建测试用的 QueryClient
@@ -142,9 +144,23 @@ describe('useTodayWords', () => {
 
   describe('获取今日学习单词', () => {
     it('应该成功获取今日学习单词', async () => {
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockTodayWords,
+      // ApiClient.getTodayWords 返回的格式
+      mockApiClient.getTodayWords.mockResolvedValueOnce({
+        words: [
+          {
+            id: 'word-1',
+            spelling: 'test',
+            phonetic: '/test/',
+            meanings: ['测试'],
+            examples: ['This is a test.'],
+          },
+        ],
+        progress: {
+          todayStudied: 10,
+          todayTarget: 30,
+          totalStudied: 100,
+          correctRate: 85,
+        },
       });
 
       const { result } = renderHook(() => useTodayWords(), {
@@ -155,27 +171,24 @@ describe('useTodayWords', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.request).toHaveBeenCalledWith('/api/study-config/today-words');
-      expect(result.current.data).toEqual(mockTodayWords);
+      expect(mockApiClient.getTodayWords).toHaveBeenCalledTimes(1);
+      expect(result.current.data?.words[0].spelling).toBe('test');
+      expect(result.current.data?.progress.todayStudied).toBe(10);
     });
 
     it('应该支持禁用查询', () => {
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockTodayWords,
-      });
-
       const { result } = renderHook(() => useTodayWords(false), {
         wrapper: createWrapper(),
       });
 
-      expect(result.current.isPending).toBe(false);
-      expect(mockApiClient.request).not.toHaveBeenCalled();
+      // 当 enabled=false 时，query 不会执行，status 为 'pending'
+      expect(result.current.fetchStatus).toBe('idle');
+      expect(mockApiClient.getTodayWords).not.toHaveBeenCalled();
     });
 
     it('应该正确处理加载错误', async () => {
       const error = new Error('加载今日单词失败');
-      mockApiClient.request.mockRejectedValueOnce(error);
+      mockApiClient.getTodayWords.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useTodayWords(), {
         wrapper: createWrapper(),
@@ -197,10 +210,7 @@ describe('useStudyProgress', () => {
 
   describe('获取学习进度', () => {
     it('应该成功获取学习进度', async () => {
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockStudyProgress,
-      });
+      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockStudyProgress);
 
       const { result } = renderHook(() => useStudyProgress(), {
         wrapper: createWrapper(),
@@ -210,31 +220,24 @@ describe('useStudyProgress', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.request).toHaveBeenCalledWith('/api/study-config/progress');
+      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(1);
       expect(result.current.data).toEqual(mockStudyProgress);
     });
 
     it('应该支持禁用查询', () => {
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockStudyProgress,
-      });
-
       const { result } = renderHook(() => useStudyProgress(false), {
         wrapper: createWrapper(),
       });
 
-      expect(result.current.isPending).toBe(false);
-      expect(mockApiClient.request).not.toHaveBeenCalled();
+      // 当 enabled=false 时，query 不会执行，fetchStatus 为 'idle'
+      expect(result.current.fetchStatus).toBe('idle');
+      expect(mockApiClient.getStudyProgress).not.toHaveBeenCalled();
     });
 
     it('应该在组件挂载时重新获取数据', async () => {
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockStudyProgress,
-      });
+      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockStudyProgress);
 
-      const { result, unmount, rerender } = renderHook(() => useStudyProgress(), {
+      const { result, unmount } = renderHook(() => useStudyProgress(), {
         wrapper: createWrapper(),
       });
 
@@ -242,15 +245,12 @@ describe('useStudyProgress', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockApiClient.request).toHaveBeenCalledTimes(1);
+      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(1);
 
       // 卸载并重新挂载
       unmount();
 
-      mockApiClient.request.mockResolvedValueOnce({
-        success: true,
-        data: mockStudyProgress,
-      });
+      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockStudyProgress);
 
       const { result: result2 } = renderHook(() => useStudyProgress(), {
         wrapper: createWrapper(),
@@ -261,12 +261,12 @@ describe('useStudyProgress', () => {
       });
 
       // 应该重新获取数据
-      expect(mockApiClient.request).toHaveBeenCalledTimes(2);
+      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(2);
     });
 
     it('应该正确处理加载错误', async () => {
       const error = new Error('加载进度失败');
-      mockApiClient.request.mockRejectedValueOnce(error);
+      mockApiClient.getStudyProgress.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useStudyProgress(), {
         wrapper: createWrapper(),

@@ -1,6 +1,4 @@
 import { useEffect, useRef, memo } from 'react';
-import { motion } from 'framer-motion';
-import { staggerContainerVariants, staggerItemVariants, g3SpringSnappy } from '../utils/animations';
 
 interface TestOptionsProps {
   options: string[];
@@ -95,17 +93,14 @@ function TestOptions({
   };
 
   return (
-    <motion.div
-      variants={staggerContainerVariants}
-      initial="hidden"
-      animate="visible"
+    <div
       className="flex w-full flex-wrap justify-center gap-3 px-4 py-5"
       role="group"
       aria-label="测试选项"
       data-testid="test-options"
     >
       {options.map((option, index) => (
-        <motion.button
+        <button
           key={`${option}-${index}`}
           ref={(el) => (optionsRef.current[index] = el)}
           onClick={() => !showResult && onSelect(option)}
@@ -116,21 +111,18 @@ function TestOptions({
             }
           }}
           disabled={showResult}
-          variants={staggerItemVariants}
-          whileHover={!showResult ? { scale: 1.05 } : undefined}
-          whileTap={!showResult ? { scale: 0.95 } : undefined}
-          transition={g3SpringSnappy}
           data-testid={`option-${index}`}
-          className={`min-w-[120px] max-w-[200px] flex-1 rounded-lg px-5 py-3 text-base font-medium sm:min-w-[140px] md:text-lg ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+          className={`stagger-item btn-scale min-w-[120px] max-w-[200px] flex-1 rounded-lg px-5 py-3 text-base font-medium opacity-0 sm:min-w-[140px] md:text-lg ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+          style={{ animation: `staggerFadeIn 0.3s ease-out ${index * 50}ms forwards` }}
           aria-label={getAriaLabel(option, index)}
           aria-pressed={showResult && option === selectedAnswer}
           tabIndex={showResult ? -1 : 0}
         >
           <span className="mr-2 inline-block text-sm opacity-70">{index + 1}.</span>
           {option}
-        </motion.button>
+        </button>
       ))}
-    </motion.div>
+    </div>
   );
 }
 

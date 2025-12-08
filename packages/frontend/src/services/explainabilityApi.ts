@@ -1,4 +1,4 @@
-import apiClient from './ApiClient';
+import apiClient from './client';
 import type {
   DecisionExplanation,
   CounterfactualInput,

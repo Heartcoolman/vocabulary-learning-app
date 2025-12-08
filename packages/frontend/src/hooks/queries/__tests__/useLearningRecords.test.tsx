@@ -3,18 +3,18 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useLearningRecords, prefetchLearningRecords } from '../useLearningRecords';
-import ApiClient from '../../../services/ApiClient';
+import { learningClient } from '../../../services/client';
 import type { AnswerRecord } from '../../../types/models';
 
-// Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
-    getAnswerRecords: vi.fn(),
+// Mock learningClient
+vi.mock('../../../services/client', () => ({
+  learningClient: {
+    getRecords: vi.fn(),
   },
 }));
 
-const mockApiClient = ApiClient as {
-  getAnswerRecords: ReturnType<typeof vi.fn>;
+const mockLearningClient = learningClient as unknown as {
+  getRecords: ReturnType<typeof vi.fn>;
 };
 
 // 创建测试用的QueryClient
@@ -39,6 +39,7 @@ const createWrapper = (queryClient: QueryClient) => {
 const mockRecords: AnswerRecord[] = [
   {
     id: 'record-1',
+    userId: 'user-1',
     wordId: 'word-1',
     selectedAnswer: '答案1',
     correctAnswer: '答案1',
@@ -47,9 +48,12 @@ const mockRecords: AnswerRecord[] = [
     responseTime: 3000,
     dwellTime: 5000,
     sessionId: 'session-1',
+    createdAt: Date.now() - 1000,
+    updatedAt: Date.now() - 1000,
   },
   {
     id: 'record-2',
+    userId: 'user-1',
     wordId: 'word-2',
     selectedAnswer: '答案2',
     correctAnswer: '正确答案2',
@@ -58,6 +62,8 @@ const mockRecords: AnswerRecord[] = [
     responseTime: 5000,
     dwellTime: 8000,
     sessionId: 'session-1',
+    createdAt: Date.now() - 2000,
+    updatedAt: Date.now() - 2000,
   },
 ];
 
@@ -74,7 +80,7 @@ describe('useLearningRecords', () => {
   });
 
   it('should fetch learning records successfully', async () => {
-    mockApiClient.getAnswerRecords.mockResolvedValue({
+    mockLearningClient.getRecords.mockResolvedValue({
       records: mockRecords,
       pagination: mockPagination,
     });
@@ -92,35 +98,32 @@ describe('useLearningRecords', () => {
 
     expect(result.current.data?.records).toEqual(mockRecords);
     expect(result.current.data?.pagination).toEqual(mockPagination);
-    expect(mockApiClient.getAnswerRecords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getRecords).toHaveBeenCalledTimes(1);
   });
 
   it('should fetch with pagination options', async () => {
-    mockApiClient.getAnswerRecords.mockResolvedValue({
+    mockLearningClient.getRecords.mockResolvedValue({
       records: mockRecords,
       pagination: { ...mockPagination, page: 2 },
     });
     const queryClient = createTestQueryClient();
 
-    const { result } = renderHook(
-      () => useLearningRecords({ page: 2, pageSize: 10 }),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    );
+    const { result } = renderHook(() => useLearningRecords({ page: 2, pageSize: 10 }), {
+      wrapper: createWrapper(queryClient),
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(mockApiClient.getAnswerRecords).toHaveBeenCalledWith({
+    expect(mockLearningClient.getRecords).toHaveBeenCalledWith({
       page: 2,
       pageSize: 10,
     });
   });
 
   it('should handle empty records', async () => {
-    mockApiClient.getAnswerRecords.mockResolvedValue({
+    mockLearningClient.getRecords.mockResolvedValue({
       records: [],
       pagination: { ...mockPagination, total: 0 },
     });
@@ -140,7 +143,7 @@ describe('useLearningRecords', () => {
 
   it('should handle API error', async () => {
     const error = new Error('API Error');
-    mockApiClient.getAnswerRecords.mockRejectedValue(error);
+    mockLearningClient.getRecords.mockRejectedValue(error);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useLearningRecords(), {
@@ -155,7 +158,7 @@ describe('useLearningRecords', () => {
   });
 
   it('should support custom query options', async () => {
-    mockApiClient.getAnswerRecords.mockResolvedValue({
+    mockLearningClient.getRecords.mockResolvedValue({
       records: mockRecords,
       pagination: mockPagination,
     });
@@ -167,16 +170,16 @@ describe('useLearningRecords', () => {
           {},
           {
             enabled: false,
-          }
+          },
         ),
       {
         wrapper: createWrapper(queryClient),
-      }
+      },
     );
 
     // 查询不应该自动执行
     expect(result.current.isLoading).toBe(false);
-    expect(mockApiClient.getAnswerRecords).not.toHaveBeenCalled();
+    expect(mockLearningClient.getRecords).not.toHaveBeenCalled();
   });
 });
 
@@ -186,7 +189,7 @@ describe('prefetchLearningRecords', () => {
   });
 
   it('should prefetch records data', async () => {
-    mockApiClient.getAnswerRecords.mockResolvedValue({
+    mockLearningClient.getRecords.mockResolvedValue({
       records: mockRecords,
       pagination: mockPagination,
     });
@@ -194,8 +197,8 @@ describe('prefetchLearningRecords', () => {
 
     await prefetchLearningRecords(queryClient, { page: 1, pageSize: 20 });
 
-    expect(mockApiClient.getAnswerRecords).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.getAnswerRecords).toHaveBeenCalledWith({
+    expect(mockLearningClient.getRecords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getRecords).toHaveBeenCalledWith({
       page: 1,
       pageSize: 20,
     });

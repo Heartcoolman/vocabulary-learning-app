@@ -26,7 +26,11 @@ import { UserParamsManager } from '../config/user-params';
 import { getFeatureFlags, isColdStartEnabled } from '../config/feature-flags';
 import { mapActionToStrategy, mapStrategyToAction } from '../decision/mapper';
 import { applyGuardrails, shouldForceBreak, shouldSuggestBreak } from '../decision/guardrails';
-import { generateExplanation, generateSuggestion, generateEnhancedExplanation } from '../decision/explain';
+import {
+  generateExplanation,
+  generateSuggestion,
+  generateEnhancedExplanation,
+} from '../decision/explain';
 import { MultiObjectiveDecisionEngine } from '../decision/multi-objective-decision';
 import {
   ACTION_SPACE,
@@ -35,7 +39,7 @@ import {
   FEATURE_VERSION,
   DEFAULT_DIMENSION,
   CLASSIFY_PHASE_THRESHOLD,
-  EXPLORE_PHASE_THRESHOLD
+  EXPLORE_PHASE_THRESHOLD,
 } from '../config/action-space';
 import { getRewardProfile } from '../config/reward-profiles';
 import { telemetry } from '../common/telemetry';
@@ -46,13 +50,14 @@ import {
   PersistableFeatureVector,
   RawEvent,
   StrategyParams,
-  UserState
+  UserState,
+  UserStateWithColdStart,
 } from '../types';
 import { newUserInitializer, UserStateSnapshot } from '../cold-start/new-user-initializer';
 import {
   recordActionSelection,
   recordDecisionConfidence,
-  recordInferenceLatencyMs
+  recordInferenceLatencyMs,
 } from '../../monitoring/amas-metrics';
 import { amasLogger } from '../../logger';
 
@@ -67,7 +72,7 @@ import {
   ProcessResult,
   StateRepository,
   TimeoutFlag,
-  UserModels
+  UserModels,
 } from './engine-types';
 import { ResilienceManager } from './engine-resilience';
 import { IsolationManager } from './engine-isolation';
@@ -78,18 +83,18 @@ import {
   DecisionTracer,
   DecisionTraceParams,
   StageTiming,
-  createDecisionTracer
+  createDecisionTracer,
 } from './engine-decision-trace';
 import { PersistenceManager, DefaultPersistenceManager } from './engine-persistence';
 import {
   FeatureVectorBuilder,
   DefaultFeatureVectorBuilder,
-  FEATURE_LABELS
+  FEATURE_LABELS,
 } from './engine-feature-vector';
 import {
   RewardCacheManager,
   DefaultRewardCacheManager,
-  createRewardCacheManager
+  createRewardCacheManager,
 } from './engine-reward-cache';
 
 /**
@@ -117,16 +122,15 @@ export class AMASEngine {
 
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
-    this.featureVectorBuilder = deps.featureVectorBuilder ?? new DefaultFeatureVectorBuilder(deps.logger);
+    this.featureVectorBuilder =
+      deps.featureVectorBuilder ?? new DefaultFeatureVectorBuilder(deps.logger);
 
     // 获取功能开关配置
     const flags = getFeatureFlags();
 
     // 根据功能开关决定默认决策模型
-    const defaultBandit: DecisionModel = deps.bandit ??
-      (flags.enableEnsemble
-        ? new EnsembleLearningFramework()
-        : new LinUCB());
+    const defaultBandit: DecisionModel =
+      deps.bandit ?? (flags.enableEnsemble ? new EnsembleLearningFramework() : new LinUCB());
 
     // 初始化模型模板（用于克隆给新用户）
     const modelTemplates: UserModels = {
@@ -138,24 +142,16 @@ export class AMASEngine {
       bandit: defaultBandit,
 
       // 扩展模块 (根据功能开关初始化)
-      trendAnalyzer: flags.enableTrendAnalyzer
-        ? (deps.trendAnalyzer ?? new TrendAnalyzer())
-        : null,
+      trendAnalyzer: flags.enableTrendAnalyzer ? (deps.trendAnalyzer ?? new TrendAnalyzer()) : null,
       coldStart: flags.enableColdStartManager
         ? (deps.coldStartManager ?? new ColdStartManager())
         : null,
-      thompson: flags.enableThompsonSampling
-        ? (deps.thompson ?? new ThompsonSampling())
-        : null,
-      heuristic: flags.enableHeuristicBaseline
-        ? (deps.heuristic ?? new HeuristicLearner())
-        : null,
-      actrMemory: flags.enableACTRMemory
-        ? (deps.actrMemory ?? new ACTRMemoryModel())
-        : null,
+      thompson: flags.enableThompsonSampling ? (deps.thompson ?? new ThompsonSampling()) : null,
+      heuristic: flags.enableHeuristicBaseline ? (deps.heuristic ?? new HeuristicLearner()) : null,
+      actrMemory: flags.enableACTRMemory ? (deps.actrMemory ?? new ACTRMemoryModel()) : null,
       userParams: flags.enableUserParamsManager
         ? (deps.userParamsManager ?? new UserParamsManager())
-        : null
+        : null,
     };
 
     // 生产环境强制要求数据库存储
@@ -163,13 +159,15 @@ export class AMASEngine {
     if (isProduction && (!deps.stateRepo || !deps.modelRepo)) {
       throw new Error(
         'AMAS Engine: 生产环境必须提供数据库存储仓库 (stateRepo/modelRepo)，' +
-        '禁止使用内存存储以防止服务重启导致用户学习数据丢失'
+          '禁止使用内存存储以防止服务重启导致用户学习数据丢失',
       );
     }
 
     // 开发/测试环境可以使用内存存储
     if (!isProduction && (!deps.stateRepo || !deps.modelRepo)) {
-      amasLogger.warn('[AMAS Engine] 使用内存存储，数据在服务重启后会丢失。生产环境请务必配置数据库存储。');
+      amasLogger.warn(
+        '[AMAS Engine] 使用内存存储，数据在服务重启后会丢失。生产环境请务必配置数据库存储。',
+      );
     }
 
     this.stateRepo = deps.stateRepo ?? new MemoryStateRepository();
@@ -177,15 +175,14 @@ export class AMASEngine {
     this.logger = deps.logger;
 
     // Optimization #3: 使用共享的 recorder 实例，通过 DecisionTracer 抽象封装
-    const recorder = deps.recorder ?? (deps.prisma ? getSharedDecisionRecorder(deps.prisma) : undefined);
+    const recorder =
+      deps.recorder ?? (deps.prisma ? getSharedDecisionRecorder(deps.prisma) : undefined);
     this.decisionTracer = deps.decisionTracer ?? createDecisionTracer(recorder, deps.logger);
 
     // 初始化持久化管理器
-    this.persistence = deps.persistence ?? new DefaultPersistenceManager(
-      this.stateRepo,
-      this.modelRepo,
-      this.logger
-    );
+    this.persistence =
+      deps.persistence ??
+      new DefaultPersistenceManager(this.stateRepo, this.modelRepo, this.logger);
 
     // 初始化子管理器
     this.resilience = new ResilienceManager(this.logger);
@@ -194,11 +191,13 @@ export class AMASEngine {
     this.learning = new LearningManager();
 
     // 初始化奖励配置缓存管理器
-    this.rewardCacheManager = deps.rewardCacheManager ?? createRewardCacheManager({
-      ttlMs: 5 * 60 * 1000, // 5分钟
-      maxSize: 10000,
-      logger: this.logger
-    });
+    this.rewardCacheManager =
+      deps.rewardCacheManager ??
+      createRewardCacheManager({
+        ttlMs: 5 * 60 * 1000, // 5分钟
+        maxSize: 10000,
+        logger: this.logger,
+      });
   }
 
   /**
@@ -230,7 +229,7 @@ export class AMASEngine {
   } {
     return {
       isolation: this.isolation.getMemoryStats(),
-      rewardCache: this.rewardCacheManager.getCacheStats()
+      rewardCache: this.rewardCacheManager.getCacheStats(),
     };
   }
 
@@ -240,7 +239,7 @@ export class AMASEngine {
   async processEvent(
     userId: string,
     rawEvent: RawEvent,
-    opts: ProcessOptions = {}
+    opts: ProcessOptions = {},
   ): Promise<ProcessResult> {
     // 使用用户级锁防止同一用户的并发请求冲突
     return this.isolation.withUserLock(userId, async () => {
@@ -265,7 +264,9 @@ export class AMASEngine {
           decisionTimeout,
           userId,
           abortController,
-          () => { timedOut.value = true; }
+          () => {
+            timedOut.value = true;
+          },
         );
 
         // 记录成功
@@ -293,7 +294,7 @@ export class AMASEngine {
     rawEvent: RawEvent,
     opts: ProcessOptions,
     signal?: AbortSignal,
-    timedOut?: TimeoutFlag
+    timedOut?: TimeoutFlag,
   ): Promise<ProcessResult> {
     const startTime = Date.now();
 
@@ -304,7 +305,7 @@ export class AMASEngine {
       learning: { start: 0, end: 0 },
       decision: { start: 0, end: 0 },
       evaluation: { start: 0, end: 0 },
-      optimization: { start: 0, end: 0 }
+      optimization: { start: 0, end: 0 },
     };
 
     // 1. 异常检测（在加载状态之前，避免无效请求消耗资源）
@@ -340,14 +341,20 @@ export class AMASEngine {
 
     // 5. 状态更新（建模层）
     stageTiming.modeling.start = Date.now();
-    const state = this.modeling.updateUserState(prevState, featureVec, rawEvent, recentErrorRate, models);
+    const state = this.modeling.updateUserState(
+      prevState,
+      featureVec,
+      rawEvent,
+      recentErrorRate,
+      models,
+    );
     stageTiming.modeling.end = Date.now();
 
     // 6. 构建决策上下文
     const context = {
       recentErrorRate,
       recentResponseTime: rawEvent.responseTime,
-      timeBucket: this.modeling.getTimeBucket(rawEvent.timestamp)
+      timeBucket: this.modeling.getTimeBucket(rawEvent.timestamp),
     };
 
     // 判断冷启动阶段
@@ -361,7 +368,7 @@ export class AMASEngine {
       interactionCount,
       recentAccuracy,
       state.F,
-      inColdStartPhase
+      inColdStartPhase,
     );
 
     // 7. 动作选择（学习层）
@@ -373,7 +380,7 @@ export class AMASEngine {
       coldStartPhase,
       interactionCount,
       recentAccuracy,
-      opts.wordReviewHistory
+      opts.wordReviewHistory,
     );
     stageTiming.learning.end = Date.now();
 
@@ -396,7 +403,7 @@ export class AMASEngine {
         new_ratio: Math.min(finalStrategy.new_ratio, 0.1),
         difficulty: 'easy',
         batch_size: Math.min(finalStrategy.batch_size, 5),
-        hint_level: Math.max(finalStrategy.hint_level, 1)
+        hint_level: Math.max(finalStrategy.hint_level, 1),
       };
     }
 
@@ -410,7 +417,7 @@ export class AMASEngine {
           finalStrategy,
           opts.learningObjectives,
           opts.sessionStats,
-          state
+          state,
         );
 
         objectiveEvaluation = moDecision.evaluation;
@@ -425,7 +432,7 @@ export class AMASEngine {
             mode: opts.learningObjectives.mode,
             aggregatedScore: moDecision.evaluation.metrics.aggregatedScore,
             constraintsSatisfied: moDecision.evaluation.constraintsSatisfied,
-            violationCount: moDecision.evaluation.constraintViolations.length
+            violationCount: moDecision.evaluation.constraintViolations.length,
           });
         }
       } catch (err) {
@@ -439,7 +446,12 @@ export class AMASEngine {
     const alignedAction = mapStrategyToAction(finalStrategy, action);
 
     // Optimization #1: 在alignedAction后重建contextVector，确保持久化的特征向量与alignedAction匹配
-    const alignedContextVec = this.learning.buildContextVector(models, state, alignedAction, context);
+    const alignedContextVec = this.learning.buildContextVector(
+      models,
+      state,
+      alignedAction,
+      context,
+    );
     const finalContextVec = alignedContextVec ?? contextVec;
 
     stageTiming.decision.end = Date.now();
@@ -449,7 +461,7 @@ export class AMASEngine {
       batch_size: alignedAction.batch_size,
       hint_level: alignedAction.hint_level,
       interval_scale: alignedAction.interval_scale,
-      new_ratio: alignedAction.new_ratio
+      new_ratio: alignedAction.new_ratio,
     });
 
     // 9. 生成解释
@@ -460,16 +472,11 @@ export class AMASEngine {
 
     // 9.5. 生成增强解释（包含详细因素分析）
     const decisionSource = this.getDecisionSource(models, coldStartPhase);
-    const enhancedExplanation = generateEnhancedExplanation(
-      state,
-      currentParams,
-      finalStrategy,
-      {
-        algorithm: decisionSource,
-        confidence: confidence || 0.5,
-        phase: coldStartPhase !== 'normal' ? coldStartPhase : undefined
-      }
-    );
+    const enhancedExplanation = generateEnhancedExplanation(state, currentParams, finalStrategy, {
+      algorithm: decisionSource,
+      confidence: confidence || 0.5,
+      phase: coldStartPhase !== 'normal' ? coldStartPhase : undefined,
+    });
 
     // 10. 计算奖励（评估层）
     stageTiming.evaluation.start = Date.now();
@@ -495,7 +502,7 @@ export class AMASEngine {
         coldStartPhase,
         userId,
         rawEvent.isCorrect,
-        opts.wordReviewHistory
+        opts.wordReviewHistory,
       );
       this.isolation.incrementInteractionCount(userId);
     }
@@ -508,13 +515,15 @@ export class AMASEngine {
     }
 
     // 获取冷启动状态用于持久化
-    const coldStartState = models.coldStart ? {
-      phase: models.coldStart.getPhase(),
-      userType: models.coldStart.getUserType(),
-      probeIndex: models.coldStart.getState().probeIndex,
-      updateCount: models.coldStart.getUpdateCount(),
-      settledStrategy: models.coldStart.getSettledStrategy()
-    } : undefined;
+    const coldStartState = models.coldStart
+      ? {
+          phase: models.coldStart.getPhase(),
+          userType: models.coldStart.getUserType(),
+          probeIndex: models.coldStart.getState().probeIndex,
+          updateCount: models.coldStart.getUpdateCount(),
+          settledStrategy: models.coldStart.getSettledStrategy(),
+        }
+      : undefined;
 
     await this.persistence.saveState(userId, state, coldStartState);
 
@@ -542,13 +551,16 @@ export class AMASEngine {
         confidence: this.getConfidence(models),
         reward,
         totalDurationMs: elapsed,
-        stageTiming
+        stageTiming,
       });
     }
 
     // 构建可序列化的特征向量
     // Optimization #1: 使用finalContextVec（基于alignedAction重建）
-    const persistableFeatureVector = this.featureVectorBuilder.buildPersistableFeatureVector(finalContextVec, featureVec.ts);
+    const persistableFeatureVector = this.featureVectorBuilder.buildPersistableFeatureVector(
+      finalContextVec,
+      featureVec.ts,
+    );
 
     const shouldBreakFlag = forceBreak || shouldSuggestBreak(state);
 
@@ -563,7 +575,7 @@ export class AMASEngine {
       shouldBreak: shouldBreakFlag,
       featureVector: persistableFeatureVector,
       objectiveEvaluation,
-      multiObjectiveAdjusted
+      multiObjectiveAdjusted,
     };
   }
 
@@ -627,7 +639,7 @@ export class AMASEngine {
   async applyDelayedRewardUpdate(
     userId: string,
     featureVector: number[],
-    reward: number
+    reward: number,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const model = await this.modelRepo.loadModel(userId);
@@ -641,20 +653,20 @@ export class AMASEngine {
         this.logger?.info('Feature vector dimension mismatch, applying compatibility fix', {
           userId,
           featureVectorLength: featureVector.length,
-          modelDimension: model.d
+          modelDimension: model.d,
         });
 
         // 使用 FeatureVectorBuilder 进行维度对齐
         alignedFeatureVector = this.featureVectorBuilder.alignFeatureVectorDimension(
           featureVector,
-          model.d
+          model.d,
         );
       }
 
       const tempBandit = new LinUCB({
         alpha: model.alpha,
         lambda: model.lambda,
-        dimension: model.d
+        dimension: model.d,
       });
       tempBandit.setModel(model);
       tempBandit.updateWithFeatureVector(alignedFeatureVector, reward);
@@ -686,19 +698,18 @@ export class AMASEngine {
     }
 
     // 恢复冷启动状态（如果存在）
-    if (state && (state as any).coldStartState) {
+    const stateWithColdStart = state as UserStateWithColdStart;
+    if (stateWithColdStart.coldStartState) {
       // 预先获取用户模型并恢复冷启动状态
-      this.isolation.getUserModels(userId, (state as any).coldStartState);
+      this.isolation.getUserModels(userId, stateWithColdStart.coldStartState);
     }
 
     // 现有用户：检查是否需要处理回归用户状态衰减
     const now = Date.now();
     // Bug修复：校验state.ts的有效性，防止NaN风险
     // state.ts可能为undefined、0、负数或非数字
-    const isValidTs = typeof state.ts === 'number' &&
-                      Number.isFinite(state.ts) &&
-                      state.ts > 0 &&
-                      state.ts <= now;
+    const isValidTs =
+      typeof state.ts === 'number' && Number.isFinite(state.ts) && state.ts > 0 && state.ts <= now;
     const lastActiveAt = isValidTs ? state.ts : now;
     const offlineMs = now - lastActiveAt;
     // 额外校验：确保offlineMs非负且有限
@@ -715,7 +726,7 @@ export class AMASEngine {
           cognitiveProfile: state.C,
           lastActiveAt,
           coldStartPhase: this.getColdStartPhase(userId),
-          totalLearningMinutes: undefined // 暂不追踪总学习时长
+          totalLearningMinutes: undefined, // 暂不追踪总学习时长
         };
 
         const config = await newUserInitializer.handleReturningUser(userId, snapshot);
@@ -726,7 +737,7 @@ export class AMASEngine {
           this.logger?.info('Returning user needs re-cold-start', {
             userId,
             offlineDays: config.offlineDays,
-            decayFactor: config.decayFactor
+            decayFactor: config.decayFactor,
           });
         }
 
@@ -740,7 +751,7 @@ export class AMASEngine {
           H: state.H,
           T: state.T,
           conf: Math.max(0.3, state.conf * config.decayFactor), // 置信度也衰减
-          ts: now
+          ts: now,
         };
       } catch (err) {
         this.logger?.warn('Failed to handle returning user', { userId, error: err });
@@ -761,7 +772,9 @@ export class AMASEngine {
    *
    * 使用 RewardCacheManager 避免每次请求都查询数据库
    */
-  private async getCachedRewardProfile(userId: string): Promise<ReturnType<typeof getRewardProfile>> {
+  private async getCachedRewardProfile(
+    userId: string,
+  ): Promise<ReturnType<typeof getRewardProfile>> {
     // 尝试从缓存获取
     const cachedProfileId = this.rewardCacheManager.getCachedProfileId(userId);
     if (cachedProfileId !== undefined) {
@@ -772,10 +785,10 @@ export class AMASEngine {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { rewardProfile: true }
+        select: { rewardProfile: true },
       });
 
-      const profileId = (user as any)?.rewardProfile ?? null;
+      const profileId = user?.rewardProfile ?? null;
 
       // 更新缓存
       this.rewardCacheManager.setCachedProfileId(userId, profileId);
@@ -806,7 +819,7 @@ export class AMASEngine {
     userId: string,
     reason: 'circuit_open' | 'exception' | 'degraded_state',
     opts: ProcessOptions,
-    eventTimestamp?: number
+    eventTimestamp?: number,
   ): Promise<ProcessResult> {
     return this.resilience.createIntelligentFallbackResult(
       userId,
@@ -814,7 +827,7 @@ export class AMASEngine {
       opts,
       () => this.loadOrCreateState(userId),
       (uid, provided) => this.isolation.getInteractionCount(uid, provided),
-      eventTimestamp
+      eventTimestamp,
     );
   }
 

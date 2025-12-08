@@ -3,7 +3,7 @@
  * LLM 顾问 API 服务
  */
 
-import apiClient from './ApiClient';
+import apiClient from './client';
 
 // ==================== 类型定义 ====================
 

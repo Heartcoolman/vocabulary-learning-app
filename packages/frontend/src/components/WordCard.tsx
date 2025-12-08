@@ -4,7 +4,7 @@ import { Star, Clock, Target, SpeakerHigh } from './Icon';
 import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
 import { trackingService } from '../services/TrackingService';
 
-interface WordCardWord {
+export interface WordCardWord {
   id: string;
   spelling: string;
   phonetic: string;
@@ -12,7 +12,7 @@ interface WordCardWord {
   examples: string[];
 }
 
-interface WordCardProps {
+export interface WordCardProps {
   word: WordCardWord;
   onPronounce: () => void;
   isPronouncing: boolean;

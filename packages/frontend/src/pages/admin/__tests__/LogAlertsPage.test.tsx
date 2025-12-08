@@ -253,7 +253,7 @@ describe('LogAlertsPage', () => {
         if (options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ id: 'new-rule', ...mockRules[0] }),
+            json: () => Promise.resolve({ ...mockRules[0], id: 'new-rule' }),
           });
         }
         if (url.includes('/api/admin/logs/log-alerts')) {

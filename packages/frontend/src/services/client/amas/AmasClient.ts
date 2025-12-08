@@ -207,13 +207,12 @@ export class AmasClient extends BaseClient {
   /**
    * 获取算法配置历史记录
    */
-  async getConfigHistory(
-    limit?: number,
-  ): Promise<import('../../../types/models').ConfigHistory[]> {
+  async getConfigHistory(limit?: number): Promise<import('../../../types/models').ConfigHistory[]> {
     try {
       const query = limit ? `?limit=${limit}` : '';
       const raw = await this.request<ApiConfigHistory[]>(`/api/algorithm-config/history${query}`);
-      return raw.map((h) => ({
+      const timestamp = Date.now();
+      return raw.map((h): import('../../../types/models').ConfigHistory => ({
         id: h.id,
         configId: h.configId,
         changedBy: h.changedBy,
@@ -221,6 +220,8 @@ export class AmasClient extends BaseClient {
         previousValue: h.previousValue ? this.normalizeAlgorithmConfig(h.previousValue) : {},
         newValue: h.newValue ? this.normalizeAlgorithmConfig(h.newValue) : {},
         timestamp: new Date(h.timestamp).getTime(),
+        createdAt: new Date(h.timestamp).getTime(),
+        updatedAt: new Date(h.timestamp).getTime(),
       }));
     } catch (error) {
       apiLogger.error({ err: error }, '获取配置历史失败');
@@ -335,7 +336,9 @@ export class AmasClient extends BaseClient {
   /**
    * 获取时间偏好分析
    */
-  async getTimePreferences(): Promise<import('../../../types/amas-enhanced').TimePreferenceResponse> {
+  async getTimePreferences(): Promise<
+    import('../../../types/amas-enhanced').TimePreferenceResponse
+  > {
     try {
       return await this.request<import('../../../types/amas-enhanced').TimePreferenceResponse>(
         '/api/amas/time-preferences',
@@ -491,9 +494,7 @@ export class AmasClient extends BaseClient {
   /**
    * 获取徽章详情
    */
-  async getBadgeDetails(
-    badgeId: string,
-  ): Promise<
+  async getBadgeDetails(badgeId: string): Promise<
     import('../../../types/amas-enhanced').BadgeDefinition & {
       unlocked: boolean;
       unlockedAt?: string;
@@ -706,7 +707,9 @@ export class AmasClient extends BaseClient {
   async getSignificantChanges(
     range: import('../../../types/amas-enhanced').DateRangeOption = 30,
   ): Promise<{
-    changes: Array<import('../../../types/amas-enhanced').SignificantChange & { description: string }>;
+    changes: Array<
+      import('../../../types/amas-enhanced').SignificantChange & { description: string }
+    >;
     range: number;
     hasSignificantChanges: boolean;
     summary: string;
@@ -1152,7 +1155,7 @@ export class AmasClient extends BaseClient {
       suggestedModes: Array<{
         mode: 'exam' | 'daily' | 'travel' | 'custom';
         reason: string;
-        config: any;
+        config: Record<string, unknown>;
       }>;
     }>('/api/learning-objectives/suggestions');
   }

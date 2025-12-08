@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { AdminUsersResponse, UserOverview } from '../../services/ApiClient';
+import apiClient, { AdminUsersResponse, UserOverview } from '../../services/client';
 
 /**
  * 管理员用户列表查询参数
@@ -100,11 +100,21 @@ export function useUpdateUserRole() {
 /**
  * 批量操作用户的 Mutation Hook（未来扩展）
  */
+/**
+ * 管理员操作数据类型
+ */
+interface AdminActionData {
+  role?: string;
+  [key: string]: unknown;
+}
+
 export function useBatchUpdateUsers() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (operations: Array<{ userId: string; action: string; data?: any }>) => {
+    mutationFn: async (
+      operations: Array<{ userId: string; action: string; data?: AdminActionData }>,
+    ) => {
       // 这里可以实现批量操作逻辑
       // 示例：批量删除、批量更新角色等
       const results = await Promise.allSettled(
@@ -112,12 +122,15 @@ export function useBatchUpdateUsers() {
           switch (op.action) {
             case 'delete':
               return apiClient.adminDeleteUser(op.userId);
-            case 'updateRole':
-              return apiClient.adminUpdateUserRole(op.userId, op.data.role);
+            case 'updateRole': {
+              const role = op.data?.role as 'USER' | 'ADMIN' | undefined;
+              if (!role) throw new Error('Role is required for updateRole action');
+              return apiClient.adminUpdateUserRole(op.userId, role);
+            }
             default:
               throw new Error(`Unknown action: ${op.action}`);
           }
-        })
+        }),
       );
       return results;
     },

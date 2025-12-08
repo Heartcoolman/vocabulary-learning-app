@@ -9,7 +9,7 @@ import {
   useCounterfactualAnalysis,
   useFullExplanation,
 } from '../useAmasExplanation';
-import ApiClient from '../../../services/ApiClient';
+import ApiClient from '../../../services/client';
 import type {
   DecisionExplanation,
   LearningCurveData,
@@ -18,7 +18,7 @@ import type {
 } from '../../../types/explainability';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getAmasDecisionExplanation: vi.fn(),
     getAmasLearningCurve: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock('../../../services/ApiClient', () => ({
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockApiClient = ApiClient as unknown as {
   getAmasDecisionExplanation: ReturnType<typeof vi.fn>;
   getAmasLearningCurve: ReturnType<typeof vi.fn>;
   getDecisionTimeline: ReturnType<typeof vi.fn>;
@@ -182,7 +182,7 @@ describe('useAmasDecisionExplanation', () => {
       () => useAmasDecisionExplanation('decision-123', { enabled: false }),
       {
         wrapper: createWrapper(queryClient),
-      }
+      },
     );
 
     // 不应该发起请求

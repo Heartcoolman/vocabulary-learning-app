@@ -7,6 +7,15 @@
 
 export const queryKeys = {
   /**
+   * 认证相关查询
+   */
+  auth: {
+    all: ['auth'] as const,
+    currentUser: () => [...queryKeys.auth.all, 'currentUser'] as const,
+    session: () => [...queryKeys.auth.all, 'session'] as const,
+  },
+
+  /**
    * 单词相关查询
    */
   words: {
@@ -102,13 +111,13 @@ export const queryKeys = {
     phase: () => [...queryKeys.amas.all, 'phase'] as const,
     explanation: (decisionId?: string) =>
       decisionId
-        ? [...queryKeys.amas.all, 'explanation', decisionId] as const
-        : [...queryKeys.amas.all, 'explanation', 'latest'] as const,
+        ? ([...queryKeys.amas.all, 'explanation', decisionId] as const)
+        : ([...queryKeys.amas.all, 'explanation', 'latest'] as const),
     learningCurve: (days: number) => [...queryKeys.amas.all, 'learningCurve', days] as const,
     decisionTimeline: (limit: number, cursor?: string) =>
       cursor
-        ? [...queryKeys.amas.all, 'decisionTimeline', limit, cursor] as const
-        : [...queryKeys.amas.all, 'decisionTimeline', limit] as const,
+        ? ([...queryKeys.amas.all, 'decisionTimeline', limit, cursor] as const)
+        : ([...queryKeys.amas.all, 'decisionTimeline', limit] as const),
   },
 
   /**
@@ -121,12 +130,12 @@ export const queryKeys = {
     masteryStats: () => [...queryKeys.studyProgress.all, 'masteryStats'] as const,
     masteryBatch: (wordIds: string[], userFatigue?: number) =>
       userFatigue !== undefined
-        ? [...queryKeys.studyProgress.all, 'masteryBatch', wordIds, userFatigue] as const
-        : [...queryKeys.studyProgress.all, 'masteryBatch', wordIds] as const,
+        ? ([...queryKeys.studyProgress.all, 'masteryBatch', wordIds, userFatigue] as const)
+        : ([...queryKeys.studyProgress.all, 'masteryBatch', wordIds] as const),
     masteryDetail: (wordId: string, userFatigue?: number) =>
       userFatigue !== undefined
-        ? [...queryKeys.studyProgress.all, 'masteryDetail', wordId, userFatigue] as const
-        : [...queryKeys.studyProgress.all, 'masteryDetail', wordId] as const,
+        ? ([...queryKeys.studyProgress.all, 'masteryDetail', wordId, userFatigue] as const)
+        : ([...queryKeys.studyProgress.all, 'masteryDetail', wordId] as const),
   },
 
   /**
@@ -136,8 +145,7 @@ export const queryKeys = {
     all: ['algorithmConfig'] as const,
     active: () => [...queryKeys.algorithmConfig.all, 'active'] as const,
     histories: () => [...queryKeys.algorithmConfig.all, 'history'] as const,
-    history: (limit?: number) =>
-      [...queryKeys.algorithmConfig.histories(), { limit }] as const,
+    history: (limit?: number) => [...queryKeys.algorithmConfig.histories(), { limit }] as const,
     presets: () => [...queryKeys.algorithmConfig.all, 'presets'] as const,
   },
 
@@ -218,8 +226,7 @@ export const queryKeys = {
     configHistory: {
       all: ['admin', 'configHistory'] as const,
       lists: () => [...queryKeys.admin.configHistory.all, 'list'] as const,
-      list: (limit?: number) =>
-        [...queryKeys.admin.configHistory.lists(), { limit }] as const,
+      list: (limit?: number) => [...queryKeys.admin.configHistory.lists(), { limit }] as const,
       details: () => [...queryKeys.admin.configHistory.all, 'detail'] as const,
       detail: (id: string) => [...queryKeys.admin.configHistory.details(), id] as const,
     },
@@ -231,7 +238,9 @@ export const queryKeys = {
   export: {
     all: ['export'] as const,
     history: (filters?: Record<string, unknown>) =>
-      filters ? [...queryKeys.export.all, 'history', filters] as const : [...queryKeys.export.all, 'history'] as const,
+      filters
+        ? ([...queryKeys.export.all, 'history', filters] as const)
+        : ([...queryKeys.export.all, 'history'] as const),
     statistics: () => [...queryKeys.export.all, 'statistics'] as const,
   },
 
@@ -248,6 +257,12 @@ export const queryKeys = {
 /**
  * 类型辅助：从查询键工厂中提取查询键类型
  */
-export type QueryKey = ReturnType<
-  (typeof queryKeys)[keyof typeof queryKeys][keyof (typeof queryKeys)[keyof typeof queryKeys]]
->;
+type ExtractQueryKeys<T> = T extends (...args: unknown[]) => infer R
+  ? R
+  : T extends readonly unknown[]
+    ? T
+    : T extends object
+      ? { [K in keyof T]: ExtractQueryKeys<T[K]> }[keyof T]
+      : never;
+
+export type QueryKey = ExtractQueryKeys<typeof queryKeys>;

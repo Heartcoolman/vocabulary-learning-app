@@ -3,17 +3,17 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useNextWords, fetchNextWords } from '../useNextWords';
-import ApiClient from '../../../services/ApiClient';
+import { learningClient } from '../../../services/client';
 import type { NextWordsParams, NextWordsResult } from '../useNextWords';
 
-// Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+// Mock learningClient
+vi.mock('../../../services/client', () => ({
+  learningClient: {
     getNextWords: vi.fn(),
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockLearningClient = learningClient as unknown as {
   getNextWords: ReturnType<typeof vi.fn>;
 };
 
@@ -80,7 +80,7 @@ describe('useNextWords', () => {
   });
 
   it('should not fetch automatically when enabled is false', async () => {
-    mockApiClient.getNextWords.mockResolvedValue(mockResult);
+    mockLearningClient.getNextWords.mockResolvedValue(mockResult);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useNextWords(mockParams), {
@@ -89,11 +89,11 @@ describe('useNextWords', () => {
 
     // 默认enabled为false，不应自动查询
     expect(result.current.isLoading).toBe(false);
-    expect(mockApiClient.getNextWords).not.toHaveBeenCalled();
+    expect(mockLearningClient.getNextWords).not.toHaveBeenCalled();
   });
 
   it('should fetch when manually triggered', async () => {
-    mockApiClient.getNextWords.mockResolvedValue(mockResult);
+    mockLearningClient.getNextWords.mockResolvedValue(mockResult);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useNextWords(mockParams), {
@@ -108,40 +108,34 @@ describe('useNextWords', () => {
     });
 
     expect(result.current.data).toEqual(mockResult);
-    expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.getNextWords).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledWith(mockParams);
   });
 
   it('should fetch when enabled is true', async () => {
-    mockApiClient.getNextWords.mockResolvedValue(mockResult);
+    mockLearningClient.getNextWords.mockResolvedValue(mockResult);
     const queryClient = createTestQueryClient();
 
-    const { result } = renderHook(
-      () => useNextWords(mockParams, { enabled: true }),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    );
+    const { result } = renderHook(() => useNextWords(mockParams, { enabled: true }), {
+      wrapper: createWrapper(queryClient),
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
 
     expect(result.current.data).toEqual(mockResult);
-    expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(1);
   });
 
   it('should handle API error', async () => {
     const error = new Error('API Error');
-    mockApiClient.getNextWords.mockRejectedValue(error);
+    mockLearningClient.getNextWords.mockRejectedValue(error);
     const queryClient = createTestQueryClient();
 
-    const { result } = renderHook(
-      () => useNextWords(mockParams, { enabled: true }),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    );
+    const { result } = renderHook(() => useNextWords(mockParams, { enabled: true }), {
+      wrapper: createWrapper(queryClient),
+    });
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
@@ -151,7 +145,7 @@ describe('useNextWords', () => {
   });
 
   it('should not cache results (staleTime: 0)', async () => {
-    mockApiClient.getNextWords.mockResolvedValue(mockResult);
+    mockLearningClient.getNextWords.mockResolvedValue(mockResult);
     const queryClient = createTestQueryClient();
 
     const { result } = renderHook(() => useNextWords(mockParams), {
@@ -163,33 +157,30 @@ describe('useNextWords', () => {
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(1);
 
     // 第二次查询应该重新请求
     result.current.refetch();
     await waitFor(() => {
-      expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(2);
+      expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(2);
     });
   });
 
   it('should not retry on failure', async () => {
     const error = new Error('Network Error');
-    mockApiClient.getNextWords.mockRejectedValue(error);
+    mockLearningClient.getNextWords.mockRejectedValue(error);
     const queryClient = createTestQueryClient();
 
-    const { result } = renderHook(
-      () => useNextWords(mockParams, { enabled: true }),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    );
+    const { result } = renderHook(() => useNextWords(mockParams, { enabled: true }), {
+      wrapper: createWrapper(queryClient),
+    });
 
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
     });
 
     // 应该只调用一次，不重试
-    expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(1);
   });
 
   it('should handle empty words array', async () => {
@@ -197,15 +188,12 @@ describe('useNextWords', () => {
       ...mockResult,
       words: [],
     };
-    mockApiClient.getNextWords.mockResolvedValue(emptyResult);
+    mockLearningClient.getNextWords.mockResolvedValue(emptyResult);
     const queryClient = createTestQueryClient();
 
-    const { result } = renderHook(
-      () => useNextWords(mockParams, { enabled: true }),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    );
+    const { result } = renderHook(() => useNextWords(mockParams, { enabled: true }), {
+      wrapper: createWrapper(queryClient),
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
@@ -221,18 +209,18 @@ describe('fetchNextWords', () => {
   });
 
   it('should fetch next words directly', async () => {
-    mockApiClient.getNextWords.mockResolvedValue(mockResult);
+    mockLearningClient.getNextWords.mockResolvedValue(mockResult);
 
     const result = await fetchNextWords(mockParams);
 
     expect(result).toEqual(mockResult);
-    expect(mockApiClient.getNextWords).toHaveBeenCalledTimes(1);
-    expect(mockApiClient.getNextWords).toHaveBeenCalledWith(mockParams);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledTimes(1);
+    expect(mockLearningClient.getNextWords).toHaveBeenCalledWith(mockParams);
   });
 
   it('should handle API error', async () => {
     const error = new Error('API Error');
-    mockApiClient.getNextWords.mockRejectedValue(error);
+    mockLearningClient.getNextWords.mockRejectedValue(error);
 
     await expect(fetchNextWords(mockParams)).rejects.toThrow('API Error');
   });

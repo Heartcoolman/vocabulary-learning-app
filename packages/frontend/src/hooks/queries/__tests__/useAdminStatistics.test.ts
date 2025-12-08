@@ -7,10 +7,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAdminStatistics, calculateSystemHealth } from '../useAdminStatistics';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 
 // Mock API Client
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     adminGetStatistics: vi.fn(),
   },

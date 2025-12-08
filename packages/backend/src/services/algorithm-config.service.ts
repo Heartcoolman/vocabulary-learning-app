@@ -3,10 +3,29 @@
  * 管理学习算法的配置参数，支持缓存
  */
 
-import { AlgorithmConfig, Prisma } from '@prisma/client';
+import { AlgorithmConfig, ConfigHistory, Prisma } from '@prisma/client';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import prisma from '../config/database';
 
+/**
+ * 配置历史记录创建数据类型
+ */
+interface ConfigHistoryCreateData {
+  configId: string;
+  changedBy: string;
+  changeReason?: string;
+  previousValue: Prisma.InputJsonValue;
+  newValue: Prisma.InputJsonValue;
+}
+
+/**
+ * 扩展的配置历史记录类型（支持可能的字段名变体）
+ * 用于处理不同数据库 schema 版本可能存在的字段名差异
+ */
+interface ExtendedConfigHistory extends ConfigHistory {
+  configID?: string; // 可能的旧版字段名
+  config?: Prisma.JsonValue; // 可能的旧版字段名
+}
 
 export class AlgorithmConfigService {
   /**
@@ -22,13 +41,13 @@ export class AlgorithmConfigService {
 
     // 从数据库查询默认配置
     let config = await prisma.algorithmConfig.findFirst({
-      where: { isDefault: true }
+      where: { isDefault: true },
     });
 
     // 如果没有默认配置，返回第一个配置
     if (!config) {
       config = await prisma.algorithmConfig.findFirst({
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: 'asc' },
       });
     }
 
@@ -54,13 +73,13 @@ export class AlgorithmConfigService {
     // 未提供ID时返回默认/最新配置（兼容测试）
     if (!configId) {
       const latest = await prisma.algorithmConfig.findFirst({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
       return latest;
     }
 
     const cacheKey = `${CacheKeys.ALGORITHM_CONFIG}:${configId}`;
-    
+
     // 尝试从缓存获取
     const cached = cacheService.get<AlgorithmConfig>(cacheKey);
     if (cached) {
@@ -69,7 +88,7 @@ export class AlgorithmConfigService {
 
     // 从数据库查询
     const config = await prisma.algorithmConfig.findUnique({
-      where: { id: configId }
+      where: { id: configId },
     });
 
     // 存入缓存
@@ -85,7 +104,7 @@ export class AlgorithmConfigService {
    */
   async getAllConfigs(): Promise<AlgorithmConfig[]> {
     return await prisma.algorithmConfig.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -94,7 +113,7 @@ export class AlgorithmConfigService {
    */
   async createConfig(data: Prisma.AlgorithmConfigCreateInput): Promise<AlgorithmConfig> {
     const config = await prisma.algorithmConfig.create({
-      data
+      data,
     });
 
     // 如果是默认配置，清除默认配置缓存
@@ -112,15 +131,15 @@ export class AlgorithmConfigService {
     configId: string | Prisma.AlgorithmConfigUpdateInput,
     data?: Prisma.AlgorithmConfigUpdateInput,
     changedBy: string = 'system',
-    changeReason?: string
+    changeReason?: string,
   ): Promise<AlgorithmConfig> {
     // 兼容省略 configId 的调用：第一个参数即为 data
     if (typeof configId !== 'string') {
-      changeReason = changedBy as any;
+      changeReason = changedBy;
       changedBy = 'system';
-      data = configId as Prisma.AlgorithmConfigUpdateInput;
+      data = configId;
       const latest = await prisma.algorithmConfig.findFirst({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
       if (!latest) {
         throw new Error('配置不存在');
@@ -130,7 +149,7 @@ export class AlgorithmConfigService {
 
     // 获取旧配置
     const oldConfig = await prisma.algorithmConfig.findUnique({
-      where: { id: configId }
+      where: { id: configId },
     });
 
     if (!oldConfig) {
@@ -144,32 +163,20 @@ export class AlgorithmConfigService {
     // 更新配置
     const updatedConfig = await prisma.algorithmConfig.update({
       where: { id: configId },
-      data
+      data,
     });
 
     // 记录配置历史
-    const prismaAny = prisma as any;
-    if (prismaAny.algorithmConfigHistory?.create) {
-      await prismaAny.algorithmConfigHistory.create({
-        data: {
-          configId,
-          changedBy,
-          changeReason,
-          previousValue: oldConfig as any,
-          newValue: updatedConfig as any
-        }
-      });
-    } else {
-      await prisma.configHistory.create({
-        data: {
-          configId,
-          changedBy,
-          changeReason,
-          previousValue: oldConfig as any,
-          newValue: updatedConfig as any
-        }
-      });
-    }
+    const historyData: ConfigHistoryCreateData = {
+      configId,
+      changedBy,
+      changeReason,
+      previousValue: oldConfig as unknown as Prisma.InputJsonValue,
+      newValue: updatedConfig as unknown as Prisma.InputJsonValue,
+    };
+    await prisma.configHistory.create({
+      data: historyData,
+    });
 
     // 清除缓存
     this.invalidateConfigCache(configId);
@@ -185,7 +192,7 @@ export class AlgorithmConfigService {
    */
   async deleteConfig(configId: string): Promise<void> {
     await prisma.algorithmConfig.delete({
-      where: { id: configId }
+      where: { id: configId },
     });
 
     // 清除缓存
@@ -195,13 +202,11 @@ export class AlgorithmConfigService {
   /**
    * 获取配置历史
    */
-  async getConfigHistory(configId?: string, limit: number = 50) {
-    const prismaAny = prisma as any;
-    const historyClient = prismaAny.algorithmConfigHistory || prisma.configHistory;
-    return await historyClient.findMany({
+  async getConfigHistory(configId?: string, limit: number = 50): Promise<ConfigHistory[]> {
+    return await prisma.configHistory.findMany({
       where: configId ? { configId } : undefined,
       orderBy: { timestamp: 'desc' },
-      take: limit
+      take: limit,
     });
   }
 
@@ -209,22 +214,22 @@ export class AlgorithmConfigService {
    * 回滚到指定历史配置
    */
   async rollbackConfig(historyId: string): Promise<AlgorithmConfig> {
-    const prismaAny = prisma as any;
-    const historyClient = prismaAny.algorithmConfigHistory || prisma.configHistory;
-    const history = await historyClient.findUnique({
-      where: { id: historyId }
+    const history = await prisma.configHistory.findUnique({
+      where: { id: historyId },
     });
 
     if (!history) {
       throw new Error('历史记录不存在');
     }
 
-    const configId = history.configId || (history as any).configID || historyId;
-    const previousValue = (history as any).previousValue || (history as any).config;
+    // 使用扩展类型处理可能的字段名变体（兼容旧版 schema）
+    const extendedHistory = history as ExtendedConfigHistory;
+    const configId = history.configId || extendedHistory.configID || historyId;
+    const previousValue = history.previousValue || extendedHistory.config;
 
     const updated = await prisma.algorithmConfig.update({
       where: { id: configId },
-      data: previousValue as Prisma.AlgorithmConfigUpdateInput
+      data: previousValue as Prisma.AlgorithmConfigUpdateInput,
     });
 
     this.invalidateConfigCache(configId);
@@ -239,24 +244,24 @@ export class AlgorithmConfigService {
 
     // 验证权重总和
     if (config.priorityWeightNewWord !== undefined) {
-      const prioritySum = 
+      const prioritySum =
         (config.priorityWeightNewWord || 0) +
         (config.priorityWeightErrorRate || 0) +
         (config.priorityWeightOverdueTime || 0) +
         (config.priorityWeightWordScore || 0);
-      
+
       if (prioritySum !== 100) {
         errors.push('优先级权重总和必须为100%');
       }
     }
 
     if (config.scoreWeightAccuracy !== undefined) {
-      const scoreSum = 
+      const scoreSum =
         (config.scoreWeightAccuracy || 0) +
         (config.scoreWeightSpeed || 0) +
         (config.scoreWeightStability || 0) +
         (config.scoreWeightProficiency || 0);
-      
+
       if (scoreSum !== 100) {
         errors.push('单词得分权重总和必须为100%');
       }
@@ -284,7 +289,7 @@ export class AlgorithmConfigService {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -293,14 +298,14 @@ export class AlgorithmConfigService {
    */
   async resetToDefault(configId: string, changedBy: string): Promise<AlgorithmConfig> {
     const defaultConfig = await this.getDefaultConfig();
-    
+
     if (!defaultConfig) {
       throw new Error('默认配置不存在');
     }
 
     // 获取旧配置用于历史记录
     const oldConfig = await prisma.algorithmConfig.findUnique({
-      where: { id: configId }
+      where: { id: configId },
     });
 
     if (!oldConfig) {
@@ -331,19 +336,22 @@ export class AlgorithmConfigService {
         newWordRatioLowAccuracy: defaultConfig.newWordRatioLowAccuracy,
         newWordRatioHighAccuracyThreshold: defaultConfig.newWordRatioHighAccuracyThreshold,
         newWordRatioLowAccuracyThreshold: defaultConfig.newWordRatioLowAccuracyThreshold,
-        masteryThresholds: defaultConfig.masteryThresholds as any,
-      }
+        // masteryThresholds 需要从 JsonValue 转换为 InputJsonValue
+        // JsonValue 可能为 null，但 masteryThresholds 在数据库中不允许为 null
+        masteryThresholds: defaultConfig.masteryThresholds as Prisma.InputJsonValue,
+      },
     });
 
     // 记录配置历史
+    const resetHistoryData: ConfigHistoryCreateData = {
+      configId,
+      changedBy,
+      changeReason: '重置为默认配置',
+      previousValue: oldConfig as unknown as Prisma.InputJsonValue,
+      newValue: updatedConfig as unknown as Prisma.InputJsonValue,
+    };
     await prisma.configHistory.create({
-      data: {
-        configId,
-        changedBy,
-        changeReason: '重置为默认配置',
-        previousValue: oldConfig as any,
-        newValue: updatedConfig as any
-      }
+      data: resetHistoryData,
     });
 
     // 清除缓存

@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Eye, Headphones, Hand, Brain, Sparkle } from './Icon';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
@@ -89,12 +88,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const maxScore = Math.max(...Object.values(profile.scores));
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm"
-    >
+    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm">
       <div className="p-6 pb-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -121,11 +115,12 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
                 <span className="font-medium text-gray-900">{(m.score * 100).toFixed(0)}</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(m.score / (maxScore || 1)) * 100}%` }}
-                  transition={{ duration: 0.8, delay: 0.2 + idx * 0.1 }}
-                  className={`h-full rounded-full ${m.color}`}
+                <div
+                  style={{
+                    width: `${(m.score / (maxScore || 1)) * 100}%`,
+                    transitionDelay: `${200 + idx * 100}ms`,
+                  }}
+                  className={`h-full rounded-full transition-all duration-700 ease-out ${m.color}`}
                 />
               </div>
             </div>
@@ -142,7 +137,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
           </p>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

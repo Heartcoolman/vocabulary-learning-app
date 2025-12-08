@@ -4,99 +4,101 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import UserDetailPage from '../UserDetailPage';
 
-const mockStatistics = {
-  user: { id: 'u1', username: 'testuser', email: 'test@test.com', role: 'USER' },
-  totalWordsLearned: 100,
-  masteredWords: 50,
-  learningWords: 30,
-  newWords: 20,
-  totalRecords: 500,
-  accuracy: 85,
-  averageScore: 78.5,
-  avgResponseTime: 2500,
-  studyDays: 30,
-  consecutiveDays: 7,
-  totalStudyTime: 120,
-  lastActiveAt: '2024-01-15',
-  masteryDistribution: {
-    level0: 10,
-    level1: 15,
-    level2: 20,
-    level3: 25,
-    level4: 20,
-    level5: 10,
-  },
-};
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
-const mockWords = [
-  { wordId: 'w1', spelling: 'apple', score: 85, accuracy: 0.9, reviewCount: 10, masteryLevel: 4 },
-  { wordId: 'w2', spelling: 'banana', score: 60, accuracy: 0.7, reviewCount: 5, masteryLevel: 2 },
-];
+// Mock the services/client module
+vi.mock('@/services/client', async () => {
+  const actual = await vi.importActual('@/services/client');
 
-const mockPagination = { page: 1, pageSize: 20, total: 2, totalPages: 1 };
+  const mockStatisticsData = {
+    user: {
+      id: 'u1',
+      username: 'testuser',
+      email: 'test@test.com',
+      role: 'USER',
+      createdAt: '2024-01-01',
+    },
+    totalWordsLearned: 100,
+    accuracy: 85,
+    averageScore: 78.5,
+    studyDays: 30,
+    consecutiveDays: 7,
+    totalStudyTime: 120,
+    masteryDistribution: {
+      level0: 10,
+      level1: 15,
+      level2: 20,
+      level3: 25,
+      level4: 20,
+      level5: 10,
+    },
+  };
 
-vi.mock('@/services/ApiClient', () => ({
-  default: {
-    adminGetUserStatistics: vi.fn().mockResolvedValue({
-      user: { id: 'u1', username: 'testuser', email: 'test@test.com', role: 'USER' },
-      totalWordsLearned: 100,
-      masteredWords: 50,
-      learningWords: 30,
-      newWords: 20,
-      totalRecords: 500,
-      accuracy: 85,
-      averageScore: 78.5,
-      avgResponseTime: 2500,
-      studyDays: 30,
-      consecutiveDays: 7,
-      totalStudyTime: 120,
-      lastActiveAt: '2024-01-15',
-      masteryDistribution: {
-        level0: 10,
-        level1: 15,
-        level2: 20,
-        level3: 25,
-        level4: 20,
-        level5: 10,
+  const mockWordsData = {
+    words: [
+      {
+        word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: [] },
+        score: 85,
+        accuracy: 0.9,
+        reviewCount: 10,
+        masteryLevel: 4,
+        lastReviewDate: '2024-01-15',
+        nextReviewDate: '2024-01-20',
+        state: 'reviewing',
       },
-    }),
-    adminGetUserWords: vi.fn().mockResolvedValue({
-      words: [
-        {
-          word: { id: 'w1', spelling: 'apple', phonetic: 'ˈæpl', meanings: ['苹果'], examples: [] },
-          score: 85,
-          accuracy: 0.9,
-          reviewCount: 10,
-          masteryLevel: 4,
-          lastReviewDate: '2024-01-15',
-          nextReviewDate: '2024-01-20',
-          state: 'reviewing',
+      {
+        word: {
+          id: 'w2',
+          spelling: 'banana',
+          phonetic: 'bəˈnænə',
+          meanings: ['香蕉'],
+          examples: [],
         },
-        {
-          word: {
-            id: 'w2',
-            spelling: 'banana',
-            phonetic: 'bəˈnænə',
-            meanings: ['香蕉'],
-            examples: [],
-          },
-          score: 60,
-          accuracy: 0.7,
-          reviewCount: 5,
-          masteryLevel: 2,
-          lastReviewDate: '2024-01-14',
-          nextReviewDate: '2024-01-18',
-          state: 'learning',
-        },
-      ],
-      pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
-    }),
+        score: 60,
+        accuracy: 0.7,
+        reviewCount: 5,
+        masteryLevel: 2,
+        lastReviewDate: '2024-01-14',
+        nextReviewDate: '2024-01-18',
+        state: 'learning',
+      },
+    ],
+    pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
+  };
+
+  const mockLearningData = {
+    user: { id: 'u1', email: 'test@test.com', username: 'testuser' },
+    totalRecords: 100,
+    correctRecords: 85,
+    averageAccuracy: 0.85,
+    totalWordsLearned: 100,
+    recentRecords: [],
+  };
+
+  const mockApiClient = {
+    adminGetUserStatistics: vi.fn().mockResolvedValue(mockStatisticsData),
+    adminGetUserWords: vi.fn().mockResolvedValue(mockWordsData),
     adminExportUserWords: vi.fn().mockResolvedValue(undefined),
-  },
-}));
+    adminGetUserLearningData: vi.fn().mockResolvedValue(mockLearningData),
+    setOnUnauthorized: vi.fn(),
+  };
+
+  return {
+    ...actual,
+    default: mockApiClient,
+    apiClient: mockApiClient,
+  };
+});
 
 // Mock useToast hook
 vi.mock('@/components/ui', () => ({
@@ -149,12 +151,15 @@ vi.mock('@/components/admin/AMASDecisionsTab', () => ({
 }));
 
 const renderWithRouter = () => {
+  const queryClient = createTestQueryClient();
   return render(
-    <MemoryRouter initialEntries={['/admin/users/u1']}>
-      <Routes>
-        <Route path="/admin/users/:userId" element={<UserDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/admin/users/u1']}>
+        <Routes>
+          <Route path="/admin/users/:userId" element={<UserDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 };
 
@@ -266,7 +271,7 @@ describe('UserDetailPage', () => {
 
   describe('export functionality', () => {
     it('should call export API when export button clicked', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       renderWithRouter();
 
       await waitFor(
@@ -288,7 +293,7 @@ describe('UserDetailPage', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUserStatistics).mockRejectedValue(new Error('网络错误'));
 
       renderWithRouter();
@@ -307,7 +312,7 @@ describe('UserDetailPage', () => {
   describe('navigation', () => {
     it('should render back button', async () => {
       // 重新设置正确的 mock（因为上一个测试修改了它）
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetUserStatistics).mockResolvedValue({
         user: {
           id: 'u1',
@@ -317,17 +322,11 @@ describe('UserDetailPage', () => {
           createdAt: '2024-01-01',
         },
         totalWordsLearned: 100,
-        masteredWords: 50,
-        learningWords: 30,
-        newWords: 20,
-        totalRecords: 500,
         accuracy: 85,
         averageScore: 78.5,
-        avgResponseTime: 2500,
         studyDays: 30,
         consecutiveDays: 7,
         totalStudyTime: 120,
-        lastActiveAt: '2024-01-15',
         masteryDistribution: {
           level0: 10,
           level1: 15,

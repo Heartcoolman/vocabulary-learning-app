@@ -85,7 +85,7 @@ const mockIntervention = {
   actions: ['可以挑战更高难度的单词'],
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getCurrentTrend: vi.fn(),
     getTrendReport: vi.fn(),
@@ -104,7 +104,7 @@ vi.mock('../../components/LineChart', () => ({
   default: () => <div data-testid="line-chart">LineChart</div>,
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('TrendReportPage', () => {
   beforeEach(() => {

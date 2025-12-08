@@ -1,7 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Lightning, Coffee } from '@phosphor-icons/react';
-import ApiClient from '../services/ApiClient';
+import ApiClient from '../services/client';
 import { useToast } from './ui';
 import { uiLogger } from '../utils/logger';
 
@@ -96,60 +95,49 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
         )}
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* 背景遮罩 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 z-40"
-              aria-hidden="true"
-            />
+      {isOpen && (
+        <>
+          {/* 背景遮罩 */}
+          <div
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-40 animate-g3-fade-in"
+            aria-hidden="true"
+          />
 
-            {/* 选择器面板 */}
-            <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-0 top-full z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
-            >
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">选择学习模式</h3>
+          {/* 选择器面板 */}
+          <div className="absolute left-0 top-full z-50 mt-2 w-80 animate-g3-scale-in rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">选择学习模式</h3>
 
-              <div className="space-y-2">
-                {modes.map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => handleModeChange(mode.id)}
-                    disabled={isLoading}
-                    className={`w-full rounded-lg p-3 text-left transition-all ${
-                      currentMode === mode.id
-                        ? 'border-2 border-blue-500 bg-blue-50 shadow-sm'
-                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
-                    } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  >
-                    <div className="mb-1 flex items-center gap-2">
-                      {MODE_ICONS[mode.id]}
-                      <span className="font-semibold text-gray-900">{mode.name}</span>
-                      {currentMode === mode.id && (
-                        <span className="ml-auto text-xs font-medium text-blue-600">当前</span>
-                      )}
-                    </div>
-                    <div className="pl-7 text-sm text-gray-600">{mode.description}</div>
-                  </button>
-                ))}
-              </div>
+            <div className="space-y-2">
+              {modes.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => handleModeChange(mode.id)}
+                  disabled={isLoading}
+                  className={`w-full rounded-lg p-3 text-left transition-all ${
+                    currentMode === mode.id
+                      ? 'border-2 border-blue-500 bg-blue-50 shadow-sm'
+                      : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                  } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                >
+                  <div className="mb-1 flex items-center gap-2">
+                    {MODE_ICONS[mode.id]}
+                    <span className="font-semibold text-gray-900">{mode.name}</span>
+                    {currentMode === mode.id && (
+                      <span className="ml-auto text-xs font-medium text-blue-600">当前</span>
+                    )}
+                  </div>
+                  <div className="pl-7 text-sm text-gray-600">{mode.description}</div>
+                </button>
+              ))}
+            </div>
 
-              {isLoading && (
-                <div className="mt-3 text-center text-sm text-gray-500">正在切换模式...</div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            {isLoading && (
+              <div className="mt-3 text-center text-sm text-gray-500">正在切换模式...</div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

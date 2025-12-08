@@ -17,7 +17,8 @@ import {
   close as sentryClose,
 } from './config/sentry';
 
-const PORT = parseInt(env.PORT, 10);
+// env.PORT 已在 env.ts 中转换为 number 类型
+const PORT = env.PORT;
 
 // 保存worker引用，用于优雅关闭
 let delayedRewardWorkerTask: ScheduledTask | null = null;

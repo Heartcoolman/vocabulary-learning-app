@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import StudyProgressPage from '../StudyProgressPage';
 
 // Mock useAuth hook
@@ -19,17 +19,37 @@ vi.mock('@/contexts/AuthContext', () => ({
 const mockProgress = {
   todayStudied: 25,
   todayTarget: 50,
+  totalStudied: 500,
   totalMastered: 150,
   totalWords: 500,
   correctRate: 85,
   streakDays: 7,
+  weeklyTrend: [10, 20, 15, 25, 30, 20, 25],
 };
 
 const mockRefresh = vi.fn();
+const mockRefetch = vi.fn().mockResolvedValue({ data: mockProgress });
 
-vi.mock('@/hooks/useStudyProgress', () => ({
-  useStudyProgress: vi.fn(() => ({
+// Mock the correct hook from queries folder
+vi.mock('@/hooks/queries/useStudyProgress', () => ({
+  useStudyProgressWithRefresh: vi.fn(() => ({
     progress: mockProgress,
+    loading: false,
+    error: null,
+    refresh: mockRefetch,
+  })),
+  useStudyProgress: vi.fn(() => ({
+    data: mockProgress,
+    isLoading: false,
+    error: null,
+    refetch: mockRefetch,
+  })),
+}));
+
+// Mock useExtendedProgress hook
+vi.mock('@/hooks/useExtendedProgress', () => ({
+  useExtendedProgress: vi.fn(() => ({
+    progress: null,
     loading: false,
     error: null,
     refresh: mockRefresh,
@@ -47,22 +67,36 @@ vi.mock('@/components/dashboard/ProgressOverviewCard', () => ({
   ),
 }));
 
-vi.mock('@/components/Icon', async () => {
-  const actual = await vi.importActual('@/components/Icon');
-  return {
-    ...actual,
-    CircleNotch: ({ className }: { className: string }) => (
-      <span data-testid="loading-spinner" className={className}>
-        Loading
-      </span>
-    ),
-  };
-});
-
-vi.mock('lucide-react', () => ({
-  TrendingUp: () => <span data-testid="trending-up">📈</span>,
+vi.mock('@/components/Icon', () => ({
+  CircleNotch: ({ className }: { className?: string }) => (
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
+  ),
+  TrendUp: () => <span data-testid="trend-up">📈</span>,
   Activity: () => <span data-testid="activity">📊</span>,
-  AlertCircle: () => <span data-testid="alert-circle">⚠️</span>,
+  WarningCircle: () => <span data-testid="warning-circle">⚠️</span>,
+  Calendar: () => <span data-testid="calendar">📅</span>,
+  Fire: () => <span data-testid="fire">🔥</span>,
+  Confetti: () => <span data-testid="confetti">🎉</span>,
+  Lightning: () => <span data-testid="lightning">⚡</span>,
+}));
+
+// Mock other components that might be used
+vi.mock('@/components/progress/MilestoneCard', () => ({
+  MilestoneCard: () => <div data-testid="milestone-card">Milestone</div>,
+}));
+
+vi.mock('@/components/progress/GoalTracker', () => ({
+  GoalTracker: () => <div data-testid="goal-tracker">Goal Tracker</div>,
+}));
+
+vi.mock('@/components/progress/MasteryDistributionChart', () => ({
+  MasteryDistributionChart: () => <div data-testid="mastery-chart">Mastery Chart</div>,
+}));
+
+vi.mock('@/components/LineChart', () => ({
+  default: () => <div data-testid="line-chart">Line Chart</div>,
 }));
 
 describe('StudyProgressPage', () => {
@@ -71,31 +105,71 @@ describe('StudyProgressPage', () => {
   });
 
   describe('rendering', () => {
-    it('should render page title', () => {
+    it('should render page title', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       expect(screen.getByText('学习进度')).toBeInTheDocument();
     });
 
-    it('should render subtitle', () => {
+    it('should render subtitle', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       expect(screen.getByText('追踪你的词汇掌握进程')).toBeInTheDocument();
     });
 
-    it('should render ProgressOverviewCard', () => {
+    it('should render ProgressOverviewCard', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       expect(screen.getByTestId('progress-overview-card')).toBeInTheDocument();
     });
 
-    it('should render 7-day activity section', () => {
+    it('should render 7-day activity section', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       expect(screen.getByText('7日学习活动')).toBeInTheDocument();
     });
 
-    it('should render learning efficiency section', () => {
+    it('should render learning efficiency section', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       expect(screen.getByText('学习效率')).toBeInTheDocument();
@@ -104,12 +178,12 @@ describe('StudyProgressPage', () => {
 
   describe('loading state', () => {
     it('should show loading spinner when loading', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: null,
         loading: true,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -121,12 +195,12 @@ describe('StudyProgressPage', () => {
 
   describe('error state', () => {
     it('should show error message when error occurs', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: null,
         loading: false,
         error: '网络错误',
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -136,12 +210,12 @@ describe('StudyProgressPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: null,
         loading: false,
         error: '加载失败',
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -150,12 +224,13 @@ describe('StudyProgressPage', () => {
     });
 
     it('should call refresh when retry clicked', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const mockRefreshFn = vi.fn();
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: null,
         loading: false,
         error: '加载失败',
-        refresh: mockRefresh,
+        refresh: mockRefreshFn,
       });
 
       render(<StudyProgressPage />);
@@ -163,18 +238,18 @@ describe('StudyProgressPage', () => {
       const retryButton = screen.getByText('重试');
       fireEvent.click(retryButton);
 
-      expect(mockRefresh).toHaveBeenCalled();
+      expect(mockRefreshFn).toHaveBeenCalled();
     });
   });
 
   describe('progress display', () => {
     it('should display correct rate', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: mockProgress,
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -184,12 +259,12 @@ describe('StudyProgressPage', () => {
     });
 
     it('should display today completion', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: mockProgress,
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -199,12 +274,12 @@ describe('StudyProgressPage', () => {
     });
 
     it('should show excellent performance message for high accuracy', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: { ...mockProgress, correctRate: 90 },
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -213,12 +288,12 @@ describe('StudyProgressPage', () => {
     });
 
     it('should show encouragement for medium accuracy', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: { ...mockProgress, correctRate: 70 },
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -227,12 +302,12 @@ describe('StudyProgressPage', () => {
     });
 
     it('should show suggestion for low accuracy', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: { ...mockProgress, correctRate: 50 },
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -242,7 +317,15 @@ describe('StudyProgressPage', () => {
   });
 
   describe('weekly trend', () => {
-    it('should render 7 day bars', () => {
+    it('should render 7 day bars', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
@@ -251,7 +334,15 @@ describe('StudyProgressPage', () => {
       });
     });
 
-    it('should render day labels correctly', () => {
+    it('should render day labels correctly', async () => {
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
+        progress: mockProgress,
+        loading: false,
+        error: null,
+        refresh: mockRefetch,
+      });
+
       render(<StudyProgressPage />);
 
       // 测试7日学习活动部分的日期标签
@@ -261,12 +352,12 @@ describe('StudyProgressPage', () => {
 
   describe('null progress handling', () => {
     it('should handle null progress gracefully', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: null,
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);
@@ -277,12 +368,12 @@ describe('StudyProgressPage', () => {
 
   describe('zero target handling', () => {
     it('should handle zero target gracefully', async () => {
-      const { useStudyProgress } = await import('@/hooks/useStudyProgress');
-      vi.mocked(useStudyProgress).mockReturnValue({
+      const { useStudyProgressWithRefresh } = await import('@/hooks/queries/useStudyProgress');
+      vi.mocked(useStudyProgressWithRefresh).mockReturnValue({
         progress: { ...mockProgress, todayTarget: 0 },
         loading: false,
         error: null,
-        refresh: mockRefresh,
+        refresh: mockRefetch,
       });
 
       render(<StudyProgressPage />);

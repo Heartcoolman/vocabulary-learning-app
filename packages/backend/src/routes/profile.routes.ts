@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import {
   getChronotypeProfile,
@@ -6,13 +6,13 @@ import {
   InsufficientDataError,
   AnalysisError,
 } from '../services/cognitive-profiling.service';
+import { AuthRequest } from '@danci/shared/types';
 
 const router = Router();
 
-const extractUserId = (req: Request) =>
-  (req as any).user?.id || (req as any).user?.userId || (req as any).user?._id;
+const extractUserId = (req: AuthRequest) => req.user?.id;
 
-const handleError = (res: Response, err: any) => {
+const handleError = (res: Response, err: unknown) => {
   if (err instanceof InsufficientDataError) {
     res.status(400).json({
       success: false,
@@ -33,7 +33,7 @@ router.get('/chronotype', authMiddleware, async (req, res) => {
   try {
     const profile = await getChronotypeProfile(userId);
     res.json({ success: true, data: profile });
-  } catch (err: any) {
+  } catch (err: unknown) {
     handleError(res, err);
   }
 });
@@ -44,7 +44,7 @@ router.get('/learning-style', authMiddleware, async (req, res) => {
   try {
     const profile = await getLearningStyleProfile(userId);
     res.json({ success: true, data: profile });
-  } catch (err: any) {
+  } catch (err: unknown) {
     handleError(res, err);
   }
 });
@@ -62,7 +62,7 @@ router.get('/cognitive', authMiddleware, async (req, res) => {
       success: true,
       data: { chronotype, learningStyle },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     handleError(res, err);
   }
 });

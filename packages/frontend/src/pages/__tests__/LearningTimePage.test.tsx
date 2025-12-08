@@ -34,7 +34,7 @@ const mockGoldenTime = {
   matchedSlot: { hour: 9, score: 0.85, confidence: 0.9 },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getTimePreferences: vi.fn(),
     getGoldenTime: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('../../types/amas-enhanced', () => ({
   isInsufficientData: vi.fn((data) => data && data.minRequired !== undefined),
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('LearningTimePage', () => {
   beforeEach(() => {

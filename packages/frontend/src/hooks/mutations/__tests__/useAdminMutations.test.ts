@@ -13,16 +13,16 @@ import {
   useBatchAddWords,
   useBatchDeleteUsers,
 } from '../useAdminMutations';
-import apiClient from '../../../services/ApiClient';
+import { adminClient } from '../../../services/client';
 
-// Mock API Client
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
-    adminCreateSystemWordBook: vi.fn(),
-    adminUpdateSystemWordBook: vi.fn(),
-    adminDeleteSystemWordBook: vi.fn(),
-    adminBatchAddWordsToSystemWordBook: vi.fn(),
-    adminDeleteUser: vi.fn(),
+// Mock Admin Client
+vi.mock('../../../services/client', () => ({
+  adminClient: {
+    createSystemWordBook: vi.fn(),
+    updateSystemWordBook: vi.fn(),
+    deleteSystemWordBook: vi.fn(),
+    batchAddWordsToSystemWordBook: vi.fn(),
+    deleteUser: vi.fn(),
   },
 }));
 
@@ -65,7 +65,7 @@ describe('useCreateSystemWordBook', () => {
       updatedAt: Date.now(),
     };
 
-    vi.mocked(apiClient.adminCreateSystemWordBook).mockResolvedValueOnce(mockWordBook);
+    vi.mocked(adminClient.createSystemWordBook).mockResolvedValueOnce(mockWordBook);
 
     const queryClient = createTestQueryClient();
     const { result } = renderHook(() => useCreateSystemWordBook(), {
@@ -82,7 +82,7 @@ describe('useCreateSystemWordBook', () => {
     });
 
     expect(result.current.data).toEqual(mockWordBook);
-    expect(apiClient.adminCreateSystemWordBook).toHaveBeenCalledWith({
+    expect(adminClient.createSystemWordBook).toHaveBeenCalledWith({
       name: 'CET-4',
       description: '大学英语四级词汇',
     });
@@ -90,7 +90,7 @@ describe('useCreateSystemWordBook', () => {
 
   it('应该处理创建失败的情况', async () => {
     const error = new Error('创建失败');
-    vi.mocked(apiClient.adminCreateSystemWordBook).mockRejectedValueOnce(error);
+    vi.mocked(adminClient.createSystemWordBook).mockRejectedValueOnce(error);
 
     const queryClient = createTestQueryClient();
     const { result } = renderHook(() => useCreateSystemWordBook(), {
@@ -126,7 +126,7 @@ describe('useUpdateSystemWordBook', () => {
       updatedAt: Date.now(),
     };
 
-    vi.mocked(apiClient.adminUpdateSystemWordBook).mockResolvedValueOnce(mockWordBook);
+    vi.mocked(adminClient.updateSystemWordBook).mockResolvedValueOnce(mockWordBook);
 
     const queryClient = createTestQueryClient();
     const { result } = renderHook(() => useUpdateSystemWordBook(), {
@@ -144,7 +144,7 @@ describe('useUpdateSystemWordBook', () => {
     });
 
     expect(result.current.data).toEqual(mockWordBook);
-    expect(apiClient.adminUpdateSystemWordBook).toHaveBeenCalledWith('wordbook-1', {
+    expect(adminClient.updateSystemWordBook).toHaveBeenCalledWith('wordbook-1', {
       name: '新名称',
       description: '新描述',
     });
@@ -157,7 +157,7 @@ describe('useDeleteSystemWordBook', () => {
   });
 
   it('应该成功删除系统词库', async () => {
-    vi.mocked(apiClient.adminDeleteSystemWordBook).mockResolvedValueOnce(undefined);
+    vi.mocked(adminClient.deleteSystemWordBook).mockResolvedValueOnce(undefined);
 
     const queryClient = createTestQueryClient();
     const { result } = renderHook(() => useDeleteSystemWordBook(), {
@@ -170,7 +170,7 @@ describe('useDeleteSystemWordBook', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(apiClient.adminDeleteSystemWordBook).toHaveBeenCalledWith('wordbook-1');
+    expect(adminClient.deleteSystemWordBook).toHaveBeenCalledWith('wordbook-1');
   });
 });
 
@@ -192,14 +192,9 @@ describe('useBatchAddWords', () => {
       },
     ];
 
-    const mockResult = {
-      count: 1,
-      words: mockWords,
-    };
-
-    vi.mocked(apiClient.adminBatchAddWordsToSystemWordBook).mockResolvedValueOnce(
-      mockResult,
-    );
+    // adminClient.batchAddWordsToSystemWordBook 返回 Word[]
+    // hook 内部转换为 { count: result.length, words: result }
+    vi.mocked(adminClient.batchAddWordsToSystemWordBook).mockResolvedValueOnce(mockWords);
 
     const queryClient = createTestQueryClient();
     const { result } = renderHook(() => useBatchAddWords(), {
@@ -225,10 +220,7 @@ describe('useBatchAddWords', () => {
     });
 
     expect(result.current.data?.count).toBe(1);
-    expect(apiClient.adminBatchAddWordsToSystemWordBook).toHaveBeenCalledWith(
-      'wordbook-1',
-      words,
-    );
+    expect(adminClient.batchAddWordsToSystemWordBook).toHaveBeenCalledWith('wordbook-1', words);
   });
 });
 
@@ -238,7 +230,7 @@ describe('useBatchDeleteUsers', () => {
   });
 
   it('应该成功批量删除用户', async () => {
-    vi.mocked(apiClient.adminDeleteUser)
+    vi.mocked(adminClient.deleteUser)
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined);
 
@@ -260,7 +252,7 @@ describe('useBatchDeleteUsers', () => {
   });
 
   it('应该处理部分失败的情况', async () => {
-    vi.mocked(apiClient.adminDeleteUser)
+    vi.mocked(adminClient.deleteUser)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('删除失败'));
 
@@ -283,7 +275,7 @@ describe('useBatchDeleteUsers', () => {
   });
 
   it('应该处理全部失败的情况', async () => {
-    vi.mocked(apiClient.adminDeleteUser)
+    vi.mocked(adminClient.deleteUser)
       .mockRejectedValueOnce(new Error('删除失败'))
       .mockRejectedValueOnce(new Error('删除失败'));
 

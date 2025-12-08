@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
-import ApiClient from '../services/ApiClient';
+import ApiClient from '../services/client';
 import { MagnifyingGlass, Compass, CheckCircle, Question } from './Icon';
 import { amasLogger } from '../utils/logger';
 
@@ -14,8 +14,9 @@ interface AmasStatusProps {
 /**
  * AMAS状态组件 - 显示用户学习状态和冷启动阶段
  * 符合ui-design-system.md设计规范
+ * 使用 React.memo 优化：仅当 props 变化时重新渲染
  */
-export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: AmasStatusProps) {
+function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatusProps) {
   const [state, setState] = useState<UserState | null>(null);
   const [phase, setPhase] = useState<ColdStartPhaseInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,3 +287,9 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
     </div>
   );
 }
+
+// AmasStatus 使用默认浅比较
+// props 仅包含简单类型: detailed (boolean) 和 refreshTrigger (number)
+const AmasStatus = memo(AmasStatusComponent);
+
+export default AmasStatus;

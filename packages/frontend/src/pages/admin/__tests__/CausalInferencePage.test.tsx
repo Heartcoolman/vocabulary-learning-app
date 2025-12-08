@@ -30,7 +30,7 @@ vi.mock('../../../components/ui', () => ({
 }));
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getCausalATE: mockGetCausalATE,
     getCausalDiagnostics: mockGetCausalDiagnostics,

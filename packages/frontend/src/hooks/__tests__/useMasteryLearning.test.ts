@@ -8,21 +8,25 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 
-// Mock API client - must be defined inside factory due to hoisting
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock the mastery module functions that useMasteryLearning imports
+vi.mock('../mastery', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../mastery')>();
+  return {
+    ...original,
     getMasteryStudyWords: vi.fn(),
-    processLearningEvent: vi.fn(),
     createMasterySession: vi.fn(),
-  },
-}));
+    processLearningEvent: vi.fn(),
+    endHabitSession: vi.fn(),
+  };
+});
 
 // Import the mocked module to get reference
-import apiClient from '../../services/ApiClient';
-const mockApiClient = apiClient as {
+import * as masteryModule from '../mastery';
+const mockMasteryModule = masteryModule as unknown as {
   getMasteryStudyWords: ReturnType<typeof vi.fn>;
-  processLearningEvent: ReturnType<typeof vi.fn>;
   createMasterySession: ReturnType<typeof vi.fn>;
+  processLearningEvent: ReturnType<typeof vi.fn>;
+  endHabitSession: ReturnType<typeof vi.fn>;
 };
 
 // Mock localStorage
@@ -94,7 +98,7 @@ describe('useMasteryLearning', () => {
     mockLocalStorage.getItem.mockReturnValue(null);
 
     // Mock getMasteryStudyWords - must match expected response structure
-    mockApiClient.getMasteryStudyWords.mockResolvedValue({
+    mockMasteryModule.getMasteryStudyWords.mockResolvedValue({
       words: mockWords,
       meta: {
         targetCount: 20,
@@ -104,14 +108,16 @@ describe('useMasteryLearning', () => {
     });
 
     // Mock createMasterySession
-    mockApiClient.createMasterySession.mockResolvedValue({
+    mockMasteryModule.createMasterySession.mockResolvedValue({
       sessionId: 'session-123',
     });
 
-    mockApiClient.processLearningEvent.mockResolvedValue({
+    mockMasteryModule.processLearningEvent.mockResolvedValue({
       strategy: { interval_scale: 1.0, difficulty: 'mid' },
       trace: { confidence: 0.8 },
     });
+
+    mockMasteryModule.endHabitSession.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -131,7 +137,7 @@ describe('useMasteryLearning', () => {
       const { result } = renderHook(() => useMasteryLearning());
 
       await waitFor(() => {
-        expect(mockApiClient.getMasteryStudyWords).toHaveBeenCalled();
+        expect(mockMasteryModule.getMasteryStudyWords).toHaveBeenCalled();
       });
     });
 
@@ -176,7 +182,7 @@ describe('useMasteryLearning', () => {
           await result.current.submitAnswer(true, 2500);
         });
 
-        expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith(
+        expect(mockMasteryModule.processLearningEvent).toHaveBeenCalledWith(
           expect.objectContaining({
             isCorrect: true,
             responseTime: 2500, // Implementation uses responseTime, not responseTimeMs
@@ -198,7 +204,7 @@ describe('useMasteryLearning', () => {
           await result.current.submitAnswer(false, 5000);
         });
 
-        expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith(
+        expect(mockMasteryModule.processLearningEvent).toHaveBeenCalledWith(
           expect.objectContaining({
             isCorrect: false,
             responseTime: 5000, // Implementation uses responseTime, not responseTimeMs
@@ -378,7 +384,7 @@ describe('useMasteryLearning', () => {
 
   describe('error handling', () => {
     it('should handle API error gracefully', async () => {
-      mockApiClient.getMasteryStudyWords.mockRejectedValueOnce(new Error('Network error'));
+      mockMasteryModule.getMasteryStudyWords.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useMasteryLearning());
 
@@ -388,7 +394,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should handle answer submission error', async () => {
-      mockApiClient.processLearningEvent.mockRejectedValueOnce(new Error('Server error'));
+      mockMasteryModule.processLearningEvent.mockRejectedValueOnce(new Error('Server error'));
 
       const { result } = renderHook(() => useMasteryLearning());
 

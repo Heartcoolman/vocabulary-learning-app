@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Database, Pulse, ArrowRight } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import StorageService from '../services/StorageService';
 import { useToast, ConfirmModal } from '../components/ui';
 

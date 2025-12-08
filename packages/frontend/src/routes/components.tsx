@@ -9,16 +9,19 @@ export const PageLoader = () => (
   </div>
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyProps = any;
+
 /**
  * 懒加载包装器 - 自动添加 Suspense
  */
-export function lazyLoad<T extends ComponentType<unknown>>(
+export function lazyLoad<T extends ComponentType<AnyProps>>(
   importFn: () => Promise<{ default: T }>,
 ): ReactNode {
   const LazyComponent = lazy(importFn);
   return (
     <Suspense fallback={<PageLoader />}>
-      <LazyComponent />
+      <LazyComponent {...({} as AnyProps)} />
     </Suspense>
   );
 }
@@ -26,14 +29,14 @@ export function lazyLoad<T extends ComponentType<unknown>>(
 /**
  * 创建懒加载组件的工厂函数
  */
-export function createLazyComponent<T extends ComponentType<unknown>>(
+export function createLazyComponent<T extends ComponentType<AnyProps>>(
   importFn: () => Promise<{ default: T }>,
 ) {
   const LazyComponent = lazy(importFn);
   return function LazyWrapper(props: Record<string, unknown>) {
     return (
       <Suspense fallback={<PageLoader />}>
-        <LazyComponent {...props} />
+        <LazyComponent {...(props as AnyProps)} />
       </Suspense>
     );
   };

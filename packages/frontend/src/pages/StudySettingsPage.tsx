@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import { WordBook } from '../types/models';
 import { CircleNotch } from '../components/Icon';
 import { useToast } from '../components/ui';

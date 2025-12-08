@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import apiClient, { User } from '../../services/ApiClient';
+import apiClient, { User } from '../../services/client';
 import {
   ChartBar,
   UsersThree,

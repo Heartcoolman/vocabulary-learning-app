@@ -6,10 +6,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExportData, ExportDataParams } from '../useExportData';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 
 // Mock API Client
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getWords: vi.fn(),
     getRecords: vi.fn(),

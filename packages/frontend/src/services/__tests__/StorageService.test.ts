@@ -11,8 +11,8 @@ import type {
   WordState,
 } from '../../types/models';
 
-// Mock ApiClient
-vi.mock('../ApiClient', () => ({
+// Mock client
+vi.mock('../client', () => ({
   default: {
     getToken: vi.fn(),
     getWords: vi.fn(),
@@ -47,7 +47,7 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 // Import after mocking
-import ApiClient from '../ApiClient';
+import ApiClient from '../client';
 
 // We need to reset the module to get a fresh instance for each test
 const getStorageService = async () => {
@@ -765,6 +765,7 @@ describe('StorageService', () => {
         const StorageService = await getStorageService();
         const mockRecord: AnswerRecord = {
           id: 'record-1',
+          userId: 'user-1',
           wordId: 'word-1',
           selectedAnswer: '你好',
           correctAnswer: '你好',
@@ -772,6 +773,8 @@ describe('StorageService', () => {
           timestamp: Date.now(),
           responseTime: 2000,
           dwellTime: 5000,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
@@ -795,19 +798,25 @@ describe('StorageService', () => {
         const mockRecords: AnswerRecord[] = [
           {
             id: 'record-1',
+            userId: 'user-1',
             wordId: 'word-1',
             selectedAnswer: '你好',
             correctAnswer: '你好',
             isCorrect: true,
             timestamp: Date.now() - 86400000,
+            createdAt: Date.now() - 86400000,
+            updatedAt: Date.now() - 86400000,
           },
           {
             id: 'record-2',
+            userId: 'user-1',
             wordId: 'word-1',
             selectedAnswer: '再见',
             correctAnswer: '你好',
             isCorrect: false,
             timestamp: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           },
         ];
 
@@ -841,6 +850,7 @@ describe('StorageService', () => {
         const StorageService = await getStorageService();
         const mockRecord: AnswerRecord = {
           id: 'record-1',
+          userId: 'user-1',
           wordId: 'word-1',
           selectedAnswer: '你好',
           correctAnswer: '你好',
@@ -851,6 +861,8 @@ describe('StorageService', () => {
           sessionId: 'session-1',
           masteryLevelBefore: 2,
           masteryLevelAfter: 3,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
@@ -911,27 +923,36 @@ describe('StorageService', () => {
         const mockRecords: AnswerRecord[] = [
           {
             id: 'r1',
+            userId: 'user-1',
             wordId: 'word-1',
             selectedAnswer: 'a',
             correctAnswer: 'a',
             isCorrect: true,
             timestamp: Date.now() - 100000,
+            createdAt: Date.now() - 100000,
+            updatedAt: Date.now() - 100000,
           },
           {
             id: 'r2',
+            userId: 'user-1',
             wordId: 'word-1',
             selectedAnswer: 'a',
             correctAnswer: 'a',
             isCorrect: true,
             timestamp: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           },
           {
             id: 'r3',
+            userId: 'user-1',
             wordId: 'word-2',
             selectedAnswer: 'b',
             correctAnswer: 'a',
             isCorrect: false,
             timestamp: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           },
         ];
 
@@ -1183,9 +1204,47 @@ describe('StorageService', () => {
         const configUpdate = {
           consecutiveCorrectThreshold: 6,
         };
+        const mockUpdatedConfig = {
+          id: 'config-1',
+          name: 'Default',
+          description: 'Default configuration',
+          reviewIntervals: [1, 3, 7, 14, 30],
+          consecutiveCorrectThreshold: 6,
+          consecutiveWrongThreshold: 3,
+          difficultyAdjustmentInterval: 1,
+          priorityWeights: {
+            newWord: 0.3,
+            errorRate: 0.3,
+            overdueTime: 0.2,
+            wordScore: 0.2,
+          },
+          masteryThresholds: [],
+          scoreWeights: {
+            accuracy: 0.4,
+            speed: 0.2,
+            stability: 0.2,
+            proficiency: 0.2,
+          },
+          speedThresholds: {
+            excellent: 3000,
+            good: 5000,
+            average: 10000,
+            slow: 15000,
+          },
+          newWordRatio: {
+            default: 0.3,
+            highAccuracy: 0.5,
+            lowAccuracy: 0.1,
+            highAccuracyThreshold: 0.85,
+            lowAccuracyThreshold: 0.65,
+          },
+          isDefault: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
-        vi.mocked(ApiClient.updateAlgorithmConfig).mockResolvedValue(undefined);
+        vi.mocked(ApiClient.updateAlgorithmConfig).mockResolvedValue(mockUpdatedConfig);
 
         await StorageService.updateAlgorithmConfig('config-1', configUpdate, 'Testing update');
 
@@ -1200,9 +1259,47 @@ describe('StorageService', () => {
     describe('resetAlgorithmConfig', () => {
       it('should reset algorithm config via API', async () => {
         const StorageService = await getStorageService();
+        const mockResetConfig = {
+          id: 'config-1',
+          name: 'Default',
+          description: 'Default configuration',
+          reviewIntervals: [1, 3, 7, 14, 30],
+          consecutiveCorrectThreshold: 5,
+          consecutiveWrongThreshold: 3,
+          difficultyAdjustmentInterval: 1,
+          priorityWeights: {
+            newWord: 0.3,
+            errorRate: 0.3,
+            overdueTime: 0.2,
+            wordScore: 0.2,
+          },
+          masteryThresholds: [],
+          scoreWeights: {
+            accuracy: 0.4,
+            speed: 0.2,
+            stability: 0.2,
+            proficiency: 0.2,
+          },
+          speedThresholds: {
+            excellent: 3000,
+            good: 5000,
+            average: 10000,
+            slow: 15000,
+          },
+          newWordRatio: {
+            default: 0.3,
+            highAccuracy: 0.5,
+            lowAccuracy: 0.1,
+            highAccuracyThreshold: 0.85,
+            lowAccuracyThreshold: 0.65,
+          },
+          isDefault: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
 
         vi.mocked(ApiClient.getToken).mockReturnValue('mock-token');
-        vi.mocked(ApiClient.resetAlgorithmConfig).mockResolvedValue(undefined);
+        vi.mocked(ApiClient.resetAlgorithmConfig).mockResolvedValue(mockResetConfig);
 
         await StorageService.resetAlgorithmConfig('config-1');
 
@@ -1222,6 +1319,8 @@ describe('StorageService', () => {
             previousValue: {},
             newValue: {},
             timestamp: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           },
         ];
 

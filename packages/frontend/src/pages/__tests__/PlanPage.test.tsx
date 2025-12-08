@@ -37,7 +37,7 @@ const mockProgress = {
   status: 'on_track',
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getLearningPlan: vi.fn(),
     getPlanProgress: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('../../utils/errorHandler', () => ({
   handleError: vi.fn((err) => err.message || '发生错误'),
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('PlanPage', () => {
   beforeEach(() => {

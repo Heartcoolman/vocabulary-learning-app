@@ -29,6 +29,30 @@ vi.mock('../Icon', () => ({
   SpeakerHigh: () => <span data-testid="speaker">🔊</span>,
 }));
 
+// Mock TrackingService
+vi.mock('../../services/TrackingService', () => ({
+  trackingService: {
+    trackPronunciationClick: vi.fn(),
+    trackLearningPause: vi.fn(),
+    trackLearningResume: vi.fn(),
+    trackPageSwitch: vi.fn(),
+    trackTaskSwitch: vi.fn(),
+    trackInteraction: vi.fn(),
+    startSession: vi.fn(),
+    endSession: vi.fn(),
+    getStats: vi.fn(() => ({
+      pronunciationClicks: 0,
+      pauseCount: 0,
+      resumeCount: 0,
+      pageSwitchCount: 0,
+      taskSwitchCount: 0,
+      totalInteractions: 0,
+      sessionDuration: 0,
+      lastActivityTime: 0,
+    })),
+  },
+}));
+
 const mockWord = {
   id: 'test-word-1',
   spelling: 'hello',

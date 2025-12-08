@@ -8,7 +8,7 @@ import {
   AlgorithmConfig,
 } from '../types/models';
 import StorageService from './StorageService';
-import ApiClient from './ApiClient';
+import ApiClient from './client';
 import { SpacedRepetitionService } from './algorithms/SpacedRepetitionService';
 import { WordStateStorage } from './algorithms/WordStateManager';
 import { learningLogger } from '../utils/logger';
@@ -165,7 +165,7 @@ class LearningService {
 
     // 如果提供了用户ID，初始化间隔重复服务（用于答题后的状态更新）
     // 注意：单词排序已由后端完成，前端不再重复排序
-    let selectedWordIds = wordIds;
+    const selectedWordIds = wordIds;
     if (userId) {
       try {
         // 初始化间隔重复服务（用于 submitAnswer 时更新状态）
@@ -201,11 +201,19 @@ class LearningService {
     }
 
     // 创建新会话
+    const now = Date.now();
     this.currentSession = {
       id: this.generateId(),
+      userId: userId || '',
       wordIds: selectedWordIds,
       currentIndex: 0,
-      startTime: Date.now(),
+      startTime: now,
+      endTime: null,
+      wordsStudied: 0,
+      correctCount: 0,
+      totalTime: 0,
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.wordDwellTime = 0;
@@ -294,6 +302,7 @@ class LearningService {
 
     const record: AnswerRecord = {
       id: this.generateId(),
+      userId: userId || '',
       wordId,
       selectedAnswer: answer,
       correctAnswer: word.meanings[0], // 使用第一个释义作为正确答案
@@ -302,6 +311,8 @@ class LearningService {
       responseTime,
       dwellTime,
       sessionId: this.currentSession?.id,
+      createdAt: now,
+      updatedAt: now,
     };
 
     let feedbackInfo = null;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import {
   CircleNotch,
   Warning,
@@ -42,6 +42,40 @@ interface StrategyComparison {
   sampleSize: number;
 }
 
+// API 响应类型（与 AdminClient 返回类型匹配）
+interface CausalATEApiResponse {
+  ate: number;
+  confidence: number;
+  sampleSize: number;
+  // 可选字段：后端可能返回扩展数据
+  standardError?: number;
+  confidenceInterval?: [number, number];
+  effectiveSampleSize?: number;
+  pValue?: number;
+  significant?: boolean;
+}
+
+interface CausalDiagnosticsApiResponse {
+  mean: number;
+  std: number;
+  median: number;
+  treatmentMean: number;
+  controlMean: number;
+  overlap: number;
+  auc: number;
+}
+
+interface StrategyComparisonApiResponse {
+  difference: number;
+  pValue: number;
+  significant: boolean;
+  // 可选字段：后端可能返回扩展数据
+  diff?: number;
+  standardError?: number;
+  confidenceInterval?: [number, number];
+  sampleSize?: number;
+}
+
 export default function CausalInferencePage() {
   const toast = useToast();
 
@@ -78,9 +112,22 @@ export default function CausalInferencePage() {
     try {
       setIsLoadingATE(true);
       setAteError(null);
-      const response = await apiClient.getCausalATE();
+      const response: CausalATEApiResponse = await apiClient.getCausalATE();
       if (response) {
-        setAte(response as any);
+        // 将 API 响应转换为组件期望的 CausalEstimate 格式
+        const causalEstimate: CausalEstimate = {
+          ate: response.ate,
+          standardError: response.standardError ?? response.confidence * 0.5,
+          confidenceInterval: response.confidenceInterval ?? [
+            response.ate - response.confidence,
+            response.ate + response.confidence,
+          ],
+          sampleSize: response.sampleSize,
+          effectiveSampleSize: response.effectiveSampleSize ?? response.sampleSize,
+          pValue: response.pValue ?? 0.05,
+          significant: response.significant ?? response.confidence < 0.1,
+        };
+        setAte(causalEstimate);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载失败';
@@ -96,9 +143,19 @@ export default function CausalInferencePage() {
     try {
       setIsLoadingDiagnostics(true);
       setDiagnosticsError(null);
-      const response = await apiClient.getCausalDiagnostics();
+      const response: CausalDiagnosticsApiResponse = await apiClient.getCausalDiagnostics();
       if (response) {
-        setDiagnostics(response as any);
+        // API 响应与 PropensityDiagnostics 接口完全匹配
+        const diagnosticsData: PropensityDiagnostics = {
+          mean: response.mean,
+          std: response.std,
+          median: response.median,
+          treatmentMean: response.treatmentMean,
+          controlMean: response.controlMean,
+          overlap: response.overlap,
+          auc: response.auc,
+        };
+        setDiagnostics(diagnosticsData);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '加载失败';
@@ -179,17 +236,19 @@ export default function CausalInferencePage() {
       setIsLoadingComparison(true);
       setComparisonError(null);
 
-      const response = await apiClient.compareStrategies(1, 0);
+      const response: StrategyComparisonApiResponse = await apiClient.compareStrategies(1, 0);
       if (response) {
-        // 直接使用响应，属性可能是 difference 或 diff
-        setComparison({
-          diff: (response as any).difference || (response as any).diff || 0,
-          standardError: (response as any).standardError || 0.01,
-          confidenceInterval: (response as any).confidenceInterval || ([0, 0] as [number, number]),
-          pValue: (response as any).pValue || 0,
-          significant: (response as any).significant || false,
-          sampleSize: (response as any).sampleSize || 0,
-        });
+        // 将 API 响应转换为组件期望的 StrategyComparison 格式
+        // 属性可能是 difference 或 diff，优先使用 difference
+        const comparisonData: StrategyComparison = {
+          diff: response.difference ?? response.diff ?? 0,
+          standardError: response.standardError ?? 0.01,
+          confidenceInterval: response.confidenceInterval ?? [0, 0],
+          pValue: response.pValue ?? 0,
+          significant: response.significant ?? false,
+          sampleSize: response.sampleSize ?? 0,
+        };
+        setComparison(comparisonData);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '比较失败';

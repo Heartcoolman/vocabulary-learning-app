@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import apiClient from '../services/ApiClient';
+import { learningClient, amasClient } from '../services/client';
 import {
   WordItem,
   QueueProgress,
@@ -14,6 +14,7 @@ import {
   NextWordResult,
 } from '../services/learning/WordQueueManager';
 import { AmasProcessResult, LearningEventInput, AdjustWordsParams } from '../types/amas';
+import { learningLogger } from '../utils/logger';
 
 // ==================== API Functions ====================
 
@@ -21,21 +22,21 @@ import { AmasProcessResult, LearningEventInput, AdjustWordsParams } from '../typ
  * 获取掌握模式的学习单词
  */
 export async function getMasteryStudyWords(targetCount?: number) {
-  return apiClient.getMasteryStudyWords(targetCount);
+  return learningClient.getMasteryStudyWords(targetCount);
 }
 
 /**
  * 创建掌握学习会话
  */
 export async function createMasterySession(targetMasteryCount: number) {
-  return apiClient.createMasterySession(targetMasteryCount);
+  return learningClient.createMasterySession(targetMasteryCount);
 }
 
 /**
  * 结束学习会话并持久化习惯画像
  */
 export async function endHabitSession(sessionId: string) {
-  return apiClient.endHabitSession(sessionId);
+  return amasClient.endHabitSession(sessionId);
 }
 
 /**
@@ -46,7 +47,7 @@ export async function syncMasteryProgress(data: {
   actualMasteryCount: number;
   totalQuestions: number;
 }) {
-  return apiClient.syncMasteryProgress(data);
+  return learningClient.syncMasteryProgress(data);
 }
 
 /**
@@ -58,21 +59,21 @@ export async function getNextWords(params: {
   sessionId: string;
   count?: number;
 }) {
-  return apiClient.getNextWords(params);
+  return learningClient.getNextWords(params);
 }
 
 /**
  * 动态调整学习单词队列
  */
 export async function adjustLearningWords(params: AdjustWordsParams) {
-  return apiClient.adjustLearningWords(params);
+  return learningClient.adjustLearningWords(params);
 }
 
 /**
  * 处理学习事件
  */
 export async function processLearningEvent(eventData: LearningEventInput) {
-  return apiClient.processLearningEvent(eventData);
+  return amasClient.processLearningEvent(eventData);
 }
 
 // ==================== Session Cache ====================
@@ -102,7 +103,7 @@ export function useSessionCache() {
     try {
       localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(data));
     } catch (e) {
-      console.warn('[SessionCache] Failed to save session to cache:', e);
+      learningLogger.warn({ err: e }, '[SessionCache] Failed to save session to cache');
     }
   }, []);
 
@@ -132,7 +133,7 @@ export function useSessionCache() {
 
         return data;
       } catch (e) {
-        console.warn('[SessionCache] Failed to load session from cache:', e);
+        learningLogger.warn({ err: e }, '[SessionCache] Failed to load session from cache');
         return null;
       }
     },
@@ -143,7 +144,7 @@ export function useSessionCache() {
     try {
       localStorage.removeItem(SESSION_CACHE_KEY);
     } catch (e) {
-      console.warn('[SessionCache] Failed to clear session cache:', e);
+      learningLogger.warn({ err: e }, '[SessionCache] Failed to clear session cache');
     }
   }, []);
 
@@ -189,7 +190,7 @@ export function useRetryQueue() {
       } catch (e) {
         item.retryCount++;
         if (item.retryCount >= item.maxRetries) {
-          console.warn(`[RetryQueue] Max retries reached for item ${item.id}`);
+          learningLogger.warn({ itemId: item.id }, '[RetryQueue] Max retries reached');
           queueRef.current.shift();
         } else {
           // 指数退避
@@ -459,7 +460,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
         syncCounterRef.current++;
         lastSyncTimeRef.current = Date.now();
       } catch (e) {
-        console.error('[MasterySync] Failed to sync answer to server:', e);
+        learningLogger.error({ err: e }, '[MasterySync] Failed to sync answer to server');
         // 添加到重试队列
         retryQueue.addToQueue({
           id: `answer_${params.wordId}_${Date.now()}`,
@@ -517,7 +518,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
           lastAnsweredAt: null,
         }));
       } catch (e) {
-        console.error('[MasterySync] Failed to fetch more words:', e);
+        learningLogger.error({ err: e }, '[MasterySync] Failed to fetch more words');
         return [];
       }
     },
@@ -551,7 +552,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
 
         onQueueAdjusted?.();
       } catch (e) {
-        console.error('[MasterySync] Failed to adjust queue:', e);
+        learningLogger.error({ err: e }, '[MasterySync] Failed to adjust queue');
       }
     },
     [getSessionId, getQueueManager, onQueueAdjusted],
@@ -646,3 +647,6 @@ class AdaptiveQueueManager {
 // ==================== Exports ====================
 
 export type { SessionCacheData, WordQueueConfig, UseWordQueueOptions, UseMasterySyncOptions };
+
+// Re-export WordItem for test compatibility
+export type { WordItem } from '../services/learning/WordQueueManager';

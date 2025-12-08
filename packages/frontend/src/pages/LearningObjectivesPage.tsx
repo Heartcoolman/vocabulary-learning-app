@@ -3,8 +3,8 @@
  * 学习目标配置页面
  */
 
-import React, { useState, useEffect } from 'react';
-import ApiClient from '../services/ApiClient';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ApiClient from '../services/client';
 import { LearningObjectives, LearningObjectiveMode } from '../types/learning-objectives';
 import { NotePencil, Books, Globe, Gear } from '../components/Icon';
 import { IconProps } from '@phosphor-icons/react';
@@ -44,6 +44,35 @@ export const LearningObjectivesPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 清理定时器的辅助函数
+  const clearSuccessTimer = useCallback(() => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+  }, []);
+
+  // 设置成功消息并自动清除
+  const showSuccessMessage = useCallback(
+    (message: string) => {
+      clearSuccessTimer();
+      setSuccessMessage(message);
+      successTimerRef.current = setTimeout(() => {
+        setSuccessMessage(null);
+        successTimerRef.current = null;
+      }, 3000);
+    },
+    [clearSuccessTimer],
+  );
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      clearSuccessTimer();
+    };
+  }, [clearSuccessTimer]);
 
   useEffect(() => {
     loadObjectives();
@@ -52,11 +81,15 @@ export const LearningObjectivesPage: React.FC = () => {
   const loadObjectives = async () => {
     try {
       setLoading(true);
-      const response: any = await ApiClient.getLearningObjectives();
-      setObjectives(response.data || response);
+      const response = await ApiClient.getLearningObjectives();
+      // Handle both direct response and wrapped response
+      const data =
+        (response as { data?: LearningObjectives }).data || (response as LearningObjectives);
+      setObjectives(data);
       setError(null);
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
+    } catch (err: unknown) {
+      const httpErr = err as { response?: { status?: number } };
+      if (httpErr?.response?.status === 404) {
         setObjectives({
           userId: '',
           mode: 'daily',
@@ -76,11 +109,13 @@ export const LearningObjectivesPage: React.FC = () => {
   const handleModeChange = async (mode: LearningObjectiveMode) => {
     try {
       setSaving(true);
-      const response: any = await ApiClient.switchLearningMode(mode, 'manual');
-      setObjectives(response.data || response);
-      setSuccessMessage(`已切换到${MODE_CONFIGS[mode].label}`);
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
+      const response = await ApiClient.switchLearningMode(mode, 'manual');
+      // Handle both direct response and wrapped response
+      const data =
+        (response as { data?: LearningObjectives }).data || (response as LearningObjectives);
+      setObjectives(data);
+      showSuccessMessage(`已切换到${MODE_CONFIGS[mode].label}`);
+    } catch (_err) {
       setError('切换模式失败');
     } finally {
       setSaving(false);
@@ -108,8 +143,7 @@ export const LearningObjectivesPage: React.FC = () => {
     try {
       setSaving(true);
       await ApiClient.updateLearningObjectives(objectives);
-      setSuccessMessage('配置已保存');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccessMessage('配置已保存');
       setError(null);
     } catch (err) {
       setError('保存失败');

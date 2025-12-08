@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { AmasProcessResult } from '../types/amas';
 import { Coffee, Lightbulb, PushPin } from './Icon';
 
@@ -11,8 +12,9 @@ interface AmasSuggestionProps {
 /**
  * AMAS建议组件 - 显示AI学习建议和休息提示
  * 符合ui-design-system.md设计规范
+ * 使用 React.memo 优化：仅当 result 或 onBreak 变化时重新渲染
  */
-export default function AmasSuggestion({ result, onBreak }: AmasSuggestionProps) {
+function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
   if (!result || (!result.explanation && !result.suggestion && !result.shouldBreak)) {
     return null;
   }
@@ -123,3 +125,47 @@ export default function AmasSuggestion({ result, onBreak }: AmasSuggestionProps)
     </div>
   );
 }
+
+// 自定义比较函数：深度比较 result 对象
+function arePropsEqual(prevProps: AmasSuggestionProps, nextProps: AmasSuggestionProps): boolean {
+  // 如果两者都为 null，则相等
+  if (prevProps.result === null && nextProps.result === null) {
+    return true;
+  }
+  // 如果一个为 null 另一个不为 null，则不相等
+  if (prevProps.result === null || nextProps.result === null) {
+    return false;
+  }
+
+  const prev = prevProps.result;
+  const next = nextProps.result;
+
+  // 比较基本属性
+  if (
+    prev.explanation !== next.explanation ||
+    prev.suggestion !== next.suggestion ||
+    prev.shouldBreak !== next.shouldBreak
+  ) {
+    return false;
+  }
+
+  // 比较 strategy 对象
+  if (prev.strategy && next.strategy) {
+    if (
+      prev.strategy.batch_size !== next.strategy.batch_size ||
+      prev.strategy.difficulty !== next.strategy.difficulty ||
+      prev.strategy.new_ratio !== next.strategy.new_ratio ||
+      prev.strategy.hint_level !== next.strategy.hint_level
+    ) {
+      return false;
+    }
+  } else if (prev.strategy !== next.strategy) {
+    return false;
+  }
+
+  return true;
+}
+
+const AmasSuggestion = memo(AmasSuggestionComponent, arePropsEqual);
+
+export default AmasSuggestion;

@@ -5,18 +5,16 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  useBatchImport,
-  useBatchDelete,
-  useBatchCreateRecords,
-} from '../useBatchOperations';
-import apiClient from '../../../services/ApiClient';
+import { useBatchImport, useBatchDelete, useBatchCreateRecords } from '../useBatchOperations';
+import { wordClient, learningClient } from '../../../services/client';
 
 // Mock API Client
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+vi.mock('../../../services/client', () => ({
+  wordClient: {
     batchImportWords: vi.fn(),
     deleteWord: vi.fn(),
+  },
+  learningClient: {
     batchCreateRecords: vi.fn(),
   },
 }));
@@ -46,7 +44,7 @@ describe('useBatchOperations', () => {
         errors: [],
       };
 
-      vi.mocked(apiClient.batchImportWords).mockResolvedValue(mockResult);
+      vi.mocked(wordClient.batchImportWords).mockResolvedValue(mockResult);
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useBatchImport({ onSuccess }), { wrapper });
@@ -69,7 +67,7 @@ describe('useBatchOperations', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(apiClient.batchImportWords).toHaveBeenCalledWith('book-1', words);
+      expect(wordClient.batchImportWords).toHaveBeenCalledWith('book-1', words);
       expect(onSuccess).toHaveBeenCalled();
       const importResult = onSuccess.mock.calls[0][0];
       expect(importResult.imported).toBe(10);
@@ -83,7 +81,7 @@ describe('useBatchOperations', () => {
         errors: [],
       };
 
-      vi.mocked(apiClient.batchImportWords).mockResolvedValue(mockResult);
+      vi.mocked(wordClient.batchImportWords).mockResolvedValue(mockResult);
 
       const onProgress = vi.fn();
       const { result } = renderHook(() => useBatchImport({ onProgress }), { wrapper });
@@ -124,7 +122,7 @@ describe('useBatchOperations', () => {
         errors: ['错误1', '错误2', '错误3', '错误4', '错误5'],
       };
 
-      vi.mocked(apiClient.batchImportWords).mockResolvedValue(mockResult);
+      vi.mocked(wordClient.batchImportWords).mockResolvedValue(mockResult);
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useBatchImport({ onSuccess }), { wrapper });
@@ -154,7 +152,7 @@ describe('useBatchOperations', () => {
     });
 
     it('应该在API调用失败时触发错误回调', async () => {
-      vi.mocked(apiClient.batchImportWords).mockRejectedValue(new Error('网络错误'));
+      vi.mocked(wordClient.batchImportWords).mockRejectedValue(new Error('网络错误'));
 
       const onError = vi.fn();
       const { result } = renderHook(() => useBatchImport({ onError }), { wrapper });
@@ -183,7 +181,7 @@ describe('useBatchOperations', () => {
 
   describe('useBatchDelete', () => {
     it('应该成功批量删除单词', async () => {
-      vi.mocked(apiClient.deleteWord).mockResolvedValue(undefined);
+      vi.mocked(wordClient.deleteWord).mockResolvedValue(undefined);
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useBatchDelete({ onSuccess }), { wrapper });
@@ -196,7 +194,7 @@ describe('useBatchOperations', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(apiClient.deleteWord).toHaveBeenCalledTimes(3);
+      expect(wordClient.deleteWord).toHaveBeenCalledTimes(3);
       expect(onSuccess).toHaveBeenCalled();
       const deleteResult = onSuccess.mock.calls[0][0];
       expect(deleteResult.deleted).toBe(3);
@@ -204,7 +202,7 @@ describe('useBatchOperations', () => {
     });
 
     it('应该处理部分删除失败', async () => {
-      vi.mocked(apiClient.deleteWord)
+      vi.mocked(wordClient.deleteWord)
         .mockResolvedValueOnce(undefined) // 第一个成功
         .mockRejectedValueOnce(new Error('删除失败')) // 第二个失败
         .mockResolvedValueOnce(undefined); // 第三个成功
@@ -233,26 +231,32 @@ describe('useBatchOperations', () => {
       const mockRecords = [
         {
           id: '1',
+          userId: 'user-1',
           wordId: 'word-1',
           timestamp: Date.now(),
           selectedAnswer: 'hello',
           correctAnswer: 'hello',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
 
-      vi.mocked(apiClient.batchCreateRecords).mockResolvedValue(mockRecords as any);
+      vi.mocked(learningClient.batchCreateRecords).mockResolvedValue(mockRecords as any);
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useBatchCreateRecords({ onSuccess }), { wrapper });
 
       const records = [
         {
+          userId: 'user-1',
           wordId: 'word-1',
           timestamp: Date.now(),
           selectedAnswer: 'hello',
           correctAnswer: 'hello',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
 
@@ -262,7 +266,7 @@ describe('useBatchOperations', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(apiClient.batchCreateRecords).toHaveBeenCalled();
+      expect(learningClient.batchCreateRecords).toHaveBeenCalled();
       expect(onSuccess).toHaveBeenCalled();
       const createResult = onSuccess.mock.calls[0][0];
       expect(createResult.created).toBe(1);
@@ -273,26 +277,32 @@ describe('useBatchOperations', () => {
       const mockBatch1 = [
         {
           id: '1',
+          userId: 'user-1',
           wordId: 'word-1',
           timestamp: Date.now(),
           selectedAnswer: 'hello',
           correctAnswer: 'hello',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
 
       const mockBatch2 = [
         {
           id: '2',
+          userId: 'user-1',
           wordId: 'word-2',
           timestamp: Date.now(),
           selectedAnswer: 'world',
           correctAnswer: 'world',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
 
-      vi.mocked(apiClient.batchCreateRecords)
+      vi.mocked(learningClient.batchCreateRecords)
         .mockResolvedValueOnce(mockBatch1 as any)
         .mockResolvedValueOnce(mockBatch2 as any);
 
@@ -301,18 +311,24 @@ describe('useBatchOperations', () => {
 
       const records = [
         {
+          userId: 'user-1',
           wordId: 'word-1',
           timestamp: Date.now(),
           selectedAnswer: 'hello',
           correctAnswer: 'hello',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
         {
+          userId: 'user-1',
           wordId: 'word-2',
           timestamp: Date.now(),
           selectedAnswer: 'world',
           correctAnswer: 'world',
           isCorrect: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
 
@@ -323,7 +339,7 @@ describe('useBatchOperations', () => {
       });
 
       // 应该调用两次API（每批一次）
-      expect(apiClient.batchCreateRecords).toHaveBeenCalledTimes(2);
+      expect(learningClient.batchCreateRecords).toHaveBeenCalledTimes(2);
       // 应该报告进度
       expect(onProgress).toHaveBeenCalled();
     });

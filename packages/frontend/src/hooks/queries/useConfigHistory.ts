@@ -11,7 +11,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import { amasClient } from '../../services/client';
 import type { ConfigHistory } from '../../types/models';
 
 /**
@@ -40,7 +40,7 @@ export function useConfigHistory(limit = 50, enabled = true) {
   return useQuery<ConfigHistory[]>({
     queryKey: queryKeys.admin.configHistory.list(limit),
     queryFn: async () => {
-      return await apiClient.getConfigHistory(limit);
+      return await amasClient.getConfigHistory(limit);
     },
     staleTime: 1000 * 60 * 2, // 2分钟
     gcTime: 1000 * 60 * 10, // 10分钟
@@ -58,8 +58,8 @@ export interface ConfigChangeDetail {
   changeReason?: string;
   changes: Array<{
     field: string;
-    oldValue: any;
-    newValue: any;
+    oldValue: unknown;
+    newValue: unknown;
     changeType: 'added' | 'modified' | 'removed';
   }>;
 }
@@ -71,14 +71,14 @@ export interface ConfigChangeDetail {
  * @param newConfig - 新配置
  * @returns 变更详情列表
  */
-function compareConfigs(oldConfig: any, newConfig: any): ConfigChangeDetail['changes'] {
+function compareConfigs(
+  oldConfig: Record<string, unknown> | null | undefined,
+  newConfig: Record<string, unknown> | null | undefined,
+): ConfigChangeDetail['changes'] {
   const changes: ConfigChangeDetail['changes'] = [];
 
   // 获取所有键的并集
-  const allKeys = new Set([
-    ...Object.keys(oldConfig || {}),
-    ...Object.keys(newConfig || {}),
-  ]);
+  const allKeys = new Set([...Object.keys(oldConfig || {}), ...Object.keys(newConfig || {})]);
 
   for (const key of allKeys) {
     const oldValue = oldConfig?.[key];
@@ -236,8 +236,7 @@ export function useConfigChangeStats(enabled = true) {
 
         // 统计变更原因
         if (record.changeReason) {
-          changeReasons[record.changeReason] =
-            (changeReasons[record.changeReason] || 0) + 1;
+          changeReasons[record.changeReason] = (changeReasons[record.changeReason] || 0) + 1;
         }
 
         // 统计最近7天的变更

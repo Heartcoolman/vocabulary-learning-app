@@ -7,7 +7,7 @@ export interface ProgressBarData {
   color?: string;
 }
 
-interface ProgressBarChartProps {
+export interface ProgressBarChartProps {
   data: ProgressBarData[];
   height?: number;
 }

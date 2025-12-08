@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import { learningLogger } from '../utils/logger';
 import { Clock, Brain, Lightning, WarningCircle, ArrowClockwise } from '../components/Icon';
 

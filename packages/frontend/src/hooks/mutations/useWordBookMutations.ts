@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/ApiClient';
+import { wordBookClient, wordClient } from '../../services/client';
 
 import type { WordBook } from '../../types/models';
 
@@ -17,7 +17,7 @@ export function useCreateWordBook() {
       description?: string;
       coverImage?: string;
     }): Promise<WordBook> => {
-      return await apiClient.createWordBook(data);
+      return await wordBookClient.createWordBook(data);
     },
     onSuccess: () => {
       // 创建成功后，使用户词书列表查询失效，触发重新获取
@@ -46,7 +46,7 @@ export function useUpdateWordBook() {
       id: string;
       data: { name?: string; description?: string; coverImage?: string };
     }): Promise<WordBook> => {
-      return await apiClient.updateWordBook(id, data);
+      return await wordBookClient.updateWordBook(id, data);
     },
     onSuccess: (updatedWordBook) => {
       // 更新成功后，使相关查询失效
@@ -71,7 +71,7 @@ export function useDeleteWordBook() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      await apiClient.deleteWordBook(id);
+      await wordBookClient.deleteWordBook(id);
     },
     // 乐观更新：立即从缓存中移除被删除的词书
     onMutate: async (deletedId: string) => {
@@ -140,7 +140,7 @@ export function useAddWordToWordBook() {
         audioUrl?: string;
       };
     }) => {
-      return await apiClient.addWordToWordBook(wordBookId, wordData);
+      return await wordBookClient.addWordToWordBook(wordBookId, wordData);
     },
     onSuccess: (newWord, variables) => {
       // 使词书的单词列表失效
@@ -163,7 +163,7 @@ export function useRemoveWordFromWordBook() {
 
   return useMutation({
     mutationFn: async ({ wordBookId, wordId }: { wordBookId: string; wordId: string }) => {
-      await apiClient.removeWordFromWordBook(wordBookId, wordId);
+      await wordBookClient.removeWordFromWordBook(wordBookId, wordId);
     },
     onSuccess: (data, variables) => {
       // 使词书的单词列表失效
@@ -198,7 +198,7 @@ export function useBatchImportWords() {
         audioUrl?: string;
       }>;
     }) => {
-      return await apiClient.batchImportWords(wordBookId, words);
+      return await wordClient.batchImportWords(wordBookId, words);
     },
     onSuccess: (result, variables) => {
       // 使词书的单词列表失效

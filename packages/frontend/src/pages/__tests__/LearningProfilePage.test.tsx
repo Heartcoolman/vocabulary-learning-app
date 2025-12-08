@@ -35,7 +35,7 @@ const mockLearningStyleData = {
   },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getChronotypeProfile: vi.fn(),
     getLearningStyleProfile: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 
 describe('LearningProfilePage', () => {
   beforeEach(() => {

@@ -12,7 +12,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { AdminStatistics } from '../../services/ApiClient';
+import apiClient, { AdminStatistics } from '../../services/client';
 
 /**
  * 获取系统整体统计数据
@@ -102,10 +102,8 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
 
   // 计算关键指标
   const activeRate = stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers) * 100 : 0;
-  const avgWordsPerBook =
-    stats.totalWordBooks > 0 ? stats.totalWords / stats.totalWordBooks : 0;
-  const avgRecordsPerUser =
-    stats.totalUsers > 0 ? stats.totalRecords / stats.totalUsers : 0;
+  const avgWordsPerBook = stats.totalWordBooks > 0 ? stats.totalWords / stats.totalWordBooks : 0;
+  const avgRecordsPerUser = stats.totalUsers > 0 ? stats.totalRecords / stats.totalUsers : 0;
 
   // 检查活跃率
   if (activeRate < 30) {
