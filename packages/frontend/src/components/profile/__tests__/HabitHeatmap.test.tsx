@@ -107,11 +107,12 @@ describe('HabitHeatmap', () => {
       // Check that various color classes exist
       const cells = container.querySelectorAll('.aspect-square.rounded-lg');
       const hasColoredCells = Array.from(cells).some(
-        cell => cell.classList.contains('bg-blue-100') ||
-                cell.classList.contains('bg-blue-300') ||
-                cell.classList.contains('bg-blue-500') ||
-                cell.classList.contains('bg-blue-700') ||
-                cell.classList.contains('bg-gray-50')
+        (cell) =>
+          cell.classList.contains('bg-blue-100') ||
+          cell.classList.contains('bg-blue-300') ||
+          cell.classList.contains('bg-blue-500') ||
+          cell.classList.contains('bg-blue-700') ||
+          cell.classList.contains('bg-gray-50'),
       );
       expect(hasColoredCells).toBe(true);
     });

@@ -4,7 +4,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useDialogPauseTracking, useDialogPauseTrackingWithStates } from '../useDialogPauseTracking';
+import {
+  useDialogPauseTracking,
+  useDialogPauseTrackingWithStates,
+} from '../useDialogPauseTracking';
 
 // Mock TrackingService
 vi.mock('../../services/TrackingService', () => ({
@@ -233,9 +236,7 @@ describe('useDialogPauseTracking', () => {
     });
 
     it('should not track when enableTracking is false', () => {
-      const { result } = renderHook(() =>
-        useDialogPauseTracking({ enableTracking: false })
-      );
+      const { result } = renderHook(() => useDialogPauseTracking({ enableTracking: false }));
 
       act(() => {
         result.current.onDialogOpen();
@@ -252,9 +253,7 @@ describe('useDialogPauseTracking', () => {
   describe('callback options', () => {
     it('should call onPauseChange when dialog closes', () => {
       const onPauseChange = vi.fn();
-      const { result } = renderHook(() =>
-        useDialogPauseTracking({ onPauseChange })
-      );
+      const { result } = renderHook(() => useDialogPauseTracking({ onPauseChange }));
 
       act(() => {
         result.current.onDialogOpen();
@@ -319,16 +318,12 @@ describe('useDialogPauseTrackingWithStates', () => {
 
   describe('initial state', () => {
     it('should start with zero paused time', () => {
-      const { result } = renderHook(() =>
-        useDialogPauseTrackingWithStates([false, false])
-      );
+      const { result } = renderHook(() => useDialogPauseTrackingWithStates([false, false]));
       expect(result.current.pausedTime).toBe(0);
     });
 
     it('should start with dialog closed', () => {
-      const { result } = renderHook(() =>
-        useDialogPauseTrackingWithStates([false, false])
-      );
+      const { result } = renderHook(() => useDialogPauseTrackingWithStates([false, false]));
       expect(result.current.isDialogOpen).toBe(false);
     });
   });
@@ -337,7 +332,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should detect when any dialog opens', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false, false, false] } }
+        { initialProps: { states: [false, false, false] } },
       );
 
       expect(result.current.isDialogOpen).toBe(false);
@@ -352,7 +347,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should track time when dialog closes', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false, false] } }
+        { initialProps: { states: [false, false] } },
       );
 
       // Open dialog
@@ -373,7 +368,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should not double-track when switching between dialogs', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false, false] } }
+        { initialProps: { states: [false, false] } },
       );
 
       // Open first dialog
@@ -403,7 +398,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should handle multiple dialogs open simultaneously', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false, false] } }
+        { initialProps: { states: [false, false] } },
       );
 
       // Open both dialogs
@@ -432,7 +427,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should include current open dialog time', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false] } }
+        { initialProps: { states: [false] } },
       );
 
       rerender({ states: [true] });
@@ -450,7 +445,7 @@ describe('useDialogPauseTrackingWithStates', () => {
     it('should reset paused time', () => {
       const { result, rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states),
-        { initialProps: { states: [false] } }
+        { initialProps: { states: [false] } },
       );
 
       rerender({ states: [true] });
@@ -474,7 +469,7 @@ describe('useDialogPauseTrackingWithStates', () => {
       const onPauseChange = vi.fn();
       const { rerender } = renderHook(
         ({ states }) => useDialogPauseTrackingWithStates(states, { onPauseChange }),
-        { initialProps: { states: [false] } }
+        { initialProps: { states: [false] } },
       );
 
       rerender({ states: [true] });
@@ -489,9 +484,7 @@ describe('useDialogPauseTrackingWithStates', () => {
 
   describe('return values', () => {
     it('should return correct interface properties', () => {
-      const { result } = renderHook(() =>
-        useDialogPauseTrackingWithStates([false])
-      );
+      const { result } = renderHook(() => useDialogPauseTrackingWithStates([false]));
 
       expect(result.current).toHaveProperty('pausedTime');
       expect(result.current).toHaveProperty('getPausedTime');

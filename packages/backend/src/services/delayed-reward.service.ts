@@ -47,9 +47,7 @@ export class DelayedRewardService {
    * @param params 奖励参数
    * @returns 创建的奖励队列记录
    */
-  async enqueueDelayedReward(
-    params: EnqueueDelayedRewardParams
-  ): Promise<RewardQueue> {
+  async enqueueDelayedReward(params: EnqueueDelayedRewardParams): Promise<RewardQueue> {
     try {
       return await prisma.rewardQueue.create({
         data: {
@@ -59,17 +57,14 @@ export class DelayedRewardService {
           dueTs: params.dueTs,
           reward: params.reward,
           status: RewardStatus.PENDING,
-          idempotencyKey: params.idempotencyKey
-        }
+          idempotencyKey: params.idempotencyKey,
+        },
       });
     } catch (err) {
       // 幂等性: 如果idempotencyKey冲突,返回已存在的记录
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const existing = await prisma.rewardQueue.findUnique({
-          where: { idempotencyKey: params.idempotencyKey }
+          where: { idempotencyKey: params.idempotencyKey },
         });
         if (existing) return existing;
       }
@@ -88,18 +83,18 @@ export class DelayedRewardService {
     const result = await prisma.rewardQueue.updateMany({
       where: {
         status: RewardStatus.PROCESSING,
-        updatedAt: { lt: timeoutThreshold }
+        updatedAt: { lt: timeoutThreshold },
       },
       data: {
         status: RewardStatus.PENDING,
         lastError: 'Recovered from stuck PROCESSING state (timeout)',
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     if (result.count > 0) {
       serviceLogger.warn(
-        `Recovered ${result.count} stuck PROCESSING tasks (timeout: ${PROCESSING_TIMEOUT_MS}ms)`
+        `Recovered ${result.count} stuck PROCESSING tasks (timeout: ${PROCESSING_TIMEOUT_MS}ms)`,
       );
     }
 
@@ -139,12 +134,12 @@ export class DelayedRewardService {
         return [];
       }
 
-      const ids = lockedTasks.map(t => t.id);
+      const ids = lockedTasks.map((t) => t.id);
 
       // 在同一事务中更新状态为PROCESSING
       await tx.rewardQueue.updateMany({
         where: { id: { in: ids } },
-        data: { status: RewardStatus.PROCESSING, updatedAt: now }
+        data: { status: RewardStatus.PROCESSING, updatedAt: now },
       });
 
       return lockedTasks;
@@ -154,22 +149,21 @@ export class DelayedRewardService {
 
     // 逐个处理任务
     for (const task of tasks) {
-      // 使用独立的 retryCount 字段，兼容旧数据（从 lastError 解析）
-      const currentRetryCount = task.retryCount ?? this.parseAttempts(task.lastError);
+      // 使用 lastError 解析重试次数（RewardQueue 模型不包含 retryCount 字段）
+      const currentRetryCount = this.parseAttempts(task.lastError);
 
       try {
         // 应用奖励
         await handler(task);
 
-        // 标记为完成，重置重试计数
+        // 标记为完成
         await prisma.rewardQueue.update({
           where: { id: task.id },
           data: {
             status: RewardStatus.DONE,
             lastError: null,
-            retryCount: 0,
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         });
       } catch (err) {
         const nextRetryCount = currentRetryCount + 1;
@@ -183,16 +177,15 @@ export class DelayedRewardService {
 
         const message = this.formatError(err, nextRetryCount, isFailed);
 
-        // 更新任务状态，使用独立的 retryCount 字段
+        // 更新任务状态，重试次数存储在 lastError 中
         await prisma.rewardQueue.update({
           where: { id: task.id },
           data: {
             status: nextStatus,
             dueTs: nextDue,
             lastError: message,
-            retryCount: nextRetryCount,
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         });
       }
     }
@@ -206,7 +199,7 @@ export class DelayedRewardService {
   async getRewardStatus(sessionId: string): Promise<RewardQueue[]> {
     return prisma.rewardQueue.findMany({
       where: { sessionId },
-      orderBy: [{ dueTs: 'asc' }, { updatedAt: 'desc' }]
+      orderBy: [{ dueTs: 'asc' }, { updatedAt: 'desc' }],
     });
   }
 
@@ -223,15 +216,9 @@ export class DelayedRewardService {
   /**
    * 格式化错误信息
    */
-  private formatError(
-    err: unknown,
-    attempts: number,
-    isFailed: boolean
-  ): string {
+  private formatError(err: unknown, attempts: number, isFailed: boolean): string {
     const reason = err instanceof Error ? err.message : String(err);
-    return `attempts=${attempts}; status=${
-      isFailed ? 'failed' : 'retry'
-    }; error=${reason}`;
+    return `attempts=${attempts}; status=${isFailed ? 'failed' : 'retry'}; error=${reason}`;
   }
 
   /**
@@ -244,9 +231,7 @@ export class DelayedRewardService {
     status?: RewardStatus;
     limit?: number;
   }): Promise<RewardQueue[]> {
-    const limit = filter.limit && filter.limit > 0
-      ? Math.min(filter.limit, 100)
-      : 50;
+    const limit = filter.limit && filter.limit > 0 ? Math.min(filter.limit, 100) : 50;
 
     const where: {
       userId?: string;
@@ -264,7 +249,7 @@ export class DelayedRewardService {
     return prisma.rewardQueue.findMany({
       where,
       orderBy: [{ dueTs: 'asc' }, { updatedAt: 'desc' }],
-      take: limit
+      take: limit,
     });
   }
 }

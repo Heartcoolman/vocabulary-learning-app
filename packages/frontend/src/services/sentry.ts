@@ -6,13 +6,14 @@
  */
 
 import * as Sentry from '@sentry/react';
+import { env } from '../config/env';
 
 /**
  * 初始化 Sentry
  * @returns 是否成功初始化
  */
 export function initSentry(): boolean {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  const dsn = env.sentryDsn;
 
   // 未配置 DSN 时跳过初始化
   if (!dsn) {
@@ -20,8 +21,8 @@ export function initSentry(): boolean {
     return false;
   }
 
-  const environment = import.meta.env.MODE || 'development';
-  const release = import.meta.env.VITE_APP_VERSION || 'unknown';
+  const environment = env.mode;
+  const release = env.appVersion || 'unknown';
 
   try {
     Sentry.init({
@@ -66,10 +67,7 @@ export function initSentry(): boolean {
         }
 
         // 过滤 ResizeObserver 错误（常见的无害错误）
-        if (
-          error instanceof Error &&
-          error.message.includes('ResizeObserver loop')
-        ) {
+        if (error instanceof Error && error.message.includes('ResizeObserver loop')) {
           return null;
         }
 
@@ -100,9 +98,7 @@ export function initSentry(): boolean {
       debug: environment === 'development',
     });
 
-    console.info(
-      `[Sentry] Initialized successfully (env: ${environment}, release: ${release})`
-    );
+    console.info(`[Sentry] Initialized successfully (env: ${environment}, release: ${release})`);
     return true;
   } catch (error) {
     console.error('[Sentry] Failed to initialize:', error);
@@ -154,7 +150,7 @@ export function addBreadcrumb(breadcrumb: {
  */
 export function captureException(
   error: Error | unknown,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ): string {
   return Sentry.captureException(error, {
     extra: context,
@@ -166,7 +162,7 @@ export function captureException(
  */
 export function captureMessage(
   message: string,
-  level: 'debug' | 'info' | 'warning' | 'error' = 'info'
+  level: 'debug' | 'info' | 'warning' | 'error' = 'info',
 ): string {
   return Sentry.captureMessage(message, level);
 }

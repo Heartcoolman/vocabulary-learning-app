@@ -310,9 +310,12 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { ActrMemoryNative, CausalInferenceNative, LinUcbNative, ThompsonSamplingNative, Difficulty } = nativeBinding
+const { ActrMemoryNative, computeActivation, computeRecallProbability, computeOptimalInterval, CausalInferenceNative, LinUcbNative, ThompsonSamplingNative, Difficulty } = nativeBinding
 
 module.exports.ActrMemoryNative = ActrMemoryNative
+module.exports.computeActivation = computeActivation
+module.exports.computeRecallProbability = computeRecallProbability
+module.exports.computeOptimalInterval = computeOptimalInterval
 module.exports.CausalInferenceNative = CausalInferenceNative
 module.exports.LinUcbNative = LinUcbNative
 module.exports.ThompsonSamplingNative = ThompsonSamplingNative

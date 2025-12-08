@@ -13,18 +13,44 @@ vi.mock('framer-motion', () => ({
     button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     h2: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
     span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>
-  }
+    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
+  },
 }));
 
 // Mock Icon components
 vi.mock('../Icon', () => ({
   Star: ({ weight, color }: any) => (
-    <span data-testid="star" data-weight={weight} data-color={color}>★</span>
+    <span data-testid="star" data-weight={weight} data-color={color}>
+      ★
+    </span>
   ),
   Clock: () => <span data-testid="clock">🕐</span>,
   Target: () => <span data-testid="target">🎯</span>,
-  SpeakerHigh: () => <span data-testid="speaker">🔊</span>
+  SpeakerHigh: () => <span data-testid="speaker">🔊</span>,
+}));
+
+// Mock TrackingService
+vi.mock('../../services/TrackingService', () => ({
+  trackingService: {
+    trackPronunciationClick: vi.fn(),
+    trackLearningPause: vi.fn(),
+    trackLearningResume: vi.fn(),
+    trackPageSwitch: vi.fn(),
+    trackTaskSwitch: vi.fn(),
+    trackInteraction: vi.fn(),
+    startSession: vi.fn(),
+    endSession: vi.fn(),
+    getStats: vi.fn(() => ({
+      pronunciationClicks: 0,
+      pauseCount: 0,
+      resumeCount: 0,
+      pageSwitchCount: 0,
+      taskSwitchCount: 0,
+      totalInteractions: 0,
+      sessionDuration: 0,
+      lastActivityTime: 0,
+    })),
+  },
 }));
 
 const mockWord = {
@@ -32,14 +58,14 @@ const mockWord = {
   spelling: 'hello',
   phonetic: 'həˈloʊ',
   meanings: ['你好', '打招呼'],
-  examples: ['Hello, how are you?']
+  examples: ['Hello, how are you?'],
 };
 
 describe('WordCard', () => {
   const defaultProps = {
     word: mockWord,
     onPronounce: vi.fn(),
-    isPronouncing: false
+    isPronouncing: false,
   };
 
   beforeEach(() => {

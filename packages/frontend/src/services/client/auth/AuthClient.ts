@@ -1,0 +1,118 @@
+import { BaseClient } from '../base/BaseClient';
+
+/**
+ * 用户信息
+ */
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: 'USER' | 'ADMIN';
+  createdAt: string;
+}
+
+/**
+ * 认证响应
+ */
+export interface AuthResponse {
+  user: User;
+  token: string;
+}
+
+/**
+ * 学习统计
+ */
+export interface Statistics {
+  totalWords: number;
+  totalRecords: number;
+  correctRate: number;
+}
+
+/**
+ * AuthClient - 认证和用户管理相关API
+ *
+ * 职责：
+ * - 用户注册、登录、登出
+ * - 获取当前用户信息
+ * - 修改密码
+ * - 获取用户统计
+ */
+export class AuthClient extends BaseClient {
+  constructor(baseUrl?: string) {
+    super(baseUrl);
+  }
+
+  /**
+   * 用户注册
+   */
+  async register(email: string, password: string, username: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, username }),
+    });
+  }
+
+  /**
+   * 用户登录
+   */
+  async login(email: string, password: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  /**
+   * 用户退出登录
+   */
+  async logout(): Promise<void> {
+    await this.request<void>('/api/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * 获取当前用户信息
+   */
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>('/api/users/me');
+  }
+
+  /**
+   * 修改密码
+   */
+  async updatePassword(oldPassword: string, newPassword: string): Promise<void> {
+    return this.request<void>('/api/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+  }
+
+  /**
+   * 获取用户统计信息
+   */
+  async getUserStatistics(): Promise<Statistics> {
+    return this.request<Statistics>('/api/records/statistics');
+  }
+
+  /**
+   * 设置认证令牌
+   */
+  setToken(token: string): void {
+    this.tokenManager.setToken(token);
+  }
+
+  /**
+   * 清除认证令牌
+   */
+  clearToken(): void {
+    this.tokenManager.clearToken();
+  }
+
+  /**
+   * 获取当前令牌
+   */
+  getToken(): string | null {
+    return this.tokenManager.getToken();
+  }
+}

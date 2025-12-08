@@ -12,7 +12,7 @@ import ProtectedRoute from '../ProtectedRoute';
 // Mock AuthContext
 const mockUseAuth = vi.fn();
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => mockUseAuth()
+  useAuth: () => mockUseAuth(),
 }));
 
 const TestChild = () => <div data-testid="protected-content">Protected Content</div>;
@@ -32,7 +32,7 @@ const renderWithRouter = (requireAdmin = false, initialPath = '/protected') => {
         <Route path="/login" element={<div data-testid="login-page">Login Page</div>} />
         <Route path="/403" element={<div data-testid="forbidden-page">Forbidden Page</div>} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -48,7 +48,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
-        loading: true
+        loading: true,
       });
 
       renderWithRouter();
@@ -61,7 +61,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
-        loading: true
+        loading: true,
       });
 
       renderWithRouter();
@@ -78,7 +78,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter();
@@ -91,7 +91,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'testuser', role: 'USER' },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter();
@@ -108,7 +108,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'testuser', role: 'USER' },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter(true);
@@ -121,7 +121,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'admin', role: 'ADMIN' },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter(true);
@@ -134,7 +134,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'admin', role: 'ADMIN' },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter(false);
@@ -146,7 +146,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter(true);
@@ -163,7 +163,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: undefined,
         isAuthenticated: false,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter();
@@ -175,7 +175,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'testuser', role: null },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       renderWithRouter(true);
@@ -187,7 +187,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: { id: '1', username: 'testuser', role: 'USER' },
         isAuthenticated: true,
-        loading: false
+        loading: false,
       });
 
       // Not passing requireAdmin prop
@@ -203,7 +203,7 @@ describe('ProtectedRoute', () => {
               }
             />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('ProtectedRoute', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
-        loading: true
+        loading: true,
       });
 
       renderWithRouter();

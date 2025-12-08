@@ -10,10 +10,14 @@ import StorageService, { SyncStatus } from '../../services/StorageService';
 // Mock Icon components
 vi.mock('../Icon', () => ({
   Check: ({ className }: { className?: string }) => (
-    <span data-testid="check-icon" className={className}>Check</span>
+    <span data-testid="check-icon" className={className}>
+      Check
+    </span>
   ),
   X: ({ className }: { className?: string }) => (
-    <span data-testid="x-icon" className={className}>X</span>
+    <span data-testid="x-icon" className={className}>
+      X
+    </span>
   ),
 }));
 
@@ -52,10 +56,12 @@ describe('SyncIndicator', () => {
       error: null,
     });
 
-    (StorageService.onSyncStatusChange as ReturnType<typeof vi.fn>).mockImplementation((callback) => {
-      syncStatusCallback = callback;
-      return mockUnsubscribe;
-    });
+    (StorageService.onSyncStatusChange as ReturnType<typeof vi.fn>).mockImplementation(
+      (callback) => {
+        syncStatusCallback = callback;
+        return mockUnsubscribe;
+      },
+    );
 
     (StorageService.syncToCloud as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   });

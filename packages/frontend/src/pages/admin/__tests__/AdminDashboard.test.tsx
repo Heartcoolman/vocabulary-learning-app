@@ -5,7 +5,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminDashboard from '../AdminDashboard';
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
 // Mock useToast hook
 vi.mock('@/components/ui', () => ({
@@ -17,9 +26,20 @@ vi.mock('@/components/ui', () => ({
     showToast: vi.fn(),
   }),
   ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+    isOpen ? (
+      <div data-testid="confirm-modal">
+        {children}
+        <button onClick={onConfirm}>确认</button>
+        <button onClick={onCancel}>取消</button>
+      </div>
+    ) : null,
   AlertModal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? <div data-testid="alert-modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+    isOpen ? (
+      <div data-testid="alert-modal">
+        {children}
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
 const mockStats = {
@@ -32,7 +52,7 @@ const mockStats = {
   totalRecords: 5000,
 };
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     adminGetStatistics: vi.fn().mockResolvedValue({
       totalUsers: 100,
@@ -58,18 +78,25 @@ vi.mock('@/components/Icon', async () => {
     FileText: () => <span data-testid="icon-filetext">📄</span>,
     ChartBar: () => <span data-testid="icon-chartbar">📊</span>,
     CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
     ),
     Warning: () => <span data-testid="icon-warning">⚠️</span>,
   };
 });
 
-const renderWithRouter = () => {
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
   return render(
-    <MemoryRouter>
-      <AdminDashboard />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
   );
+};
+
+const renderWithRouter = () => {
+  return renderWithProviders(<AdminDashboard />);
 };
 
 describe('AdminDashboard', () => {
@@ -158,7 +185,7 @@ describe('AdminDashboard', () => {
 
   describe('error state', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('网络错误'));
 
       renderWithRouter();
@@ -170,7 +197,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should show retry button on error', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('Error'));
 
       renderWithRouter();
@@ -181,7 +208,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should reload data when retry clicked', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics)
         .mockRejectedValueOnce(new Error('Error'))
         .mockResolvedValueOnce(mockStats);
@@ -202,7 +229,7 @@ describe('AdminDashboard', () => {
 
   describe('edge cases', () => {
     it('should handle zero total users', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
         ...mockStats,
         totalUsers: 0,
@@ -217,7 +244,7 @@ describe('AdminDashboard', () => {
     });
 
     it('should handle zero wordbooks', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const apiClient = (await import('@/services/client')).default;
       vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
         ...mockStats,
         totalWordBooks: 0,

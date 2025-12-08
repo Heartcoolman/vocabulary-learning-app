@@ -81,6 +81,42 @@ vi.mock('@/components/Icon', async () => {
   };
 });
 
+// Mock react-window for tests
+vi.mock('react-window', () => ({
+  List: ({
+    rowCount,
+    rowComponent: RowComponent,
+    rowHeight,
+    style,
+  }: {
+    rowCount: number;
+    rowComponent: React.ComponentType<{
+      index: number;
+      style: React.CSSProperties;
+      ariaAttributes: object;
+    }>;
+    rowHeight: number;
+    style: React.CSSProperties;
+  }) => (
+    <div style={style} data-testid="virtual-list">
+      {Array.from({ length: rowCount }, (_, index) => (
+        <RowComponent
+          key={index}
+          index={index}
+          style={{ height: rowHeight }}
+          ariaAttributes={{
+            'aria-posinset': index + 1,
+            'aria-setsize': rowCount,
+            role: 'listitem' as const,
+          }}
+        />
+      ))}
+    </div>
+  ),
+  useListRef: () => ({ current: { scrollToRow: vi.fn() } }),
+  useListCallbackRef: () => [{ scrollToRow: vi.fn() }, vi.fn()],
+}));
+
 describe('WordListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -303,9 +339,12 @@ describe('WordListPage', () => {
       const searchInput = screen.getByPlaceholderText('搜索单词...');
       await user.type(searchInput, 'nonexistent');
 
-      await waitFor(() => {
-        expect(screen.getByText('没有找到符合条件的单词')).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('没有找到符合条件的单词')).toBeInTheDocument();
+        },
+        { timeout: 5000 },
+      );
     });
   });
 });

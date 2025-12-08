@@ -1,19 +1,31 @@
 /**
  * Profile E2E Tests
+ *
+ * Complete tests for user profile management:
+ * - Viewing profile information
+ * - Changing password
+ * - Managing data/cache
+ * - Viewing learning habits
+ * - Logout functionality
  */
 
 import { test, expect } from '@playwright/test';
+import {
+  loginAsUser,
+  logout,
+  waitForPageReady,
+  expectErrorAlert,
+} from './utils/test-helpers';
+
+// Increase timeout for profile tests
+test.setTimeout(45000);
 
 test.describe('Profile', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.waitForSelector('#email');
-    await page.fill('#email', 'test@example.com');
-    await page.fill('#password', 'password123');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 15000 });
+    await loginAsUser(page);
     await page.goto('/profile');
-    await page.waitForURL('/profile');
+    await expect(page).toHaveURL('/profile');
+    await waitForPageReady(page);
   });
 
   test.describe('Profile View', () => {
@@ -33,6 +45,12 @@ test.describe('Profile', () => {
       await expect(page.getByRole('button', { name: '修改密码' })).toBeVisible();
       await expect(page.getByRole('button', { name: '数据管理' })).toBeVisible();
       await expect(page.getByRole('button', { name: '学习习惯' })).toBeVisible();
+    });
+
+    test('should display user avatar or placeholder', async ({ page }) => {
+      // Avatar or placeholder should be visible
+      const avatar = page.locator('img[alt*="avatar"], .rounded-full');
+      await expect(avatar.first()).toBeVisible();
     });
   });
 
@@ -115,5 +133,138 @@ test.describe('Profile', () => {
 
       await expect(page).toHaveURL('/login');
     });
+
+    test('should cancel logout when clicking cancel', async ({ page }) => {
+      await page.click('button:has-text("退出登录")');
+      await page.waitForSelector('[role="dialog"]');
+
+      // Click cancel or press Escape
+      const cancelButton = page.locator('[role="dialog"] button:has-text("取消")');
+      if (await cancelButton.isVisible()) {
+        await cancelButton.click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
+
+      // Should stay on profile
+      await expect(page).toHaveURL('/profile');
+    });
+  });
+
+  test.describe('Data Management Tab', () => {
+    test('should show cache management options', async ({ page }) => {
+      await page.click('button:has-text("数据管理")');
+
+      await expect(page.getByRole('button', { name: '刷新缓存' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '清除本地缓存' })).toBeVisible();
+    });
+
+    test('should refresh cache when clicking refresh button', async ({ page }) => {
+      await page.click('button:has-text("数据管理")');
+
+      const refreshButton = page.getByRole('button', { name: '刷新缓存' });
+      await refreshButton.click();
+
+      // Should show some feedback (loading or success)
+      await page.waitForTimeout(1000);
+      // Page should still be functional
+      await expect(page.locator('main')).toBeVisible();
+    });
+
+    test('should clear local cache when clicking clear button', async ({ page }) => {
+      await page.click('button:has-text("数据管理")');
+
+      const clearButton = page.getByRole('button', { name: '清除本地缓存' });
+      await clearButton.click();
+
+      // May show confirmation or complete immediately
+      await page.waitForTimeout(1000);
+      await expect(page.locator('main')).toBeVisible();
+    });
+  });
+
+  test.describe('Learning Habits Tab', () => {
+    test('should show learning habit analysis', async ({ page }) => {
+      await page.click('button:has-text("学习习惯")');
+
+      await expect(page.getByText('学习习惯分析')).toBeVisible();
+    });
+
+    test('should have link to full analysis', async ({ page }) => {
+      await page.click('button:has-text("学习习惯")');
+
+      const fullAnalysisButton = page.getByRole('button', { name: /查看完整分析/ });
+      await expect(fullAnalysisButton).toBeVisible();
+    });
+
+    test('should navigate to habit profile page', async ({ page }) => {
+      await page.click('button:has-text("学习习惯")');
+
+      const fullAnalysisButton = page.getByRole('button', { name: /查看完整分析/ });
+      await fullAnalysisButton.click();
+
+      await expect(page).toHaveURL('/habit-profile');
+    });
+  });
+
+  test.describe('Navigation', () => {
+    test('should navigate to profile from home page', async ({ page }) => {
+      await page.goto('/');
+      await page.click('a[href="/profile"]');
+      await expect(page).toHaveURL('/profile');
+    });
+
+    test('should navigate back to home from profile', async ({ page }) => {
+      await page.click('a[href="/"]');
+      await expect(page).toHaveURL('/');
+    });
+  });
+});
+
+test.describe('Profile - Edge Cases', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsUser(page);
+  });
+
+  test('should handle network error on profile load', async ({ page }) => {
+    await page.route('**/api/user/profile**', route => route.abort());
+
+    await page.goto('/profile');
+    await page.waitForTimeout(2000);
+
+    // Should show error or fallback UI
+    await expect(page.locator('main')).toBeVisible();
+  });
+
+  test('should handle password change with wrong old password', async ({ page }) => {
+    await page.goto('/profile');
+    await waitForPageReady(page);
+
+    await page.click('button:has-text("修改密码")');
+
+    await page.fill('#oldPassword', 'wrongpassword');
+    await page.fill('#newPassword', 'NewPassword123!');
+    await page.fill('#confirmPassword', 'NewPassword123!');
+
+    await page.click('button[type="submit"]:has-text("修改密码")');
+
+    // Should show error
+    await expectErrorAlert(page);
+  });
+
+  test('should preserve tab state on page refresh', async ({ page }) => {
+    await page.goto('/profile');
+    await waitForPageReady(page);
+
+    // Switch to password tab
+    await page.click('button:has-text("修改密码")');
+    await expect(page.locator('#oldPassword')).toBeVisible();
+
+    // Refresh page
+    await page.reload();
+    await waitForPageReady(page);
+
+    // May or may not preserve tab state depending on implementation
+    await expect(page.locator('main')).toBeVisible();
   });
 });

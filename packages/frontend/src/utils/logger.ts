@@ -11,6 +11,8 @@
  * - 全局错误捕获
  */
 
+import { env } from '../config/env';
+
 // ==================== 类型定义 ====================
 
 /** 日志级别 */
@@ -57,17 +59,26 @@ interface LoggerConfig {
 
 // ==================== 配置 ====================
 
-const isDev = import.meta.env.DEV;
-const isProd = import.meta.env.PROD;
+const isDev = env.isDev;
+const isProd = env.isProd;
 
 const DEFAULT_CONFIG: LoggerConfig = {
   level: isDev ? 'debug' : 'info',
   enableConsole: true,
   enableRemote: isProd,
   remoteEndpoint: '/api/logs',
-  redactPaths: ['password', 'token', 'authorization', 'cookie', 'secret', 'apikey', 'accesstoken', 'refreshtoken'],
+  redactPaths: [
+    'password',
+    'token',
+    'authorization',
+    'cookie',
+    'secret',
+    'apikey',
+    'accesstoken',
+    'refreshtoken',
+  ],
   appName: 'danci-frontend',
-  environment: import.meta.env.MODE,
+  environment: env.mode,
   batchInterval: 5000,
   maxBatchSize: 50,
 };
@@ -262,7 +273,10 @@ class Logger {
       errInfo = serializeError(err);
       cleanContext =
         Object.keys(rest).length > 0
-          ? (redact({ ...this.bindings, ...rest }, this.config.redactPaths) as Record<string, unknown>)
+          ? (redact({ ...this.bindings, ...rest }, this.config.redactPaths) as Record<
+              string,
+              unknown
+            >)
           : undefined;
     } else if (Object.keys(this.bindings).length > 0) {
       cleanContext = this.bindings as Record<string, unknown>;
@@ -404,7 +418,7 @@ if (typeof window !== 'undefined') {
         lineno: event.lineno,
         colno: event.colno,
       },
-      '未捕获的 JavaScript 错误'
+      '未捕获的 JavaScript 错误',
     );
   });
 
@@ -413,9 +427,12 @@ if (typeof window !== 'undefined') {
     const reason = event.reason;
     logger.error(
       {
-        err: reason instanceof Error ? reason : { message: String(reason), name: 'UnhandledRejection' },
+        err:
+          reason instanceof Error
+            ? reason
+            : { message: String(reason), name: 'UnhandledRejection' },
       },
-      '未处理的 Promise 拒绝'
+      '未处理的 Promise 拒绝',
     );
   });
 }

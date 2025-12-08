@@ -9,11 +9,23 @@ import { explainabilityApi } from '../../../services/explainabilityApi';
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  Flask: ({ className }: any) => <span data-testid="icon-flask" className={className}>Flask</span>,
-  ArrowRight: ({ className }: any) => <span data-testid="icon-arrow" className={className}>Arrow</span>,
+  Flask: ({ className }: any) => (
+    <span data-testid="icon-flask" className={className}>
+      Flask
+    </span>
+  ),
+  ArrowRight: ({ className }: any) => (
+    <span data-testid="icon-arrow" className={className}>
+      Arrow
+    </span>
+  ),
   CheckCircle: () => <span data-testid="icon-check">Check</span>,
   WarningCircle: () => <span data-testid="icon-warning">Warning</span>,
-  CircleNotch: ({ className }: any) => <span data-testid="icon-loading" className={className}>Loading</span>,
+  CircleNotch: ({ className }: any) => (
+    <span data-testid="icon-loading" className={className}>
+      Loading
+    </span>
+  ),
 }));
 
 // Mock API
@@ -128,7 +140,7 @@ describe('CounterfactualPanel', () => {
 
     it('should show loading state when simulating', async () => {
       (explainabilityApi.runCounterfactual as any).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100)),
       );
 
       render(<CounterfactualPanel />);
@@ -144,7 +156,7 @@ describe('CounterfactualPanel', () => {
 
     it('should disable button while simulating', async () => {
       (explainabilityApi.runCounterfactual as any).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockSuccessResult), 100)),
       );
 
       render(<CounterfactualPanel />);

@@ -5,23 +5,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MasteryWordItem } from '../MasteryWordItem';
-import apiClient from '../../../services/ApiClient';
+import apiClient from '../../../services/client';
 import type { MasteryEvaluation } from '../../../types/word-mastery';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
-}));
+// Note: framer-motion is no longer used in MasteryWordItem after CSS migration
 
 // Mock phosphor-icons
 vi.mock('@phosphor-icons/react', () => ({
-  CaretDown: ({ size, className }: any) => <span data-testid="icon-caret-down" className={className}>▼</span>,
-  CaretUp: ({ size, className }: any) => <span data-testid="icon-caret-up" className={className}>▲</span>,
-  Clock: ({ size, className }: any) => <span data-testid="icon-clock" className={className}>Clock</span>,
-  Fire: ({ size, className }: any) => <span data-testid="icon-fire" className={className}>Fire</span>,
+  CaretDown: ({ size, className }: any) => (
+    <span data-testid="icon-caret-down" className={className}>
+      ▼
+    </span>
+  ),
+  CaretUp: ({ size, className }: any) => (
+    <span data-testid="icon-caret-up" className={className}>
+      ▲
+    </span>
+  ),
+  Clock: ({ size, className }: any) => (
+    <span data-testid="icon-clock" className={className}>
+      Clock
+    </span>
+  ),
+  Fire: ({ size, className }: any) => (
+    <span data-testid="icon-fire" className={className}>
+      Fire
+    </span>
+  ),
 }));
 
 // Mock MemoryTraceChart
@@ -32,7 +42,7 @@ vi.mock('./MemoryTraceChart', () => ({
 }));
 
 // Mock API
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: {
     getWordMasteryTrace: vi.fn(),
     getWordMasteryInterval: vi.fn(),
@@ -63,8 +73,20 @@ const mockMastery: MasteryEvaluation = {
 const mockTraceResponse = {
   wordId: 'word-1',
   trace: [
-    { id: '1', timestamp: '2024-01-01T10:00:00Z', isCorrect: true, responseTime: 2.0, secondsAgo: 0 },
-    { id: '2', timestamp: '2024-01-02T10:00:00Z', isCorrect: false, responseTime: 3.0, secondsAgo: 86400 },
+    {
+      id: '1',
+      timestamp: '2024-01-01T10:00:00Z',
+      isCorrect: true,
+      responseTime: 2.0,
+      secondsAgo: 0,
+    },
+    {
+      id: '2',
+      timestamp: '2024-01-02T10:00:00Z',
+      isCorrect: false,
+      responseTime: 3.0,
+      secondsAgo: 86400,
+    },
   ],
   count: 2,
 };
@@ -96,12 +118,7 @@ describe('MasteryWordItem', () => {
   describe('rendering', () => {
     it('should render word spelling', () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       expect(screen.getByText('hello')).toBeInTheDocument();
@@ -114,7 +131,7 @@ describe('MasteryWordItem', () => {
           spelling="hello"
           meanings="你好，问候"
           mastery={mockMastery}
-        />
+        />,
       );
 
       expect(screen.getByText('你好，问候')).toBeInTheDocument();
@@ -122,12 +139,7 @@ describe('MasteryWordItem', () => {
 
     it('should render mastery level badge', () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       // Score 0.75 should be "熟练"
@@ -136,12 +148,7 @@ describe('MasteryWordItem', () => {
 
     it('should render mastery score', () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       expect(screen.getByText('75%')).toBeInTheDocument();
@@ -149,12 +156,7 @@ describe('MasteryWordItem', () => {
 
     it('should render confidence score', () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       expect(screen.getByText('85%')).toBeInTheDocument();
@@ -162,12 +164,7 @@ describe('MasteryWordItem', () => {
 
     it('should render caret down icon initially', () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       expect(screen.getByTestId('icon-caret-down')).toBeInTheDocument();
@@ -178,14 +175,7 @@ describe('MasteryWordItem', () => {
 
   describe('mastery levels', () => {
     it('should show "未学习" when mastery is null', () => {
-      render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={null}
-        />
-      );
+      render(<MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={null} />);
 
       expect(screen.getByText('未学习')).toBeInTheDocument();
     });
@@ -198,7 +188,7 @@ describe('MasteryWordItem', () => {
           spelling="hello"
           meanings="你好"
           mastery={learnedMastery}
-        />
+        />,
       );
 
       expect(screen.getByText('已掌握')).toBeInTheDocument();
@@ -212,7 +202,7 @@ describe('MasteryWordItem', () => {
           spelling="hello"
           meanings="你好"
           mastery={proficientMastery}
-        />
+        />,
       );
 
       expect(screen.getByText('熟练')).toBeInTheDocument();
@@ -226,7 +216,7 @@ describe('MasteryWordItem', () => {
           spelling="hello"
           meanings="你好"
           mastery={learningMastery}
-        />
+        />,
       );
 
       expect(screen.getByText('学习中')).toBeInTheDocument();
@@ -240,7 +230,7 @@ describe('MasteryWordItem', () => {
           spelling="hello"
           meanings="你好"
           mastery={needReviewMastery}
-        />
+        />,
       );
 
       expect(screen.getByText('需复习')).toBeInTheDocument();
@@ -252,12 +242,7 @@ describe('MasteryWordItem', () => {
   describe('expansion', () => {
     it('should expand on click and load data', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -273,12 +258,7 @@ describe('MasteryWordItem', () => {
 
     it('should show caret up icon when expanded', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -293,12 +273,7 @@ describe('MasteryWordItem', () => {
 
     it('should collapse on second click', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -324,12 +299,7 @@ describe('MasteryWordItem', () => {
 
     it('should not reload data on re-expand', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -363,12 +333,7 @@ describe('MasteryWordItem', () => {
   describe('expanded content', () => {
     it('should show next review info when expanded', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -388,12 +353,7 @@ describe('MasteryWordItem', () => {
 
     it('should show mastery details when expanded', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -413,12 +373,7 @@ describe('MasteryWordItem', () => {
 
     it('should show suggestion when available', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -437,12 +392,7 @@ describe('MasteryWordItem', () => {
   describe('loading state', () => {
     it('should make API calls when expanded', async () => {
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');
@@ -465,12 +415,7 @@ describe('MasteryWordItem', () => {
       (apiClient.getWordMasteryTrace as any).mockRejectedValue(new Error('API Error'));
 
       render(
-        <MasteryWordItem
-          wordId="word-1"
-          spelling="hello"
-          meanings="你好"
-          mastery={mockMastery}
-        />
+        <MasteryWordItem wordId="word-1" spelling="hello" meanings="你好" mastery={mockMastery} />,
       );
 
       const button = screen.getByRole('button');

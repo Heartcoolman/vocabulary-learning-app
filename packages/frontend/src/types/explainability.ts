@@ -24,18 +24,18 @@ export interface AlgorithmWeights {
 export interface DecisionExplanation {
   decisionId: string;
   timestamp: string;
-  selectedWordId?: string;  // Added for UI
-  reasoning?: string;  // Added for UI
+  selectedWordId?: string; // Added for UI
+  reasoning?: string; // Added for UI
   state: {
     attention?: number;
     fatigue?: number;
     motivation?: number;
   };
   difficultyFactors: DifficultyFactors;
-  weights?: Record<string, number> | AlgorithmWeights;  // Support both formats
+  weights?: Record<string, number> | AlgorithmWeights; // Support both formats
   triggers?: string[];
   stages?: Array<{ stage: string; durationMs?: number }>;
-  factors?: DecisionFactor[];  // Added for detailed UI display
+  factors?: DecisionFactor[]; // Added for detailed UI display
 }
 
 export interface CounterfactualInput {
@@ -71,8 +71,8 @@ export interface CounterfactualResult {
 export interface LearningCurvePoint {
   date: string;
   mastery?: number;
-  masteredCount?: number;  // Added for UI
-  accuracy?: number;  // Added for UI
+  masteredCount?: number; // Added for UI
+  accuracy?: number; // Added for UI
   attention?: number;
   fatigue?: number;
   motivation?: number;
@@ -85,6 +85,18 @@ export interface LearningCurveData {
   averageAttention: number;
 }
 
+/**
+ * AMAS 选择的动作
+ */
+export interface AMASSelectedAction {
+  difficulty?: 'easy' | 'mid' | 'hard';
+  batch_size?: number;
+  interval_scale?: number;
+  new_ratio?: number;
+  hint_level?: number;
+  type?: string;
+}
+
 export interface DecisionTimelineItem {
   answerId: string;
   wordId: string;
@@ -92,7 +104,7 @@ export interface DecisionTimelineItem {
   decision: {
     decisionId: string;
     confidence: number;
-    selectedAction: any;
+    selectedAction: AMASSelectedAction;
   };
 }
 
@@ -120,4 +132,3 @@ export interface EnhancedExplanation {
   factorContributions: FactorContribution[];
   algorithmInfo: AlgorithmInfo;
 }
-

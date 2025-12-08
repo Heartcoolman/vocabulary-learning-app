@@ -21,24 +21,33 @@ const mockStats = {
   needReviewCount: 10,
 };
 
-const mockWords = [
-  { id: 'word-1', spelling: 'achievement', meanings: ['成就', '成绩'] },
-  { id: 'word-2', spelling: 'accomplish', meanings: ['完成', '实现'] },
-  { id: 'word-3', spelling: 'adequate', meanings: ['足够的', '适当的'] },
-];
-
-const mockMasteryData = [
-  { wordId: 'word-1', score: 0.9, isLearned: true },
-  { wordId: 'word-2', score: 0.6, isLearned: false },
-  { wordId: 'word-3', score: 0.3, isLearned: false },
-];
-
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getWordMasteryStats: vi.fn(),
-    getLearnedWords: vi.fn(),
-    batchProcessWordMastery: vi.fn(),
+const mockWordsWithMastery = [
+  {
+    id: 'word-1',
+    spelling: 'achievement',
+    meanings: '成就; 成绩',
+    mastery: { wordId: 'word-1', score: 0.9, isLearned: true },
   },
+  {
+    id: 'word-2',
+    spelling: 'accomplish',
+    meanings: '完成; 实现',
+    mastery: { wordId: 'word-2', score: 0.6, isLearned: false },
+  },
+  {
+    id: 'word-3',
+    spelling: 'adequate',
+    meanings: '足够的; 适当的',
+    mastery: { wordId: 'word-3', score: 0.3, isLearned: false },
+  },
+];
+
+// Mock useMasteryWords hook
+const mockRefetch = vi.fn();
+const mockUseMasteryWords = vi.fn();
+
+vi.mock('../../hooks/queries/useMasteryWords', () => ({
+  useMasteryWords: () => mockUseMasteryWords(),
 }));
 
 // Mock logger
@@ -80,14 +89,17 @@ vi.mock('../../components/word-mastery/WordMasteryDetailModal', () => ({
     ) : null,
 }));
 
-import apiClient from '../../services/ApiClient';
-
 describe('WordMasteryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getWordMasteryStats as any).mockResolvedValue(mockStats);
-    (apiClient.getLearnedWords as any).mockResolvedValue(mockWords);
-    (apiClient.batchProcessWordMastery as any).mockResolvedValue(mockMasteryData);
+    // Default mock implementation - successful data load
+    mockUseMasteryWords.mockReturnValue({
+      words: mockWordsWithMastery,
+      stats: mockStats,
+      loading: false,
+      error: null,
+      refetch: mockRefetch,
+    });
   });
 
   afterEach(() => {
@@ -98,7 +110,7 @@ describe('WordMasteryPage', () => {
     return render(
       <MemoryRouter>
         <WordMasteryPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
@@ -120,6 +132,14 @@ describe('WordMasteryPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: null,
+        loading: true,
+        error: null,
+        refetch: mockRefetch,
+      });
+
       renderComponent();
       // The component shows a spinning div, not text
       expect(document.querySelector('.animate-spin')).toBeInTheDocument();
@@ -251,7 +271,13 @@ describe('WordMasteryPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no words', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: mockStats,
+        loading: false,
+        error: null,
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -261,7 +287,13 @@ describe('WordMasteryPage', () => {
     });
 
     it('should show message about starting learning', async () => {
-      (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: mockStats,
+        loading: false,
+        error: null,
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -290,7 +322,13 @@ describe('WordMasteryPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (apiClient.getWordMasteryStats as any).mockRejectedValue(new Error('加载失败'));
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: null,
+        loading: false,
+        error: '加载数据失败，请稍后重试',
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -300,7 +338,13 @@ describe('WordMasteryPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      (apiClient.getWordMasteryStats as any).mockRejectedValue(new Error('加载失败'));
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: null,
+        loading: false,
+        error: '加载数据失败，请稍后重试',
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -310,11 +354,13 @@ describe('WordMasteryPage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (apiClient.getWordMasteryStats as any)
-        .mockRejectedValueOnce(new Error('加载失败'))
-        .mockResolvedValueOnce(mockStats);
-      (apiClient.getLearnedWords as any).mockResolvedValue(mockWords);
-      (apiClient.batchProcessWordMastery as any).mockResolvedValue(mockMasteryData);
+      mockUseMasteryWords.mockReturnValue({
+        words: [],
+        stats: null,
+        loading: false,
+        error: '加载数据失败，请稍后重试',
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -324,9 +370,7 @@ describe('WordMasteryPage', () => {
 
       fireEvent.click(screen.getByText('重试'));
 
-      await waitFor(() => {
-        expect(screen.getByText('单词掌握度分析')).toBeInTheDocument();
-      });
+      expect(mockRefetch).toHaveBeenCalled();
     });
   });
 });

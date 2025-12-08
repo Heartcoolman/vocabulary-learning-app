@@ -20,22 +20,98 @@ const mockPipelineStatus = {
   systemHealth: 'healthy',
   totalThroughput: 150,
   layers: [
-    { id: 'PERCEPTION', name: 'Perception', nameCn: '感知层', processedCount: 1500, avgLatencyMs: 5, successRate: 0.99, status: 'healthy' },
-    { id: 'MODELING', name: 'Modeling', nameCn: '建模层', processedCount: 1400, avgLatencyMs: 8, successRate: 0.98, status: 'healthy' },
-    { id: 'LEARNING', name: 'Learning', nameCn: '学习层', processedCount: 1300, avgLatencyMs: 12, successRate: 0.97, status: 'healthy' },
-    { id: 'DECISION', name: 'Decision', nameCn: '决策层', processedCount: 1200, avgLatencyMs: 10, successRate: 0.99, status: 'healthy' },
-    { id: 'EVALUATION', name: 'Evaluation', nameCn: '评估层', processedCount: 1100, avgLatencyMs: 6, successRate: 0.98, status: 'degraded' },
-    { id: 'OPTIMIZATION', name: 'Optimization', nameCn: '优化层', processedCount: 1000, avgLatencyMs: 15, successRate: 0.96, status: 'healthy' },
+    {
+      id: 'PERCEPTION',
+      name: 'Perception',
+      nameCn: '感知层',
+      processedCount: 1500,
+      avgLatencyMs: 5,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'MODELING',
+      name: 'Modeling',
+      nameCn: '建模层',
+      processedCount: 1400,
+      avgLatencyMs: 8,
+      successRate: 0.98,
+      status: 'healthy',
+    },
+    {
+      id: 'LEARNING',
+      name: 'Learning',
+      nameCn: '学习层',
+      processedCount: 1300,
+      avgLatencyMs: 12,
+      successRate: 0.97,
+      status: 'healthy',
+    },
+    {
+      id: 'DECISION',
+      name: 'Decision',
+      nameCn: '决策层',
+      processedCount: 1200,
+      avgLatencyMs: 10,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'EVALUATION',
+      name: 'Evaluation',
+      nameCn: '评估层',
+      processedCount: 1100,
+      avgLatencyMs: 6,
+      successRate: 0.98,
+      status: 'degraded',
+    },
+    {
+      id: 'OPTIMIZATION',
+      name: 'Optimization',
+      nameCn: '优化层',
+      processedCount: 1000,
+      avgLatencyMs: 15,
+      successRate: 0.96,
+      status: 'healthy',
+    },
   ],
 };
 
 const mockAlgorithmStatus = {
   ensembleConsensusRate: 0.85,
   algorithms: [
-    { id: 'thompson', name: 'Thompson Sampling', weight: 0.35, callCount: 450, avgLatencyMs: 8, explorationRate: 0.15 },
-    { id: 'linucb', name: 'LinUCB', weight: 0.25, callCount: 320, avgLatencyMs: 12, explorationRate: 0.2 },
-    { id: 'actr', name: 'ACT-R', weight: 0.2, callCount: 250, avgLatencyMs: 6, explorationRate: 0.1 },
-    { id: 'heuristic', name: 'Heuristic', weight: 0.2, callCount: 230, avgLatencyMs: 3, explorationRate: 0.05 },
+    {
+      id: 'thompson',
+      name: 'Thompson Sampling',
+      weight: 0.35,
+      callCount: 450,
+      avgLatencyMs: 8,
+      explorationRate: 0.15,
+    },
+    {
+      id: 'linucb',
+      name: 'LinUCB',
+      weight: 0.25,
+      callCount: 320,
+      avgLatencyMs: 12,
+      explorationRate: 0.2,
+    },
+    {
+      id: 'actr',
+      name: 'ACT-R',
+      weight: 0.2,
+      callCount: 250,
+      avgLatencyMs: 6,
+      explorationRate: 0.1,
+    },
+    {
+      id: 'heuristic',
+      name: 'Heuristic',
+      weight: 0.2,
+      callCount: 230,
+      avgLatencyMs: 3,
+      explorationRate: 0.05,
+    },
   ],
   coldstartStats: {
     classifyCount: 150,
@@ -53,8 +129,22 @@ const mockUserStateStatus = {
     cognitive: { memory: 0.7, speed: 0.75, stability: 0.68 },
   },
   recentInferences: [
-    { id: 'user-1', timestamp: '2024-01-15T10:00:00.000Z', attention: 0.8, fatigue: 0.2, motivation: 0.6, confidence: 0.92 },
-    { id: 'user-2', timestamp: '2024-01-15T09:55:00.000Z', attention: 0.65, fatigue: 0.35, motivation: 0.4, confidence: 0.88 },
+    {
+      id: 'user-1',
+      timestamp: '2024-01-15T10:00:00.000Z',
+      attention: 0.8,
+      fatigue: 0.2,
+      motivation: 0.6,
+      confidence: 0.92,
+    },
+    {
+      id: 'user-2',
+      timestamp: '2024-01-15T09:55:00.000Z',
+      attention: 0.65,
+      fatigue: 0.35,
+      motivation: 0.4,
+      confidence: 0.88,
+    },
   ],
   modelParams: {
     attention: { beta: 0.5, weights: { responseTime: 0.4, errorRate: 0.3, engagement: 0.3 } },
@@ -148,7 +238,7 @@ describe('SystemStatusPage', () => {
     return render(
       <MemoryRouter>
         <SystemStatusPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

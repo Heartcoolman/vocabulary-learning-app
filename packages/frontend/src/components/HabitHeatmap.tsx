@@ -5,18 +5,28 @@ interface HabitHeatmapProps {
 }
 
 const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
-  const maxValue = useMemo(() => {
-    if (!timePref || timePref.length === 0) return 1;
-    return Math.max(...timePref, 1);
-  }, [timePref]);
+  const hasData = timePref && timePref.length > 0;
 
-  if (!timePref || timePref.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-gray-400">
-        <p>暂无时间偏好数据</p>
-      </div>
-    );
-  }
+  const maxValue = useMemo(() => {
+    if (!hasData) return 1;
+    return Math.max(...timePref, 1);
+  }, [timePref, hasData]);
+
+  const groupedHours = useMemo(() => {
+    if (!hasData) return [];
+    const groups = [];
+    for (let i = 0; i < 24; i += 3) {
+      const segment = timePref.slice(i, i + 3);
+      const avgValue = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+      groups.push({
+        start: i,
+        end: i + 2,
+        value: avgValue,
+        label: `${i}:00 - ${i + 2}:59`,
+      });
+    }
+    return groups;
+  }, [timePref, hasData]);
 
   const getColor = (value: number): string => {
     if (value === 0) return 'bg-gray-100';
@@ -38,87 +48,80 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
     return '频繁';
   };
 
-  const groupedHours = useMemo(() => {
-    const groups = [];
-    for (let i = 0; i < 24; i += 3) {
-      const segment = timePref.slice(i, i + 3);
-      const avgValue = segment.reduce((sum, val) => sum + val, 0) / segment.length;
-      groups.push({
-        start: i,
-        end: i + 2,
-        value: avgValue,
-        label: `${i}:00 - ${i + 2}:59`
-      });
-    }
-    return groups;
-  }, [timePref]);
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center py-8 text-gray-400">
+        <p>暂无时间偏好数据</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700">学习时间偏好 (24小时制)</h3>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <span>低</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded"></div>
-            <div className="w-3 h-3 bg-blue-100 rounded"></div>
-            <div className="w-3 h-3 bg-blue-200 rounded"></div>
-            <div className="w-3 h-3 bg-blue-300 rounded"></div>
-            <div className="w-3 h-3 bg-blue-400 rounded"></div>
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
+            <div className="h-3 w-3 rounded bg-gray-100"></div>
+            <div className="h-3 w-3 rounded bg-blue-100"></div>
+            <div className="h-3 w-3 rounded bg-blue-200"></div>
+            <div className="h-3 w-3 rounded bg-blue-300"></div>
+            <div className="h-3 w-3 rounded bg-blue-400"></div>
+            <div className="h-3 w-3 rounded bg-blue-500"></div>
           </div>
           <span>高</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {groupedHours.map((group, index) => (
           <div
             key={index}
-            className="relative group"
+            className="group relative"
             role="button"
             tabIndex={0}
             aria-label={`${group.label}: ${getIntensityLabel(group.value)}`}
           >
             <div
-              className={`${getColor(group.value)} rounded-lg p-4 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer`}
+              className={`${getColor(group.value)} cursor-pointer rounded-lg p-4 transition-all duration-200 hover:scale-105 hover:shadow-md`}
             >
-              <div className="text-xs font-medium text-gray-700 mb-1">{group.label}</div>
+              <div className="mb-1 text-xs font-medium text-gray-700">{group.label}</div>
               <div className="text-sm font-semibold text-gray-900">
                 {getIntensityLabel(group.value)}
               </div>
             </div>
 
-            <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-xs rounded py-1 px-2 bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap z-10">
+            <div className="invisible absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:visible">
               活动频次: {group.value.toFixed(2)}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+              <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">详细时段统计</h4>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2">
+      <div className="mt-6 border-t border-gray-200 pt-4">
+        <h4 className="mb-3 text-sm font-semibold text-gray-700">详细时段统计</h4>
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12">
           {timePref.map((value, hour) => (
             <div
               key={hour}
-              className="relative group"
+              className="group relative"
               role="button"
               tabIndex={0}
               aria-label={`${hour}:00 - ${hour}:59: ${getIntensityLabel(value)}`}
             >
               <div
-                className={`${getColor(value)} rounded aspect-square flex flex-col items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-md cursor-pointer`}
+                className={`${getColor(value)} flex aspect-square cursor-pointer flex-col items-center justify-center rounded transition-all duration-200 hover:scale-110 hover:shadow-md`}
               >
                 <div className="text-xs font-semibold text-gray-700">{hour}</div>
               </div>
 
-              <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-xs rounded py-1 px-2 bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap z-10">
+              <div className="invisible absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:visible">
                 {hour}:00 - {hour}:59
                 <br />
                 频次: {value.toFixed(2)}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
               </div>
             </div>
           ))}

@@ -30,7 +30,7 @@ vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
   return {
     AlgorithmConfigService: class MockAlgorithmConfigService {
       getConfigHistory = vi.fn().mockResolvedValue(mockHistory);
-    }
+    },
   };
 });
 

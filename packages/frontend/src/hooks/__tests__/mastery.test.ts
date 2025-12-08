@@ -12,15 +12,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-// Mock API client
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock API clients
+vi.mock('../../services/client', () => ({
+  learningClient: {
     getMasteryStudyWords: vi.fn(),
     createMasterySession: vi.fn(),
-    endHabitSession: vi.fn(),
     syncMasteryProgress: vi.fn(),
     getNextWords: vi.fn(),
     adjustLearningWords: vi.fn(),
+  },
+  amasClient: {
+    endHabitSession: vi.fn(),
     processLearningEvent: vi.fn(),
   },
 }));
@@ -41,33 +43,37 @@ const localStorageMock = {
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
-// Mock WordQueueManager
-vi.mock('../../services/learning/WordQueueManager', () => ({
-  WordQueueManager: vi.fn().mockImplementation(() => ({
-    recordAnswer: vi.fn(),
-    getProgress: vi.fn().mockReturnValue({
+// Mock WordQueueManager with hoisted mock factory
+const { MockWordQueueManager } = vi.hoisted(() => {
+  class MockWordQueueManager {
+    recordAnswer = vi.fn();
+    getProgress = vi.fn().mockReturnValue({
       masteredCount: 0,
       activeCount: 5,
       pendingCount: 10,
       totalQuestions: 0,
       targetCount: 20,
-    }),
-    getNextWordWithReason: vi.fn().mockReturnValue({
+    });
+    getNextWordWithReason = vi.fn().mockReturnValue({
       word: { id: 'word-1', spelling: 'test' },
       isCompleted: false,
-    }),
-    peekNextWordWithReason: vi.fn().mockReturnValue({
+    });
+    peekNextWordWithReason = vi.fn().mockReturnValue({
       word: { id: 'word-1', spelling: 'test' },
       isCompleted: false,
-    }),
-    applyAdjustments: vi.fn(),
-    skipWord: vi.fn(),
-    getCurrentWordIds: vi.fn().mockReturnValue(['word-1', 'word-2']),
-    getMasteredWordIds: vi.fn().mockReturnValue([]),
-  })),
+    });
+    applyAdjustments = vi.fn();
+    skipWord = vi.fn();
+    getCurrentWordIds = vi.fn().mockReturnValue(['word-1', 'word-2']);
+    getMasteredWordIds = vi.fn().mockReturnValue([]);
+  }
+  return { MockWordQueueManager };
+});
+
+vi.mock('../../services/learning/WordQueueManager', () => ({
+  WordQueueManager: MockWordQueueManager,
 }));
 
-import apiClient from '../../services/ApiClient';
 import {
   getMasteryStudyWords,
   createMasterySession,
@@ -83,14 +89,19 @@ import {
   type SessionCacheData,
   type WordItem,
 } from '../mastery';
+import { learningClient, amasClient } from '../../services/client';
 
-const mockApiClient = apiClient as {
+// Type the mocked clients
+const mockLearningClient = learningClient as unknown as {
   getMasteryStudyWords: ReturnType<typeof vi.fn>;
   createMasterySession: ReturnType<typeof vi.fn>;
-  endHabitSession: ReturnType<typeof vi.fn>;
   syncMasteryProgress: ReturnType<typeof vi.fn>;
   getNextWords: ReturnType<typeof vi.fn>;
   adjustLearningWords: ReturnType<typeof vi.fn>;
+};
+
+const mockAmasClient = amasClient as unknown as {
+  endHabitSession: ReturnType<typeof vi.fn>;
   processLearningEvent: ReturnType<typeof vi.fn>;
 };
 
@@ -111,32 +122,32 @@ describe('mastery', () => {
     describe('getMasteryStudyWords', () => {
       it('should call API with target count', async () => {
         const mockResponse = { words: [], totalAvailable: 100 };
-        mockApiClient.getMasteryStudyWords.mockResolvedValue(mockResponse);
+        mockLearningClient.getMasteryStudyWords.mockResolvedValue(mockResponse);
 
         const result = await getMasteryStudyWords(20);
 
-        expect(mockApiClient.getMasteryStudyWords).toHaveBeenCalledWith(20);
+        expect(mockLearningClient.getMasteryStudyWords).toHaveBeenCalledWith(20);
         expect(result).toEqual(mockResponse);
       });
 
       it('should call API without target count', async () => {
         const mockResponse = { words: [], totalAvailable: 100 };
-        mockApiClient.getMasteryStudyWords.mockResolvedValue(mockResponse);
+        mockLearningClient.getMasteryStudyWords.mockResolvedValue(mockResponse);
 
         await getMasteryStudyWords();
 
-        expect(mockApiClient.getMasteryStudyWords).toHaveBeenCalledWith(undefined);
+        expect(mockLearningClient.getMasteryStudyWords).toHaveBeenCalledWith(undefined);
       });
     });
 
     describe('createMasterySession', () => {
       it('should create session with target count', async () => {
         const mockResponse = { sessionId: 'session-1', masteryThreshold: 2 };
-        mockApiClient.createMasterySession.mockResolvedValue(mockResponse);
+        mockLearningClient.createMasterySession.mockResolvedValue(mockResponse);
 
         const result = await createMasterySession(20);
 
-        expect(mockApiClient.createMasterySession).toHaveBeenCalledWith(20);
+        expect(mockLearningClient.createMasterySession).toHaveBeenCalledWith(20);
         expect(result).toEqual(mockResponse);
       });
     });
@@ -144,11 +155,11 @@ describe('mastery', () => {
     describe('endHabitSession', () => {
       it('should end session by ID', async () => {
         const mockResponse = { success: true };
-        mockApiClient.endHabitSession.mockResolvedValue(mockResponse);
+        mockAmasClient.endHabitSession.mockResolvedValue(mockResponse);
 
         const result = await endHabitSession('session-1');
 
-        expect(mockApiClient.endHabitSession).toHaveBeenCalledWith('session-1');
+        expect(mockAmasClient.endHabitSession).toHaveBeenCalledWith('session-1');
         expect(result).toEqual(mockResponse);
       });
     });
@@ -156,7 +167,7 @@ describe('mastery', () => {
     describe('syncMasteryProgress', () => {
       it('should sync progress data', async () => {
         const mockResponse = { synced: true };
-        mockApiClient.syncMasteryProgress.mockResolvedValue(mockResponse);
+        mockLearningClient.syncMasteryProgress.mockResolvedValue(mockResponse);
 
         const data = {
           sessionId: 'session-1',
@@ -166,7 +177,7 @@ describe('mastery', () => {
 
         const result = await syncMasteryProgress(data);
 
-        expect(mockApiClient.syncMasteryProgress).toHaveBeenCalledWith(data);
+        expect(mockLearningClient.syncMasteryProgress).toHaveBeenCalledWith(data);
         expect(result).toEqual(mockResponse);
       });
     });
@@ -174,7 +185,7 @@ describe('mastery', () => {
     describe('getNextWords', () => {
       it('should get next words with params', async () => {
         const mockResponse = { words: [{ id: 'word-1' }] };
-        mockApiClient.getNextWords.mockResolvedValue(mockResponse);
+        mockLearningClient.getNextWords.mockResolvedValue(mockResponse);
 
         const params = {
           currentWordIds: ['word-1'],
@@ -185,7 +196,7 @@ describe('mastery', () => {
 
         const result = await getNextWords(params);
 
-        expect(mockApiClient.getNextWords).toHaveBeenCalledWith(params);
+        expect(mockLearningClient.getNextWords).toHaveBeenCalledWith(params);
         expect(result).toEqual(mockResponse);
       });
     });
@@ -193,7 +204,7 @@ describe('mastery', () => {
     describe('adjustLearningWords', () => {
       it('should adjust learning words', async () => {
         const mockResponse = { adjusted: true };
-        mockApiClient.adjustLearningWords.mockResolvedValue(mockResponse);
+        mockLearningClient.adjustLearningWords.mockResolvedValue(mockResponse);
 
         const params = {
           sessionId: 'session-1',
@@ -209,7 +220,7 @@ describe('mastery', () => {
 
         const result = await adjustLearningWords(params);
 
-        expect(mockApiClient.adjustLearningWords).toHaveBeenCalledWith(params);
+        expect(mockLearningClient.adjustLearningWords).toHaveBeenCalledWith(params);
         expect(result).toEqual(mockResponse);
       });
     });
@@ -217,7 +228,7 @@ describe('mastery', () => {
     describe('processLearningEvent', () => {
       it('should process learning event', async () => {
         const mockResponse = { processed: true };
-        mockApiClient.processLearningEvent.mockResolvedValue(mockResponse);
+        mockAmasClient.processLearningEvent.mockResolvedValue(mockResponse);
 
         const eventData = {
           wordId: 'word-1',
@@ -228,7 +239,7 @@ describe('mastery', () => {
 
         const result = await processLearningEvent(eventData);
 
-        expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith(eventData);
+        expect(mockAmasClient.processLearningEvent).toHaveBeenCalledWith(eventData);
         expect(result).toEqual(mockResponse);
       });
     });
@@ -266,7 +277,7 @@ describe('mastery', () => {
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'mastery_session_cache',
-        expect.any(String)
+        expect.any(String),
       );
     });
 
@@ -388,9 +399,6 @@ describe('mastery', () => {
         meanings: ['你好'],
         examples: [],
         isNew: true,
-        correctCount: 0,
-        incorrectCount: 0,
-        lastAnsweredAt: null,
       },
       {
         id: 'word-2',
@@ -399,9 +407,6 @@ describe('mastery', () => {
         meanings: ['世界'],
         examples: [],
         isNew: true,
-        correctCount: 0,
-        incorrectCount: 0,
-        lastAnsweredAt: null,
       },
     ];
 
@@ -502,9 +507,6 @@ describe('mastery', () => {
           meanings: ['测试'],
           examples: [],
           isNew: true,
-          correctCount: 0,
-          incorrectCount: 0,
-          lastAnsweredAt: null,
         },
       ];
 
@@ -607,7 +609,7 @@ describe('mastery', () => {
     });
 
     it('should sync answer to server', async () => {
-      mockApiClient.processLearningEvent.mockResolvedValue({ processed: true });
+      mockAmasClient.processLearningEvent.mockResolvedValue({ processed: true });
 
       const { result } = renderHook(() => useMasterySync(mockOptions));
 
@@ -619,11 +621,21 @@ describe('mastery', () => {
             responseTime: 2000,
             pausedTimeMs: 0,
           },
-          { mastered: false }
+          {
+            mastered: false,
+            progress: {
+              wordId: 'word-1',
+              correctCount: 1,
+              wrongCount: 0,
+              consecutiveCorrect: 1,
+              attempts: 1,
+              lastAttemptTime: Date.now(),
+            },
+          },
         );
       });
 
-      expect(mockApiClient.processLearningEvent).toHaveBeenCalled();
+      expect(mockAmasClient.processLearningEvent).toHaveBeenCalled();
     });
 
     it('should not sync when no sessionId', async () => {
@@ -642,15 +654,15 @@ describe('mastery', () => {
             responseTime: 2000,
             pausedTimeMs: 0,
           },
-          null
+          null,
         );
       });
 
-      expect(mockApiClient.processLearningEvent).not.toHaveBeenCalled();
+      expect(mockAmasClient.processLearningEvent).not.toHaveBeenCalled();
     });
 
     it('should fetch more words if needed', async () => {
-      mockApiClient.getNextWords.mockResolvedValue({
+      mockLearningClient.getNextWords.mockResolvedValue({
         words: [
           {
             id: 'word-3',
@@ -667,7 +679,7 @@ describe('mastery', () => {
 
       const newWords = await result.current.fetchMoreWordsIfNeeded(1, 1, false);
 
-      expect(mockApiClient.getNextWords).toHaveBeenCalled();
+      expect(mockLearningClient.getNextWords).toHaveBeenCalled();
       expect(newWords.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -677,7 +689,7 @@ describe('mastery', () => {
       const newWords = await result.current.fetchMoreWordsIfNeeded(5, 5, true);
 
       expect(newWords).toEqual([]);
-      expect(mockApiClient.getNextWords).not.toHaveBeenCalled();
+      expect(mockLearningClient.getNextWords).not.toHaveBeenCalled();
     });
 
     it('should not fetch more words when above threshold', async () => {
@@ -686,11 +698,11 @@ describe('mastery', () => {
       const newWords = await result.current.fetchMoreWordsIfNeeded(5, 5, false);
 
       expect(newWords).toEqual([]);
-      expect(mockApiClient.getNextWords).not.toHaveBeenCalled();
+      expect(mockLearningClient.getNextWords).not.toHaveBeenCalled();
     });
 
     it('should trigger queue adjustment', async () => {
-      mockApiClient.adjustLearningWords.mockResolvedValue({ adjusted: true });
+      mockLearningClient.adjustLearningWords.mockResolvedValue({ adjusted: true });
 
       const { result } = renderHook(() => useMasterySync(mockOptions));
 
@@ -702,7 +714,7 @@ describe('mastery', () => {
         });
       });
 
-      expect(mockApiClient.adjustLearningWords).toHaveBeenCalled();
+      expect(mockLearningClient.adjustLearningWords).toHaveBeenCalled();
       expect(mockOptions.onQueueAdjusted).toHaveBeenCalled();
     });
 

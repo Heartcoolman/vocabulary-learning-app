@@ -33,11 +33,16 @@ function parseExpiresIn(expiresIn: string): number {
   const unit = match[2];
 
   switch (unit) {
-    case 's': return value * 1000;
-    case 'm': return value * 60 * 1000;
-    case 'h': return value * 60 * 60 * 1000;
-    case 'd': return value * 24 * 60 * 60 * 1000;
-    default: throw new Error(`不支持的时间单位: ${unit}`);
+    case 's':
+      return value * 1000;
+    case 'm':
+      return value * 60 * 1000;
+    case 'h':
+      return value * 60 * 60 * 1000;
+    case 'd':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      throw new Error(`不支持的时间单位: ${unit}`);
   }
 }
 
@@ -138,7 +143,10 @@ export class AuthService {
           algorithms: ['HS256'],
         }) as { userId: string };
       } catch (jwtError) {
-        authLogger.error({ error: jwtError instanceof Error ? jwtError.message : jwtError }, 'JWT 验证失败');
+        authLogger.error(
+          { error: jwtError instanceof Error ? jwtError.message : jwtError },
+          'JWT 验证失败',
+        );
         throw new Error('JWT验证失败');
       }
 
@@ -159,7 +167,10 @@ export class AuthService {
       }
 
       if (session.userId !== decoded.userId) {
-        authLogger.error({ sessionUserId: session.userId, decodedUserId: decoded.userId }, 'Session userId 不匹配');
+        authLogger.error(
+          { sessionUserId: session.userId, decodedUserId: decoded.userId },
+          'Session userId 不匹配',
+        );
         throw new Error('会话用户不匹配');
       }
 
@@ -181,7 +192,12 @@ export class AuthService {
         throw new Error('用户不存在');
       }
 
-      return user;
+      // 将 Date 转换为 Timestamp (number) 以匹配 AuthUser 类型
+      return {
+        ...user,
+        createdAt: user.createdAt.getTime(),
+        updatedAt: user.updatedAt.getTime(),
+      };
     } catch (error) {
       // 重新抛出已有的错误消息，便于调试
       const message = error instanceof Error ? error.message : '无效的认证令牌';
@@ -190,21 +206,13 @@ export class AuthService {
   }
 
   generateToken(userId: string): string {
-    return jwt.sign(
-      { userId },
-      env.JWT_SECRET,
-      {
-        expiresIn: env.JWT_EXPIRES_IN,
-        algorithm: 'HS256',
-      } as jwt.SignOptions
-    );
+    return jwt.sign({ userId }, env.JWT_SECRET, {
+      expiresIn: env.JWT_EXPIRES_IN,
+      algorithm: 'HS256',
+    } as jwt.SignOptions);
   }
 
-  private async createSession(
-    userId: string,
-    token: string,
-    tx?: TransactionClient
-  ) {
+  private async createSession(userId: string, token: string, tx?: TransactionClient) {
     // 使用与 JWT 相同的过期时间配置，确保会话和令牌过期时间一致
     const expiresInMs = parseExpiresIn(env.JWT_EXPIRES_IN);
     const expiresAt = new Date(Date.now() + expiresInMs);

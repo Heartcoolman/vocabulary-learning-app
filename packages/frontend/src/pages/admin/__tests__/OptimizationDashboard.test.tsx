@@ -25,8 +25,21 @@ vi.mock('../../../components/ui/Toast', () => ({
 vi.mock('../../../components/ui', () => ({
   useToast: () => mockToast,
   ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => isOpen ? <div>{children}</div> : null,
-  ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string }) =>
+  Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
+    isOpen ? <div>{children}</div> : null,
+  ConfirmModal: ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string;
+  }) =>
     isOpen ? (
       <div data-testid="confirm-modal">
         <h2>{title}</h2>
@@ -35,7 +48,8 @@ vi.mock('../../../components/ui', () => ({
         <button onClick={onClose}>Cancel</button>
       </div>
     ) : null,
-  AlertModal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => isOpen ? <div>{children}</div> : null,
+  AlertModal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) =>
+    isOpen ? <div>{children}</div> : null,
 }));
 
 // Mock ApiClient - use vi.hoisted to ensure it's available when mock factory runs
@@ -49,15 +63,19 @@ const mockApiClient = vi.hoisted(() => ({
   recordOptimizationEvaluation: vi.fn(),
 }));
 
-vi.mock('../../../services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: mockApiClient,
 }));
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => <button {...props}>{children}</button>,
+    div: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+      <div {...props}>{children}</div>
+    ),
+    button: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+      <button {...props}>{children}</button>
+    ),
   },
 }));
 
@@ -65,7 +83,9 @@ vi.mock('framer-motion', () => ({
 vi.mock('../../../components/Icon', () => ({
   Activity: () => <span data-testid="activity-icon">Activity</span>,
   ArrowsClockwise: ({ className }: { className?: string }) => (
-    <span data-testid="refresh-icon" className={className}>Refresh</span>
+    <span data-testid="refresh-icon" className={className}>
+      Refresh
+    </span>
   ),
   Gear: () => <span data-testid="gear-icon">Gear</span>,
   TrendUp: () => <span data-testid="trend-up-icon">TrendUp</span>,
@@ -146,7 +166,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <OptimizationDashboard />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -339,7 +359,7 @@ describe('OptimizationDashboard', () => {
       await waitFor(() => {
         expect(mockApiClient.recordOptimizationEvaluation).toHaveBeenCalledWith(
           mockSuggestion.params,
-          0.9
+          0.9,
         );
       });
     });
@@ -448,7 +468,9 @@ describe('OptimizationDashboard', () => {
         // Find the button by role
         const triggerButtons = screen.getAllByText('触发优化');
         // The button is the one in the button element, click the last one (the actual button)
-        const button = triggerButtons.find(el => el.tagName === 'BUTTON') || triggerButtons[triggerButtons.length - 1];
+        const button =
+          triggerButtons.find((el) => el.tagName === 'BUTTON') ||
+          triggerButtons[triggerButtons.length - 1];
         fireEvent.click(button);
       });
 
@@ -469,7 +491,9 @@ describe('OptimizationDashboard', () => {
         // Find the button by role
         const resetButtons = screen.getAllByText('重置优化器');
         // The button is the one in the button element, click the last one (the actual button)
-        const button = resetButtons.find(el => el.tagName === 'BUTTON') || resetButtons[resetButtons.length - 1];
+        const button =
+          resetButtons.find((el) => el.tagName === 'BUTTON') ||
+          resetButtons[resetButtons.length - 1];
         fireEvent.click(button);
       });
 
@@ -493,7 +517,9 @@ describe('OptimizationDashboard', () => {
         // Find the button by role
         const resetButtons = screen.getAllByText('重置优化器');
         // The button is the one in the button element, click the last one (the actual button)
-        const button = resetButtons.find(el => el.tagName === 'BUTTON') || resetButtons[resetButtons.length - 1];
+        const button =
+          resetButtons.find((el) => el.tagName === 'BUTTON') ||
+          resetButtons[resetButtons.length - 1];
         fireEvent.click(button);
       });
 

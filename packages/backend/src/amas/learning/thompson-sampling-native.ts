@@ -17,17 +17,13 @@
 
 import type {
   ThompsonSamplingNative as ThompsonSamplingNativeClass,
-  ThompsonSamplingConfig as NativeThompsonSamplingConfig,
+  ThompsonSamplingOptions as NativeThompsonSamplingOptions,
   ThompsonSamplingState as NativeThompsonSamplingState,
   BetaParams as NativeBetaParams,
   ActionSelection as NativeActionSelection,
 } from '@danci/native';
 
-import {
-  CircuitBreaker,
-  CircuitBreakerOptions,
-  CircuitState,
-} from '../common/circuit-breaker';
+import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
 import { SmartRouter, RouteDecision } from '../common/smart-router';
 
@@ -123,16 +119,18 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   NativeModule = require('@danci/native');
 } catch (e) {
-  amasLogger.warn('[ThompsonSamplingNativeWrapper] Native module not available, will use TypeScript fallback');
+  amasLogger.warn(
+    '[ThompsonSamplingNativeWrapper] Native module not available, will use TypeScript fallback',
+  );
 }
 
 // ==================== 熔断器默认配置 ====================
 
 const DEFAULT_CIRCUIT_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
-  failureThreshold: 0.5,  // 50% 失败率触发熔断
-  windowSize: 20,         // 20 个样本的滑动窗口
-  openDurationMs: 60000,  // 60 秒后尝试半开
-  halfOpenProbe: 3,       // 半开状态允许 3 个探测请求
+  failureThreshold: 0.5, // 50% 失败率触发熔断
+  windowSize: 20, // 20 个样本的滑动窗口
+  openDurationMs: 60000, // 60 秒后尝试半开
+  halfOpenProbe: 3, // 半开状态允许 3 个探测请求
 };
 
 // ==================== ThompsonSamplingNativeWrapper 类 ====================
@@ -199,14 +197,22 @@ export class ThompsonSamplingNativeWrapper {
       openDurationMs: recoveryTimeout!,
       halfOpenProbe: halfOpenProbe!,
       onStateChange: (from, to) => {
-        amasLogger.info({ from, to }, '[ThompsonSamplingNativeWrapper] Circuit breaker state changed');
+        amasLogger.info(
+          { from, to },
+          '[ThompsonSamplingNativeWrapper] Circuit breaker state changed',
+        );
         this.updateMetricState(to);
       },
       onEvent: (evt) => {
         if (evt.type === 'open') {
-          amasLogger.warn({ reason: evt.reason }, '[ThompsonSamplingNativeWrapper] Circuit breaker opened');
+          amasLogger.warn(
+            { reason: evt.reason },
+            '[ThompsonSamplingNativeWrapper] Circuit breaker opened',
+          );
         } else if (evt.type === 'close') {
-          amasLogger.info('[ThompsonSamplingNativeWrapper] Circuit breaker closed, native recovered');
+          amasLogger.info(
+            '[ThompsonSamplingNativeWrapper] Circuit breaker closed, native recovered',
+          );
         }
       },
     });
@@ -214,19 +220,20 @@ export class ThompsonSamplingNativeWrapper {
     // 尝试初始化 Native 模块
     if (this.nativeEnabled && NativeModule?.ThompsonSamplingNative) {
       try {
-        const nativeConfig: NativeThompsonSamplingConfig = {
+        const nativeConfig: NativeThompsonSamplingOptions = {
           priorAlpha,
           priorBeta,
           minContextWeight,
           maxContextWeight,
           enableSoftUpdate,
         };
-        this.native = new NativeModule.ThompsonSamplingNative(nativeConfig);
+        // ThompsonSamplingNative 使用 withOptions 静态方法创建
+        this.native = NativeModule.ThompsonSamplingNative.withOptions(nativeConfig);
         amasLogger.info('[ThompsonSamplingNativeWrapper] Native module initialized');
       } catch (e) {
         amasLogger.warn(
           { error: e instanceof Error ? e.message : String(e) },
-          '[ThompsonSamplingNativeWrapper] Failed to initialize native module'
+          '[ThompsonSamplingNativeWrapper] Failed to initialize native module',
         );
         this.native = null;
       }
@@ -254,7 +261,7 @@ export class ThompsonSamplingNativeWrapper {
   selectAction(
     state: UserState,
     actions: Action[],
-    context: ThompsonContext
+    context: ThompsonContext,
   ): ActionSelection<Action> {
     const method: NativeMethod = 'selectAction';
 
@@ -275,11 +282,11 @@ export class ThompsonSamplingNativeWrapper {
       const startTime = performance.now();
       try {
         // 构建动作键列表
-        const actionKeys = actions.map(a => this.buildActionKey(a));
+        const actionKeys = actions.map((a) => this.buildActionKey(a));
         const contextKey = this.buildContextKey(state, context);
 
-        // 调用 Native selectAction
-        const result = this.native.selectAction(actionKeys, contextKey);
+        // 调用 Native selectActionWithContext
+        const result = this.native.selectActionWithContext(contextKey, actionKeys);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -287,7 +294,7 @@ export class ThompsonSamplingNativeWrapper {
         this.circuitBreaker.recordSuccess();
         this.stats.nativeCalls++;
 
-        return this.fromNativeActionSelection(result, actions);
+        return this.fromNativeActionSelection(result, actions, actionKeys);
       } catch (e) {
         const error = e instanceof Error ? e : new Error(String(e));
         recordNativeFailure();
@@ -296,7 +303,7 @@ export class ThompsonSamplingNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ThompsonSamplingNativeWrapper] Native selectAction failed, falling back'
+          '[ThompsonSamplingNativeWrapper] Native selectAction failed, falling back',
         );
       }
     }
@@ -313,12 +320,7 @@ export class ThompsonSamplingNativeWrapper {
    * 智能路由决策: 强制使用 TypeScript
    * 原因: 简单参数更新，NAPI 开销大于计算
    */
-  update(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: ThompsonContext
-  ): void {
+  update(state: UserState, action: Action, reward: number, context: ThompsonContext): void {
     // 简单更新操作，强制使用 TypeScript (配置中已设置 forceRoute: USE_TYPESCRIPT)
     const decision = SmartRouter.decide('thompson.update', {
       nativeAvailable: this.shouldUseNative(),
@@ -368,69 +370,30 @@ export class ThompsonSamplingNativeWrapper {
    * 智能路由决策:
    * - 参数数量 >= 50: 使用 Native (批量优势)
    * - 参数数量 < 50: 使用 TypeScript (避免 NAPI 开销)
+   *
+   * 注意：Native batchSample 方法接受 actionKeys 数组，不是 alpha/beta 参数
+   * 这里使用 fallback 实现以保持 API 兼容
    */
   batchSample(params: Array<{ alpha: number; beta: number }>): number[] {
-    const method: NativeMethod = 'selectAction';
-
-    // 使用智能路由决策
-    const decision = SmartRouter.decide('thompson.batchSample', {
-      dataSize: params.length,
-      nativeAvailable: this.shouldUseNative(),
-    });
-
-    // 记录路由决策
-    if (decision === RouteDecision.USE_NATIVE) {
-      this.stats.routeDecisions.native++;
-    } else {
-      this.stats.routeDecisions.typescript++;
-    }
-
-    if (decision === RouteDecision.USE_NATIVE && this.native) {
-      const startTime = performance.now();
-      try {
-        const result = this.native.batchSample(params);
-
-        const durationMs = performance.now() - startTime;
-        recordNativeDuration(method, durationMs);
-        recordNativeCall(method, 'success');
-        this.circuitBreaker.recordSuccess();
-        this.stats.nativeCalls++;
-
-        return result;
-      } catch (e) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        recordNativeFailure();
-        this.circuitBreaker.recordFailure(error.message);
-        this.stats.failures++;
-
-        amasLogger.warn(
-          { error: error.message },
-          '[ThompsonSamplingNativeWrapper] Native batchSample failed, falling back'
-        );
-      }
-    }
-
+    // Native batchSample 签名不兼容，始终使用 fallback
     this.stats.fallbackCalls++;
-    recordNativeCall(method, 'fallback');
+    this.stats.routeDecisions.typescript++;
 
     // Fallback: 逐个采样
-    return params.map(p => this.sampleBetaFallback(p.alpha, p.beta));
+    return params.map((p) => this.sampleBetaFallback(p.alpha, p.beta));
   }
 
   /**
    * 更新 Beta 参数
    */
-  updateParams(
-    actionKey: string,
-    contextKey: string,
-    reward: number
-  ): void {
+  updateParams(actionKey: string, contextKey: string, reward: number): void {
     const method: NativeMethod = 'update';
 
     if (this.shouldUseNative()) {
       const startTime = performance.now();
       try {
-        this.native!.updateParams(actionKey, contextKey, reward);
+        // Native 使用 updateWithContextAndReward 方法
+        this.native!.updateWithContextAndReward(contextKey, actionKey, reward);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -447,7 +410,7 @@ export class ThompsonSamplingNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[ThompsonSamplingNativeWrapper] Native updateParams failed'
+          '[ThompsonSamplingNativeWrapper] Native updateParams failed',
         );
       }
     }
@@ -528,9 +491,7 @@ export class ThompsonSamplingNativeWrapper {
     const fallbackCaps = this.fallback.getCapabilities();
     return {
       ...fallbackCaps,
-      primaryUseCase:
-        fallbackCaps.primaryUseCase +
-        ' (Native 加速版本，支持熔断降级)',
+      primaryUseCase: fallbackCaps.primaryUseCase + ' (Native 加速版本，支持熔断降级)',
     };
   }
 
@@ -638,7 +599,7 @@ export class ThompsonSamplingNativeWrapper {
       `new=${action.new_ratio}`,
       `diff=${action.difficulty}`,
       `batch=${action.batch_size}`,
-      `hint=${action.hint_level}`
+      `hint=${action.hint_level}`,
     ].join('|');
   }
 
@@ -732,24 +693,27 @@ export class ThompsonSamplingNativeWrapper {
 
   /**
    * 转换 Native ActionSelection 到 TS 格式
+   * Native ActionSelection 返回 actionKey，需要根据 actionKey 找到对应的 action
    */
   private fromNativeActionSelection(
     result: NativeActionSelection,
-    actions: Action[]
+    actions: Action[],
+    actionKeys: string[],
   ): ActionSelection<Action> {
-    const selectedIndex = result.selectedIndex ?? 0;
-    const selectedAction = actions[selectedIndex] ?? actions[0];
+    // Native 返回 actionKey，找到对应的索引
+    const selectedIndex = actionKeys.indexOf(result.actionKey);
+    const finalIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    const selectedAction = actions[finalIndex] ?? actions[0];
 
     return {
       action: selectedAction,
       score: result.score ?? 0,
       confidence: result.confidence ?? 0,
       meta: {
-        selectedIndex,
+        selectedIndex: finalIndex,
         globalSample: result.globalSample,
         contextualSample: result.contextualSample,
         native: true,
-        ...result.meta,
       },
     };
   }
@@ -761,7 +725,7 @@ export class ThompsonSamplingNativeWrapper {
  * 创建 ThompsonSamplingNativeWrapper 实例
  */
 export function createThompsonSamplingNativeWrapper(
-  config?: ThompsonSamplingWrapperConfig
+  config?: ThompsonSamplingWrapperConfig,
 ): ThompsonSamplingNativeWrapper {
   return new ThompsonSamplingNativeWrapper(config);
 }
@@ -770,7 +734,7 @@ export function createThompsonSamplingNativeWrapper(
  * 创建禁用 Native 的 ThompsonSamplingNativeWrapper (用于测试)
  */
 export function createThompsonSamplingNativeWrapperFallback(
-  config?: Omit<ThompsonSamplingWrapperConfig, 'useNative'>
+  config?: Omit<ThompsonSamplingWrapperConfig, 'useNative'>,
 ): ThompsonSamplingNativeWrapper {
   return new ThompsonSamplingNativeWrapper({ ...config, useNative: false });
 }

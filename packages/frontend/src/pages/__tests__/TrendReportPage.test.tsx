@@ -49,17 +49,32 @@ const mockTrendReport = {
     ],
   },
   summary: '你的学习表现很好，正确率持续上升。',
-  recommendations: [
-    '继续保持当前的学习节奏',
-    '可以适当增加学习量',
-  ],
+  recommendations: ['继续保持当前的学习节奏', '可以适当增加学习量'],
 };
 
 const mockTrendHistory = {
   daily: [
-    { date: '2024-01-15', state: 'up' as const, accuracy: 0.88, avgResponseTime: 1200, motivation: 0.1 },
-    { date: '2024-01-14', state: 'stable' as const, accuracy: 0.85, avgResponseTime: 1300, motivation: 0.05 },
-    { date: '2024-01-13', state: 'up' as const, accuracy: 0.82, avgResponseTime: 1400, motivation: 0.08 },
+    {
+      date: '2024-01-15',
+      state: 'up' as const,
+      accuracy: 0.88,
+      avgResponseTime: 1200,
+      motivation: 0.1,
+    },
+    {
+      date: '2024-01-14',
+      state: 'stable' as const,
+      accuracy: 0.85,
+      avgResponseTime: 1300,
+      motivation: 0.05,
+    },
+    {
+      date: '2024-01-13',
+      state: 'up' as const,
+      accuracy: 0.82,
+      avgResponseTime: 1400,
+      motivation: 0.08,
+    },
   ],
 };
 
@@ -70,7 +85,7 @@ const mockIntervention = {
   actions: ['可以挑战更高难度的单词'],
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getCurrentTrend: vi.fn(),
     getTrendReport: vi.fn(),
@@ -89,7 +104,7 @@ vi.mock('../../components/LineChart', () => ({
   default: () => <div data-testid="line-chart">LineChart</div>,
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('TrendReportPage', () => {
   beforeEach(() => {
@@ -108,7 +123,7 @@ describe('TrendReportPage', () => {
     return render(
       <MemoryRouter>
         <TrendReportPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { CaretDown, CaretUp, Clock, Fire } from '@phosphor-icons/react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MasteryEvaluation, ReviewTraceRecord, WordMasteryIntervalResponse } from '../../types/word-mastery';
+import {
+  MasteryEvaluation,
+  ReviewTraceRecord,
+  WordMasteryIntervalResponse,
+} from '../../types/word-mastery';
 import { MemoryTraceChart } from './MemoryTraceChart';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import { learningLogger } from '../../utils/logger';
 
 interface MasteryWordItemProps {
@@ -13,11 +16,11 @@ interface MasteryWordItemProps {
   mastery: MasteryEvaluation | null;
 }
 
-export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
+const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
   wordId,
   spelling,
   meanings,
-  mastery
+  mastery,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [trace, setTrace] = useState<ReviewTraceRecord[] | null>(null);
@@ -30,7 +33,7 @@ export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
       try {
         const [traceData, intervalData] = await Promise.all([
           apiClient.getWordMasteryTrace(wordId),
-          apiClient.getWordMasteryInterval(wordId)
+          apiClient.getWordMasteryInterval(wordId),
         ]);
         setTrace(traceData.trace); // Extract trace array from WordMasteryTrace response
         setNextReview(intervalData);
@@ -66,40 +69,46 @@ export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
   const level = getMasteryLevel();
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
       <button
         onClick={handleToggle}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
       >
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex flex-1 items-center gap-4">
           <div className="flex-1 text-left">
-            <div className="flex items-center gap-3 mb-1">
+            <div className="mb-1 flex items-center gap-3">
               <h3 className="text-lg font-bold text-gray-800">{spelling}</h3>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${level.color} ${level.bgColor}`}>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${level.color} ${level.bgColor}`}
+              >
                 {level.label}
               </span>
             </div>
-            <p className="text-sm text-gray-500 line-clamp-1">{meanings}</p>
+            <p className="line-clamp-1 text-sm text-gray-500">{meanings}</p>
           </div>
 
           {mastery && (
             <div className="flex items-center gap-6 text-sm">
               <div className="text-center">
-                <p className="text-xs text-gray-400 mb-1">掌握度评分</p>
+                <p className="mb-1 text-xs text-gray-400">掌握度评分</p>
                 <div className="flex items-center gap-1">
-                  <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-100">
                     <div
-                      className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600 transition-all"
                       style={{ width: `${mastery.score * 100}%` }}
                     />
                   </div>
-                  <span className="text-xs font-mono text-gray-600">{Math.round(mastery.score * 100)}%</span>
+                  <span className="font-mono text-xs text-gray-600">
+                    {Math.round(mastery.score * 100)}%
+                  </span>
                 </div>
               </div>
 
               <div className="text-center">
-                <p className="text-xs text-gray-400 mb-1">置信度</p>
-                <p className="text-sm font-semibold text-gray-700">{Math.round(mastery.confidence * 100)}%</p>
+                <p className="mb-1 text-xs text-gray-400">置信度</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {Math.round(mastery.confidence * 100)}%
+                </p>
               </div>
             </div>
           )}
@@ -114,94 +123,128 @@ export const MasteryWordItem: React.FC<MasteryWordItemProps> = ({
         </div>
       </button>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="border-t border-gray-100"
-          >
-            <div className="px-6 py-6 bg-gray-50 space-y-6">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-                </div>
-              ) : (
-                <>
-                  {/* Memory Trace Chart */}
-                  {trace && trace.length > 0 && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm">
-                      <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                        <Fire size={18} className="text-purple-500" />
-                        记忆强度轨迹
-                      </h4>
-                      <MemoryTraceChart trace={trace} />
-                    </div>
-                  )}
+      {isExpanded && (
+        <div className="animate-expand border-t border-gray-100">
+          <div className="space-y-6 bg-gray-50 px-6 py-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <>
+                {/* Memory Trace Chart */}
+                {trace && trace.length > 0 && (
+                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                    <h4 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-700">
+                      <Fire size={18} className="text-purple-500" />
+                      记忆强度轨迹
+                    </h4>
+                    <MemoryTraceChart trace={trace} />
+                  </div>
+                )}
 
-                  {/* Next Review Info */}
-                  {nextReview && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm">
-                      <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <Clock size={18} className="text-blue-500" />
-                        复习预测
-                      </h4>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">最佳间隔</p>
-                          <p className="text-sm font-semibold text-gray-700">{nextReview.humanReadable.optimal}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">最小间隔</p>
-                          <p className="text-sm font-semibold text-gray-700">{nextReview.humanReadable.min}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">最大间隔</p>
-                          <p className="text-sm font-semibold text-gray-700">{nextReview.humanReadable.max}</p>
-                        </div>
+                {/* Next Review Info */}
+                {nextReview && (
+                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                    <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
+                      <Clock size={18} className="text-blue-500" />
+                      复习预测
+                    </h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">最佳间隔</p>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {nextReview.humanReadable.optimal}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">最小间隔</p>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {nextReview.humanReadable.min}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">最大间隔</p>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {nextReview.humanReadable.max}
+                        </p>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Mastery Details */}
-                  {mastery && (
-                    <div className="bg-white rounded-xl p-4 shadow-sm">
-                      <h4 className="text-sm font-bold text-gray-700 mb-3">详细统计</h4>
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">SRS等级</p>
-                          <p className="text-lg font-semibold text-blue-600">
-                            {mastery.factors.srsLevel}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">ACT-R提取概率</p>
-                          <p className="text-lg font-semibold text-green-600">
-                            {Math.round(mastery.factors.actrRecall * 100)}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">近期准确率</p>
-                          <p className="text-lg font-semibold text-purple-600">
-                            {Math.round(mastery.factors.recentAccuracy * 100)}%
-                          </p>
-                        </div>
+                {/* Mastery Details */}
+                {mastery && (
+                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                    <h4 className="mb-3 text-sm font-bold text-gray-700">详细统计</h4>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">SRS等级</p>
+                        <p className="text-lg font-semibold text-blue-600">
+                          {mastery.factors.srsLevel}
+                        </p>
                       </div>
-                      {mastery.suggestion && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-700">{mastery.suggestion}</p>
-                        </div>
-                      )}
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">ACT-R提取概率</p>
+                        <p className="text-lg font-semibold text-green-600">
+                          {Math.round(mastery.factors.actrRecall * 100)}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-gray-400">近期准确率</p>
+                        <p className="text-lg font-semibold text-purple-600">
+                          {Math.round(mastery.factors.recentAccuracy * 100)}%
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    {mastery.suggestion && (
+                      <div className="mt-4 rounded-lg bg-blue-50 p-3">
+                        <p className="text-sm text-blue-700">{mastery.suggestion}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+/**
+ * Deep comparison for MasteryEvaluation object
+ */
+const compareMasteryEvaluation = (
+  prev: MasteryEvaluation | null,
+  next: MasteryEvaluation | null,
+): boolean => {
+  if (prev === null && next === null) return true;
+  if (prev === null || next === null) return false;
+
+  return (
+    prev.score === next.score &&
+    prev.confidence === next.confidence &&
+    prev.isLearned === next.isLearned &&
+    prev.factors.srsLevel === next.factors.srsLevel &&
+    prev.factors.actrRecall === next.factors.actrRecall &&
+    prev.factors.recentAccuracy === next.factors.recentAccuracy &&
+    prev.suggestion === next.suggestion
+  );
+};
+
+/**
+ * Memoized MasteryWordItem component
+ * Optimizes re-renders by deep comparing mastery evaluation
+ * Note: Component has internal state for expansion, so memo only prevents
+ * unnecessary re-renders from parent prop changes
+ */
+export const MasteryWordItem = React.memo(MasteryWordItemComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.wordId === nextProps.wordId &&
+    prevProps.spelling === nextProps.spelling &&
+    prevProps.meanings === nextProps.meanings &&
+    compareMasteryEvaluation(prevProps.mastery, nextProps.mastery)
+  );
+});

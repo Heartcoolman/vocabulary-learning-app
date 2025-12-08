@@ -7,6 +7,59 @@
 
 import prisma from '../config/database';
 
+// ==================== 可选 Metric 模型的类型定义 ====================
+
+/**
+ * Metric 数据库记录类型（用于可选的数据库持久化）
+ */
+interface MetricRecord {
+  id?: string;
+  name: string;
+  value: number;
+  timestamp: Date;
+}
+
+/**
+ * Prisma 聚合结果类型
+ */
+interface MetricAggregateResult {
+  _avg?: { value: number | null };
+  _min?: { value: number | null };
+  _max?: { value: number | null };
+  _count?: { value: number } | number;
+  _sum?: { value: number | null };
+}
+
+/**
+ * 可选的 Metric 模型委托类型
+ * 用于检查 Prisma 是否有 metric 模型
+ */
+interface MetricModelDelegate {
+  create: (args: { data: MetricRecord }) => Promise<MetricRecord>;
+  findMany: (args: {
+    where: {
+      name: string;
+      timestamp?: { gte?: Date; lte?: Date };
+    };
+    orderBy?: { timestamp: 'asc' | 'desc' };
+  }) => Promise<MetricRecord[]>;
+  aggregate: (args: {
+    where: { name: string };
+    _avg?: { value: boolean };
+    _min?: { value: boolean };
+    _max?: { value: boolean };
+    _count?: { value: boolean };
+    _sum?: { value: boolean };
+  }) => Promise<MetricAggregateResult>;
+}
+
+/**
+ * 扩展的 Prisma Client 类型，包含可选的 metric 模型
+ */
+interface PrismaClientWithOptionalMetric {
+  metric?: MetricModelDelegate;
+}
+
 // ==================== 指标类型定义 ====================
 
 interface CounterMetric {
@@ -115,11 +168,7 @@ export function decGauge(name: string, value = 1): void {
 /**
  * 创建或获取Histogram指标
  */
-function getOrCreateHistogram(
-  name: string,
-  help: string,
-  buckets: number[]
-): HistogramMetric {
+function getOrCreateHistogram(name: string, help: string, buckets: number[]): HistogramMetric {
   let histogram = histograms.get(name);
   if (!histogram) {
     histogram = {
@@ -128,7 +177,7 @@ function getOrCreateHistogram(
       buckets: [...buckets].sort((a, b) => a - b),
       values: new Array(buckets.length).fill(0),
       sum: 0,
-      count: 0
+      count: 0,
     };
     histograms.set(name, histogram);
   }
@@ -168,21 +217,21 @@ getOrCreateCounter('amas_feature_vector_saved_total', 'FeatureVector持久化总
 getOrCreateHistogram(
   'amas_reward_processing_duration_seconds',
   '延迟奖励处理耗时（秒）',
-  [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+  [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 );
 
 // 学习队列调整耗时
 getOrCreateHistogram(
   'queue_adjustment_duration_seconds',
   '学习队列动态调整耗时（秒）',
-  [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]
+  [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
 );
 
 // 难度计算耗时
 getOrCreateHistogram(
   'difficulty_computation_time_seconds',
   '单词难度批量计算耗时（秒）',
-  [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1]
+  [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1],
 );
 
 // ==================== 便捷函数 ====================
@@ -246,7 +295,7 @@ export function getMetricsJson(): Record<string, unknown> {
     result[counter.name] = {
       type: 'counter',
       help: counter.help,
-      values
+      values,
     };
   });
 
@@ -255,7 +304,7 @@ export function getMetricsJson(): Record<string, unknown> {
     result[gauge.name] = {
       type: 'gauge',
       help: gauge.help,
-      value: gauge.value
+      value: gauge.value,
     };
   });
 
@@ -270,7 +319,7 @@ export function getMetricsJson(): Record<string, unknown> {
       help: histogram.help,
       buckets: bucketValues,
       sum: histogram.sum,
-      count: histogram.count
+      count: histogram.count,
     };
   });
 
@@ -342,7 +391,10 @@ export function recordMetric(name: string, value: number, timestamp?: Date): voi
 /**
  * 获取指标数据（用于测试兼容）
  */
-export function getMetrics(name: string, range?: { start: Date; end: Date }): Array<{ timestamp: Date; value: number }> {
+export function getMetrics(
+  name: string,
+  range?: { start: Date; end: Date },
+): Array<{ timestamp: Date; value: number }> {
   const gauge = gauges.get(name);
   if (gauge) {
     return [{ timestamp: new Date(), value: gauge.value }];
@@ -353,7 +405,12 @@ export function getMetrics(name: string, range?: { start: Date; end: Date }): Ar
 /**
  * 获取聚合指标（用于测试兼容）
  */
-export function getAggregatedMetrics(name: string): { avg: number; min: number; max: number; count: number } {
+export function getAggregatedMetrics(name: string): {
+  avg: number;
+  min: number;
+  max: number;
+  count: number;
+} {
   const gauge = gauges.get(name);
   const value = gauge ? gauge.value : 0;
   return {
@@ -373,11 +430,15 @@ export class MetricsService {
   /**
    * 记录指标（优先使用数据库，回退到内存指标）
    */
-  async recordMetric(name: string, value: number, timestamp: Date = new Date()) {
-    const prismaAny = prisma as any;
-    if (prismaAny.metric?.create) {
-      return prismaAny.metric.create({
-        data: { name, value, timestamp }
+  async recordMetric(
+    name: string,
+    value: number,
+    timestamp: Date = new Date(),
+  ): Promise<MetricRecord> {
+    const prismaWithMetric = prisma as unknown as PrismaClientWithOptionalMetric;
+    if (prismaWithMetric.metric?.create) {
+      return prismaWithMetric.metric.create({
+        data: { name, value, timestamp },
       });
     }
     legacyRecordMetric(name, value, timestamp);
@@ -389,23 +450,23 @@ export class MetricsService {
    */
   async getMetrics(
     name: string,
-    range?: { start: Date; end: Date }
+    range?: { start: Date; end: Date },
   ): Promise<Array<{ timestamp: Date; value: number }>> {
-    const prismaAny = prisma as any;
-    if (prismaAny.metric?.findMany) {
-      const records = await prismaAny.metric.findMany({
+    const prismaWithMetric = prisma as unknown as PrismaClientWithOptionalMetric;
+    if (prismaWithMetric.metric?.findMany) {
+      const records = await prismaWithMetric.metric.findMany({
         where: {
           name,
           ...(range
             ? {
                 timestamp: {
                   gte: range.start,
-                  lte: range.end
-                }
+                  lte: range.end,
+                },
               }
-            : {})
+            : {}),
         },
-        orderBy: { timestamp: 'asc' }
+        orderBy: { timestamp: 'asc' },
       });
       return records;
     }
@@ -421,25 +482,22 @@ export class MetricsService {
     max: number;
     count: number;
   }> {
-    const prismaAny = prisma as any;
-    if (prismaAny.metric?.aggregate) {
-      const result = await prismaAny.metric.aggregate({
+    const prismaWithMetric = prisma as unknown as PrismaClientWithOptionalMetric;
+    if (prismaWithMetric.metric?.aggregate) {
+      const result: MetricAggregateResult = await prismaWithMetric.metric.aggregate({
         where: { name },
         _avg: { value: true },
         _min: { value: true },
         _max: { value: true },
         _count: { value: true },
-        _sum: { value: true }
+        _sum: { value: true },
       });
-      const count =
-        (result as any)._count?.value ??
-        (result as any)._count ??
-        0;
+      const count = typeof result._count === 'number' ? result._count : (result._count?.value ?? 0);
       return {
         avg: result._avg?.value ?? 0,
         min: result._min?.value ?? 0,
         max: result._max?.value ?? 0,
-        count
+        count,
       };
     }
     return legacyGetAggregatedMetrics(name);

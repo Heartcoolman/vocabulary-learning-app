@@ -67,3 +67,6 @@ packages/backend/prisma/*.db
 # Large test result files
 **/simulation-test-results*.txt
 **/integration-test-results*.txt
+
+*storybook.log
+storybook-static

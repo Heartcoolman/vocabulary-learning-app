@@ -7,6 +7,7 @@
 ## 功能特性
 
 ### 1. 历史记录展示
+
 - 显示所有配置修改记录
 - 按时间倒序排列（最新的在前）
 - 每条记录包含：
@@ -17,6 +18,7 @@
   - 详细的修改前后对比
 
 ### 2. 筛选功能
+
 - **搜索筛选**：按修改人或修改原因搜索
 - **时间筛选**：
   - 全部：显示所有记录
@@ -25,6 +27,7 @@
   - 本月：显示最近30天的记录
 
 ### 3. 详细对比
+
 - 点击"展开详情"查看完整的变更内容
 - 使用颜色区分修改前后的值：
   - 红色背景：修改前的值
@@ -32,26 +35,31 @@
 - 支持复杂对象的格式化显示（JSON）
 
 ### 4. 统计信息
+
 - 显示总记录数
 - 显示筛选后的记录数
 
 ## 使用方法
 
 ### 访问页面
+
 1. 以管理员身份登录
 2. 进入管理后台
 3. 点击左侧菜单的"配置历史"
 
 ### 搜索记录
+
 1. 在搜索框中输入关键词
 2. 系统会实时过滤匹配的记录
 3. 支持搜索修改人和修改原因
 
 ### 按时间筛选
+
 1. 点击时间筛选按钮（全部/今天/本周/本月）
 2. 系统会显示对应时间范围内的记录
 
 ### 查看详情
+
 1. 找到要查看的记录
 2. 点击"展开详情"按钮
 3. 查看每个变更字段的详细对比
@@ -60,6 +68,7 @@
 ## 技术实现
 
 ### 组件结构
+
 ```
 ConfigHistoryPage (主组件)
 ├── 页面标题
@@ -76,6 +85,7 @@ ConfigHistoryPage (主组件)
 ```
 
 ### 数据流
+
 ```typescript
 // 1. 加载历史记录
 AlgorithmConfigService.getConfigHistory() -> ConfigHistory[]
@@ -90,49 +100,58 @@ filteredHistory.map(record => <HistoryRecordCard />)
 ### 关键函数
 
 #### `loadHistory()`
+
 从 AlgorithmConfigService 加载配置历史记录。
 
 #### `applyFilters()`
+
 根据搜索词和时间筛选条件过滤记录。
 
 #### `getChangedFields()`
+
 对比 previousValue 和 newValue，提取变更的字段。
 
 #### `formatDate()`
+
 格式化时间戳为可读的日期时间字符串。
 
 #### `formatValue()`
+
 格式化值为字符串，支持对象的 JSON 格式化。
 
 ## 数据模型
 
 ### ConfigHistory
+
 ```typescript
 interface ConfigHistory {
-  id: string;                    // 记录ID
-  configId: string;              // 配置ID
-  changedBy: string;             // 修改人
-  changeReason?: string;         // 修改原因
-  previousValue: Partial<AlgorithmConfig>;  // 修改前的值
-  newValue: Partial<AlgorithmConfig>;       // 修改后的值
-  timestamp: number;             // 修改时间戳
+  id: string; // 记录ID
+  configId: string; // 配置ID
+  changedBy: string; // 修改人
+  changeReason?: string; // 修改原因
+  previousValue: Partial<AlgorithmConfig>; // 修改前的值
+  newValue: Partial<AlgorithmConfig>; // 修改后的值
+  timestamp: number; // 修改时间戳
 }
 ```
 
 ## UI 设计
 
 ### 颜色方案
+
 - 主色调：蓝色 (#3b82f6)
 - 修改前：红色背景 (#fee2e2)
 - 修改后：绿色背景 (#dcfce7)
 - 文字：灰色系
 
 ### 图标使用
+
 - Clock：页面标题、时间显示
 - MagnifyingGlass：搜索框
 - ArrowCounterClockwise：修改人图标
 
 ### 响应式设计
+
 - 移动端：单列布局
 - 桌面端：双列对比布局（修改前/修改后）
 

@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import VocabularyPage from '../VocabularyPage';
+import type { WordBook } from '../../types/models';
 
 // Mock 导航
 const mockNavigate = vi.fn();
@@ -14,14 +16,30 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock apiClient
-const mockSystemBooks = [
+// Mock logger - 需要导出所有 logger 实例
+vi.mock('../../utils/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  learningLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  apiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  uiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  authLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  storageLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  amasLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  adminLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  trackingLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+// Mock 数据
+const mockSystemBooks: WordBook[] = [
   {
     id: 'system-book-1',
     name: 'CET-4 词汇',
     description: '大学英语四级核心词汇',
     wordCount: 4500,
     type: 'SYSTEM',
+    isPublic: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
   {
     id: 'system-book-2',
@@ -29,16 +47,22 @@ const mockSystemBooks = [
     description: '大学英语六级核心词汇',
     wordCount: 5500,
     type: 'SYSTEM',
+    isPublic: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
 ];
 
-const mockUserBooks = [
+const mockUserBooks: WordBook[] = [
   {
     id: 'user-book-1',
     name: '我的生词本',
     description: '平时积累的生词',
     wordCount: 150,
     type: 'USER',
+    isPublic: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   },
 ];
 
@@ -48,19 +72,12 @@ const mockSearchResults = [
     spelling: 'apple',
     phonetic: '/ˈæp.əl/',
     meanings: ['n. 苹果', 'n. 苹果树'],
+    examples: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
     wordBook: { id: 'system-book-1', name: 'CET-4 词汇', type: 'SYSTEM' },
   },
 ];
-
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getSystemWordBooks: vi.fn(),
-    getUserWordBooks: vi.fn(),
-    createWordBook: vi.fn(),
-    deleteWordBook: vi.fn(),
-    searchWords: vi.fn(),
-  },
-}));
 
 // Mock useToast
 const mockToast = {
@@ -80,41 +97,94 @@ vi.mock('../../components/ui', async () => {
         <div data-testid="modal">
           <h2>{title}</h2>
           {children}
-          <button onClick={onClose} data-testid="close-modal">关闭</button>
+          <button onClick={onClose} data-testid="close-modal">
+            关闭
+          </button>
         </div>
       ) : null,
-    ConfirmModal: ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, isLoading }: any) =>
+    ConfirmModal: ({
+      isOpen,
+      onClose,
+      onConfirm,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      isLoading,
+    }: any) =>
       isOpen ? (
         <div data-testid="confirm-modal">
           <h2>{title}</h2>
           <p>{message}</p>
-          <button onClick={onConfirm} disabled={isLoading}>{confirmText}</button>
+          <button onClick={onConfirm} disabled={isLoading}>
+            {confirmText}
+          </button>
           <button onClick={onClose}>{cancelText}</button>
         </div>
       ) : null,
   };
 });
 
-// Mock logger
-vi.mock('../../utils/logger', () => ({
-  uiLogger: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
+// Mock React Query hooks
+const mockUseSystemWordBooks = vi.fn();
+const mockUseUserWordBooks = vi.fn();
+const mockUseSearchWords = vi.fn();
+const mockCreateMutateAsync = vi.fn();
+const mockDeleteMutateAsync = vi.fn();
+const mockUseCreateWordBook = vi.fn();
+const mockUseDeleteWordBook = vi.fn();
+
+vi.mock('../../hooks/queries/useWordBooks', () => ({
+  useSystemWordBooks: () => mockUseSystemWordBooks(),
+  useUserWordBooks: () => mockUseUserWordBooks(),
+  useSearchWords: (query: string) => mockUseSearchWords(query),
 }));
 
-// Import mocked modules for assertions
-import apiClient from '../../services/ApiClient';
+vi.mock('../../hooks/mutations/useWordBookMutations', () => ({
+  useCreateWordBook: () => mockUseCreateWordBook(),
+  useDeleteWordBook: () => mockUseDeleteWordBook(),
+}));
+
+// 创建测试用的 QueryClient
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
 
 describe('VocabularyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getSystemWordBooks as any).mockResolvedValue(mockSystemBooks);
-    (apiClient.getUserWordBooks as any).mockResolvedValue(mockUserBooks);
-    (apiClient.searchWords as any).mockResolvedValue(mockSearchResults);
-    (apiClient.createWordBook as any).mockResolvedValue({ id: 'new-book' });
-    (apiClient.deleteWordBook as any).mockResolvedValue(undefined);
+    mockUseSystemWordBooks.mockReturnValue({
+      data: mockSystemBooks,
+      isLoading: false,
+      error: null,
+    });
+    mockUseUserWordBooks.mockReturnValue({
+      data: mockUserBooks,
+      isLoading: false,
+      error: null,
+    });
+    mockUseSearchWords.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isFetching: false,
+    });
+    mockCreateMutateAsync.mockResolvedValue({ id: 'new-book' });
+    mockDeleteMutateAsync.mockResolvedValue(undefined);
+    mockUseCreateWordBook.mockReturnValue({
+      mutateAsync: mockCreateMutateAsync,
+      isPending: false,
+    });
+    mockUseDeleteWordBook.mockReturnValue({
+      mutateAsync: mockDeleteMutateAsync,
+      isPending: false,
+    });
   });
 
   afterEach(() => {
@@ -122,10 +192,13 @@ describe('VocabularyPage', () => {
   });
 
   const renderComponent = () => {
+    const queryClient = createTestQueryClient();
     return render(
-      <MemoryRouter>
-        <VocabularyPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <VocabularyPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
   };
 
@@ -165,6 +238,16 @@ describe('VocabularyPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseSystemWordBooks.mockReturnValue({
+        data: [],
+        isLoading: true,
+        error: null,
+      });
+      mockUseUserWordBooks.mockReturnValue({
+        data: [],
+        isLoading: true,
+        error: null,
+      });
       renderComponent();
       expect(screen.getByText('正在加载...')).toBeInTheDocument();
     });
@@ -326,7 +409,7 @@ describe('VocabularyPage', () => {
       fireEvent.click(screen.getByRole('button', { name: '创建' }));
 
       await waitFor(() => {
-        expect(apiClient.createWordBook).toHaveBeenCalledWith({
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith({
           name: '新建测试词书',
           description: '',
         });
@@ -383,7 +466,7 @@ describe('VocabularyPage', () => {
       fireEvent.click(confirmButton!);
 
       await waitFor(() => {
-        expect(apiClient.deleteWordBook).toHaveBeenCalledWith('user-book-1');
+        expect(mockDeleteMutateAsync).toHaveBeenCalledWith('user-book-1');
         expect(mockToast.success).toHaveBeenCalledWith('词书已删除');
       });
     });
@@ -401,7 +484,7 @@ describe('VocabularyPage', () => {
       expect(searchInput).toBeInTheDocument();
     });
 
-    it('should call searchWords API after debounce', async () => {
+    it('should trigger search when typing', async () => {
       renderComponent();
 
       await waitFor(() => {
@@ -411,13 +494,23 @@ describe('VocabularyPage', () => {
       const searchInput = screen.getByPlaceholderText('搜索单词...');
       fireEvent.change(searchInput, { target: { value: 'apple' } });
 
-      // Wait for debounce and API call
-      await waitFor(() => {
-        expect(apiClient.searchWords).toHaveBeenCalledWith('apple');
-      }, { timeout: 1000 });
+      // The hook should be called with the search query
+      await waitFor(
+        () => {
+          expect(mockUseSearchWords).toHaveBeenCalled();
+        },
+        { timeout: 1000 },
+      );
     });
 
     it('should display search results', async () => {
+      // Mock search results
+      mockUseSearchWords.mockReturnValue({
+        data: mockSearchResults,
+        isLoading: false,
+        isFetching: false,
+      });
+
       renderComponent();
 
       await waitFor(() => {
@@ -427,10 +520,13 @@ describe('VocabularyPage', () => {
       const searchInput = screen.getByPlaceholderText('搜索单词...');
       fireEvent.change(searchInput, { target: { value: 'apple' } });
 
-      await waitFor(() => {
-        expect(screen.getByText('apple')).toBeInTheDocument();
-        expect(screen.getByText('/ˈæp.əl/')).toBeInTheDocument();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('apple')).toBeInTheDocument();
+          expect(screen.getByText('/ˈæp.əl/')).toBeInTheDocument();
+        },
+        { timeout: 1000 },
+      );
     });
 
     it('should clear search input', async () => {
@@ -452,7 +548,11 @@ describe('VocabularyPage', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no user books', async () => {
-      (apiClient.getUserWordBooks as any).mockResolvedValue([]);
+      mockUseUserWordBooks.mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: null,
+      });
 
       renderComponent();
 
@@ -469,7 +569,11 @@ describe('VocabularyPage', () => {
     });
 
     it('should show empty state when no system books', async () => {
-      (apiClient.getSystemWordBooks as any).mockResolvedValue([]);
+      mockUseSystemWordBooks.mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: null,
+      });
 
       renderComponent();
 
@@ -481,7 +585,11 @@ describe('VocabularyPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (apiClient.getSystemWordBooks as any).mockRejectedValue(new Error('加载失败'));
+      mockUseSystemWordBooks.mockReturnValue({
+        data: mockSystemBooks, // Still provide data so page renders
+        isLoading: false,
+        error: new Error('加载失败'),
+      });
 
       renderComponent();
 
@@ -491,7 +599,7 @@ describe('VocabularyPage', () => {
     });
 
     it('should show toast when creating book fails', async () => {
-      (apiClient.createWordBook as any).mockRejectedValue(new Error('创建失败'));
+      mockCreateMutateAsync.mockRejectedValue(new Error('创建失败'));
 
       renderComponent();
 

@@ -158,7 +158,7 @@ describe('AlgorithmConfigService', () => {
       expect(StorageService.updateAlgorithmConfig).toHaveBeenCalledWith(
         mockConfig.id,
         updates,
-        'Test update'
+        'Test update',
       );
     });
 
@@ -238,9 +238,13 @@ describe('AlgorithmConfigService', () => {
         {
           id: 'history-1',
           configId: 'config-1',
-          changes: { consecutiveCorrectThreshold: 6 },
+          changedBy: 'user-1',
+          previousValue: { consecutiveCorrectThreshold: 5 },
+          newValue: { consecutiveCorrectThreshold: 6 },
           changeReason: 'Test change',
           timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
       vi.mocked(StorageService.getConfigHistory).mockResolvedValue(mockHistory);
@@ -265,9 +269,13 @@ describe('AlgorithmConfigService', () => {
         {
           id: 'history-1',
           configId: 'config-1',
-          changes: { consecutiveCorrectThreshold: 6 },
+          changedBy: 'user-1',
+          previousValue: { consecutiveCorrectThreshold: 5 },
+          newValue: { consecutiveCorrectThreshold: 6 },
           changeReason: 'Test change',
           timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       ];
       vi.mocked(StorageService.getConfigHistory).mockResolvedValueOnce(mockHistory);
@@ -298,7 +306,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('优先级权重总和'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('优先级权重总和'))).toBe(true);
     });
 
     it('should reject config with incorrect score weights sum', () => {
@@ -308,7 +316,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('单词得分权重总和'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('单词得分权重总和'))).toBe(true);
     });
 
     it('should reject config with empty review intervals', () => {
@@ -318,7 +326,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('复习间隔序列不能为空'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('复习间隔序列不能为空'))).toBe(true);
     });
 
     it('should reject config with non-increasing review intervals', () => {
@@ -328,7 +336,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('复习间隔序列必须递增'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('复习间隔序列必须递增'))).toBe(true);
     });
 
     it('should reject config with negative review intervals', () => {
@@ -338,7 +346,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('复习间隔必须为正数'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('复习间隔必须为正数'))).toBe(true);
     });
 
     it('should reject config with consecutive correct threshold out of range', () => {
@@ -348,7 +356,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('连续答对阈值必须在3-10之间'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('连续答对阈值必须在3-10之间'))).toBe(true);
     });
 
     it('should reject config with consecutive wrong threshold out of range', () => {
@@ -358,7 +366,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('连续答错阈值必须在2-5之间'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('连续答错阈值必须在2-5之间'))).toBe(true);
     });
 
     it('should reject config with invalid difficulty adjustment interval', () => {
@@ -368,7 +376,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('难度调整间隔必须至少为1'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('难度调整间隔必须至少为1'))).toBe(true);
     });
 
     it('should reject config with empty mastery thresholds', () => {
@@ -378,7 +386,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('掌握程度阈值不能为空'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('掌握程度阈值不能为空'))).toBe(true);
     });
 
     it('should reject config with non-continuous mastery levels', () => {
@@ -391,7 +399,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('掌握程度级别必须从1开始连续'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('掌握程度级别必须从1开始连续'))).toBe(true);
     });
 
     it('should reject config with invalid mastery threshold values', () => {
@@ -403,9 +411,9 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('连续答对次数必须至少为1'))).toBe(true);
-      expect(result.errors.some(e => e.includes('最低正确率必须在0-1之间'))).toBe(true);
-      expect(result.errors.some(e => e.includes('最低得分必须在0-100之间'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('连续答对次数必须至少为1'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('最低正确率必须在0-1之间'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('最低得分必须在0-100之间'))).toBe(true);
     });
 
     it('should reject config with invalid speed thresholds order', () => {
@@ -420,7 +428,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('速度阈值必须递增'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('速度阈值必须递增'))).toBe(true);
     });
 
     it('should reject config with new word ratio out of range', () => {
@@ -430,7 +438,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('默认新单词比例必须在0-1之间'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('默认新单词比例必须在0-1之间'))).toBe(true);
     });
 
     it('should reject config with low accuracy threshold >= high accuracy threshold', () => {
@@ -441,7 +449,7 @@ describe('AlgorithmConfigService', () => {
       const result = service.validateConfig(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.includes('低正确率阈值必须小于高正确率阈值'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('低正确率阈值必须小于高正确率阈值'))).toBe(true);
     });
 
     it('should collect multiple errors', () => {

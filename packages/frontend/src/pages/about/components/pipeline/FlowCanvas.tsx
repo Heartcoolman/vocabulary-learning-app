@@ -66,7 +66,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         lastProcessedAt: 0,
       };
     },
-    [snapshot]
+    [snapshot],
   );
 
   // 注册节点位置
@@ -75,18 +75,21 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   }, []);
 
   // 点击节点
-  const handleNodeClick = useCallback(async (node: PipelineNode) => {
-    setSelectedNode(node);
-    if (onFetchTrace) {
-      try {
-        // 获取最近的数据包轨迹
-        const trace = await onFetchTrace('latest');
-        setSelectedTrace(trace);
-      } catch (error) {
-        amasLogger.error({ err: error, nodeId: node.id }, '获取轨迹失败');
+  const handleNodeClick = useCallback(
+    async (node: PipelineNode) => {
+      setSelectedNode(node);
+      if (onFetchTrace) {
+        try {
+          // 获取最近的数据包轨迹
+          const trace = await onFetchTrace('latest');
+          setSelectedTrace(trace);
+        } catch (error) {
+          amasLogger.error({ err: error, nodeId: node.id }, '获取轨迹失败');
+        }
       }
-    }
-  }, [onFetchTrace]);
+    },
+    [onFetchTrace],
+  );
 
   // 关闭详情面板
   const handleCloseDetails = useCallback(() => {
@@ -111,7 +114,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
 
       return `M ${start.x} ${start.y} C ${cp1x} ${start.y}, ${cp2x} ${end.y}, ${end.x} ${end.y}`;
     },
-    [nodePositions]
+    [nodePositions],
   );
 
   // 判断连线是否应该高亮
@@ -120,7 +123,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       if (!hoveredNodeId) return false;
       return fromId === hoveredNodeId || toId === hoveredNodeId;
     },
-    [hoveredNodeId]
+    [hoveredNodeId],
   );
 
   // 判断连线是否有数据包
@@ -133,17 +136,14 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       if (!fromNode || !toNode) return false;
 
       return snapshot.currentPackets.some(
-        (p) => p.currentStage === fromNode.stage || p.currentStage === toNode.stage
+        (p) => p.currentStage === fromNode.stage || p.currentStage === toNode.stage,
       );
     },
-    [snapshot, isPaused]
+    [snapshot, isPaused],
   );
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-full bg-slate-950 overflow-hidden"
-    >
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-slate-950">
       {/* 背景网格 */}
       <div
         className="absolute inset-0 opacity-[0.03]"
@@ -157,7 +157,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       />
 
       {/* SVG层：连线和数据包 */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+      <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full">
         <ConnectionFilters />
         <DataPacketFilters />
 
@@ -180,7 +180,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       </svg>
 
       {/* 节点层：响应式6列布局 */}
-      <div className="relative z-10 h-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4 p-4 lg:p-6 overflow-auto">
+      <div className="relative z-10 grid h-full grid-cols-2 gap-3 overflow-auto p-4 md:grid-cols-3 lg:grid-cols-6 lg:gap-4 lg:p-6">
         {[1, 2, 3, 4, 5, 6].map((stage) => {
           const stageInfo = STAGES.find((s) => s.id === stage);
           const nodesInStage = nodesByStage[stage] || [];
@@ -189,7 +189,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
             <div key={stage} className="flex flex-col">
               {/* 阶段标题 */}
               <div
-                className="text-center mb-4 pb-2 border-b border-slate-800"
+                className="mb-4 border-b border-slate-800 pb-2 text-center"
                 style={{ borderColor: `${stageInfo?.color}40` }}
               >
                 <div
@@ -198,13 +198,11 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 >
                   {stageInfo?.name}
                 </div>
-                <div className="text-[10px] text-slate-600 mt-0.5">
-                  {stageInfo?.description}
-                </div>
+                <div className="mt-0.5 text-[10px] text-slate-600">{stageInfo?.description}</div>
               </div>
 
               {/* 节点列表 */}
-              <div className="flex-1 flex flex-col justify-center gap-3">
+              <div className="flex flex-1 flex-col justify-center gap-3">
                 {nodesInStage.map((node) => (
                   <FlowNode
                     key={node.id}
@@ -228,18 +226,10 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute bottom-4 left-4 z-20 flex flex-wrap gap-2 lg:gap-3 max-w-[calc(100%-2rem)]"
+          className="absolute bottom-4 left-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap gap-2 lg:gap-3"
         >
-          <MetricCard
-            label="吞吐量"
-            value={`${snapshot.metrics.throughput}/s`}
-            color="#22d3ee"
-          />
-          <MetricCard
-            label="平均延迟"
-            value={`${snapshot.metrics.avgLatency}ms`}
-            color="#a78bfa"
-          />
+          <MetricCard label="吞吐量" value={`${snapshot.metrics.throughput}/s`} color="#22d3ee" />
+          <MetricCard label="平均延迟" value={`${snapshot.metrics.avgLatency}ms`} color="#a78bfa" />
           <MetricCard
             label="活跃数据包"
             value={snapshot.metrics.activePackets.toString()}
@@ -277,9 +267,9 @@ const MetricCard: React.FC<{ label: string; value: string; color: string }> = ({
   value,
   color,
 }) => (
-  <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-lg px-3 py-2">
-    <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
-    <div className="text-lg font-bold font-mono" style={{ color }}>
+  <div className="rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-2 backdrop-blur-md">
+    <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+    <div className="font-mono text-lg font-bold" style={{ color }}>
       {value}
     </div>
   </div>

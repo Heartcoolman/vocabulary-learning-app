@@ -8,7 +8,12 @@ interface MasteryStatsCardProps {
   color: 'green' | 'blue' | 'orange' | 'purple';
 }
 
-export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({ label, value, icon, color }) => {
+export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({
+  label,
+  value,
+  icon,
+  color,
+}) => {
   const getIcon = () => {
     const iconProps = { size: 32, weight: 'duotone' as const };
     switch (icon) {
@@ -29,25 +34,25 @@ export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({ label, value
         return {
           bg: 'bg-green-500',
           text: 'text-green-600',
-          lightBg: 'bg-green-50'
+          lightBg: 'bg-green-50',
         };
       case 'blue':
         return {
           bg: 'bg-blue-500',
           text: 'text-blue-600',
-          lightBg: 'bg-blue-50'
+          lightBg: 'bg-blue-50',
         };
       case 'orange':
         return {
           bg: 'bg-orange-500',
           text: 'text-orange-600',
-          lightBg: 'bg-orange-50'
+          lightBg: 'bg-orange-50',
         };
       case 'purple':
         return {
           bg: 'bg-purple-500',
           text: 'text-purple-600',
-          lightBg: 'bg-purple-50'
+          lightBg: 'bg-purple-50',
         };
     }
   };
@@ -55,16 +60,20 @@ export const MasteryStatsCard: React.FC<MasteryStatsCardProps> = ({ label, value
   const colors = getColorClasses();
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-10 -mr-10 -mt-10 ${colors.bg}`} />
+    <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div
+        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl ${colors.bg}`}
+      />
 
       <div className="relative z-10">
-        <div className={`p-3 ${colors.lightBg} rounded-xl inline-block mb-4 group-hover:scale-110 transition-transform duration-300`}>
+        <div
+          className={`p-3 ${colors.lightBg} mb-4 inline-block rounded-xl transition-transform duration-300 group-hover:scale-110`}
+        >
           {getIcon()}
         </div>
 
         <div className="space-y-1">
-          <p className="text-sm text-gray-500 font-medium">{label}</p>
+          <p className="text-sm font-medium text-gray-500">{label}</p>
           <p className={`text-3xl font-black ${colors.text}`}>{value}</p>
         </div>
       </div>

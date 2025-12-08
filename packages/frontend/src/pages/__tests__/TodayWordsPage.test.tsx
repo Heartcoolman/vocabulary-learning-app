@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockNavigate = vi.fn();
 
@@ -11,10 +12,10 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-const mockUseStudyPlan = vi.fn();
+const mockUseTodayWordsCompat = vi.fn();
 
-vi.mock('@/hooks/useStudyPlan', () => ({
-  useStudyPlan: () => mockUseStudyPlan(),
+vi.mock('@/hooks/queries/useTodayWords', () => ({
+  useTodayWordsCompat: () => mockUseTodayWordsCompat(),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -37,6 +38,19 @@ vi.mock('@/components/dashboard/DailyMissionCard', () => ({
 
 import TodayWordsPage from '../TodayWordsPage';
 
+// Helper function to render with QueryClientProvider
+const renderWithQueryClient = (component: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+};
+
 describe('TodayWordsPage', () => {
   const mockPlan = {
     words: [
@@ -52,7 +66,7 @@ describe('TodayWordsPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseStudyPlan.mockReturnValue({
+    mockUseTodayWordsCompat.mockReturnValue({
       plan: mockPlan,
       loading: false,
       error: null,
@@ -62,19 +76,19 @@ describe('TodayWordsPage', () => {
 
   describe('rendering', () => {
     it('should render welcome message with username', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText(/欢迎回来，TestUser！/)).toBeInTheDocument();
     });
 
     it('should render daily mission card', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByTestId('daily-mission-card')).toBeInTheDocument();
     });
 
     it('should pass correct props to DailyMissionCard', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('Total: 3')).toBeInTheDocument();
       expect(screen.getByText('Studied: 5')).toBeInTheDocument();
@@ -82,7 +96,7 @@ describe('TodayWordsPage', () => {
     });
 
     it('should render learning statistics', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('学习统计')).toBeInTheDocument();
       expect(screen.getByText('150')).toBeInTheDocument();
@@ -90,7 +104,7 @@ describe('TodayWordsPage', () => {
     });
 
     it('should render word preview section', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('今日单词预览')).toBeInTheDocument();
       expect(screen.getByText('apple')).toBeInTheDocument();
@@ -100,14 +114,14 @@ describe('TodayWordsPage', () => {
 
   describe('loading state', () => {
     it('should show loading spinner', () => {
-      mockUseStudyPlan.mockReturnValue({
+      mockUseTodayWordsCompat.mockReturnValue({
         plan: null,
         loading: true,
         error: null,
         refresh: vi.fn(),
       });
 
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('正在加载今日学习计划...')).toBeInTheDocument();
     });
@@ -115,14 +129,14 @@ describe('TodayWordsPage', () => {
 
   describe('error state', () => {
     it('should display error message', () => {
-      mockUseStudyPlan.mockReturnValue({
+      mockUseTodayWordsCompat.mockReturnValue({
         plan: null,
         loading: false,
         error: '网络错误',
         refresh: vi.fn(),
       });
 
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('无法加载学习计划')).toBeInTheDocument();
       expect(screen.getByText('网络错误')).toBeInTheDocument();
@@ -130,14 +144,14 @@ describe('TodayWordsPage', () => {
 
     it('should show reload button on error', () => {
       const mockRefresh = vi.fn();
-      mockUseStudyPlan.mockReturnValue({
+      mockUseTodayWordsCompat.mockReturnValue({
         plan: null,
         loading: false,
         error: '网络错误',
         refresh: mockRefresh,
       });
 
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       const reloadButton = screen.getByRole('button', { name: '重新加载' });
       expect(reloadButton).toBeInTheDocument();
@@ -149,14 +163,14 @@ describe('TodayWordsPage', () => {
 
   describe('empty state', () => {
     it('should handle empty words list', () => {
-      mockUseStudyPlan.mockReturnValue({
+      mockUseTodayWordsCompat.mockReturnValue({
         plan: { ...mockPlan, words: [] },
         loading: false,
         error: null,
         refresh: vi.fn(),
       });
 
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.queryByText('今日单词预览')).not.toBeInTheDocument();
     });
@@ -164,7 +178,7 @@ describe('TodayWordsPage', () => {
 
   describe('navigation', () => {
     it('should navigate to learning page when start clicked', () => {
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       fireEvent.click(screen.getByRole('button', { name: '开始学习' }));
       expect(mockNavigate).toHaveBeenCalledWith('/');
@@ -179,14 +193,14 @@ describe('TodayWordsPage', () => {
         meanings: [`meaning${i}`],
       }));
 
-      mockUseStudyPlan.mockReturnValue({
+      mockUseTodayWordsCompat.mockReturnValue({
         plan: { ...mockPlan, words: manyWords },
         loading: false,
         error: null,
         refresh: vi.fn(),
       });
 
-      render(<TodayWordsPage />);
+      renderWithQueryClient(<TodayWordsPage />);
 
       expect(screen.getByText('word0')).toBeInTheDocument();
       expect(screen.getByText('word5')).toBeInTheDocument();

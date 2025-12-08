@@ -12,8 +12,8 @@ vi.mock('../../utils/logger', () => ({
     warn: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 describe('useTestOptions', () => {
@@ -24,8 +24,8 @@ describe('useTestOptions', () => {
           correctAnswer: '苹果',
           distractors: ['香蕉', '橘子', '葡萄'],
           numberOfOptions: 4,
-          shuffleOptions: false
-        })
+          shuffleOptions: false,
+        }),
       );
 
       expect(result.current.options).toHaveLength(4);
@@ -41,25 +41,25 @@ describe('useTestOptions', () => {
           correctAnswer: '苹果',
           distractors: ['香蕉'],
           numberOfOptions: 4,
-          shuffleOptions: false
-        })
+          shuffleOptions: false,
+        }),
       );
 
       // Should have correct answer + 1 distractor = 2 options
       expect(result.current.options).toHaveLength(2);
-      expect(result.current.options.some(o => o.isCorrect)).toBe(true);
+      expect(result.current.options.some((o) => o.isCorrect)).toBe(true);
     });
 
     it('should use default values when not provided', () => {
       const { result } = renderHook(() =>
         useTestOptions({
-          correctAnswer: '苹果'
-        })
+          correctAnswer: '苹果',
+        }),
       );
 
       // Default: numberOfOptions = 4, but no distractors, so only 1 option
       expect(result.current.options.length).toBeGreaterThanOrEqual(1);
-      expect(result.current.options.some(o => o.text === '苹果' && o.isCorrect)).toBe(true);
+      expect(result.current.options.some((o) => o.text === '苹果' && o.isCorrect)).toBe(true);
     });
   });
 
@@ -70,8 +70,8 @@ describe('useTestOptions', () => {
           correctAnswer: '正确答案',
           distractors: ['干扰项1', '干扰项2', '干扰项3'],
           numberOfOptions: 4,
-          shuffleOptions: false
-        })
+          shuffleOptions: false,
+        }),
       );
 
       // First option should always be the correct answer when not shuffled
@@ -85,11 +85,11 @@ describe('useTestOptions', () => {
           correctAnswer: '正确答案',
           distractors: ['干扰项1', '干扰项2', '干扰项3'],
           numberOfOptions: 4,
-          shuffleOptions: true
-        })
+          shuffleOptions: true,
+        }),
       );
 
-      const texts = result.current.options.map(o => o.text);
+      const texts = result.current.options.map((o) => o.text);
       expect(texts).toContain('正确答案');
       expect(texts).toContain('干扰项1');
       expect(texts).toContain('干扰项2');
@@ -103,8 +103,8 @@ describe('useTestOptions', () => {
         useTestOptions({
           correctAnswer: '苹果',
           distractors: ['香蕉', '橘子'],
-          shuffleOptions: false
-        })
+          shuffleOptions: false,
+        }),
       );
 
       act(() => {
@@ -120,8 +120,8 @@ describe('useTestOptions', () => {
         useTestOptions({
           correctAnswer: '苹果',
           distractors: ['香蕉'],
-          shuffleOptions: false
-        })
+          shuffleOptions: false,
+        }),
       );
 
       act(() => {
@@ -145,8 +145,8 @@ describe('useTestOptions', () => {
         useTestOptions({
           correctAnswer: '苹果',
           distractors: ['香蕉', '橘子', '葡萄'],
-          shuffleOptions: true
-        })
+          shuffleOptions: true,
+        }),
       );
 
       // Select an option first
@@ -172,8 +172,8 @@ describe('useTestOptions', () => {
       const { result } = renderHook(() =>
         useTestOptions({
           correctAnswer: '苹果',
-          distractors: ['香蕉']
-        })
+          distractors: ['香蕉'],
+        }),
       );
 
       expect(result.current).toHaveProperty('options');
@@ -194,8 +194,8 @@ describe('useTestOptions', () => {
       const { result, rerender } = renderHook(() =>
         useTestOptions({
           correctAnswer: '苹果',
-          distractors: ['香蕉']
-        })
+          distractors: ['香蕉'],
+        }),
       );
 
       const initialRegenerate = result.current.regenerateOptions;
@@ -216,20 +216,20 @@ describe('useTestOptionsGenerator', () => {
   const mockWord = {
     id: 'word-1',
     spelling: 'apple',
-    meanings: ['苹果', '苹果公司']
+    meanings: ['苹果', '苹果公司'],
   };
   const mockAllWords = [
     mockWord,
     { id: 'word-2', spelling: 'banana', meanings: ['香蕉'] },
     { id: 'word-3', spelling: 'orange', meanings: ['橘子', '橙色'] },
-    { id: 'word-4', spelling: 'grape', meanings: ['葡萄'] }
+    { id: 'word-4', spelling: 'grape', meanings: ['葡萄'] },
   ];
 
   beforeEach(() => {
     mockGenerateOptions.mockReset();
     mockGenerateOptions.mockReturnValue({
       options: ['苹果', '香蕉', '橘子', '葡萄'],
-      correctAnswer: '苹果'
+      correctAnswer: '苹果',
     });
   });
 
@@ -244,10 +244,10 @@ describe('useTestOptionsGenerator', () => {
           {
             currentWord: mockWord,
             allWords: mockAllWords,
-            numberOfOptions: 4
+            numberOfOptions: 4,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       expect(mockGenerateOptions).toHaveBeenCalledWith(mockWord, mockAllWords, 4);
@@ -260,10 +260,10 @@ describe('useTestOptionsGenerator', () => {
           {
             currentWord: null,
             allWords: mockAllWords,
-            numberOfOptions: 4
+            numberOfOptions: 4,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       expect(mockGenerateOptions).not.toHaveBeenCalled();
@@ -279,11 +279,11 @@ describe('useTestOptionsGenerator', () => {
             {
               currentWord: word,
               allWords: mockAllWords,
-              numberOfOptions: 4
+              numberOfOptions: 4,
             },
-            mockGenerateOptions
+            mockGenerateOptions,
           ),
-        { initialProps: { word: mockWord } }
+        { initialProps: { word: mockWord } },
       );
 
       expect(mockGenerateOptions).toHaveBeenCalledTimes(1);
@@ -291,7 +291,7 @@ describe('useTestOptionsGenerator', () => {
       const newWord = { id: 'word-2', spelling: 'banana', meanings: ['香蕉'] };
       mockGenerateOptions.mockReturnValue({
         options: ['香蕉', '苹果', '橘子', '葡萄'],
-        correctAnswer: '香蕉'
+        correctAnswer: '香蕉',
       });
 
       rerender({ word: newWord });
@@ -311,10 +311,10 @@ describe('useTestOptionsGenerator', () => {
             currentWord: mockWord,
             allWords: mockAllWords,
             numberOfOptions: 4,
-            fallbackDistractors: ['未知释义', '其他含义', '暂无解释']
+            fallbackDistractors: ['未知释义', '其他含义', '暂无解释'],
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       // Should have fallback options (2 options: correct + 1 distractor)
@@ -330,10 +330,10 @@ describe('useTestOptionsGenerator', () => {
           {
             currentWord: mockWord,
             allWords: mockAllWords,
-            numberOfOptions: 4
+            numberOfOptions: 4,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       const initialCallCount = mockGenerateOptions.mock.calls.length;
@@ -351,10 +351,10 @@ describe('useTestOptionsGenerator', () => {
           {
             currentWord: mockWord,
             allWords: mockAllWords,
-            numberOfOptions: 4
+            numberOfOptions: 4,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       const initialIndex = result.current.questionIndex;
@@ -373,10 +373,10 @@ describe('useTestOptionsGenerator', () => {
         useTestOptionsGenerator(
           {
             currentWord: mockWord,
-            allWords: mockAllWords
+            allWords: mockAllWords,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       expect(result.current).toHaveProperty('options');
@@ -393,10 +393,10 @@ describe('useTestOptionsGenerator', () => {
         useTestOptionsGenerator(
           {
             currentWord: mockWord,
-            allWords: mockAllWords
+            allWords: mockAllWords,
           },
-          mockGenerateOptions
-        )
+          mockGenerateOptions,
+        ),
       );
 
       const initialRegenerate = result.current.regenerateOptions;
@@ -410,24 +410,14 @@ describe('useTestOptionsGenerator', () => {
 
 describe('generateTestOptions utility', () => {
   it('should generate options with correct answer first when not shuffled', () => {
-    const options = generateTestOptions(
-      '正确答案',
-      ['干扰项1', '干扰项2', '干扰项3'],
-      4,
-      false
-    );
+    const options = generateTestOptions('正确答案', ['干扰项1', '干扰项2', '干扰项3'], 4, false);
 
     expect(options).toHaveLength(4);
     expect(options[0]).toBe('正确答案');
   });
 
   it('should contain all provided options when shuffled', () => {
-    const options = generateTestOptions(
-      '正确答案',
-      ['干扰项1', '干扰项2', '干扰项3'],
-      4,
-      true
-    );
+    const options = generateTestOptions('正确答案', ['干扰项1', '干扰项2', '干扰项3'], 4, true);
 
     expect(options).toHaveLength(4);
     expect(options).toContain('正确答案');
@@ -437,12 +427,7 @@ describe('generateTestOptions utility', () => {
   });
 
   it('should handle fewer distractors than requested', () => {
-    const options = generateTestOptions(
-      '正确答案',
-      ['干扰项1'],
-      4,
-      false
-    );
+    const options = generateTestOptions('正确答案', ['干扰项1'], 4, false);
 
     expect(options).toHaveLength(2);
     expect(options).toContain('正确答案');
@@ -450,12 +435,7 @@ describe('generateTestOptions utility', () => {
   });
 
   it('should ensure at least 2 options', () => {
-    const options = generateTestOptions(
-      '正确答案',
-      [],
-      4,
-      false
-    );
+    const options = generateTestOptions('正确答案', [], 4, false);
 
     // With no distractors, should still have at least the correct answer
     expect(options).toHaveLength(1);
@@ -463,10 +443,7 @@ describe('generateTestOptions utility', () => {
   });
 
   it('should use default values', () => {
-    const options = generateTestOptions(
-      '正确答案',
-      ['干扰项1', '干扰项2', '干扰项3']
-    );
+    const options = generateTestOptions('正确答案', ['干扰项1', '干扰项2', '干扰项3']);
 
     expect(options).toHaveLength(4);
     expect(options).toContain('正确答案');

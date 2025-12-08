@@ -75,6 +75,7 @@ const createMockWordScore = (overrides?: Partial<WordScore>): WordScore => ({
 // 创建模拟答题记录
 const createMockAnswerRecord = (overrides?: Partial<AnswerRecord>): AnswerRecord => ({
   id: 'record-1',
+  userId: 'user-1',
   wordId: 'word-1',
   selectedAnswer: 'answer',
   correctAnswer: 'correct',
@@ -82,6 +83,8 @@ const createMockAnswerRecord = (overrides?: Partial<AnswerRecord>): AnswerRecord
   timestamp: Date.now(),
   responseTime: 3000,
   dwellTime: 5000,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
   ...overrides,
 });
 

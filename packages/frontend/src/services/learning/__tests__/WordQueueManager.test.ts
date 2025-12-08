@@ -3,12 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  WordQueueManager,
-  WordItem,
-  QueueConfig,
-  MasteryDecision
-} from '../WordQueueManager';
+import { WordQueueManager, WordItem, QueueConfig, MasteryDecision } from '../WordQueueManager';
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({
@@ -16,8 +11,8 @@ vi.mock('../../../utils/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
-    error: vi.fn()
-  }
+    error: vi.fn(),
+  },
 }));
 
 // 测试用单词数据
@@ -28,7 +23,7 @@ function createTestWords(count: number): WordItem[] {
     phonetic: `/wɜːd${i + 1}/`,
     meanings: [`meaning ${i + 1}`],
     examples: [`example ${i + 1}`],
-    isNew: true
+    isNew: true,
   }));
 }
 
@@ -54,7 +49,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         maxActiveWords: 3,
-        targetMasteryCount: 5
+        targetMasteryCount: 5,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -75,7 +70,7 @@ describe('WordQueueManager', () => {
         targetMasteryCount: 3,
         masteryThreshold: 3,
         maxActiveWords: 2,
-        maxTotalQuestions: 50
+        maxTotalQuestions: 50,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -111,7 +106,7 @@ describe('WordQueueManager', () => {
       const config: Partial<QueueConfig> = {
         targetMasteryCount: 2,
         masteryThreshold: 1,
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -134,7 +129,7 @@ describe('WordQueueManager', () => {
         targetMasteryCount: 20,
         masteryThreshold: 10,
         maxTotalQuestions: 3,
-        maxActiveWords: 5
+        maxActiveWords: 5,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -155,7 +150,7 @@ describe('WordQueueManager', () => {
         maxActiveWords: 10,
         minRepeatInterval: 2,
         targetMasteryCount: 20, // 设高一点防止提前完成
-        masteryThreshold: 10 // 设高一点防止意外掌握
+        masteryThreshold: 10, // 设高一点防止意外掌握
       };
       const manager = new WordQueueManager(words, config);
 
@@ -185,7 +180,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 2,
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -203,7 +198,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 1,
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -234,7 +229,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 5, // 设高一点防止意外掌握
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -257,7 +252,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         maxActiveWords: 3,
-        masteryThreshold: 2
+        masteryThreshold: 2,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -278,7 +273,7 @@ describe('WordQueueManager', () => {
       const config: Partial<QueueConfig> = {
         maxActiveWords: 5,
         minRepeatInterval: 0,
-        masteryThreshold: 10 // 设高一点防止意外掌握
+        masteryThreshold: 10, // 设高一点防止意外掌握
       };
       const manager = new WordQueueManager(words, config);
 
@@ -313,7 +308,7 @@ describe('WordQueueManager', () => {
         maxActiveWords: 10,
         maxAttemptsPerWord: 3,
         masteryThreshold: 10, // 设高一点，确保不会正常掌握
-        minRepeatInterval: 1 // 设置为1，这样下一次就能选中
+        minRepeatInterval: 1, // 设置为1，这样下一次就能选中
       };
       const manager = new WordQueueManager(words, config);
 
@@ -342,7 +337,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(10);
       const config: Partial<QueueConfig> = {
         targetMasteryCount: 5,
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -353,7 +348,7 @@ describe('WordQueueManager', () => {
         targetCount: 5,
         totalQuestions: 0,
         activeCount: 0,
-        pendingCount: 10
+        pendingCount: 10,
       });
     });
 
@@ -362,7 +357,7 @@ describe('WordQueueManager', () => {
       const config: Partial<QueueConfig> = {
         targetMasteryCount: 5,
         masteryThreshold: 1,
-        maxActiveWords: 5
+        maxActiveWords: 5,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -382,7 +377,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(5);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 3, // 需要连续3次正确
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -450,7 +445,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(10);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 2,
-        maxActiveWords: 5
+        maxActiveWords: 5,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -486,7 +481,7 @@ describe('WordQueueManager', () => {
 
       manager.applyAdjustments({
         remove: ['word-1', 'word-2'],
-        add: []
+        add: [],
       });
 
       const currentIds = manager.getCurrentWordIds();
@@ -505,13 +500,13 @@ describe('WordQueueManager', () => {
           phonetic: '/new/',
           meanings: ['new meaning'],
           examples: ['new example'],
-          isNew: true
-        }
+          isNew: true,
+        },
       ];
 
       manager.applyAdjustments({
         remove: [],
-        add: newWords
+        add: newWords,
       });
 
       const currentIds = manager.getCurrentWordIds();
@@ -528,19 +523,19 @@ describe('WordQueueManager', () => {
         phonetic: '/wɜːd1/',
         meanings: ['meaning 1'],
         examples: ['example 1'],
-        isNew: true
+        isNew: true,
       };
 
       const initialIds = manager.getCurrentWordIds();
-      const initialCount = initialIds.filter(id => id === 'word-1').length;
+      const initialCount = initialIds.filter((id) => id === 'word-1').length;
 
       manager.applyAdjustments({
         remove: [],
-        add: [duplicateWord]
+        add: [duplicateWord],
       });
 
       const finalIds = manager.getCurrentWordIds();
-      const finalCount = finalIds.filter(id => id === 'word-1').length;
+      const finalCount = finalIds.filter((id) => id === 'word-1').length;
 
       expect(finalCount).toBe(initialCount);
     });
@@ -551,7 +546,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 5, // 设高一点
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -560,7 +555,7 @@ describe('WordQueueManager', () => {
       const amasDecision: MasteryDecision = {
         isMastered: true,
         confidence: 0.9,
-        suggestedRepeats: 0
+        suggestedRepeats: 0,
       };
 
       const result = manager.recordAnswer(word.id, true, 1000, amasDecision);
@@ -572,7 +567,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 5, // 设高一点
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -581,7 +576,7 @@ describe('WordQueueManager', () => {
       const amasDecision: MasteryDecision = {
         isMastered: true,
         confidence: 0.5, // 低置信度
-        suggestedRepeats: 0
+        suggestedRepeats: 0,
       };
 
       // 只答对一次，使用较长响应时间避免首次秒答规则
@@ -595,7 +590,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 3,
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 
@@ -611,7 +606,7 @@ describe('WordQueueManager', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 10, // 设高一点
-        maxActiveWords: 3
+        maxActiveWords: 3,
       };
       const manager = new WordQueueManager(words, config);
 

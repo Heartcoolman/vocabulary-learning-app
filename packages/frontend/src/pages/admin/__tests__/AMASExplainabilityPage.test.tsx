@@ -34,7 +34,9 @@ import AMASExplainabilityPage from '../AMASExplainabilityPage';
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
   CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
   ),
   Warning: () => <span data-testid="warning-icon">Warning</span>,
   CheckCircle: () => <span data-testid="check-icon">Check</span>,
@@ -118,7 +120,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <AMASExplainabilityPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 

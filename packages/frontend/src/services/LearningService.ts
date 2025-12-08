@@ -5,10 +5,10 @@ import {
   AnswerRecord,
   WordLearningState,
   WordScore,
-  AlgorithmConfig
+  AlgorithmConfig,
 } from '../types/models';
 import StorageService from './StorageService';
-import ApiClient from './ApiClient';
+import ApiClient from './client';
 import { SpacedRepetitionService } from './algorithms/SpacedRepetitionService';
 import { WordStateStorage } from './algorithms/WordStateManager';
 import { learningLogger } from '../utils/logger';
@@ -32,7 +32,7 @@ class StorageAdapter implements WordStateStorage {
   async loadAllStates(userId: string): Promise<WordLearningState[]> {
     // 获取所有单词，然后批量加载状态
     const words = await StorageService.getWords();
-    const wordIds = words.map(w => w.id);
+    const wordIds = words.map((w) => w.id);
     return await this.batchLoadStates(userId, wordIds);
   }
 
@@ -40,11 +40,13 @@ class StorageAdapter implements WordStateStorage {
     try {
       // 调用 ApiClient 删除单词学习状态（userId 通过 token 识别）
       await ApiClient.deleteWordLearningState(wordId);
-      
+
       // 缓存会在下次获取时重新加载
     } catch (error) {
       learningLogger.error({ err: error }, '删除单词学习状态失败');
-      throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      throw new Error(
+        `删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      );
     }
   }
 
@@ -56,11 +58,13 @@ class StorageAdapter implements WordStateStorage {
     return await StorageService.getWordScores(userId, wordIds);
   }
 
-  async loadRecentAnswerRecords(_userId: string, wordId: string, limit: number = 5): Promise<AnswerRecord[]> {
+  async loadRecentAnswerRecords(
+    _userId: string,
+    wordId: string,
+    limit: number = 5,
+  ): Promise<AnswerRecord[]> {
     const records = await StorageService.getAnswerRecords(wordId);
-    return records
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
+    return records.sort((a, b) => b.timestamp - a.timestamp).slice(0, limit);
   }
 }
 
@@ -112,37 +116,37 @@ class LearningService {
         newWord: 40,
         errorRate: 30,
         overdueTime: 20,
-        wordScore: 10
+        wordScore: 10,
       },
       masteryThresholds: [
         { level: 1, requiredCorrectStreak: 2, minAccuracy: 0.6, minScore: 40 },
         { level: 2, requiredCorrectStreak: 3, minAccuracy: 0.7, minScore: 50 },
         { level: 3, requiredCorrectStreak: 4, minAccuracy: 0.75, minScore: 60 },
         { level: 4, requiredCorrectStreak: 5, minAccuracy: 0.8, minScore: 70 },
-        { level: 5, requiredCorrectStreak: 6, minAccuracy: 0.85, minScore: 80 }
+        { level: 5, requiredCorrectStreak: 6, minAccuracy: 0.85, minScore: 80 },
       ],
       scoreWeights: {
         accuracy: 40,
         speed: 30,
         stability: 20,
-        proficiency: 10
+        proficiency: 10,
       },
       speedThresholds: {
         excellent: 3000,
         good: 5000,
         average: 10000,
-        slow: 10000
+        slow: 10000,
       },
       newWordRatio: {
         default: 0.3,
         highAccuracy: 0.5,
         lowAccuracy: 0.1,
         highAccuracyThreshold: 0.85,
-        lowAccuracyThreshold: 0.65
+        lowAccuracyThreshold: 0.65,
       },
       isDefault: true,
       createdAt: Date.now(),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
   }
 
@@ -151,20 +155,17 @@ class LearningService {
    * @param wordIds 要学习的单词ID列表
    * @param userId 用户ID（可选，用于启用智能算法）
    */
-  async startSession(
-    wordIds: string[],
-    userId?: string
-  ): Promise<LearningSession> {
+  async startSession(wordIds: string[], userId?: string): Promise<LearningSession> {
     if (wordIds.length === 0) {
       throw new Error('词库为空，无法开始学习');
     }
 
     // 加载单词数据
     const allWords = await StorageService.getWords();
-    
+
     // 如果提供了用户ID，初始化间隔重复服务（用于答题后的状态更新）
     // 注意：单词排序已由后端完成，前端不再重复排序
-    let selectedWordIds = wordIds;
+    const selectedWordIds = wordIds;
     if (userId) {
       try {
         // 初始化间隔重复服务（用于 submitAnswer 时更新状态）
@@ -183,12 +184,7 @@ class LearningService {
             // 获取统计失败时使用默认值，不阻塞学习流程
           }
 
-          await this.srService.startSession(
-            userId,
-            wordIds,
-            wordIds.length,
-            userAccuracy
-          );
+          await this.srService.startSession(userId, wordIds, wordIds.length, userAccuracy);
         }
       } catch (error) {
         learningLogger.error({ err: error }, '初始化间隔重复服务失败');
@@ -197,7 +193,7 @@ class LearningService {
 
     // 按照 selectedWordIds 的顺序构建 words 数组，保持算法调度的优先级
     this.words = selectedWordIds
-      .map(id => allWords.find(w => w.id === id))
+      .map((id) => allWords.find((w) => w.id === id))
       .filter((w): w is Word => w !== undefined);
 
     if (this.words.length === 0) {
@@ -205,11 +201,19 @@ class LearningService {
     }
 
     // 创建新会话
+    const now = Date.now();
     this.currentSession = {
       id: this.generateId(),
+      userId: userId || '',
       wordIds: selectedWordIds,
       currentIndex: 0,
-      startTime: Date.now(),
+      startTime: now,
+      endTime: null,
+      wordsStudied: 0,
+      correctCount: 0,
+      totalTime: 0,
+      createdAt: now,
+      updatedAt: now,
     };
 
     this.wordDwellTime = 0;
@@ -246,7 +250,7 @@ class LearningService {
     if (this.currentSession.currentIndex >= this.words.length) {
       // 学习完成
       this.currentSession.endTime = Date.now();
-      
+
       // 结束间隔重复会话
       if (this.srService) {
         try {
@@ -282,14 +286,14 @@ class LearningService {
     isCorrect: boolean,
     responseTime: number,
     dwellTime: number,
-    userId?: string
+    userId?: string,
   ): Promise<{
     masteryLevelBefore: number;
     masteryLevelAfter: number;
     score: number;
     nextReviewDate: number | null;
   } | null> {
-    const word = this.words.find(w => w.id === wordId);
+    const word = this.words.find((w) => w.id === wordId);
     if (!word) {
       throw new Error('单词不存在');
     }
@@ -298,6 +302,7 @@ class LearningService {
 
     const record: AnswerRecord = {
       id: this.generateId(),
+      userId: userId || '',
       wordId,
       selectedAnswer: answer,
       correctAnswer: word.meanings[0], // 使用第一个释义作为正确答案
@@ -305,7 +310,9 @@ class LearningService {
       timestamp: now,
       responseTime,
       dwellTime,
-      sessionId: this.currentSession?.id
+      sessionId: this.currentSession?.id,
+      createdAt: now,
+      updatedAt: now,
     };
 
     let feedbackInfo = null;
@@ -320,7 +327,7 @@ class LearningService {
           responseTime,
           dwellTime,
           answer,
-          word.meanings[0]
+          word.meanings[0],
         );
 
         // 持久化学习状态和得分到后端
@@ -336,7 +343,7 @@ class LearningService {
           masteryLevelBefore: record.masteryLevelBefore,
           masteryLevelAfter: record.masteryLevelAfter,
           score: result.wordScore.totalScore,
-          nextReviewDate: result.nextReviewDate
+          nextReviewDate: result.nextReviewDate,
         };
 
         // 答题结果已处理
@@ -417,7 +424,10 @@ class LearningService {
    * @param wordId 单词ID
    * @returns 包含掌握程度、得分和下次复习时间的状态信息
    */
-  async getWordState(userId: string, wordId: string): Promise<{
+  async getWordState(
+    userId: string,
+    wordId: string,
+  ): Promise<{
     masteryLevel: number;
     score: number;
     nextReviewDate: number | null;
@@ -440,7 +450,7 @@ class LearningService {
     return {
       masteryLevel: state.masteryLevel,
       score: score?.totalScore || 0,
-      nextReviewDate: state.nextReviewDate
+      nextReviewDate: state.nextReviewDate,
     };
   }
 
@@ -508,7 +518,11 @@ class LearningService {
    * @param optionCount 选项数量2-4
    * @returns { options: string[], correctAnswer: string } 选项数组和正确答案
    */
-  generateTestOptions(correctWord: Word, allWords: Word[], optionCount: number = 4): { options: string[], correctAnswer: string } {
+  generateTestOptions(
+    correctWord: Word,
+    allWords: Word[],
+    optionCount: number = 4,
+  ): { options: string[]; correctAnswer: string } {
     const requestedCount = Math.max(2, Math.min(4, optionCount));
 
     // 固定使用第一个释义作为正确答案，确保与判分逻辑一致
@@ -521,12 +535,14 @@ class LearningService {
 
     // 收集其他单词的释义作为干扰项，并去重
     // 排除正确答案及其近似（避免混淆）
-    const otherMeanings = Array.from(new Set(
-      allWords
-        .filter(w => w.id !== correctWord.id)
-        .flatMap(w => w.meanings)
-        .filter(m => m && m !== correctAnswer && m.trim() !== correctAnswer.trim())
-    ));
+    const otherMeanings = Array.from(
+      new Set(
+        allWords
+          .filter((w) => w.id !== correctWord.id)
+          .flatMap((w) => w.meanings)
+          .filter((m: string) => m && m !== correctAnswer && m.trim() !== correctAnswer.trim()),
+      ),
+    );
 
     // 所需干扰项数量
     const requiredDistractorCount = requestedCount - 1;
@@ -537,7 +553,7 @@ class LearningService {
     if (distractors.length < requiredDistractorCount) {
       // 干扰项不足时，添加当前单词的其他释义作为补充
       const additionalMeanings = correctWord.meanings
-        .filter(m => m !== correctAnswer && !distractors.includes(m))
+        .filter((m: string) => m !== correctAnswer && !distractors.includes(m))
         .slice(0, requiredDistractorCount - distractors.length);
       distractors = [...distractors, ...additionalMeanings];
     }
@@ -548,14 +564,20 @@ class LearningService {
       distractors = distractors.slice(0, requiredDistractorCount);
     }
 
-    // 动态调整选项数量：如果干扰项不足，减少选项数量而非使用占位符
+    // 动态调整选项数量：如果干扰项不足，使用备用干扰项
     // 最少保留2个选项（1个正确答案 + 1个干扰项）
-    const actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
+    let actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
 
-    // 极端情况警告：只有一个选项（完全没有干扰项）
-    if (actualDistractorCount === 0) {
-      learningLogger.warn({ word: correctWord.spelling }, '单词无法生成干扰项，词库可能过小');
-      // 此时返回只有正确答案的选项，UI层应处理此情况
+    // 极端情况：干扰项不足时，使用预设的备用干扰项
+    if (actualDistractorCount < requiredDistractorCount) {
+      learningLogger.warn({ word: correctWord.spelling }, '单词干扰项不足，使用备用干扰项补充');
+      const fallbackDistractors = ['未知释义', '其他含义', '暂无解释', '无此选项'];
+      const availableFallbacks = fallbackDistractors.filter(
+        (f) => f !== correctAnswer && !distractors.includes(f),
+      );
+      const needed = requiredDistractorCount - actualDistractorCount;
+      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
+      actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
     }
 
     const options = [correctAnswer, ...distractors.slice(0, actualDistractorCount)];
@@ -574,7 +596,42 @@ class LearningService {
   isAnswerCorrect(answer: string, word: Word): boolean {
     // 检查答案是否匹配任何释义（不区分前后空格）
     const normalizedAnswer = answer.trim();
-    return word.meanings.some(meaning => meaning.trim() === normalizedAnswer);
+    return word.meanings.some((meaning: string) => meaning.trim() === normalizedAnswer);
+  }
+
+  /**
+   * 生成反向测试选项（根据释义选择单词拼写）
+   * @param word 正确的单词
+   * @param allWords 所有可用单词
+   * @param count 选项数量
+   * @returns { options: string[], correctAnswer: string } 选项数组和正确答案
+   */
+  generateReverseTestOptions(
+    word: { id: string; spelling: string; meanings: string[] },
+    allWords: { id: string; spelling: string; meanings: string[] }[],
+    count: number = 4,
+  ): { options: string[]; correctAnswer: string } {
+    const correctAnswer = word.spelling;
+    const requiredDistractorCount = count - 1;
+
+    // 从其他单词中获取干扰项
+    const otherWords = allWords.filter((w) => w.id !== word.id);
+    const shuffled = [...otherWords].sort(() => Math.random() - 0.5);
+    let distractors = shuffled.slice(0, requiredDistractorCount).map((w) => w.spelling);
+
+    // 干扰项不足时，使用备用干扰项
+    if (distractors.length < requiredDistractorCount) {
+      learningLogger.warn({ word: word.spelling }, '反向测试干扰项不足，使用备用干扰项补充');
+      const fallbackDistractors = ['unknown', 'other', 'none', 'N/A'];
+      const availableFallbacks = fallbackDistractors.filter(
+        (f) => f !== correctAnswer && !distractors.includes(f),
+      );
+      const needed = requiredDistractorCount - distractors.length;
+      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
+    }
+
+    const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5);
+    return { options, correctAnswer };
   }
 
   /**
@@ -651,7 +708,7 @@ class LearningService {
     userId: string,
     wordIds: string[],
     operation: 'mastered' | 'needsPractice' | 'reset',
-    reason?: string
+    reason?: string,
   ): Promise<void> {
     await this.initSRService(userId);
     if (!this.srService) {
@@ -669,14 +726,16 @@ class LearningService {
     try {
       // 调用 ApiClient 删除单词学习状态
       await ApiClient.deleteWordLearningState(wordId);
-      
+
       // 清除本地缓存，确保下次获取时重新加载
       if (this.srService) {
         this.srService.clearUserCache(userId);
       }
     } catch (error) {
       learningLogger.error({ err: error }, '删除单词学习状态失败');
-      throw new Error(`删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      throw new Error(
+        `删除单词学习状态失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      );
     }
   }
 }

@@ -36,7 +36,7 @@ vi.mock('../../../components/ui/Toast', () => ({
 vi.mock('../../../components/ui', () => ({
   useToast: () => mockToast,
   ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Modal: ({ isOpen, children }: any) => isOpen ? <div>{children}</div> : null,
+  Modal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
   ConfirmModal: ({ isOpen, onClose, onConfirm, title, message }: any) =>
     isOpen ? (
       <div data-testid="confirm-modal">
@@ -46,7 +46,7 @@ vi.mock('../../../components/ui', () => ({
         <button onClick={onClose}>Cancel</button>
       </div>
     ) : null,
-  AlertModal: ({ isOpen, children }: any) => isOpen ? <div>{children}</div> : null,
+  AlertModal: ({ isOpen, children }: any) => (isOpen ? <div>{children}</div> : null),
 }));
 
 import LogAlertsPage from '../LogAlertsPage';
@@ -54,7 +54,9 @@ import LogAlertsPage from '../LogAlertsPage';
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
   CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
   ),
   Warning: () => <span data-testid="warning-icon">Warning</span>,
   Bell: () => <span data-testid="bell-icon">Bell</span>,
@@ -114,7 +116,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <LogAlertsPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -251,7 +253,7 @@ describe('LogAlertsPage', () => {
         if (options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ id: 'new-rule', ...mockRules[0] }),
+            json: () => Promise.resolve({ ...mockRules[0], id: 'new-rule' }),
           });
         }
         if (url.includes('/api/admin/logs/log-alerts')) {
@@ -289,7 +291,7 @@ describe('LogAlertsPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts'),
-          expect.objectContaining({ method: 'POST' })
+          expect.objectContaining({ method: 'POST' }),
         );
       });
     });
@@ -375,7 +377,7 @@ describe('LogAlertsPage', () => {
         // Find the button with "确认删除" text (not the heading)
         const confirmButtons = screen.getAllByText('确认删除');
         // The button is the one with role button
-        const confirmButton = confirmButtons.find(el => el.tagName === 'BUTTON');
+        const confirmButton = confirmButtons.find((el) => el.tagName === 'BUTTON');
         if (confirmButton) {
           fireEvent.click(confirmButton);
         }
@@ -384,7 +386,7 @@ describe('LogAlertsPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts/rule-1'),
-          expect.objectContaining({ method: 'DELETE' })
+          expect.objectContaining({ method: 'DELETE' }),
         );
       });
     });
@@ -408,7 +410,9 @@ describe('LogAlertsPage', () => {
       fireEvent.click(cancelButtons[cancelButtons.length - 1]);
 
       await waitFor(() => {
-        expect(screen.queryByText('确定要删除这个告警规则吗？此操作不可撤销。')).not.toBeInTheDocument();
+        expect(
+          screen.queryByText('确定要删除这个告警规则吗？此操作不可撤销。'),
+        ).not.toBeInTheDocument();
       });
     });
   });
@@ -444,7 +448,7 @@ describe('LogAlertsPage', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts/rule-1'),
-          expect.objectContaining({ method: 'PUT' })
+          expect.objectContaining({ method: 'PUT' }),
         );
       });
     });

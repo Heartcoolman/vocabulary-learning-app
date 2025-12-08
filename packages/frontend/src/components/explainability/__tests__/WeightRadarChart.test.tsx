@@ -167,7 +167,9 @@ describe('WeightRadarChart', () => {
       render(<WeightRadarChart weights={mockWeights} />);
 
       const polygons = document.querySelectorAll('polygon');
-      const dataPolygon = Array.from(polygons).find(p => p.getAttribute('fill')?.includes('rgba'));
+      const dataPolygon = Array.from(polygons).find((p) =>
+        p.getAttribute('fill')?.includes('rgba'),
+      );
 
       expect(dataPolygon).toBeInTheDocument();
       expect(dataPolygon?.getAttribute('stroke')).toBe('#6366f1');
@@ -178,7 +180,7 @@ describe('WeightRadarChart', () => {
       render(<WeightRadarChart weights={mockWeights} />);
 
       const circles = document.querySelectorAll('circle');
-      circles.forEach(circle => {
+      circles.forEach((circle) => {
         expect(circle.getAttribute('fill')).toBe('#6366f1');
         expect(circle.getAttribute('stroke')).toBe('white');
       });

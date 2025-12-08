@@ -1,7 +1,15 @@
 /**
  * AMAS 增强功能类型定义
  * 包含时间推荐、趋势分析、徽章系统、学习计划和状态历史追踪
+ *
+ * 注意: TrendState 已迁移到 @danci/shared
  */
+
+// 从 @danci/shared 导入共享类型
+import type { TrendState } from '@danci/shared';
+
+// 重新导出以保持向后兼容
+export type { TrendState };
 
 // ============================================
 // 时间推荐相关类型 (Requirements: 1.1, 1.2, 1.5)
@@ -49,10 +57,7 @@ export interface GoldenTimeResult {
 // 趋势分析相关类型 (Requirements: 2.1, 2.3, 2.5)
 // ============================================
 
-/**
- * 趋势状态
- */
-export type TrendState = 'up' | 'flat' | 'stuck' | 'down';
+// TrendState 从 @danci/shared 导入并重新导出（见文件顶部）
 
 /**
  * 趋势信息
@@ -306,7 +311,7 @@ export interface PlanProgress {
 /**
  * 日期范围选项
  */
-export type DateRangeOption = 7 | 30 | 90;
+export type DateRangeOption = 7 | 14 | 30 | 90;
 
 /**
  * 日期范围
@@ -430,7 +435,7 @@ export type TimePreferenceResponse = TimePreference | InsufficientDataResponse;
  * 判断是否为数据不足响应
  */
 export function isInsufficientData(
-  response: TimePreferenceResponse
+  response: TimePreferenceResponse,
 ): response is InsufficientDataResponse {
   return 'insufficientData' in response && response.insufficientData === true;
 }

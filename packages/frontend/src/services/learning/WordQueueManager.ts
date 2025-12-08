@@ -12,7 +12,7 @@ export interface WordItem {
   meanings: string[];
   examples: string[];
   audioUrl?: string;
-  isNew: boolean;  // 是否新词
+  isNew: boolean; // 是否新词
 }
 
 export interface WordProgress {
@@ -25,12 +25,12 @@ export interface WordProgress {
 }
 
 export interface QueueConfig {
-  targetMasteryCount: number;     // 目标掌握数量
-  masteryThreshold: number;       // 连续正确次数阈值(由AMAS决定时忽略)
-  maxActiveWords: number;         // 最大活跃队列大小
-  minRepeatInterval: number;      // 最小重复间隔
-  maxTotalQuestions: number;      // 最大总题数
-  maxAttemptsPerWord: number;     // 单词最大尝试次数
+  targetMasteryCount: number; // 目标掌握数量
+  masteryThreshold: number; // 连续正确次数阈值(由AMAS决定时忽略)
+  maxActiveWords: number; // 最大活跃队列大小
+  minRepeatInterval: number; // 最小重复间隔
+  maxTotalQuestions: number; // 最大总题数
+  maxAttemptsPerWord: number; // 单词最大尝试次数
 }
 
 export interface QueueProgress {
@@ -75,7 +75,7 @@ export class WordQueueManager {
   private pendingWords: WordItem[] = [];
   private activeWords: Map<string, WordProgress> = new Map();
   private masteredWords: Set<string> = new Set();
-  private recentlyShown: string[] = [];  // 最近出过的词
+  private recentlyShown: string[] = []; // 最近出过的词
   private totalQuestions: number = 0;
   private config: QueueConfig;
   private wordMap: Map<string, WordItem> = new Map();
@@ -88,11 +88,11 @@ export class WordQueueManager {
       maxActiveWords: config.maxActiveWords ?? 6,
       minRepeatInterval: config.minRepeatInterval ?? 2,
       maxTotalQuestions: config.maxTotalQuestions ?? 100,
-      maxAttemptsPerWord: config.maxAttemptsPerWord ?? 8
+      maxAttemptsPerWord: config.maxAttemptsPerWord ?? 8,
     };
 
     // 建立wordId到WordItem的映射
-    words.forEach(word => {
+    words.forEach((word) => {
       this.wordMap.set(word.id, word);
     });
   }
@@ -143,14 +143,14 @@ export class WordQueueManager {
         wrongCount: 0,
         consecutiveCorrect: 0,
         attempts: 0,
-        lastAttemptTime: 0
+        lastAttemptTime: 0,
       });
       this.totalQuestions++;
       this.updateRecentlyShown(newWord.id);
 
       learningLogger.info(
         `[WordQueue] 补充新词到活跃队列: ${newWord.spelling}, ` +
-        `active=${this.activeWords.size}, pending=${this.pendingWords.length}`
+          `active=${this.activeWords.size}, pending=${this.pendingWords.length}`,
       );
 
       return { word: newWord, isCompleted: false };
@@ -160,12 +160,11 @@ export class WordQueueManager {
     if (this.activeWords.size > 0) {
       const activeKeys = Array.from(this.activeWords.keys());
       // 获取最近显示的词ID（如果有）
-      const lastShownId = this.recentlyShown.length > 0
-        ? this.recentlyShown[this.recentlyShown.length - 1]
-        : null;
+      const lastShownId =
+        this.recentlyShown.length > 0 ? this.recentlyShown[this.recentlyShown.length - 1] : null;
 
       // 尝试找一个不是刚刚显示的词
-      let forcePick = activeKeys.find(id => id !== lastShownId);
+      let forcePick = activeKeys.find((id) => id !== lastShownId);
 
       // 如果所有活跃词都是刚显示的（只有一个词的情况），就用第一个
       if (!forcePick) {
@@ -243,7 +242,7 @@ export class WordQueueManager {
       for (const wordId of wordsToMarkMastered) {
         learningLogger.warn(
           `[WordQueue] 单词${wordId}已达最大尝试次数${this.config.maxAttemptsPerWord}, ` +
-          `自动标记为掌握`
+            `自动标记为掌握`,
         );
         this.activeWords.delete(wordId);
         this.masteredWords.add(wordId);
@@ -273,14 +272,50 @@ export class WordQueueManager {
     wordId: string,
     isCorrect: boolean,
     responseTime: number,
-    amasDecision?: MasteryDecision
+    amasDecision?: MasteryDecision,
   ): {
     mastered: boolean;
     progress: WordProgress;
   } {
-    const progress = this.activeWords.get(wordId);
+    let progress = this.activeWords.get(wordId);
+
+    // 如果单词不在活跃队列，尝试从 pending 队列中移动过来
     if (!progress) {
-      throw new Error(`Word ${wordId} not in active queue`);
+      const pendingIndex = this.pendingWords.findIndex((w) => w.id === wordId);
+      if (pendingIndex !== -1) {
+        // 从 pending 中移除并添加到 active
+        this.pendingWords.splice(pendingIndex, 1);
+        progress = {
+          wordId,
+          correctCount: 0,
+          wrongCount: 0,
+          consecutiveCorrect: 0,
+          attempts: 0,
+          lastAttemptTime: 0,
+        };
+        this.activeWords.set(wordId, progress);
+        learningLogger.info(
+          `[WordQueue] 自动将单词从 pending 移动到 active: ${this.getWordItem(wordId)?.spelling}`,
+        );
+      } else if (this.masteredWords.has(wordId)) {
+        // 单词已经被标记为掌握，返回一个虚拟的 progress
+        learningLogger.warn(`[WordQueue] 单词 ${wordId} 已被标记为掌握，忽略此次答题`);
+        return {
+          mastered: true,
+          progress: {
+            wordId,
+            correctCount: 1,
+            wrongCount: 0,
+            consecutiveCorrect: 1,
+            attempts: 1,
+            lastAttemptTime: Date.now(),
+          },
+        };
+      } else {
+        // 单词不在任何队列中，可能是数据不一致
+        learningLogger.error(`[WordQueue] 单词 ${wordId} 不在任何队列中`);
+        throw new Error(`Word ${wordId} not found in any queue`);
+      }
     }
 
     progress.attempts++;
@@ -297,8 +332,8 @@ export class WordQueueManager {
 
         learningLogger.info(
           `[WordQueue] 单词已掌握: ${this.getWordItem(wordId)?.spelling}, ` +
-          `correct=${progress.correctCount}, attempts=${progress.attempts}, ` +
-          `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`
+            `correct=${progress.correctCount}, attempts=${progress.attempts}, ` +
+            `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`,
         );
 
         return { mastered: true, progress };
@@ -309,7 +344,7 @@ export class WordQueueManager {
 
       learningLogger.info(
         `[WordQueue] 答错: ${this.getWordItem(wordId)?.spelling}, ` +
-        `wrong=${progress.wrongCount}, attempts=${progress.attempts}`
+          `wrong=${progress.wrongCount}, attempts=${progress.attempts}`,
       );
     }
 
@@ -323,13 +358,13 @@ export class WordQueueManager {
   private checkMastery(
     progress: WordProgress,
     responseTime: number,
-    amasDecision?: MasteryDecision
+    amasDecision?: MasteryDecision,
   ): boolean {
     // 优先使用AMAS判定
     if (amasDecision && amasDecision.confidence > 0.7) {
       learningLogger.info(
         `[WordQueue] 使用AMAS判定: isMastered=${amasDecision.isMastered}, ` +
-        `confidence=${amasDecision.confidence.toFixed(2)}`
+          `confidence=${amasDecision.confidence.toFixed(2)}`,
       );
       return amasDecision.isMastered;
     }
@@ -362,7 +397,7 @@ export class WordQueueManager {
       targetCount: this.config.targetMasteryCount,
       totalQuestions: this.totalQuestions,
       activeCount: this.activeWords.size,
-      pendingCount: this.pendingWords.length
+      pendingCount: this.pendingWords.length,
     };
   }
 
@@ -382,7 +417,7 @@ export class WordQueueManager {
     }
 
     if (progress.consecutiveCorrect === this.config.masteryThreshold - 1) {
-      return 'almost';  // 差1次就掌握
+      return 'almost'; // 差1次就掌握
     }
 
     return 'learning';
@@ -413,7 +448,7 @@ export class WordQueueManager {
    * 获取待学习的单词ID列表
    */
   getPendingWordIds(): string[] {
-    return this.pendingWords.map(w => w.id);
+    return this.pendingWords.map((w) => w.id);
   }
 
   /**
@@ -441,10 +476,10 @@ export class WordQueueManager {
     return {
       activeWords: Array.from(this.activeWords.entries()),
       masteredWordIds: Array.from(this.masteredWords),
-      pendingWordIds: this.pendingWords.map(w => w.id),
+      pendingWordIds: this.pendingWords.map((w) => w.id),
       recentlyShown: [...this.recentlyShown],
       totalQuestions: this.totalQuestions,
-      words: Array.from(this.wordMap.values())
+      words: Array.from(this.wordMap.values()),
     };
   }
 
@@ -458,7 +493,7 @@ export class WordQueueManager {
 
     // 重建 pendingWords（需要从 wordMap 查找）
     this.pendingWords = state.pendingWordIds
-      .map(id => this.wordMap.get(id))
+      .map((id) => this.wordMap.get(id))
       .filter((w): w is WordItem => w !== undefined);
 
     this.recentlyShown = [...state.recentlyShown];
@@ -466,7 +501,7 @@ export class WordQueueManager {
 
     learningLogger.info(
       `[WordQueue] 状态已恢复: active=${this.activeWords.size}, ` +
-      `mastered=${this.masteredWords.size}, pending=${this.pendingWords.length}`
+        `mastered=${this.masteredWords.size}, pending=${this.pendingWords.length}`,
     );
   }
 
@@ -477,23 +512,20 @@ export class WordQueueManager {
    */
   getCurrentWordIds(): string[] {
     const activeIds = Array.from(this.activeWords.keys());
-    const pendingIds = this.pendingWords.map(w => w.id);
+    const pendingIds = this.pendingWords.map((w) => w.id);
     return [...new Set([...activeIds, ...pendingIds])];
   }
 
   /**
    * 应用调整（移除单词和添加新词）
    */
-  applyAdjustments(adjustments: {
-    remove: string[];
-    add: WordItem[];
-  }): void {
+  applyAdjustments(adjustments: { remove: string[]; add: WordItem[] }): void {
     // 1. 处理移除
     if (adjustments.remove.length > 0) {
       const removeSet = new Set(adjustments.remove);
 
       // 从 pending 中移除
-      this.pendingWords = this.pendingWords.filter(w => !removeSet.has(w.id));
+      this.pendingWords = this.pendingWords.filter((w) => !removeSet.has(w.id));
 
       // 从 active 中移除
       for (const id of adjustments.remove) {
@@ -513,7 +545,7 @@ export class WordQueueManager {
         // 检查是否已经在队列中（避免重复）
         const inActive = this.activeWords.has(word.id);
         const inMastered = this.masteredWords.has(word.id);
-        const inPending = this.pendingWords.some(p => p.id === word.id);
+        const inPending = this.pendingWords.some((p) => p.id === word.id);
 
         if (!inActive && !inMastered && !inPending) {
           // 添加到 pending 队首（作为高优先级插入）
@@ -527,9 +559,7 @@ export class WordQueueManager {
   // ========== 私有辅助方法 ==========
 
   private isRecentlyShown(wordId: string): boolean {
-    return this.recentlyShown
-      .slice(-this.config.minRepeatInterval)
-      .includes(wordId);
+    return this.recentlyShown.slice(-this.config.minRepeatInterval).includes(wordId);
   }
 
   private updateRecentlyShown(wordId: string): void {

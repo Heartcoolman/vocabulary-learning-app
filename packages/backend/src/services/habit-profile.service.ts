@@ -11,6 +11,26 @@
 import prisma from '../config/database';
 import { HabitRecognizer, HabitProfile } from '../amas/modeling/habit-recognizer';
 import { serviceLogger } from '../logger';
+import type { LearningSession as PrismaLearningSession } from '@prisma/client';
+
+/**
+ * 时间偏好数据类型 (HabitProfile.timePref JSON字段)
+ */
+interface TimePrefData {
+  preferredTimes?: number[];
+  slots?: number[];
+  avgSessionDuration?: number;
+  consistency?: number;
+}
+
+/**
+ * Prisma LearningSession 类型的扩展（兼容旧字段名）
+ */
+type LearningSessionWithAliases = PrismaLearningSession & {
+  startTime?: Date;
+  duration?: number;
+  sessionDuration?: number;
+};
 
 // 用户习惯识别器实例缓存 (内存中保持状态累积)
 const userRecognizers = new Map<string, HabitRecognizer>();
@@ -33,7 +53,7 @@ class HabitProfileService {
    */
   async getProfile(userId: string) {
     const profile = await prisma.habitProfile.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (!profile) {
@@ -41,16 +61,17 @@ class HabitProfileService {
         userId,
         preferredTimes: [],
         avgSessionDuration: 0,
-        consistency: 0
+        consistency: 0,
       };
     }
 
-    const timePref: any = profile.timePref || {};
+    const timePref = (profile.timePref ?? {}) as TimePrefData;
+    const rhythmPref = profile.rhythmPref as { avgSessionDuration?: number } | null;
     return {
       userId: profile.userId,
       preferredTimes: timePref.preferredTimes || timePref.slots || [],
-      avgSessionDuration: timePref.avgSessionDuration || profile.rhythmPref || 0,
-      consistency: timePref.consistency ?? 0
+      avgSessionDuration: timePref.avgSessionDuration || rhythmPref?.avgSessionDuration || 0,
+      consistency: timePref.consistency ?? 0,
     };
   }
 
@@ -58,10 +79,11 @@ class HabitProfileService {
    * 基于会话数据更新习惯画像（兼容测试）
    */
   async updateProfile(userId: string) {
-    const sessions = (await prisma.learningSession.findMany({
-      where: { userId },
-      orderBy: { startedAt: 'desc' }
-    })) ?? [];
+    const sessions =
+      (await prisma.learningSession.findMany({
+        where: { userId },
+        orderBy: { startedAt: 'desc' },
+      })) ?? [];
 
     if (!sessions.length) {
       return this.getProfile(userId);
@@ -72,16 +94,13 @@ class HabitProfileService {
     const durations: number[] = [];
 
     for (const session of sessions) {
-      const start =
-        (session as any).startTime ||
-        (session as any).startedAt ||
-        new Date();
+      const sessionWithAliases = session as LearningSessionWithAliases;
+      const start = sessionWithAliases.startTime || sessionWithAliases.startedAt || new Date();
       const duration =
-        (session as any).duration ??
-        ((session as any).endedAt
-          ? new Date((session as any).endedAt).getTime() -
-            new Date(start).getTime()
-          : (session as any).sessionDuration ?? 0);
+        sessionWithAliases.duration ??
+        (sessionWithAliases.endedAt
+          ? new Date(sessionWithAliases.endedAt).getTime() - new Date(start).getTime()
+          : (sessionWithAliases.sessionDuration ?? 0));
 
       const hour = new Date(start).getHours();
       hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
@@ -96,34 +115,32 @@ class HabitProfileService {
       .slice(0, 3);
 
     const avgSessionDuration =
-      durations.length > 0
-        ? durations.reduce((a, b) => a + b, 0) / durations.length
-        : 0;
+      durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
 
     const payload = {
       preferredTimes: sortedHours,
       avgSessionDuration,
-      consistency: Math.min(1, sessions.length / 30)
+      consistency: Math.min(1, sessions.length / 30),
     };
 
     const saved = await prisma.habitProfile.upsert({
       where: { userId },
       update: {
         timePref: payload,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       create: {
         userId,
         timePref: payload,
-        rhythmPref: {}
-      }
+        rhythmPref: {},
+      },
     });
 
     return {
       userId: saved.userId,
       preferredTimes: payload.preferredTimes,
       avgSessionDuration: payload.avgSessionDuration,
-      consistency: payload.consistency
+      consistency: payload.consistency,
     };
   }
 
@@ -156,11 +173,7 @@ class HabitProfileService {
    * @param sessionDurationMinutes 会话时长（分钟）
    * @param wordCount 本次学习的单词数
    */
-  recordSessionEnd(
-    userId: string,
-    sessionDurationMinutes: number,
-    wordCount: number
-  ): void {
+  recordSessionEnd(userId: string, sessionDurationMinutes: number, wordCount: number): void {
     const recognizer = getRecognizer(userId);
     recognizer.updateSessionDuration(sessionDurationMinutes);
     recognizer.updateBatchSize(wordCount);
@@ -188,7 +201,7 @@ class HabitProfileService {
       if (profile.samples.timeEvents < 10) {
         serviceLogger.info(
           { userId, timeEvents: profile.samples.timeEvents },
-          '习惯画像样本不足，跳过持久化'
+          '习惯画像样本不足，跳过持久化',
         );
         return false;
       }
@@ -198,22 +211,22 @@ class HabitProfileService {
         update: {
           timePref: profile.timePref,
           rhythmPref: profile.rhythmPref,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         create: {
           userId,
           timePref: profile.timePref,
-          rhythmPref: profile.rhythmPref
-        }
+          rhythmPref: profile.rhythmPref,
+        },
       });
 
       serviceLogger.info(
         {
           userId,
           timeEvents: profile.samples.timeEvents,
-          preferredSlots: profile.preferredTimeSlots.join(',')
+          preferredSlots: profile.preferredTimeSlots.join(','),
         },
-        '习惯画像已持久化'
+        '习惯画像已持久化',
       );
       return true;
     } catch (error) {
@@ -235,8 +248,8 @@ class HabitProfileService {
         take: 1000,
         select: {
           timestamp: true,
-          sessionId: true
-        }
+          sessionId: true,
+        },
       });
 
       if (records.length === 0) return;
@@ -267,12 +280,14 @@ class HabitProfileService {
       for (const [, timestamps] of sessionGroups) {
         if (timestamps.length >= 2) {
           // 确保正确获取时间戳（兼容 Date 对象和时间戳数字）
-          const startTs = timestamps[0] instanceof Date 
-            ? timestamps[0].getTime() 
-            : new Date(timestamps[0]).getTime();
-          const endTs = timestamps[timestamps.length - 1] instanceof Date
-            ? timestamps[timestamps.length - 1].getTime()
-            : new Date(timestamps[timestamps.length - 1]).getTime();
+          const startTs =
+            timestamps[0] instanceof Date
+              ? timestamps[0].getTime()
+              : new Date(timestamps[0]).getTime();
+          const endTs =
+            timestamps[timestamps.length - 1] instanceof Date
+              ? timestamps[timestamps.length - 1].getTime()
+              : new Date(timestamps[timestamps.length - 1]).getTime();
           const durationMinutes = (endTs - startTs) / 60000;
           if (durationMinutes > 0 && durationMinutes < 180) {
             recognizer.updateSessionDuration(durationMinutes);
@@ -283,7 +298,7 @@ class HabitProfileService {
 
       serviceLogger.info(
         { userId, recordCount: records.length, sessionCount: sessionGroups.size },
-        '从历史记录初始化习惯画像完成'
+        '从历史记录初始化习惯画像完成',
       );
     } catch (error) {
       serviceLogger.error({ userId, error }, '习惯画像初始化失败');

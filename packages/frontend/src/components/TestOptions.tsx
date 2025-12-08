@@ -1,10 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { staggerContainerVariants, staggerItemVariants, g3SpringSnappy } from '../utils/animations';
+import { useEffect, useRef, memo } from 'react';
 
 interface TestOptionsProps {
   options: string[];
-  correctAnswers: string[];  // 支持多个正确答案（多义词）
+  correctAnswers: string[]; // 支持多个正确答案（多义词）
   onSelect: (selected: string) => void;
   selectedAnswer?: string;
   showResult: boolean;
@@ -13,8 +11,9 @@ interface TestOptionsProps {
 /**
  * TestOptions 组件 - 显示测试选项并处理用户选择
  * 提供答案反馈和正确答案高亮
+ * 使用 React.memo 优化：避免因父组件状态变化导致的不必要重渲染
  */
-export default function TestOptions({
+function TestOptions({
   options,
   correctAnswers,
   onSelect,
@@ -30,7 +29,11 @@ export default function TestOptions({
   // 键盘快捷键支持 (1-4数字键选择选项)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      const { options: currentOptions, onSelect: currentOnSelect, showResult: currentShowResult } = stateRef.current;
+      const {
+        options: currentOptions,
+        onSelect: currentOnSelect,
+        showResult: currentShowResult,
+      } = stateRef.current;
       if (currentShowResult) return;
 
       const key = e.key;
@@ -90,17 +93,14 @@ export default function TestOptions({
   };
 
   return (
-    <motion.div
-      variants={staggerContainerVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-wrap justify-center gap-3 px-4 py-5 w-full"
+    <div
+      className="flex w-full flex-wrap justify-center gap-3 px-4 py-5"
       role="group"
       aria-label="测试选项"
       data-testid="test-options"
     >
       {options.map((option, index) => (
-        <motion.button
+        <button
           key={`${option}-${index}`}
           ref={(el) => (optionsRef.current[index] = el)}
           onClick={() => !showResult && onSelect(option)}
@@ -111,27 +111,52 @@ export default function TestOptions({
             }
           }}
           disabled={showResult}
-          variants={staggerItemVariants}
-          whileHover={!showResult ? { scale: 1.05 } : undefined}
-          whileTap={!showResult ? { scale: 0.95 } : undefined}
-          transition={g3SpringSnappy}
           data-testid={`option-${index}`}
-          className={`
-            flex-1 min-w-[120px] sm:min-w-[140px] max-w-[200px] px-5 py-3 rounded-lg text-base md:text-lg font-medium
-            ${getButtonStyle(option)}
-            ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''}
-            disabled:cursor-not-allowed
-          `}
+          className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-xl px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+          style={{ animation: `staggerFadeIn 0.3s ease-out ${index * 50}ms forwards` }}
           aria-label={getAriaLabel(option, index)}
           aria-pressed={showResult && option === selectedAnswer}
           tabIndex={showResult ? -1 : 0}
         >
-          <span className="inline-block mr-2 text-sm opacity-70">
-            {index + 1}.
-          </span>
+          <span className="mr-2 inline-block text-sm opacity-70">{index + 1}.</span>
           {option}
-        </motion.button>
+        </button>
       ))}
-    </motion.div>
+    </div>
   );
 }
+
+// 自定义比较函数：深度比较选项数组和正确答案数组
+function arePropsEqual(prevProps: TestOptionsProps, nextProps: TestOptionsProps): boolean {
+  // 比较基本属性
+  if (
+    prevProps.selectedAnswer !== nextProps.selectedAnswer ||
+    prevProps.showResult !== nextProps.showResult
+  ) {
+    return false;
+  }
+
+  // 比较 options 数组
+  if (prevProps.options.length !== nextProps.options.length) {
+    return false;
+  }
+  for (let i = 0; i < prevProps.options.length; i++) {
+    if (prevProps.options[i] !== nextProps.options[i]) {
+      return false;
+    }
+  }
+
+  // 比较 correctAnswers 数组
+  if (prevProps.correctAnswers.length !== nextProps.correctAnswers.length) {
+    return false;
+  }
+  for (let i = 0; i < prevProps.correctAnswers.length; i++) {
+    if (prevProps.correctAnswers[i] !== nextProps.correctAnswers[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export default memo(TestOptions, arePropsEqual);

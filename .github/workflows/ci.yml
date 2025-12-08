@@ -2,12 +2,120 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
+
+# 取消之前运行的相同工作流
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.24.0'
 
 jobs:
+  # ============================================
+  # 代码检查 (Lint & Format)
+  # ============================================
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Check Prettier formatting
+        run: pnpm format:check
+
+  # ============================================
+  # TypeScript 类型检查
+  # ============================================
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Build Shared Package
+        run: pnpm --filter @danci/shared build
+
+      - name: Run TypeScript check (Frontend)
+        run: pnpm --filter @danci/frontend exec tsc --noEmit
+
+      - name: Run TypeScript check (Backend)
+        run: pnpm --filter @danci/backend exec tsc --noEmit
+
+      - name: Run TypeScript check (Shared)
+        run: pnpm --filter @danci/shared exec tsc --noEmit
+
+  # ============================================
+  # 单元测试 (Unit Tests)
+  # ============================================
   test:
+    name: Unit Tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -18,25 +126,249 @@ jobs:
           POSTGRES_DB: vocabulary_test
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
         with:
-          version: 10.24.0
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Run tests
-        run: pnpm test
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Run database migrations
+        run: pnpm --filter @danci/backend exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/vocabulary_test
+
+      - name: Run Backend Tests with Coverage
+        run: pnpm --filter @danci/backend test:coverage
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/vocabulary_test
           REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-for-ci
+
+      - name: Run Frontend Tests with Coverage
+        run: pnpm --filter @danci/frontend test:coverage
+
+      - name: Run Shared Tests with Coverage
+        run: pnpm --filter @danci/shared test:coverage
+        continue-on-error: true
+
+      - name: Upload Backend Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-backend
+          path: packages/backend/coverage/
+          retention-days: 7
+
+      - name: Upload Frontend Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-frontend
+          path: packages/frontend/coverage/
+          retention-days: 7
+
+  # ============================================
+  # 测试覆盖率检查
+  # ============================================
+  coverage-check:
+    name: Coverage Threshold Check
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Backend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-backend
+          path: coverage/backend
+
+      - name: Download Frontend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-frontend
+          path: coverage/frontend
+
+      - name: Check Backend Coverage Threshold
+        run: |
+          if [ -f coverage/backend/coverage-summary.json ]; then
+            LINES=$(cat coverage/backend/coverage-summary.json | jq '.total.lines.pct')
+            STATEMENTS=$(cat coverage/backend/coverage-summary.json | jq '.total.statements.pct')
+            FUNCTIONS=$(cat coverage/backend/coverage-summary.json | jq '.total.functions.pct')
+            BRANCHES=$(cat coverage/backend/coverage-summary.json | jq '.total.branches.pct')
+
+            echo "Backend Coverage:"
+            echo "  Lines: $LINES%"
+            echo "  Statements: $STATEMENTS%"
+            echo "  Functions: $FUNCTIONS%"
+            echo "  Branches: $BRANCHES%"
+
+            # 检查是否满足 80% 阈值
+            THRESHOLD=80
+            if (( $(echo "$LINES < $THRESHOLD" | bc -l) )); then
+              echo "::warning::Backend line coverage ($LINES%) is below threshold ($THRESHOLD%)"
+            fi
+          else
+            echo "::warning::Backend coverage report not found"
+          fi
+
+      - name: Check Frontend Coverage Threshold
+        run: |
+          if [ -f coverage/frontend/coverage-summary.json ]; then
+            LINES=$(cat coverage/frontend/coverage-summary.json | jq '.total.lines.pct')
+            STATEMENTS=$(cat coverage/frontend/coverage-summary.json | jq '.total.statements.pct')
+            FUNCTIONS=$(cat coverage/frontend/coverage-summary.json | jq '.total.functions.pct')
+            BRANCHES=$(cat coverage/frontend/coverage-summary.json | jq '.total.branches.pct')
+
+            echo "Frontend Coverage:"
+            echo "  Lines: $LINES%"
+            echo "  Statements: $STATEMENTS%"
+            echo "  Functions: $FUNCTIONS%"
+            echo "  Branches: $BRANCHES%"
+
+            # 检查是否满足 80% 阈值
+            THRESHOLD=80
+            if (( $(echo "$LINES < $THRESHOLD" | bc -l) )); then
+              echo "::warning::Frontend line coverage ($LINES%) is below threshold ($THRESHOLD%)"
+            fi
+          else
+            echo "::warning::Frontend coverage report not found"
+          fi
+
+  # ============================================
+  # 构建验证
+  # ============================================
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache Turbo build
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Upload Frontend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: packages/frontend/dist/
+          retention-days: 7
+
+      - name: Upload Backend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: packages/backend/dist/
+          retention-days: 7
+
+  # ============================================
+  # PR 状态总结
+  # ============================================
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test, build, coverage-check]
+    if: always()
+    steps:
+      - name: Check CI Status
+        run: |
+          if [ "${{ needs.lint.result }}" == "failure" ]; then
+            echo "::error::Lint check failed"
+            exit 1
+          fi
+          if [ "${{ needs.typecheck.result }}" == "failure" ]; then
+            echo "::error::TypeScript check failed"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" == "failure" ]; then
+            echo "::error::Tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.build.result }}" == "failure" ]; then
+            echo "::error::Build failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"

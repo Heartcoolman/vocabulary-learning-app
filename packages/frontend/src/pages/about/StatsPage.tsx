@@ -12,7 +12,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ElementType } from 'react';
-import { motion } from 'framer-motion';
 import {
   Brain,
   Lightning,
@@ -38,7 +37,6 @@ import {
   OptimizationEvent,
   MasteryRadarData,
 } from '../../services/aboutApi';
-import { fadeInVariants, staggerContainerVariants } from '../../utils/animations';
 import { amasLogger } from '../../utils/logger';
 
 // ==================== 配置 ====================
@@ -56,82 +54,83 @@ const ALGO_CONFIG: Record<string, { name: string; color: string; icon: ElementTy
 // 1. 系统生命力看板 (SystemVitality)
 function SystemVitality({
   overview,
-  performance
+  performance,
 }: {
   overview: OverviewStats | null;
   performance: PerformanceMetrics | null;
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm">
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+    <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Target size={80} weight="fill" className="text-emerald-500" />
         </div>
         <div className="relative z-10">
-          <p className="text-gray-600 text-sm font-medium mb-1 flex items-center gap-2">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
             <TrendUp className="text-emerald-500" /> 全局准确率 (vs Baseline)
           </p>
           <div className="text-3xl font-bold text-gray-900">
             {performance ? `${performance.globalAccuracy.toFixed(1)}%` : '-'}
           </div>
-          <div className="text-emerald-500 text-xs mt-2 font-mono">
+          <div className="mt-2 font-mono text-xs text-emerald-500">
             {performance && performance.accuracyImprovement > 0
               ? `+${performance.accuracyImprovement.toFixed(1)}% 提升`
               : '暂无数据'}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm">
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Atom size={80} weight="fill" className="text-blue-500" />
         </div>
         <div className="relative z-10">
-          <p className="text-gray-600 text-sm font-medium mb-1 flex items-center gap-2">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
             <Atom className="text-blue-500" /> 集成因果效应 (ATE)
           </p>
           <div className="text-3xl font-bold text-gray-900">
             {performance ? `+${performance.causalATE.toFixed(2)}` : '-'}
           </div>
-          <div className="text-blue-400 text-xs mt-2 font-mono">
+          <div className="mt-2 font-mono text-xs text-blue-400">
             {performance ? `置信度 ${Math.round(performance.causalConfidence * 100)}%` : '暂无数据'}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm">
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Lightning size={80} weight="fill" className="text-amber-500" />
         </div>
         <div className="relative z-10">
-          <p className="text-gray-600 text-sm font-medium mb-1 flex items-center gap-2">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
             <Lightning className="text-amber-500" /> 今日决策总量
           </p>
           <div className="text-3xl font-bold text-gray-900">
             {overview?.todayDecisions.toLocaleString() ?? '0'}
           </div>
-          <div className="text-gray-500 text-xs mt-2 font-mono">
+          <div className="mt-2 font-mono text-xs text-gray-500">
             活跃用户: {overview?.activeUsers ?? 0}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm border border-gray-200/60 p-6 rounded-2xl relative overflow-hidden group shadow-sm">
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Timer size={80} weight="fill" className="text-purple-500" />
         </div>
         <div className="relative z-10">
-          <p className="text-gray-600 text-sm font-medium mb-1 flex items-center gap-2">
-             <Timer className="text-purple-500" /> 平均推理耗时
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
+            <Timer className="text-purple-500" /> 平均推理耗时
           </p>
           <div className="text-3xl font-bold text-gray-900">
-            {performance?.avgInferenceMs ?? 0}<span className="text-lg font-normal text-gray-500">ms</span>
+            {performance?.avgInferenceMs ?? 0}
+            <span className="text-lg font-normal text-gray-500">ms</span>
           </div>
-          <div className="text-purple-400 text-xs mt-2 font-mono">
+          <div className="mt-2 font-mono text-xs text-purple-400">
             P99 &lt; {performance?.p99InferenceMs ?? 0}ms
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -140,11 +139,11 @@ function SystemVitality({
 function MemberCard({
   id,
   percentage,
-  totalDecisions
+  totalDecisions,
 }: {
   id: string;
   percentage: number;
-  totalDecisions: number
+  totalDecisions: number;
 }) {
   const config = ALGO_CONFIG[id] || { name: id, color: 'text-gray-500', icon: CheckCircle };
   const Icon = config.icon;
@@ -154,37 +153,35 @@ function MemberCard({
   const trend = useMemo(() => Array.from({ length: 10 }, () => 40 + Math.random() * 40), []);
 
   return (
-    <motion.div
-      variants={fadeInVariants}
-      className="bg-white/80 backdrop-blur-sm p-5 rounded-xl border border-gray-200/60 shadow-sm hover:shadow-md transition-all"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-2.5 rounded-lg bg-opacity-10 bg-current ${config.color.replace('text-', 'bg-')}`}>
+    <div className="animate-g3-fade-in rounded-xl border border-gray-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
+      <div className="mb-4 flex items-start justify-between">
+        <div
+          className={`rounded-lg bg-current bg-opacity-10 p-2.5 ${config.color.replace('text-', 'bg-')}`}
+        >
           <Icon size={24} className={config.color} />
         </div>
-        <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-1 rounded">
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-400">
           {(percentage * 100).toFixed(1)}% 权重
         </span>
       </div>
 
-      <h3 className="font-bold text-gray-800 mb-1 truncate">{config.name}</h3>
-      <div className="flex items-baseline gap-2 mb-4">
+      <h3 className="mb-1 truncate font-bold text-gray-800">{config.name}</h3>
+      <div className="mb-4 flex items-baseline gap-2">
         <span className="text-2xl font-bold text-gray-900">{decisions.toLocaleString()}</span>
         <span className="text-xs text-gray-500">决策</span>
       </div>
 
       {/* Sparkline Visualization */}
-      <div className="h-8 flex items-end gap-1 opacity-50">
+      <div className="flex h-8 items-end gap-1 opacity-50">
         {trend.map((h, i) => (
-          <motion.div
+          <div
             key={i}
-            initial={{ height: 0 }}
-            animate={{ height: `${h}%` }}
-            className={`flex-1 rounded-t-sm ${config.color.replace('text-', 'bg-')}`}
+            style={{ height: `${h}%`, transitionDelay: `${i * 50}ms` }}
+            className={`flex-1 rounded-t-sm transition-all duration-500 ${config.color.replace('text-', 'bg-')}`}
           />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -194,176 +191,199 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
   const data = radarData ?? { speed: 0, stability: 0, complexity: 0, consistency: 0 };
   const values = [data.speed, data.stability, data.complexity, data.consistency];
 
-  const points = values.map((v, i) => {
-    const angle = (Math.PI * 2 * i) / 4 - Math.PI / 2;
-    const r = v * 80; // radius 80
-    return `${100 + r * Math.cos(angle)},${100 + r * Math.sin(angle)}`;
-  }).join(' ');
+  const points = values
+    .map((v, i) => {
+      const angle = (Math.PI * 2 * i) / 4 - Math.PI / 2;
+      const r = v * 80; // radius 80
+      return `${100 + r * Math.cos(angle)},${100 + r * Math.sin(angle)}`;
+    })
+    .join(' ');
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm">
-      <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Brain className="text-rose-500" />
         群体掌握度评估
       </h3>
-      <div className="relative w-full aspect-square max-w-[280px] mx-auto">
-        <svg viewBox="0 0 200 200" className="w-full h-full">
+      <div className="relative mx-auto aspect-square w-full max-w-[280px]">
+        <svg viewBox="0 0 200 200" className="h-full w-full">
           {/* Grid Circles */}
-          {[20, 40, 60, 80].map(r => (
-            <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="#94a3b8" strokeOpacity="0.2" />
+          {[20, 40, 60, 80].map((r) => (
+            <circle
+              key={r}
+              cx="100"
+              cy="100"
+              r={r}
+              fill="none"
+              stroke="#94a3b8"
+              strokeOpacity="0.2"
+            />
           ))}
           {/* Axes */}
-          {[0, 90, 180, 270].map(deg => (
+          {[0, 90, 180, 270].map((deg) => (
             <line
               key={deg}
-              x1="100" y1="100"
-              x2={100 + 100 * Math.cos((deg - 90) * Math.PI / 180)}
-              y2={100 + 100 * Math.sin((deg - 90) * Math.PI / 180)}
-              stroke="#94a3b8" strokeOpacity="0.2"
+              x1="100"
+              y1="100"
+              x2={100 + 100 * Math.cos(((deg - 90) * Math.PI) / 180)}
+              y2={100 + 100 * Math.sin(((deg - 90) * Math.PI) / 180)}
+              stroke="#94a3b8"
+              strokeOpacity="0.2"
             />
           ))}
           {/* Data Polygon */}
           <polygon points={points} fill="rgba(244, 63, 94, 0.2)" stroke="#fb7185" strokeWidth="2" />
 
           {/* Labels with values */}
-          <text x="100" y="10" textAnchor="middle" className="text-[10px] fill-gray-500">
+          <text x="100" y="10" textAnchor="middle" className="fill-gray-500 text-[10px]">
             速度 ({(data.speed * 100).toFixed(0)}%)
           </text>
-          <text x="190" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">
+          <text x="190" y="100" textAnchor="middle" className="fill-gray-500 text-[10px]">
             稳定性 ({(data.stability * 100).toFixed(0)}%)
           </text>
-          <text x="100" y="195" textAnchor="middle" className="text-[10px] fill-gray-500">
+          <text x="100" y="195" textAnchor="middle" className="fill-gray-500 text-[10px]">
             复杂度 ({(data.complexity * 100).toFixed(0)}%)
           </text>
-          <text x="10" y="100" textAnchor="middle" className="text-[10px] fill-gray-500">
+          <text x="10" y="100" textAnchor="middle" className="fill-gray-500 text-[10px]">
             一致性 ({(data.consistency * 100).toFixed(0)}%)
           </text>
         </svg>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 // 4. 学习模式分布 (LearningModeDistribution)
 function LearningModeDistribution() {
   // 模拟数据 - 实际应从 API 获取
-  const modeData = useMemo(() => ({
-    standard: 0.65,
-    cram: 0.20,
-    relaxed: 0.15
-  }), []);
+  const modeData = useMemo(
+    () => ({
+      standard: 0.65,
+      cram: 0.2,
+      relaxed: 0.15,
+    }),
+    [],
+  );
 
   const modeConfig = {
     standard: { name: '标准模式', color: 'bg-blue-500', desc: '平衡长期记忆' },
     cram: { name: '突击模式', color: 'bg-amber-500', desc: '考前冲刺' },
-    relaxed: { name: '轻松模式', color: 'bg-emerald-500', desc: '降低压力' }
+    relaxed: { name: '轻松模式', color: 'bg-emerald-500', desc: '降低压力' },
   };
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm">
-      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Target className="text-blue-500" />
         学习模式分布
       </h3>
       <div className="space-y-4">
-        {Object.entries(modeData).map(([id, value]) => {
+        {Object.entries(modeData).map(([id, value], idx) => {
           const config = modeConfig[id as keyof typeof modeConfig];
           return (
             <div key={id}>
-              <div className="flex justify-between items-center mb-1">
+              <div className="mb-1 flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{config.name}</span>
-                <span className="text-sm font-mono text-gray-500">{(value * 100).toFixed(0)}%</span>
+                <span className="font-mono text-sm text-gray-500">{(value * 100).toFixed(0)}%</span>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${value * 100}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                  className={`h-full ${config.color} rounded-full`}
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  style={{ width: `${value * 100}%`, transitionDelay: `${idx * 100}ms` }}
+                  className={`h-full ${config.color} rounded-full transition-all duration-700 ease-out`}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">{config.desc}</p>
+              <p className="mt-1 text-xs text-gray-400">{config.desc}</p>
             </div>
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 // 5. 半衰期分布 (HalfLifeDistribution)
 function HalfLifeDistribution() {
   // 模拟数据 - 实际应从 API 获取
-  const halfLifeData = useMemo(() => [
-    { range: '0-1天', count: 120, percentage: 15 },
-    { range: '1-3天', count: 280, percentage: 35 },
-    { range: '3-7天', count: 200, percentage: 25 },
-    { range: '7-14天', count: 120, percentage: 15 },
-    { range: '14+天', count: 80, percentage: 10 }
-  ], []);
+  const halfLifeData = useMemo(
+    () => [
+      { range: '0-1天', count: 120, percentage: 15 },
+      { range: '1-3天', count: 280, percentage: 35 },
+      { range: '3-7天', count: 200, percentage: 25 },
+      { range: '7-14天', count: 120, percentage: 15 },
+      { range: '14+天', count: 80, percentage: 10 },
+    ],
+    [],
+  );
 
   const avgHalfLife = 4.2;
 
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm">
-      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Timer className="text-purple-500" />
         半衰期分布
       </h3>
-      <div className="text-center mb-4">
+      <div className="mb-4 text-center">
         <div className="text-3xl font-bold text-purple-600">{avgHalfLife}</div>
         <div className="text-sm text-gray-500">平均半衰期（天）</div>
       </div>
       <div className="space-y-2">
-        {halfLifeData.map((item) => (
+        {halfLifeData.map((item, idx) => (
           <div key={item.range} className="flex items-center gap-2">
             <span className="w-16 text-xs text-gray-500">{item.range}</span>
-            <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${item.percentage}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full"
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
+              <div
+                style={{ width: `${item.percentage}%`, transitionDelay: `${idx * 100}ms` }}
+                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-700 ease-out"
               />
             </div>
-            <span className="w-10 text-xs text-gray-600 text-right">{item.percentage}%</span>
+            <span className="w-10 text-right text-xs text-gray-600">{item.percentage}%</span>
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 // 6. 优化事件时间轴 (OptimizationTimeline)
 function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
-    <motion.div variants={fadeInVariants} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/60 shadow-sm col-span-1 md:col-span-2">
-      <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+    <div className="col-span-1 animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2">
+      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Flask className="text-amber-500" />
         自进化事件日志
       </h3>
       {events.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
+        <div className="py-8 text-center text-gray-400">
           <Flask size={32} className="mx-auto mb-2 opacity-50" />
           <p>暂无优化事件</p>
         </div>
       ) : (
-        <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+        <div className="relative space-y-6 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-0.5 before:bg-gray-200">
           {events.map((event) => (
             <div key={event.id} className="relative pl-12">
-              <div className={`absolute left-2 -translate-x-1/2 w-4 h-4 rounded-full border-4 border-white ${
-                event.type === 'bayesian' ? 'bg-blue-500' : event.type === 'ab_test' ? 'bg-purple-500' : 'bg-emerald-500'
-              }`} />
-              <div className="flex justify-between items-start">
+              <div
+                className={`absolute left-2 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white ${
+                  event.type === 'bayesian'
+                    ? 'bg-blue-500'
+                    : event.type === 'ab_test'
+                      ? 'bg-purple-500'
+                      : 'bg-emerald-500'
+                }`}
+              />
+              <div className="flex items-start justify-between">
                 <div>
-                  <h4 className="font-bold text-gray-800 text-sm">{event.title}</h4>
-                  <p className="text-xs text-gray-500 mt-1">{event.description}</p>
+                  <h4 className="text-sm font-bold text-gray-800">{event.title}</h4>
+                  <p className="mt-1 text-xs text-gray-500">{event.description}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-mono text-gray-400 block">
-                    {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  <span className="block font-mono text-xs text-gray-400">
+                    {new Date(event.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                  <span className="mt-1 inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-bold text-emerald-600">
                     {event.impact}
                   </span>
                 </div>
@@ -372,7 +392,7 @@ function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
           ))}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -422,30 +442,23 @@ export default function StatsPage() {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 md:p-10 font-sans transition-colors">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainerVariants}
-        className="max-w-7xl mx-auto"
-      >
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors md:p-10">
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <header className="flex justify-between items-end mb-10">
+        <header className="mb-10 flex items-end justify-between">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3 mb-2">
+            <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 md:text-4xl">
               <ShareNetwork className="text-blue-600" weight="duotone" />
               AMAS 神经网络监控
             </h1>
-            <p className="text-gray-500">
-              Ensemble Learning Framework 实时性能遥测
-            </p>
+            <p className="text-gray-500">Ensemble Learning Framework 实时性能遥测</p>
           </div>
-          <div className="text-right hidden md:block">
-            <div className="text-3xl font-mono font-light text-gray-800">
+          <div className="hidden text-right md:block">
+            <div className="font-mono text-3xl font-light text-gray-800">
               {time.toLocaleTimeString('zh-CN', { hour12: false })}
             </div>
-            <div className="text-xs text-gray-400 flex items-center justify-end gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
+            <div className="flex items-center justify-end gap-2 text-xs text-gray-400">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               系统在线
             </div>
           </div>
@@ -454,16 +467,16 @@ export default function StatsPage() {
         {/* 1. System Vitality Big Numbers */}
         <SystemVitality overview={overview} performance={performance} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* 2. Member Leaderboard (Takes up full width of its row) */}
           <div className="lg:col-span-3">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
                 <Brain className="text-indigo-500" />
                 专家成员贡献榜 (Expert Members)
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               {Object.entries(algoDist || {}).map(([id, val]) => (
                 <MemberCard
                   key={id}
@@ -495,7 +508,7 @@ export default function StatsPage() {
             <HalfLifeDistribution />
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

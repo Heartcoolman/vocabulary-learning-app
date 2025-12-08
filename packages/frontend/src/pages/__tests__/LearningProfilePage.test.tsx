@@ -27,7 +27,7 @@ const mockChronotypeData = {
 
 const mockLearningStyleData = {
   style: 'visual' as const,
-  confidence: 0.80,
+  confidence: 0.8,
   scores: {
     visual: 0.75,
     auditory: 0.45,
@@ -35,7 +35,7 @@ const mockLearningStyleData = {
   },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getChronotypeProfile: vi.fn(),
     getLearningStyleProfile: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 
 describe('LearningProfilePage', () => {
   beforeEach(() => {
@@ -68,7 +68,7 @@ describe('LearningProfilePage', () => {
     return render(
       <MemoryRouter>
         <LearningProfilePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

@@ -7,6 +7,17 @@ import { WordLearningState, WordState, Prisma, WordBookType } from '@prisma/clie
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import prisma from '../config/database';
 
+/**
+ * 用户学习统计数据接口
+ */
+export interface UserStats {
+  totalWords: number;
+  newWords: number;
+  learningWords: number;
+  reviewingWords: number;
+  masteredWords: number;
+}
+
 /** 时间戳有效范围：过去1年到未来1小时 */
 const TIMESTAMP_PAST_LIMIT_MS = 365 * 24 * 60 * 60 * 1000;
 const TIMESTAMP_FUTURE_LIMIT_MS = 60 * 60 * 1000;
@@ -44,7 +55,6 @@ function validateAndConvertTimestamp(timestamp: number): Date | null {
   return date;
 }
 
-
 export class WordStateService {
   // 空值标记，用于缓存穿透防护
   private static readonly NULL_MARKER = '__NULL__';
@@ -57,7 +67,9 @@ export class WordStateService {
     const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
 
     // 尝试从缓存获取
-    const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(cacheKey);
+    const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(
+      cacheKey,
+    );
     if (cached !== null) {
       // 如果是空值标记，返回null
       if (cached === WordStateService.NULL_MARKER) {
@@ -71,9 +83,9 @@ export class WordStateService {
       where: {
         unique_user_word: {
           userId,
-          wordId
-        }
-      }
+          wordId,
+        },
+      },
     });
 
     // 存入缓存（包括空值）
@@ -91,7 +103,10 @@ export class WordStateService {
    * 批量获取单词学习状态（带缓存）
    * 修复：正确处理空值标记，与getWordState方法保持一致
    */
-  async batchGetWordStates(userId: string, wordIds: string[]): Promise<Map<string, WordLearningState>> {
+  async batchGetWordStates(
+    userId: string,
+    wordIds: string[],
+  ): Promise<Map<string, WordLearningState>> {
     const result = new Map<string, WordLearningState>();
     const uncachedWordIds: string[] = [];
     const nullCachedWordIds: string[] = []; // 已知为空的单词ID（命中空值缓存）
@@ -99,7 +114,9 @@ export class WordStateService {
     // 先从缓存获取
     for (const wordId of wordIds) {
       const cacheKey = CacheKeys.USER_LEARNING_STATE(userId, wordId);
-      const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(cacheKey);
+      const cached = cacheService.get<WordLearningState | typeof WordStateService.NULL_MARKER>(
+        cacheKey,
+      );
 
       if (cached !== null) {
         // 检查是否为空值标记
@@ -119,12 +136,12 @@ export class WordStateService {
       const states = await prisma.wordLearningState.findMany({
         where: {
           userId,
-          wordId: { in: uncachedWordIds }
-        }
+          wordId: { in: uncachedWordIds },
+        },
       });
 
       // 构建查询结果的wordId集合
-      const foundWordIds = new Set(states.map(s => s.wordId));
+      const foundWordIds = new Set(states.map((s) => s.wordId));
 
       // 存入缓存和结果
       for (const state of states) {
@@ -160,7 +177,7 @@ export class WordStateService {
     // 从数据库查询
     const states = await prisma.wordLearningState.findMany({
       where: { userId },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
     });
 
     // 存入缓存
@@ -196,19 +213,16 @@ export class WordStateService {
           // 条件1: 已到复习时间的单词（LEARNING、REVIEWING状态）
           {
             nextReviewDate: { lte: now },
-            state: { in: [WordState.LEARNING, WordState.REVIEWING] }
+            state: { in: [WordState.LEARNING, WordState.REVIEWING] },
           },
           // 条件2: NEW状态单词（nextReviewDate可能为null或已到期）
           {
             state: WordState.NEW,
-            OR: [
-              { nextReviewDate: null },
-              { nextReviewDate: { lte: now } }
-            ]
-          }
-        ]
+            OR: [{ nextReviewDate: null }, { nextReviewDate: { lte: now } }],
+          },
+        ],
       },
-      orderBy: { nextReviewDate: 'asc' }
+      orderBy: { nextReviewDate: 'asc' },
     });
 
     return dueWords;
@@ -221,9 +235,9 @@ export class WordStateService {
     return await prisma.wordLearningState.findMany({
       where: {
         userId,
-        state
+        state,
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
@@ -233,15 +247,28 @@ export class WordStateService {
   async upsertWordState(
     userId: string,
     wordId: string,
-    data: Partial<WordLearningState>
+    data: Partial<WordLearningState>,
   ): Promise<WordLearningState> {
     await this.assertWordAccessible(userId, wordId);
 
     // 过滤掉userId和wordId，防止被data覆盖
-    const { userId: _, wordId: __, ...safeData } = data as any;
+    const {
+      userId: _,
+      wordId: __,
+      ...safeData
+    } = data as Partial<WordLearningState> & { userId?: string; wordId?: string };
 
     // 转换并验证时间戳为Date对象
-    const convertedData: any = { ...safeData };
+    type ConvertedWordStateData = Omit<
+      typeof safeData,
+      'lastReviewDate' | 'nextReviewDate' | 'createdAt' | 'updatedAt'
+    > & {
+      lastReviewDate?: Date | null;
+      nextReviewDate?: Date | null;
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
+    const convertedData: ConvertedWordStateData = { ...safeData };
     if (typeof convertedData.lastReviewDate === 'number') {
       convertedData.lastReviewDate = validateAndConvertTimestamp(convertedData.lastReviewDate);
     }
@@ -249,25 +276,35 @@ export class WordStateService {
       convertedData.nextReviewDate = validateAndConvertTimestamp(convertedData.nextReviewDate);
     }
     if (typeof convertedData.createdAt === 'number') {
-      convertedData.createdAt = validateAndConvertTimestamp(convertedData.createdAt);
+      const createdAtDate = validateAndConvertTimestamp(convertedData.createdAt);
+      if (createdAtDate) {
+        convertedData.createdAt = createdAtDate;
+      } else {
+        delete convertedData.createdAt;
+      }
     }
     if (typeof convertedData.updatedAt === 'number') {
-      convertedData.updatedAt = validateAndConvertTimestamp(convertedData.updatedAt);
+      const updatedAtDate = validateAndConvertTimestamp(convertedData.updatedAt);
+      if (updatedAtDate) {
+        convertedData.updatedAt = updatedAtDate;
+      } else {
+        delete convertedData.updatedAt;
+      }
     }
 
     const state = await prisma.wordLearningState.upsert({
       where: {
         unique_user_word: {
           userId,
-          wordId
-        }
+          wordId,
+        },
       },
       create: {
         userId,
         wordId,
-        ...convertedData
-      } as any,
-      update: convertedData
+        ...convertedData,
+      } as Prisma.WordLearningStateUncheckedCreateInput,
+      update: convertedData,
     });
 
     // 清除相关缓存
@@ -282,16 +319,16 @@ export class WordStateService {
    */
   async batchUpdateWordStates(
     userId: string,
-    updates: Array<{ wordId: string; data: Partial<WordLearningState> }>
+    updates: Array<{ wordId: string; data: Partial<WordLearningState> }>,
   ): Promise<void> {
     // 获取去重后的单词ID列表
     const uniqueWordIds = Array.from(new Set(updates.map(({ wordId }) => wordId)));
-    
+
     // 单次查询校验所有单词的访问权限
     const accessibleWordIds = await this.getAccessibleWordIds(userId, uniqueWordIds);
-    
+
     // 检查是否所有单词都可访问
-    const inaccessibleWordIds = uniqueWordIds.filter(id => !accessibleWordIds.has(id));
+    const inaccessibleWordIds = uniqueWordIds.filter((id) => !accessibleWordIds.has(id));
     if (inaccessibleWordIds.length > 0) {
       throw new Error(`无权访问以下单词: ${inaccessibleWordIds.join(', ')}`);
     }
@@ -299,18 +336,50 @@ export class WordStateService {
     // 修复：事务外预先校验所有时间戳，避免单条记录无效导致整个批量操作失败
     // 同时预处理数据，避免在事务内部进行可能抛异常的操作
     const invalidTimestampErrors: string[] = [];
+    type ConvertedWordStateData = Omit<
+      Partial<WordLearningState>,
+      'lastReviewDate' | 'nextReviewDate' | 'createdAt' | 'updatedAt' | 'userId' | 'wordId'
+    > & {
+      lastReviewDate?: Date | null;
+      nextReviewDate?: Date | null;
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
     const preparedUpdates = updates.map(({ wordId, data }, index) => {
       // 过滤掉userId和wordId，防止被data覆盖
-      const { userId: _, wordId: __, ...safeData } = data as any;
+      const {
+        userId: _,
+        wordId: __,
+        ...safeData
+      } = data as Partial<WordLearningState> & { userId?: string; wordId?: string };
 
       // 转换时间戳为Date对象，使用统一的校验逻辑
-      const convertedData: any = { ...safeData };
-      const timestampFields = ['lastReviewDate', 'nextReviewDate', 'createdAt', 'updatedAt'] as const;
+      const convertedData: ConvertedWordStateData = { ...safeData };
 
-      for (const field of timestampFields) {
+      // 处理可空的时间戳字段
+      const nullableTimestampFields = ['lastReviewDate', 'nextReviewDate'] as const;
+      for (const field of nullableTimestampFields) {
         if (typeof convertedData[field] === 'number') {
           try {
-            convertedData[field] = validateAndConvertTimestamp(convertedData[field]);
+            convertedData[field] = validateAndConvertTimestamp(convertedData[field] as number);
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            invalidTimestampErrors.push(`记录[${index}] wordId=${wordId} ${field}: ${errorMsg}`);
+          }
+        }
+      }
+
+      // 处理不可空的时间戳字段
+      const nonNullableTimestampFields = ['createdAt', 'updatedAt'] as const;
+      for (const field of nonNullableTimestampFields) {
+        if (typeof convertedData[field] === 'number') {
+          try {
+            const dateValue = validateAndConvertTimestamp(convertedData[field] as number);
+            if (dateValue) {
+              convertedData[field] = dateValue;
+            } else {
+              delete convertedData[field];
+            }
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             invalidTimestampErrors.push(`记录[${index}] wordId=${wordId} ${field}: ${errorMsg}`);
@@ -333,17 +402,17 @@ export class WordStateService {
           where: {
             unique_user_word: {
               userId,
-              wordId
-            }
+              wordId,
+            },
           },
           create: {
             userId,
             wordId,
-            ...convertedData
-          } as any,
-          update: convertedData
+            ...convertedData,
+          } as Prisma.WordLearningStateUncheckedCreateInput,
+          update: convertedData,
         });
-      })
+      }),
     );
 
     // 清除用户缓存
@@ -359,8 +428,8 @@ export class WordStateService {
       where: { id: { in: wordIds } },
       select: {
         id: true,
-        wordBook: { select: { type: true, userId: true } }
-      }
+        wordBook: { select: { type: true, userId: true } },
+      },
     });
 
     const accessibleIds = new Set<string>();
@@ -381,9 +450,9 @@ export class WordStateService {
       where: {
         unique_user_word: {
           userId,
-          wordId
-        }
-      }
+          wordId,
+        },
+      },
     });
 
     // 清除缓存
@@ -393,28 +462,22 @@ export class WordStateService {
   /**
    * 获取用户学习统计
    */
-  async getUserStats(userId: string) {
+  async getUserStats(userId: string): Promise<UserStats> {
     const cacheKey = CacheKeys.USER_STATS(userId);
 
     // 尝试从缓存获取
-    const cached = cacheService.get<any>(cacheKey);
+    const cached = cacheService.get<UserStats>(cacheKey);
     if (cached) {
       return cached;
     }
 
     // 从数据库查询
-    const [
-      totalWords,
-      newWords,
-      learningWords,
-      reviewingWords,
-      masteredWords
-    ] = await Promise.all([
+    const [totalWords, newWords, learningWords, reviewingWords, masteredWords] = await Promise.all([
       prisma.wordLearningState.count({ where: { userId } }),
       prisma.wordLearningState.count({ where: { userId, state: WordState.NEW } }),
       prisma.wordLearningState.count({ where: { userId, state: WordState.LEARNING } }),
       prisma.wordLearningState.count({ where: { userId, state: WordState.REVIEWING } }),
-      prisma.wordLearningState.count({ where: { userId, state: WordState.MASTERED } })
+      prisma.wordLearningState.count({ where: { userId, state: WordState.MASTERED } }),
     ]);
 
     const stats = {
@@ -422,7 +485,7 @@ export class WordStateService {
       newWords,
       learningWords,
       reviewingWords,
-      masteredWords
+      masteredWords,
     };
 
     // 存入缓存
@@ -462,8 +525,8 @@ export class WordStateService {
     const word = await prisma.word.findUnique({
       where: { id: wordId },
       select: {
-        wordBook: { select: { type: true, userId: true } }
-      }
+        wordBook: { select: { type: true, userId: true } },
+      },
     });
 
     if (!word?.wordBook) {

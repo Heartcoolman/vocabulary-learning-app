@@ -100,7 +100,11 @@ vi.mock('../components/DecisionDetailPanel', () => ({
   ),
 }));
 
-import { getMixedDecisions, getDecisionDetail, subscribeToDecisions } from '../../../services/aboutApi';
+import {
+  getMixedDecisions,
+  getDecisionDetail,
+  subscribeToDecisions,
+} from '../../../services/aboutApi';
 
 describe('DashboardPage', () => {
   beforeEach(() => {
@@ -118,7 +122,7 @@ describe('DashboardPage', () => {
     return render(
       <MemoryRouter>
         <DashboardPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

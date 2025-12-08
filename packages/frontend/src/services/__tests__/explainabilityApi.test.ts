@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock ApiClient
-vi.mock('../ApiClient', () => ({
+vi.mock('../client', () => ({
   default: {
     getAmasDecisionExplanation: vi.fn(),
     runCounterfactualAnalysis: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../ApiClient', () => ({
 }));
 
 import { explainabilityApi } from '../explainabilityApi';
-import apiClient from '../ApiClient';
+import apiClient from '../client';
 import type {
   DecisionExplanation,
   CounterfactualInput,
@@ -30,7 +30,7 @@ import type {
   DecisionTimelineResponse,
 } from '../../types/explainability';
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getAmasDecisionExplanation: ReturnType<typeof vi.fn>;
   runCounterfactualAnalysis: ReturnType<typeof vi.fn>;
   getAmasLearningCurve: ReturnType<typeof vi.fn>;
@@ -179,7 +179,9 @@ describe('explainabilityApi', () => {
     it('should handle API error', async () => {
       mockApiClient.runCounterfactualAnalysis.mockRejectedValue(new Error('Analysis failed'));
 
-      await expect(explainabilityApi.runCounterfactual(mockInput)).rejects.toThrow('Analysis failed');
+      await expect(explainabilityApi.runCounterfactual(mockInput)).rejects.toThrow(
+        'Analysis failed',
+      );
     });
   });
 
@@ -349,7 +351,9 @@ describe('explainabilityApi', () => {
     it('should handle API error', async () => {
       mockApiClient.getDecisionTimeline.mockRejectedValue(new Error('Timeline fetch failed'));
 
-      await expect(explainabilityApi.getDecisionTimeline()).rejects.toThrow('Timeline fetch failed');
+      await expect(explainabilityApi.getDecisionTimeline()).rejects.toThrow(
+        'Timeline fetch failed',
+      );
     });
   });
 });

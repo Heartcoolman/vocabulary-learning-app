@@ -127,7 +127,9 @@ describe('ProgressBarChart', () => {
     });
 
     it('should use custom color when specified', () => {
-      const data: ProgressBarData[] = [{ label: 'Test', value: 50, maxValue: 100, color: 'bg-green-500' }];
+      const data: ProgressBarData[] = [
+        { label: 'Test', value: 50, maxValue: 100, color: 'bg-green-500' },
+      ];
 
       render(<ProgressBarChart data={data} />);
 
@@ -223,16 +225,21 @@ describe('ProgressBarChart', () => {
 
   describe('label truncation', () => {
     it('should have title attribute for long labels', () => {
-      const data: ProgressBarData[] = [{
-        label: 'This is a very long label that should be truncated',
-        value: 50,
-        maxValue: 100
-      }];
+      const data: ProgressBarData[] = [
+        {
+          label: 'This is a very long label that should be truncated',
+          value: 50,
+          maxValue: 100,
+        },
+      ];
 
       render(<ProgressBarChart data={data} />);
 
       const labelElement = screen.getByText('This is a very long label that should be truncated');
-      expect(labelElement).toHaveAttribute('title', 'This is a very long label that should be truncated');
+      expect(labelElement).toHaveAttribute(
+        'title',
+        'This is a very long label that should be truncated',
+      );
     });
 
     it('should have truncate class on label', () => {

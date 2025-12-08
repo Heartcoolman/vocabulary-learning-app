@@ -10,6 +10,7 @@
  */
 
 import prisma from '../config/database';
+import type { UserStateHistory } from '@prisma/client';
 
 // ============================================
 // 类型定义
@@ -86,11 +87,41 @@ export interface SignificantChange {
  * 用户状态（用于保存快照）
  */
 export interface UserState {
-  A: number;  // 注意力
-  F: number;  // 疲劳度
-  M: number;  // 动机
-  C: CognitiveProfile;  // 认知画像
+  A: number; // 注意力
+  F: number; // 疲劳度
+  M: number; // 动机
+  C: CognitiveProfile; // 认知画像
   T?: string; // 趋势状态
+}
+
+/**
+ * 扩展的认知画像（兼容 mem 和 memory 字段名）
+ */
+interface ExtendedCognitiveProfile extends CognitiveProfile {
+  mem?: number; // 旧版字段名
+}
+
+/**
+ * 扩展的用户状态（兼容旧版/测试接口）
+ * 支持前端展开格式和后端紧凑格式
+ */
+interface ExtendedUserState extends UserState {
+  attention?: number;
+  fatigue?: number;
+  motivation?: number;
+  memory?: number;
+  mem?: number;
+  speed?: number;
+  stability?: number;
+}
+
+/**
+ * 状态历史记录结果（包含状态和时间戳）
+ */
+interface StateHistoryRecord {
+  state: Partial<UserState>;
+  timestamp: Date;
+  id?: string;
 }
 
 // ============================================
@@ -107,7 +138,7 @@ const METRIC_LABELS: Record<string, string> = {
   motivation: '动机',
   memory: '记忆力',
   speed: '反应速度',
-  stability: '稳定性'
+  stability: '稳定性',
 };
 
 /** 正面变化判断（某些指标下降是好事） */
@@ -125,9 +156,8 @@ class StateHistoryService {
    */
   async recordState(
     userId: string,
-    state: Partial<UserState> & { timestamp?: Date }
-  ): Promise<{ state: Partial<UserState>; timestamp: Date; id?: string }> {
-    const prismaAny = prisma as any;
+    state: Partial<ExtendedUserState> & { timestamp?: Date },
+  ): Promise<StateHistoryRecord> {
     const timestamp = state.timestamp ?? new Date();
 
     // 修复：统一使用UTC时间，将日期规范化为UTC零点
@@ -138,23 +168,21 @@ class StateHistoryService {
     const payload = {
       userId,
       date: dateForDb,
-      attention: state.A ?? (state as any).attention ?? 0,
-      fatigue: state.F ?? (state as any).fatigue ?? 0,
-      motivation: state.M ?? (state as any).motivation ?? 0,
-      memory: state.C?.memory ?? (state as any).memory ?? (state as any).mem ?? 0,
-      speed: state.C?.speed ?? (state as any).speed ?? 0,
-      stability: state.C?.stability ?? (state as any).stability ?? 0,
-      trendState: (state as any).T
+      attention: state.A ?? state.attention ?? 0,
+      fatigue: state.F ?? state.fatigue ?? 0,
+      motivation: state.M ?? state.motivation ?? 0,
+      memory: state.C?.memory ?? state.memory ?? state.mem ?? 0,
+      speed: state.C?.speed ?? state.speed ?? 0,
+      stability: state.C?.stability ?? state.stability ?? 0,
+      trendState: state.T,
     };
 
-    const created = prismaAny.userStateHistory
-      ? await prismaAny.userStateHistory.create({ data: payload })
-      : payload;
+    const created: UserStateHistory = await prisma.userStateHistory.create({ data: payload });
 
     return {
-      ...(created ?? {}),
+      ...created,
       state,
-      timestamp: new Date(timestamp)
+      timestamp: new Date(timestamp),
     };
   }
 
@@ -163,63 +191,53 @@ class StateHistoryService {
    */
   async getHistory(
     userId: string,
-    options: { limit?: number; start?: Date; end?: Date } = {}
+    options: { limit?: number; start?: Date; end?: Date } = {},
   ): Promise<Array<{ state: Partial<UserState>; timestamp: Date }>> {
-    const prismaAny = prisma as any;
-    const records = prismaAny.userStateHistory
-      ? await prismaAny.userStateHistory.findMany({
-          where: {
-            userId,
-            ...(options.start || options.end
-              ? {
-                  date: {
-                    gte: options.start,
-                    lte: options.end
-                  }
-                }
-              : {})
-          },
-          orderBy: { date: 'desc' },
-          take: options.limit
-        })
-      : [];
+    const records: UserStateHistory[] = await prisma.userStateHistory.findMany({
+      where: {
+        userId,
+        ...(options.start || options.end
+          ? {
+              date: {
+                gte: options.start,
+                lte: options.end,
+              },
+            }
+          : {}),
+      },
+      orderBy: { date: 'desc' },
+      take: options.limit,
+    });
 
-    return records.map((r: any) => ({
+    return records.map((r: UserStateHistory) => ({
       ...r,
-      state: r.state ?? {
+      state: {
         A: r.attention,
         F: r.fatigue,
         M: r.motivation,
-        C: { mem: r.memory, speed: r.speed, stability: r.stability }
+        C: { memory: r.memory, speed: r.speed, stability: r.stability },
       },
-      timestamp: r.timestamp ?? r.date
+      timestamp: r.date,
     }));
   }
 
   /**
    * 兼容测试的获取最新状态
    */
-  async getLatestState(
-    userId: string
-  ): Promise<Partial<UserState> | null> {
-    const prismaAny = prisma as any;
-    const record = prismaAny.userStateHistory
-      ? await prismaAny.userStateHistory.findFirst({
-          where: { userId },
-          orderBy: { date: 'desc' }
-        })
-      : null;
+  async getLatestState(userId: string): Promise<Partial<UserState> | null> {
+    const record: UserStateHistory | null = await prisma.userStateHistory.findFirst({
+      where: { userId },
+      orderBy: { date: 'desc' },
+    });
 
     if (!record) return null;
 
-    return (
-      record.state ?? {
-        A: record.attention,
-        F: record.fatigue,
-        M: record.motivation,
-        C: { mem: record.memory, speed: record.speed, stability: record.stability }
-      }
-    );
+    return {
+      A: record.attention,
+      F: record.fatigue,
+      M: record.motivation,
+      C: { memory: record.memory, speed: record.speed, stability: record.stability },
+    };
   }
 
   /**
@@ -247,13 +265,14 @@ class StateHistoryService {
         where: {
           userId_date: {
             userId,
-            date: today
-          }
-        }
+            date: today,
+          },
+        },
       });
 
       // 兼容处理：支持 memory 和 mem 两种字段名
-      const memoryValue = (state.C as any).memory ?? (state.C as any).mem ?? 0;
+      const cognitiveProfile = state.C as ExtendedCognitiveProfile;
+      const memoryValue = cognitiveProfile.memory ?? cognitiveProfile.mem ?? 0;
 
       const createData = {
         userId,
@@ -264,7 +283,7 @@ class StateHistoryService {
         memory: memoryValue,
         speed: state.C.speed,
         stability: state.C.stability,
-        trendState: state.T
+        trendState: state.T,
       };
 
       const updateData = existing
@@ -275,7 +294,7 @@ class StateHistoryService {
             memory: alpha * memoryValue + (1 - alpha) * existing.memory,
             speed: alpha * state.C.speed + (1 - alpha) * existing.speed,
             stability: alpha * state.C.stability + (1 - alpha) * existing.stability,
-            trendState: state.T || existing.trendState
+            trendState: state.T || existing.trendState,
           }
         : {
             attention: state.A,
@@ -284,18 +303,18 @@ class StateHistoryService {
             memory: memoryValue,
             speed: state.C.speed,
             stability: state.C.stability,
-            trendState: state.T
+            trendState: state.T,
           };
 
       await tx.userStateHistory.upsert({
         where: {
           userId_date: {
             userId,
-            date: today
-          }
+            date: today,
+          },
         },
         create: createData,
-        update: updateData
+        update: updateData,
       });
     });
   }
@@ -303,16 +322,16 @@ class StateHistoryService {
   /**
    * 获取状态历史
    * Requirements: 5.1, 5.4
-   * 
+   *
    * Property 15: 返回指定日期范围内的所有记录，包含所有必需指标
-   * 
+   *
    * @param userId 用户ID
    * @param range 日期范围（天数或具体范围）
    * @returns 状态历史数组
    */
   async getStateHistory(
     userId: string,
-    range: DateRangeOption | DateRange
+    range: DateRangeOption | DateRange,
   ): Promise<StateHistoryItem[]> {
     let startDate: Date;
     let endDate: Date;
@@ -335,13 +354,13 @@ class StateHistoryService {
         userId,
         date: {
           gte: startDate,
-          lte: endDate
-        }
+          lte: endDate,
+        },
       },
-      orderBy: { date: 'asc' }
+      orderBy: { date: 'asc' },
     });
 
-    return history.map(h => ({
+    return history.map((h) => ({
       date: h.date,
       attention: h.attention,
       fatigue: h.fatigue,
@@ -349,7 +368,7 @@ class StateHistoryService {
       memory: h.memory,
       speed: h.speed,
       stability: h.stability,
-      trendState: h.trendState || undefined
+      trendState: h.trendState || undefined,
     }));
   }
 
@@ -365,7 +384,10 @@ class StateHistoryService {
    * @param period 对比周期（天数），默认30天
    * @returns 认知成长结果（包含 hasData 标志区分真实数据和默认值）
    */
-  async getCognitiveGrowth(userId: string, period: DateRangeOption = 30): Promise<CognitiveGrowthResult> {
+  async getCognitiveGrowth(
+    userId: string,
+    period: DateRangeOption = 30,
+  ): Promise<CognitiveGrowthResult> {
     // 修复：使用UTC时间计算过去日期，与其他方法保持一致
     const pastDate = new Date();
     pastDate.setUTCDate(pastDate.getUTCDate() - period);
@@ -374,16 +396,16 @@ class StateHistoryService {
     // 获取当前状态（最近一条记录）
     const currentRecord = await prisma.userStateHistory.findFirst({
       where: { userId },
-      orderBy: { date: 'desc' }
+      orderBy: { date: 'desc' },
     });
 
     // 获取指定天数前的状态
     const pastRecord = await prisma.userStateHistory.findFirst({
       where: {
         userId,
-        date: { lte: pastDate }
+        date: { lte: pastDate },
       },
-      orderBy: { date: 'desc' }
+      orderBy: { date: 'desc' },
     });
 
     // Bug Fix: 区分hasData和hasComparableData
@@ -396,14 +418,14 @@ class StateHistoryService {
     const defaultProfile: CognitiveProfile = {
       memory: 0.5,
       speed: 0.5,
-      stability: 0.5
+      stability: 0.5,
     };
 
     const current: CognitiveProfile = currentRecord
       ? {
           memory: currentRecord.memory,
           speed: currentRecord.speed,
-          stability: currentRecord.stability
+          stability: currentRecord.stability,
         }
       : defaultProfile;
 
@@ -411,7 +433,7 @@ class StateHistoryService {
       ? {
           memory: pastRecord.memory,
           speed: pastRecord.speed,
-          stability: pastRecord.stability
+          stability: pastRecord.stability,
         }
       : defaultProfile;
 
@@ -421,27 +443,27 @@ class StateHistoryService {
       changes: {
         memory: current.memory - past.memory,
         speed: current.speed - past.speed,
-        stability: current.stability - past.stability
+        stability: current.stability - past.stability,
       },
       period,
       hasData,
-      hasComparableData
+      hasComparableData,
     };
   }
 
   /**
    * 获取显著变化
    * Requirements: 5.5
-   * 
+   *
    * Property 18: 变化超过20%的指标标记为显著变化
-   * 
+   *
    * @param userId 用户ID
    * @param range 日期范围
    * @returns 显著变化数组
    */
   async getSignificantChanges(
     userId: string,
-    range: DateRangeOption | DateRange
+    range: DateRangeOption | DateRange,
   ): Promise<SignificantChange[]> {
     const history = await this.getStateHistory(userId, range);
 
@@ -453,7 +475,12 @@ class StateHistoryService {
     const lastRecord = history[history.length - 1];
 
     const metrics: Array<keyof Omit<StateHistoryItem, 'date' | 'trendState'>> = [
-      'attention', 'fatigue', 'motivation', 'memory', 'speed', 'stability'
+      'attention',
+      'fatigue',
+      'motivation',
+      'memory',
+      'speed',
+      'stability',
     ];
 
     const significantChanges: SignificantChange[] = [];
@@ -502,30 +529,25 @@ class StateHistoryService {
           direction,
           isPositive,
           startDate: firstRecord.date,
-          endDate: lastRecord.date
+          endDate: lastRecord.date,
         });
       }
     }
 
     // 按变化幅度排序
-    significantChanges.sort((a, b) => 
-      Math.abs(b.changePercent) - Math.abs(a.changePercent)
-    );
+    significantChanges.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent));
 
     return significantChanges;
   }
 
   /**
    * 获取指定日期的状态快照
-   * 
+   *
    * @param userId 用户ID
    * @param date 日期
    * @returns 状态历史项或null
    */
-  async getStateByDate(
-    userId: string,
-    date: Date
-  ): Promise<StateHistoryItem | null> {
+  async getStateByDate(userId: string, date: Date): Promise<StateHistoryItem | null> {
     const targetDate = new Date(date);
     targetDate.setUTCHours(0, 0, 0, 0);
 
@@ -533,9 +555,9 @@ class StateHistoryService {
       where: {
         userId_date: {
           userId,
-          date: targetDate
-        }
-      }
+          date: targetDate,
+        },
+      },
     });
 
     if (!record) return null;
@@ -548,31 +570,31 @@ class StateHistoryService {
       memory: record.memory,
       speed: record.speed,
       stability: record.stability,
-      trendState: record.trendState || undefined
+      trendState: record.trendState || undefined,
     };
   }
 
   /**
    * 删除用户的所有状态历史
-   * 
+   *
    * @param userId 用户ID
    */
   async deleteUserHistory(userId: string): Promise<void> {
     await prisma.userStateHistory.deleteMany({
-      where: { userId }
+      where: { userId },
     });
   }
 
   /**
    * 获取状态历史统计摘要
-   * 
+   *
    * @param userId 用户ID
    * @param range 日期范围
    * @returns 统计摘要
    */
   async getHistorySummary(
     userId: string,
-    range: DateRangeOption
+    range: DateRangeOption,
   ): Promise<{
     recordCount: number;
     avgAttention: number;
@@ -592,7 +614,7 @@ class StateHistoryService {
         avgMotivation: 0,
         avgMemory: 0,
         avgSpeed: 0,
-        avgStability: 0
+        avgStability: 0,
       };
     }
 
@@ -603,9 +625,9 @@ class StateHistoryService {
         motivation: acc.motivation + h.motivation,
         memory: acc.memory + h.memory,
         speed: acc.speed + h.speed,
-        stability: acc.stability + h.stability
+        stability: acc.stability + h.stability,
       }),
-      { attention: 0, fatigue: 0, motivation: 0, memory: 0, speed: 0, stability: 0 }
+      { attention: 0, fatigue: 0, motivation: 0, memory: 0, speed: 0, stability: 0 },
     );
 
     const count = history.length;
@@ -617,7 +639,7 @@ class StateHistoryService {
       avgMotivation: sum.motivation / count,
       avgMemory: sum.memory / count,
       avgSpeed: sum.speed / count,
-      avgStability: sum.stability / count
+      avgStability: sum.stability / count,
     };
   }
 }

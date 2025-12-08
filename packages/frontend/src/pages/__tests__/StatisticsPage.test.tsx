@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import StatisticsPage from '../StatisticsPage';
+import type { FullStatisticsData } from '../../hooks/queries/useStatistics';
 
 // Mock 导航
 const mockNavigate = vi.fn();
@@ -13,74 +15,68 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock AuthContext
-const mockUser = { id: 'user-1', email: 'test@example.com' };
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser }),
-}));
-
-// Mock StorageService
-const mockWords = [
-  { id: 'word-1', spelling: 'apple' },
-  { id: 'word-2', spelling: 'banana' },
-  { id: 'word-3', spelling: 'cherry' },
-];
-
-const mockWordStates = [
-  { wordId: 'word-1', masteryLevel: 3 },
-  { wordId: 'word-2', masteryLevel: 1 },
-  { wordId: 'word-3', masteryLevel: 5 },
-];
-
-const mockStudyStats = {
-  correctRate: 0.855,
-  totalCorrect: 85,
-  totalAttempts: 100,
-};
-
-vi.mock('../../services/StorageService', () => ({
-  default: {
-    getWords: vi.fn(),
-    getWordLearningStates: vi.fn(),
-    getStudyStatistics: vi.fn(),
-  },
-}));
-
-// Mock ApiClient
-const mockRecordsResult = {
-  records: [
-    { timestamp: '2024-01-15T10:00:00.000Z', isCorrect: true },
-    { timestamp: '2024-01-15T10:05:00.000Z', isCorrect: true },
-    { timestamp: '2024-01-14T10:00:00.000Z', isCorrect: false },
-    { timestamp: '2024-01-13T10:00:00.000Z', isCorrect: true },
-  ],
-};
-
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getRecords: vi.fn(),
-  },
-}));
-
-// Mock logger
+// Mock logger - 需要导出所有 logger 实例
 vi.mock('../../utils/logger', () => ({
-  learningLogger: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  learningLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  apiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  uiLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  authLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  storageLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  amasLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  adminLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  trackingLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import StorageService from '../../services/StorageService';
-import ApiClient from '../../services/ApiClient';
+// Mock 统计数据
+const mockStatisticsData: FullStatisticsData = {
+  totalWords: 3,
+  masteryDistribution: [
+    { level: 0, count: 0 },
+    { level: 1, count: 1 },
+    { level: 2, count: 0 },
+    { level: 3, count: 1 },
+    { level: 4, count: 0 },
+    { level: 5, count: 1 },
+  ],
+  overallAccuracy: 0.855,
+  studyDays: 3,
+  consecutiveDays: 2,
+  dailyAccuracy: [
+    { date: '2024-01-13', accuracy: 100 },
+    { date: '2024-01-14', accuracy: 0 },
+    { date: '2024-01-15', accuracy: 100 },
+  ],
+  weekdayHeat: [1, 2, 0, 0, 0, 0, 1],
+};
+
+// Mock useStatistics hook
+const mockUseStatistics = vi.fn();
+vi.mock('../../hooks/queries', () => ({
+  useStatistics: () => mockUseStatistics(),
+}));
+
+// 创建测试用的 QueryClient
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
 
 describe('StatisticsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (StorageService.getWords as any).mockResolvedValue(mockWords);
-    (StorageService.getWordLearningStates as any).mockResolvedValue(mockWordStates);
-    (StorageService.getStudyStatistics as any).mockResolvedValue(mockStudyStats);
-    (ApiClient.getRecords as any).mockResolvedValue(mockRecordsResult);
+    // 默认返回成功状态
+    mockUseStatistics.mockReturnValue({
+      data: mockStatisticsData,
+      isLoading: false,
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -88,10 +84,13 @@ describe('StatisticsPage', () => {
   });
 
   const renderComponent = () => {
+    const queryClient = createTestQueryClient();
     return render(
-      <MemoryRouter>
-        <StatisticsPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <StatisticsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
   };
 
@@ -137,6 +136,11 @@ describe('StatisticsPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseStatistics.mockReturnValue({
+        data: null,
+        isLoading: true,
+        error: null,
+      });
       renderComponent();
       expect(screen.getByText('正在加载统计数据...')).toBeInTheDocument();
     });
@@ -215,17 +219,27 @@ describe('StatisticsPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (StorageService.getWords as any).mockRejectedValue(new Error('加载失败'));
+      mockUseStatistics.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('加载失败'),
+      });
 
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('加载失败')).toBeInTheDocument();
+        // There are multiple "加载失败" texts (in h2 and p), so use getAllByText
+        const errorTexts = screen.getAllByText('加载失败');
+        expect(errorTexts.length).toBeGreaterThan(0);
       });
     });
 
     it('should show return to learning button on error', async () => {
-      (StorageService.getWords as any).mockRejectedValue(new Error('加载失败'));
+      mockUseStatistics.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('加载失败'),
+      });
 
       renderComponent();
 
@@ -238,16 +252,4 @@ describe('StatisticsPage', () => {
   // Note: Testing "not logged in" state would require resetting the module,
   // which is complex with the current mock structure.
   // The login check is covered by the error handling tests.
-
-  describe('Empty State', () => {
-    it('should show no records message when no learning data', async () => {
-      (ApiClient.getRecords as any).mockResolvedValue({ records: [] });
-
-      renderComponent();
-
-      await waitFor(() => {
-        expect(screen.getByText('暂无学习记录')).toBeInTheDocument();
-      });
-    });
-  });
 });

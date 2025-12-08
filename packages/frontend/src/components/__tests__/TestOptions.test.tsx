@@ -11,17 +11,19 @@ vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     button: ({ children, onClick, disabled, ...props }: any) => (
-      <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
-    )
-  }
+      <button onClick={onClick} disabled={disabled} {...props}>
+        {children}
+      </button>
+    ),
+  },
 }));
 
 describe('TestOptions', () => {
   const defaultProps = {
     options: ['你好', '再见', '谢谢', '对不起'],
-    correctAnswers: ['你好'],  // 支持多个正确答案（多义词）
+    correctAnswers: ['你好'], // 支持多个正确答案（多义词）
     onSelect: vi.fn(),
-    showResult: false
+    showResult: false,
   };
 
   beforeEach(() => {
@@ -125,26 +127,14 @@ describe('TestOptions', () => {
 
   describe('result display', () => {
     it('should highlight correct answer when selected correctly', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="你好"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="你好" showResult={true} />);
 
       const correctButton = screen.getByText('你好').closest('button');
       expect(correctButton?.className).toContain('bg-green-500');
     });
 
     it('should show wrong selection and highlight correct', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="再见"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="再见" showResult={true} />);
 
       // Wrong selection should be red
       const wrongButton = screen.getByText('再见').closest('button');
@@ -156,16 +146,10 @@ describe('TestOptions', () => {
     });
 
     it('should disable buttons when showing result', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="你好"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="你好" showResult={true} />);
 
       const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
+      buttons.forEach((button) => {
         expect(button).toBeDisabled();
       });
     });
@@ -182,38 +166,20 @@ describe('TestOptions', () => {
     });
 
     it('should have aria-pressed on selected answer', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="你好"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="你好" showResult={true} />);
 
       const selectedButton = screen.getByText('你好').closest('button');
       expect(selectedButton).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('should have descriptive label for correct answer after selection', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="你好"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="你好" showResult={true} />);
 
       expect(screen.getByLabelText(/正确答案，你选对了/)).toBeInTheDocument();
     });
 
     it('should have descriptive label for wrong selection', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="再见"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="再见" showResult={true} />);
 
       expect(screen.getByLabelText(/你的选择，答案错误/)).toBeInTheDocument();
     });
@@ -229,16 +195,10 @@ describe('TestOptions', () => {
     });
 
     it('should remove tab focus from buttons when showing result', () => {
-      render(
-        <TestOptions
-          {...defaultProps}
-          selectedAnswer="你好"
-          showResult={true}
-        />
-      );
+      render(<TestOptions {...defaultProps} selectedAnswer="你好" showResult={true} />);
 
       const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
+      buttons.forEach((button) => {
         expect(button).toHaveAttribute('tabIndex', '-1');
       });
     });

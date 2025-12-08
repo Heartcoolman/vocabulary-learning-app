@@ -14,11 +14,11 @@ export const publicRoutes: AppRoute[] = [
   {
     path: '/login',
     element: <LoginPage />,
-    meta: { title: '登录', requireAuth: false }
+    meta: { title: '登录', requireAuth: false },
   },
   {
     path: '/register',
     element: <RegisterPage />,
-    meta: { title: '注册', requireAuth: false }
+    meta: { title: '注册', requireAuth: false },
   },
 ];

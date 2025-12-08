@@ -8,9 +8,21 @@ import { GoalTracker } from '../GoalTracker';
 
 // Mock Icon components
 vi.mock('../../Icon', () => ({
-  Calendar: ({ className, weight }: any) => <span data-testid="icon-calendar" className={className}>Calendar</span>,
-  Target: ({ className, weight }: any) => <span data-testid="icon-target" className={className}>Target</span>,
-  TrendUp: ({ className, weight }: any) => <span data-testid="icon-trendup" className={className}>TrendUp</span>,
+  Calendar: ({ className, weight }: any) => (
+    <span data-testid="icon-calendar" className={className}>
+      Calendar
+    </span>
+  ),
+  Target: ({ className, weight }: any) => (
+    <span data-testid="icon-target" className={className}>
+      Target
+    </span>
+  ),
+  TrendUp: ({ className, weight }: any) => (
+    <span data-testid="icon-trendup" className={className}>
+      TrendUp
+    </span>
+  ),
   Confetti: ({ size, weight }: any) => <span data-testid="icon-confetti">Confetti</span>,
   Lightning: ({ size, weight }: any) => <span data-testid="icon-lightning">Lightning</span>,
 }));

@@ -7,7 +7,7 @@ export enum ErrorType {
   AUDIO = 'AUDIO',
   EMPTY_VOCABULARY = 'EMPTY_VOCABULARY',
   SESSION = 'SESSION',
-  UNKNOWN = 'UNKNOWN'
+  UNKNOWN = 'UNKNOWN',
 }
 
 /**
@@ -52,7 +52,7 @@ export class ErrorHandler {
       if (error.message.includes('词库为空')) {
         return '词库为空，请先添加单词';
       }
-      
+
       return error.message;
     }
 
@@ -70,22 +70,14 @@ export class ErrorHandler {
    * 创建存储错误
    */
   static storageError(message: string): AppError {
-    return new AppError(
-      ErrorType.STORAGE,
-      message,
-      '保存失败，请稍后重试'
-    );
+    return new AppError(ErrorType.STORAGE, message, '保存失败，请稍后重试');
   }
 
   /**
    * 创建音频错误
    */
   static audioError(message: string): AppError {
-    return new AppError(
-      ErrorType.AUDIO,
-      message,
-      '发音不可用'
-    );
+    return new AppError(ErrorType.AUDIO, message, '发音不可用');
   }
 
   /**
@@ -95,7 +87,7 @@ export class ErrorHandler {
     return new AppError(
       ErrorType.EMPTY_VOCABULARY,
       'Vocabulary is empty',
-      '词库为空，请先添加单词'
+      '词库为空，请先添加单词',
     );
   }
 
@@ -103,11 +95,7 @@ export class ErrorHandler {
    * 创建会话错误
    */
   static sessionError(message: string): AppError {
-    return new AppError(
-      ErrorType.SESSION,
-      message,
-      '会话已重置'
-    );
+    return new AppError(ErrorType.SESSION, message, '会话已重置');
   }
 }
 

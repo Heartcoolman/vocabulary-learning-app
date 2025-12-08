@@ -9,7 +9,13 @@ import { MemoryRouter } from 'react-router-dom';
 import AdminWordBooks from '../AdminWordBooks';
 
 const mockWordBooks = [
-  { id: 'wb1', name: 'TOEFL词汇', description: 'TOEFL考试核心词汇', wordCount: 500, type: 'SYSTEM' },
+  {
+    id: 'wb1',
+    name: 'TOEFL词汇',
+    description: 'TOEFL考试核心词汇',
+    wordCount: 500,
+    type: 'SYSTEM',
+  },
   { id: 'wb2', name: 'GRE词汇', description: 'GRE考试必备词汇', wordCount: 800, type: 'SYSTEM' },
 ];
 
@@ -23,15 +29,27 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('@/services/client', () => ({
   default: {
     adminGetSystemWordBooks: vi.fn().mockResolvedValue([
-      { id: 'wb1', name: 'TOEFL词汇', description: 'TOEFL考试核心词汇', wordCount: 500, type: 'SYSTEM' },
-      { id: 'wb2', name: 'GRE词汇', description: 'GRE考试必备词汇', wordCount: 800, type: 'SYSTEM' },
+      {
+        id: 'wb1',
+        name: 'TOEFL词汇',
+        description: 'TOEFL考试核心词汇',
+        wordCount: 500,
+        type: 'SYSTEM',
+      },
+      {
+        id: 'wb2',
+        name: 'GRE词汇',
+        description: 'GRE考试必备词汇',
+        wordCount: 800,
+        type: 'SYSTEM',
+      },
     ]),
     adminCreateSystemWordBook: vi.fn().mockResolvedValue({ id: 'wb3' }),
     adminDeleteSystemWordBook: vi.fn().mockResolvedValue(undefined),
-    updateWordBook: vi.fn().mockResolvedValue(undefined),
+    adminUpdateSystemWordBook: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -45,21 +63,60 @@ vi.mock('@/components/ui', () => ({
     showToast: vi.fn(),
   }),
   ConfirmModal: ({ isOpen, onConfirm, onCancel, children }: any) =>
-    isOpen ? <div data-testid="confirm-modal">{children}<button onClick={onConfirm}>确认</button><button onClick={onCancel}>取消</button></div> : null,
+    isOpen ? (
+      <div data-testid="confirm-modal">
+        {children}
+        <button onClick={onConfirm}>确认</button>
+        <button onClick={onCancel}>取消</button>
+      </div>
+    ) : null,
   Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? <div data-testid="modal">{children}<button onClick={onClose}>关闭</button></div> : null,
+    isOpen ? (
+      <div data-testid="modal">
+        {children}
+        <button onClick={onClose}>关闭</button>
+      </div>
+    ) : null,
 }));
 
-vi.mock('@/components/Icon', async () => {
-  const actual = await vi.importActual('@/components/Icon');
-  return {
-    ...actual,
-    Books: ({ size }: { size?: number }) => <span data-testid="icon-books">📚</span>,
-    CircleNotch: ({ className }: { className?: string }) => (
-      <span data-testid="loading-spinner" className={className}>Loading</span>
-    ),
-  };
-});
+vi.mock('@/components/Icon', () => ({
+  Books: ({
+    size,
+    weight,
+    color,
+    className,
+  }: {
+    size?: number;
+    weight?: string;
+    color?: string;
+    className?: string;
+  }) => (
+    <span data-testid="icon-books" className={className}>
+      📚
+    </span>
+  ),
+  CircleNotch: ({
+    className,
+    size,
+    weight,
+    color,
+  }: {
+    className?: string;
+    size?: number;
+    weight?: string;
+    color?: string;
+  }) => (
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
+  ),
+  UploadSimple: ({ size, weight }: { size?: number; weight?: string }) => (
+    <span data-testid="icon-upload">📤</span>
+  ),
+  NotePencil: ({ size, weight }: { size?: number; weight?: string }) => (
+    <span data-testid="icon-edit">✏️</span>
+  ),
+}));
 
 vi.mock('lucide-react', () => ({
   Upload: () => <span data-testid="icon-upload">📤</span>,
@@ -67,16 +124,19 @@ vi.mock('lucide-react', () => ({
 }));
 
 vi.mock('@/components', () => ({
-  BatchImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
-    isOpen ? <div data-testid="batch-import-modal">Import Modal<button onClick={onClose}>Close</button></div> : null
-  ),
+  BatchImportModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid="batch-import-modal">
+        Import Modal<button onClick={onClose}>Close</button>
+      </div>
+    ) : null,
 }));
 
 const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <AdminWordBooks />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -157,7 +217,7 @@ describe('AdminWordBooks', () => {
     });
 
     it('should call API when creating wordbook', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const { default: apiClient } = await import('@/services/client');
       renderWithRouter();
       const user = userEvent.setup();
 
@@ -174,13 +234,13 @@ describe('AdminWordBooks', () => {
 
       await waitFor(() => {
         expect(apiClient.adminCreateSystemWordBook).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'New WordBook' })
+          expect.objectContaining({ name: 'New WordBook' }),
         );
       });
     });
 
     it('should not call API when name is empty', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const { default: apiClient } = await import('@/services/client');
       renderWithRouter();
 
       await waitFor(() => {
@@ -279,7 +339,7 @@ describe('AdminWordBooks', () => {
     });
 
     it('should call delete API on confirm', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
+      const { default: apiClient } = await import('@/services/client');
       renderWithRouter();
 
       await waitFor(() => {
@@ -303,8 +363,8 @@ describe('AdminWordBooks', () => {
 
   describe('empty state', () => {
     it('should show empty message when no wordbooks', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
-      vi.mocked(apiClient.adminGetSystemWordBooks).mockResolvedValue([]);
+      const { default: apiClient } = await import('@/services/client');
+      vi.mocked(apiClient.adminGetSystemWordBooks).mockResolvedValueOnce([]);
 
       renderWithRouter();
 
@@ -314,8 +374,8 @@ describe('AdminWordBooks', () => {
     });
 
     it('should show create first wordbook button in empty state', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
-      vi.mocked(apiClient.adminGetSystemWordBooks).mockResolvedValue([]);
+      const { default: apiClient } = await import('@/services/client');
+      vi.mocked(apiClient.adminGetSystemWordBooks).mockResolvedValueOnce([]);
 
       renderWithRouter();
 
@@ -327,8 +387,8 @@ describe('AdminWordBooks', () => {
 
   describe('error handling', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/ApiClient')).default;
-      vi.mocked(apiClient.adminGetSystemWordBooks).mockRejectedValue(new Error('网络错误'));
+      const { default: apiClient } = await import('@/services/client');
+      vi.mocked(apiClient.adminGetSystemWordBooks).mockRejectedValueOnce(new Error('网络错误'));
 
       renderWithRouter();
 

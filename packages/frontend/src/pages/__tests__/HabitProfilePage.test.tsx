@@ -16,7 +16,9 @@ vi.mock('react-router-dom', async () => {
 // Mock API Client with proper profile data
 const mockHabitProfile = {
   realtime: {
-    timePref: Array(24).fill(0).map((_, i) => i >= 8 && i <= 10 ? 0.3 : 0.1),
+    timePref: Array(24)
+      .fill(0)
+      .map((_, i) => (i >= 8 && i <= 10 ? 0.3 : 0.1)),
     rhythmPref: {
       sessionMedianMinutes: 25,
     },
@@ -26,7 +28,9 @@ const mockHabitProfile = {
     },
   },
   stored: {
-    timePref: Array(24).fill(0).map((_, i) => i >= 8 && i <= 10 ? 0.3 : 0.1),
+    timePref: Array(24)
+      .fill(0)
+      .map((_, i) => (i >= 8 && i <= 10 ? 0.3 : 0.1)),
     rhythmPref: {
       sessionMedianMinutes: 25,
     },
@@ -34,7 +38,7 @@ const mockHabitProfile = {
   },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getHabitProfile: vi.fn(),
     initializeHabitProfile: vi.fn(),
@@ -101,7 +105,7 @@ vi.mock('../../components/profile/HabitHeatmap', () => ({
   ),
 }));
 
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 
 describe('HabitProfilePage', () => {
   beforeEach(() => {
@@ -119,7 +123,7 @@ describe('HabitProfilePage', () => {
     return render(
       <MemoryRouter>
         <HabitProfilePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Database, Pulse, ArrowRight } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../services/ApiClient';
+import apiClient from '../services/client';
 import StorageService from '../services/StorageService';
 import { useToast, ConfirmModal } from '../components/ui';
 
@@ -113,13 +113,13 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">请先登录</h2>
-          <p className="text-gray-600 mb-6">登录后即可查看个人资料</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+        <div className="max-w-md px-4 text-center">
+          <h2 className="mb-4 text-2xl font-bold text-gray-900">请先登录</h2>
+          <p className="mb-6 text-gray-600">登录后即可查看个人资料</p>
           <button
             onClick={() => navigate('/login')}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200"
+            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:bg-blue-600"
           >
             前往登录
           </button>
@@ -137,9 +137,9 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <div className="max-w-7xl mx-auto px-4 py-8 animate-g3-fade-in">
+      <div className="mx-auto max-w-7xl animate-g3-fade-in px-4 py-8">
         {/* 页面标题 */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">个人资料</h1>
+        <h1 className="mb-8 text-3xl font-bold text-gray-900">个人资料</h1>
 
         {/* Tab 导航 */}
         <div className="mb-6 border-b border-gray-200">
@@ -150,14 +150,11 @@ export default function ProfilePage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
-                    ${
-                      activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
+                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } `}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
                 >
                   <Icon size={18} weight="bold" />
@@ -171,30 +168,24 @@ export default function ProfilePage() {
         {/* Tab 内容 */}
         <div className="mt-6">
           {activeTab === 'profile' && (
-            <div className="space-y-6 max-w-2xl">
+            <div className="max-w-2xl space-y-6">
               {/* 用户信息卡片 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">基本信息</h2>
+              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+                <h2 className="mb-4 text-xl font-bold text-gray-900">基本信息</h2>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      用户名
-                    </label>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">用户名</label>
                     <p className="text-base text-gray-900">{user.username}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      邮箱地址
-                    </label>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">邮箱地址</label>
                     <p className="text-base text-gray-900">{user.email}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      注册时间
-                    </label>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">注册时间</label>
                     <p className="text-base text-gray-900">
                       {new Date(user.createdAt).toLocaleDateString('zh-CN', {
                         year: 'numeric',
@@ -207,11 +198,11 @@ export default function ProfilePage() {
               </div>
 
               {/* 账号管理 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">账号管理</h2>
+              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+                <h2 className="mb-4 text-xl font-bold text-gray-900">账号管理</h2>
                 <button
                   onClick={() => setLogoutConfirm(true)}
-                  className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 border border-red-200"
+                  className="w-full rounded-lg border border-red-200 bg-red-50 px-6 py-3 font-medium text-red-600 transition-all duration-200 hover:scale-105 hover:bg-red-100 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
                 >
                   退出登录
                 </button>
@@ -220,154 +211,154 @@ export default function ProfilePage() {
           )}
 
           {activeTab === 'password' && (
-            <div className="space-y-6 max-w-2xl">
+            <div className="max-w-2xl space-y-6">
               {/* 修改密码表单 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">修改密码</h2>
+              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+                <h2 className="mb-4 text-xl font-bold text-gray-900">修改密码</h2>
 
-              <form onSubmit={handleChangePassword}>
-                {/* 错误提示 */}
-                {error && (
-                  <div
-                    className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {error}
+                <form onSubmit={handleChangePassword}>
+                  {/* 错误提示 */}
+                  {error && (
+                    <div
+                      className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      {error}
+                    </div>
+                  )}
+
+                  {/* 成功提示 */}
+                  {success && (
+                    <div
+                      className="mb-4 rounded-lg border border-green-300 bg-green-100 p-3 text-sm text-green-700"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {success}
+                    </div>
+                  )}
+
+                  {/* 旧密码 */}
+                  <div className="mb-4">
+                    <label
+                      htmlFor="oldPassword"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      当前密码
+                    </label>
+                    <input
+                      id="oldPassword"
+                      type="password"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      disabled={loading}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="输入当前密码"
+                      autoComplete="current-password"
+                    />
                   </div>
-                )}
 
-                {/* 成功提示 */}
-                {success && (
-                  <div
-                    className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {success}
+                  {/* 新密码 */}
+                  <div className="mb-4">
+                    <label
+                      htmlFor="newPassword"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      新密码
+                    </label>
+                    <input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={loading}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="至少8个字符"
+                      autoComplete="new-password"
+                      aria-describedby="new-password-hint"
+                    />
+                    <p id="new-password-hint" className="mt-1 text-xs text-gray-500">
+                      密码长度至少8个字符
+                    </p>
                   </div>
-                )}
 
-                {/* 旧密码 */}
-                <div className="mb-4">
-                  <label
-                    htmlFor="oldPassword"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    当前密码
-                  </label>
-                  <input
-                    id="oldPassword"
-                    type="password"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
+                  {/* 确认新密码 */}
+                  <div className="mb-6">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      确认新密码
+                    </label>
+                    <input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={loading}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="再次输入新密码"
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  {/* 提交按钮 */}
+                  <button
+                    type="submit"
                     disabled={loading}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="输入当前密码"
-                    autoComplete="current-password"
-                  />
-                </div>
-
-                {/* 新密码 */}
-                <div className="mb-4">
-                  <label
-                    htmlFor="newPassword"
-                    className="block text-sm font-medium text-gray-700 mb-2"
+                    className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                   >
-                    新密码
-                  </label>
-                  <input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={loading}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="至少8个字符"
-                    autoComplete="new-password"
-                    aria-describedby="new-password-hint"
-                  />
-                  <p id="new-password-hint" className="mt-1 text-xs text-gray-500">
-                    密码长度至少8个字符
-                  </p>
-                </div>
-
-                {/* 确认新密码 */}
-                <div className="mb-6">
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    确认新密码
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="再次输入新密码"
-                    autoComplete="new-password"
-                  />
-                </div>
-
-                {/* 提交按钮 */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {loading ? '修改中...' : '修改密码'}
-                </button>
-              </form>
+                    {loading ? '修改中...' : '修改密码'}
+                  </button>
+                </form>
               </div>
             </div>
           )}
 
           {activeTab === 'cache' && (
-            <div className="space-y-6 max-w-2xl">
+            <div className="max-w-2xl space-y-6">
               {/* 数据缓存管理 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-gray-200/60">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">数据缓存</h2>
+              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+                <h2 className="mb-4 text-xl font-bold text-gray-900">数据缓存</h2>
 
-              {cacheError && (
-                <div
-                  className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
-                  role="alert"
-                  aria-live="assertive"
-                >
-                  {cacheError}
+                {cacheError && (
+                  <div
+                    className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    {cacheError}
+                  </div>
+                )}
+
+                {cacheSuccess && (
+                  <div
+                    className="mb-4 rounded-lg border border-green-300 bg-green-100 p-3 text-sm text-green-700"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {cacheSuccess}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSyncing ? '同步中...' : '刷新缓存'}
+                  </button>
+
+                  <button
+                    onClick={() => setClearCacheConfirm(true)}
+                    disabled={isSyncing}
+                    className="w-full rounded-lg bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    清除本地缓存
+                  </button>
                 </div>
-              )}
-
-              {cacheSuccess && (
-                <div
-                  className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {cacheSuccess}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSyncing ? '同步中...' : '刷新缓存'}
-                </button>
-
-                <button
-                  onClick={() => setClearCacheConfirm(true)}
-                  disabled={isSyncing}
-                  className="w-full px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  清除本地缓存
-                </button>
-              </div>
 
                 <p className="mt-4 text-xs text-gray-500">
                   说明：本地数据仅用于缓存和加速访问，所有内容已实时同步到云端。
@@ -377,20 +368,21 @@ export default function ProfilePage() {
           )}
 
           {activeTab === 'habit' && (
-            <div className="space-y-6 max-w-2xl">
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-xl shadow-sm border border-indigo-100">
+            <div className="max-w-2xl space-y-6">
+              <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-500">
                     <Pulse size={24} weight="bold" className="text-white" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">学习习惯分析</h2>
-                    <p className="text-gray-600 mb-4">
-                      深入了解您的学习节奏、偏好时段和动机模式。基于 AMAS 系统的实时数据分析，为您提供个性化的学习建议。
+                    <h2 className="mb-2 text-2xl font-bold text-gray-900">学习习惯分析</h2>
+                    <p className="mb-4 text-gray-600">
+                      深入了解您的学习节奏、偏好时段和动机模式。基于 AMAS
+                      系统的实时数据分析，为您提供个性化的学习建议。
                     </p>
                     <button
                       onClick={() => navigate('/habit-profile')}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-indigo-700 hover:shadow-lg active:scale-95"
                     >
                       查看完整分析
                       <ArrowRight size={18} weight="bold" />
@@ -400,23 +392,23 @@ export default function ProfilePage() {
               </div>
 
               {/* 功能说明 */}
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200/60">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">包含以下内容：</h3>
+              <div className="rounded-xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                <h3 className="mb-3 text-lg font-semibold text-gray-900">包含以下内容：</h3>
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
                     <span>生物钟类型分析（早鸟型 / 夜猫子型）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
                     <span>学习节奏评估（快节奏 / 慢节奏）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
                     <span>动机模式识别（学习动力来源分析）</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>
                     <span>学习热力图（活跃时段可视化）</span>
                   </li>
                 </ul>

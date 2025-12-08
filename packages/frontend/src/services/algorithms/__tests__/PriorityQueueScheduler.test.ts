@@ -238,7 +238,7 @@ describe('PriorityQueueScheduler', () => {
       vi.useRealTimers();
 
       // 高正确率时，新单词比例为 0.5 (highAccuracy)
-      const newWordCount = highAccuracyQueue.filter(id => id.startsWith('new-')).length;
+      const newWordCount = highAccuracyQueue.filter((id) => id.startsWith('new-')).length;
       expect(newWordCount).toBeGreaterThanOrEqual(1);
     });
 
@@ -280,8 +280,8 @@ describe('PriorityQueueScheduler', () => {
       // 低正确率时，新单词比例为 0.1 (lowAccuracy)
       // targetCount=8, newWordRatio=0.1, 所以新单词数量 = round(8 * 0.1) = 1
       // 但如果复习单词不足，会用新单词补充
-      const newWordCount = lowAccuracyQueue.filter(id => id.startsWith('new-')).length;
-      const reviewWordCount = lowAccuracyQueue.filter(id => id.startsWith('review-')).length;
+      const newWordCount = lowAccuracyQueue.filter((id) => id.startsWith('new-')).length;
+      const reviewWordCount = lowAccuracyQueue.filter((id) => id.startsWith('review-')).length;
 
       // 验证低正确率时，复习单词优先（占更大比例）
       expect(reviewWordCount).toBeGreaterThanOrEqual(newWordCount);
@@ -326,15 +326,13 @@ describe('PriorityQueueScheduler', () => {
       const result = scheduler.mixNewAndReviewWords(newWords, reviewWords, 2, 2, scores);
 
       expect(result.length).toBe(4);
-      expect(result.filter(id => id.startsWith('new-')).length).toBe(2);
-      expect(result.filter(id => id.startsWith('review-')).length).toBe(2);
+      expect(result.filter((id) => id.startsWith('new-')).length).toBe(2);
+      expect(result.filter((id) => id.startsWith('review-')).length).toBe(2);
     });
 
     it('should prioritize overdue review words', () => {
       const now = Date.now();
-      const newWords = [
-        createMockLearningState({ wordId: 'new-1', state: WordState.NEW }),
-      ];
+      const newWords = [createMockLearningState({ wordId: 'new-1', state: WordState.NEW })];
       const reviewWords = [
         createMockLearningState({
           wordId: 'overdue',
@@ -363,16 +361,22 @@ describe('PriorityQueueScheduler', () => {
         createMockLearningState({ wordId: 'low-error', state: WordState.LEARNING }),
       ];
       const scores = new Map<string, WordScore>([
-        ['high-error', createMockWordScore({
-          wordId: 'high-error',
-          totalAttempts: 10,
-          correctAttempts: 3, // 70% error rate
-        })],
-        ['low-error', createMockWordScore({
-          wordId: 'low-error',
-          totalAttempts: 10,
-          correctAttempts: 9, // 10% error rate
-        })],
+        [
+          'high-error',
+          createMockWordScore({
+            wordId: 'high-error',
+            totalAttempts: 10,
+            correctAttempts: 3, // 70% error rate
+          }),
+        ],
+        [
+          'low-error',
+          createMockWordScore({
+            wordId: 'low-error',
+            totalAttempts: 10,
+            correctAttempts: 9, // 10% error rate
+          }),
+        ],
       ]);
 
       const result = scheduler.mixNewAndReviewWords(newWords, reviewWords, 0, 1, scores);

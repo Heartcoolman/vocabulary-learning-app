@@ -26,15 +26,8 @@ import {
   Shuffle,
   Robot,
 } from '../../components/Icon';
-import {
-  simulate,
-  SimulateRequest,
-  SimulateResponse,
-} from '../../services/aboutApi';
-import {
-  fadeInVariants,
-  staggerContainerVariants,
-} from '../../utils/animations';
+import { simulate, SimulateRequest, SimulateResponse } from '../../services/aboutApi';
+import { fadeInVariants, staggerContainerVariants } from '../../utils/animations';
 import { amasLogger } from '../../utils/logger';
 
 // ==================== Types & Config ====================
@@ -90,12 +83,12 @@ function ControlSlider({
 }) {
   return (
     <div className="mb-5">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-2 text-gray-600 font-medium text-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
           <Icon size={16} className="text-gray-400" />
           {label}
         </div>
-        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-600">
           {value.toFixed(2)}
         </span>
       </div>
@@ -106,7 +99,7 @@ function ControlSlider({
         step={0.05}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-indigo-500 transition-all hover:accent-indigo-400"
       />
     </div>
   );
@@ -126,20 +119,27 @@ function ConsensusVisualizer({
   const voteData = useMemo(() => {
     if (!result) return [];
 
-    const difficulty = result.outputStrategy.difficulty === 'hard' ? 0.8 :
-                       result.outputStrategy.difficulty === 'mid' ? 0.5 : 0.2;
+    const difficulty =
+      result.outputStrategy.difficulty === 'hard'
+        ? 0.8
+        : result.outputStrategy.difficulty === 'mid'
+          ? 0.5
+          : 0.2;
 
     const weights = result.decisionProcess.weights;
     const members = Object.keys(weights);
 
-    return members.map(id => {
+    return members.map((id) => {
       let bias = 0;
       if (id === 'actr') bias = -0.1;
       if (id === 'thompson') bias = 0.15;
       if (id === 'linucb') bias = 0.05;
 
       const weight = weights[id as keyof typeof weights];
-      const position = Math.max(0.1, Math.min(0.9, difficulty + bias + (Math.random() * 0.1 - 0.05)));
+      const position = Math.max(
+        0.1,
+        Math.min(0.9, difficulty + bias + (Math.random() * 0.1 - 0.05)),
+      );
 
       return {
         id,
@@ -151,43 +151,58 @@ function ConsensusVisualizer({
   }, [result]);
 
   const finalPosition = result
-    ? (result.outputStrategy.difficulty === 'hard' ? 0.8 :
-       result.outputStrategy.difficulty === 'mid' ? 0.5 : 0.2)
+    ? result.outputStrategy.difficulty === 'hard'
+      ? 0.8
+      : result.outputStrategy.difficulty === 'mid'
+        ? 0.5
+        : 0.2
     : 0.5;
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/60 shadow-sm relative overflow-hidden min-h-[240px]">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 opacity-20" />
+    <div className="relative min-h-[240px] overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 opacity-20" />
 
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+      <div className="mb-8 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800">
           <Target className="text-rose-500" />
           决策共识 (The Neural Tug-of-War)
         </h3>
         {result?.decisionProcess.phase && (
-           <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-             ${result.decisionProcess.phase === 'explore' ? 'bg-blue-100 text-blue-700' :
-               result.decisionProcess.phase === 'classify' ? 'bg-amber-100 text-amber-700' :
-               'bg-emerald-100 text-emerald-700'}`}>
-             阶段: {result.decisionProcess.phase === 'explore' ? '探索' : result.decisionProcess.phase === 'classify' ? '分类' : '正常'}
-           </span>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+              result.decisionProcess.phase === 'explore'
+                ? 'bg-blue-100 text-blue-700'
+                : result.decisionProcess.phase === 'classify'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-emerald-100 text-emerald-700'
+            }`}
+          >
+            阶段:{' '}
+            {result.decisionProcess.phase === 'explore'
+              ? '探索'
+              : result.decisionProcess.phase === 'classify'
+                ? '分类'
+                : '正常'}
+          </span>
         )}
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-32 text-gray-400 gap-2">
+        <div className="flex h-32 items-center justify-center gap-2 text-gray-400">
           <Gear className="animate-spin" size={24} /> 计算神经网络权重...
         </div>
       ) : !result ? (
-        <div className="flex items-center justify-center h-32 text-gray-400 text-sm italic">
+        <div className="flex h-32 items-center justify-center text-sm italic text-gray-400">
           等待输入参数...
         </div>
       ) : (
-        <div className="relative pt-8 pb-12 px-4">
-          <div className="h-2 bg-gray-100 rounded-full w-full relative mb-2">
-             <div className="absolute left-0 -bottom-6 text-xs text-gray-400">简单</div>
-             <div className="absolute left-1/2 -translate-x-1/2 -bottom-6 text-xs text-gray-400">中等</div>
-             <div className="absolute right-0 -bottom-6 text-xs text-gray-400">困难</div>
+        <div className="relative px-4 pb-12 pt-8">
+          <div className="relative mb-2 h-2 w-full rounded-full bg-gray-100">
+            <div className="absolute -bottom-6 left-0 text-xs text-gray-400">简单</div>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-400">
+              中等
+            </div>
+            <div className="absolute -bottom-6 right-0 text-xs text-gray-400">困难</div>
           </div>
 
           <AnimatePresence>
@@ -198,12 +213,14 @@ function ConsensusVisualizer({
                 animate={{ opacity: 1, scale: 1, left: `${vote.position * 100}%` }}
                 exit={{ opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="absolute top-0 -mt-1.5 -ml-2 cursor-help group z-10"
+                className="group absolute top-0 z-10 -ml-2 -mt-1.5 cursor-help"
                 style={{ left: `${vote.position * 100}%` }}
               >
-                <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm ${ALGO_BG[vote.id] || 'bg-gray-400'}`} />
+                <div
+                  className={`h-4 w-4 rounded-full border-2 border-white shadow-sm ${ALGO_BG[vote.id] || 'bg-gray-400'}`}
+                />
 
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+                <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
                   {vote.label}: {(vote.weight * 100).toFixed(0)}% 权重
                 </div>
               </motion.div>
@@ -214,13 +231,13 @@ function ConsensusVisualizer({
             layoutId="decision-marker"
             initial={{ scale: 0 }}
             animate={{ scale: 1, left: `${finalPosition * 100}%` }}
-            className="absolute top-[-8px] -ml-4 z-20 flex flex-col items-center"
+            className="absolute top-[-8px] z-20 -ml-4 flex flex-col items-center"
             style={{ left: `${finalPosition * 100}%` }}
           >
-            <div className="w-8 h-8 rounded-full bg-white border-4 border-rose-500 shadow-lg flex items-center justify-center">
-               <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border-4 border-rose-500 bg-white shadow-lg">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
             </div>
-            <div className="mt-2 bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <div className="mt-2 rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
               FINAL
             </div>
           </motion.div>
@@ -234,24 +251,29 @@ function ConsensusVisualizer({
 function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }) {
   if (!result) return null;
 
-  const winner = Object.entries(result.decisionProcess.weights)
-    .sort(([,a], [,b]) => b - a)[0];
+  const winner = Object.entries(result.decisionProcess.weights).sort(([, a], [, b]) => b - a)[0];
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-white/80 backdrop-blur-sm p-0 rounded-xl border-2 border-gray-200/60 overflow-hidden relative shadow-sm"
+      className="relative overflow-hidden rounded-xl border-2 border-gray-200/60 bg-white/80 p-0 shadow-sm backdrop-blur-sm"
     >
-      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-500 to-rose-500 opacity-10" />
+      <div className="absolute left-0 top-0 h-2 w-full bg-gradient-to-r from-amber-500 to-rose-500 opacity-10" />
 
-      <div className="p-6 border-b border-gray-100 border-dashed">
-        <div className="text-center mb-4">
-          <h4 className="text-gray-400 text-xs uppercase tracking-widest mb-1">决策凭证 (Decision Receipt)</h4>
-          <div className="text-3xl font-mono font-bold text-gray-800">
-            {result.outputStrategy.difficulty === 'easy' ? '简单' : result.outputStrategy.difficulty === 'mid' ? '中等' : '困难'}
+      <div className="border-b border-dashed border-gray-100 p-6">
+        <div className="mb-4 text-center">
+          <h4 className="mb-1 text-xs uppercase tracking-widest text-gray-400">
+            决策凭证 (Decision Receipt)
+          </h4>
+          <div className="font-mono text-3xl font-bold text-gray-800">
+            {result.outputStrategy.difficulty === 'easy'
+              ? '简单'
+              : result.outputStrategy.difficulty === 'mid'
+                ? '中等'
+                : '困难'}
           </div>
-          <div className="text-emerald-500 text-sm font-medium mt-1">
+          <div className="mt-1 text-sm font-medium text-emerald-500">
             Interval: x{result.outputStrategy.interval_scale.toFixed(1)}
           </div>
         </div>
@@ -268,23 +290,28 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
             <span>{(winner[1] * 100).toFixed(0)}%</span>
           </div>
           <div className="flex justify-between text-gray-600">
-             <span>生词比例</span>
-             <span>{(result.outputStrategy.new_ratio * 100).toFixed(0)}%</span>
+            <span>生词比例</span>
+            <span>{(result.outputStrategy.new_ratio * 100).toFixed(0)}%</span>
           </div>
           <div className="flex justify-between text-gray-600">
-             <span>学习模式</span>
-             <span className="font-medium text-emerald-600">
-               {result.outputStrategy.difficulty === 'easy' ? '轻松' : 
-                result.outputStrategy.difficulty === 'hard' ? '突击' : '标准'}
-             </span>
+            <span>学习模式</span>
+            <span className="font-medium text-emerald-600">
+              {result.outputStrategy.difficulty === 'easy'
+                ? '轻松'
+                : result.outputStrategy.difficulty === 'hard'
+                  ? '突击'
+                  : '标准'}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="p-4 bg-gray-50 text-xs text-gray-500 font-mono leading-relaxed">
-         ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}<br/>
-         TS: {new Date().toISOString()}<br/>
-         SRC: {result.decisionProcess.decisionSource.toUpperCase()}
+      <div className="bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-500">
+        ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+        <br />
+        TS: {new Date().toISOString()}
+        <br />
+        SRC: {result.decisionProcess.decisionSource.toUpperCase()}
       </div>
     </motion.div>
   );
@@ -313,46 +340,70 @@ export default function SimulationPage() {
     let preset: Partial<SimulateRequest> = {};
 
     if (id === 'newUser') {
-      preset = { attention: 0.5, fatigue: 0.1, motivation: 0.8, cognitive: { memory: 0.3, speed: 0.4, stability: 0.2 } };
+      preset = {
+        attention: 0.5,
+        fatigue: 0.1,
+        motivation: 0.8,
+        cognitive: { memory: 0.3, speed: 0.4, stability: 0.2 },
+      };
     } else if (id === 'motivated') {
-      preset = { attention: 0.9, fatigue: 0.1, motivation: 0.9, cognitive: { memory: 0.8, speed: 0.9, stability: 0.8 } };
+      preset = {
+        attention: 0.9,
+        fatigue: 0.1,
+        motivation: 0.9,
+        cognitive: { memory: 0.8, speed: 0.9, stability: 0.8 },
+      };
     } else if (id === 'tired') {
-      preset = { attention: 0.4, fatigue: 0.9, motivation: 0.2, cognitive: { memory: 0.5, speed: 0.3, stability: 0.4 } };
+      preset = {
+        attention: 0.4,
+        fatigue: 0.9,
+        motivation: 0.2,
+        cognitive: { memory: 0.5, speed: 0.3, stability: 0.4 },
+      };
     } else if (id === 'graduation') {
-      preset = { attention: 0.8, fatigue: 0.3, motivation: 0.7, cognitive: { memory: 0.7, speed: 0.6, stability: 0.7 } };
+      preset = {
+        attention: 0.8,
+        fatigue: 0.3,
+        motivation: 0.7,
+        cognitive: { memory: 0.7, speed: 0.6, stability: 0.7 },
+      };
     }
 
-    setParams(prev => ({
+    setParams((prev) => ({
       ...prev,
       ...preset,
-      scenario: id === 'graduation' ? 'newUser' : id as any,
-      cognitive: { ...prev.cognitive, ...(preset.cognitive || {}) }
+      scenario: id === 'graduation' ? 'newUser' : (id as any),
+      cognitive: { ...prev.cognitive, ...(preset.cognitive || {}) },
     }));
   };
 
   const runSimulation = useCallback(async () => {
     setLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 600));
 
-      const noisyParams = injectNoise ? {
-        ...params,
-        attention: Math.max(0, Math.min(1, params.attention + (Math.random() * 0.4 - 0.2)))
-      } : params;
+      const noisyParams = injectNoise
+        ? {
+            ...params,
+            attention: Math.max(0, Math.min(1, params.attention + (Math.random() * 0.4 - 0.2))),
+          }
+        : params;
 
       const data = await simulate(noisyParams);
 
       if (selectedScenario === 'graduation') {
-         (data.decisionProcess as any).decisionSource = 'ensemble';
-         (data.decisionProcess as any).phase = 'normal';
+        (data.decisionProcess as any).decisionSource = 'ensemble';
+        (data.decisionProcess as any).phase = 'normal';
       }
 
       setResult(data as ExtendedSimulateResponse);
     } catch (err) {
-      const errorParams = injectNoise ? {
-        ...params,
-        attention: Math.max(0, Math.min(1, params.attention + (Math.random() * 0.4 - 0.2)))
-      } : params;
+      const errorParams = injectNoise
+        ? {
+            ...params,
+            attention: Math.max(0, Math.min(1, params.attention + (Math.random() * 0.4 - 0.2))),
+          }
+        : params;
       amasLogger.error({ err, params: errorParams }, '模拟执行失败');
     } finally {
       setLoading(false);
@@ -360,160 +411,217 @@ export default function SimulationPage() {
   }, [params, injectNoise, selectedScenario]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 md:p-8 font-sans transition-colors">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors md:p-8">
+      <div className="mx-auto max-w-6xl">
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex items-center justify-between"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
               <Flask className="text-indigo-500" weight="duotone" />
               The Decision Lab
             </h1>
-            <p className="text-gray-500 mt-1">
-              Interactive Neural Ensemble Simulator
-            </p>
+            <p className="mt-1 text-gray-500">Interactive Neural Ensemble Simulator</p>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200/60 shadow-sm">
-            <Robot size={20} className={result?.decisionProcess.decisionSource === 'ensemble' ? "text-emerald-500" : "text-gray-400"} />
+          <div className="hidden items-center gap-2 rounded-full border border-gray-200/60 bg-white/80 px-4 py-2 shadow-sm backdrop-blur-sm md:flex">
+            <Robot
+              size={20}
+              className={
+                result?.decisionProcess.decisionSource === 'ensemble'
+                  ? 'text-emerald-500'
+                  : 'text-gray-400'
+              }
+            />
             <span className="text-sm font-medium text-gray-600">
-              Active Core: {result?.decisionProcess.decisionSource === 'ensemble' ? 'Ensemble Council' : 'ColdStart Engine'}
+              Active Core:{' '}
+              {result?.decisionProcess.decisionSource === 'ensemble'
+                ? 'Ensemble Council'
+                : 'ColdStart Engine'}
             </span>
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <motion.div
             variants={staggerContainerVariants}
             initial="hidden"
             animate="visible"
-            className="lg:col-span-4 space-y-6"
+            className="space-y-6 lg:col-span-4"
           >
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
                 <Shuffle /> 模拟场景
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                {SCENARIOS.map(s => (
+                {SCENARIOS.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => handleScenarioChange(s.id)}
-                    className={`p-3 rounded-xl text-left transition-all border ${
+                    className={`rounded-xl border p-3 text-left transition-all ${
                       selectedScenario === s.id
-                        ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500'
-                        : 'bg-gray-50 border-transparent hover:bg-gray-100'
+                        ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                        : 'border-transparent bg-gray-50 hover:bg-gray-100'
                     }`}
                   >
-                    <div className={`mb-2 ${selectedScenario === s.id ? 'text-indigo-600' : 'text-gray-500'}`}>
+                    <div
+                      className={`mb-2 ${selectedScenario === s.id ? 'text-indigo-600' : 'text-gray-500'}`}
+                    >
                       <s.icon size={24} weight={selectedScenario === s.id ? 'fill' : 'regular'} />
                     </div>
-                    <div className="font-bold text-gray-700 text-sm">{s.name}</div>
-                    <div className="text-[10px] text-gray-400 mt-1">{s.desc}</div>
+                    <div className="text-sm font-bold text-gray-700">{s.name}</div>
+                    <div className="mt-1 text-[10px] text-gray-400">{s.desc}</div>
                   </button>
                 ))}
               </div>
 
               {/* 学习模式选择 */}
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">学习模式</h3>
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                  学习模式
+                </h3>
                 <div className="grid grid-cols-3 gap-2">
-                  {LEARNING_MODES.map(m => (
+                  {LEARNING_MODES.map((m) => (
                     <button
                       key={m.id}
                       onClick={() => setSelectedMode(m.id)}
-                      className={`p-2 rounded-lg text-center transition-all border ${
+                      className={`rounded-lg border p-2 text-center transition-all ${
                         selectedMode === m.id
-                          ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500'
-                          : 'bg-gray-50 border-transparent hover:bg-gray-100'
+                          ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
+                          : 'border-transparent bg-gray-50 hover:bg-gray-100'
                       }`}
                     >
-                      <div className={`mb-1 flex justify-center ${selectedMode === m.id ? 'text-emerald-600' : 'text-gray-500'}`}>
+                      <div
+                        className={`mb-1 flex justify-center ${selectedMode === m.id ? 'text-emerald-600' : 'text-gray-500'}`}
+                      >
                         <m.icon size={18} weight={selectedMode === m.id ? 'fill' : 'regular'} />
                       </div>
-                      <div className="font-medium text-gray-700 text-xs">{m.name}</div>
+                      <div className="text-xs font-medium text-gray-700">{m.name}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
-                 <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                   <Warning className="text-amber-500" />
-                   注入随机噪声
-                 </span>
-                 <button
-                   onClick={() => setInjectNoise(!injectNoise)}
-                   className={`w-11 h-6 rounded-full transition-colors relative ${injectNoise ? 'bg-indigo-500' : 'bg-gray-300'}`}
-                 >
-                   <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${injectNoise ? 'left-6' : 'left-1'}`} />
-                 </button>
+              <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <Warning className="text-amber-500" />
+                  注入随机噪声
+                </span>
+                <button
+                  onClick={() => setInjectNoise(!injectNoise)}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${injectNoise ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                >
+                  <div
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${injectNoise ? 'left-6' : 'left-1'}`}
+                  />
+                </button>
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+            <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <h2 className="mb-6 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
                 <Sliders /> 用户状态向量
               </h2>
 
-              <ControlSlider label="注意力" icon={UserFocus} value={params.attention} onChange={v => setParams(p => ({...p, attention: v}))} />
-              <ControlSlider label="疲劳度" icon={Pulse} value={params.fatigue} onChange={v => setParams(p => ({...p, fatigue: v}))} />
-              <ControlSlider label="动机" icon={Lightning} value={params.motivation} onChange={v => setParams(p => ({...p, motivation: v}))} min={-1} max={1} />
+              <ControlSlider
+                label="注意力"
+                icon={UserFocus}
+                value={params.attention}
+                onChange={(v) => setParams((p) => ({ ...p, attention: v }))}
+              />
+              <ControlSlider
+                label="疲劳度"
+                icon={Pulse}
+                value={params.fatigue}
+                onChange={(v) => setParams((p) => ({ ...p, fatigue: v }))}
+              />
+              <ControlSlider
+                label="动机"
+                icon={Lightning}
+                value={params.motivation}
+                onChange={(v) => setParams((p) => ({ ...p, motivation: v }))}
+                min={-1}
+                max={1}
+              />
 
-              <div className="h-px bg-gray-100 my-6" />
+              <div className="my-6 h-px bg-gray-100" />
 
-              <ControlSlider label="记忆强度" icon={Brain} value={params.cognitive.memory} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, memory: v}}))} />
-              <ControlSlider label="处理速度" icon={Gear} value={params.cognitive.speed} onChange={v => setParams(p => ({...p, cognitive: {...p.cognitive, speed: v}}))} />
+              <ControlSlider
+                label="记忆强度"
+                icon={Brain}
+                value={params.cognitive.memory}
+                onChange={(v) =>
+                  setParams((p) => ({ ...p, cognitive: { ...p.cognitive, memory: v } }))
+                }
+              />
+              <ControlSlider
+                label="处理速度"
+                icon={Gear}
+                value={params.cognitive.speed}
+                onChange={(v) =>
+                  setParams((p) => ({ ...p, cognitive: { ...p.cognitive, speed: v } }))
+                }
+              />
             </div>
 
             <button
               onClick={runSimulation}
               disabled={loading}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400"
             >
-              {loading ? <Gear className="animate-spin" size={20} /> : <Flask size={20} weight="fill" />}
+              {loading ? (
+                <Gear className="animate-spin" size={20} />
+              ) : (
+                <Flask size={20} weight="fill" />
+              )}
               RUN SIMULATION
             </button>
           </motion.div>
 
-          <div className="lg:col-span-8 space-y-6">
-             <ConsensusVisualizer result={result} loading={loading} />
+          <div className="space-y-6 lg:col-span-8">
+            <ConsensusVisualizer result={result} loading={loading} />
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <motion.div
-                  variants={fadeInVariants}
-                  className="md:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/60 shadow-sm"
-                >
-                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                     <Brain className="text-gray-400" /> Neural Logic Trace
-                   </h3>
-                   {result ? (
-                     <div className="prose prose-sm">
-                       <p className="text-gray-600 leading-relaxed mb-4">
-                         {result.explanation.summary}
-                       </p>
-                       <div className="space-y-2">
-                         {result.explanation.factors.slice(0, 3).map((f, i) => (
-                           <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
-                             <span className="text-gray-600">{f.name}</span>
-                             <span className={`font-mono font-bold ${f.impact === 'positive' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                               {f.impact === 'positive' ? '+' : '-'}{f.percentage}%
-                             </span>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   ) : (
-                     <div className="text-gray-400 italic">Run simulation to see logic trace...</div>
-                   )}
-                </motion.div>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <motion.div
+                variants={fadeInVariants}
+                className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2"
+              >
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
+                  <Brain className="text-gray-400" /> Neural Logic Trace
+                </h3>
+                {result ? (
+                  <div className="prose prose-sm">
+                    <p className="mb-4 leading-relaxed text-gray-600">
+                      {result.explanation.summary}
+                    </p>
+                    <div className="space-y-2">
+                      {result.explanation.factors.slice(0, 3).map((f, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between rounded border border-gray-100 bg-gray-50 p-2"
+                        >
+                          <span className="text-gray-600">{f.name}</span>
+                          <span
+                            className={`font-mono font-bold ${f.impact === 'positive' ? 'text-emerald-500' : 'text-rose-500'}`}
+                          >
+                            {f.impact === 'positive' ? '+' : '-'}
+                            {f.percentage}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="italic text-gray-400">Run simulation to see logic trace...</div>
+                )}
+              </motion.div>
 
-                <div className="md:col-span-1">
-                   <DecisionReceipt result={result} />
-                </div>
-             </div>
+              <div className="md:col-span-1">
+                <DecisionReceipt result={result} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

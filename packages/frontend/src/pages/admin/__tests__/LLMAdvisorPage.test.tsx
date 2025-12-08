@@ -20,49 +20,79 @@ vi.mock('@/components/ui', () => ({
 // Mock Icon components
 vi.mock('@/components/Icon', () => ({
   Robot: ({ className, size, weight }: any) => (
-    <span data-testid="robot-icon" className={className}>Robot</span>
+    <span data-testid="robot-icon" className={className}>
+      Robot
+    </span>
   ),
   Lightning: ({ className, size, weight }: any) => (
-    <span data-testid="lightning-icon" className={className}>Lightning</span>
+    <span data-testid="lightning-icon" className={className}>
+      Lightning
+    </span>
   ),
   CheckCircle: ({ className, size }: any) => (
-    <span data-testid="check-circle-icon" className={className}>CheckCircle</span>
+    <span data-testid="check-circle-icon" className={className}>
+      CheckCircle
+    </span>
   ),
   XCircle: ({ className, size }: any) => (
-    <span data-testid="x-circle-icon" className={className}>XCircle</span>
+    <span data-testid="x-circle-icon" className={className}>
+      XCircle
+    </span>
   ),
   Warning: ({ className, size }: any) => (
-    <span data-testid="warning-icon" className={className}>Warning</span>
+    <span data-testid="warning-icon" className={className}>
+      Warning
+    </span>
   ),
   ArrowsClockwise: ({ className, size }: any) => (
-    <span data-testid="arrows-clockwise-icon" className={className}>ArrowsClockwise</span>
+    <span data-testid="arrows-clockwise-icon" className={className}>
+      ArrowsClockwise
+    </span>
   ),
   Eye: ({ className, size }: any) => (
-    <span data-testid="eye-icon" className={className}>Eye</span>
+    <span data-testid="eye-icon" className={className}>
+      Eye
+    </span>
   ),
   CaretDown: ({ className, size }: any) => (
-    <span data-testid="caret-down-icon" className={className}>CaretDown</span>
+    <span data-testid="caret-down-icon" className={className}>
+      CaretDown
+    </span>
   ),
   CaretUp: ({ className, size }: any) => (
-    <span data-testid="caret-up-icon" className={className}>CaretUp</span>
+    <span data-testid="caret-up-icon" className={className}>
+      CaretUp
+    </span>
   ),
   Lightbulb: ({ className, size }: any) => (
-    <span data-testid="lightbulb-icon" className={className}>Lightbulb</span>
+    <span data-testid="lightbulb-icon" className={className}>
+      Lightbulb
+    </span>
   ),
   Gear: ({ className, size }: any) => (
-    <span data-testid="gear-icon" className={className}>Gear</span>
+    <span data-testid="gear-icon" className={className}>
+      Gear
+    </span>
   ),
   ChartLine: ({ className, size }: any) => (
-    <span data-testid="chart-line-icon" className={className}>ChartLine</span>
+    <span data-testid="chart-line-icon" className={className}>
+      ChartLine
+    </span>
   ),
   Brain: ({ className, size }: any) => (
-    <span data-testid="brain-icon" className={className}>Brain</span>
+    <span data-testid="brain-icon" className={className}>
+      Brain
+    </span>
   ),
   Shield: ({ className, size }: any) => (
-    <span data-testid="shield-icon" className={className}>Shield</span>
+    <span data-testid="shield-icon" className={className}>
+      Shield
+    </span>
   ),
   CircleNotch: ({ className, size, weight }: any) => (
-    <span data-testid="loading-spinner" className={className}>Loading</span>
+    <span data-testid="loading-spinner" className={className}>
+      Loading
+    </span>
   ),
 }));
 
@@ -170,7 +200,8 @@ vi.mock('../../../services/llmAdvisorApi', () => ({
   checkLLMHealth: () => mockCheckLLMHealth(),
   getSuggestions: (params: any) => mockGetSuggestions(params),
   triggerAnalysis: () => mockTriggerAnalysis(),
-  approveSuggestion: (id: string, items: string[], notes?: string) => mockApproveSuggestion(id, items, notes),
+  approveSuggestion: (id: string, items: string[], notes?: string) =>
+    mockApproveSuggestion(id, items, notes),
   rejectSuggestion: (id: string, notes?: string) => mockRejectSuggestion(id, notes),
 }));
 
@@ -178,7 +209,7 @@ const renderWithRouter = () => {
   return render(
     <MemoryRouter>
       <LLMAdvisorPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -428,7 +459,7 @@ describe('LLMAdvisorPage', () => {
         // Text content is "置信度: 85%" - find by checking all spans
         const allSpans = document.querySelectorAll('span');
         const confidenceSpan = Array.from(allSpans).find(
-          span => span.textContent?.includes('置信度:') && span.textContent?.includes('85')
+          (span) => span.textContent?.includes('置信度:') && span.textContent?.includes('85'),
         );
         expect(confidenceSpan).toBeTruthy();
       });
@@ -441,7 +472,8 @@ describe('LLMAdvisorPage', () => {
         // Text content is "数据质量: sufficient" - find by checking all spans
         const allSpans = document.querySelectorAll('span');
         const dataQualitySpan = Array.from(allSpans).find(
-          span => span.textContent?.includes('数据质量:') && span.textContent?.includes('sufficient')
+          (span) =>
+            span.textContent?.includes('数据质量:') && span.textContent?.includes('sufficient'),
         );
         expect(dataQualitySpan).toBeTruthy();
       });
@@ -537,7 +569,10 @@ describe('LLMAdvisorPage', () => {
 
     it('should show loading state during analysis', async () => {
       mockTriggerAnalysis.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ suggestionId: 'id', message: 'ok' }), 1000))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ suggestionId: 'id', message: 'ok' }), 1000),
+          ),
       );
 
       renderWithRouter();

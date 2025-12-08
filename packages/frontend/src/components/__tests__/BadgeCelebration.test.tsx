@@ -10,12 +10,21 @@ import { Badge } from '../../types/amas-enhanced';
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, variants, initial, animate, exit, ...props }: any) => (
-      <div {...props}>{children}</div>
-    ),
-    button: ({ children, whileHover, whileTap, transition, ...props }: any) => (
-      <button {...props}>{children}</button>
-    ),
+    div: ({
+      children,
+      variants: _variants,
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      ...props
+    }: any) => <div {...props}>{children}</div>,
+    button: ({
+      children,
+      whileHover: _whileHover,
+      whileTap: _whileTap,
+      transition: _transition,
+      ...props
+    }: any) => <button {...props}>{children}</button>,
   },
   AnimatePresence: ({ children }: any) => children,
 }));
@@ -46,12 +55,9 @@ describe('BadgeCelebration', () => {
     description: '连续学习7天',
     tier: 3,
     category: 'STREAK',
-    progress: 1,
-    maxProgress: 1,
+    iconUrl: '/badges/star.png',
+    progress: 100,
     unlockedAt: '2024-01-15T10:30:00Z',
-    isUnlocked: true,
-    iconName: 'star',
-    condition: 'streak >= 7',
   };
 
   beforeEach(() => {
@@ -67,7 +73,7 @@ describe('BadgeCelebration', () => {
   describe('visibility', () => {
     it('should not render when isVisible is false', () => {
       const { container } = render(
-        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={false} />
+        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={false} />,
       );
       expect(container.firstChild).toBeNull();
     });
@@ -235,7 +241,7 @@ describe('BadgeCelebration', () => {
 
     it('should clear timer on unmount', () => {
       const { unmount } = render(
-        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />
+        <BadgeCelebration badge={mockBadge} onClose={mockOnClose} isVisible={true} />,
       );
 
       unmount();

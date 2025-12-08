@@ -1,3 +1,4 @@
+import React from 'react';
 import { Target, Clock, Lightning, Play, CheckCircle } from '../../components/Icon';
 
 interface DailyMissionCardProps {
@@ -9,98 +10,133 @@ interface DailyMissionCardProps {
   onStart: () => void;
 }
 
-export const DailyMissionCard = ({
+const DailyMissionCardComponent = ({
   totalWords,
   todayStudied,
   todayTarget,
   estimatedTime,
   correctRate,
-  onStart
+  onStart,
 }: DailyMissionCardProps) => {
-  const progress = todayTarget > 0 ? Math.min(100, Math.round((todayStudied / todayTarget) * 100)) : 0;
+  const progress =
+    todayTarget > 0 ? Math.min(100, Math.round((todayStudied / todayTarget) * 100)) : 0;
   const isCompleted = todayStudied >= todayTarget && todayTarget > 0;
   const remaining = Math.max(0, todayTarget - todayStudied);
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 transition-all hover:shadow-xl">
-      <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-600 to-blue-500 text-white relative overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg transition-all hover:shadow-xl">
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-500 p-6 text-white sm:p-8">
         <div className="relative z-10">
-          <div className="flex justify-between items-start mb-6">
+          <div className="mb-6 flex items-start justify-between">
             <div>
-              <h3 className="text-2xl font-bold flex items-center gap-2">
-                <Target className="w-6 h-6 text-blue-200" weight="duotone" />
+              <h3 className="flex items-center gap-2 text-2xl font-bold">
+                <Target className="h-6 w-6 text-blue-200" weight="duotone" />
                 今日学习任务
               </h3>
-              <p className="text-blue-100 mt-1 font-medium">
-                {isCompleted ? "太棒了！你已完成今日目标" : "继续保持学习节奏！"}
+              <p className="mt-1 font-medium text-blue-100">
+                {isCompleted ? '太棒了！你已完成今日目标' : '继续保持学习节奏！'}
               </p>
             </div>
             <div className="flex flex-col items-end">
-              <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full shadow-inner border border-white/10">
-                <Lightning className="w-4 h-4 text-yellow-300 fill-yellow-300" weight="fill" />
-                <span className="font-bold text-lg">{correctRate}%</span>
-                <span className="text-xs font-medium text-blue-50 uppercase tracking-wide">正确率</span>
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/20 px-4 py-1.5 shadow-inner backdrop-blur-md">
+                <Lightning className="h-4 w-4 fill-yellow-300 text-yellow-300" weight="fill" />
+                <span className="text-lg font-bold">{correctRate}%</span>
+                <span className="text-xs font-medium uppercase tracking-wide text-blue-50">
+                  正确率
+                </span>
               </div>
             </div>
           </div>
 
           <div className="mt-8">
-            <div className="flex justify-between text-sm mb-2 font-medium text-blue-100">
+            <div className="mb-2 flex justify-between text-sm font-medium text-blue-100">
               <span>每日目标</span>
-              <span>{todayStudied} / {todayTarget} 个单词</span>
+              <span>
+                {todayStudied} / {todayTarget} 个单词
+              </span>
             </div>
-            <div className="h-4 bg-blue-900/30 rounded-full overflow-hidden backdrop-blur-sm border border-blue-400/20">
+            <div className="h-4 overflow-hidden rounded-full border border-blue-400/20 bg-blue-900/30 backdrop-blur-sm">
               <div
-                className="h-full bg-white rounded-full transition-all duration-1000 ease-out relative shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                className="relative h-full rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-1000 ease-out"
                 style={{ width: `${progress}%` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent w-1/2 skew-x-12" />
+                <div className="absolute inset-0 w-1/2 skew-x-12 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="pointer-events-none absolute right-0 top-0 -mr-10 -mt-10 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
       </div>
 
       <div className="p-6 sm:p-8">
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col items-center text-center group hover:bg-emerald-100 transition-colors">
-            <div className="text-emerald-600 text-xs font-bold uppercase tracking-wider mb-2">今日已学</div>
-            <div className="text-3xl font-bold text-gray-800 group-hover:scale-110 transition-transform">{todayStudied}</div>
+        <div className="mb-8 grid grid-cols-2 gap-4">
+          <div className="group flex flex-col items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-center transition-colors hover:bg-emerald-100">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+              今日已学
+            </div>
+            <div className="text-3xl font-bold text-gray-800 transition-transform group-hover:scale-110">
+              {todayStudied}
+            </div>
           </div>
-          <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex flex-col items-center text-center group hover:bg-amber-100 transition-colors">
-            <div className="text-amber-600 text-xs font-bold uppercase tracking-wider mb-2">剩余单词</div>
-            <div className="text-3xl font-bold text-gray-800 group-hover:scale-110 transition-transform">{remaining}</div>
+          <div className="group flex flex-col items-center rounded-xl border border-amber-100 bg-amber-50 p-4 text-center transition-colors hover:bg-amber-100">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-600">
+              剩余单词
+            </div>
+            <div className="text-3xl font-bold text-gray-800 transition-transform group-hover:scale-110">
+              {remaining}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-6 text-gray-500 text-sm font-medium">
-          <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg">
-            <Clock className="w-4 h-4 text-gray-400" weight="bold" />
+        <div className="mb-6 flex items-center justify-between text-sm font-medium text-gray-500">
+          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
+            <Clock className="h-4 w-4 text-gray-400" weight="bold" />
             <span>预计 ~{estimatedTime} 分钟</span>
           </div>
-          <div className="text-gray-600">
-            共 {totalWords} 个单词待学习
-          </div>
+          <div className="text-gray-600">共 {totalWords} 个单词待学习</div>
         </div>
 
         <button
           onClick={onStart}
           disabled={isCompleted}
-          className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 ${
+          className={`flex w-full transform items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold shadow-lg transition-all active:scale-[0.98] ${
             isCompleted
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-              : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/30 hover:-translate-y-0.5'
+              ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
+              : 'bg-blue-600 text-white hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-500/30'
           }`}
         >
           {isCompleted ? (
-            <><CheckCircle className="w-5 h-5" weight="bold" /> 今日任务已完成</>
+            <>
+              <CheckCircle className="h-5 w-5" weight="bold" /> 今日任务已完成
+            </>
           ) : (
-            <><Play className="w-5 h-5 fill-current" weight="fill" /> {todayStudied > 0 ? '继续学习' : '开始学习'}</>
+            <>
+              <Play className="h-5 w-5 fill-current" weight="fill" />{' '}
+              {todayStudied > 0 ? '继续学习' : '开始学习'}
+            </>
           )}
         </button>
       </div>
     </div>
   );
 };
+
+/**
+ * Memoized DailyMissionCard component
+ * Optimizes re-renders by comparing numeric props and function stability
+ */
+export const DailyMissionCard = React.memo(
+  DailyMissionCardComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if props actually change
+    return (
+      prevProps.totalWords === nextProps.totalWords &&
+      prevProps.todayStudied === nextProps.todayStudied &&
+      prevProps.todayTarget === nextProps.todayTarget &&
+      prevProps.estimatedTime === nextProps.estimatedTime &&
+      prevProps.correctRate === nextProps.correctRate &&
+      prevProps.onStart === nextProps.onStart
+    );
+  },
+);

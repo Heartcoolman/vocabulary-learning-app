@@ -1,0 +1,282 @@
+{
+  "baseline": {
+    "timestamp": "2025-12-07T20:13:00.000Z",
+    "version": "0.0.0",
+    "buildTime": "23.34s",
+    "bundleSize": {
+      "total": {
+        "raw": "41 MB",
+        "notes": "包含所有静态资源（图标、徽章等）"
+      },
+      "javascript": {
+        "total": {
+          "raw": 1416461,
+          "formatted": "1.38 MB",
+          "gzipped": "~235 KB"
+        },
+        "chunks": {
+          "reactVendor": {
+            "file": "react-vendor-*.js",
+            "raw": 547292,
+            "formatted": "534.46 KB",
+            "gzipped": 146125,
+            "gzippedFormatted": "142.70 KB",
+            "compressionRatio": 73.3,
+            "description": "React核心库和React DOM",
+            "criticality": "blocking",
+            "loadPriority": "high"
+          },
+          "indexBundle": {
+            "file": "index-*.js",
+            "raw": 180541,
+            "formatted": "176.31 KB",
+            "gzipped": 48302,
+            "gzippedFormatted": "47.17 KB",
+            "compressionRatio": 73.2,
+            "description": "应用主入口、路由配置、全局状态",
+            "criticality": "blocking",
+            "loadPriority": "high"
+          },
+          "vendor": {
+            "file": "vendor-*.js",
+            "raw": 76206,
+            "formatted": "74.42 KB",
+            "gzipped": 28324,
+            "gzippedFormatted": "27.66 KB",
+            "compressionRatio": 62.8,
+            "description": "其他第三方依赖库",
+            "criticality": "blocking",
+            "loadPriority": "medium"
+          },
+          "sentryVendor": {
+            "file": "sentry-vendor-*.js",
+            "raw": 0,
+            "formatted": "0 KB",
+            "gzipped": 20,
+            "gzippedFormatted": "0.02 KB",
+            "compressionRatio": 0,
+            "description": "空chunk，配置问题",
+            "criticality": "non-blocking",
+            "loadPriority": "low",
+            "issue": "Empty chunk generated"
+          }
+        },
+        "pageChunks": {
+          "large": [
+            {
+              "name": "UserDetailPage",
+              "size": 49152,
+              "sizeFormatted": "48 KB",
+              "gzipped": 11202,
+              "gzippedFormatted": "10.94 KB"
+            },
+            {
+              "name": "AlgorithmConfigPage",
+              "size": 25600,
+              "sizeFormatted": "25 KB",
+              "gzipped": 5161,
+              "gzippedFormatted": "5.04 KB"
+            },
+            {
+              "name": "AMASExplainabilityPage",
+              "size": 25600,
+              "sizeFormatted": "25 KB",
+              "gzipped": 5478,
+              "gzippedFormatted": "5.35 KB"
+            },
+            {
+              "name": "WordMasteryPage",
+              "size": 24576,
+              "sizeFormatted": "24 KB",
+              "gzipped": 6369,
+              "gzippedFormatted": "6.22 KB"
+            },
+            {
+              "name": "StudyProgressPage",
+              "size": 23552,
+              "sizeFormatted": "23 KB",
+              "gzipped": 6451,
+              "gzippedFormatted": "6.30 KB"
+            },
+            {
+              "name": "ExperimentDashboard",
+              "size": 23552,
+              "sizeFormatted": "23 KB",
+              "gzipped": 6533,
+              "gzippedFormatted": "6.38 KB"
+            }
+          ],
+          "summary": {
+            "total": 51,
+            "averageSize": "~15 KB",
+            "averageGzipped": "~4.5 KB"
+          }
+        }
+      },
+      "css": {
+        "total": {
+          "raw": 92682,
+          "formatted": "90.51 KB",
+          "gzipped": 15001,
+          "gzippedFormatted": "14.65 KB",
+          "compressionRatio": 83.8
+        },
+        "files": [
+          {
+            "file": "index-*.css",
+            "raw": 91136,
+            "formatted": "89 KB",
+            "gzipped": 15001,
+            "gzippedFormatted": "14.65 KB"
+          }
+        ]
+      },
+      "html": {
+        "file": "index.html",
+        "raw": 641,
+        "formatted": "0.63 KB",
+        "gzipped": 389,
+        "gzippedFormatted": "0.38 KB"
+      },
+      "staticAssets": {
+        "badges": "~2 MB",
+        "icons": "~38 MB",
+        "total": "~40 MB",
+        "notes": "需要优化，建议使用CDN"
+      }
+    },
+    "performanceMetrics": {
+      "estimated": {
+        "network": {
+          "slow3G": {
+            "bandwidth": "400 Kbps",
+            "FCP": "3.5s",
+            "LCP": "5.5s",
+            "TTI": "7.0s",
+            "rating": "poor"
+          },
+          "4G": {
+            "bandwidth": "4 Mbps",
+            "FCP": "1.2s",
+            "LCP": "2.0s",
+            "TTI": "2.8s",
+            "rating": "good"
+          },
+          "broadband": {
+            "bandwidth": "10 Mbps+",
+            "FCP": "0.5s",
+            "LCP": "0.8s",
+            "TTI": "1.2s",
+            "rating": "excellent"
+          }
+        },
+        "criticalPath": {
+          "html": "~10ms",
+          "css": "~50ms @ 4G",
+          "reactVendor": "~300ms @ 4G",
+          "indexBundle": "~100ms @ 4G",
+          "totalBlocking": "~460ms @ 4G"
+        }
+      },
+      "targets": {
+        "FCP": {
+          "good": "< 1.8s",
+          "needsImprovement": "1.8s - 3.0s",
+          "poor": "> 3.0s"
+        },
+        "LCP": {
+          "good": "< 2.5s",
+          "needsImprovement": "2.5s - 4.0s",
+          "poor": "> 4.0s"
+        },
+        "FID": {
+          "good": "< 100ms",
+          "needsImprovement": "100ms - 300ms",
+          "poor": "> 300ms"
+        },
+        "CLS": {
+          "good": "< 0.1",
+          "needsImprovement": "0.1 - 0.25",
+          "poor": "> 0.25"
+        },
+        "TTI": {
+          "good": "< 3.8s",
+          "needsImprovement": "3.8s - 7.3s",
+          "poor": "> 7.3s"
+        }
+      }
+    },
+    "issues": [
+      {
+        "severity": "high",
+        "type": "bundle-size",
+        "message": "React vendor chunk (534.46 KB) exceeds 500 KB warning limit",
+        "impact": "Slower initial load time, especially on slower networks",
+        "recommendation": "Use CDN for React or implement dynamic imports"
+      },
+      {
+        "severity": "medium",
+        "type": "bundle-size",
+        "message": "Index bundle (176.31 KB) is larger than recommended",
+        "impact": "Delayed time to interactive",
+        "recommendation": "Split routing and state management into separate chunks"
+      },
+      {
+        "severity": "medium",
+        "type": "static-assets",
+        "message": "Static assets total 40+ MB",
+        "impact": "Large initial download, poor offline experience",
+        "recommendation": "Use CDN, optimize images, implement lazy loading"
+      },
+      {
+        "severity": "low",
+        "type": "empty-chunk",
+        "message": "Sentry vendor chunk is empty",
+        "impact": "Unnecessary file generated",
+        "recommendation": "Fix chunk splitting configuration or remove if not used"
+      }
+    ],
+    "recommendations": {
+      "immediate": [
+        "Configure CDN for React libraries",
+        "Implement preload for critical resources",
+        "Fix empty Sentry chunk",
+        "Split index bundle further"
+      ],
+      "shortTerm": [
+        "Optimize large page components (>20KB)",
+        "Convert static images to WebP format",
+        "Enable Brotli compression",
+        "Implement Web Vitals monitoring"
+      ],
+      "longTerm": [
+        "Evaluate PWA implementation",
+        "Implement Service Worker caching",
+        "Consider SSR for critical pages",
+        "Set up performance budgets in CI/CD"
+      ]
+    },
+    "optimizationGoals": {
+      "bundleSize": {
+        "current": "1.38 MB",
+        "target": "< 800 KB",
+        "reduction": "42%"
+      },
+      "firstLoad": {
+        "current": "~235 KB gzipped",
+        "target": "< 100 KB gzipped",
+        "reduction": "57%"
+      },
+      "LCP": {
+        "current": "~2.0s @ 4G",
+        "target": "< 1.5s @ 4G",
+        "improvement": "25%"
+      }
+    }
+  },
+  "tracking": {
+    "nextReview": "2025-12-14",
+    "reviewFrequency": "weekly",
+    "metrics": ["Bundle size", "Build time", "FCP", "LCP", "TTI", "CLS"]
+  }
+}

@@ -75,7 +75,7 @@ describe('WordStateManager', () => {
           userId: 'user-1',
           wordId: 'word-1',
           state: WordState.NEW,
-        })
+        }),
       );
     });
 
@@ -182,7 +182,7 @@ describe('WordStateManager', () => {
       expect(mockStorage.saveState).toHaveBeenCalledWith(
         expect.objectContaining({
           masteryLevel: 4,
-        })
+        }),
       );
     });
 
@@ -255,9 +255,7 @@ describe('WordStateManager', () => {
     });
 
     it('should cache loaded states', async () => {
-      const storedStates = [
-        createMockLearningState({ wordId: 'word-1' }),
-      ];
+      const storedStates = [createMockLearningState({ wordId: 'word-1' })];
       vi.mocked(mockStorage.batchLoadStates).mockResolvedValue(storedStates);
 
       await manager.batchGetStates('user-1', ['word-1']);
@@ -291,9 +289,7 @@ describe('WordStateManager', () => {
     });
 
     it('should return empty array when no words match state', async () => {
-      const allStates = [
-        createMockLearningState({ wordId: 'word-1', state: WordState.LEARNING }),
-      ];
+      const allStates = [createMockLearningState({ wordId: 'word-1', state: WordState.LEARNING })];
       vi.mocked(mockStorage.loadAllStates).mockResolvedValue(allStates);
 
       const masteredWords = await manager.getWordsByState('user-1', WordState.MASTERED);

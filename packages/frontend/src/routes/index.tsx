@@ -26,8 +26,8 @@ export const routes: AppRoute[] = [
   {
     path: '*',
     element: <Navigate to="/" replace />,
-    meta: { title: '页面未找到' }
-  }
+    meta: { title: '页面未找到' },
+  },
 ];
 
 // 导出类型

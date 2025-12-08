@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock ApiClient
-vi.mock('../ApiClient', () => ({
+vi.mock('../client', () => ({
   default: {
     getLLMAdvisorConfig: vi.fn(),
     checkLLMAdvisorHealth: vi.fn(),
@@ -41,9 +41,9 @@ import {
   type LLMSuggestion,
   type WeeklyStats,
 } from '../llmAdvisorApi';
-import apiClient from '../ApiClient';
+import apiClient from '../client';
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getLLMAdvisorConfig: ReturnType<typeof vi.fn>;
   checkLLMAdvisorHealth: ReturnType<typeof vi.fn>;
   getLLMAdvisorSuggestions: ReturnType<typeof vi.fn>;
@@ -310,7 +310,7 @@ describe('llmAdvisorApi', () => {
       expect(mockApiClient.approveLLMAdvisorSuggestion).toHaveBeenCalledWith(
         'stored-1',
         ['suggestion-1'],
-        undefined
+        undefined,
       );
       expect(result.status).toBe('approved');
       expect(result.appliedItems).toContain('suggestion-1');
@@ -329,7 +329,7 @@ describe('llmAdvisorApi', () => {
       expect(mockApiClient.approveLLMAdvisorSuggestion).toHaveBeenCalledWith(
         'stored-1',
         ['suggestion-1'],
-        'Approved after review'
+        'Approved after review',
       );
     });
 
@@ -349,9 +349,9 @@ describe('llmAdvisorApi', () => {
     it('should handle API error', async () => {
       mockApiClient.approveLLMAdvisorSuggestion.mockRejectedValue(new Error('Approval failed'));
 
-      await expect(
-        approveSuggestion('stored-1', ['suggestion-1'])
-      ).rejects.toThrow('Approval failed');
+      await expect(approveSuggestion('stored-1', ['suggestion-1'])).rejects.toThrow(
+        'Approval failed',
+      );
     });
   });
 
@@ -385,7 +385,7 @@ describe('llmAdvisorApi', () => {
 
       expect(mockApiClient.rejectLLMAdvisorSuggestion).toHaveBeenCalledWith(
         'stored-1',
-        'Not applicable for current situation'
+        'Not applicable for current situation',
       );
     });
 
@@ -420,7 +420,9 @@ describe('llmAdvisorApi', () => {
     });
 
     it('should handle API error', async () => {
-      mockApiClient.triggerLLMAdvisorAnalysis.mockRejectedValue(new Error('Analysis trigger failed'));
+      mockApiClient.triggerLLMAdvisorAnalysis.mockRejectedValue(
+        new Error('Analysis trigger failed'),
+      );
 
       await expect(triggerAnalysis()).rejects.toThrow('Analysis trigger failed');
     });

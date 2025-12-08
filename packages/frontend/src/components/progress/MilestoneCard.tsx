@@ -56,31 +56,31 @@ export const MilestoneCard = ({ milestone }: MilestoneCardProps) => {
 
   return (
     <div
-      className={`${colors.bg} ${colors.border} border rounded-xl p-5 hover:shadow-md transition-all duration-200`}
+      className={`${colors.bg} ${colors.border} rounded-xl border p-5 transition-all duration-200 hover:shadow-md`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 ${colors.progress} rounded-lg flex items-center justify-center`}>
-          <Icon className="w-5 h-5 text-white" />
+      <div className="mb-3 flex items-start justify-between">
+        <div className={`h-10 w-10 ${colors.progress} flex items-center justify-center rounded-lg`}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
         {milestone.achieved && (
-          <div className="bg-white px-2 py-1 rounded-full">
+          <div className="rounded-full bg-white px-2 py-1">
             <span className="text-xs font-bold text-green-600">已达成</span>
           </div>
         )}
       </div>
 
-      <h3 className="text-base font-bold text-gray-900 mb-1">{milestone.title}</h3>
-      <p className="text-xs text-gray-600 mb-3">{milestone.description}</p>
+      <h3 className="mb-1 text-base font-bold text-gray-900">{milestone.title}</h3>
+      <p className="mb-3 text-xs text-gray-600">{milestone.description}</p>
 
       <div className="space-y-2">
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">进度</span>
           <span className={`font-semibold ${colors.text}`}>
             {milestone.current} / {milestone.target}
           </span>
         </div>
 
-        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
           <div
             className={`${colors.progress} h-2 rounded-full transition-all duration-500`}
             style={{ width: `${percentage}%` }}

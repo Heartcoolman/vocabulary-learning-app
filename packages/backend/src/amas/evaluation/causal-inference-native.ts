@@ -21,15 +21,9 @@ import type {
   CausalObservation as NativeCausalObservation,
   CausalEstimate as NativeCausalEstimate,
   PropensityDiagnostics as NativePropensityDiagnostics,
-  StrategyComparison as NativeStrategyComparison,
-  CausalInferenceState as NativeCausalInferenceState,
 } from '@danci/native';
 
-import {
-  CircuitBreaker,
-  CircuitBreakerOptions,
-  CircuitState,
-} from '../common/circuit-breaker';
+import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
 import { SmartRouter, RouteDecision } from '../common/smart-router';
 
@@ -42,6 +36,17 @@ import {
   PropensityDiagnostics,
   StrategyComparison,
 } from './causal-inference';
+
+/**
+ * 协变量值类型
+ * 支持数值、布尔值和字符串（用于因果推断的特征编码）
+ */
+type CovariateValue = number | boolean | string;
+
+/**
+ * 协变量记录类型
+ */
+type CovariateRecord = Record<string, CovariateValue>;
 
 import {
   recordNativeCall,
@@ -103,16 +108,18 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   NativeModule = require('@danci/native');
 } catch (e) {
-  amasLogger.warn('[CausalInferenceNativeWrapper] Native module not available, will use TypeScript fallback');
+  amasLogger.warn(
+    '[CausalInferenceNativeWrapper] Native module not available, will use TypeScript fallback',
+  );
 }
 
 // ==================== 熔断器默认配置 ====================
 
 const DEFAULT_CIRCUIT_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
-  failureThreshold: 0.5,  // 50% 失败率触发熔断
-  windowSize: 20,         // 20 个样本的滑动窗口
-  openDurationMs: 60000,  // 60 秒后尝试半开
-  halfOpenProbe: 3,       // 半开状态允许 3 个探测请求
+  failureThreshold: 0.5, // 50% 失败率触发熔断
+  windowSize: 20, // 20 个样本的滑动窗口
+  openDurationMs: 60000, // 60 秒后尝试半开
+  halfOpenProbe: 3, // 半开状态允许 3 个探测请求
 };
 
 // ==================== CausalInferenceNativeWrapper 类 ====================
@@ -146,6 +153,10 @@ export class CausalInferenceNativeWrapper {
   private readonly fallback: CausalInference;
   private readonly circuitBreaker: CircuitBreaker;
   private readonly nativeEnabled: boolean;
+  /** 特征维度，用于初始化 Native 模块 */
+  private featureDim: number = 10;
+  /** 缓存的观测数据，用于 Native 调用 */
+  private observations: CausalObservation[] = [];
 
   private stats = {
     nativeCalls: 0,
@@ -181,39 +192,30 @@ export class CausalInferenceNativeWrapper {
       openDurationMs: recoveryTimeout!,
       halfOpenProbe: halfOpenProbe!,
       onStateChange: (from, to) => {
-        amasLogger.info({ from, to }, '[CausalInferenceNativeWrapper] Circuit breaker state changed');
+        amasLogger.info(
+          { from, to },
+          '[CausalInferenceNativeWrapper] Circuit breaker state changed',
+        );
         this.updateMetricState(to);
       },
       onEvent: (evt) => {
         if (evt.type === 'open') {
-          amasLogger.warn({ reason: evt.reason }, '[CausalInferenceNativeWrapper] Circuit breaker opened');
+          amasLogger.warn(
+            { reason: evt.reason },
+            '[CausalInferenceNativeWrapper] Circuit breaker opened',
+          );
         } else if (evt.type === 'close') {
-          amasLogger.info('[CausalInferenceNativeWrapper] Circuit breaker closed, native recovered');
+          amasLogger.info(
+            '[CausalInferenceNativeWrapper] Circuit breaker closed, native recovered',
+          );
         }
       },
     });
 
-    // 尝试初始化 Native 模块
-    if (this.nativeEnabled && NativeModule?.CausalInferenceNative) {
-      try {
-        const nativeConfig: NativeCausalInferenceConfig = {
-          propensityMin,
-          propensityMax,
-          learningRate,
-          regularization,
-          maxIterations,
-          convergenceThreshold,
-        };
-        this.native = new NativeModule.CausalInferenceNative(nativeConfig);
-        amasLogger.info('[CausalInferenceNativeWrapper] Native module initialized');
-      } catch (e) {
-        amasLogger.warn(
-          { error: e instanceof Error ? e.message : String(e) },
-          '[CausalInferenceNativeWrapper] Failed to initialize native module'
-        );
-        this.native = null;
-      }
-    }
+    // Native 模块延迟初始化（需要知道特征维度）
+    // 将在第一次添加观测时初始化
+    this.nativeEnabled &&
+      amasLogger.info('[CausalInferenceNativeWrapper] Native module will be lazily initialized');
 
     // 初始化 TypeScript 降级实现
     this.fallback = new CausalInference({
@@ -226,85 +228,70 @@ export class CausalInferenceNativeWrapper {
     });
   }
 
+  /**
+   * 延迟初始化 Native 模块
+   * @param featureDim 特征维度
+   */
+  private initNativeIfNeeded(featureDim: number): void {
+    if (this.native || !this.nativeEnabled || !NativeModule?.CausalInferenceNative) {
+      return;
+    }
+
+    this.featureDim = featureDim;
+
+    try {
+      const nativeConfig: NativeCausalInferenceConfig = {
+        propensityMin: 0.05,
+        propensityMax: 0.95,
+        learningRate: 0.1,
+        regularization: 0.01,
+        maxIterations: 1000,
+        convergenceThreshold: 1e-6,
+      };
+      this.native = new NativeModule.CausalInferenceNative(featureDim, nativeConfig);
+      amasLogger.info({ featureDim }, '[CausalInferenceNativeWrapper] Native module initialized');
+    } catch (e) {
+      amasLogger.warn(
+        { error: e instanceof Error ? e.message : String(e) },
+        '[CausalInferenceNativeWrapper] Failed to initialize native module',
+      );
+      this.native = null;
+    }
+  }
+
   // ==================== 数据管理方法 ====================
 
   /**
    * 添加观测数据
+   * 注意：Native 模块不支持逐条添加，数据缓存后在 fit 时批量传入
    */
   addObservation(obs: CausalObservation): void {
-    const method: NativeMethod = 'update';
-
-    if (this.shouldUseNative()) {
-      const startTime = performance.now();
-      try {
-        const nativeObs = this.toNativeObservation(obs);
-        this.native!.addObservation(nativeObs);
-
-        const durationMs = performance.now() - startTime;
-        recordNativeDuration(method, durationMs);
-        recordNativeCall(method, 'success');
-        this.circuitBreaker.recordSuccess();
-        this.stats.nativeCalls++;
-
-        // 同时更新 fallback 以保持一致
-        this.fallback.addObservation(obs);
-        return;
-      } catch (e) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        recordNativeFailure();
-        this.circuitBreaker.recordFailure(error.message);
-        this.stats.failures++;
-
-        amasLogger.warn(
-          { error: error.message },
-          '[CausalInferenceNativeWrapper] Native addObservation failed, falling back'
-        );
-      }
+    // 延迟初始化 Native 模块
+    if (obs.features.length > 0) {
+      this.initNativeIfNeeded(obs.features.length);
     }
 
-    this.stats.fallbackCalls++;
-    recordNativeCall(method, 'fallback');
+    // 缓存观测数据用于 Native 调用
+    this.observations.push(obs);
 
+    // 同时更新 fallback
     this.fallback.addObservation(obs);
   }
 
   /**
    * 批量添加观测数据
+   * 注意：Native 模块不支持逐条添加，数据缓存后在 fit 时批量传入
    */
   addObservations(observations: CausalObservation[]): void {
-    const method: NativeMethod = 'update';
-
-    if (this.shouldUseNative()) {
-      const startTime = performance.now();
-      try {
-        const nativeObs = observations.map(o => this.toNativeObservation(o));
-        this.native!.addObservations(nativeObs);
-
-        const durationMs = performance.now() - startTime;
-        recordNativeDuration(method, durationMs);
-        recordNativeCall(method, 'success');
-        this.circuitBreaker.recordSuccess();
-        this.stats.nativeCalls++;
-
-        // 同时更新 fallback 以保持一致
-        this.fallback.addObservations(observations);
-        return;
-      } catch (e) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        recordNativeFailure();
-        this.circuitBreaker.recordFailure(error.message);
-        this.stats.failures++;
-
-        amasLogger.warn(
-          { error: error.message },
-          '[CausalInferenceNativeWrapper] Native addObservations failed, falling back'
-        );
-      }
+    // 延迟初始化 Native 模块
+    if (observations.length > 0 && observations[0].features.length > 0) {
+      this.initNativeIfNeeded(observations[0].features.length);
     }
 
-    this.stats.fallbackCalls++;
-    recordNativeCall(method, 'fallback');
+    // 缓存观测数据用于 Native 调用
+    this.observations.push(...observations);
 
+    // 同时更新 fallback
     this.fallback.addObservations(observations);
   }
 
@@ -314,7 +301,7 @@ export class CausalInferenceNativeWrapper {
   recordObservation(obs: {
     treatment: string;
     outcome: number;
-    covariates: Record<string, any>;
+    covariates: CovariateRecord;
   }): void {
     // 直接委托给 fallback，因为涉及字符串 treatment 映射
     this.fallback.recordObservation(obs);
@@ -354,10 +341,12 @@ export class CausalInferenceNativeWrapper {
       this.stats.routeDecisions.typescript++;
     }
 
-    if (decision === RouteDecision.USE_NATIVE && this.native) {
+    if (decision === RouteDecision.USE_NATIVE && this.native && this.observations.length > 0) {
       const startTime = performance.now();
       try {
-        this.native.fit();
+        // Native fit 方法需要传入观测数据
+        const nativeObs = this.observations.map((o) => this.toNativeObservation(o));
+        this.native.fit(nativeObs);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -376,7 +365,7 @@ export class CausalInferenceNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[CausalInferenceNativeWrapper] Native fit failed, falling back'
+          '[CausalInferenceNativeWrapper] Native fit failed, falling back',
         );
       }
     }
@@ -397,11 +386,11 @@ export class CausalInferenceNativeWrapper {
   estimateATE(): CausalEstimate;
   estimateATE(
     treatmentA: string,
-    treatmentB: string
+    treatmentB: string,
   ): { effect: number; treated: number; control: number; samples: number };
   estimateATE(
     treatmentA?: string,
-    treatmentB?: string
+    treatmentB?: string,
   ): CausalEstimate | { effect: number; treated: number; control: number; samples: number } {
     // 字符串 treatment 的简化版本直接使用 fallback
     if (typeof treatmentA === 'string' && typeof treatmentB === 'string') {
@@ -424,10 +413,12 @@ export class CausalInferenceNativeWrapper {
       this.stats.routeDecisions.typescript++;
     }
 
-    if (decision === RouteDecision.USE_NATIVE && this.native) {
+    if (decision === RouteDecision.USE_NATIVE && this.native && this.observations.length > 0) {
       const startTime = performance.now();
       try {
-        const result = this.native.estimateATE();
+        // Native estimateAte 方法需要传入观测数据
+        const nativeObs = this.observations.map((o) => this.toNativeObservation(o));
+        const result = this.native.estimateAte(nativeObs);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -444,7 +435,7 @@ export class CausalInferenceNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[CausalInferenceNativeWrapper] Native estimateATE failed, falling back'
+          '[CausalInferenceNativeWrapper] Native estimateAte failed, falling back',
         );
       }
     }
@@ -457,37 +448,11 @@ export class CausalInferenceNativeWrapper {
 
   /**
    * 估计条件平均处理效应 (CATE)
+   * 注意：Native 模块不支持此方法，始终使用 fallback
    */
   estimateCATTE(features: number[]): CausalEstimate {
-    const method: NativeMethod = 'selectAction';
-
-    if (this.shouldUseNative()) {
-      const startTime = performance.now();
-      try {
-        const result = this.native!.estimateCATTE(features);
-
-        const durationMs = performance.now() - startTime;
-        recordNativeDuration(method, durationMs);
-        recordNativeCall(method, 'success');
-        this.circuitBreaker.recordSuccess();
-        this.stats.nativeCalls++;
-
-        return this.fromNativeCausalEstimate(result);
-      } catch (e) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        recordNativeFailure();
-        this.circuitBreaker.recordFailure(error.message);
-        this.stats.failures++;
-
-        amasLogger.warn(
-          { error: error.message },
-          '[CausalInferenceNativeWrapper] Native estimateCATTE failed, falling back'
-        );
-      }
-    }
-
     this.stats.fallbackCalls++;
-    recordNativeCall(method, 'fallback');
+    this.stats.routeDecisions.typescript++;
 
     return this.fallback.estimateCATTE(features);
   }
@@ -495,10 +460,7 @@ export class CausalInferenceNativeWrapper {
   /**
    * 估计条件平均处理效应（兼容旧 API）
    */
-  estimateCATT(
-    treatment: string,
-    condition: Record<string, any>
-  ): { effect: number; samples: number } {
+  estimateCATT(treatment: string, condition: CovariateRecord): { effect: number; samples: number } {
     // 直接委托给 fallback
     return this.fallback.estimateCATT(treatment, condition);
   }
@@ -510,13 +472,10 @@ export class CausalInferenceNativeWrapper {
    * 原因: 简单公式计算，NAPI 开销大于计算本身
    */
   getPropensityScore(features: number[]): number;
-  getPropensityScore(
-    treatment: string,
-    covariates?: Record<string, any>
-  ): number;
+  getPropensityScore(treatment: string, covariates?: CovariateRecord): number;
   getPropensityScore(
     featuresOrTreatment: number[] | string,
-    covariates: Record<string, any> = {}
+    covariates: CovariateRecord = {},
   ): number {
     // 字符串 treatment 版本直接使用 fallback
     if (typeof featuresOrTreatment === 'string') {
@@ -535,6 +494,16 @@ export class CausalInferenceNativeWrapper {
     // 记录路由决策
     if (decision === RouteDecision.USE_NATIVE) {
       this.stats.routeDecisions.native++;
+
+      // Native getPropensityScore 需要 Float64Array
+      if (this.native) {
+        try {
+          const featuresArray = new Float64Array(features);
+          return this.native.getPropensityScore(featuresArray);
+        } catch (e) {
+          // 降级到 fallback
+        }
+      }
     } else {
       this.stats.routeDecisions.typescript++;
     }
@@ -553,7 +522,9 @@ export class CausalInferenceNativeWrapper {
     if (this.shouldUseNative()) {
       const startTime = performance.now();
       try {
-        const result = this.native!.predictOutcome(features, treatment);
+        // Native predictOutcome 需要 Float64Array
+        const featuresArray = new Float64Array(features);
+        const result = this.native!.predictOutcome(featuresArray, treatment);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -570,7 +541,7 @@ export class CausalInferenceNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[CausalInferenceNativeWrapper] Native predictOutcome failed, falling back'
+          '[CausalInferenceNativeWrapper] Native predictOutcome failed, falling back',
         );
       }
     }
@@ -587,10 +558,12 @@ export class CausalInferenceNativeWrapper {
   diagnosePropensity(): PropensityDiagnostics {
     const method: NativeMethod = 'selectAction';
 
-    if (this.shouldUseNative()) {
+    if (this.shouldUseNative() && this.observations.length > 0) {
       const startTime = performance.now();
       try {
-        const result = this.native!.diagnosePropensity();
+        // Native diagnosePropensity 需要传入观测数据
+        const nativeObs = this.observations.map((o) => this.toNativeObservation(o));
+        const result = this.native!.diagnosePropensity(nativeObs);
 
         const durationMs = performance.now() - startTime;
         recordNativeDuration(method, durationMs);
@@ -607,7 +580,7 @@ export class CausalInferenceNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[CausalInferenceNativeWrapper] Native diagnosePropensity failed, falling back'
+          '[CausalInferenceNativeWrapper] Native diagnosePropensity failed, falling back',
         );
       }
     }
@@ -620,37 +593,11 @@ export class CausalInferenceNativeWrapper {
 
   /**
    * 比较两个策略
+   * 注意：Native 模块不支持此方法，始终使用 fallback
    */
   compareStrategies(strategyA: number, strategyB: number): StrategyComparison {
-    const method: NativeMethod = 'selectAction';
-
-    if (this.shouldUseNative()) {
-      const startTime = performance.now();
-      try {
-        const result = this.native!.compareStrategies(strategyA, strategyB);
-
-        const durationMs = performance.now() - startTime;
-        recordNativeDuration(method, durationMs);
-        recordNativeCall(method, 'success');
-        this.circuitBreaker.recordSuccess();
-        this.stats.nativeCalls++;
-
-        return this.fromNativeStrategyComparison(result);
-      } catch (e) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        recordNativeFailure();
-        this.circuitBreaker.recordFailure(error.message);
-        this.stats.failures++;
-
-        amasLogger.warn(
-          { error: error.message },
-          '[CausalInferenceNativeWrapper] Native compareStrategies failed, falling back'
-        );
-      }
-    }
-
     this.stats.fallbackCalls++;
-    recordNativeCall(method, 'fallback');
+    this.stats.routeDecisions.typescript++;
 
     return this.fallback.compareStrategies(strategyA, strategyB);
   }
@@ -666,17 +613,11 @@ export class CausalInferenceNativeWrapper {
 
   /**
    * 设置状态
+   * 注意：Native 模块不支持 setState，仅更新 fallback
    */
   setState(state: CausalInferenceState): void {
     this.fallback.setState(state);
-    // 如果有 Native 实例，也同步状态
-    if (this.native) {
-      try {
-        this.native.setState(state as unknown as NativeCausalInferenceState);
-      } catch (e) {
-        amasLogger.warn({ error: e }, '[CausalInferenceNativeWrapper] setState to native failed');
-      }
-    }
+    // Native 模块不支持 setState
   }
 
   /**
@@ -690,10 +631,11 @@ export class CausalInferenceNativeWrapper {
    * 清除数据
    */
   clear(): void {
+    this.observations = [];
     this.fallback.clear();
     if (this.native) {
       try {
-        this.native.clear();
+        this.native.reset();
       } catch (e) {
         amasLogger.warn({ error: e }, '[CausalInferenceNativeWrapper] clear native failed');
       }
@@ -705,6 +647,7 @@ export class CausalInferenceNativeWrapper {
    * 重置所有状态
    */
   reset(): void {
+    this.observations = [];
     this.fallback.reset();
     if (this.native) {
       try {
@@ -829,7 +772,11 @@ export class CausalInferenceNativeWrapper {
     return {
       ate: result.ate,
       standardError: result.standardError,
-      confidenceInterval: result.confidenceInterval as [number, number],
+      // Native 使用 confidenceIntervalLower 和 confidenceIntervalUpper
+      confidenceInterval: [result.confidenceIntervalLower, result.confidenceIntervalUpper] as [
+        number,
+        number,
+      ],
       sampleSize: result.sampleSize,
       effectiveSampleSize: result.effectiveSampleSize,
       pValue: result.pValue,
@@ -840,7 +787,9 @@ export class CausalInferenceNativeWrapper {
   /**
    * 转换 Native PropensityDiagnostics 到 TS 格式
    */
-  private fromNativePropensityDiagnostics(result: NativePropensityDiagnostics): PropensityDiagnostics {
+  private fromNativePropensityDiagnostics(
+    result: NativePropensityDiagnostics,
+  ): PropensityDiagnostics {
     return {
       mean: result.mean,
       std: result.std,
@@ -851,20 +800,6 @@ export class CausalInferenceNativeWrapper {
       auc: result.auc,
     };
   }
-
-  /**
-   * 转换 Native StrategyComparison 到 TS 格式
-   */
-  private fromNativeStrategyComparison(result: NativeStrategyComparison): StrategyComparison {
-    return {
-      diff: result.diff,
-      standardError: result.standardError,
-      confidenceInterval: result.confidenceInterval as [number, number],
-      pValue: result.pValue,
-      significant: result.significant,
-      sampleSize: result.sampleSize,
-    };
-  }
 }
 
 // ==================== 工厂函数 ====================
@@ -873,7 +808,7 @@ export class CausalInferenceNativeWrapper {
  * 创建 CausalInferenceNativeWrapper 实例
  */
 export function createCausalInferenceNativeWrapper(
-  config?: CausalInferenceWrapperConfig
+  config?: CausalInferenceWrapperConfig,
 ): CausalInferenceNativeWrapper {
   return new CausalInferenceNativeWrapper(config);
 }
@@ -882,7 +817,7 @@ export function createCausalInferenceNativeWrapper(
  * 创建禁用 Native 的 CausalInferenceNativeWrapper (用于测试)
  */
 export function createCausalInferenceNativeWrapperFallback(
-  config?: Omit<CausalInferenceWrapperConfig, 'useNative'>
+  config?: Omit<CausalInferenceWrapperConfig, 'useNative'>,
 ): CausalInferenceNativeWrapper {
   return new CausalInferenceNativeWrapper({ ...config, useNative: false });
 }

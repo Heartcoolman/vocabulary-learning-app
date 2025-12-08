@@ -7,7 +7,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { render, screen } from '@testing-library/react';
 import { ReactNode } from 'react';
 
-// Mock apiClient - must be defined before vi.mock
+// Mock authClient - must be defined before vi.mock
 const mockLogin = vi.fn();
 const mockLogout = vi.fn();
 const mockRegister = vi.fn();
@@ -17,8 +17,8 @@ const mockClearToken = vi.fn();
 const mockGetToken = vi.fn();
 const mockSetOnUnauthorized = vi.fn();
 
-vi.mock('@/services/ApiClient', () => ({
-  default: {
+vi.mock('../../services/client', () => ({
+  authClient: {
     login: (...args: unknown[]) => mockLogin(...args),
     logout: (...args: unknown[]) => mockLogout(...args),
     register: (...args: unknown[]) => mockRegister(...args),
@@ -35,7 +35,7 @@ const mockSetCurrentUser = vi.fn();
 const mockClearLocalData = vi.fn();
 const mockInit = vi.fn();
 
-vi.mock('@/services/StorageService', () => ({
+vi.mock('../../services/StorageService', () => ({
   default: {
     setCurrentUser: (...args: unknown[]) => mockSetCurrentUser(...args),
     clearLocalData: (...args: unknown[]) => mockClearLocalData(...args),
@@ -43,8 +43,8 @@ vi.mock('@/services/StorageService', () => ({
   },
 }));
 
-// Mock logger
-vi.mock('@/utils/logger', () => ({
+// Mock logger (override global mock with authLogger)
+vi.mock('../../utils/logger', () => ({
   authLogger: {
     error: vi.fn(),
     info: vi.fn(),
@@ -52,13 +52,16 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-// Import after mocks
+// Unmock AuthContext to test the real implementation
+// This overrides the global mock in setup.ts
+vi.unmock('../AuthContext');
+vi.unmock('../../contexts/AuthContext');
+
+// Import the real AuthContext after unmocking
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Test wrapper component
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-);
+const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>;
 
 // Test consumer component
 const TestConsumer = () => {
@@ -69,10 +72,21 @@ const TestConsumer = () => {
       <span data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'unauthenticated'}</span>
       <span data-testid="user-email">{user?.email || 'no-user'}</span>
       <span data-testid="user-id">{user?.id || 'no-id'}</span>
-      <button data-testid="login-btn" onClick={() => login('test@test.com', 'password')}>Login</button>
-      <button data-testid="logout-btn" onClick={() => logout()}>Logout</button>
-      <button data-testid="register-btn" onClick={() => register('test@test.com', 'password', 'testuser')}>Register</button>
-      <button data-testid="refresh-btn" onClick={() => refreshUser()}>Refresh</button>
+      <button data-testid="login-btn" onClick={() => login('test@test.com', 'password')}>
+        Login
+      </button>
+      <button data-testid="logout-btn" onClick={() => logout()}>
+        Logout
+      </button>
+      <button
+        data-testid="register-btn"
+        onClick={() => register('test@test.com', 'password', 'testuser')}
+      >
+        Register
+      </button>
+      <button data-testid="refresh-btn" onClick={() => refreshUser()}>
+        Refresh
+      </button>
     </div>
   );
 };
@@ -128,12 +142,15 @@ describe('AuthContext', () => {
       // Suppress console.error for this test
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // renderHook captures errors in result.error instead of throwing
-      const { result } = renderHook(() => useAuth());
+      // Wrap renderHook in try-catch to capture the thrown error
+      let thrownError: Error | null = null;
+      try {
+        renderHook(() => useAuth());
+      } catch (error) {
+        thrownError = error as Error;
+      }
 
-      expect(result.error).toEqual(
-        new Error('useAuth必须在AuthProvider内部使用')
-      );
+      expect(thrownError).toEqual(new Error('useAuth必须在AuthProvider内部使用'));
 
       consoleSpy.mockRestore();
     });
@@ -174,7 +191,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('test@example.com', 'wrongpassword');
-        })
+        }),
       ).rejects.toThrow('Invalid credentials');
 
       expect(result.current.user).toBeNull();
@@ -211,7 +228,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login('test@example.com', 'password');
-        })
+        }),
       ).rejects.toThrow('登录响应中缺少认证令牌');
     });
   });
@@ -313,7 +330,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register('existing@example.com', 'password', 'user');
-        })
+        }),
       ).rejects.toThrow('Email already exists');
 
       expect(result.current.user).toBeNull();
@@ -333,7 +350,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register('new@example.com', 'password', 'newuser');
-        })
+        }),
       ).rejects.toThrow('注册响应中缺少认证令牌');
     });
   });
@@ -342,9 +359,7 @@ describe('AuthContext', () => {
     it('should refresh token', async () => {
       const updatedUser = { ...mockUser, username: 'updateduser' };
       mockGetToken.mockReturnValue('valid-token');
-      mockGetCurrentUser
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(updatedUser);
+      mockGetCurrentUser.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(updatedUser);
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -388,7 +403,7 @@ describe('AuthContext', () => {
       mockGetToken.mockReturnValue('valid-token');
       // Delay the getCurrentUser to observe loading state
       mockGetCurrentUser.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockUser), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve(mockUser), 100)),
       );
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -464,7 +479,7 @@ describe('AuthContext', () => {
       render(
         <AuthProvider>
           <TestConsumer />
-        </AuthProvider>
+        </AuthProvider>,
       );
 
       await waitFor(() => {
@@ -482,7 +497,7 @@ describe('AuthContext', () => {
       render(
         <AuthProvider>
           <TestConsumer />
-        </AuthProvider>
+        </AuthProvider>,
       );
 
       await waitFor(() => {

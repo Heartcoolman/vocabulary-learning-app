@@ -12,12 +12,12 @@ const { mockExplainabilityService } = vi.hoisted(() => ({
     getDecisionExplanation: vi.fn(),
     getLearningCurve: vi.fn(),
     getDecisionTimeline: vi.fn(),
-    runCounterfactual: vi.fn()
-  }
+    runCounterfactual: vi.fn(),
+  },
 }));
 
 vi.mock('../../../src/services/explainability.service', () => ({
-  explainabilityService: mockExplainabilityService
+  explainabilityService: mockExplainabilityService,
 }));
 
 vi.mock('../../../src/middleware/auth.middleware', () => ({
@@ -36,7 +36,7 @@ vi.mock('../../../src/middleware/auth.middleware', () => ({
       req.user = { id: 'test-user-id', username: 'testuser' };
     }
     next();
-  }
+  },
 }));
 
 import app from '../../../src/app';
@@ -54,10 +54,10 @@ describe('AMAS Explain API Routes', () => {
         decisionId: 'decision-123',
         factors: [
           { name: 'attention', weight: 0.3, value: 0.8 },
-          { name: 'fatigue', weight: 0.2, value: 0.3 }
+          { name: 'fatigue', weight: 0.2, value: 0.3 },
         ],
         recommendation: 'Continue learning',
-        confidence: 0.85
+        confidence: 0.85,
       });
 
       const res = await request(app)
@@ -73,7 +73,7 @@ describe('AMAS Explain API Routes', () => {
       mockExplainabilityService.getDecisionExplanation.mockResolvedValue({
         decisionId: 'specific-id',
         factors: [],
-        confidence: 0.9
+        confidence: 0.9,
       });
 
       const res = await request(app)
@@ -83,18 +83,21 @@ describe('AMAS Explain API Routes', () => {
       expect(res.status).toBe(200);
       expect(mockExplainabilityService.getDecisionExplanation).toHaveBeenCalledWith(
         'test-user-id',
-        'specific-id'
+        'specific-id',
       );
     });
 
-    it('should return 404 when decision not found', async () => {
+    it('should return 200 with null data when decision not found', async () => {
       mockExplainabilityService.getDecisionExplanation.mockResolvedValue(null);
 
       const res = await request(app)
         .get('/api/amas/explain-decision?decisionId=nonexistent')
         .set('Authorization', 'Bearer valid-token');
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toBeNull();
+      expect(res.body.message).toBeDefined();
     });
 
     it('should return 401 without authentication', async () => {
@@ -112,9 +115,9 @@ describe('AMAS Explain API Routes', () => {
         dataPoints: [
           { date: '2024-01-01', accuracy: 0.6 },
           { date: '2024-01-02', accuracy: 0.65 },
-          { date: '2024-01-03', accuracy: 0.7 }
+          { date: '2024-01-03', accuracy: 0.7 },
         ],
-        trend: 'improving'
+        trend: 'improving',
       });
 
       const res = await request(app)
@@ -129,7 +132,7 @@ describe('AMAS Explain API Routes', () => {
     it('should accept days parameter', async () => {
       mockExplainabilityService.getLearningCurve.mockResolvedValue({
         dataPoints: [],
-        trend: 'stable'
+        trend: 'stable',
       });
 
       const res = await request(app)
@@ -137,16 +140,13 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
-      expect(mockExplainabilityService.getLearningCurve).toHaveBeenCalledWith(
-        'test-user-id',
-        60
-      );
+      expect(mockExplainabilityService.getLearningCurve).toHaveBeenCalledWith('test-user-id', 60);
     });
 
     it('should use default days value', async () => {
       mockExplainabilityService.getLearningCurve.mockResolvedValue({
         dataPoints: [],
-        trend: 'stable'
+        trend: 'stable',
       });
 
       const res = await request(app)
@@ -154,10 +154,7 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token');
 
       expect(res.status).toBe(200);
-      expect(mockExplainabilityService.getLearningCurve).toHaveBeenCalledWith(
-        'test-user-id',
-        30
-      );
+      expect(mockExplainabilityService.getLearningCurve).toHaveBeenCalledWith('test-user-id', 30);
     });
 
     it('should return 400 for days < 7', async () => {
@@ -184,9 +181,9 @@ describe('AMAS Explain API Routes', () => {
       mockExplainabilityService.getDecisionTimeline.mockResolvedValue({
         decisions: [
           { id: 'd-1', timestamp: new Date(), type: 'word_selection' },
-          { id: 'd-2', timestamp: new Date(), type: 'difficulty_adjustment' }
+          { id: 'd-2', timestamp: new Date(), type: 'difficulty_adjustment' },
         ],
-        nextCursor: 'd-3'
+        nextCursor: 'd-3',
       });
 
       const res = await request(app)
@@ -201,7 +198,7 @@ describe('AMAS Explain API Routes', () => {
     it('should accept limit parameter', async () => {
       mockExplainabilityService.getDecisionTimeline.mockResolvedValue({
         decisions: [],
-        nextCursor: null
+        nextCursor: null,
       });
 
       const res = await request(app)
@@ -212,14 +209,14 @@ describe('AMAS Explain API Routes', () => {
       expect(mockExplainabilityService.getDecisionTimeline).toHaveBeenCalledWith(
         'test-user-id',
         100,
-        undefined
+        undefined,
       );
     });
 
     it('should accept cursor parameter', async () => {
       mockExplainabilityService.getDecisionTimeline.mockResolvedValue({
         decisions: [],
-        nextCursor: null
+        nextCursor: null,
       });
 
       const res = await request(app)
@@ -230,7 +227,7 @@ describe('AMAS Explain API Routes', () => {
       expect(mockExplainabilityService.getDecisionTimeline).toHaveBeenCalledWith(
         'test-user-id',
         50,
-        'abc123'
+        'abc123',
       );
     });
 
@@ -250,7 +247,7 @@ describe('AMAS Explain API Routes', () => {
       mockExplainabilityService.runCounterfactual.mockResolvedValue({
         original: { decision: 'continue', confidence: 0.8 },
         counterfactual: { decision: 'take_break', confidence: 0.75 },
-        changes: ['Higher fatigue would suggest taking a break']
+        changes: ['Higher fatigue would suggest taking a break'],
       });
 
       const res = await request(app)
@@ -258,8 +255,8 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token')
         .send({
           overrides: {
-            fatigue: 0.9
-          }
+            fatigue: 0.9,
+          },
         });
 
       expect(res.status).toBe(200);
@@ -271,7 +268,7 @@ describe('AMAS Explain API Routes', () => {
     it('should accept decisionId in body', async () => {
       mockExplainabilityService.runCounterfactual.mockResolvedValue({
         original: { decision: 'continue' },
-        counterfactual: { decision: 'continue' }
+        counterfactual: { decision: 'continue' },
       });
 
       const res = await request(app)
@@ -279,13 +276,13 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token')
         .send({
           decisionId: 'decision-123',
-          overrides: { attention: 0.5 }
+          overrides: { attention: 0.5 },
         });
 
       expect(res.status).toBe(200);
     });
 
-    it('should return 404 when counterfactual not available', async () => {
+    it('should return 200 with null data when counterfactual not available', async () => {
       mockExplainabilityService.runCounterfactual.mockResolvedValue(null);
 
       const res = await request(app)
@@ -293,7 +290,10 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token')
         .send({});
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toBeNull();
+      expect(res.body.message).toBeDefined();
     });
 
     it('should validate override values', async () => {
@@ -302,17 +302,15 @@ describe('AMAS Explain API Routes', () => {
         .set('Authorization', 'Bearer valid-token')
         .send({
           overrides: {
-            attention: 2.0 // Invalid: should be 0-1
-          }
+            attention: 2.0, // Invalid: should be 0-1
+          },
         });
 
       expect(res.status).toBe(400);
     });
 
     it('should return 401 without authentication', async () => {
-      const res = await request(app)
-        .post('/api/amas/counterfactual')
-        .send({});
+      const res = await request(app).post('/api/amas/counterfactual').send({});
 
       expect(res.status).toBe(401);
     });

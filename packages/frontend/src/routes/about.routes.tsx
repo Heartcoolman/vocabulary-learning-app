@@ -14,9 +14,7 @@ const SystemStatusPage = lazy(() => import('../pages/about/SystemStatusPage'));
  * 懒加载包装组件
  */
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<PageLoader />}>
-    {children}
-  </Suspense>
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
 /**
@@ -25,28 +23,48 @@ const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
 const aboutChildren: AppRoute[] = [
   {
     index: true,
-    element: <LazyWrapper><AboutHomePage /></LazyWrapper>,
-    meta: { title: '关于AMAS', requireAuth: false }
+    element: (
+      <LazyWrapper>
+        <AboutHomePage />
+      </LazyWrapper>
+    ),
+    meta: { title: '关于AMAS', requireAuth: false },
   },
   {
     path: 'simulation',
-    element: <LazyWrapper><SimulationPage /></LazyWrapper>,
-    meta: { title: '算法模拟', requireAuth: false }
+    element: (
+      <LazyWrapper>
+        <SimulationPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '算法模拟', requireAuth: false },
   },
   {
     path: 'dashboard',
-    element: <LazyWrapper><DashboardPage /></LazyWrapper>,
-    meta: { title: '仪表盘', requireAuth: false }
+    element: (
+      <LazyWrapper>
+        <DashboardPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '仪表盘', requireAuth: false },
   },
   {
     path: 'stats',
-    element: <LazyWrapper><StatsPage /></LazyWrapper>,
-    meta: { title: '统计', requireAuth: false }
+    element: (
+      <LazyWrapper>
+        <StatsPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '统计', requireAuth: false },
   },
   {
     path: 'system-status',
-    element: <LazyWrapper><SystemStatusPage /></LazyWrapper>,
-    meta: { title: '系统状态', requireAuth: false }
+    element: (
+      <LazyWrapper>
+        <SystemStatusPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '系统状态', requireAuth: false },
   },
 ];
 
@@ -63,6 +81,6 @@ export const aboutRoutes: AppRoute[] = [
       </LazyWrapper>
     ),
     meta: { title: '关于', requireAuth: false },
-    children: aboutChildren
-  }
+    children: aboutChildren,
+  },
 ];

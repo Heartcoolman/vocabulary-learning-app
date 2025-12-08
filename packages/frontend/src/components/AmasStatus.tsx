@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { UserState, ColdStartPhaseInfo } from '../types/amas';
-import ApiClient from '../services/ApiClient';
+import ApiClient from '../services/client';
 import { MagnifyingGlass, Compass, CheckCircle, Question } from './Icon';
 import { amasLogger } from '../utils/logger';
 
@@ -14,8 +14,9 @@ interface AmasStatusProps {
 /**
  * AMAS状态组件 - 显示用户学习状态和冷启动阶段
  * 符合ui-design-system.md设计规范
+ * 使用 React.memo 优化：仅当 props 变化时重新渲染
  */
-export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: AmasStatusProps) {
+function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatusProps) {
   const [state, setState] = useState<UserState | null>(null);
   const [phase, setPhase] = useState<ColdStartPhaseInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,11 +78,11 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
   if (loading) {
     return (
-      <div className="p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
+      <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
         <div className="animate-pulse space-y-3">
-          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          <div className="h-2 bg-gray-200 rounded w-full"></div>
-          <div className="h-2 bg-gray-200 rounded w-full"></div>
+          <div className="h-4 w-2/3 rounded bg-gray-200"></div>
+          <div className="h-2 w-full rounded bg-gray-200"></div>
+          <div className="h-2 w-full rounded bg-gray-200"></div>
         </div>
       </div>
     );
@@ -89,10 +90,15 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
   if (error) {
     return (
-      <div className="p-4 bg-white/80 backdrop-blur-sm border border-red-200/60 rounded-xl shadow-sm">
+      <div className="rounded-xl border border-red-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
         <div className="flex items-center gap-2 text-red-600">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span className="text-sm">{error}</span>
         </div>
@@ -102,8 +108,8 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
   if (!state || !phase) {
     return (
-      <div className="p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm">
-        <div className="text-sm text-gray-500 text-center">暂无学习状态数据</div>
+      <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
+        <div className="text-center text-sm text-gray-500">暂无学习状态数据</div>
       </div>
     );
   }
@@ -129,28 +135,28 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
           color: 'text-blue-600',
           bg: 'bg-blue-50',
           icon: <MagnifyingGlass size={16} weight="duotone" className="text-blue-600" />,
-          label: '分类中'
+          label: '分类中',
         };
       case 'explore':
         return {
           color: 'text-purple-600',
           bg: 'bg-purple-50',
           icon: <Compass size={16} weight="duotone" className="text-purple-600" />,
-          label: '探索中'
+          label: '探索中',
         };
       case 'normal':
         return {
           color: 'text-green-600',
           bg: 'bg-green-50',
           icon: <CheckCircle size={16} weight="duotone" className="text-green-600" />,
-          label: '正常'
+          label: '正常',
         };
       default:
         return {
           color: 'text-gray-600',
           bg: 'bg-gray-50',
           icon: <Question size={16} weight="duotone" className="text-gray-600" />,
-          label: '未知'
+          label: '未知',
         };
     }
   };
@@ -159,18 +165,16 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
   return (
     <div
-      className="p-4 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm transition-all duration-200"
+      className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200"
       role="region"
       aria-label="学习状态监控"
     >
       {/* 标题和阶段 */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700">学习状态</h3>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${phaseStyle.bg}`}>
+        <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${phaseStyle.bg}`}>
           {phaseStyle.icon}
-          <span className={`text-xs font-medium ${phaseStyle.color}`}>
-            {phaseStyle.label}
-          </span>
+          <span className={`text-xs font-medium ${phaseStyle.color}`}>{phaseStyle.label}</span>
         </div>
       </div>
 
@@ -178,13 +182,13 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
       <div className="space-y-3">
         {/* 注意力 */}
         <div>
-          <div className="flex justify-between items-center mb-1">
+          <div className="mb-1 flex items-center justify-between">
             <span className="text-xs text-gray-600">注意力</span>
             <span className={`text-xs font-medium ${getStateColor(state.attention)}`}>
               {Math.round(state.attention * 100)}%
             </span>
           </div>
-          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full transition-all duration-500 ${getBarColor(state.attention)}`}
               style={{ width: `${state.attention * 100}%` }}
@@ -199,13 +203,13 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
         {/* 疲劳度 */}
         <div>
-          <div className="flex justify-between items-center mb-1">
+          <div className="mb-1 flex items-center justify-between">
             <span className="text-xs text-gray-600">疲劳度</span>
             <span className={`text-xs font-medium ${getStateColor(state.fatigue, true)}`}>
               {Math.round(state.fatigue * 100)}%
             </span>
           </div>
-          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full transition-all duration-500 ${getBarColor(state.fatigue, true)}`}
               style={{ width: `${state.fatigue * 100}%` }}
@@ -220,13 +224,13 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
         {/* 记忆力 */}
         <div>
-          <div className="flex justify-between items-center mb-1">
+          <div className="mb-1 flex items-center justify-between">
             <span className="text-xs text-gray-600">记忆力</span>
             <span className={`text-xs font-medium ${getStateColor(state.memory)}`}>
               {Math.round(state.memory * 100)}%
             </span>
           </div>
-          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full transition-all duration-500 ${getBarColor(state.memory)}`}
               style={{ width: `${state.memory * 100}%` }}
@@ -241,13 +245,13 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
         {/* 反应速度 */}
         <div>
-          <div className="flex justify-between items-center mb-1">
+          <div className="mb-1 flex items-center justify-between">
             <span className="text-xs text-gray-600">反应速度</span>
             <span className={`text-xs font-medium ${getStateColor(state.speed)}`}>
               {Math.round(state.speed * 100)}%
             </span>
           </div>
-          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full transition-all duration-500 ${getBarColor(state.speed)}`}
               style={{ width: `${state.speed * 100}%` }}
@@ -263,7 +267,7 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
 
       {/* 详细信息（可选） */}
       {detailed && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
               <span className="text-gray-500">动机:</span>
@@ -283,3 +287,9 @@ export default function AmasStatus({ detailed = false, refreshTrigger = 0 }: Ama
     </div>
   );
 }
+
+// AmasStatus 使用默认浅比较
+// props 仅包含简单类型: detailed (boolean) 和 refreshTrigger (number)
+const AmasStatus = memo(AmasStatusComponent);
+
+export default AmasStatus;

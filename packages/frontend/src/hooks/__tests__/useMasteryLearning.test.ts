@@ -8,21 +8,25 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 
-// Mock API client - must be defined inside factory due to hoisting
-vi.mock('../../services/ApiClient', () => ({
-  default: {
+// Mock the mastery module functions that useMasteryLearning imports
+vi.mock('../mastery', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../mastery')>();
+  return {
+    ...original,
     getMasteryStudyWords: vi.fn(),
+    createMasterySession: vi.fn(),
     processLearningEvent: vi.fn(),
-    createMasterySession: vi.fn()
-  }
-}));
+    endHabitSession: vi.fn(),
+  };
+});
 
 // Import the mocked module to get reference
-import apiClient from '../../services/ApiClient';
-const mockApiClient = apiClient as {
+import * as masteryModule from '../mastery';
+const mockMasteryModule = masteryModule as unknown as {
   getMasteryStudyWords: ReturnType<typeof vi.fn>;
-  processLearningEvent: ReturnType<typeof vi.fn>;
   createMasterySession: ReturnType<typeof vi.fn>;
+  processLearningEvent: ReturnType<typeof vi.fn>;
+  endHabitSession: ReturnType<typeof vi.fn>;
 };
 
 // Mock localStorage
@@ -30,14 +34,14 @@ const mockLocalStorage = {
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
-  clear: vi.fn()
+  clear: vi.fn(),
 };
 vi.stubGlobal('localStorage', mockLocalStorage);
 
 // Mock AuthContext
 const mockUser = { id: 'user-123', username: 'testuser' };
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser, isAuthenticated: true })
+  useAuth: () => ({ user: mockUser, isAuthenticated: true }),
 }));
 
 // Mock queue managers - must be proper class mocks
@@ -54,7 +58,7 @@ vi.mock('../../services/learning/WordQueueManager', () => {
       targetCount: 20,
       totalQuestions: 0,
       activeCount: 5,
-      pendingCount: 15
+      pendingCount: 15,
     }),
     getState: vi.fn().mockReturnValue({ words: [], currentIndex: 0 }),
     restoreState: vi.fn(),
@@ -64,7 +68,7 @@ vi.mock('../../services/learning/WordQueueManager', () => {
     peekNextWordWithReason: vi.fn().mockReturnValue({ word: null, isCompleted: false }),
     getCurrentWordIds: vi.fn().mockReturnValue([]),
     getMasteredWordIds: vi.fn().mockReturnValue([]),
-    applyAdjustments: vi.fn()
+    applyAdjustments: vi.fn(),
   }));
   return { WordQueueManager: MockWordQueueManager };
 });
@@ -75,7 +79,7 @@ vi.mock('../../services/learning/AdaptiveQueueManager', () => {
     getRecommendation: vi.fn(),
     onAnswerSubmitted: vi.fn().mockReturnValue({ should: false, reason: null }),
     getRecentPerformance: vi.fn().mockReturnValue([]),
-    resetCounter: vi.fn()
+    resetCounter: vi.fn(),
   }));
   return { AdaptiveQueueManager: MockAdaptiveQueueManager };
 });
@@ -86,7 +90,7 @@ describe('useMasteryLearning', () => {
   const mockWords = [
     { id: 'word-1', spelling: 'hello', phonetic: '/həˈloʊ/', meanings: ['你好'] },
     { id: 'word-2', spelling: 'world', phonetic: '/wɜːrld/', meanings: ['世界'] },
-    { id: 'word-3', spelling: 'test', phonetic: '/test/', meanings: ['测试'] }
+    { id: 'word-3', spelling: 'test', phonetic: '/test/', meanings: ['测试'] },
   ];
 
   beforeEach(() => {
@@ -94,24 +98,26 @@ describe('useMasteryLearning', () => {
     mockLocalStorage.getItem.mockReturnValue(null);
 
     // Mock getMasteryStudyWords - must match expected response structure
-    mockApiClient.getMasteryStudyWords.mockResolvedValue({
+    mockMasteryModule.getMasteryStudyWords.mockResolvedValue({
       words: mockWords,
       meta: {
         targetCount: 20,
         masteryThreshold: 2,
-        maxQuestions: 100
-      }
+        maxQuestions: 100,
+      },
     });
 
     // Mock createMasterySession
-    mockApiClient.createMasterySession.mockResolvedValue({
-      sessionId: 'session-123'
+    mockMasteryModule.createMasterySession.mockResolvedValue({
+      sessionId: 'session-123',
     });
 
-    mockApiClient.processLearningEvent.mockResolvedValue({
+    mockMasteryModule.processLearningEvent.mockResolvedValue({
       strategy: { interval_scale: 1.0, difficulty: 'mid' },
-      trace: { confidence: 0.8 }
+      trace: { confidence: 0.8 },
     });
+
+    mockMasteryModule.endHabitSession.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -131,7 +137,7 @@ describe('useMasteryLearning', () => {
       const { result } = renderHook(() => useMasteryLearning());
 
       await waitFor(() => {
-        expect(mockApiClient.getMasteryStudyWords).toHaveBeenCalled();
+        expect(mockMasteryModule.getMasteryStudyWords).toHaveBeenCalled();
       });
     });
 
@@ -144,9 +150,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should accept target mastery count option', async () => {
-      const { result } = renderHook(() =>
-        useMasteryLearning({ targetMasteryCount: 30 })
-      );
+      const { result } = renderHook(() => useMasteryLearning({ targetMasteryCount: 30 }));
 
       await waitFor(() => {
         expect(result.current.progress.targetCount).toBe(30);
@@ -157,9 +161,7 @@ describe('useMasteryLearning', () => {
       renderHook(() => useMasteryLearning());
 
       await waitFor(() => {
-        expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
-          expect.stringContaining('mastery')
-        );
+        expect(mockLocalStorage.getItem).toHaveBeenCalledWith(expect.stringContaining('mastery'));
       });
     });
   });
@@ -180,11 +182,11 @@ describe('useMasteryLearning', () => {
           await result.current.submitAnswer(true, 2500);
         });
 
-        expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith(
+        expect(mockMasteryModule.processLearningEvent).toHaveBeenCalledWith(
           expect.objectContaining({
             isCorrect: true,
-            responseTime: 2500  // Implementation uses responseTime, not responseTimeMs
-          })
+            responseTime: 2500, // Implementation uses responseTime, not responseTimeMs
+          }),
         );
       }
     });
@@ -202,11 +204,11 @@ describe('useMasteryLearning', () => {
           await result.current.submitAnswer(false, 5000);
         });
 
-        expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith(
+        expect(mockMasteryModule.processLearningEvent).toHaveBeenCalledWith(
           expect.objectContaining({
             isCorrect: false,
-            responseTime: 5000  // Implementation uses responseTime, not responseTimeMs
-          })
+            responseTime: 5000, // Implementation uses responseTime, not responseTimeMs
+          }),
         );
       }
     });
@@ -220,7 +222,9 @@ describe('useMasteryLearning', () => {
 
       // AMAS result starts as null, and may remain null if there's no currentWord
       // or if the mock doesn't return properly
-      expect(result.current.latestAmasResult === null || result.current.latestAmasResult !== undefined).toBe(true);
+      expect(
+        result.current.latestAmasResult === null || result.current.latestAmasResult !== undefined,
+      ).toBe(true);
     });
   });
 
@@ -290,16 +294,16 @@ describe('useMasteryLearning', () => {
         maxTotalQuestions: 100,
         queueState: {
           currentIndex: 0,
-          words: mockWords.map(w => ({
+          words: mockWords.map((w) => ({
             ...w,
             correctCount: 0,
             wrongCount: 0,
             totalAttempts: 0,
-            status: 'pending' as const
-          }))
+            status: 'pending' as const,
+          })),
         },
         timestamp: Date.now() - 1000,
-        userId: 'user-123'  // matches mockUser.id
+        userId: 'user-123', // matches mockUser.id
       };
 
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(savedSession));
@@ -321,7 +325,7 @@ describe('useMasteryLearning', () => {
         sessionId: 'expired-session',
         targetMasteryCount: 20,
         timestamp: Date.now() - 25 * 60 * 60 * 1000, // 25 hours ago
-        userId: 'user-123'
+        userId: 'user-123',
       };
 
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(expiredSession));
@@ -380,9 +384,7 @@ describe('useMasteryLearning', () => {
 
   describe('error handling', () => {
     it('should handle API error gracefully', async () => {
-      mockApiClient.getMasteryStudyWords.mockRejectedValueOnce(
-        new Error('Network error')
-      );
+      mockMasteryModule.getMasteryStudyWords.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useMasteryLearning());
 
@@ -392,9 +394,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should handle answer submission error', async () => {
-      mockApiClient.processLearningEvent.mockRejectedValueOnce(
-        new Error('Server error')
-      );
+      mockMasteryModule.processLearningEvent.mockRejectedValueOnce(new Error('Server error'));
 
       const { result } = renderHook(() => useMasteryLearning());
 

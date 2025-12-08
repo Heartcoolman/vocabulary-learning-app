@@ -19,7 +19,7 @@ describe('ToastProvider', () => {
       render(
         <ToastProvider>
           <div>App Content</div>
-        </ToastProvider>
+        </ToastProvider>,
       );
 
       expect(screen.getByText('App Content')).toBeInTheDocument();

@@ -12,8 +12,17 @@ const { mockApiClient } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/services/ApiClient', () => ({
+vi.mock('../../../services/client', () => ({
   default: mockApiClient,
+}));
+
+vi.mock('../../../utils/logger', () => ({
+  adminLogger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 import AMASDecisionsTab from '../AMASDecisionsTab';

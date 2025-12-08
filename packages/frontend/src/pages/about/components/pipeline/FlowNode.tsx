@@ -126,7 +126,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
   const StatusIcon = useMemo(() => {
     switch (state.status) {
       case 'processing':
-        return <Lightning size={12} className="text-cyan-400 animate-pulse" weight="fill" />;
+        return <Lightning size={12} className="animate-pulse text-cyan-400" weight="fill" />;
       case 'warning':
         return <Warning size={12} className="text-amber-400" weight="fill" />;
       case 'error':
@@ -144,7 +144,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
     // 感知层：8维向量条形图
     if (node.stage === 1 && node.id === 'feature_builder') {
       return (
-        <div className="flex items-end gap-[2px] h-5 w-full mt-2">
+        <div className="mt-2 flex h-5 w-full items-end gap-[2px]">
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
@@ -170,15 +170,15 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
     // 学习层：权重进度条
     if (node.stage === 3) {
       return (
-        <div className="flex items-center gap-1 mt-2 w-full">
-          <div className="h-1.5 flex-1 bg-slate-700 rounded overflow-hidden">
+        <div className="mt-2 flex w-full items-center gap-1">
+          <div className="h-1.5 flex-1 overflow-hidden rounded bg-slate-700">
             <motion.div
-              className="bg-emerald-500 h-full"
+              className="h-full bg-emerald-500"
               animate={{ width: `${state.load * 100}%` }}
               transition={g3SpringStandard}
             />
           </div>
-          <span className="text-[9px] text-slate-500 font-mono w-8 text-right">
+          <span className="w-8 text-right font-mono text-[9px] text-slate-500">
             {(state.load * 100).toFixed(0)}%
           </span>
         </div>
@@ -188,20 +188,16 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
     // 决策层护栏：盾牌指示
     if (node.type === 'guard') {
       return (
-        <div className="flex items-center justify-center mt-2">
+        <div className="mt-2 flex items-center justify-center">
           <motion.div
-            className={`w-6 h-6 rounded-full flex items-center justify-center ${
+            className={`flex h-6 w-6 items-center justify-center rounded-full ${
               state.status === 'error'
                 ? 'bg-red-500/30'
                 : state.status === 'warning'
-                ? 'bg-amber-500/30'
-                : 'bg-emerald-500/30'
+                  ? 'bg-amber-500/30'
+                  : 'bg-emerald-500/30'
             }`}
-            animate={
-              state.status === 'error'
-                ? { scale: [1, 1.2, 1] }
-                : {}
-            }
+            animate={state.status === 'error' ? { scale: [1, 1.2, 1] } : {}}
             transition={{ duration: 0.5, repeat: Infinity }}
           >
             <ShieldCheck
@@ -211,8 +207,8 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
                 state.status === 'error'
                   ? 'text-red-400'
                   : state.status === 'warning'
-                  ? 'text-amber-400'
-                  : 'text-emerald-400'
+                    ? 'text-amber-400'
+                    : 'text-emerald-400'
               }
             />
           </motion.div>
@@ -222,7 +218,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
 
     // 默认：负载指示器
     return (
-      <div className="w-full h-1 bg-slate-700 rounded-full mt-2 overflow-hidden">
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-700">
         <motion.div
           className={`h-full ${state.status === 'error' ? 'bg-red-500' : 'bg-slate-500'}`}
           animate={{ width: `${Math.max(10, state.load * 100)}%` }}
@@ -243,33 +239,22 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}
       transition={g3SpringStandard}
-      className={`
-        relative w-full min-w-[100px] max-w-[140px] p-2 lg:p-2.5 rounded-lg border backdrop-blur-sm cursor-pointer
-        transition-colors duration-200
-        ${currentStyle.border} ${currentStyle.bg} ${currentStyle.glow}
-        ${isSelected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900' : ''}
-        ${isHighlighted ? 'border-cyan-400/60' : ''}
-      `}
+      className={`relative w-full min-w-[100px] max-w-[140px] cursor-pointer rounded-lg border p-2 backdrop-blur-sm transition-colors duration-200 lg:p-2.5 ${currentStyle.border} ${currentStyle.bg} ${currentStyle.glow} ${isSelected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900' : ''} ${isHighlighted ? 'border-cyan-400/60' : ''} `}
     >
       {/* 头部：图标 + 状态 */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div
-          className="p-1 rounded"
-          style={{ backgroundColor: `${typeColor}20` }}
-        >
+      <div className="mb-1.5 flex items-center justify-between">
+        <div className="rounded p-1" style={{ backgroundColor: `${typeColor}20` }}>
           <NodeIcon size={14} style={{ color: typeColor }} />
         </div>
         {StatusIcon}
       </div>
 
       {/* 标签 */}
-      <div className="font-medium text-slate-200 text-xs leading-tight truncate">
-        {node.label}
-      </div>
+      <div className="truncate text-xs font-medium leading-tight text-slate-200">{node.label}</div>
 
       {/* 元信息 */}
       {node.meta?.outputDim && (
-        <div className="text-[9px] text-slate-500 font-mono mt-0.5 truncate">
+        <div className="mt-0.5 truncate font-mono text-[9px] text-slate-500">
           {node.meta.outputDim}
         </div>
       )}
@@ -280,7 +265,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
       {/* 处理中的发光效果 */}
       {state.status === 'processing' && (
         <motion.div
-          className="absolute -inset-0.5 rounded-lg -z-10"
+          className="absolute -inset-0.5 -z-10 rounded-lg"
           style={{ backgroundColor: `${typeColor}10` }}
           animate={{ opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}

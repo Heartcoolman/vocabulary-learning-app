@@ -154,18 +154,26 @@ class AudioService {
         // 创建音频对象并预加载
         const audio = new Audio(audioUrl);
         audio.preload = 'auto';
-        
+
         // 监听加载完成
-        audio.addEventListener('canplaythrough', () => {
-          this.addToCache(word, audio);
-          this.preloadQueue.delete(word);
-        }, { once: true });
+        audio.addEventListener(
+          'canplaythrough',
+          () => {
+            this.addToCache(word, audio);
+            this.preloadQueue.delete(word);
+          },
+          { once: true },
+        );
 
         // 监听加载错误
-        audio.addEventListener('error', () => {
-          logger.warn({ word }, '预加载音频失败');
-          this.preloadQueue.delete(word);
-        }, { once: true });
+        audio.addEventListener(
+          'error',
+          () => {
+            logger.warn({ word }, '预加载音频失败');
+            this.preloadQueue.delete(word);
+          },
+          { once: true },
+        );
 
         // 触发加载
         audio.load();
@@ -186,7 +194,7 @@ class AudioService {
     const batchSize = 3;
     for (let i = 0; i < words.length; i += batchSize) {
       const batch = words.slice(i, i + batchSize);
-      await Promise.allSettled(batch.map(word => this.preloadAudio(word)));
+      await Promise.allSettled(batch.map((word) => this.preloadAudio(word)));
     }
   }
 
@@ -230,7 +238,7 @@ class AudioService {
    * 清空缓存
    */
   clearCache(): void {
-    this.audioCache.forEach(audio => {
+    this.audioCache.forEach((audio) => {
       audio.src = ''; // 释放资源
     });
     this.audioCache.clear();

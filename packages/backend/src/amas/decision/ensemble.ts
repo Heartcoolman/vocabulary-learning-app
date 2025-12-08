@@ -21,35 +21,22 @@
  * alignment = 1 if action matched, -0.5 otherwise
  */
 
-import {
-  Action,
-  BanditModel,
-  ColdStartPhase,
-  UserState
-} from '../types';
+import { Action, BanditModel, ColdStartPhase, UserState } from '../types';
 import {
   ActionSelection,
   BaseLearner,
   BaseLearnerContext,
-  LearnerCapabilities
+  LearnerCapabilities,
 } from '../learning/base-learner';
 import { ColdStartManager, ColdStartState } from '../learning/coldstart';
 import { LinUCB, LinUCBContext } from '../learning/linucb';
 import {
   ThompsonContext,
   ThompsonSampling,
-  ThompsonSamplingState
+  ThompsonSamplingState,
 } from '../learning/thompson-sampling';
-import {
-  ACTRContext,
-  ACTRMemoryModel,
-  ACTRState
-} from '../modeling/actr-memory';
-import {
-  HeuristicContext,
-  HeuristicLearner,
-  HeuristicState
-} from '../learning/heuristic';
+import { ACTRContext, ACTRMemoryModel, ACTRState } from '../modeling/actr-memory';
+import { HeuristicContext, HeuristicLearner, HeuristicState } from '../learning/heuristic';
 import { ACTION_SPACE, getActionIndex } from '../config/action-space';
 import { amasLogger } from '../../logger';
 
@@ -140,6 +127,8 @@ interface VoteDetail {
   confidence: number;
   weight: number;
   contribution: number;
+  /** 算法执行时间（毫秒） */
+  durationMs: number;
 }
 
 // ==================== 常量 ====================
@@ -154,9 +143,9 @@ interface VoteDetail {
  */
 const INITIAL_WEIGHTS: EnsembleWeights = {
   thompson: 0.25,
-  linucb: 0.40,
+  linucb: 0.4,
   actr: 0.25,
-  heuristic: 0.10
+  heuristic: 0.1,
 };
 
 /** 权重下限（防止被完全淘汰） */
@@ -177,7 +166,7 @@ const ADAPTIVE_LR_CONFIG = {
   /** 衰减系数（控制随更新次数衰减的速度） */
   decayK: 100,
   /** 发散度加成系数 */
-  divergenceBoost: 0.5
+  divergenceBoost: 0.5,
 };
 
 // ==================== 实现 ====================
@@ -190,9 +179,12 @@ const ADAPTIVE_LR_CONFIG = {
  * - 多策略融合决策
  * - 稳健性要求高的场景
  */
-export class EnsembleLearningFramework
-  implements BaseLearner<UserState, Action, EnsembleContext, EnsembleState>
-{
+export class EnsembleLearningFramework implements BaseLearner<
+  UserState,
+  Action,
+  EnsembleContext,
+  EnsembleState
+> {
   private static readonly NAME = 'EnsembleLearningFramework';
   private static readonly VERSION = '1.0.0';
 
@@ -234,7 +226,7 @@ export class EnsembleLearningFramework
   selectAction(
     state: UserState,
     actions: Action[],
-    context: EnsembleContext
+    context: EnsembleContext,
   ): ActionSelection<Action> {
     if (!actions || actions.length === 0) {
       throw new Error('[EnsembleLearningFramework] 动作列表不能为空');
@@ -255,8 +247,8 @@ export class EnsembleLearningFramework
           ...cold.meta,
           ensemblePhase: ctx.phase,
           weights: { ...this.weights },
-          decisionSource: 'coldstart'
-        }
+          decisionSource: 'coldstart',
+        },
       };
     }
 
@@ -276,8 +268,8 @@ export class EnsembleLearningFramework
         ensemblePhase: ctx.phase,
         weights: { ...this.weights },
         decisionSource: 'ensemble',
-        memberVotes: this.lastVotes
-      }
+        memberVotes: this.lastVotes,
+      },
     };
   }
 
@@ -288,12 +280,7 @@ export class EnsembleLearningFramework
    * - 非normal阶段: 更新所有子学习器（确保成熟前已有数据）
    * - normal阶段: 更新主学习器并更新集成权重，跳过coldStart以保持稳定
    */
-  update(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: EnsembleContext
-  ): void {
+  update(state: UserState, action: Action, reward: number, context: EnsembleContext): void {
     const ctx = this.normalizeContext(context);
     const boundedReward = this.clamp(reward, -1, 1);
 
@@ -335,7 +322,7 @@ export class EnsembleLearningFramework
       heuristic: this.heuristic.getState(),
       lastVotes: this.lastVotes,
       lastConfidence: this.lastConfidence,
-      recentRewards: [...this.recentRewards]
+      recentRewards: [...this.recentRewards],
     };
   }
 
@@ -350,7 +337,10 @@ export class EnsembleLearningFramework
 
     // 版本检查
     if (state.version !== EnsembleLearningFramework.VERSION) {
-      amasLogger.debug({ from: state.version, to: EnsembleLearningFramework.VERSION }, '[EnsembleLearningFramework] 版本迁移');
+      amasLogger.debug(
+        { from: state.version, to: EnsembleLearningFramework.VERSION },
+        '[EnsembleLearningFramework] 版本迁移',
+      );
     }
 
     // 恢复权重（带校验和归一化）
@@ -419,7 +409,7 @@ export class EnsembleLearningFramework
       supportsBatchUpdate: true,
       requiresPretraining: false,
       minSamplesForReliability: this.coldStart.getCapabilities().minSamplesForReliability,
-      primaryUseCase: '冷启动过渡与多学习器集成决策'
+      primaryUseCase: '冷启动过渡与多学习器集成决策',
     };
   }
 
@@ -443,7 +433,7 @@ export class EnsembleLearningFramework
   setWeights(weights: Partial<EnsembleWeights>): void {
     this.weights = this.normalizeWeights({
       ...this.weights,
-      ...weights
+      ...weights,
     });
   }
 
@@ -477,42 +467,56 @@ export class EnsembleLearningFramework
       thompson: this.thompson.getUpdateCount(),
       linucb: this.linucb.getUpdateCount(),
       actr: this.actr.getUpdateCount(),
-      heuristic: this.heuristic.getUpdateCount()
+      heuristic: this.heuristic.getUpdateCount(),
     };
   }
 
   // ==================== 私有方法 ====================
 
   /**
-   * 收集各成员决策
+   * 决策结果及其执行时间
+   */
+  private memberDurations: Partial<Record<EnsembleMember, number>> = {};
+
+  /**
+   * 收集各成员决策（并测量执行时间）
    */
   private collectDecisions(
     state: UserState,
     actions: Action[],
-    ctx: NormalizedContext
+    ctx: NormalizedContext,
   ): Partial<Record<EnsembleMember, ActionSelection<Action>>> {
     const decisions: Partial<Record<EnsembleMember, ActionSelection<Action>>> = {};
+    this.memberDurations = {};
 
     try {
+      const start = performance.now();
       decisions.linucb = this.linucb.selectAction(state, actions, ctx.linucb);
+      this.memberDurations.linucb = performance.now() - start;
     } catch (e) {
       amasLogger.warn({ err: e }, '[EnsembleLearningFramework] LinUCB决策失败');
     }
 
     try {
+      const start = performance.now();
       decisions.thompson = this.thompson.selectAction(state, actions, ctx.thompson);
+      this.memberDurations.thompson = performance.now() - start;
     } catch (e) {
       amasLogger.warn({ err: e }, '[EnsembleLearningFramework] Thompson决策失败');
     }
 
     try {
+      const start = performance.now();
       decisions.actr = this.actr.selectAction(state, actions, ctx.actr);
+      this.memberDurations.actr = performance.now() - start;
     } catch (e) {
       amasLogger.warn({ err: e }, '[EnsembleLearningFramework] ACT-R决策失败');
     }
 
     try {
+      const start = performance.now();
       decisions.heuristic = this.heuristic.selectAction(state, actions, ctx.heuristic);
+      this.memberDurations.heuristic = performance.now() - start;
     } catch (e) {
       amasLogger.warn({ err: e }, '[EnsembleLearningFramework] Heuristic决策失败');
     }
@@ -528,15 +532,18 @@ export class EnsembleLearningFramework
    */
   private aggregateDecisions(
     decisions: Partial<Record<EnsembleMember, ActionSelection<Action>>>,
-    actions: Action[]
+    actions: Action[],
   ): AggregationDetails {
     const votes = new Map<string, VoteDetail>();
-    const actionBuckets = new Map<string, {
-      action: Action;
-      totalScore: number;
-      totalConfidence: number;
-      totalWeight: number;
-    }>();
+    const actionBuckets = new Map<
+      string,
+      {
+        action: Action;
+        totalScore: number;
+        totalConfidence: number;
+        totalWeight: number;
+      }
+    >();
 
     // 计算实际参与成员的总权重（用于归一化）
     const members: EnsembleMember[] = ['linucb', 'thompson', 'actr', 'heuristic'];
@@ -571,7 +578,8 @@ export class EnsembleLearningFramework
         scaledScore,
         confidence,
         weight: normalizedWeight,
-        contribution
+        contribution,
+        durationMs: this.memberDurations[member as EnsembleMember] ?? 0,
       });
 
       // 累加到动作桶
@@ -579,7 +587,7 @@ export class EnsembleLearningFramework
         action: decision.action,
         totalScore: 0,
         totalConfidence: 0,
-        totalWeight: 0
+        totalWeight: 0,
       };
       bucket.totalScore += contribution;
       bucket.totalConfidence += normalizedWeight * confidence;
@@ -597,25 +605,21 @@ export class EnsembleLearningFramework
         maxScore = bucket.totalScore;
         winner = bucket.action;
         // 置信度已基于归一化权重计算，直接使用
-        winnerConfidence = bucket.totalWeight > 0
-          ? bucket.totalConfidence / bucket.totalWeight
-          : 0;
+        winnerConfidence = bucket.totalWeight > 0 ? bucket.totalConfidence / bucket.totalWeight : 0;
       }
     }
 
     // 回退保护
     if (actionBuckets.size === 0) {
-      const fallback = decisions.linucb ??
-        decisions.thompson ??
-        decisions.actr ??
-        decisions.heuristic;
+      const fallback =
+        decisions.linucb ?? decisions.thompson ?? decisions.actr ?? decisions.heuristic;
 
       if (fallback) {
         return {
           votes,
           winner: fallback.action,
           weightedScore: fallback.score,
-          aggregatedConfidence: fallback.confidence ?? 0
+          aggregatedConfidence: fallback.confidence ?? 0,
         };
       }
     }
@@ -624,7 +628,7 @@ export class EnsembleLearningFramework
       votes,
       winner,
       weightedScore: maxScore,
-      aggregatedConfidence: this.clamp(winnerConfidence, 0, 1)
+      aggregatedConfidence: this.clamp(winnerConfidence, 0, 1),
     };
   }
 
@@ -645,7 +649,8 @@ export class EnsembleLearningFramework
     let divergence = 0;
     if (this.recentRewards.length >= 2) {
       const mean = this.recentRewards.reduce((a, b) => a + b, 0) / this.recentRewards.length;
-      const variance = this.recentRewards.reduce((sum, r) => sum + (r - mean) ** 2, 0) / this.recentRewards.length;
+      const variance =
+        this.recentRewards.reduce((sum, r) => sum + (r - mean) ** 2, 0) / this.recentRewards.length;
       divergence = Math.sqrt(variance);
     }
 
@@ -751,45 +756,29 @@ export class EnsembleLearningFramework
     const base: BaseLearnerContext = {
       recentErrorRate: baseError,
       recentResponseTime: baseResponse,
-      timeBucket: baseTime
+      timeBucket: baseTime,
     };
 
     // LinUCB上下文
     const linucb: LinUCBContext = {
-      recentErrorRate: this.clamp(
-        context?.linucb?.recentErrorRate ?? baseError,
-        0,
-        1
-      ),
+      recentErrorRate: this.clamp(context?.linucb?.recentErrorRate ?? baseError, 0, 1),
       recentResponseTime: this.clamp(
         context?.linucb?.recentResponseTime ?? baseResponse,
         50,
-        60000
+        60000,
       ),
-      timeBucket: Math.round(this.clamp(
-        context?.linucb?.timeBucket ?? baseTime,
-        0,
-        23
-      ))
+      timeBucket: Math.round(this.clamp(context?.linucb?.timeBucket ?? baseTime, 0, 23)),
     };
 
     // Thompson上下文
     const thompson: ThompsonContext = {
-      recentErrorRate: this.clamp(
-        context?.thompson?.recentErrorRate ?? baseError,
-        0,
-        1
-      ),
+      recentErrorRate: this.clamp(context?.thompson?.recentErrorRate ?? baseError, 0, 1),
       recentResponseTime: this.clamp(
         context?.thompson?.recentResponseTime ?? baseResponse,
         50,
-        60000
+        60000,
       ),
-      timeBucket: Math.round(this.clamp(
-        context?.thompson?.timeBucket ?? baseTime,
-        0,
-        23
-      ))
+      timeBucket: Math.round(this.clamp(context?.thompson?.timeBucket ?? baseTime, 0, 23)),
     };
 
     // ACT-R上下文
@@ -797,7 +786,7 @@ export class EnsembleLearningFramework
       recentErrorRate: baseError,
       recentResponseTime: baseResponse,
       timeBucket: baseTime,
-      trace: context?.actr?.trace ?? []
+      trace: context?.actr?.trace ?? [],
     };
 
     // Heuristic上下文
@@ -806,7 +795,7 @@ export class EnsembleLearningFramework
       recentResponseTime: baseResponse,
       timeBucket: baseTime,
       fatigueBias: context?.heuristic?.fatigueBias,
-      motivationBias: context?.heuristic?.motivationBias
+      motivationBias: context?.heuristic?.motivationBias,
     };
 
     return { phase, base, linucb, thompson, actr, heuristic };
@@ -820,7 +809,7 @@ export class EnsembleLearningFramework
       thompson: Math.max(MIN_WEIGHT, weights.thompson ?? INITIAL_WEIGHTS.thompson),
       linucb: Math.max(MIN_WEIGHT, weights.linucb ?? INITIAL_WEIGHTS.linucb),
       actr: Math.max(MIN_WEIGHT, weights.actr ?? INITIAL_WEIGHTS.actr),
-      heuristic: Math.max(MIN_WEIGHT, weights.heuristic ?? INITIAL_WEIGHTS.heuristic)
+      heuristic: Math.max(MIN_WEIGHT, weights.heuristic ?? INITIAL_WEIGHTS.heuristic),
     };
 
     const total = merged.thompson + merged.linucb + merged.actr + merged.heuristic;
@@ -834,7 +823,7 @@ export class EnsembleLearningFramework
       thompson: merged.thompson / total,
       linucb: merged.linucb / total,
       actr: merged.actr / total,
-      heuristic: merged.heuristic / total
+      heuristic: merged.heuristic / total,
     };
 
     // 如果归一化后有权重低于 MIN_WEIGHT，需要重新调整
@@ -861,7 +850,7 @@ export class EnsembleLearningFramework
           thompson: normalized.thompson < MIN_WEIGHT ? MIN_WEIGHT : normalized.thompson * scale,
           linucb: normalized.linucb < MIN_WEIGHT ? MIN_WEIGHT : normalized.linucb * scale,
           actr: normalized.actr < MIN_WEIGHT ? MIN_WEIGHT : normalized.actr * scale,
-          heuristic: normalized.heuristic < MIN_WEIGHT ? MIN_WEIGHT : normalized.heuristic * scale
+          heuristic: normalized.heuristic < MIN_WEIGHT ? MIN_WEIGHT : normalized.heuristic * scale,
         };
       }
     }
@@ -882,7 +871,7 @@ export class EnsembleLearningFramework
       action.new_ratio,
       action.difficulty,
       action.batch_size,
-      action.hint_level
+      action.hint_level,
     ].join('|');
   }
 
@@ -903,14 +892,21 @@ export class EnsembleLearningFramework
    * 序列化投票信息（用于meta输出）
    */
   private serializeVotes(
-    votes: Map<string, VoteDetail>
-  ): Record<string, { action: string; contribution: number; confidence: number }> {
-    const result: Record<string, { action: string; contribution: number; confidence: number }> = {};
+    votes: Map<string, VoteDetail>,
+  ): Record<
+    string,
+    { action: string; contribution: number; confidence: number; durationMs: number }
+  > {
+    const result: Record<
+      string,
+      { action: string; contribution: number; confidence: number; durationMs: number }
+    > = {};
     for (const [member, detail] of votes.entries()) {
       result[member] = {
         action: this.getActionKey(detail.action),
         contribution: Math.round(detail.contribution * 1000) / 1000,
-        confidence: Math.round(detail.confidence * 100) / 100
+        confidence: Math.round(detail.confidence * 100) / 100,
+        durationMs: Math.round(detail.durationMs * 100) / 100,
       };
     }
     return result;
@@ -927,7 +923,7 @@ export class EnsembleLearningFramework
       A: new Float32Array(model.A),
       b: new Float32Array(model.b),
       L: new Float32Array(model.L),
-      updateCount: model.updateCount
+      updateCount: model.updateCount,
     };
   }
 

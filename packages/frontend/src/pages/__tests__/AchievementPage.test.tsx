@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import AchievementPage from '../AchievementPage';
 
@@ -13,7 +14,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock API Client
+// Mock badges 数据
 const mockBadges = [
   {
     id: 'badge-1',
@@ -22,6 +23,7 @@ const mockBadges = [
     category: 'STREAK',
     tier: 1,
     unlockedAt: '2024-01-15T10:00:00.000Z',
+    unlocked: true,
     progress: 100,
   },
   {
@@ -31,6 +33,7 @@ const mockBadges = [
     category: 'ACCURACY',
     tier: 2,
     unlockedAt: null,
+    unlocked: false,
     progress: 75,
   },
   {
@@ -40,16 +43,20 @@ const mockBadges = [
     category: 'COGNITIVE',
     tier: 3,
     unlockedAt: '2024-01-20T10:00:00.000Z',
+    unlocked: true,
     progress: 100,
   },
 ];
 
-vi.mock('../../services/ApiClient', () => ({
-  default: {
-    getAllBadgesWithStatus: vi.fn(),
-    checkAndAwardBadges: vi.fn(),
-    getBadgeProgress: vi.fn(),
-  },
+// Mock useAchievements hook
+const mockUseAchievements = vi.fn();
+const mockCheckNewBadgesMutation = vi.fn();
+const mockUseAchievementProgress = vi.fn();
+
+vi.mock('../../hooks/queries/useAchievements', () => ({
+  useAchievements: () => mockUseAchievements(),
+  useCheckNewBadges: () => mockCheckNewBadgesMutation(),
+  useAchievementProgress: () => mockUseAchievementProgress(),
 }));
 
 // Mock logger
@@ -77,25 +84,56 @@ vi.mock('../../components/BadgeCelebration', () => ({
     ) : null,
 }));
 
-import ApiClient from '../../services/ApiClient';
+// 创建测试用的 QueryClient
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+}
 
 describe('AchievementPage', () => {
+  let mockMutateAsync: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    (ApiClient.getAllBadgesWithStatus as any).mockResolvedValue({
-      badges: mockBadges,
-      totalCount: 3,
-      unlockedCount: 2,
-    });
-    (ApiClient.checkAndAwardBadges as any).mockResolvedValue({
+
+    mockMutateAsync = vi.fn().mockResolvedValue({
       hasNewBadges: false,
       newBadges: [],
     });
-    (ApiClient.getBadgeProgress as any).mockResolvedValue({
-      badgeId: 'badge-2',
-      currentValue: 75,
-      targetValue: 100,
-      percentage: 75,
+
+    // 默认返回成功状态
+    mockUseAchievements.mockReturnValue({
+      data: {
+        badges: mockBadges,
+        totalCount: 3,
+        unlockedCount: 2,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    mockCheckNewBadgesMutation.mockReturnValue({
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    });
+
+    mockUseAchievementProgress.mockReturnValue({
+      data: {
+        badgeId: 'badge-2',
+        currentValue: 75,
+        targetValue: 100,
+        percentage: 75,
+      },
     });
   });
 
@@ -104,10 +142,13 @@ describe('AchievementPage', () => {
   });
 
   const renderComponent = () => {
+    const queryClient = createTestQueryClient();
     return render(
-      <MemoryRouter>
-        <AchievementPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AchievementPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
   };
 
@@ -153,6 +194,13 @@ describe('AchievementPage', () => {
     });
 
     it('should show loading state initially', () => {
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
+
       renderComponent();
       expect(screen.getByText('正在加载成就...')).toBeInTheDocument();
     });
@@ -267,7 +315,7 @@ describe('AchievementPage', () => {
       fireEvent.click(screen.getByText('检查新徽章'));
 
       await waitFor(() => {
-        expect(ApiClient.checkAndAwardBadges).toHaveBeenCalled();
+        expect(mockMutateAsync).toHaveBeenCalled();
       });
     });
 
@@ -283,7 +331,7 @@ describe('AchievementPage', () => {
         message: '恭喜！',
       };
 
-      (ApiClient.checkAndAwardBadges as any).mockResolvedValue({
+      mockMutateAsync.mockResolvedValue({
         hasNewBadges: true,
         newBadges: [newBadge],
       });
@@ -317,10 +365,15 @@ describe('AchievementPage', () => {
     });
 
     it('should navigate to learning when no badges', async () => {
-      (ApiClient.getAllBadgesWithStatus as any).mockResolvedValue({
-        badges: [],
-        totalCount: 0,
-        unlockedCount: 0,
+      mockUseAchievements.mockReturnValue({
+        data: {
+          badges: [],
+          totalCount: 0,
+          unlockedCount: 0,
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
       });
 
       renderComponent();
@@ -338,7 +391,12 @@ describe('AchievementPage', () => {
 
   describe('Error Handling', () => {
     it('should show error message when loading fails', async () => {
-      (ApiClient.getAllBadgesWithStatus as any).mockRejectedValue(new Error('加载失败'));
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('加载失败'),
+        refetch: vi.fn(),
+      });
 
       renderComponent();
 
@@ -350,13 +408,14 @@ describe('AchievementPage', () => {
     });
 
     it('should retry loading when clicking retry button', async () => {
-      (ApiClient.getAllBadgesWithStatus as any)
-        .mockRejectedValueOnce(new Error('加载失败'))
-        .mockResolvedValueOnce({
-          badges: mockBadges,
-          totalCount: 3,
-          unlockedCount: 2,
-        });
+      const mockRefetch = vi.fn();
+
+      mockUseAchievements.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('加载失败'),
+        refetch: mockRefetch,
+      });
 
       renderComponent();
 
@@ -366,9 +425,7 @@ describe('AchievementPage', () => {
 
       fireEvent.click(screen.getByText('重试'));
 
-      await waitFor(() => {
-        expect(screen.getByText('连续学习7天')).toBeInTheDocument();
-      });
+      expect(mockRefetch).toHaveBeenCalled();
     });
   });
 

@@ -93,9 +93,7 @@ describe('StatusModal', () => {
     it('should have footer close button', () => {
       render(<StatusModal isOpen={true} onClose={mockOnClose} />);
       // The footer button has text "关闭", the header button has aria-label "关闭"
-      const footerButton = screen.getAllByRole('button').find(
-        (btn) => btn.textContent === '关闭'
-      );
+      const footerButton = screen.getAllByRole('button').find((btn) => btn.textContent === '关闭');
       expect(footerButton).toBeInTheDocument();
     });
   });
@@ -107,9 +105,7 @@ describe('StatusModal', () => {
       render(<StatusModal isOpen={true} onClose={mockOnClose} />);
 
       // Get the footer button (the one with text "关闭", not aria-label)
-      const footerButton = screen.getAllByRole('button').find(
-        (btn) => btn.textContent === '关闭'
-      );
+      const footerButton = screen.getAllByRole('button').find((btn) => btn.textContent === '关闭');
       if (footerButton) {
         fireEvent.click(footerButton);
       }

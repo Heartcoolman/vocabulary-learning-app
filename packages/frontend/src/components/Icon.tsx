@@ -1,6 +1,6 @@
 /**
  * Icon 组件 - 按需导入图标，优化性能
- * 
+ *
  * 只导入项目中实际使用的图标，避免打包整个图标库
  */
 
@@ -119,7 +119,11 @@ export {
 } from '@phosphor-icons/react';
 
 // 图标别名
-export { SlidersHorizontal as Sliders, User as UserFocus, Pulse as Activity } from '@phosphor-icons/react';
+export {
+  SlidersHorizontal as Sliders,
+  User as UserFocus,
+  Pulse as Activity,
+} from '@phosphor-icons/react';
 
 // 系统状态页面额外图标
 export { UsersThree as Users, Gauge, ToggleLeft, ToggleRight } from '@phosphor-icons/react';

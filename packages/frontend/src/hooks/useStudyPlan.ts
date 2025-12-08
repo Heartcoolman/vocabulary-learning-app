@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import apiClient from '../services/ApiClient';
-import { Word } from '../types/models';
+
+import { wordBookClient } from '../services/client';
 import { learningLogger } from '../utils/logger';
+
+import type { Word } from '../types/models';
 
 export interface StudyPlan {
   words: Word[];
@@ -19,7 +21,7 @@ export const useStudyPlan = () => {
   const fetchPlan = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getTodayWords();
+      const response = await wordBookClient.getTodayWords();
 
       setPlan({
         words: response.words,

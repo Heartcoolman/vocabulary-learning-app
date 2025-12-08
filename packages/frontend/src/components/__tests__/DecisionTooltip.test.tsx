@@ -10,10 +10,12 @@ import { DecisionTooltip } from '../DecisionTooltip';
 vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, onClick, ...props }: any) => (
-      <div onClick={onClick} {...props}>{children}</div>
-    )
+      <div onClick={onClick} {...props}>
+        {children}
+      </div>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>
+  AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
 // Mock phosphor-icons
@@ -21,7 +23,7 @@ vi.mock('@phosphor-icons/react', () => ({
   Info: () => <span data-testid="info-icon">ℹ️</span>,
   TrendUp: () => <span data-testid="trend-up">📈</span>,
   TrendDown: () => <span data-testid="trend-down">📉</span>,
-  Minus: () => <span data-testid="minus">➖</span>
+  Minus: () => <span data-testid="minus">➖</span>,
 }));
 
 const mockExplanation = {
@@ -31,26 +33,26 @@ const mockExplanation = {
       factor: '记忆强度',
       percentage: 40,
       impact: 'positive' as const,
-      description: '您对这个单词的记忆较强'
+      description: '您对这个单词的记忆较强',
     },
     {
       factor: '错误率',
       percentage: 30,
       impact: 'negative' as const,
-      description: '最近几次回答有误'
+      description: '最近几次回答有误',
     },
     {
       factor: '时间间隔',
       percentage: 30,
       impact: 'neutral' as const,
-      description: '距上次复习时间适中'
-    }
+      description: '距上次复习时间适中',
+    },
   ],
   algorithmInfo: {
     algorithm: 'ensemble',
     confidence: 0.85,
-    phase: 'normal'
-  }
+    phase: 'normal',
+  },
 };
 
 describe('DecisionTooltip', () => {
@@ -186,7 +188,7 @@ describe('DecisionTooltip', () => {
     it('should apply yellow color for medium confidence', () => {
       const mediumConfidence = {
         ...mockExplanation,
-        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.5 }
+        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.5 },
       };
       render(<DecisionTooltip explanation={mediumConfidence} />);
 
@@ -199,7 +201,7 @@ describe('DecisionTooltip', () => {
     it('should apply red color for low confidence', () => {
       const lowConfidence = {
         ...mockExplanation,
-        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.25 }
+        algorithmInfo: { ...mockExplanation.algorithmInfo, confidence: 0.25 },
       };
       render(<DecisionTooltip explanation={lowConfidence} />);
 
@@ -216,7 +218,7 @@ describe('DecisionTooltip', () => {
     it('should handle empty factor contributions', () => {
       const noFactors = {
         ...mockExplanation,
-        factorContributions: []
+        factorContributions: [],
       };
       render(<DecisionTooltip explanation={noFactors} />);
 
@@ -228,7 +230,7 @@ describe('DecisionTooltip', () => {
     it('should handle missing phase', () => {
       const noPhase = {
         ...mockExplanation,
-        algorithmInfo: { algorithm: 'linucb', confidence: 0.8 }
+        algorithmInfo: { algorithm: 'linucb', confidence: 0.8 },
       };
       render(<DecisionTooltip explanation={noPhase} />);
 

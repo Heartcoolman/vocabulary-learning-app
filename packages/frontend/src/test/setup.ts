@@ -46,7 +46,10 @@ const mockAuthContext = {
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockAuthContext,
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  AuthContext: { Provider: ({ children }: any) => children, Consumer: ({ children }: any) => children(mockAuthContext) },
+  AuthContext: {
+    Provider: ({ children }: any) => children,
+    Consumer: ({ children }: any) => children(mockAuthContext),
+  },
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -61,10 +64,22 @@ const createMotionComponent = (tag: string) => {
   return ({ children, ...props }: any) => {
     // Filter out framer-motion specific props
     const {
-      initial, animate, exit, transition, variants,
-      whileHover, whileTap, whileFocus, whileInView,
-      layout, layoutId, drag, dragConstraints, onDrag,
-      style, ...rest
+      initial,
+      animate,
+      exit,
+      transition,
+      variants,
+      whileHover,
+      whileTap,
+      whileFocus,
+      whileInView,
+      layout,
+      layoutId,
+      drag,
+      dragConstraints,
+      onDrag,
+      style,
+      ...rest
     } = props;
     return createElement(tag, { ...rest, style }, children);
   };
@@ -99,7 +114,8 @@ vi.mock('framer-motion', () => ({
     tbody: createMotionComponent('tbody'),
     thead: createMotionComponent('thead'),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => createElement(Fragment, null, children),
+  AnimatePresence: ({ children }: { children: React.ReactNode }) =>
+    createElement(Fragment, null, children),
   useAnimation: () => ({
     start: vi.fn(),
     stop: vi.fn(),
@@ -125,59 +141,799 @@ vi.mock('framer-motion', () => ({
   }),
 }));
 
+// ==================== Global Modular API Client Mock ====================
+
+// Mock for new modular client system (/services/client/)
+// These mocks provide sensible defaults to prevent test failures
+
+vi.mock('../services/client', () => {
+  const mockRequest = vi.fn(() => Promise.resolve({}));
+  const mockRequestFull = vi.fn(() => Promise.resolve({ success: true, data: {} }));
+
+  // Base mock class
+  class MockBaseClient {
+    protected baseUrl = 'http://localhost:3000';
+    protected onUnauthorizedCallback: (() => void) | null = null;
+    protected defaultTimeout = 30000;
+
+    setOnUnauthorized = vi.fn();
+    protected request = mockRequest;
+    protected requestFull = mockRequestFull;
+  }
+
+  // ApiError class mock
+  class MockApiError extends Error {
+    statusCode: number;
+    code: string;
+    isNotFound: boolean;
+
+    constructor(message: string, statusCode: number, code?: string) {
+      super(message);
+      this.name = 'ApiError';
+      this.statusCode = statusCode;
+      this.code = code || 'UNKNOWN_ERROR';
+      this.isNotFound = statusCode === 404;
+    }
+  }
+
+  // TokenManager mock
+  const MockTokenManager = {
+    getInstance: vi.fn(() => ({
+      getToken: vi.fn(() => 'mock-token'),
+      setToken: vi.fn(),
+      clearToken: vi.fn(),
+      isTokenExpired: vi.fn(() => false),
+    })),
+  };
+
+  // Auth Client mock
+  const mockAuthClient = {
+    setOnUnauthorized: vi.fn(),
+    login: vi.fn(() =>
+      Promise.resolve({
+        user: { id: 'test-user', email: 'test@example.com', username: 'testuser', role: 'USER' },
+        token: 'mock-token',
+      }),
+    ),
+    register: vi.fn(() =>
+      Promise.resolve({
+        user: { id: 'test-user', email: 'test@example.com', username: 'testuser', role: 'USER' },
+        token: 'mock-token',
+      }),
+    ),
+    logout: vi.fn(() => Promise.resolve()),
+    getCurrentUser: vi.fn(() =>
+      Promise.resolve({
+        id: 'test-user',
+        email: 'test@example.com',
+        username: 'testuser',
+        role: 'USER',
+      }),
+    ),
+    updatePassword: vi.fn(() => Promise.resolve()),
+    refreshToken: vi.fn(() => Promise.resolve({ token: 'new-mock-token' })),
+  };
+
+  // Word Client mock
+  const mockWordClient = {
+    setOnUnauthorized: vi.fn(),
+    getWords: vi.fn(() => Promise.resolve([])),
+    getLearnedWords: vi.fn(() => Promise.resolve([])),
+    createWord: vi.fn(() =>
+      Promise.resolve({
+        id: 'word-1',
+        spelling: 'test',
+        phonetic: '/test/',
+        meanings: ['测试'],
+        examples: [],
+      }),
+    ),
+    updateWord: vi.fn(() =>
+      Promise.resolve({
+        id: 'word-1',
+        spelling: 'test',
+        phonetic: '/test/',
+        meanings: ['测试'],
+        examples: [],
+      }),
+    ),
+    deleteWord: vi.fn(() => Promise.resolve()),
+    searchWords: vi.fn(() => Promise.resolve([])),
+    batchCreateWords: vi.fn(() => Promise.resolve([])),
+  };
+
+  // WordBook Client mock
+  const mockWordBookClient = {
+    setOnUnauthorized: vi.fn(),
+    getUserWordBooks: vi.fn(() => Promise.resolve([])),
+    getSystemWordBooks: vi.fn(() => Promise.resolve([])),
+    getAllAvailableWordBooks: vi.fn(() => Promise.resolve([])),
+    getWordBookById: vi.fn(() =>
+      Promise.resolve({ id: 'wb-1', name: 'Test WordBook', wordCount: 0 }),
+    ),
+    createWordBook: vi.fn(() =>
+      Promise.resolve({ id: 'wb-1', name: 'Test WordBook', wordCount: 0 }),
+    ),
+    updateWordBook: vi.fn(() =>
+      Promise.resolve({ id: 'wb-1', name: 'Test WordBook', wordCount: 0 }),
+    ),
+    deleteWordBook: vi.fn(() => Promise.resolve()),
+    getWordBookWords: vi.fn(() => Promise.resolve([])),
+    addWordToWordBook: vi.fn(() => Promise.resolve({ id: 'word-1', spelling: 'test' })),
+    removeWordFromWordBook: vi.fn(() => Promise.resolve()),
+    getStudyConfig: vi.fn(() =>
+      Promise.resolve({ id: 'config-1', selectedWordBookIds: [], dailyWordCount: 20 }),
+    ),
+    updateStudyConfig: vi.fn(() =>
+      Promise.resolve({ id: 'config-1', selectedWordBookIds: [], dailyWordCount: 20 }),
+    ),
+    getTodayWords: vi.fn(() =>
+      Promise.resolve({
+        words: [],
+        progress: {
+          todayStudied: 0,
+          todayTarget: 20,
+          totalStudied: 0,
+          correctRate: 0,
+          weeklyTrend: [],
+        },
+      }),
+    ),
+    getStudyProgress: vi.fn(() =>
+      Promise.resolve({
+        todayStudied: 0,
+        todayTarget: 20,
+        totalStudied: 0,
+        correctRate: 0,
+        weeklyTrend: [],
+      }),
+    ),
+  };
+
+  // Learning Client mock
+  const mockLearningClient = {
+    setOnUnauthorized: vi.fn(),
+    getRecords: vi.fn(() =>
+      Promise.resolve({
+        records: [],
+        pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      }),
+    ),
+    createRecord: vi.fn(() => Promise.resolve({ id: 'record-1' })),
+    batchCreateRecords: vi.fn(() => Promise.resolve([])),
+    getUserStatistics: vi.fn(() =>
+      Promise.resolve({ totalWords: 0, totalRecords: 0, correctRate: 0 }),
+    ),
+    getWordLearningState: vi.fn(() => Promise.resolve(null)),
+    getWordLearningStates: vi.fn(() => Promise.resolve([])),
+    saveWordLearningState: vi.fn(() => Promise.resolve()),
+    deleteWordLearningState: vi.fn(() => Promise.resolve()),
+    getDueWords: vi.fn(() => Promise.resolve([])),
+    getWordsByState: vi.fn(() => Promise.resolve([])),
+    getWordScore: vi.fn(() => Promise.resolve(null)),
+    getWordScores: vi.fn(() => Promise.resolve([])),
+    saveWordScore: vi.fn(() => Promise.resolve()),
+    getWordsByScoreRange: vi.fn(() => Promise.resolve([])),
+    getMasteryStudyWords: vi.fn(() =>
+      Promise.resolve({
+        words: [],
+        meta: {
+          mode: 'mastery',
+          targetCount: 20,
+          fetchCount: 0,
+          masteryThreshold: 0.8,
+          maxQuestions: 100,
+        },
+      }),
+    ),
+    getNextWords: vi.fn(() =>
+      Promise.resolve({
+        words: [],
+        strategy: {
+          new_ratio: 0.3,
+          difficulty: 'mid',
+          batch_size: 10,
+          session_length: 20,
+          review_ratio: 0.3,
+        },
+        reason: 'default',
+      }),
+    ),
+    createMasterySession: vi.fn(() => Promise.resolve({ sessionId: 'session-1' })),
+    syncMasteryProgress: vi.fn(() => Promise.resolve()),
+    adjustLearningWords: vi.fn(() => Promise.resolve({ words: [], adjustments: [], reason: '' })),
+  };
+
+  // AMAS Client mock
+  const mockAmasClient = {
+    setOnUnauthorized: vi.fn(),
+    processLearningEvent: vi.fn(() => Promise.resolve({ strategy: {}, userState: {}, reward: 0 })),
+    getAmasState: vi.fn(() => Promise.resolve(null)),
+    getAmasStrategy: vi.fn(() => Promise.resolve(null)),
+    resetAmasState: vi.fn(() => Promise.resolve()),
+    getAmasColdStartPhase: vi.fn(() => Promise.resolve({ phase: 'exploration', progress: 0 })),
+    batchProcessEvents: vi.fn(() => Promise.resolve({ processed: 0, errors: [] })),
+    getTimePreferences: vi.fn(() => Promise.resolve({ preferences: [], peakHours: [] })),
+    getGoldenTime: vi.fn(() => Promise.resolve({ isGoldenTime: false, message: '' })),
+    getCurrentTrend: vi.fn(() => Promise.resolve({ trend: 'stable', stateDescription: '' })),
+    getTrendHistory: vi.fn(() => Promise.resolve({ daily: [], weekly: [], totalDays: 0 })),
+    getTrendReport: vi.fn(() => Promise.resolve({ summary: '', recommendations: [] })),
+    getIntervention: vi.fn(() => Promise.resolve({ needsIntervention: false, suggestions: [] })),
+    getStateHistory: vi.fn(() =>
+      Promise.resolve({
+        history: [],
+        summary: { recordCount: 0, averages: {} },
+        range: 30,
+        totalRecords: 0,
+      }),
+    ),
+    getCognitiveGrowth: vi.fn(() =>
+      Promise.resolve({ current: {}, past: {}, changes: {}, period: 30, periodLabel: '30 days' }),
+    ),
+    getSignificantChanges: vi.fn(() =>
+      Promise.resolve({ changes: [], range: 30, hasSignificantChanges: false, summary: '' }),
+    ),
+  };
+
+  // Admin Client mock
+  const mockAdminClient = {
+    setOnUnauthorized: vi.fn(),
+    adminGetUsers: vi.fn(() =>
+      Promise.resolve({
+        users: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        pagination: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+      }),
+    ),
+    adminGetUserById: vi.fn(() =>
+      Promise.resolve({
+        id: 'user-1',
+        email: 'test@example.com',
+        username: 'testuser',
+        role: 'USER',
+      }),
+    ),
+    adminGetUserLearningData: vi.fn(() =>
+      Promise.resolve({
+        user: {},
+        totalRecords: 0,
+        correctRecords: 0,
+        averageAccuracy: 0,
+        totalWordsLearned: 0,
+        recentRecords: [],
+      }),
+    ),
+    adminGetUserStatistics: vi.fn(() =>
+      Promise.resolve({
+        user: {},
+        masteryDistribution: {},
+        studyDays: 0,
+        consecutiveDays: 0,
+        totalStudyTime: 0,
+        totalWordsLearned: 0,
+        averageScore: 0,
+        accuracy: 0,
+      }),
+    ),
+    adminGetUserWords: vi.fn(() =>
+      Promise.resolve({
+        words: [],
+        pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      }),
+    ),
+    adminExportUserWords: vi.fn(() => Promise.resolve()),
+    adminUpdateUserRole: vi.fn(() => Promise.resolve({ id: 'user-1', role: 'USER' })),
+    adminDeleteUser: vi.fn(() => Promise.resolve()),
+    adminGetSystemWordBooks: vi.fn(() => Promise.resolve([])),
+    adminCreateSystemWordBook: vi.fn(() =>
+      Promise.resolve({ id: 'wb-1', name: 'System WordBook' }),
+    ),
+    adminUpdateSystemWordBook: vi.fn(() =>
+      Promise.resolve({ id: 'wb-1', name: 'System WordBook' }),
+    ),
+    adminDeleteSystemWordBook: vi.fn(() => Promise.resolve()),
+    adminBatchAddWordsToSystemWordBook: vi.fn(() => Promise.resolve([])),
+    adminGetStatistics: vi.fn(() =>
+      Promise.resolve({
+        totalUsers: 0,
+        totalWords: 0,
+        totalRecords: 0,
+        totalWordBooks: 0,
+        activeUsers: 0,
+        systemWordBooks: 0,
+        userWordBooks: 0,
+      }),
+    ),
+    adminGetWordLearningHistory: vi.fn(() =>
+      Promise.resolve({ word: {}, wordState: null, wordScore: null, records: [] }),
+    ),
+    adminGetWordScoreHistory: vi.fn(() => Promise.resolve({ currentScore: 0, scoreHistory: [] })),
+    adminGetUserLearningHeatmap: vi.fn(() => Promise.resolve([])),
+    adminFlagAnomalyRecord: vi.fn(() => Promise.resolve({ id: 'flag-1' })),
+    adminGetAnomalyFlags: vi.fn(() => Promise.resolve([])),
+    getAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1', name: 'default' })),
+    updateAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1', name: 'default' })),
+    resetAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1', name: 'default' })),
+    getConfigHistory: vi.fn(() => Promise.resolve([])),
+  };
+
+  // LLM Advisor Client mock
+  const mockLlmAdvisorClient = {
+    setOnUnauthorized: vi.fn(),
+    getLLMAdvisorConfig: vi.fn(() =>
+      Promise.resolve({ config: { enabled: false }, worker: { enabled: false } }),
+    ),
+    checkLLMAdvisorHealth: vi.fn(() => Promise.resolve({ status: 'ok', message: '' })),
+    getLLMAdvisorSuggestions: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    getLLMAdvisorSuggestion: vi.fn(() => Promise.resolve(null)),
+    approveLLMAdvisorSuggestion: vi.fn(() => Promise.resolve({})),
+    rejectLLMAdvisorSuggestion: vi.fn(() => Promise.resolve({})),
+    triggerLLMAdvisorAnalysis: vi.fn(() => Promise.resolve({ suggestionId: '', message: '' })),
+    getLatestLLMAdvisorSuggestion: vi.fn(() => Promise.resolve(null)),
+    getLLMAdvisorPendingCount: vi.fn(() => Promise.resolve({ count: 0 })),
+  };
+
+  // ApiClient unified object
+  const MockApiClient = {
+    auth: mockAuthClient,
+    word: mockWordClient,
+    wordBook: mockWordBookClient,
+    learning: mockLearningClient,
+    amas: mockAmasClient,
+    admin: mockAdminClient,
+    llmAdvisor: mockLlmAdvisorClient,
+    setOnUnauthorized: vi.fn(),
+  };
+
+  return {
+    // Classes
+    BaseClient: MockBaseClient,
+    ApiError: MockApiError,
+    TokenManager: MockTokenManager,
+    AuthClient: vi.fn(() => mockAuthClient),
+    WordClient: vi.fn(() => mockWordClient),
+    WordBookClient: vi.fn(() => mockWordBookClient),
+    LearningClient: vi.fn(() => mockLearningClient),
+    AmasClient: vi.fn(() => mockAmasClient),
+    AdminClient: vi.fn(() => mockAdminClient),
+    LLMAdvisorClient: vi.fn(() => mockLlmAdvisorClient),
+
+    // Singleton instances
+    authClient: mockAuthClient,
+    wordClient: mockWordClient,
+    wordBookClient: mockWordBookClient,
+    learningClient: mockLearningClient,
+    amasClient: mockAmasClient,
+    adminClient: mockAdminClient,
+    llmAdvisorClient: mockLlmAdvisorClient,
+
+    // Unified ApiClient object
+    ApiClient: MockApiClient,
+    default: MockApiClient,
+  };
+});
+
+// ==================== Legacy ApiClient Mock (For Test Compatibility) ====================
+
+// Mock for the legacy ApiClient import path ('../services/ApiClient')
+// This mock provides compatibility for tests that still use the old import path
+// Note: New code should use `import { apiClient } from '@/services/client'`
+vi.mock('../services/ApiClient', () => {
+  const mockApiClient = {
+    // Token management
+    setToken: vi.fn(),
+    clearToken: vi.fn(),
+    getToken: vi.fn(() => 'mock-token'),
+    setOnUnauthorized: vi.fn(),
+
+    // Auth
+    register: vi.fn(() =>
+      Promise.resolve({
+        user: { id: 'test-user', email: 'test@example.com', username: 'testuser', role: 'USER' },
+        token: 'mock-token',
+      }),
+    ),
+    login: vi.fn(() =>
+      Promise.resolve({
+        user: { id: 'test-user', email: 'test@example.com', username: 'testuser', role: 'USER' },
+        token: 'mock-token',
+      }),
+    ),
+    logout: vi.fn(() => Promise.resolve()),
+    getCurrentUser: vi.fn(() =>
+      Promise.resolve({
+        id: 'test-user',
+        email: 'test@example.com',
+        username: 'testuser',
+        role: 'USER',
+      }),
+    ),
+    updatePassword: vi.fn(() => Promise.resolve()),
+    getUserStatistics: vi.fn(() =>
+      Promise.resolve({ totalWords: 0, totalRecords: 0, correctRate: 0 }),
+    ),
+
+    // Words
+    getWords: vi.fn(() => Promise.resolve([])),
+    getLearnedWords: vi.fn(() => Promise.resolve([])),
+    createWord: vi.fn(() => Promise.resolve({ id: 'word-1', spelling: 'test' })),
+    updateWord: vi.fn(() => Promise.resolve({ id: 'word-1', spelling: 'test' })),
+    deleteWord: vi.fn(() => Promise.resolve()),
+    batchCreateWords: vi.fn(() => Promise.resolve([])),
+    searchWords: vi.fn(() => Promise.resolve([])),
+
+    // Records
+    getRecords: vi.fn(() =>
+      Promise.resolve({
+        records: [],
+        pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      }),
+    ),
+    createRecord: vi.fn(() => Promise.resolve({ id: 'record-1' })),
+    batchCreateRecords: vi.fn(() => Promise.resolve([])),
+
+    // WordBooks
+    getUserWordBooks: vi.fn(() => Promise.resolve([])),
+    getSystemWordBooks: vi.fn(() => Promise.resolve([])),
+    getAllAvailableWordBooks: vi.fn(() => Promise.resolve([])),
+    getWordBookById: vi.fn(() => Promise.resolve({ id: 'wb-1', name: 'Test', wordCount: 0 })),
+    createWordBook: vi.fn(() => Promise.resolve({ id: 'wb-1', name: 'Test' })),
+    updateWordBook: vi.fn(() => Promise.resolve({ id: 'wb-1', name: 'Test' })),
+    deleteWordBook: vi.fn(() => Promise.resolve()),
+    getWordBookWords: vi.fn(() => Promise.resolve([])),
+    addWordToWordBook: vi.fn(() => Promise.resolve({ id: 'word-1' })),
+    removeWordFromWordBook: vi.fn(() => Promise.resolve()),
+
+    // Study Config
+    getStudyConfig: vi.fn(() =>
+      Promise.resolve({ id: 'config-1', selectedWordBookIds: [], dailyWordCount: 20 }),
+    ),
+    updateStudyConfig: vi.fn(() => Promise.resolve({ id: 'config-1' })),
+    getTodayWords: vi.fn(() => Promise.resolve({ words: [], progress: {} })),
+    getStudyProgress: vi.fn(() => Promise.resolve({ todayStudied: 0, todayTarget: 20 })),
+
+    // Word States
+    getWordLearningState: vi.fn(() => Promise.resolve(null)),
+    getWordLearningStates: vi.fn(() => Promise.resolve([])),
+    saveWordLearningState: vi.fn(() => Promise.resolve()),
+    deleteWordLearningState: vi.fn(() => Promise.resolve()),
+    getDueWords: vi.fn(() => Promise.resolve([])),
+    getWordsByState: vi.fn(() => Promise.resolve([])),
+
+    // Word Scores
+    getWordScore: vi.fn(() => Promise.resolve(null)),
+    getWordScores: vi.fn(() => Promise.resolve([])),
+    saveWordScore: vi.fn(() => Promise.resolve()),
+    getWordsByScoreRange: vi.fn(() => Promise.resolve([])),
+
+    // Algorithm Config
+    getAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1', name: 'default' })),
+    updateAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1' })),
+    resetAlgorithmConfig: vi.fn(() => Promise.resolve({ id: 'config-1' })),
+    getConfigHistory: vi.fn(() => Promise.resolve([])),
+
+    // Mastery Learning
+    getMasteryStudyWords: vi.fn(() => Promise.resolve({ words: [], meta: {} })),
+    getNextWords: vi.fn(() => Promise.resolve({ words: [], strategy: {}, reason: '' })),
+    createMasterySession: vi.fn(() => Promise.resolve({ sessionId: 'session-1' })),
+    syncMasteryProgress: vi.fn(() => Promise.resolve()),
+    adjustLearningWords: vi.fn(() => Promise.resolve({ words: [], adjustments: [], reason: '' })),
+
+    // AMAS
+    processLearningEvent: vi.fn(() => Promise.resolve({ strategy: {}, userState: {}, reward: 0 })),
+    getAmasState: vi.fn(() => Promise.resolve(null)),
+    getAmasStrategy: vi.fn(() => Promise.resolve(null)),
+    resetAmasState: vi.fn(() => Promise.resolve()),
+    getAmasColdStartPhase: vi.fn(() => Promise.resolve({ phase: 'exploration', progress: 0 })),
+    batchProcessEvents: vi.fn(() => Promise.resolve({ processed: 0, errors: [] })),
+    getTimePreferences: vi.fn(() => Promise.resolve({ preferences: [], peakHours: [] })),
+    getGoldenTime: vi.fn(() => Promise.resolve({ isGoldenTime: false, message: '' })),
+    getCurrentTrend: vi.fn(() => Promise.resolve({ trend: 'stable', stateDescription: '' })),
+    getTrendHistory: vi.fn(() => Promise.resolve({ daily: [], weekly: [], totalDays: 0 })),
+    getTrendReport: vi.fn(() => Promise.resolve({ summary: '', recommendations: [] })),
+    getIntervention: vi.fn(() => Promise.resolve({ needsIntervention: false, suggestions: [] })),
+    getUserBadges: vi.fn(() => Promise.resolve({ badges: [], count: 0 })),
+    getAllBadgesWithStatus: vi.fn(() =>
+      Promise.resolve({ badges: [], grouped: {}, totalCount: 0, unlockedCount: 0 }),
+    ),
+    getBadgeDetails: vi.fn(() => Promise.resolve(null)),
+    getBadgeProgress: vi.fn(() => Promise.resolve({ progress: 0 })),
+    checkAndAwardBadges: vi.fn(() =>
+      Promise.resolve({ newBadges: [], hasNewBadges: false, message: '' }),
+    ),
+    getLearningPlan: vi.fn(() => Promise.resolve(null)),
+    generateLearningPlan: vi.fn(() => Promise.resolve({ plan: {} })),
+    getPlanProgress: vi.fn(() => Promise.resolve({ progress: 0, status: 'active' })),
+    adjustLearningPlan: vi.fn(() => Promise.resolve({ plan: {} })),
+    getStateHistory: vi.fn(() =>
+      Promise.resolve({ history: [], summary: {}, range: 30, totalRecords: 0 }),
+    ),
+    getCognitiveGrowth: vi.fn(() =>
+      Promise.resolve({ current: {}, past: {}, changes: {}, period: 30, periodLabel: '30 days' }),
+    ),
+    getSignificantChanges: vi.fn(() =>
+      Promise.resolve({ changes: [], range: 30, hasSignificantChanges: false, summary: '' }),
+    ),
+
+    // Admin
+    adminGetUsers: vi.fn(() => Promise.resolve({ users: [], total: 0, pagination: {} })),
+    adminGetUserById: vi.fn(() => Promise.resolve({ id: 'user-1' })),
+    adminGetUserLearningData: vi.fn(() => Promise.resolve({ user: {}, totalRecords: 0 })),
+    adminGetUserStatistics: vi.fn(() => Promise.resolve({ user: {}, masteryDistribution: {} })),
+    adminGetUserWords: vi.fn(() => Promise.resolve({ words: [], pagination: {} })),
+    adminExportUserWords: vi.fn(() => Promise.resolve()),
+    adminUpdateUserRole: vi.fn(() => Promise.resolve({ id: 'user-1', role: 'USER' })),
+    adminDeleteUser: vi.fn(() => Promise.resolve()),
+    adminGetSystemWordBooks: vi.fn(() => Promise.resolve([])),
+    adminCreateSystemWordBook: vi.fn(() => Promise.resolve({ id: 'wb-1' })),
+    adminUpdateSystemWordBook: vi.fn(() => Promise.resolve({ id: 'wb-1' })),
+    adminDeleteSystemWordBook: vi.fn(() => Promise.resolve()),
+    adminBatchAddWordsToSystemWordBook: vi.fn(() => Promise.resolve([])),
+    adminGetStatistics: vi.fn(() => Promise.resolve({ totalUsers: 0, totalWords: 0 })),
+    adminGetWordLearningHistory: vi.fn(() =>
+      Promise.resolve({ word: {}, wordState: null, records: [] }),
+    ),
+    adminGetWordScoreHistory: vi.fn(() => Promise.resolve({ currentScore: 0, scoreHistory: [] })),
+    adminGetUserLearningHeatmap: vi.fn(() => Promise.resolve([])),
+    adminFlagAnomalyRecord: vi.fn(() => Promise.resolve({ id: 'flag-1' })),
+    adminGetAnomalyFlags: vi.fn(() => Promise.resolve([])),
+
+    // Word Mastery
+    getWordMasteryStats: vi.fn(() => Promise.resolve({ totalWords: 0 })),
+    batchProcessWordMastery: vi.fn(() => Promise.resolve([])),
+    getWordMasteryDetail: vi.fn(() => Promise.resolve({ wordId: '', mastery: 0 })),
+    getWordMasteryTrace: vi.fn(() => Promise.resolve({ trace: [] })),
+    getWordMasteryInterval: vi.fn(() => Promise.resolve({ interval: 1 })),
+
+    // Habit Profile
+    getHabitProfile: vi.fn(() => Promise.resolve({ profile: {} })),
+    initializeHabitProfile: vi.fn(() => Promise.resolve({ initialized: true })),
+    endHabitSession: vi.fn(() => Promise.resolve({ ended: true })),
+    persistHabitProfile: vi.fn(() => Promise.resolve({ persisted: true })),
+
+    // Explainability
+    getAmasDecisionExplanation: vi.fn(() => Promise.resolve({ explanation: '' })),
+    runCounterfactualAnalysis: vi.fn(() => Promise.resolve({ result: {} })),
+    getAmasLearningCurve: vi.fn(() => Promise.resolve({ curve: [] })),
+    getDecisionTimeline: vi.fn(() => Promise.resolve({ timeline: [], nextCursor: null })),
+
+    // Batch Import
+    batchImportWords: vi.fn(() => Promise.resolve({ imported: 0, failed: 0 })),
+
+    // Optimization
+    getOptimizationSuggestion: vi.fn(() => Promise.resolve({ params: {}, paramSpace: {} })),
+    recordOptimizationEvaluation: vi.fn(() => Promise.resolve({ recorded: true })),
+    getBestOptimizationParams: vi.fn(() => Promise.resolve({ params: null, value: null })),
+    getOptimizationHistory: vi.fn(() => Promise.resolve([])),
+    triggerOptimization: vi.fn(() => Promise.resolve({ triggered: true })),
+    resetOptimizer: vi.fn(() => Promise.resolve({ reset: true })),
+    getOptimizationDiagnostics: vi.fn(() => Promise.resolve({})),
+
+    // Evaluation
+    recordCausalObservation: vi.fn(() => Promise.resolve(null)),
+    getCausalATE: vi.fn(() => Promise.resolve({ ate: 0, confidence: 0, sampleSize: 0 })),
+    compareStrategies: vi.fn(() =>
+      Promise.resolve({ difference: 0, pValue: 1, significant: false }),
+    ),
+    getCausalDiagnostics: vi.fn(() => Promise.resolve({})),
+    getExperimentVariant: vi.fn(() => Promise.resolve(null)),
+    recordExperimentMetric: vi.fn(() => Promise.resolve({ recorded: true })),
+
+    // User Config
+    getUserRewardProfile: vi.fn(() =>
+      Promise.resolve({ currentProfile: 'default', availableProfiles: [] }),
+    ),
+    updateUserRewardProfile: vi.fn(() =>
+      Promise.resolve({ currentProfile: 'default', message: '' }),
+    ),
+
+    // Experiments
+    createExperiment: vi.fn(() => Promise.resolve({ id: 'exp-1', name: 'Test' })),
+    getExperiments: vi.fn(() => Promise.resolve({ experiments: [], total: 0 })),
+    getExperiment: vi.fn(() =>
+      Promise.resolve({ id: 'exp-1', name: 'Test', variants: [], metrics: [] }),
+    ),
+    getExperimentStatus: vi.fn(() =>
+      Promise.resolve({ status: 'running', pValue: 1, effectSize: 0, isSignificant: false }),
+    ),
+    startExperiment: vi.fn(() => Promise.resolve({ message: '' })),
+    stopExperiment: vi.fn(() => Promise.resolve({ message: '' })),
+    deleteExperiment: vi.fn(() => Promise.resolve({ message: '' })),
+
+    // Cognitive Profiling
+    getChronotypeProfile: vi.fn(() =>
+      Promise.resolve({
+        category: 'intermediate',
+        peakHours: [],
+        confidence: 0,
+        learningHistory: [],
+      }),
+    ),
+    getLearningStyleProfile: vi.fn(() =>
+      Promise.resolve({ style: 'mixed', confidence: 0, scores: {} }),
+    ),
+    getCognitiveProfile: vi.fn(() => Promise.resolve({ chronotype: {}, learningStyle: {} })),
+
+    // Learning Objectives
+    getLearningObjectives: vi.fn(() =>
+      Promise.resolve({ mode: 'daily', primaryObjective: 'accuracy' }),
+    ),
+    updateLearningObjectives: vi.fn(() => Promise.resolve({})),
+    switchLearningMode: vi.fn(() => Promise.resolve({})),
+    getLearningObjectiveSuggestions: vi.fn(() =>
+      Promise.resolve({ currentMode: 'daily', suggestedModes: [] }),
+    ),
+    getLearningObjectiveHistory: vi.fn(() => Promise.resolve([])),
+    deleteLearningObjectives: vi.fn(() => Promise.resolve()),
+
+    // Admin Decisions
+    adminGetUserDecisions: vi.fn(() => Promise.resolve({ decisions: [], total: 0 })),
+    adminGetDecisionDetail: vi.fn(() => Promise.resolve(null)),
+
+    // LLM Advisor
+    getLLMAdvisorConfig: vi.fn(() =>
+      Promise.resolve({ config: { enabled: false }, worker: { enabled: false } }),
+    ),
+    checkLLMAdvisorHealth: vi.fn(() => Promise.resolve({ status: 'ok', message: '' })),
+    getLLMAdvisorSuggestions: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    getLLMAdvisorSuggestion: vi.fn(() => Promise.resolve(null)),
+    approveLLMAdvisorSuggestion: vi.fn(() => Promise.resolve({})),
+    rejectLLMAdvisorSuggestion: vi.fn(() => Promise.resolve({})),
+    triggerLLMAdvisorAnalysis: vi.fn(() => Promise.resolve({ suggestionId: '', message: '' })),
+    getLatestLLMAdvisorSuggestion: vi.fn(() => Promise.resolve(null)),
+    getLLMAdvisorPendingCount: vi.fn(() => Promise.resolve({ count: 0 })),
+  };
+
+  // Export ApiError class as well
+  class MockApiError extends Error {
+    statusCode: number;
+    code: string;
+    isNotFound: boolean;
+
+    constructor(message: string, statusCode: number, code?: string) {
+      super(message);
+      this.name = 'ApiError';
+      this.statusCode = statusCode;
+      this.code = code || 'UNKNOWN_ERROR';
+      this.isNotFound = statusCode === 404;
+    }
+  }
+
+  return {
+    default: mockApiClient,
+    ApiError: MockApiError,
+  };
+});
+
 // ==================== Global aboutApi Mock ====================
 
 const defaultPipelineStatus = {
   systemHealth: 'healthy',
   totalThroughput: 150,
   layers: [
-    { id: 'PERCEPTION', name: 'Perception', nameCn: '感知层', processedCount: 1500, avgLatencyMs: 5, successRate: 0.99, status: 'healthy' },
-    { id: 'MODELING', name: 'Modeling', nameCn: '建模层', processedCount: 1400, avgLatencyMs: 8, successRate: 0.98, status: 'healthy' },
-    { id: 'LEARNING', name: 'Learning', nameCn: '学习层', processedCount: 1300, avgLatencyMs: 12, successRate: 0.97, status: 'healthy' },
-    { id: 'DECISION', name: 'Decision', nameCn: '决策层', processedCount: 1200, avgLatencyMs: 10, successRate: 0.99, status: 'healthy' },
-    { id: 'EVALUATION', name: 'Evaluation', nameCn: '评估层', processedCount: 1100, avgLatencyMs: 6, successRate: 0.98, status: 'healthy' },
-    { id: 'OPTIMIZATION', name: 'Optimization', nameCn: '优化层', processedCount: 1000, avgLatencyMs: 15, successRate: 0.96, status: 'healthy' },
+    {
+      id: 'PERCEPTION',
+      name: 'Perception',
+      nameCn: '感知层',
+      processedCount: 1500,
+      avgLatencyMs: 5,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'MODELING',
+      name: 'Modeling',
+      nameCn: '建模层',
+      processedCount: 1400,
+      avgLatencyMs: 8,
+      successRate: 0.98,
+      status: 'healthy',
+    },
+    {
+      id: 'LEARNING',
+      name: 'Learning',
+      nameCn: '学习层',
+      processedCount: 1300,
+      avgLatencyMs: 12,
+      successRate: 0.97,
+      status: 'healthy',
+    },
+    {
+      id: 'DECISION',
+      name: 'Decision',
+      nameCn: '决策层',
+      processedCount: 1200,
+      avgLatencyMs: 10,
+      successRate: 0.99,
+      status: 'healthy',
+    },
+    {
+      id: 'EVALUATION',
+      name: 'Evaluation',
+      nameCn: '评估层',
+      processedCount: 1100,
+      avgLatencyMs: 6,
+      successRate: 0.98,
+      status: 'healthy',
+    },
+    {
+      id: 'OPTIMIZATION',
+      name: 'Optimization',
+      nameCn: '优化层',
+      processedCount: 1000,
+      avgLatencyMs: 15,
+      successRate: 0.96,
+      status: 'healthy',
+    },
   ],
 };
 
 vi.mock('../services/aboutApi', () => ({
   getPipelineLayerStatus: vi.fn(() => Promise.resolve(defaultPipelineStatus)),
-  getAlgorithmStatus: vi.fn(() => Promise.resolve({ ensembleConsensusRate: 0.85, algorithms: [], coldstartStats: {} })),
+  getAlgorithmStatus: vi.fn(() =>
+    Promise.resolve({ ensembleConsensusRate: 0.85, algorithms: [], coldstartStats: {} }),
+  ),
   getUserStateStatus: vi.fn(() => Promise.resolve({ distributions: {}, recentInferences: [] })),
-  getMemoryStatus: vi.fn(() => Promise.resolve({ strengthDistribution: [], urgentReviewCount: 0, soonReviewCount: 0, stableCount: 0 })),
+  getMemoryStatus: vi.fn(() =>
+    Promise.resolve({
+      strengthDistribution: [],
+      urgentReviewCount: 0,
+      soonReviewCount: 0,
+      stableCount: 0,
+    }),
+  ),
   getFeatureFlags: vi.fn(() => Promise.resolve({ flags: {} })),
-  simulate: vi.fn(() => Promise.resolve({ outputStrategy: {}, decisionProcess: {}, explanation: {} })),
-  getOverviewStats: vi.fn(() => Promise.resolve({ todayDecisions: 0, activeUsers: 0, avgResponseTime: 0 })),
+  simulate: vi.fn(() =>
+    Promise.resolve({ outputStrategy: {}, decisionProcess: {}, explanation: {} }),
+  ),
+  getOverviewStats: vi.fn(() =>
+    Promise.resolve({ todayDecisions: 0, activeUsers: 0, avgResponseTime: 0 }),
+  ),
   getDashboardMetrics: vi.fn(() => Promise.resolve({ metrics: [] })),
 }));
 
 // ==================== Global Logger Mock ====================
 
+const createMockLogger = () => ({
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  fatal: vi.fn(),
+  child: vi.fn(() => createMockLogger()),
+  flush: vi.fn(),
+  configure: vi.fn(),
+});
+
+// Mock Logger class
+class MockLogger {
+  error = vi.fn();
+  warn = vi.fn();
+  info = vi.fn();
+  debug = vi.fn();
+  trace = vi.fn();
+  fatal = vi.fn();
+  child = vi.fn(() => new MockLogger());
+  flush = vi.fn();
+  configure = vi.fn();
+}
+
 vi.mock('../utils/logger', () => ({
-  default: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  amasLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  adminLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-  learningLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
+  default: createMockLogger(),
+  logger: createMockLogger(),
+  authLogger: createMockLogger(),
+  apiLogger: createMockLogger(),
+  amasLogger: createMockLogger(),
+  learningLogger: createMockLogger(),
+  storageLogger: createMockLogger(),
+  uiLogger: createMockLogger(),
+  adminLogger: createMockLogger(),
+  trackingLogger: createMockLogger(),
+  Logger: MockLogger,
+  createLogger: vi.fn(() => createMockLogger()),
 }));
 
 // ==================== Global Animation Utils Mock ====================
@@ -185,8 +941,34 @@ vi.mock('../utils/logger', () => ({
 vi.mock('../utils/animations', () => ({
   fadeInVariants: {},
   staggerContainerVariants: {},
+  staggerItemVariants: {},
   slideUpVariants: {},
   scaleInVariants: {},
+  pageTransition: {},
+  modalTransition: {},
+  g3SpringSnappy: {},
+  g3SpringStandard: {},
+  g3SpringGentle: {},
+  g3SpringBouncy: {},
+  celebrationVariants: {},
+  backdropVariants: {},
+  shimmerVariants: {},
+  pulseSoftVariants: {},
+  G3_DURATION: {
+    instant: 120,
+    fast: 180,
+    normal: 240,
+    slow: 320,
+    slower: 480,
+  },
+  G3_EASING: {
+    standard: [0.2, 0, 0, 1],
+    enter: [0.05, 0.7, 0.1, 1],
+    exit: [0.3, 0, 0.8, 0.15],
+  },
+  getStaggeredTransition: vi.fn(() => ({})),
+  createG3Spring: vi.fn(() => ({})),
+  createG3Tween: vi.fn(() => ({})),
 }));
 
 // ==================== Cleanup ====================
@@ -209,12 +991,12 @@ const localStorageMock = {
     delete localStorageStore[key];
   }),
   clear: vi.fn(() => {
-    Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
+    Object.keys(localStorageStore).forEach((key) => delete localStorageStore[key]);
   }),
   get length() {
     return Object.keys(localStorageStore).length;
   },
-  key: vi.fn((index: number) => Object.keys(localStorageStore)[index] ?? null)
+  key: vi.fn((index: number) => Object.keys(localStorageStore)[index] ?? null),
 };
 
 vi.stubGlobal('localStorage', localStorageMock);
@@ -232,19 +1014,19 @@ const sessionStorageMock = {
     delete sessionStorageStore[key];
   }),
   clear: vi.fn(() => {
-    Object.keys(sessionStorageStore).forEach(key => delete sessionStorageStore[key]);
+    Object.keys(sessionStorageStore).forEach((key) => delete sessionStorageStore[key]);
   }),
   get length() {
     return Object.keys(sessionStorageStore).length;
   },
-  key: vi.fn((index: number) => Object.keys(sessionStorageStore)[index] ?? null)
+  key: vi.fn((index: number) => Object.keys(sessionStorageStore)[index] ?? null),
 };
 
 vi.stubGlobal('sessionStorage', sessionStorageMock);
 
 // ==================== Fetch Mock ====================
 
-export const mockFetch = vi.fn();
+export const mockFetch: ReturnType<typeof vi.fn> = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 // ==================== URL Mock ====================
@@ -338,7 +1120,7 @@ export const resetSpeechSynthesisMock = () => {
 const intersectionObserverMock = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
-  disconnect: vi.fn()
+  disconnect: vi.fn(),
 }));
 
 vi.stubGlobal('IntersectionObserver', intersectionObserverMock);
@@ -348,7 +1130,7 @@ vi.stubGlobal('IntersectionObserver', intersectionObserverMock);
 const resizeObserverMock = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
-  disconnect: vi.fn()
+  disconnect: vi.fn(),
 }));
 
 vi.stubGlobal('ResizeObserver', resizeObserverMock);
@@ -365,8 +1147,8 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn()
-  }))
+    dispatchEvent: vi.fn(),
+  })),
 });
 
 // ==================== Scroll Mock ====================
@@ -386,8 +1168,8 @@ beforeEach(() => {
 // ==================== Test Utilities ====================
 
 export function clearStorageMocks(): void {
-  Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
-  Object.keys(sessionStorageStore).forEach(key => delete sessionStorageStore[key]);
+  Object.keys(localStorageStore).forEach((key) => delete localStorageStore[key]);
+  Object.keys(sessionStorageStore).forEach((key) => delete sessionStorageStore[key]);
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();
   sessionStorageMock.getItem.mockClear();
@@ -398,7 +1180,7 @@ export function mockSuccessfulFetch<T>(data: T): void {
   mockFetch.mockResolvedValueOnce({
     ok: true,
     status: 200,
-    json: async () => ({ success: true, data })
+    json: async () => ({ success: true, data }),
   });
 }
 
@@ -406,7 +1188,7 @@ export function mockFailedFetch(error: string, status = 400): void {
   mockFetch.mockResolvedValueOnce({
     ok: false,
     status,
-    json: async () => ({ success: false, error })
+    json: async () => ({ success: false, error }),
   });
 }
 
@@ -428,10 +1210,7 @@ export function runAllTimers(): Promise<void> {
 
 // ==================== Wait Utilities ====================
 
-export function waitFor(
-  callback: () => boolean | Promise<boolean>,
-  timeout = 5000
-): Promise<void> {
+export function waitFor(callback: () => boolean | Promise<boolean>, timeout = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
 
@@ -458,5 +1237,5 @@ export function waitFor(
 }
 
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

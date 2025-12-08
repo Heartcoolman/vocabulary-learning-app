@@ -15,7 +15,9 @@ vi.mock('react-router-dom', async () => {
 
 // Mock data matching actual component expectations
 const mockTimePreference = {
-  timePref: Array(24).fill(0).map((_, i) => i >= 9 && i <= 11 ? 0.8 : 0.3),
+  timePref: Array(24)
+    .fill(0)
+    .map((_, i) => (i >= 9 && i <= 11 ? 0.8 : 0.3)),
   preferredSlots: [
     { hour: 9, score: 0.85, confidence: 0.9 },
     { hour: 10, score: 0.82, confidence: 0.88 },
@@ -32,7 +34,7 @@ const mockGoldenTime = {
   matchedSlot: { hour: 9, score: 0.85, confidence: 0.9 },
 };
 
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     getTimePreferences: vi.fn(),
     getGoldenTime: vi.fn(),
@@ -49,7 +51,7 @@ vi.mock('../../types/amas-enhanced', () => ({
   isInsufficientData: vi.fn((data) => data && data.minRequired !== undefined),
 }));
 
-import ApiClient from '../../services/ApiClient';
+import ApiClient from '../../services/client';
 
 describe('LearningTimePage', () => {
   beforeEach(() => {
@@ -66,7 +68,7 @@ describe('LearningTimePage', () => {
     return render(
       <MemoryRouter>
         <LearningTimePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 

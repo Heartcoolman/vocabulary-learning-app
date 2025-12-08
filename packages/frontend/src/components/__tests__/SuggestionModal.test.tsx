@@ -23,21 +23,41 @@ vi.mock('../AmasSuggestion', () => ({
   ),
 }));
 
-describe('SuggestionModal', () => {
-  const mockOnClose = vi.fn();
-  const mockOnBreak = vi.fn();
-
-  const mockResult: AmasProcessResult = {
-    explanation: 'Test explanation',
-    suggestion: 'Test suggestion',
-    shouldBreak: false,
+// Helper function to create test AmasProcessResult
+function createTestResult(overrides: Partial<AmasProcessResult> = {}): AmasProcessResult {
+  return {
+    sessionId: 'test-session-id',
     strategy: {
+      interval_scale: 1.0,
       batch_size: 10,
       difficulty: 'mid',
       new_ratio: 0.3,
       hint_level: 1,
     },
+    state: {
+      attention: 0.8,
+      fatigue: 0.3,
+      motivation: 0.7,
+      memory: 0.75,
+      speed: 0.65,
+      stability: 0.7,
+    },
+    explanation: '',
+    suggestion: '',
+    shouldBreak: false,
+    ...overrides,
   };
+}
+
+describe('SuggestionModal', () => {
+  const mockOnClose = vi.fn();
+  const mockOnBreak = vi.fn();
+
+  const mockResult: AmasProcessResult = createTestResult({
+    explanation: 'Test explanation',
+    suggestion: 'Test suggestion',
+    shouldBreak: false,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,19 +73,14 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(container.firstChild).toBeNull();
     });
 
     it('should return null when result is null', () => {
       const { container } = render(
-        <SuggestionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          result={null}
-          onBreak={mockOnBreak}
-        />
+        <SuggestionModal isOpen={true} onClose={mockOnClose} result={null} onBreak={mockOnBreak} />,
       );
       expect(container.firstChild).toBeNull();
     });
@@ -77,7 +92,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByText('AI 学习建议')).toBeInTheDocument();
     });
@@ -93,7 +108,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByText('AI 学习建议')).toBeInTheDocument();
     });
@@ -105,7 +120,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByTestId('lightbulb-icon')).toBeInTheDocument();
     });
@@ -117,7 +132,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByTestId('amas-suggestion')).toBeInTheDocument();
     });
@@ -129,7 +144,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByText('Explanation: Test explanation')).toBeInTheDocument();
     });
@@ -141,7 +156,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const breakButton = screen.getByText('Take Break');
@@ -157,7 +172,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByLabelText('关闭')).toBeInTheDocument();
     });
@@ -169,7 +184,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
       expect(screen.getByText('明白了')).toBeInTheDocument();
     });
@@ -185,7 +200,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const closeButton = screen.getByLabelText('关闭');
@@ -201,7 +216,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const confirmButton = screen.getByText('明白了');
@@ -221,7 +236,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const backdrop = screen.getByText('AI 学习建议').closest('.fixed');
@@ -235,7 +250,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const modal = screen.getByText('AI 学习建议').closest('.bg-white');
@@ -249,7 +264,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const modal = screen.getByText('AI 学习建议').closest('.bg-white');
@@ -263,7 +278,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const modal = screen.getByText('AI 学习建议').closest('.animate-g3-scale-in');
@@ -281,7 +296,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const header = screen.getByText('AI 学习建议').closest('.border-b');
@@ -295,7 +310,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const footer = screen.getByText('明白了').closest('.bg-gray-50');
@@ -309,7 +324,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const modal = screen.getByText('AI 学习建议').closest('.max-w-md');
@@ -327,7 +342,7 @@ describe('SuggestionModal', () => {
           onClose={mockOnClose}
           result={mockResult}
           onBreak={mockOnBreak}
-        />
+        />,
       );
 
       const iconContainer = screen.getByTestId('lightbulb-icon').closest('.text-blue-600');

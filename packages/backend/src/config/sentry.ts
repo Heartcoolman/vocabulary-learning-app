@@ -8,6 +8,7 @@
 import * as Sentry from '@sentry/node';
 import { Express, Request, Response, NextFunction } from 'express';
 import { startupLogger } from '../logger';
+import { env } from './env';
 
 let isInitialized = false;
 
@@ -16,7 +17,7 @@ let isInitialized = false;
  * @returns 是否成功初始化
  */
 export function initSentry(): boolean {
-  const dsn = process.env.SENTRY_DSN;
+  const dsn = env.SENTRY_DSN;
 
   // 未配置 DSN 时跳过初始化
   if (!dsn) {
@@ -24,8 +25,8 @@ export function initSentry(): boolean {
     return false;
   }
 
-  const environment = process.env.NODE_ENV || 'development';
-  const release = process.env.APP_VERSION || 'unknown';
+  const environment = env.NODE_ENV;
+  const release = env.APP_VERSION || 'unknown';
 
   try {
     Sentry.init({
@@ -89,7 +90,7 @@ export function initSentry(): boolean {
 
     isInitialized = true;
     startupLogger.info(
-      `[Sentry] Initialized successfully (env: ${environment}, release: ${release})`
+      `[Sentry] Initialized successfully (env: ${environment}, release: ${release})`,
     );
     return true;
   } catch (error) {
@@ -164,7 +165,7 @@ export function addBreadcrumb(breadcrumb: {
  */
 export function captureException(
   error: Error | unknown,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ): string | undefined {
   if (!isInitialized) return undefined;
   return Sentry.captureException(error, {
@@ -177,7 +178,7 @@ export function captureException(
  */
 export function captureMessage(
   message: string,
-  level: 'debug' | 'info' | 'warning' | 'error' = 'info'
+  level: 'debug' | 'info' | 'warning' | 'error' = 'info',
 ): string | undefined {
   if (!isInitialized) return undefined;
   return Sentry.captureMessage(message, level);
@@ -186,11 +187,7 @@ export function captureMessage(
 /**
  * 创建性能 Span
  */
-export function startSpan<T>(
-  name: string,
-  op: string,
-  callback: () => T
-): T {
+export function startSpan<T>(name: string, op: string, callback: () => T): T {
   if (!isInitialized) {
     return callback();
   }

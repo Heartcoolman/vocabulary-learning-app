@@ -9,7 +9,7 @@ import { ArrowLeft } from '../components/Icon';
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -78,25 +78,21 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 animate-g3-fade-in">
-      <div className="max-w-md w-full">
+    <div className="flex min-h-screen animate-g3-fade-in items-center justify-center bg-gray-50 px-4 py-8">
+      <div className="w-full max-w-md">
         {/* 标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            创建账号
-          </h1>
-          <p className="text-gray-600">
-            注册后即可开始您的学习之旅
-          </p>
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-gray-900">创建账号</h1>
+          <p className="text-gray-600">注册后即可开始您的学习之旅</p>
         </div>
 
         {/* 注册表单 */}
-        <div className="bg-white p-6 md:p-8 rounded-lg shadow-sm border border-gray-200">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
             {/* 错误提示 */}
             {error && (
               <div
-                className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm"
+                className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
                 role="alert"
                 aria-live="assertive"
               >
@@ -106,10 +102,7 @@ export default function RegisterPage() {
 
             {/* 用户名输入 */}
             <div className="mb-4">
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-700">
                 用户名
               </label>
               <input
@@ -118,7 +111,7 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="您的昵称"
                 autoComplete="name"
                 aria-required="true"
@@ -128,10 +121,7 @@ export default function RegisterPage() {
 
             {/* 邮箱输入 */}
             <div className="mb-4">
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
                 邮箱地址
               </label>
               <input
@@ -140,7 +130,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="your@email.com"
                 autoComplete="email"
                 aria-required="true"
@@ -150,10 +140,7 @@ export default function RegisterPage() {
 
             {/* 密码输入 */}
             <div className="mb-4">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
+              <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
                 密码
               </label>
               <input
@@ -162,7 +149,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="至少8个字符"
                 autoComplete="new-password"
                 aria-required="true"
@@ -178,7 +165,7 @@ export default function RegisterPage() {
             <div className="mb-6">
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="mb-2 block text-sm font-medium text-gray-700"
               >
                 确认密码
               </label>
@@ -188,7 +175,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="再次输入密码"
                 autoComplete="new-password"
                 aria-required="true"
@@ -200,12 +187,12 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-200 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
               aria-label={loading ? '正在注册...' : '注册'}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                  <span className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></span>
                   注册中...
                 </span>
               ) : (
@@ -216,11 +203,11 @@ export default function RegisterPage() {
 
           {/* 登录链接 */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-sm text-gray-600">
               已有账号？{' '}
               <Link
                 to="/login"
-                className="text-blue-500 hover:text-blue-600 font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                className="rounded font-medium text-blue-500 transition-colors hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 立即登录
               </Link>
@@ -232,7 +219,7 @@ export default function RegisterPage() {
         <div className="mt-4 text-center">
           <Link
             to="/about"
-            className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             <ArrowLeft size={14} weight="bold" />
             了解更多

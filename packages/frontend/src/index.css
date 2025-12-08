@@ -7,9 +7,9 @@
    * 字体系统
    * 优先使用系统原生字体，确保最佳渲染
    * ======================================== */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.6;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -24,20 +24,22 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'kern' 1, 'liga' 1;
+  font-feature-settings:
+    'kern' 1,
+    'liga' 1;
 
   /* ========================================
    * 排版尺度系统
    * 基于 1.25 的比例尺度
    * ======================================== */
-  --text-xs: 0.75rem;     /* 12px - 辅助说明 */
-  --text-sm: 0.875rem;    /* 14px - 次要内容 */
-  --text-base: 1rem;      /* 16px - 正文 */
-  --text-lg: 1.125rem;    /* 18px - 强调正文 */
-  --text-xl: 1.25rem;     /* 20px - 小标题 */
-  --text-2xl: 1.5rem;     /* 24px - 标题 */
-  --text-3xl: 1.875rem;   /* 30px - 页面标题 */
-  --text-4xl: 2.25rem;    /* 36px - 大标题 */
+  --text-xs: 0.75rem; /* 12px - 辅助说明 */
+  --text-sm: 0.875rem; /* 14px - 次要内容 */
+  --text-base: 1rem; /* 16px - 正文 */
+  --text-lg: 1.125rem; /* 18px - 强调正文 */
+  --text-xl: 1.25rem; /* 20px - 小标题 */
+  --text-2xl: 1.5rem; /* 24px - 标题 */
+  --text-3xl: 1.875rem; /* 30px - 页面标题 */
+  --text-4xl: 2.25rem; /* 36px - 大标题 */
 
   /* 行高规范 */
   --leading-tight: 1.25;
@@ -75,10 +77,19 @@
   --gradient-primary-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 
   /* 玻璃态渐变 - 用于卡片背景 */
-  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(249, 250, 251, 0.85) 100%);
+  --gradient-glass: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(249, 250, 251, 0.85) 100%
+  );
 
   /* 微光渐变 - 用于高光效果 */
-  --gradient-shine: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  --gradient-shine: linear-gradient(
+    135deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
 
   /* 发音按钮专用渐变 */
   --gradient-pronounce: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -98,19 +109,36 @@
    * 基于 cubic-bezier(0.2, 0, 0, 1) 的 5% 等距采样
    * 最大误差约 1.6%，视觉上等同于真实 G3 曲线 */
   --ease-g3-standard-linear: linear(
-    0 0%, 0.0285 5%, 0.1562 10%, 0.3506 15%, 0.5 20%,
-    0.6072 25%, 0.6881 30%, 0.7514 35%, 0.8023 40%, 0.8438 45%,
-    0.8778 50%, 0.9059 55%, 0.9291 60%, 0.948 65%, 0.9633 70%,
-    0.9755 75%, 0.9849 80%, 0.9918 85%, 0.9965 90%, 0.9991 95%, 1 100%
+    0 0%,
+    0.0285 5%,
+    0.1562 10%,
+    0.3506 15%,
+    0.5 20%,
+    0.6072 25%,
+    0.6881 30%,
+    0.7514 35%,
+    0.8023 40%,
+    0.8438 45%,
+    0.8778 50%,
+    0.9059 55%,
+    0.9291 60%,
+    0.948 65%,
+    0.9633 70%,
+    0.9755 75%,
+    0.9849 80%,
+    0.9918 85%,
+    0.9965 90%,
+    0.9991 95%,
+    1 100%
   );
 
   /* G3 动画时长 Token - 符合人眼感知的时间阶梯
    * 梯度约 60-80ms，专用于 G3 动画系统 */
-  --g3-duration-instant: 120ms;  /* 瞬时反馈：按钮点击、图标切换 */
-  --g3-duration-fast: 180ms;     /* 快速过渡：悬停状态、小组件 */
-  --g3-duration-normal: 240ms;   /* 标准动画：淡入淡出、状态变化 */
-  --g3-duration-slow: 320ms;     /* 强调动画：卡片展开、进度条 */
-  --g3-duration-slower: 480ms;   /* 大型过渡：模态框、页面切换 */
+  --g3-duration-instant: 120ms; /* 瞬时反馈：按钮点击、图标切换 */
+  --g3-duration-fast: 180ms; /* 快速过渡：悬停状态、小组件 */
+  --g3-duration-normal: 240ms; /* 标准动画：淡入淡出、状态变化 */
+  --g3-duration-slow: 320ms; /* 强调动画：卡片展开、进度条 */
+  --g3-duration-slower: 480ms; /* 大型过渡：模态框、页面切换 */
 }
 
 body {
@@ -132,8 +160,12 @@ body {
  * 自定义动画 - 旧版（保持向后兼容）
  * ======================================== */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -249,6 +281,22 @@ body {
   }
 }
 
+/* G3 右侧滑入 - 用于 Toast 通知 */
+@keyframes g3SlideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(100px, 0, 0) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(-4px, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 /* 焦点样式优化 */
 *:focus-visible {
   outline: 2px solid #3b82f6;
@@ -264,7 +312,9 @@ body {
 .page-transition-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 300ms ease-out, transform 300ms ease-out;
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms ease-out;
 }
 
 .page-transition-exit {
@@ -289,7 +339,7 @@ body {
    * ---------------------------------------- */
   .btn-primary {
     @apply relative inline-flex items-center justify-center px-4 py-2 font-medium text-white;
-    @apply rounded-button overflow-hidden;
+    @apply overflow-hidden rounded-button;
     @apply transition-all duration-g3-fast ease-g3;
     background: var(--gradient-primary);
     box-shadow:
@@ -340,7 +390,7 @@ body {
   }
 
   .btn-primary:disabled {
-    @apply opacity-50 cursor-not-allowed;
+    @apply cursor-not-allowed opacity-50;
     background: #94a3b8;
     box-shadow: none;
     filter: none;
@@ -353,7 +403,7 @@ body {
    * ---------------------------------------- */
   .btn-secondary {
     @apply relative inline-flex items-center justify-center px-4 py-2 font-medium;
-    @apply text-gray-700 rounded-button overflow-hidden;
+    @apply overflow-hidden rounded-button text-gray-700;
     @apply border border-gray-200/80;
     @apply shadow-soft;
     @apply transition-all duration-g3-fast ease-g3;
@@ -379,7 +429,7 @@ body {
   }
 
   .btn-secondary:active:not(:disabled) {
-    @apply shadow-button-active translate-y-0;
+    @apply translate-y-0 shadow-button-active;
     transform: scale(0.98);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
   }
@@ -392,8 +442,8 @@ body {
   }
 
   .btn-secondary:disabled {
-    @apply opacity-50 cursor-not-allowed;
-    @apply shadow-none border-gray-200;
+    @apply cursor-not-allowed opacity-50;
+    @apply border-gray-200 shadow-none;
     background: #f3f4f6;
   }
 
@@ -403,12 +453,12 @@ body {
    * ---------------------------------------- */
   .btn-ghost {
     @apply inline-flex items-center justify-center px-3 py-1.5 font-medium;
-    @apply text-gray-600 bg-transparent rounded-button;
+    @apply rounded-button bg-transparent text-gray-600;
     @apply transition-all duration-g3-fast ease-g3;
   }
 
   .btn-ghost:hover:not(:disabled) {
-    @apply text-gray-900 bg-gray-100/80;
+    @apply bg-gray-100/80 text-gray-900;
   }
 
   .btn-ghost:active:not(:disabled) {
@@ -425,7 +475,7 @@ body {
    * 立体渐变 + 多层阴影 + 涟漪动画
    * ---------------------------------------- */
   .btn-pronounce {
-    @apply relative w-14 h-14 rounded-full;
+    @apply relative h-14 w-14 rounded-full;
     @apply flex items-center justify-center;
     @apply transition-all duration-g3-normal ease-g3;
     @apply focus:outline-none;
@@ -473,7 +523,7 @@ body {
   }
 
   .btn-pronounce:disabled {
-    @apply opacity-50 cursor-not-allowed;
+    @apply cursor-not-allowed opacity-50;
     background: #94a3b8;
     box-shadow: none;
   }
@@ -494,7 +544,7 @@ body {
    * ---------------------------------------- */
   .card-elevated {
     @apply relative rounded-card;
-    @apply bg-white border border-gray-100/50;
+    @apply border border-gray-100/50 bg-white;
     @apply transition-all duration-g3-normal ease-g3;
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.04),
@@ -514,7 +564,12 @@ body {
   .card-elevated::before {
     content: '';
     @apply absolute inset-x-0 top-0 h-px;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.9) 50%,
+      transparent 100%
+    );
     @apply pointer-events-none;
   }
 
@@ -523,10 +578,14 @@ body {
    * 细腻渐变背景 + 适度模糊 + 环境光
    * ---------------------------------------- */
   .card-glass {
-    @apply relative rounded-card overflow-hidden;
+    @apply relative overflow-hidden rounded-card;
     @apply border border-white/40;
     @apply shadow-elevated;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(249, 250, 251, 0.82) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.88) 0%,
+      rgba(249, 250, 251, 0.82) 100%
+    );
     backdrop-filter: blur(10px) saturate(1.2);
   }
 
@@ -562,7 +621,7 @@ body {
    * ---------------------------------------- */
   .skeleton {
     @apply relative overflow-hidden;
-    @apply bg-gray-200/60 rounded-badge;
+    @apply rounded-badge bg-gray-200/60;
   }
 
   .skeleton::after {
@@ -574,8 +633,8 @@ body {
 
   /* 骨架屏卡片预设 */
   .skeleton-card {
-    @apply rounded-card p-4 space-y-3;
-    @apply bg-white shadow-soft border border-gray-100/50;
+    @apply space-y-3 rounded-card p-4;
+    @apply border border-gray-100/50 bg-white shadow-soft;
   }
 
   .skeleton-line {
@@ -593,7 +652,7 @@ body {
   /* 静态骨架屏（无动画） */
   .skeleton-static {
     @apply relative overflow-hidden;
-    @apply bg-gray-200/70 rounded-badge;
+    @apply rounded-badge bg-gray-200/70;
   }
 
   /* ----------------------------------------
@@ -601,7 +660,7 @@ body {
    * ---------------------------------------- */
   .input-enhanced {
     @apply w-full px-4 py-2.5;
-    @apply bg-gray-50/50 border border-gray-200/80 rounded-input;
+    @apply rounded-input border border-gray-200/80 bg-gray-50/50;
     @apply text-gray-900 placeholder-gray-400;
     @apply transition-all duration-g3-fast ease-g3;
   }
@@ -611,12 +670,12 @@ body {
   }
 
   .input-enhanced:focus {
-    @apply outline-none border-blue-400 bg-white;
+    @apply border-blue-400 bg-white outline-none;
     @apply ring-2 ring-blue-100;
   }
 
   .input-enhanced:disabled {
-    @apply opacity-50 cursor-not-allowed bg-gray-100;
+    @apply cursor-not-allowed bg-gray-100 opacity-50;
   }
 
   /* ----------------------------------------
@@ -677,7 +736,7 @@ body {
    * 链接样式
    * ---------------------------------------- */
   .link {
-    @apply text-blue-600 font-medium;
+    @apply font-medium text-blue-600;
     @apply transition-colors duration-g3-fast ease-g3;
     text-decoration: underline;
     text-decoration-color: transparent;
@@ -690,7 +749,7 @@ body {
   }
 
   .link:focus-visible {
-    @apply outline-none ring-2 ring-blue-400 ring-offset-1 rounded-sm;
+    @apply rounded-sm outline-none ring-2 ring-blue-400 ring-offset-1;
   }
 
   /* ----------------------------------------
@@ -762,7 +821,8 @@ body {
 
 /* 成功反馈脉冲 */
 @keyframes successPulse {
-  0%, 100% {
+  0%,
+  100% {
     background-color: rgba(16, 185, 129, 0.1);
     border-color: rgba(16, 185, 129, 0.3);
   }
@@ -774,9 +834,16 @@ body {
 
 /* 错误抖动反馈 */
 @keyframes errorShake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  75% { transform: translateX(6px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
 }
 
 /* ========================================
@@ -814,4 +881,150 @@ body {
   .btn-secondary::before {
     display: none;
   }
+}
+
+/* ========================================
+ * CSS 动画替代 framer-motion
+ * 用于简单动画场景，减少 bundle 大小
+ * ======================================== */
+
+/* 淡入动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 淡入上滑动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 淡入下滑动画 */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 展开动画 */
+@keyframes expandDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+/* 收起动画 */
+@keyframes collapseUp {
+  from {
+    opacity: 1;
+    max-height: 1000px;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+  }
+}
+
+/* Stagger 子元素动画 */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 动画工具类 */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.2s ease-out forwards;
+}
+
+.animate-expand {
+  animation: expandDown 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+.animate-collapse {
+  animation: collapseUp 0.2s ease-out forwards;
+  overflow: hidden;
+}
+
+/* Stagger 动画延迟 */
+.stagger-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-item:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-item:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-item:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-item:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-item:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-item:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-item:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* 按钮 hover/active 效果 */
+.btn-scale {
+  transition: transform 0.15s ease-out;
+}
+
+.btn-scale:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.btn-scale:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* 旋转动画 */
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.transition-rotate {
+  transition: transform 0.2s ease-out;
 }

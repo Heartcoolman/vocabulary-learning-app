@@ -7,23 +7,26 @@
  * - 学习暂停/恢复事件
  * - 页面/任务切换事件
  * - 交互频率数据
+ *
+ * 注意：当前使用内存存储，因为 Prisma schema 中尚未定义
+ * UserInteractionStats 和 UserTrackingEvent 模型。
+ * TODO: 添加数据库持久化支持
  */
 
-import prisma from '../config/database';
 import { logger } from '../logger';
 
 /**
  * 埋点事件类型
  */
 export type TrackingEventType =
-  | 'pronunciation_click'     // 发音按钮点击
-  | 'learning_pause'          // 学习暂停
-  | 'learning_resume'         // 学习恢复
-  | 'page_switch'            // 页面切换
-  | 'task_switch'            // 任务切换
-  | 'interaction'            // 一般交互事件
-  | 'session_start'          // 会话开始
-  | 'session_end';           // 会话结束
+  | 'pronunciation_click' // 发音按钮点击
+  | 'learning_pause' // 学习暂停
+  | 'learning_resume' // 学习恢复
+  | 'page_switch' // 页面切换
+  | 'task_switch' // 任务切换
+  | 'interaction' // 一般交互事件
+  | 'session_start' // 会话开始
+  | 'session_end'; // 会话结束
 
 /**
  * 埋点事件数据
@@ -57,8 +60,35 @@ export interface UserInteractionStats {
   lastActivityTime: Date;
 }
 
+/**
+ * 内存存储的用户交互统计
+ */
+interface InMemoryUserStats {
+  pronunciationClicks: number;
+  pauseCount: number;
+  pageSwitchCount: number;
+  totalInteractions: number;
+  lastActivityTime: Date;
+}
+
+/**
+ * 内存存储的追踪事件
+ */
+interface InMemoryTrackingEvent {
+  userId: string;
+  sessionId: string;
+  eventType: string;
+  eventData: string | null;
+  timestamp: Date;
+}
+
 class TrackingService {
   private readonly trackingLogger = logger.child({ module: 'tracking' });
+
+  // 内存存储（临时方案，直到数据库模型可用）
+  private userStatsCache = new Map<string, InMemoryUserStats>();
+  private eventsCache: InMemoryTrackingEvent[] = [];
+  private readonly MAX_EVENTS_CACHE = 10000;
 
   /**
    * 处理批量埋点事件
@@ -107,7 +137,7 @@ class TrackingService {
           pauseCount,
           pageSwitchCount,
         },
-        'Tracking batch processed'
+        'Tracking batch processed',
       );
     } catch (error) {
       this.trackingLogger.error({ err: error, userId, batch }, 'Failed to process tracking batch');
@@ -116,7 +146,7 @@ class TrackingService {
   }
 
   /**
-   * 更新用户交互统计
+   * 更新用户交互统计（使用内存存储）
    */
   private async updateUserInteractionStats(
     userId: string,
@@ -125,62 +155,62 @@ class TrackingService {
       pauseCount: number;
       pageSwitchCount: number;
       totalInteractions: number;
-    }
+    },
   ): Promise<void> {
     try {
-      // 使用 upsert 更新或创建用户交互统计
-      await prisma.userInteractionStats.upsert({
-        where: { userId },
-        create: {
-          userId,
+      // 使用内存缓存存储用户交互统计
+      const existing = this.userStatsCache.get(userId);
+      if (existing) {
+        existing.pronunciationClicks += stats.pronunciationClicks;
+        existing.pauseCount += stats.pauseCount;
+        existing.pageSwitchCount += stats.pageSwitchCount;
+        existing.totalInteractions += stats.totalInteractions;
+        existing.lastActivityTime = new Date();
+      } else {
+        this.userStatsCache.set(userId, {
           pronunciationClicks: stats.pronunciationClicks,
           pauseCount: stats.pauseCount,
           pageSwitchCount: stats.pageSwitchCount,
           totalInteractions: stats.totalInteractions,
           lastActivityTime: new Date(),
-        },
-        update: {
-          pronunciationClicks: { increment: stats.pronunciationClicks },
-          pauseCount: { increment: stats.pauseCount },
-          pageSwitchCount: { increment: stats.pageSwitchCount },
-          totalInteractions: { increment: stats.totalInteractions },
-          lastActivityTime: new Date(),
-        },
-      });
+        });
+      }
     } catch (error) {
-      // 如果表不存在，记录警告但不中断处理
       this.trackingLogger.warn(
         { err: error, userId },
-        'Failed to update user interaction stats (table may not exist)'
+        'Failed to update user interaction stats in memory cache',
       );
     }
   }
 
   /**
-   * 存储原始事件数据
+   * 存储原始事件数据（使用内存存储）
    */
   private async storeEvents(
     userId: string,
     sessionId: string,
-    events: TrackingEvent[]
+    events: TrackingEvent[],
   ): Promise<void> {
     try {
-      // 批量插入事件
-      await prisma.userTrackingEvent.createMany({
-        data: events.map((event) => ({
-          userId,
-          sessionId,
-          eventType: event.type,
-          eventData: event.data ? JSON.stringify(event.data) : null,
-          timestamp: new Date(event.timestamp),
-        })),
-        skipDuplicates: true,
-      });
+      // 使用内存缓存存储事件
+      const newEvents = events.map((event) => ({
+        userId,
+        sessionId,
+        eventType: event.type,
+        eventData: event.data ? JSON.stringify(event.data) : null,
+        timestamp: new Date(event.timestamp),
+      }));
+
+      this.eventsCache.push(...newEvents);
+
+      // 限制缓存大小，移除最旧的事件
+      if (this.eventsCache.length > this.MAX_EVENTS_CACHE) {
+        this.eventsCache = this.eventsCache.slice(-this.MAX_EVENTS_CACHE);
+      }
     } catch (error) {
-      // 如果表不存在，记录警告但不中断处理
       this.trackingLogger.warn(
         { err: error, userId, sessionId, eventCount: events.length },
-        'Failed to store tracking events (table may not exist)'
+        'Failed to store tracking events in memory cache',
       );
     }
   }
@@ -190,9 +220,7 @@ class TrackingService {
    */
   async getUserInteractionStats(userId: string): Promise<UserInteractionStats | null> {
     try {
-      const stats = await prisma.userInteractionStats.findUnique({
-        where: { userId },
-      });
+      const stats = this.userStatsCache.get(userId);
 
       if (!stats) {
         return null;
@@ -209,7 +237,7 @@ class TrackingService {
     } catch (error) {
       this.trackingLogger.warn(
         { err: error, userId },
-        'Failed to get user interaction stats'
+        'Failed to get user interaction stats from memory cache',
       );
       return null;
     }
@@ -233,10 +261,7 @@ class TrackingService {
       // 如果点击比例超过 0.3，认为是强听觉偏好
       return Math.min(clickRatio / 0.3, 1.0);
     } catch (error) {
-      this.trackingLogger.warn(
-        { err: error, userId },
-        'Failed to calculate auditory preference'
-      );
+      this.trackingLogger.warn({ err: error, userId }, 'Failed to calculate auditory preference');
       return 0.5;
     }
   }
@@ -244,18 +269,15 @@ class TrackingService {
   /**
    * 获取用户最近的交互事件（用于实时分析）
    */
-  async getRecentEvents(
-    userId: string,
-    limit: number = 100
-  ): Promise<TrackingEvent[]> {
+  async getRecentEvents(userId: string, limit: number = 100): Promise<TrackingEvent[]> {
     try {
-      const events = await prisma.userTrackingEvent.findMany({
-        where: { userId },
-        orderBy: { timestamp: 'desc' },
-        take: limit,
-      });
+      // 从内存缓存中过滤用户事件
+      const userEvents = this.eventsCache
+        .filter((e) => e.userId === userId)
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, limit);
 
-      return events.map((e) => ({
+      return userEvents.map((e) => ({
         type: e.eventType as TrackingEventType,
         timestamp: e.timestamp.getTime(),
         data: e.eventData ? JSON.parse(e.eventData) : undefined,
@@ -264,7 +286,7 @@ class TrackingService {
     } catch (error) {
       this.trackingLogger.warn(
         { err: error, userId },
-        'Failed to get recent events'
+        'Failed to get recent events from memory cache',
       );
       return [];
     }

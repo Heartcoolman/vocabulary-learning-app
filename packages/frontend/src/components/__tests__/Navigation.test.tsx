@@ -11,9 +11,15 @@ import Navigation from '../Navigation';
 vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>
+    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>
+  AnimatePresence: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock animations
+vi.mock('../../utils/animations', () => ({
+  fadeInVariants: {},
+  g3SpringStandard: { type: 'spring', stiffness: 500, damping: 30 },
 }));
 
 // Mock Icon components
@@ -27,20 +33,20 @@ vi.mock('../Icon', () => ({
   Target: () => <span>🎯</span>,
   UserCircle: () => <span>👤</span>,
   List: () => <span data-testid="list-icon">☰</span>,
-  X: () => <span data-testid="x-icon">✕</span>
+  X: () => <span data-testid="x-icon">✕</span>,
 }));
 
 // Mock AuthContext
 const mockUseAuth = vi.fn();
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => mockUseAuth()
+  useAuth: () => mockUseAuth(),
 }));
 
 const renderWithRouter = (initialPath = '/') => {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Navigation />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -49,7 +55,7 @@ describe('Navigation', () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
-      user: null
+      user: null,
     });
   });
 
@@ -80,7 +86,7 @@ describe('Navigation', () => {
     it('should render username when authenticated', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
-        user: { username: 'testuser', role: 'USER' }
+        user: { username: 'testuser', role: 'USER' },
       });
       renderWithRouter();
 
@@ -90,7 +96,7 @@ describe('Navigation', () => {
     it('should render admin link for admin users', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
-        user: { username: 'admin', role: 'ADMIN' }
+        user: { username: 'admin', role: 'ADMIN' },
       });
       renderWithRouter();
 
@@ -100,7 +106,7 @@ describe('Navigation', () => {
     it('should not render admin link for non-admin users', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
-        user: { username: 'testuser', role: 'USER' }
+        user: { username: 'testuser', role: 'USER' },
       });
       renderWithRouter();
 
@@ -139,7 +145,7 @@ describe('Navigation', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
-        user: { username: 'testuser', role: 'USER' }
+        user: { username: 'testuser', role: 'USER' },
       });
     });
 
@@ -152,7 +158,7 @@ describe('Navigation', () => {
     it('should not show insights when not authenticated', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: false,
-        user: null
+        user: null,
       });
       renderWithRouter();
 
@@ -221,7 +227,7 @@ describe('Navigation', () => {
     it('should have proper aria-label for profile link', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
-        user: { username: 'testuser', role: 'USER' }
+        user: { username: 'testuser', role: 'USER' },
       });
       renderWithRouter();
 

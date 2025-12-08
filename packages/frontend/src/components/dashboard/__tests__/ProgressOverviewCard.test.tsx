@@ -9,9 +9,21 @@ import type { StudyProgressData } from '../../../hooks/useStudyProgress';
 
 // Mock Icon components
 vi.mock('../../../components/Icon', () => ({
-  Trophy: ({ className, weight }: any) => <span data-testid="icon-trophy" className={className}>Trophy</span>,
-  Target: ({ className, weight }: any) => <span data-testid="icon-target" className={className}>Target</span>,
-  BookOpen: ({ className, weight }: any) => <span data-testid="icon-book" className={className}>Book</span>,
+  Trophy: ({ className, weight }: any) => (
+    <span data-testid="icon-trophy" className={className}>
+      Trophy
+    </span>
+  ),
+  Target: ({ className, weight }: any) => (
+    <span data-testid="icon-target" className={className}>
+      Target
+    </span>
+  ),
+  BookOpen: ({ className, weight }: any) => (
+    <span data-testid="icon-book" className={className}>
+      Book
+    </span>
+  ),
 }));
 
 describe('ProgressOverviewCard', () => {
@@ -20,8 +32,7 @@ describe('ProgressOverviewCard', () => {
     todayTarget: 30,
     totalStudied: 500,
     correctRate: 85,
-    streakDays: 7,
-    totalReviewed: 100,
+    weeklyTrend: [10, 15, 20, 18, 22, 25, 20],
   };
 
   // ==================== Rendering Tests ====================
@@ -132,8 +143,7 @@ describe('ProgressOverviewCard', () => {
         todayTarget: 30,
         totalStudied: 0,
         correctRate: 0,
-        streakDays: 0,
-        totalReviewed: 0,
+        weeklyTrend: [0, 0, 0, 0, 0, 0, 0],
       };
       render(<ProgressOverviewCard data={data} />);
 

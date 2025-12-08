@@ -39,14 +39,20 @@ import logViewerRoutes from './routes/log-viewer.routes';
 import llmAdvisorRoutes from './routes/llm-advisor.routes';
 import experimentRoutes from './routes/experiment.routes';
 import trackingRoutes from './routes/tracking.routes';
-
+import healthRoutes from './routes/health.routes';
 
 const app = express();
 
 // 反向代理配置：仅在明确配置且受控反代后面时启用
 // 攻击者可伪造 X-Forwarded-For 绕过限流，因此默认禁用
-if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
-  const proxyValue = env.TRUST_PROXY === 'true' ? 1 : parseInt(env.TRUST_PROXY, 10) || false;
+if (env.TRUST_PROXY !== false) {
+  // TRUST_PROXY 已在 env.ts 中转换为 number | string | false
+  // number: 直接使用 (跳过的代理数量)
+  // string: 转换为数字或传递给 express (如 'loopback', 'linklocal' 等)
+  const proxyValue =
+    typeof env.TRUST_PROXY === 'number'
+      ? env.TRUST_PROXY
+      : parseInt(String(env.TRUST_PROXY), 10) || env.TRUST_PROXY;
   if (proxyValue) {
     app.set('trust proxy', proxyValue);
     logger.info({ trustProxy: proxyValue }, 'Trust proxy enabled');
@@ -91,7 +97,7 @@ app.use(
       includeSubDomains: true,
       preload: true,
     },
-  })
+  }),
 );
 
 // CORS配置
@@ -103,11 +109,11 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
     exposedHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     maxAge: 86400, // 24小时预检请求缓存
-  })
+  }),
 );
 
 // 速率限制（测试环境禁用）
-if (process.env.NODE_ENV !== 'test') {
+if (env.NODE_ENV !== 'test') {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15分钟
     max: 500, // 限制500个请求（从100放宽到500）
@@ -117,7 +123,7 @@ if (process.env.NODE_ENV !== 'test') {
       res.status(429).json({
         success: false,
         error: '请求过于频繁，请稍后再试',
-        code: 'TOO_MANY_REQUESTS'
+        code: 'TOO_MANY_REQUESTS',
       });
     },
   });
@@ -133,7 +139,7 @@ if (process.env.NODE_ENV !== 'test') {
       res.status(429).json({
         success: false,
         error: '认证请求过于频繁，请稍后再试',
-        code: 'TOO_MANY_AUTH_REQUESTS'
+        code: 'TOO_MANY_AUTH_REQUESTS',
       });
     },
   });
@@ -148,7 +154,7 @@ app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
 // HTTP 请求监控（采样）
-if (process.env.NODE_ENV !== 'test') {
+if (env.NODE_ENV !== 'test') {
   const { metricsMiddleware } = require('./middleware/metrics.middleware');
   app.use(metricsMiddleware);
 }
@@ -158,7 +164,7 @@ app.get('/health', async (req, res) => {
   const checks: { database: string; timestamp: string; status: string } = {
     database: 'unknown',
     timestamp: new Date().toISOString(),
-    status: 'ok'
+    status: 'ok',
   };
 
   try {
@@ -208,6 +214,8 @@ app.use('/api/users/profile', profileRoutes);
 app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
 
+// 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
+app.use('/health', healthRoutes);
 
 // 404处理
 app.use((req, res) => {

@@ -31,7 +31,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 // Mock apiClient
-vi.mock('../../services/ApiClient', () => ({
+vi.mock('../../services/client', () => ({
   default: {
     updatePassword: vi.fn(),
   },
@@ -71,7 +71,7 @@ vi.mock('../../components/ui', async () => {
 
 // Import mocked modules for assertions
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient from '../../services/ApiClient';
+import apiClient from '../../services/client';
 import StorageService from '../../services/StorageService';
 
 describe('ProfilePage', () => {
@@ -91,7 +91,7 @@ describe('ProfilePage', () => {
     return render(
       <MemoryRouter>
         <ProfilePage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
