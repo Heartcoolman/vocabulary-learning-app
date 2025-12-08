@@ -4,7 +4,7 @@
  * 使用 react-window v2 实现虚拟滚动，优化大量单词列表的渲染性能
  * 只渲染可视区域内的单词项，大幅减少 DOM 节点数量
  */
-import { memo, useRef, useEffect, createContext, useContext, CSSProperties } from 'react';
+import { memo, useEffect, createContext, useContext, CSSProperties } from 'react';
 import { List, useListCallbackRef, RowComponentProps } from 'react-window';
 import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from './Icon';
 

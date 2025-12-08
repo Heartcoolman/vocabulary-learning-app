@@ -2,11 +2,11 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAdminUsers, useDeleteUser, useUpdateUserRole } from '../useAdminUsers';
-import apiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+vi.mock('@/services/client', () => ({
+  apiClient: {
     adminGetUsers: vi.fn(),
     adminDeleteUser: vi.fn(),
     adminUpdateUserRole: vi.fn(),
@@ -213,7 +213,15 @@ describe('useUpdateUserRole', () => {
   );
 
   it('应该成功更新用户角色', async () => {
-    vi.mocked(apiClient.adminUpdateUserRole).mockResolvedValue(undefined);
+    const mockUser = {
+      id: 'user-id',
+      email: 'test@example.com',
+      username: 'test',
+      role: 'ADMIN' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    vi.mocked(apiClient.adminUpdateUserRole).mockResolvedValue(mockUser);
 
     const { result } = renderHook(() => useUpdateUserRole(), { wrapper });
 
@@ -223,7 +231,15 @@ describe('useUpdateUserRole', () => {
   });
 
   it('应该在更新成功后使查询失效', async () => {
-    vi.mocked(apiClient.adminUpdateUserRole).mockResolvedValue(undefined);
+    const mockUser = {
+      id: 'user-id',
+      email: 'test@example.com',
+      username: 'test',
+      role: 'ADMIN' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    vi.mocked(apiClient.adminUpdateUserRole).mockResolvedValue(mockUser);
 
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 

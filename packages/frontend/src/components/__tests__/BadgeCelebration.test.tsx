@@ -10,12 +10,21 @@ import { Badge } from '../../types/amas-enhanced';
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, variants, initial, animate, exit, ...props }: any) => (
-      <div {...props}>{children}</div>
-    ),
-    button: ({ children, whileHover, whileTap, transition, ...props }: any) => (
-      <button {...props}>{children}</button>
-    ),
+    div: ({
+      children,
+      variants: _variants,
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      ...props
+    }: any) => <div {...props}>{children}</div>,
+    button: ({
+      children,
+      whileHover: _whileHover,
+      whileTap: _whileTap,
+      transition: _transition,
+      ...props
+    }: any) => <button {...props}>{children}</button>,
   },
   AnimatePresence: ({ children }: any) => children,
 }));

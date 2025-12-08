@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Clock, Target, SpeakerHigh } from './Icon';
 import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
@@ -37,11 +37,11 @@ function WordCard({
   const pronounceButtonRef = useRef<HTMLButtonElement>(null);
 
   // 处理发音按钮点击，包含埋点
-  const handlePronounce = () => {
+  const handlePronounce = useCallback(() => {
     // 记录发音按钮点击事件（用于学习风格分析-听觉偏好）
     trackingService.trackPronunciationClick(word.id, word.spelling);
     onPronounce();
-  };
+  }, [word.id, word.spelling, onPronounce]);
 
   // 键盘快捷键支持
   useEffect(() => {
@@ -57,7 +57,7 @@ function WordCard({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [onPronounce, isPronouncing, word.id, word.spelling]);
+  }, [isPronouncing, handlePronounce]);
 
   return (
     <motion.div

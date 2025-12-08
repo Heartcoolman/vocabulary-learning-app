@@ -2,19 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAchievements, useCheckNewBadges, useAchievementProgress } from '../useAchievements';
-import ApiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 import type { Badge, BadgeProgress } from '../../../types/amas-enhanced';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+vi.mock('@/services/client', () => ({
+  apiClient: {
     getAllBadgesWithStatus: vi.fn(),
     checkAndAwardBadges: vi.fn(),
     getBadgeProgress: vi.fn(),
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockApiClient = apiClient as unknown as {
   getAllBadgesWithStatus: ReturnType<typeof vi.fn>;
   checkAndAwardBadges: ReturnType<typeof vi.fn>;
   getBadgeProgress: ReturnType<typeof vi.fn>;
@@ -33,7 +33,6 @@ const createTestQueryClient = () =>
 
 // Wrapper组件
 const createWrapper = (queryClient: QueryClient) => {
-  // eslint-disable-next-line react/display-name
   return ({ children }: { children: React.ReactNode }) => {
     return QueryClientProvider({ client: queryClient, children });
   };
@@ -70,6 +69,7 @@ const mockAchievementsResponse = {
 };
 
 const mockBadgeProgress: BadgeProgress = {
+  badgeId: 'badge-2',
   currentValue: 60,
   targetValue: 100,
   percentage: 60,

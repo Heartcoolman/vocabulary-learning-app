@@ -32,6 +32,7 @@ export default tseslint.config(
       // TypeScript 规则
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-empty-object-type': 'warn',
 
       // React Hooks 规则
       ...reactHooks.configs.recommended.rules,
@@ -53,6 +54,8 @@ export default tseslint.config(
     ],
     rules: {
       'no-console': 'off',
+      'no-useless-catch': 'off',
+      'react/display-name': 'off',
     },
   },
   // logger.ts 豁免 (需要使用 console 输出)
@@ -76,6 +79,28 @@ export default tseslint.config(
   // Storybook 文件豁免（演示代码可使用 console）
   {
     files: ['**/stories/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  // Admin/Ops 监控组件豁免（需要 console 进行调试）
+  {
+    files: ['**/components/admin/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  // 配置和工具文件豁免
+  {
+    files: [
+      '**/config/**/*.{ts,tsx}',
+      '**/utils/abTesting.ts',
+      '**/utils/notificationService.ts',
+      '**/utils/emergency.ts',
+      '**/utils/monitoring.ts',
+      '**/utils/rolloutMonitoring.ts',
+      '**/hooks/queries/useAuth.ts',
+    ],
     rules: {
       'no-console': 'off',
     },

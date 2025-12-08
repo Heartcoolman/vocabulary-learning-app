@@ -3,12 +3,12 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStatistics, useStudyProgress, useUserStatistics } from '../useStatistics';
-import ApiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 import StorageService from '../../../services/StorageService';
 import * as AuthContext from '../../../contexts/AuthContext';
 
 // Mock dependencies
-vi.mock('../../../services/ApiClient');
+vi.mock('@/services/client');
 vi.mock('../../../services/StorageService');
 vi.mock('../../../contexts/AuthContext');
 
@@ -47,7 +47,7 @@ describe('useStatistics', () => {
       vi.spyOn(StorageService, 'getWords').mockResolvedValue(mockWords as any);
       vi.spyOn(StorageService, 'getWordLearningStates').mockResolvedValue(mockWordStates as any);
       vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue(mockStudyStats as any);
-      vi.spyOn(ApiClient, 'getRecords').mockResolvedValue(mockRecords as any);
+      vi.spyOn(apiClient, 'getRecords').mockResolvedValue(mockRecords as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -77,8 +77,13 @@ describe('useStatistics', () => {
       vi.spyOn(AuthContext, 'useAuth').mockReturnValue({ user: mockUser } as any);
       vi.spyOn(StorageService, 'getWords').mockResolvedValue([]);
       vi.spyOn(StorageService, 'getWordLearningStates').mockResolvedValue([]);
-      vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue({ correctRate: 0 });
-      vi.spyOn(ApiClient, 'getRecords').mockResolvedValue({ records: [], pagination: {} } as any);
+      vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue({
+        totalWords: 0,
+        studiedWords: 0,
+        correctRate: 0,
+        wordStats: new Map(),
+      });
+      vi.spyOn(apiClient, 'getRecords').mockResolvedValue({ records: [], pagination: {} } as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -101,7 +106,7 @@ describe('useStatistics', () => {
         weeklyTrend: [5, 8, 10, 12, 15, 18, 20],
       };
 
-      vi.spyOn(ApiClient, 'getStudyProgress').mockResolvedValue(mockProgress);
+      vi.spyOn(apiClient, 'getStudyProgress').mockResolvedValue(mockProgress);
 
       const { result } = renderHook(() => useStudyProgress(), { wrapper });
 
@@ -113,7 +118,7 @@ describe('useStatistics', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.spyOn(ApiClient, 'getStudyProgress').mockResolvedValue({} as any);
+      vi.spyOn(apiClient, 'getStudyProgress').mockResolvedValue({} as any);
 
       const { result } = renderHook(() => useStudyProgress(), { wrapper });
 
@@ -131,7 +136,7 @@ describe('useStatistics', () => {
         correctRate: 0.85,
       };
 
-      vi.spyOn(ApiClient, 'getUserStatistics').mockResolvedValue(mockStats);
+      vi.spyOn(apiClient, 'getUserStatistics').mockResolvedValue(mockStats);
 
       const { result } = renderHook(() => useUserStatistics(), { wrapper });
 

@@ -5,10 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useStudyProgress, StudyProgressData } from '../useStudyProgress';
-import apiClient from '@/services/ApiClient';
+import { apiClient } from '@/services/client';
 
-vi.mock('@/services/ApiClient', () => ({
-  default: {
+vi.mock('@/services/client', () => ({
+  apiClient: {
     getStudyProgress: vi.fn(),
   },
 }));
@@ -19,7 +19,7 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-const mockApiClient = apiClient as {
+const mockApiClient = apiClient as unknown as {
   getStudyProgress: ReturnType<typeof vi.fn>;
 };
 

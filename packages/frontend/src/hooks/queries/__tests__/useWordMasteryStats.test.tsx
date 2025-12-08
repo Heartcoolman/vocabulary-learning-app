@@ -10,10 +10,10 @@ import {
   useWordMasteryInterval,
   useLearnedWords,
 } from '../useWordMasteryStats';
-import ApiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 
 // Mock dependencies
-vi.mock('../../../services/ApiClient');
+vi.mock('@/services/client');
 
 describe('useWordMasteryStats', () => {
   let queryClient: QueryClient;
@@ -43,7 +43,7 @@ describe('useWordMasteryStats', () => {
         averageScore: 0.75,
       };
 
-      vi.spyOn(ApiClient, 'getWordMasteryStats').mockResolvedValue(mockStats as any);
+      vi.spyOn(apiClient, 'getWordMasteryStats').mockResolvedValue(mockStats as any);
 
       const { result } = renderHook(() => useWordMasteryStats(), { wrapper });
 
@@ -55,7 +55,7 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.spyOn(ApiClient, 'getWordMasteryStats').mockResolvedValue({} as any);
+      vi.spyOn(apiClient, 'getWordMasteryStats').mockResolvedValue({} as any);
 
       const { result } = renderHook(() => useWordMasteryStats(), { wrapper });
 
@@ -72,7 +72,7 @@ describe('useWordMasteryStats', () => {
         { wordId: 'word2', score: 0.6, isLearned: false },
       ];
 
-      vi.spyOn(ApiClient, 'batchProcessWordMastery').mockResolvedValue(mockEvaluations as any);
+      vi.spyOn(apiClient, 'batchProcessWordMastery').mockResolvedValue(mockEvaluations as any);
 
       const { result } = renderHook(() => useBatchWordMastery(['word1', 'word2']), { wrapper });
 
@@ -94,12 +94,12 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support user fatigue parameter', async () => {
-      vi.spyOn(ApiClient, 'batchProcessWordMastery').mockResolvedValue([]);
+      vi.spyOn(apiClient, 'batchProcessWordMastery').mockResolvedValue([]);
 
       renderHook(() => useBatchWordMastery(['word1'], 0.5), { wrapper });
 
       await waitFor(() => {
-        expect(ApiClient.batchProcessWordMastery).toHaveBeenCalledWith(['word1'], 0.5);
+        expect(apiClient.batchProcessWordMastery).toHaveBeenCalledWith(['word1'], 0.5);
       });
     });
   });
@@ -113,7 +113,7 @@ describe('useWordMasteryStats', () => {
         memoryStrength: 0.9,
       };
 
-      vi.spyOn(ApiClient, 'getWordMasteryDetail').mockResolvedValue(mockDetail as any);
+      vi.spyOn(apiClient, 'getWordMasteryDetail').mockResolvedValue(mockDetail as any);
 
       const { result } = renderHook(() => useWordMasteryDetail('word1'), { wrapper });
 
@@ -142,7 +142,7 @@ describe('useWordMasteryStats', () => {
         ],
       };
 
-      vi.spyOn(ApiClient, 'getWordMasteryTrace').mockResolvedValue(mockTrace as any);
+      vi.spyOn(apiClient, 'getWordMasteryTrace').mockResolvedValue(mockTrace as any);
 
       const { result } = renderHook(() => useWordMasteryTrace('word1'), { wrapper });
 
@@ -154,12 +154,12 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support limit parameter', async () => {
-      vi.spyOn(ApiClient, 'getWordMasteryTrace').mockResolvedValue({} as any);
+      vi.spyOn(apiClient, 'getWordMasteryTrace').mockResolvedValue({} as any);
 
       renderHook(() => useWordMasteryTrace('word1', 20), { wrapper });
 
       await waitFor(() => {
-        expect(ApiClient.getWordMasteryTrace).toHaveBeenCalledWith('word1', 20);
+        expect(apiClient.getWordMasteryTrace).toHaveBeenCalledWith('word1', 20);
       });
     });
   });
@@ -172,7 +172,7 @@ describe('useWordMasteryStats', () => {
         targetRecall: 0.9,
       };
 
-      vi.spyOn(ApiClient, 'getWordMasteryInterval').mockResolvedValue(mockInterval as any);
+      vi.spyOn(apiClient, 'getWordMasteryInterval').mockResolvedValue(mockInterval as any);
 
       const { result } = renderHook(() => useWordMasteryInterval('word1'), { wrapper });
 
@@ -184,12 +184,12 @@ describe('useWordMasteryStats', () => {
     });
 
     it('should support targetRecall parameter', async () => {
-      vi.spyOn(ApiClient, 'getWordMasteryInterval').mockResolvedValue({} as any);
+      vi.spyOn(apiClient, 'getWordMasteryInterval').mockResolvedValue({} as any);
 
       renderHook(() => useWordMasteryInterval('word1', 0.85), { wrapper });
 
       await waitFor(() => {
-        expect(ApiClient.getWordMasteryInterval).toHaveBeenCalledWith('word1', 0.85);
+        expect(apiClient.getWordMasteryInterval).toHaveBeenCalledWith('word1', 0.85);
       });
     });
   });
@@ -201,7 +201,7 @@ describe('useWordMasteryStats', () => {
         { id: 'word2', spelling: 'world', meanings: ['世界'] },
       ];
 
-      vi.spyOn(ApiClient, 'getLearnedWords').mockResolvedValue(mockWords as any);
+      vi.spyOn(apiClient, 'getLearnedWords').mockResolvedValue(mockWords as any);
 
       const { result } = renderHook(() => useLearnedWords(), { wrapper });
 

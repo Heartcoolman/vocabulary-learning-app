@@ -317,12 +317,8 @@ export function useBatchDelete(options?: {
         async (batch) => {
           // 逐个删除（假设后端没有批量删除API）
           const deletePromises = batch.map(async (wordId) => {
-            try {
-              await wordClient.deleteWord(wordId);
-              return wordId;
-            } catch (error) {
-              throw error;
-            }
+            await wordClient.deleteWord(wordId);
+            return wordId;
           });
 
           return await Promise.all(deletePromises);
@@ -391,12 +387,8 @@ export function useBatchCreateRecords(options?: {
         batchSize,
         async (batch) => {
           // 使用后端的批量创建API
-          try {
-            const created = await learningClient.batchCreateRecords(batch);
-            return created;
-          } catch (error) {
-            throw error;
-          }
+          const created = await learningClient.batchCreateRecords(batch);
+          return created;
         },
         options?.onProgress,
       );

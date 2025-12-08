@@ -65,8 +65,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'new-feature',
         name: 'New Feature',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'enabled',
         defaultValue: false,
         rules: [],
         createdAt: new Date(),
@@ -82,8 +82,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'test-feature',
         name: 'Test Feature',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'enabled',
         defaultValue: true,
         rules: [],
         createdAt: new Date(),
@@ -95,7 +95,7 @@ describe('FeatureFlags', () => {
     });
 
     it('should return default value for non-existent flag', () => {
-      const result = manager.isEnabled('non-existent', false);
+      const result = manager.isEnabled('non-existent');
       expect(result).toBe(false);
     });
 
@@ -113,8 +113,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'test-override',
         name: 'Test Override',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'conditional',
         defaultValue: false,
         rules: [],
         createdAt: new Date(),
@@ -136,8 +136,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'subscribable',
         name: 'Subscribable',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'conditional',
         defaultValue: false,
         rules: [],
         createdAt: new Date(),
@@ -154,8 +154,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'percentage-feature',
         name: 'Percentage Feature',
-        type: 'percentage',
-        status: 'active',
+        type: 'experiment',
+        status: 'conditional',
         defaultValue: false,
         percentage: 100, // 100% enabled
         rules: [],
@@ -174,8 +174,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'rule-feature',
         name: 'Rule Feature',
-        type: 'rules',
-        status: 'active',
+        type: 'permission',
+        status: 'conditional',
         defaultValue: false,
         rules: [
           {
@@ -209,7 +209,7 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'disabled-feature',
         name: 'Disabled Feature',
-        type: 'boolean',
+        type: 'release',
         status: 'disabled',
         defaultValue: true,
         rules: [],
@@ -224,8 +224,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'detail-feature',
         name: 'Detail Feature',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'enabled',
         defaultValue: true,
         rules: [],
         createdAt: new Date(),
@@ -244,8 +244,8 @@ describe('FeatureFlags', () => {
       manager.register({
         key: 'get-flag-test',
         name: 'Get Flag Test',
-        type: 'boolean',
-        status: 'active',
+        type: 'release',
+        status: 'enabled',
         defaultValue: true,
         rules: [],
         createdAt: new Date(),

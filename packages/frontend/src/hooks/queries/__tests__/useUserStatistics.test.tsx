@@ -2,11 +2,11 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useUserStatistics, useUserLearningData } from '../useUserStatistics';
-import apiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+vi.mock('@/services/client', () => ({
+  apiClient: {
     adminGetUserStatistics: vi.fn(),
     adminGetUserLearningData: vi.fn(),
   },

@@ -27,7 +27,12 @@ export interface UpdateWordDto {
   audioUrl?: string;
 }
 
+/**
+ * 搜索单词结果类型
+ * 继承自 Word 类型，包含 spelling, phonetic, meanings 等所有单词属性
+ */
 export interface SearchWordResult extends Word {
+  /** 单词所属词书信息 */
   wordBook?: {
     id: string;
     name: string;

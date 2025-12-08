@@ -90,14 +90,14 @@ describe('HabitHeatmap', () => {
     });
 
     it('should show empty state when timePref is undefined', () => {
-      // @ts-ignore - Testing edge case
+      // @ts-expect-error - Testing edge case with undefined prop
       render(<HabitHeatmap timePref={undefined} />);
 
       expect(screen.getByText('暂无时间偏好数据')).toBeInTheDocument();
     });
 
     it('should show empty state when timePref is null', () => {
-      // @ts-ignore - Testing edge case
+      // @ts-expect-error - Testing edge case with null prop
       render(<HabitHeatmap timePref={null} />);
 
       expect(screen.getByText('暂无时间偏好数据')).toBeInTheDocument();

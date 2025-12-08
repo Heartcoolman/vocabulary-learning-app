@@ -503,7 +503,9 @@ export function useFeatureWithExperiment(
   experimentKey?: ExperimentKey | string,
 ) {
   const feature = useFeatureFlag(featureKey);
-  const experiment = experimentKey ? useExperiment(experimentKey) : null;
+  // Always call useExperiment to follow Rules of Hooks, pass empty string if no key
+  const experimentResult = useExperiment(experimentKey || '');
+  const experiment = experimentKey ? experimentResult : null;
   const rollout = useRolloutStage(featureKey);
 
   return {

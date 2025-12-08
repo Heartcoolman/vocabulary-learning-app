@@ -515,10 +515,11 @@ vi.mock('../services/client', () => {
   };
 });
 
-// ==================== Legacy ApiClient Mock (Deprecated) ====================
+// ==================== Legacy ApiClient Mock (For Test Compatibility) ====================
 
-// Mock for the deprecated ApiClient (/services/ApiClient.ts)
-// This ensures backward compatibility while the codebase migrates to the new modular client
+// Mock for the legacy ApiClient import path ('../services/ApiClient')
+// This mock provides compatibility for tests that still use the old import path
+// Note: New code should use `import { apiClient } from '@/services/client'`
 vi.mock('../services/ApiClient', () => {
   const mockApiClient = {
     // Token management

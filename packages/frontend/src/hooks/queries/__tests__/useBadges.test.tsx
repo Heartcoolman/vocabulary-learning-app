@@ -8,12 +8,12 @@ import {
   useBadgeProgress,
   useCheckAndAwardBadges,
 } from '../useBadges';
-import ApiClient from '../../../services/ApiClient';
+import { apiClient } from '@/services/client';
 import type { Badge, BadgeProgress } from '../../../types/amas-enhanced';
 
 // Mock ApiClient
-vi.mock('../../../services/ApiClient', () => ({
-  default: {
+vi.mock('@/services/client', () => ({
+  apiClient: {
     getUserBadges: vi.fn(),
     getAllBadgesWithStatus: vi.fn(),
     getBadgeDetails: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../../../services/ApiClient', () => ({
   },
 }));
 
-const mockApiClient = ApiClient as {
+const mockApiClient = apiClient as unknown as {
   getUserBadges: ReturnType<typeof vi.fn>;
   getAllBadgesWithStatus: ReturnType<typeof vi.fn>;
   getBadgeDetails: ReturnType<typeof vi.fn>;
@@ -43,7 +43,6 @@ const createTestQueryClient = () =>
 
 // Wrapper组件
 const createWrapper = (queryClient: QueryClient) => {
-  // eslint-disable-next-line react/display-name
   return ({ children }: { children: React.ReactNode }) => {
     return QueryClientProvider({ client: queryClient, children });
   };
@@ -85,6 +84,7 @@ const mockAllBadgesResponse = {
 };
 
 const mockBadgeProgress: BadgeProgress = {
+  badgeId: 'badge-1',
   currentValue: 75,
   targetValue: 100,
   percentage: 75,
