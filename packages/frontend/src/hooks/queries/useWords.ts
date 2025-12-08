@@ -188,10 +188,13 @@ export function useUpdateWord() {
       });
 
       // 乐观更新详情缓存
-      queryClient.setQueryData<Word>(queryKeys.words.detail(id), (old) => {
-        if (!old) return old;
-        return { ...old, ...data, updatedAt: Date.now() };
-      });
+      queryClient.setQueryData<Word | undefined>(
+        queryKeys.words.detail(id),
+        (old: Word | undefined) => {
+          if (!old) return old;
+          return { ...old, ...data, updatedAt: Date.now() };
+        },
+      );
 
       return { previousWords, previousWord };
     },

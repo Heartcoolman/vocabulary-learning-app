@@ -184,7 +184,7 @@ export class AlgorithmConfigService {
       }
 
       // 检查间隔是否为正数
-      if (config.reviewIntervals.some((interval) => interval <= 0)) {
+      if (config.reviewIntervals.some((interval: number) => interval <= 0)) {
         errors.push('复习间隔必须为正数');
       }
     }
@@ -209,7 +209,9 @@ export class AlgorithmConfigService {
       errors.push('掌握程度阈值不能为空');
     } else {
       // 检查级别是否连续
-      const levels = config.masteryThresholds.map((t) => t.level).sort((a, b) => a - b);
+      const levels = config.masteryThresholds
+        .map((t: { level: number }) => t.level)
+        .sort((a: number, b: number) => a - b);
       for (let i = 0; i < levels.length; i++) {
         if (levels[i] !== i + 1) {
           errors.push('掌握程度级别必须从1开始连续');

@@ -148,7 +148,7 @@ const HabitProfileTab: React.FC = () => {
 
   // 防御性检查：确保 preferredTimeSlots 是数组
   const preferredTimeSlotsLabels =
-    (profile.preferredTimeSlots || []).map((hour) => `${hour}:00-${hour}:59`).join(', ') ||
+    (profile.preferredTimeSlots || []).map((hour: number) => `${hour}:00-${hour}:59`).join(', ') ||
     '暂无数据';
 
   return (
@@ -237,7 +237,7 @@ const HabitProfileTab: React.FC = () => {
         <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
           <h3 className="mb-3 text-lg font-semibold text-gray-800">偏好时段</h3>
           <div className="flex flex-wrap gap-2">
-            {profile.preferredTimeSlots.map((hour) => (
+            {profile.preferredTimeSlots.map((hour: number) => (
               <span
                 key={hour}
                 className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700"

@@ -324,7 +324,7 @@ export default function WordBookDetailPage() {
 
                       {/* 释义列表 */}
                       <div className="space-y-1.5 pt-1 text-sm text-gray-600">
-                        {word.meanings.slice(0, 2).map((meaning, idx) => (
+                        {word.meanings.slice(0, 2).map((meaning: string, idx: number) => (
                           <div key={idx} className="flex items-start gap-2">
                             <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
                               {idx + 1}
@@ -494,7 +494,7 @@ export default function WordBookDetailPage() {
                         释义
                       </h4>
                       <div className="space-y-2">
-                        {selectedWord.meanings.map((meaning, idx) => (
+                        {selectedWord.meanings.map((meaning: string, idx: number) => (
                           <div key={idx} className="flex items-start gap-3">
                             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
                               {idx + 1}
@@ -515,8 +515,8 @@ export default function WordBookDetailPage() {
                         </h4>
                         <div className="space-y-3">
                           {selectedWord.examples
-                            .filter((e) => e)
-                            .map((example, idx) => (
+                            .filter((e: string) => e)
+                            .map((example: string, idx: number) => (
                               <blockquote
                                 key={idx}
                                 className="border-l-3 rounded-r-lg border-blue-400 bg-blue-50/50 py-2 pl-4 italic text-gray-600"

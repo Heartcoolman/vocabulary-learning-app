@@ -7,7 +7,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useWordSearch } from '../useWordSearch';
-import { wordService } from '../../../services/word.service';
+import { wordService, type SearchWordResult } from '../../../services/word.service';
 
 // Mock wordService
 vi.mock('../../../services/word.service', () => ({
@@ -57,7 +57,7 @@ describe('useWordSearch', () => {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
-      ],
+      ] as SearchWordResult[],
     });
 
     const { result, rerender } = renderHook(
@@ -96,7 +96,7 @@ describe('useWordSearch', () => {
   });
 
   it('应该返回搜索结果', async () => {
-    const mockResults = [
+    const mockResults: SearchWordResult[] = [
       {
         id: '1',
         spelling: 'test',

@@ -75,7 +75,12 @@ export class SpacedRepetitionEngine {
 
     // 查找下一级别的晋升条件
     const nextLevelThreshold = this.config.masteryThresholds.find(
-      (t) => t.level === currentLevel + 1,
+      (t: {
+        level: number;
+        requiredCorrectStreak: number;
+        minAccuracy: number;
+        minScore: number;
+      }) => t.level === currentLevel + 1,
     );
 
     if (!nextLevelThreshold) {

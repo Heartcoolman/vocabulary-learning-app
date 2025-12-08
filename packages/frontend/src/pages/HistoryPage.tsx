@@ -38,6 +38,12 @@ interface WordStats {
   lastStudied: number;
 }
 
+interface WordStatRecord {
+  attempts: number;
+  correct: number;
+  lastStudied: number;
+}
+
 /**
  * HistoryPage - 学习历史页面（增强版）
  * 显示学习统计、状态历史折线图、认知成长对比、显著变化标记
@@ -84,7 +90,7 @@ export default function HistoryPage() {
         if (!mounted) return;
 
         const statsArray: WordStats[] = [];
-        statistics.wordStats.forEach((stat, wordId) => {
+        statistics.wordStats.forEach((stat: WordStatRecord, wordId: string) => {
           const word = words.find((w) => w.id === wordId);
           if (word) {
             statsArray.push({

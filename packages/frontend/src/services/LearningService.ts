@@ -540,7 +540,7 @@ class LearningService {
         allWords
           .filter((w) => w.id !== correctWord.id)
           .flatMap((w) => w.meanings)
-          .filter((m) => m && m !== correctAnswer && m.trim() !== correctAnswer.trim()),
+          .filter((m: string) => m && m !== correctAnswer && m.trim() !== correctAnswer.trim()),
       ),
     );
 
@@ -553,7 +553,7 @@ class LearningService {
     if (distractors.length < requiredDistractorCount) {
       // 干扰项不足时，添加当前单词的其他释义作为补充
       const additionalMeanings = correctWord.meanings
-        .filter((m) => m !== correctAnswer && !distractors.includes(m))
+        .filter((m: string) => m !== correctAnswer && !distractors.includes(m))
         .slice(0, requiredDistractorCount - distractors.length);
       distractors = [...distractors, ...additionalMeanings];
     }
@@ -590,7 +590,7 @@ class LearningService {
   isAnswerCorrect(answer: string, word: Word): boolean {
     // 检查答案是否匹配任何释义（不区分前后空格）
     const normalizedAnswer = answer.trim();
-    return word.meanings.some((meaning) => meaning.trim() === normalizedAnswer);
+    return word.meanings.some((meaning: string) => meaning.trim() === normalizedAnswer);
   }
 
   /**
