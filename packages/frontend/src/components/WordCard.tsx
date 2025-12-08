@@ -64,7 +64,7 @@ function WordCard({
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex flex-col items-center justify-center space-y-4 rounded-2xl border border-gray-200/60 bg-white/80 px-8 py-8 shadow-sm backdrop-blur-sm md:px-12 md:py-10"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-2xl border border-gray-200/60 bg-white/80 px-10 py-10 shadow-sm backdrop-blur-sm md:px-16 md:py-14"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
       data-testid="word-card"
@@ -83,18 +83,18 @@ function WordCard({
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         transition={g3SpringSnappy}
-        className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 shadow-lg hover:bg-blue-600 hover:shadow-xl ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
+        className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-lg hover:bg-blue-600 hover:shadow-xl ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
         aria-label={isPronouncing ? '正在播放发音' : `播放 ${word.spelling} 的发音，或按空格键`}
         aria-pressed={isPronouncing}
         title="播放发音 (空格键)"
       >
-        <SpeakerHigh size={28} weight="fill" className="text-white" aria-hidden="true" />
+        <SpeakerHigh size={32} weight="fill" className="text-white" aria-hidden="true" />
       </motion.button>
 
       {/* 单词拼写 */}
       <motion.h2
         variants={fadeInVariants}
-        className="text-5xl font-bold text-gray-900 md:text-6xl"
+        className="text-6xl font-bold text-gray-900 md:text-7xl"
         role="heading"
         aria-level={2}
         data-testid="word-spelling"
@@ -105,7 +105,7 @@ function WordCard({
       {/* 音标 - 圆形背景 */}
       <motion.span
         variants={fadeInVariants}
-        className="rounded-full bg-gray-100 px-4 py-1.5 text-2xl text-gray-600 md:text-3xl"
+        className="rounded-full bg-gray-100 px-5 py-2 text-2xl text-gray-600 md:text-3xl"
         aria-label={`音标: ${word.phonetic}`}
       >
         /{word.phonetic}/
@@ -114,7 +114,7 @@ function WordCard({
       {/* 例句 */}
       <motion.p
         variants={fadeInVariants}
-        className="mt-3 max-w-4xl text-center text-lg text-gray-700 md:text-xl"
+        className="mt-5 max-w-4xl text-center text-xl text-gray-700 md:text-2xl"
         role="region"
         aria-label="例句"
       >

@@ -595,7 +595,7 @@ class AdaptiveQueueManager {
     isCorrect: boolean,
     responseTime: number,
     amasState?: { fatigue: number; attention: number; motivation: number },
-  ): { should: boolean; reason?: string } {
+  ): { should: boolean; reason?: 'fatigue' | 'struggling' | 'excelling' | 'periodic' } {
     this.recentAnswers.push({ isCorrect, responseTime });
     if (this.recentAnswers.length > this.windowSize) {
       this.recentAnswers.shift();
@@ -609,17 +609,17 @@ class AdaptiveQueueManager {
 
     const performance = this.getRecentPerformance();
 
-    // 检查是否需要调整
+    // 检查是否需要调整 - 使用后端 API 期望的 reason 值
     if (performance.accuracy < 0.5) {
-      return { should: true, reason: 'low_accuracy' };
+      return { should: true, reason: 'struggling' };
     }
 
     if (amasState && amasState.fatigue > 0.7) {
-      return { should: true, reason: 'high_fatigue' };
+      return { should: true, reason: 'fatigue' };
     }
 
     if (performance.avgResponseTime > 10000) {
-      return { should: true, reason: 'slow_response' };
+      return { should: true, reason: 'periodic' };
     }
 
     return { should: false };

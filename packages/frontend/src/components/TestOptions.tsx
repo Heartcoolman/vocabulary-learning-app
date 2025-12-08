@@ -112,7 +112,7 @@ function TestOptions({
           }}
           disabled={showResult}
           data-testid={`option-${index}`}
-          className={`stagger-item btn-scale min-w-[120px] max-w-[200px] flex-1 rounded-lg px-5 py-3 text-base font-medium opacity-0 sm:min-w-[140px] md:text-lg ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+          className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-xl px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
           style={{ animation: `staggerFadeIn 0.3s ease-out ${index * 50}ms forwards` }}
           aria-label={getAriaLabel(option, index)}
           aria-pressed={showResult && option === selectedAnswer}

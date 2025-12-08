@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from 'react';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import apiClient from '../../services/client';
@@ -105,23 +106,44 @@ export function useMasteryWords() {
   const wordsQuery = useLearnedWords();
   const statsQuery = useMasteryStats();
 
-  // 提取所有单词ID
-  const wordIds = wordsQuery.data?.map((w) => w.id) ?? [];
+  // 提取所有单词ID - 使用 useMemo 稳定引用
+  const wordIds = useMemo(() => {
+    return wordsQuery.data?.map((w) => w.id) ?? [];
+  }, [wordsQuery.data]);
 
   // 批量获取掌握度数据
   const masteryQuery = useBatchMasteryEvaluation(wordIds);
 
-  // 合并数据
-  const wordsWithMastery: WordWithMastery[] =
-    wordsQuery.data?.map((word) => {
-      const mastery = masteryQuery.data?.find((m) => m.wordId === word.id) ?? null;
-      return {
-        id: word.id,
-        spelling: word.spelling,
-        meanings: word.meanings.join('; '),
-        mastery,
-      };
-    }) ?? [];
+  // 创建 masteryMap 用于 O(1) 查找，避免 O(n²) 的 find() 查找
+  const masteryMap = useMemo(() => {
+    const map = new Map<string, MasteryEvaluation>();
+    if (masteryQuery.data) {
+      for (const m of masteryQuery.data) {
+        map.set(m.wordId, m);
+      }
+    }
+    return map;
+  }, [masteryQuery.data]);
+
+  // 合并数据 - 使用 useMemo 避免每次渲染都创建新数组
+  const wordsWithMastery: WordWithMastery[] = useMemo(() => {
+    return (
+      wordsQuery.data?.map((word) => {
+        const mastery = masteryMap.get(word.id) ?? null;
+        return {
+          id: word.id,
+          spelling: word.spelling,
+          meanings: word.meanings.join('; '),
+          mastery,
+        };
+      }) ?? []
+    );
+  }, [wordsQuery.data, masteryMap]);
+
+  // 使用 useCallback 稳定 refetch 函数引用
+  const refetch = useCallback(async () => {
+    await Promise.all([wordsQuery.refetch(), statsQuery.refetch(), masteryQuery.refetch()]);
+  }, [wordsQuery, statsQuery, masteryQuery]);
 
   return {
     words: wordsWithMastery,
@@ -129,8 +151,6 @@ export function useMasteryWords() {
     loading: wordsQuery.isLoading || statsQuery.isLoading || masteryQuery.isLoading,
     error:
       wordsQuery.error?.message || statsQuery.error?.message || masteryQuery.error?.message || null,
-    refetch: async () => {
-      await Promise.all([wordsQuery.refetch(), statsQuery.refetch(), masteryQuery.refetch()]);
-    },
+    refetch,
   };
 }

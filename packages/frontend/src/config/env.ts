@@ -3,9 +3,9 @@
  *
  * 提供类型安全的环境变量访问和验证
  * 所有环境变量都通过此文件统一访问，避免直接使用 import.meta.env
+ *
+ * 注意：此文件不能导入 logger，因为 logger 依赖 env，会造成循环依赖
  */
-
-import { logger } from '../utils/logger';
 
 /**
  * 环境变量配置接口
@@ -38,7 +38,7 @@ function validateEnv(): void {
 
   if (missingVars.length > 0) {
     const errorMsg = `缺少必需的环境变量: ${missingVars.join(', ')}`;
-    logger.error(errorMsg);
+    console.error('[env]', errorMsg);
     throw new Error(errorMsg);
   }
 
@@ -47,35 +47,35 @@ function validateEnv(): void {
     new URL(import.meta.env.VITE_API_URL);
   } catch {
     const errorMsg = `VITE_API_URL 格式无效: ${import.meta.env.VITE_API_URL}`;
-    logger.error(errorMsg);
+    console.error('[env]', errorMsg);
     throw new Error(errorMsg);
   }
 
   // 开发环境警告
   if (import.meta.env.DEV) {
-    logger.info('运行在开发模式');
+    console.info('[env] 运行在开发模式');
     if (import.meta.env.VITE_API_URL.includes('localhost')) {
-      logger.debug('使用本地 API 服务器');
+      console.debug('[env] 使用本地 API 服务器');
     }
   }
 
   // 生产环境检查
   if (import.meta.env.PROD) {
-    logger.info('运行在生产模式');
+    console.info('[env] 运行在生产模式');
 
     // 生产环境建议配置 Sentry
     if (!import.meta.env.VITE_SENTRY_DSN) {
-      logger.warn('生产环境未配置 VITE_SENTRY_DSN，��误追踪将不可用');
+      console.warn('[env] 生产环境未配置 VITE_SENTRY_DSN，错误追踪将不可用');
     }
 
     // 生产环境建议配置版本号
     if (!import.meta.env.VITE_APP_VERSION) {
-      logger.warn('生产环境未配置 VITE_APP_VERSION，版本追踪将不可用');
+      console.warn('[env] 生产环境未配置 VITE_APP_VERSION，版本追踪将不可用');
     }
 
     // 生产环境不应该使用 localhost
     if (import.meta.env.VITE_API_URL.includes('localhost')) {
-      logger.warn('⚠️ 生产环境使用了 localhost API 地址，这可能是配置错误');
+      console.warn('[env] ⚠️ 生产环境使用了 localhost API 地址，这可能是配置错误');
     }
   }
 }

@@ -68,7 +68,62 @@ interface ApiConfigHistory {
  * - 认知画像（Chronotype、Learning Style）
  * - 学习目标配置
  */
+/** 前端 masteryThreshold 结构 */
+interface MasteryThreshold {
+  level: number;
+  requiredCorrectStreak: number;
+  minAccuracy: number;
+  minScore: number;
+}
+
 export class AmasClient extends BaseClient {
+  /**
+   * 将后端的 masteryThresholds 转换为前端数组格式
+   * 后端格式: {"level1":20,"level2":40,...} 或 数组格式
+   * 前端格式: [{level:1, requiredCorrectStreak:2, minAccuracy:0.6, minScore:40}, ...]
+   */
+  private normalizeMasteryThresholds(raw: unknown): MasteryThreshold[] {
+    // 如果已经是数组格式，直接返回
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+
+    // 如果是对象格式 {"level1":20,"level2":40,...}，转换为数组
+    if (raw && typeof raw === 'object') {
+      const obj = raw as Record<string, number>;
+      const thresholds: MasteryThreshold[] = [];
+
+      // 从对象中提取 level1, level2, ... 的值
+      // minAccuracy 默认值与下方默认数组保持一致：0.6, 0.7, 0.75, 0.8, 0.85
+      const defaultMinAccuracy = [0.6, 0.7, 0.75, 0.8, 0.85];
+      for (let i = 1; i <= 5; i++) {
+        const key = `level${i}`;
+        const minScore = obj[key];
+        if (minScore !== undefined) {
+          thresholds.push({
+            level: i,
+            requiredCorrectStreak: i + 1, // 默认：级别+1
+            minAccuracy: defaultMinAccuracy[i - 1],
+            minScore: minScore,
+          });
+        }
+      }
+
+      if (thresholds.length > 0) {
+        return thresholds;
+      }
+    }
+
+    // 返回默认值
+    return [
+      { level: 1, requiredCorrectStreak: 2, minAccuracy: 0.6, minScore: 40 },
+      { level: 2, requiredCorrectStreak: 3, minAccuracy: 0.7, minScore: 50 },
+      { level: 3, requiredCorrectStreak: 4, minAccuracy: 0.75, minScore: 60 },
+      { level: 4, requiredCorrectStreak: 5, minAccuracy: 0.8, minScore: 70 },
+      { level: 5, requiredCorrectStreak: 6, minAccuracy: 0.85, minScore: 80 },
+    ];
+  }
+
   /**
    * 将后端扁平字段转换为前端嵌套对象
    */
@@ -78,28 +133,31 @@ export class AmasClient extends BaseClient {
       id: raw.id,
       name: raw.name,
       description: raw.description ?? '',
-      reviewIntervals: raw.reviewIntervals ?? [],
+      reviewIntervals: raw.reviewIntervals ?? [1, 3, 7, 15, 30],
       consecutiveCorrectThreshold: raw.consecutiveCorrectThreshold ?? 5,
       consecutiveWrongThreshold: raw.consecutiveWrongThreshold ?? 3,
       difficultyAdjustmentInterval: raw.difficultyAdjustmentInterval ?? 1,
+      // 优先级权重默认值（总和 = 100）
       priorityWeights: {
-        newWord: raw.priorityWeightNewWord ?? 0,
-        errorRate: raw.priorityWeightErrorRate ?? 0,
-        overdueTime: raw.priorityWeightOverdueTime ?? 0,
-        wordScore: raw.priorityWeightWordScore ?? 0,
+        newWord: raw.priorityWeightNewWord ?? 40,
+        errorRate: raw.priorityWeightErrorRate ?? 30,
+        overdueTime: raw.priorityWeightOverdueTime ?? 20,
+        wordScore: raw.priorityWeightWordScore ?? 10,
       },
-      masteryThresholds: raw.masteryThresholds ?? [],
+      masteryThresholds: this.normalizeMasteryThresholds(raw.masteryThresholds),
+      // 单词得分权重默认值（总和 = 100）
       scoreWeights: {
-        accuracy: raw.scoreWeightAccuracy ?? 0,
-        speed: raw.scoreWeightSpeed ?? 0,
-        stability: raw.scoreWeightStability ?? 0,
-        proficiency: raw.scoreWeightProficiency ?? 0,
+        accuracy: raw.scoreWeightAccuracy ?? 40,
+        speed: raw.scoreWeightSpeed ?? 30,
+        stability: raw.scoreWeightStability ?? 20,
+        proficiency: raw.scoreWeightProficiency ?? 10,
       },
+      // 速度阈值默认值（必须递增：excellent < good < average < slow）
       speedThresholds: {
         excellent: raw.speedThresholdExcellent ?? 3000,
         good: raw.speedThresholdGood ?? 5000,
         average: raw.speedThresholdAverage ?? 10000,
-        slow: raw.speedThresholdSlow ?? 10000,
+        slow: raw.speedThresholdSlow ?? 15000,
       },
       newWordRatio: {
         default: raw.newWordRatioDefault ?? 0.3,
@@ -120,6 +178,12 @@ export class AmasClient extends BaseClient {
    */
   private denormalizeAlgorithmConfig(config: Partial<AlgorithmConfig>): Record<string, unknown> {
     const flat: Record<string, unknown> = { ...config };
+
+    // 删除不应该发送到后端更新的字段（这些字段由数据库管理或不可更新）
+    delete flat.id;
+    delete flat.createdAt;
+    delete flat.updatedAt;
+
     if (config.priorityWeights) {
       flat.priorityWeightNewWord = config.priorityWeights.newWord;
       flat.priorityWeightErrorRate = config.priorityWeights.errorRate;
@@ -211,7 +275,6 @@ export class AmasClient extends BaseClient {
     try {
       const query = limit ? `?limit=${limit}` : '';
       const raw = await this.request<ApiConfigHistory[]>(`/api/algorithm-config/history${query}`);
-      const timestamp = Date.now();
       return raw.map((h): import('../../../types/models').ConfigHistory => ({
         id: h.id,
         configId: h.configId,

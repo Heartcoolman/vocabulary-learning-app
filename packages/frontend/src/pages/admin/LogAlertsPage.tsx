@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Plus, Trash, Warning, CircleNotch, Pencil, X } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
@@ -91,7 +92,7 @@ export default function LogAlertsPage() {
       }
 
       const data = await response.json();
-      setRules(data);
+      setRules(Array.isArray(data.data) ? data.data : []);
     } catch (error) {
       adminLogger.error({ err: error }, '加载告警规则失败');
       toast.error('加载告警规则失败: ' + (error instanceof Error ? error.message : '未知错误'));
@@ -123,7 +124,8 @@ export default function LogAlertsPage() {
         throw new Error('创建告警规则失败');
       }
 
-      const newRule = await response.json();
+      const result = await response.json();
+      const newRule = result.data;
       setRules([...rules, newRule]);
       setShowCreateModal(false);
       resetForm();
@@ -159,7 +161,8 @@ export default function LogAlertsPage() {
         throw new Error('更新告警规则失败');
       }
 
-      const updatedRule = await response.json();
+      const result = await response.json();
+      const updatedRule = result.data;
       setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       setShowEditModal(false);
       setEditingRule(null);
@@ -227,7 +230,8 @@ export default function LogAlertsPage() {
         throw new Error('更新规则状态失败');
       }
 
-      const updatedRule = await response.json();
+      const result = await response.json();
+      const updatedRule = result.data;
       setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       toast.success(updatedRule.enabled ? '规则已启用' : '规则已禁用');
     } catch (error) {
@@ -534,37 +538,39 @@ export default function LogAlertsPage() {
       )}
 
       {/* 删除确认对话框 */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-          <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
-            <div className="mb-6 text-center">
-              <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
-              <h3 className="mb-2 text-2xl font-bold text-gray-900">确认删除</h3>
-              <p className="text-gray-600">确定要删除这个告警规则吗？此操作不可撤销。</p>
-            </div>
+      {showDeleteConfirm &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
+            <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
+              <div className="mb-6 text-center">
+                <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
+                <h3 className="mb-2 text-2xl font-bold text-gray-900">确认删除</h3>
+                <p className="text-gray-600">确定要删除这个告警规则吗？此操作不可撤销。</p>
+              </div>
 
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeletingRuleId(null);
-                }}
-                disabled={isSaving}
-                className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isSaving}
-                className="flex-1 rounded-xl bg-red-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-red-600 disabled:opacity-50"
-              >
-                {isSaving ? '删除中...' : '确认删除'}
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletingRuleId(null);
+                  }}
+                  disabled={isSaving}
+                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isSaving}
+                  className="flex-1 rounded-xl bg-red-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-red-600 disabled:opacity-50"
+                >
+                  {isSaving ? '删除中...' : '确认删除'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -593,175 +599,181 @@ function RuleFormModal({
 }: RuleFormModalProps) {
   const allLevels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50 p-6">
-      <div className="my-8 w-full max-w-2xl animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
-        <div className="mb-6 flex items-center justify-between">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-xl">
+        {/* 固定头部 */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
           <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
           <button onClick={onCancel} className="rounded-lg p-2 transition-all hover:bg-gray-100">
             <X size={24} weight="bold" />
           </button>
         </div>
 
-        <div className="space-y-6">
-          {/* 规则名称 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              规则名称 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="例如：高频错误日志告警"
-            />
-          </div>
-
-          {/* 规则描述 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">规则描述</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={2}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="简要描述此规则的用途"
-            />
-          </div>
-
-          {/* 触发级别 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              触发级别（多选） <span className="text-red-500">*</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {allLevels.map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => toggleLevel(level)}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                    formData.levels.includes(level)
-                      ? `${getLevelColor(level)} ring-2 ring-offset-2`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 模块匹配 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">模块匹配（可选）</label>
-            <input
-              type="text"
-              value={formData.module}
-              onChange={(e) => setFormData({ ...formData, module: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="例如：amas.*（留空表示匹配所有模块）"
-            />
-            <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
-          </div>
-
-          {/* 消息正则匹配 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              消息正则匹配（可选）
-            </label>
-            <input
-              type="text"
-              value={formData.messagePattern}
-              onChange={(e) => setFormData({ ...formData, messagePattern: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="例如：database.*error（留空表示匹配所有消息）"
-            />
-            <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
-          </div>
-
-          {/* 阈值和时间窗口 */}
-          <div className="grid grid-cols-2 gap-4">
+        {/* 可滚动内容区 */}
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          <div className="space-y-6">
+            {/* 规则名称 */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                阈值（次数） <span className="text-red-500">*</span>
+                规则名称 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                placeholder="例如：高频错误日志告警"
+              />
+            </div>
+
+            {/* 规则描述 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">规则描述</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                placeholder="简要描述此规则的用途"
+              />
+            </div>
+
+            {/* 触发级别 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                触发级别（多选） <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {allLevels.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => toggleLevel(level)}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                      formData.levels.includes(level)
+                        ? `${getLevelColor(level)} ring-2 ring-offset-2`
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 模块匹配 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                模块匹配（可选）
+              </label>
+              <input
+                type="text"
+                value={formData.module}
+                onChange={(e) => setFormData({ ...formData, module: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                placeholder="例如：amas.*（留空表示匹配所有模块）"
+              />
+              <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
+            </div>
+
+            {/* 消息正则匹配 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                消息正则匹配（可选）
+              </label>
+              <input
+                type="text"
+                value={formData.messagePattern}
+                onChange={(e) => setFormData({ ...formData, messagePattern: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                placeholder="例如：database.*error（留空表示匹配所有消息）"
+              />
+              <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
+            </div>
+
+            {/* 阈值和时间窗口 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  阈值（次数） <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.threshold}
+                  onChange={(e) =>
+                    setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  时间窗口（分钟） <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.windowMinutes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Webhook URL */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Webhook URL <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="url"
+                value={formData.webhookUrl}
+                onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                placeholder="https://example.com/webhook"
+              />
+              <p className="mt-1 text-xs text-gray-500">告警触发时将发送 POST 请求到此 URL</p>
+            </div>
+
+            {/* 冷却时间 */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                冷却时间（分钟） <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
-                min="1"
-                value={formData.threshold}
+                min="0"
+                value={formData.cooldownMinutes}
                 onChange={(e) =>
-                  setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })
+                  setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })
                 }
                 className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">同一规则在冷却时间内不会重复发送告警</p>
             </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                时间窗口（分钟） <span className="text-red-500">*</span>
-              </label>
+
+            {/* 启用状态 */}
+            <div className="flex items-center gap-3">
               <input
-                type="number"
-                min="1"
-                value={formData.windowMinutes}
-                onChange={(e) =>
-                  setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })
-                }
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                type="checkbox"
+                id="enabled"
+                checked={formData.enabled}
+                onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500"
               />
+              <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
+                创建后立即启用
+              </label>
             </div>
-          </div>
-
-          {/* Webhook URL */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Webhook URL <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="url"
-              value={formData.webhookUrl}
-              onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="https://example.com/webhook"
-            />
-            <p className="mt-1 text-xs text-gray-500">告警触发时将发送 POST 请求到此 URL</p>
-          </div>
-
-          {/* 冷却时间 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              冷却时间（分钟） <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.cooldownMinutes}
-              onChange={(e) =>
-                setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })
-              }
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">同一规则在冷却时间内不会重复发送告警</p>
-          </div>
-
-          {/* 启用状态 */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="enabled"
-              checked={formData.enabled}
-              onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-              className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500"
-            />
-            <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
-              创建后立即启用
-            </label>
           </div>
         </div>
 
-        {/* 操作按钮 */}
-        <div className="mt-8 flex gap-4">
+        {/* 固定底部按钮 */}
+        <div className="flex gap-4 border-t border-gray-200 px-8 py-6">
           <button
             onClick={onCancel}
             disabled={isSaving}
@@ -778,7 +790,8 @@ function RuleFormModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

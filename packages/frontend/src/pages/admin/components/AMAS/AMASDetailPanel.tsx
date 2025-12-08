@@ -17,6 +17,8 @@ export interface AMASDetailPanelProps {
   isLoading: boolean;
   /** 错误信息 */
   error: string | null;
+  /** 错误类型：'error' 显示红色错误样式，'info' 显示蓝色信息样式 */
+  errorType?: 'error' | 'info';
   /** 提交回调 */
   onSubmit: (input: CounterfactualInput) => void;
 }
@@ -171,7 +173,13 @@ const EmptyResultPlaceholder = memo(function EmptyResultPlaceholder() {
  * AMAS 详情面板组件 - 反事实分析
  * 模拟不同学习状态下系统的响应，探索"如果...会怎样"的场景
  */
-function AMASDetailPanelComponent({ result, isLoading, error, onSubmit }: AMASDetailPanelProps) {
+function AMASDetailPanelComponent({
+  result,
+  isLoading,
+  error,
+  errorType = 'error',
+  onSubmit,
+}: AMASDetailPanelProps) {
   // 表单状态
   const [attention, setAttention] = useState<string>('0.7');
   const [fatigue, setFatigue] = useState<string>('0.3');
@@ -241,9 +249,15 @@ function AMASDetailPanelComponent({ result, isLoading, error, onSubmit }: AMASDe
 
         {/* 结果展示 */}
         <div className="space-y-4">
-          {/* 错误提示 */}
+          {/* 错误/信息提示 */}
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <div
+              className={`rounded-lg border p-4 text-sm ${
+                errorType === 'info'
+                  ? 'border-blue-200 bg-blue-50 text-blue-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}
+            >
               {error}
             </div>
           )}

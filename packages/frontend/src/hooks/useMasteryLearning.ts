@@ -222,11 +222,7 @@ export function useMasteryLearning(
       const adaptive = wordQueue.adaptiveManagerRef.current;
       if (adaptive) {
         const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason)
-          sync.triggerQueueAdjustment(
-            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
-            adaptive.getRecentPerformance(),
-          );
+        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
       }
       const pausedTimeMs = getDialogPausedTime?.() ?? 0;
       if (pausedTimeMs > 0) resetDialogPausedTime?.();

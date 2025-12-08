@@ -1,5 +1,13 @@
 import React, { useState, useEffect, memo } from 'react';
-import { GraduationCap, Lightning, Coffee } from '@phosphor-icons/react';
+import { useNavigate } from 'react-router-dom';
+import {
+  GraduationCap,
+  Lightning,
+  Coffee,
+  Cards,
+  Translate,
+  ArrowsLeftRight,
+} from '@phosphor-icons/react';
 import ApiClient from '../services/client';
 import { useToast } from './ui';
 import { uiLogger } from '../utils/logger';
@@ -18,11 +26,16 @@ const MODE_ICONS: Record<string, React.ReactNode> = {
 
 interface LearningModeSelectorProps {
   minimal?: boolean;
+  learningType?: 'word-to-meaning' | 'meaning-to-word';
+  onLearningTypeChange?: (type: 'word-to-meaning' | 'meaning-to-word') => void;
 }
 
 const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
   minimal = false,
+  learningType = 'word-to-meaning',
+  onLearningTypeChange,
 }) => {
+  const navigate = useNavigate();
   const toast = useToast();
   const [currentMode, setCurrentMode] = useState('standard');
   const [modes, setModes] = useState<ModeOption[]>([]);
@@ -135,6 +148,53 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
             {isLoading && (
               <div className="mt-3 text-center text-sm text-gray-500">正在切换模式...</div>
             )}
+
+            {/* 学习方式选择 */}
+            {onLearningTypeChange && (
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <h3 className="mb-3 text-sm font-semibold text-gray-900">学习方式</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onLearningTypeChange('word-to-meaning')}
+                    className={`flex-1 rounded-lg p-2 text-center transition-all ${
+                      learningType === 'word-to-meaning'
+                        ? 'border-2 border-blue-500 bg-blue-50'
+                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Translate size={20} className="mx-auto mb-1" />
+                    <div className="text-xs font-medium">英译中</div>
+                  </button>
+                  <button
+                    onClick={() => onLearningTypeChange('meaning-to-word')}
+                    className={`flex-1 rounded-lg p-2 text-center transition-all ${
+                      learningType === 'meaning-to-word'
+                        ? 'border-2 border-blue-500 bg-blue-50'
+                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ArrowsLeftRight size={20} className="mx-auto mb-1" />
+                    <div className="text-xs font-medium">中译英</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/flashcard');
+                }}
+                className="w-full cursor-pointer rounded-lg border-2 border-transparent bg-purple-50 p-3 text-left transition-all hover:border-purple-300 hover:bg-purple-100"
+              >
+                <div className="mb-1 flex items-center gap-2">
+                  <Cards size={20} weight="fill" className="text-purple-600" />
+                  <span className="font-semibold text-gray-900">闪记模式</span>
+                </div>
+                <div className="pl-7 text-sm text-gray-600">快速翻卡复习，自评掌握程度</div>
+              </button>
+            </div>
           </div>
         </>
       )}

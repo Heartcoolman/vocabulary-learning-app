@@ -44,13 +44,16 @@ export default function AlgorithmConfigPage() {
   // 使用 useMemo 避免每次渲染都创建新实例（用于获取默认配置和验证）
   const configService = useMemo(() => new AlgorithmConfigService(), []);
 
-  // 当从服务器加载配置后，初始化本地状态
+  // 当从服务器加载配置后，初始化本地状态并进行初始验证
   useEffect(() => {
     if (serverConfig) {
       setConfig(serverConfig);
       // 获取默认配置用于对比
       const defaultCfg = configService.getDefaultConfig();
       setDefaultConfig(defaultCfg);
+      // 初始验证，显示配置数据的问题
+      const validation = configService.validateConfig(serverConfig);
+      setValidationErrors(validation.errors);
     }
   }, [serverConfig, configService]);
 

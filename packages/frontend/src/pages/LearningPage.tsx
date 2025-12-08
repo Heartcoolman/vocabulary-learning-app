@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WordCard from '../components/WordCard';
+import ReverseWordCard from '../components/ReverseWordCard';
 import TestOptions from '../components/TestOptions';
 import MasteryProgress from '../components/MasteryProgress';
 import { StatusModal, SuggestionModal } from '../components';
@@ -33,10 +34,21 @@ export default function LearningPage() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
+  const [learningType, setLearningType] = useState<'word-to-meaning' | 'meaning-to-word'>(() => {
+    return (
+      (localStorage.getItem('learningType') as 'word-to-meaning' | 'meaning-to-word') ||
+      'word-to-meaning'
+    );
+  });
 
   // 使用对话框暂停追踪 Hook（替代原来的手动追踪逻辑）
   const { getPausedTime: getDialogPausedTime, resetPausedTime: resetDialogPausedTime } =
     useDialogPauseTrackingWithStates([isStatusOpen, isSuggestionOpen, isExplainabilityOpen]);
+
+  // 保存学习类型偏好
+  useEffect(() => {
+    localStorage.setItem('learningType', learningType);
+  }, [learningType]);
 
   // 页面切换埋点
   useEffect(() => {
@@ -108,15 +120,31 @@ export default function LearningPage() {
     };
   }, [currentWord]);
 
-  // 使用测试选项生成器 Hook
+  // 使用测试选项生成器 Hook - 稳定函数引用避免 useEffect 依赖问题
+  const optionsGenerator = useMemo(
+    () =>
+      learningType === 'word-to-meaning'
+        ? LearningService.generateTestOptions.bind(LearningService)
+        : LearningService.generateReverseTestOptions.bind(LearningService),
+    [learningType],
+  );
+
+  const fallbackDistractors = useMemo(
+    () =>
+      learningType === 'word-to-meaning'
+        ? ['未知释义', '其他含义', '暂无解释']
+        : ['unknown', 'other', 'none'],
+    [learningType],
+  );
+
   const { options: testOptions, regenerateOptions } = useTestOptionsGenerator(
     {
       currentWord: currentWordForOptions,
       allWords: allWordsForOptions,
       numberOfOptions: 4,
-      fallbackDistractors: ['未知释义', '其他含义', '暂无解释'],
+      fallbackDistractors,
     },
-    LearningService.generateTestOptions.bind(LearningService),
+    optionsGenerator,
   );
 
   // 当单词变化时重置答题状态
@@ -143,13 +171,15 @@ export default function LearningPage() {
       setSelectedAnswer(answer);
       setShowResult(true);
 
-      // 检查所有 meanings，任意一个匹配即为正确（支持多义词）
-      const isCorrect = currentWord.meanings.includes(answer);
+      // 根据学习类型判断正确答案
+      const correctAnswers =
+        learningType === 'word-to-meaning' ? currentWord.meanings : [currentWord.spelling];
+      const isCorrect = correctAnswers.includes(answer);
       const responseTime = Date.now() - responseStartTime;
 
       await submitAnswer(isCorrect, responseTime);
     },
-    [currentWord, showResult, responseStartTime, submitAnswer],
+    [currentWord, showResult, responseStartTime, submitAnswer, learningType],
   );
 
   const handleNext = useCallback(() => {
@@ -314,7 +344,11 @@ export default function LearningPage() {
             headerActions={
               <>
                 <div className="mx-1 h-4 w-px bg-gray-200" />
-                <LearningModeSelector minimal />
+                <LearningModeSelector
+                  minimal
+                  learningType={learningType}
+                  onLearningTypeChange={setLearningType}
+                />
                 <button
                   onClick={() => setIsStatusOpen(true)}
                   className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
@@ -341,15 +375,26 @@ export default function LearningPage() {
               </>
             }
           />
-          <WordCard
-            word={currentWord}
-            onPronounce={handlePronounce}
-            isPronouncing={isPronouncing}
-          />
+          {learningType === 'word-to-meaning' ? (
+            <WordCard
+              word={currentWord}
+              onPronounce={handlePronounce}
+              isPronouncing={isPronouncing}
+            />
+          ) : (
+            <ReverseWordCard
+              word={currentWord}
+              onPronounce={handlePronounce}
+              isPronouncing={isPronouncing}
+              showSpelling={showResult}
+            />
+          )}
 
           <TestOptions
             options={testOptions}
-            correctAnswers={currentWord.meanings}
+            correctAnswers={
+              learningType === 'word-to-meaning' ? currentWord.meanings : [currentWord.spelling]
+            }
             onSelect={handleSelectAnswer}
             selectedAnswer={selectedAnswer}
             showResult={showResult}

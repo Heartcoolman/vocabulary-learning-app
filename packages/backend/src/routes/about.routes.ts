@@ -12,18 +12,15 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import {
-  aboutService,
-  SimulateRequest,
-  FaultInjectionRequest
-} from '../services/about.service';
+import { aboutService, SimulateRequest, FaultInjectionRequest } from '../services/about.service';
 import { RealAboutService, createRealAboutService } from '../services/real-about.service';
 import {
   useRealDataSource,
   useVirtualDataSource,
   getFeatureFlagsStatus,
-  isDecisionWriteEnabled
+  isDecisionWriteEnabled,
 } from '../config/amas-feature-flags';
+import { getFeatureFlags as getAmasEngineFlags } from '../amas/config/feature-flags';
 import { getAllMetrics, getPrometheusMetrics } from '../monitoring/amas-metrics';
 import { logger } from '../logger';
 import { authMiddleware } from '../middleware/auth.middleware';
@@ -64,7 +61,7 @@ function handleError(res: Response, error: unknown, context: string): void {
 
   res.status(500).json({
     success: false,
-    error: `${context}: ${message}`
+    error: `${context}: ${message}`,
   });
 }
 
@@ -99,7 +96,7 @@ function rateLimit(req: Request, res: Response, next: NextFunction): void {
     res.status(429).json({
       success: false,
       error: '请求过于频繁，请稍后再试',
-      retryAfter: Math.ceil((entry.resetAt - now) / 1000)
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
     });
     return;
   }
@@ -141,7 +138,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
     if (!body || typeof body !== 'object') {
       res.status(400).json({
         success: false,
-        error: '请求体必须是有效的 JSON 对象'
+        error: '请求体必须是有效的 JSON 对象',
       });
       return;
     }
@@ -154,16 +151,16 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
       cognitive: {
         memory: parseFloat(body.cognitive?.memory) || 0.5,
         speed: parseFloat(body.cognitive?.speed) || 0.5,
-        stability: parseFloat(body.cognitive?.stability) || 0.5
+        stability: parseFloat(body.cognitive?.stability) || 0.5,
       },
-      scenario: body.scenario
+      scenario: body.scenario,
     };
 
     // 验证范围
     if (input.attention < 0 || input.attention > 1) {
       res.status(400).json({
         success: false,
-        error: 'attention 必须在 [0, 1] 范围内'
+        error: 'attention 必须在 [0, 1] 范围内',
       });
       return;
     }
@@ -171,7 +168,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
     if (input.fatigue < 0 || input.fatigue > 1) {
       res.status(400).json({
         success: false,
-        error: 'fatigue 必须在 [0, 1] 范围内'
+        error: 'fatigue 必须在 [0, 1] 范围内',
       });
       return;
     }
@@ -179,7 +176,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
     if (input.motivation < -1 || input.motivation > 1) {
       res.status(400).json({
         success: false,
-        error: 'motivation 必须在 [-1, 1] 范围内'
+        error: 'motivation 必须在 [-1, 1] 范围内',
       });
       return;
     }
@@ -219,7 +216,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: { rawInput: input },
-              outputSummary: { state: result.inputState }
+              outputSummary: { state: result.inputState },
             },
             {
               stage: 'MODELING' as PipelineStageType,
@@ -229,7 +226,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: { state: result.inputState },
-              outputSummary: { reason: '模拟模式跳过认知建模' }
+              outputSummary: { reason: '模拟模式跳过认知建模' },
             },
             {
               stage: 'LEARNING' as PipelineStageType,
@@ -239,7 +236,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: { weights: result.decisionProcess.weights },
-              outputSummary: { reason: '模拟模式跳过在线学习' }
+              outputSummary: { reason: '模拟模式跳过在线学习' },
             },
             {
               stage: 'DECISION' as PipelineStageType,
@@ -249,7 +246,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: { state: result.inputState },
-              outputSummary: { strategy: result.outputStrategy }
+              outputSummary: { strategy: result.outputStrategy },
             },
             {
               stage: 'EVALUATION' as PipelineStageType,
@@ -259,7 +256,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: { strategy: result.outputStrategy },
-              outputSummary: { reason: '模拟模式无延迟奖励' }
+              outputSummary: { reason: '模拟模式无延迟奖励' },
             },
             {
               stage: 'OPTIMIZATION' as PipelineStageType,
@@ -269,9 +266,9 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
               endedAt: now,
               durationMs: 0,
               inputSummary: {},
-              outputSummary: { reason: '模拟模式跳过参数优化' }
-            }
-          ]
+              outputSummary: { reason: '模拟模式跳过参数优化' },
+            },
+          ],
         });
       } catch (recordError) {
         logger.warn({ err: recordError }, '[Simulate] Failed to record simulation decision');
@@ -280,7 +277,7 @@ router.post('/simulate', rateLimit, async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     handleError(res, error, '模拟决策失败');
@@ -304,7 +301,7 @@ router.get('/stats/overview', realDataProtection, async (_req: Request, res: Res
     res.json({
       success: true,
       data: stats,
-      source: useRealDataSource() ? 'real' : 'virtual'
+      source: useRealDataSource() ? 'real' : 'virtual',
     });
   } catch (error) {
     handleError(res, error, '获取概览统计失败');
@@ -315,49 +312,57 @@ router.get('/stats/overview', realDataProtection, async (_req: Request, res: Res
  * GET /api/about/stats/algorithm-distribution
  * 获取各算法贡献占比
  */
-router.get('/stats/algorithm-distribution', realDataProtection, async (_req: Request, res: Response) => {
-  try {
-    let distribution;
+router.get(
+  '/stats/algorithm-distribution',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      let distribution;
 
-    if (useRealDataSource()) {
-      distribution = await getRealAboutService().getAlgorithmDistribution();
-    } else {
-      distribution = aboutService.getAlgorithmDistribution();
+      if (useRealDataSource()) {
+        distribution = await getRealAboutService().getAlgorithmDistribution();
+      } else {
+        distribution = aboutService.getAlgorithmDistribution();
+      }
+
+      res.json({
+        success: true,
+        data: distribution,
+        source: useRealDataSource() ? 'real' : 'virtual',
+      });
+    } catch (error) {
+      handleError(res, error, '获取算法分布失败');
     }
-
-    res.json({
-      success: true,
-      data: distribution,
-      source: useRealDataSource() ? 'real' : 'virtual'
-    });
-  } catch (error) {
-    handleError(res, error, '获取算法分布失败');
-  }
-});
+  },
+);
 
 /**
  * GET /api/about/stats/state-distribution
  * 获取用户状态分布
  */
-router.get('/stats/state-distribution', realDataProtection, async (_req: Request, res: Response) => {
-  try {
-    let distribution;
+router.get(
+  '/stats/state-distribution',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      let distribution;
 
-    if (useRealDataSource()) {
-      distribution = await getRealAboutService().getStateDistribution();
-    } else {
-      distribution = aboutService.getStateDistribution();
+      if (useRealDataSource()) {
+        distribution = await getRealAboutService().getStateDistribution();
+      } else {
+        distribution = aboutService.getStateDistribution();
+      }
+
+      res.json({
+        success: true,
+        data: distribution,
+        source: useRealDataSource() ? 'real' : 'virtual',
+      });
+    } catch (error) {
+      handleError(res, error, '获取状态分布失败');
     }
-
-    res.json({
-      success: true,
-      data: distribution,
-      source: useRealDataSource() ? 'real' : 'virtual'
-    });
-  } catch (error) {
-    handleError(res, error, '获取状态分布失败');
-  }
-});
+  },
+);
 
 /**
  * GET /api/about/stats/performance
@@ -370,7 +375,7 @@ router.get('/stats/performance', realDataProtection, async (_req: Request, res: 
       res.json({
         success: true,
         data: metrics,
-        source: 'real'
+        source: 'real',
       });
     } else {
       // 虚拟数据
@@ -382,9 +387,9 @@ router.get('/stats/performance', realDataProtection, async (_req: Request, res: 
           avgInferenceMs: 12,
           p99InferenceMs: 45,
           causalATE: 0.18,
-          causalConfidence: 0.95
+          causalConfidence: 0.95,
         },
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -396,36 +401,40 @@ router.get('/stats/performance', realDataProtection, async (_req: Request, res: 
  * GET /api/about/stats/optimization-events
  * 获取优化事件日志
  */
-router.get('/stats/optimization-events', realDataProtection, async (_req: Request, res: Response) => {
-  try {
-    if (useRealDataSource()) {
-      const events = await getRealAboutService().getOptimizationEvents();
-      res.json({
-        success: true,
-        data: events,
-        source: 'real'
-      });
-    } else {
-      // 虚拟数据
-      res.json({
-        success: true,
-        data: [
-          {
-            id: '1',
-            type: 'bayesian',
-            title: '超参数自动调优',
-            description: 'Thompson 采样 Beta 分布参数优化完成',
-            timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-            impact: '+2.3% 探索效率'
-          }
-        ],
-        source: 'virtual'
-      });
+router.get(
+  '/stats/optimization-events',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      if (useRealDataSource()) {
+        const events = await getRealAboutService().getOptimizationEvents();
+        res.json({
+          success: true,
+          data: events,
+          source: 'real',
+        });
+      } else {
+        // 虚拟数据
+        res.json({
+          success: true,
+          data: [
+            {
+              id: '1',
+              type: 'bayesian',
+              title: '超参数自动调优',
+              description: 'Thompson 采样 Beta 分布参数优化完成',
+              timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+              impact: '+2.3% 探索效率',
+            },
+          ],
+          source: 'virtual',
+        });
+      }
+    } catch (error) {
+      handleError(res, error, '获取优化事件失败');
     }
-  } catch (error) {
-    handleError(res, error, '获取优化事件失败');
-  }
-});
+  },
+);
 
 /**
  * GET /api/about/stats/mastery-radar
@@ -438,7 +447,7 @@ router.get('/stats/mastery-radar', realDataProtection, async (_req: Request, res
       res.json({
         success: true,
         data: radar,
-        source: 'real'
+        source: 'real',
       });
     } else {
       // 虚拟数据
@@ -448,9 +457,9 @@ router.get('/stats/mastery-radar', realDataProtection, async (_req: Request, res
           speed: 0.8,
           stability: 0.6,
           complexity: 0.7,
-          consistency: 0.9
+          consistency: 0.9,
         },
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -471,30 +480,30 @@ router.get('/stats/recent-decisions', realDataProtection, async (req: Request, r
       // 混合模式：同时返回真实和模拟数据
       const [realDecisions, virtualDecisions] = await Promise.all([
         getRealAboutService().getRecentDecisions(),
-        Promise.resolve(aboutService.getRecentDecisions())
+        Promise.resolve(aboutService.getRecentDecisions()),
       ]);
 
       res.json({
         success: true,
         data: {
           real: realDecisions,
-          virtual: virtualDecisions
+          virtual: virtualDecisions,
         },
-        source: 'mixed'
+        source: 'mixed',
       });
     } else if (useRealDataSource()) {
       const decisions = await getRealAboutService().getRecentDecisions();
       res.json({
         success: true,
         data: decisions,
-        source: 'real'
+        source: 'real',
       });
     } else {
       const decisions = aboutService.getRecentDecisions();
       res.json({
         success: true,
         data: decisions,
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -515,7 +524,7 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
     if (!decisionId || typeof decisionId !== 'string') {
       res.status(400).json({
         success: false,
-        error: 'decisionId 参数无效'
+        error: 'decisionId 参数无效',
       });
       return;
     }
@@ -526,14 +535,14 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
       if (!detail) {
         res.status(404).json({
           success: false,
-          error: '未找到指定模拟决策'
+          error: '未找到指定模拟决策',
         });
         return;
       }
       res.json({
         success: true,
         data: detail,
-        source: 'virtual'
+        source: 'virtual',
       });
       return;
     }
@@ -542,7 +551,7 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
     if (!useRealDataSource()) {
       res.status(400).json({
         success: false,
-        error: '真实决策详情需要启用真实数据源'
+        error: '真实决策详情需要启用真实数据源',
       });
       return;
     }
@@ -552,7 +561,7 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
     if (!detail) {
       res.status(404).json({
         success: false,
-        error: '未找到指定决策'
+        error: '未找到指定决策',
       });
       return;
     }
@@ -560,7 +569,7 @@ router.get('/decision/:decisionId', realDataProtection, async (req: Request, res
     res.json({
       success: true,
       data: detail,
-      source: 'real'
+      source: 'real',
     });
   } catch (error) {
     handleError(res, error, '获取决策详情失败');
@@ -586,7 +595,7 @@ router.get('/pipeline/snapshot', realDataProtection, async (_req: Request, res: 
     res.json({
       success: true,
       data: snapshot,
-      source: useRealDataSource() ? 'real' : 'virtual'
+      source: useRealDataSource() ? 'real' : 'virtual',
     });
   } catch (error) {
     handleError(res, error, '获取管道快照失败');
@@ -604,7 +613,7 @@ router.get('/pipeline/trace/:packetId', realDataProtection, async (req: Request,
     if (!packetId || typeof packetId !== 'string') {
       res.status(400).json({
         success: false,
-        error: 'packetId 参数无效'
+        error: 'packetId 参数无效',
       });
       return;
     }
@@ -620,7 +629,7 @@ router.get('/pipeline/trace/:packetId', realDataProtection, async (req: Request,
     res.json({
       success: true,
       data: trace,
-      source: useRealDataSource() ? 'real' : 'virtual'
+      source: useRealDataSource() ? 'real' : 'virtual',
     });
   } catch (error) {
     handleError(res, error, '获取数据包轨迹失败');
@@ -632,44 +641,49 @@ router.get('/pipeline/trace/:packetId', realDataProtection, async (req: Request,
  * 注入故障测试
  * 需要管理员权限（安全敏感操作）
  */
-router.post('/pipeline/inject-fault', authMiddleware, adminMiddleware, rateLimit, (req: AuthRequest, res: Response) => {
-  try {
-    const body = req.body;
+router.post(
+  '/pipeline/inject-fault',
+  authMiddleware,
+  adminMiddleware,
+  rateLimit,
+  (req: AuthRequest, res: Response) => {
+    try {
+      const body = req.body;
 
-    // 参数校验
-    if (!body || typeof body !== 'object') {
-      res.status(400).json({
-        success: false,
-        error: '请求体必须是有效的 JSON 对象'
+      // 参数校验
+      if (!body || typeof body !== 'object') {
+        res.status(400).json({
+          success: false,
+          error: '请求体必须是有效的 JSON 对象',
+        });
+        return;
+      }
+
+      const validFaultTypes = ['high_fatigue', 'low_attention', 'anomaly'];
+      if (!validFaultTypes.includes(body.faultType)) {
+        res.status(400).json({
+          success: false,
+          error: `faultType 必须是以下值之一: ${validFaultTypes.join(', ')}`,
+        });
+        return;
+      }
+
+      const request: FaultInjectionRequest = {
+        faultType: body.faultType,
+        intensity:
+          typeof body.intensity === 'number' ? Math.max(0, Math.min(1, body.intensity)) : undefined,
+      };
+
+      const result = aboutService.injectFault(request);
+      res.json({
+        success: true,
+        data: result,
       });
-      return;
+    } catch (error) {
+      handleError(res, error, '故障注入失败');
     }
-
-    const validFaultTypes = ['high_fatigue', 'low_attention', 'anomaly'];
-    if (!validFaultTypes.includes(body.faultType)) {
-      res.status(400).json({
-        success: false,
-        error: `faultType 必须是以下值之一: ${validFaultTypes.join(', ')}`
-      });
-      return;
-    }
-
-    const request: FaultInjectionRequest = {
-      faultType: body.faultType,
-      intensity: typeof body.intensity === 'number'
-        ? Math.max(0, Math.min(1, body.intensity))
-        : undefined
-    };
-
-    const result = aboutService.injectFault(request);
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    handleError(res, error, '故障注入失败');
-  }
-});
+  },
+);
 
 // ==================== 系统状态页面 API ====================
 
@@ -684,7 +698,7 @@ router.get('/system/pipeline-status', realDataProtection, async (_req: Request, 
       res.json({
         success: true,
         data: status,
-        source: 'real'
+        source: 'real',
       });
     } else {
       // 虚拟数据
@@ -692,17 +706,71 @@ router.get('/system/pipeline-status', realDataProtection, async (_req: Request, 
         success: true,
         data: {
           layers: [
-            { id: 'PERCEPTION', name: 'Perception', nameCn: '感知层', processedCount: 1234, avgLatencyMs: 5, successRate: 0.99, status: 'healthy', lastProcessedAt: new Date().toISOString() },
-            { id: 'MODELING', name: 'Modeling', nameCn: '建模层', processedCount: 1234, avgLatencyMs: 8, successRate: 0.98, status: 'healthy', lastProcessedAt: new Date().toISOString() },
-            { id: 'LEARNING', name: 'Learning', nameCn: '学习层', processedCount: 1234, avgLatencyMs: 12, successRate: 0.97, status: 'healthy', lastProcessedAt: new Date().toISOString() },
-            { id: 'DECISION', name: 'Decision', nameCn: '决策层', processedCount: 1234, avgLatencyMs: 6, successRate: 0.99, status: 'healthy', lastProcessedAt: new Date().toISOString() },
-            { id: 'EVALUATION', name: 'Evaluation', nameCn: '评估层', processedCount: 800, avgLatencyMs: 15, successRate: 0.95, status: 'healthy', lastProcessedAt: new Date().toISOString() },
-            { id: 'OPTIMIZATION', name: 'Optimization', nameCn: '优化层', processedCount: 50, avgLatencyMs: 100, successRate: 1.0, status: 'healthy', lastProcessedAt: new Date().toISOString() }
+            {
+              id: 'PERCEPTION',
+              name: 'Perception',
+              nameCn: '感知层',
+              processedCount: 1234,
+              avgLatencyMs: 5,
+              successRate: 0.99,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
+            {
+              id: 'MODELING',
+              name: 'Modeling',
+              nameCn: '建模层',
+              processedCount: 1234,
+              avgLatencyMs: 8,
+              successRate: 0.98,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
+            {
+              id: 'LEARNING',
+              name: 'Learning',
+              nameCn: '学习层',
+              processedCount: 1234,
+              avgLatencyMs: 12,
+              successRate: 0.97,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
+            {
+              id: 'DECISION',
+              name: 'Decision',
+              nameCn: '决策层',
+              processedCount: 1234,
+              avgLatencyMs: 6,
+              successRate: 0.99,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
+            {
+              id: 'EVALUATION',
+              name: 'Evaluation',
+              nameCn: '评估层',
+              processedCount: 800,
+              avgLatencyMs: 15,
+              successRate: 0.95,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
+            {
+              id: 'OPTIMIZATION',
+              name: 'Optimization',
+              nameCn: '优化层',
+              processedCount: 50,
+              avgLatencyMs: 100,
+              successRate: 1.0,
+              status: 'healthy',
+              lastProcessedAt: new Date().toISOString(),
+            },
           ],
           totalThroughput: 4.12,
-          systemHealth: 'healthy'
+          systemHealth: 'healthy',
         },
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -721,7 +789,7 @@ router.get('/system/algorithm-status', realDataProtection, async (_req: Request,
       res.json({
         success: true,
         data: status,
-        source: 'real'
+        source: 'real',
       });
     } else {
       // 虚拟数据
@@ -729,20 +797,52 @@ router.get('/system/algorithm-status', realDataProtection, async (_req: Request,
         success: true,
         data: {
           algorithms: [
-            { id: 'thompson', name: 'Thompson Sampling', weight: 0.25, callCount: 320, avgLatencyMs: 8, explorationRate: 0.15, lastCalledAt: new Date().toISOString() },
-            { id: 'linucb', name: 'LinUCB', weight: 0.40, callCount: 512, avgLatencyMs: 12, explorationRate: 0.12, lastCalledAt: new Date().toISOString() },
-            { id: 'actr', name: 'ACT-R Memory', weight: 0.25, callCount: 320, avgLatencyMs: 6, explorationRate: 0.08, lastCalledAt: new Date().toISOString() },
-            { id: 'heuristic', name: 'Heuristic Rules', weight: 0.10, callCount: 128, avgLatencyMs: 2, explorationRate: 0.05, lastCalledAt: new Date().toISOString() }
+            {
+              id: 'thompson',
+              name: 'Thompson Sampling',
+              weight: 0.25,
+              callCount: 320,
+              avgLatencyMs: 8,
+              explorationRate: 0.15,
+              lastCalledAt: new Date().toISOString(),
+            },
+            {
+              id: 'linucb',
+              name: 'LinUCB',
+              weight: 0.4,
+              callCount: 512,
+              avgLatencyMs: 12,
+              explorationRate: 0.12,
+              lastCalledAt: new Date().toISOString(),
+            },
+            {
+              id: 'actr',
+              name: 'ACT-R Memory',
+              weight: 0.25,
+              callCount: 320,
+              avgLatencyMs: 6,
+              explorationRate: 0.08,
+              lastCalledAt: new Date().toISOString(),
+            },
+            {
+              id: 'heuristic',
+              name: 'Heuristic Rules',
+              weight: 0.1,
+              callCount: 128,
+              avgLatencyMs: 2,
+              explorationRate: 0.05,
+              lastCalledAt: new Date().toISOString(),
+            },
           ],
           ensembleConsensusRate: 0.82,
           coldstartStats: {
             classifyCount: 15,
             exploreCount: 8,
             normalCount: 1200,
-            userTypeDistribution: { fast: 0.35, stable: 0.45, cautious: 0.20 }
-          }
+            userTypeDistribution: { fast: 0.35, stable: 0.45, cautious: 0.2 },
+          },
         },
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -754,43 +854,70 @@ router.get('/system/algorithm-status', realDataProtection, async (_req: Request,
  * GET /api/about/system/user-state-status
  * 获取用户状态分布实时监控数据
  */
-router.get('/system/user-state-status', realDataProtection, async (_req: Request, res: Response) => {
-  try {
-    if (useRealDataSource()) {
-      const status = await getRealAboutService().getUserStateStatus();
-      res.json({
-        success: true,
-        data: status,
-        source: 'real'
-      });
-    } else {
-      // 虚拟数据
-      res.json({
-        success: true,
-        data: {
-          distributions: {
-            attention: { avg: 0.65, low: 0.15, medium: 0.55, high: 0.30, lowAlertCount: 3 },
-            fatigue: { avg: 0.35, fresh: 0.40, normal: 0.45, tired: 0.15, highAlertCount: 2 },
-            motivation: { avg: 0.25, frustrated: 0.10, neutral: 0.50, motivated: 0.40, lowAlertCount: 1 },
-            cognitive: { memory: 0.60, speed: 0.55, stability: 0.70 }
+router.get(
+  '/system/user-state-status',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      if (useRealDataSource()) {
+        const status = await getRealAboutService().getUserStateStatus();
+        res.json({
+          success: true,
+          data: status,
+          source: 'real',
+        });
+      } else {
+        // 虚拟数据
+        res.json({
+          success: true,
+          data: {
+            distributions: {
+              attention: { avg: 0.65, low: 0.15, medium: 0.55, high: 0.3, lowAlertCount: 3 },
+              fatigue: { avg: 0.35, fresh: 0.4, normal: 0.45, tired: 0.15, highAlertCount: 2 },
+              motivation: {
+                avg: 0.25,
+                frustrated: 0.1,
+                neutral: 0.5,
+                motivated: 0.4,
+                lowAlertCount: 1,
+              },
+              cognitive: { memory: 0.6, speed: 0.55, stability: 0.7 },
+            },
+            recentInferences: [
+              {
+                id: 'a1b2c3d4',
+                timestamp: new Date().toISOString(),
+                attention: 0.72,
+                fatigue: 0.28,
+                motivation: 0.45,
+                confidence: 0.88,
+              },
+              {
+                id: 'e5f6g7h8',
+                timestamp: new Date(Date.now() - 30000).toISOString(),
+                attention: 0.58,
+                fatigue: 0.42,
+                motivation: 0.15,
+                confidence: 0.82,
+              },
+            ],
+            modelParams: {
+              attention: {
+                beta: 0.85,
+                weights: { rt_mean: 0.25, rt_cv: 0.35, pause: 0.15, focus_loss: 0.5 },
+              },
+              fatigue: { decayK: 0.08, longBreakThreshold: 30 },
+              motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 },
+            },
           },
-          recentInferences: [
-            { id: 'a1b2c3d4', timestamp: new Date().toISOString(), attention: 0.72, fatigue: 0.28, motivation: 0.45, confidence: 0.88 },
-            { id: 'e5f6g7h8', timestamp: new Date(Date.now() - 30000).toISOString(), attention: 0.58, fatigue: 0.42, motivation: 0.15, confidence: 0.82 }
-          ],
-          modelParams: {
-            attention: { beta: 0.85, weights: { rt_mean: 0.25, rt_cv: 0.35, pause: 0.15, focus_loss: 0.5 } },
-            fatigue: { decayK: 0.08, longBreakThreshold: 30 },
-            motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 }
-          }
-        },
-        source: 'virtual'
-      });
+          source: 'virtual',
+        });
+      }
+    } catch (error) {
+      handleError(res, error, '获取用户状态监控数据失败');
     }
-  } catch (error) {
-    handleError(res, error, '获取用户状态监控数据失败');
-  }
-});
+  },
+);
 
 /**
  * GET /api/about/system/memory-status
@@ -803,7 +930,7 @@ router.get('/system/memory-status', realDataProtection, async (_req: Request, re
       res.json({
         success: true,
         data: status,
-        source: 'real'
+        source: 'real',
       });
     } else {
       // 虚拟数据
@@ -815,15 +942,15 @@ router.get('/system/memory-status', realDataProtection, async (_req: Request, re
             { range: '20-40%', count: 300, percentage: 15.0 },
             { range: '40-60%', count: 600, percentage: 30.0 },
             { range: '60-80%', count: 650, percentage: 32.5 },
-            { range: '80-100%', count: 300, percentage: 15.0 }
+            { range: '80-100%', count: 300, percentage: 15.0 },
           ],
           urgentReviewCount: 45,
           soonReviewCount: 120,
           stableCount: 1835,
           avgHalfLifeDays: 3.2,
-          todayConsolidationRate: 78.5
+          todayConsolidationRate: 78.5,
         },
-        source: 'virtual'
+        source: 'virtual',
       });
     }
   } catch (error) {
@@ -842,7 +969,7 @@ router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
     const metrics = getAllMetrics();
     res.json({
       success: true,
-      data: metrics
+      data: metrics,
     });
   } catch (error) {
     handleError(res, error, '获取监控指标失败');
@@ -864,14 +991,149 @@ router.get('/metrics/prometheus', realDataProtection, (_req: Request, res: Respo
 
 /**
  * GET /api/about/feature-flags
- * 获取当前特性开关状态
+ * 获取当前特性开关和运行状态
  */
 router.get('/feature-flags', realDataProtection, (_req: Request, res: Response) => {
   try {
-    const flags = getFeatureFlagsStatus();
+    const dataSourceFlags = getFeatureFlagsStatus();
+    const engineFlags = getAmasEngineFlags();
+    const metrics = getAllMetrics() as Record<string, unknown>;
+
+    // 从监控指标中提取数据
+    const decision = metrics.decision as
+      | {
+          writeTotal?: number;
+          writeSuccess?: number;
+          writeFailed?: number;
+          writeDuration?: { avg?: number };
+        }
+      | undefined;
+    const pipeline = metrics.pipeline as
+      | { stageTotal?: Record<string, number>; stageDuration?: { avg?: number } }
+      | undefined;
+    const amasDecision = metrics.amasDecision as
+      | { inferenceLatencyMs?: { avg?: number; count?: number }; confidence?: { avg?: number } }
+      | undefined;
+    const db = metrics.db as { durationMs?: { avg?: number } } | undefined;
+    const queue = metrics.queue as { currentSize?: number; backpressureTotal?: number } | undefined;
+
+    // 状态判定函数
+    const getStatus = (
+      enabled: boolean,
+      latencyMs?: number,
+      errorRate?: number,
+    ): 'healthy' | 'warning' | 'error' | 'disabled' => {
+      if (!enabled) return 'disabled';
+      if (errorRate !== undefined && errorRate > 0.1) return 'error';
+      if (latencyMs !== undefined && latencyMs > 2000) return 'error';
+      if (errorRate !== undefined && errorRate > 0.05) return 'warning';
+      if (latencyMs !== undefined && latencyMs > 500) return 'warning';
+      return 'healthy';
+    };
+
+    // 计算写入错误率
+    const writeTotal = decision?.writeTotal || 0;
+    const writeFailed = decision?.writeFailed || 0;
+    const writeErrorRate = writeTotal > 0 ? writeFailed / writeTotal : 0;
+    const writeLatency = decision?.writeDuration?.avg || 0;
+
+    // 推理延迟
+    const inferenceLatency = amasDecision?.inferenceLatencyMs?.avg || 0;
+    const inferenceCount = amasDecision?.inferenceLatencyMs?.count || 0;
+
+    // 数据库延迟
+    const dbLatency = db?.durationMs?.avg || 0;
+
+    // Pipeline 阶段调用次数
+    const pipelineStages = pipeline?.stageTotal || {};
+
+    // 构建模块状态
+    interface ModuleStatus {
+      enabled: boolean;
+      status: 'healthy' | 'warning' | 'error' | 'disabled';
+      latencyMs?: number;
+      errorRate?: number;
+      callCount?: number;
+    }
+
+    const flags: Record<string, ModuleStatus> = {
+      // 学习算法
+      ensemble: {
+        enabled: engineFlags.enableEnsemble,
+        status: getStatus(engineFlags.enableEnsemble, inferenceLatency),
+        latencyMs: inferenceLatency > 0 ? Math.round(inferenceLatency) : undefined,
+        callCount: inferenceCount > 0 ? inferenceCount : undefined,
+      },
+      thompsonSampling: {
+        enabled: engineFlags.enableThompsonSampling,
+        status: getStatus(engineFlags.enableThompsonSampling),
+        callCount: pipelineStages['LEARNING'] || undefined,
+      },
+      heuristicBaseline: {
+        enabled: engineFlags.enableHeuristicBaseline,
+        status: getStatus(engineFlags.enableHeuristicBaseline),
+      },
+      actrMemory: {
+        enabled: engineFlags.enableACTRMemory,
+        status: getStatus(engineFlags.enableACTRMemory),
+      },
+
+      // 决策管理
+      coldStartManager: {
+        enabled: engineFlags.enableColdStartManager,
+        status: getStatus(engineFlags.enableColdStartManager),
+        callCount: pipelineStages['DECISION'] || undefined,
+      },
+      userParamsManager: {
+        enabled: engineFlags.enableUserParamsManager,
+        status: getStatus(engineFlags.enableUserParamsManager),
+      },
+      trendAnalyzer: {
+        enabled: engineFlags.enableTrendAnalyzer,
+        status: getStatus(engineFlags.enableTrendAnalyzer),
+      },
+
+      // 优化引擎
+      bayesianOptimizer: {
+        enabled: engineFlags.enableBayesianOptimizer,
+        status: getStatus(engineFlags.enableBayesianOptimizer),
+      },
+      causalInference: {
+        enabled: engineFlags.enableCausalInference,
+        status: getStatus(engineFlags.enableCausalInference),
+      },
+      delayedReward: {
+        enabled: engineFlags.enableDelayedRewardAggregator,
+        status: getStatus(engineFlags.enableDelayedRewardAggregator, undefined, undefined),
+        callCount: queue?.backpressureTotal || undefined,
+      },
+
+      // 数据流水线
+      realDataWrite: {
+        enabled: dataSourceFlags.writeEnabled,
+        status: getStatus(dataSourceFlags.writeEnabled, writeLatency, writeErrorRate),
+        latencyMs: writeLatency > 0 ? Math.round(writeLatency) : undefined,
+        errorRate: writeErrorRate > 0 ? Math.round(writeErrorRate * 1000) / 1000 : undefined,
+        callCount: writeTotal > 0 ? writeTotal : undefined,
+      },
+      realDataRead: {
+        enabled: dataSourceFlags.readEnabled,
+        status: getStatus(dataSourceFlags.readEnabled, dbLatency),
+        latencyMs: dbLatency > 0 ? Math.round(dbLatency) : undefined,
+      },
+      visualization: {
+        enabled: dataSourceFlags.visualizationEnabled,
+        status: getStatus(dataSourceFlags.visualizationEnabled),
+      },
+    };
+
     res.json({
       success: true,
-      data: flags
+      data: {
+        readEnabled: dataSourceFlags.readEnabled,
+        writeEnabled: dataSourceFlags.writeEnabled,
+        flags,
+      },
     });
   } catch (error) {
     handleError(res, error, '获取特性开关状态失败');
@@ -899,7 +1161,7 @@ router.get('/health', authMiddleware, async (req: AuthRequest, res: Response) =>
 
     const basicInfo = {
       status: dbHealthy ? 'healthy' : 'degraded',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // 管理员可见详细信息
@@ -913,15 +1175,15 @@ router.get('/health', authMiddleware, async (req: AuthRequest, res: Response) =>
           dataSource: useRealDataSource() ? 'real' : 'virtual',
           features: {
             writeEnabled: flags.writeEnabled,
-            readEnabled: flags.readEnabled
-          }
-        }
+            readEnabled: flags.readEnabled,
+          },
+        },
       });
     } else {
       // 普通用户只看到基本状态
       res.json({
         success: true,
-        data: basicInfo
+        data: basicInfo,
       });
     }
   } catch (error) {
@@ -950,11 +1212,13 @@ router.get('/decisions/stream', realDataProtection, (req: Request, res: Response
   decisionEventsService.incrementConnections();
 
   // 发送初始连接成功消息
-  res.write(`event: connected\ndata: ${JSON.stringify({
-    message: 'SSE connection established',
-    timestamp: new Date().toISOString(),
-    connections: decisionEventsService.getConnectionCount()
-  })}\n\n`);
+  res.write(
+    `event: connected\ndata: ${JSON.stringify({
+      message: 'SSE connection established',
+      timestamp: new Date().toISOString(),
+      connections: decisionEventsService.getConnectionCount(),
+    })}\n\n`,
+  );
 
   // 监听决策事件
   const onDecision = (data: DecisionEventData) => {

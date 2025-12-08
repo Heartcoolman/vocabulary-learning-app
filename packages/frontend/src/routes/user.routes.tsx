@@ -19,6 +19,7 @@ const HabitProfilePage = lazy(() => import('../pages/HabitProfilePage'));
 const TodayWordsPage = lazy(() => import('../pages/TodayWordsPage'));
 const StudyProgressPage = lazy(() => import('../pages/StudyProgressPage'));
 const LearningObjectivesPage = lazy(() => import('../pages/LearningObjectivesPage'));
+const FlashcardPage = lazy(() => import('../pages/FlashcardPage'));
 
 // 懒加载 - AMAS 增强功能页面
 const LearningTimePage = lazy(() => import('../pages/LearningTimePage'));
@@ -58,6 +59,15 @@ export const userRoutes: AppRoute[] = [
       </ProtectedRoute>
     ),
     meta: { title: '学习', requireAuth: true },
+  },
+  {
+    path: '/flashcard',
+    element: (
+      <ProtectedLazy>
+        <FlashcardPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '闪记模式', requireAuth: true },
   },
 
   // 基础功能页面

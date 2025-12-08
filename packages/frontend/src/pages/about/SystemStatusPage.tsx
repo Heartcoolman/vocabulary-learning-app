@@ -6,7 +6,7 @@
  * - 算法实时权重和调用统计
  * - 用户状态分布监控
  * - 记忆状态分布
- * - 功能开关状态
+ * - 功能运行状态
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -606,7 +606,7 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
   );
 }
 
-/** 功能开关面板 */
+/** 功能运行状态面板 */
 function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   if (!data) {
     return (
@@ -616,48 +616,203 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
     );
   }
 
+  // 功能开关分组配置
+  const flagGroups = [
+    {
+      title: '学习算法',
+      icon: <Brain size={16} className="text-purple-500" />,
+      gradient: 'from-purple-500/10 to-indigo-500/10',
+      borderColor: 'border-purple-200/60',
+      keys: ['ensemble', 'thompsonSampling', 'heuristicBaseline', 'actrMemory'],
+    },
+    {
+      title: '决策管理',
+      icon: <Target size={16} className="text-blue-500" />,
+      gradient: 'from-blue-500/10 to-cyan-500/10',
+      borderColor: 'border-blue-200/60',
+      keys: ['coldStartManager', 'userParamsManager', 'trendAnalyzer'],
+    },
+    {
+      title: '优化引擎',
+      icon: <Flask size={16} className="text-amber-500" />,
+      gradient: 'from-amber-500/10 to-orange-500/10',
+      borderColor: 'border-amber-200/60',
+      keys: ['bayesianOptimizer', 'causalInference', 'delayedReward'],
+    },
+    {
+      title: '数据流水线',
+      icon: <Activity size={16} className="text-emerald-500" />,
+      gradient: 'from-emerald-500/10 to-teal-500/10',
+      borderColor: 'border-emerald-200/60',
+      keys: ['realDataWrite', 'realDataRead', 'visualization'],
+    },
+  ];
+
   const flagNames: Record<string, string> = {
-    trendAnalyzer: '趋势分析器',
+    trendAnalyzer: '趋势分析',
     heuristicBaseline: '启发式基准',
-    thompsonSampling: 'Thompson 采样',
-    linucb: 'LinUCB 算法',
-    actrMemory: 'ACT-R 记忆',
-    coldStartManager: '冷启动管理器',
+    thompsonSampling: 'Thompson采样',
+    actrMemory: 'ACT-R记忆',
+    coldStartManager: '冷启动管理',
     ensemble: '集成学习',
-    bayesianOptimizer: '贝叶斯优化器',
-    causalInference: '因果推断',
-    abTestEngine: 'A/B 测试引擎',
-    offlineReplay: '离线回放',
+    userParamsManager: '参数管理',
     delayedReward: '延迟奖励',
-    personalizedHalfLife: '个性化半衰期',
-    multiObjective: '多目标优化',
-    learningModes: '学习模式',
-    wordReviewHistory: '复习历史追踪',
+    causalInference: '因果推断',
+    bayesianOptimizer: '贝叶斯优化',
+    realDataWrite: '数据写入',
+    realDataRead: '数据读取',
+    visualization: '可视化',
   };
 
-  return (
-    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-      <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
-        <Timer className="text-indigo-500" />
-        功能开关状态
-      </h2>
+  // 状态颜色映射
+  const statusStyles: Record<string, { dot: string; text: string; bg: string }> = {
+    healthy: {
+      dot: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]',
+      text: 'text-gray-800',
+      bg: '',
+    },
+    warning: {
+      dot: 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] animate-pulse',
+      text: 'text-amber-800',
+      bg: 'bg-amber-50/50',
+    },
+    error: {
+      dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse',
+      text: 'text-red-700',
+      bg: 'bg-red-50/50',
+    },
+    disabled: {
+      dot: 'bg-gray-300',
+      text: 'text-gray-500',
+      bg: 'opacity-50',
+    },
+  };
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-        {Object.entries(data.flags || {}).map(([key, enabled]) => (
-          <div
-            key={key}
-            className={`flex items-center justify-between rounded-lg p-3 ${
-              enabled ? 'bg-emerald-50' : 'bg-gray-50'
-            }`}
-          >
-            <span className="text-sm text-gray-700">{flagNames[key] || key}</span>
-            {enabled ? (
-              <ToggleRight className="text-emerald-500" size={20} />
-            ) : (
-              <ToggleLeft className="text-gray-400" size={20} />
-            )}
+  // 统计各状态数量
+  const statusCounts = Object.values(data.flags || {}).reduce(
+    (acc, m) => {
+      acc[m.status] = (acc[m.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const healthyCount = statusCounts['healthy'] || 0;
+  const totalCount = Object.keys(data.flags || {}).length;
+
+  return (
+    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-sm backdrop-blur-sm">
+      {/* 标题栏 */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+          <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 p-2 text-white shadow-md">
+            <Timer size={18} />
           </div>
-        ))}
+          功能运行状态
+        </h2>
+        <div className="flex items-center gap-2">
+          {(statusCounts['error'] || 0) > 0 && (
+            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+              {statusCounts['error']} 异常
+            </span>
+          )}
+          {(statusCounts['warning'] || 0) > 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              {statusCounts['warning']} 警告
+            </span>
+          )}
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            {healthyCount}/{totalCount} 正常
+          </span>
+        </div>
+      </div>
+
+      {/* 分组展示 */}
+      <div className="space-y-4">
+        {flagGroups.map((group) => {
+          const groupFlags = group.keys
+            .filter((key) => key in (data.flags || {}))
+            .map((key) => ({ key, module: data.flags[key] }));
+
+          if (groupFlags.length === 0) return null;
+
+          const groupHealthyCount = groupFlags.filter((f) => f.module.status === 'healthy').length;
+          const hasIssue = groupFlags.some(
+            (f) => f.module.status === 'error' || f.module.status === 'warning',
+          );
+
+          return (
+            <div
+              key={group.title}
+              className={`overflow-hidden rounded-xl border bg-gradient-to-r ${group.gradient} ${group.borderColor}`}
+            >
+              {/* 分组标题 */}
+              <div className="flex items-center justify-between border-b border-gray-100/50 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  {group.icon}
+                  <span className="text-sm font-semibold text-gray-700">{group.title}</span>
+                  {hasIssue && <Warning size={14} className="text-amber-500" />}
+                </div>
+                <span className="text-xs text-gray-500">
+                  {groupHealthyCount}/{groupFlags.length} 正常
+                </span>
+              </div>
+
+              {/* 功能列表 */}
+              <div className="grid grid-cols-3 gap-px bg-gray-100/30 p-0.5">
+                {groupFlags.map(({ key, module }) => {
+                  const styles = statusStyles[module.status] || statusStyles.disabled;
+
+                  return (
+                    <div
+                      key={key}
+                      className={`flex items-center justify-between bg-white/80 px-3 py-2.5 ${styles.bg}`}
+                      title={
+                        module.latencyMs || module.callCount || module.errorRate
+                          ? `延迟: ${module.latencyMs ?? '-'}ms | 调用: ${module.callCount ?? '-'} | 错误率: ${module.errorRate ? (module.errorRate * 100).toFixed(1) + '%' : '-'}`
+                          : undefined
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        {/* 状态指示器 */}
+                        <div className={`h-2 w-2 flex-shrink-0 rounded-full ${styles.dot}`} />
+                        <span className={`text-sm ${styles.text}`}>{flagNames[key] || key}</span>
+                      </div>
+                      {/* 指标显示 */}
+                      {module.latencyMs !== undefined && module.latencyMs > 0 && (
+                        <span
+                          className={`text-[10px] ${module.latencyMs > 500 ? 'text-amber-600' : 'text-gray-400'}`}
+                        >
+                          {module.latencyMs}ms
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 底部说明 */}
+      <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <span>正常</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+          <span>警告</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+          <span>异常</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+          <span>禁用</span>
+        </div>
       </div>
     </div>
   );

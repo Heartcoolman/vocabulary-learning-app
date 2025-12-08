@@ -25,7 +25,7 @@ import {
   StageTrace,
   DecisionDetail,
   MemberVoteDetail,
-  PipelineStageDetail
+  PipelineStageDetail,
 } from './about.service';
 
 // ==================== 缓存类型 ====================
@@ -55,10 +55,7 @@ const saltManager = new DailySaltManager();
 
 function anonymizeUserId(userId: string): string {
   const salt = saltManager.getSalt();
-  const hash = crypto
-    .createHash('sha256')
-    .update(`${userId}:${salt}`)
-    .digest('hex');
+  const hash = crypto.createHash('sha256').update(`${userId}:${salt}`).digest('hex');
   return hash.substring(0, 8);
 }
 
@@ -139,23 +136,23 @@ export class RealAboutService {
         this.prisma.decisionRecord.count({
           where: {
             timestamp: { gte: startOfDay },
-            ingestionStatus: 'SUCCESS'
-          }
+            ingestionStatus: 'SUCCESS',
+          },
         }),
         // 24小时内活跃用户数（直接按 answerRecord 去重计数，避免全量加载）
         this.prisma.answerRecord.groupBy({
           by: ['userId'],
-          where: { timestamp: { gte: last24h } }
+          where: { timestamp: { gte: last24h } },
         }),
         // 平均效率提升（基于奖励值）
         this.prisma.decisionRecord.aggregate({
           where: {
             timestamp: { gte: last24h },
             ingestionStatus: 'SUCCESS',
-            reward: { not: null }
+            reward: { not: null },
           },
-          _avg: { reward: true }
-        })
+          _avg: { reward: true },
+        }),
       ]);
 
       // 唯一用户数 = groupBy 结果的长度
@@ -169,7 +166,7 @@ export class RealAboutService {
         todayDecisions,
         activeUsers,
         avgEfficiencyGain: Math.max(0, avgEfficiencyGain),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       this.overviewCache = { data: stats, expiry: now + this.cacheTTL };
@@ -196,13 +193,13 @@ export class RealAboutService {
       const records = await this.prisma.decisionRecord.findMany({
         where: {
           timestamp: { gte: last7Days },
-          ingestionStatus: 'SUCCESS'
+          ingestionStatus: 'SUCCESS',
         },
         select: {
           decisionSource: true,
-          weightsSnapshot: true
+          weightsSnapshot: true,
         },
-        take: 1000 // 限制查询量
+        take: 1000, // 限制查询量
       });
 
       if (records.length < this.minDataThreshold) {
@@ -234,7 +231,7 @@ export class RealAboutService {
         linucb: this.round(contrib.linucb / total, 3),
         actr: this.round(contrib.actr / total, 3),
         heuristic: this.round(contrib.heuristic / total, 3),
-        coldstart: this.round(contrib.coldstart / total, 3)
+        coldstart: this.round(contrib.coldstart / total, 3),
       };
 
       this.algorithmCache = { data: distribution, expiry: now + this.cacheTTL };
@@ -261,14 +258,14 @@ export class RealAboutService {
       // 从 AmasUserState 表获取状态分布
       const states = await this.prisma.amasUserState.findMany({
         where: {
-          updatedAt: { gte: last7Days }
+          updatedAt: { gte: last7Days },
         },
         select: {
           attention: true,
           fatigue: true,
-          motivation: true
+          motivation: true,
         },
-        take: 500
+        take: 500,
       });
 
       if (states.length < this.minDataThreshold) {
@@ -302,18 +299,18 @@ export class RealAboutService {
         attention: {
           low: this.round(attention.low / total, 3),
           medium: this.round(attention.medium / total, 3),
-          high: this.round(attention.high / total, 3)
+          high: this.round(attention.high / total, 3),
         },
         fatigue: {
           fresh: this.round(fatigue.fresh / total, 3),
           normal: this.round(fatigue.normal / total, 3),
-          tired: this.round(fatigue.tired / total, 3)
+          tired: this.round(fatigue.tired / total, 3),
         },
         motivation: {
           frustrated: this.round(motivation.frustrated / total, 3),
           neutral: this.round(motivation.neutral / total, 3),
-          motivated: this.round(motivation.motivated / total, 3)
-        }
+          motivated: this.round(motivation.motivated / total, 3),
+        },
       };
 
       this.stateDistCache = { data: response, expiry: now + this.cacheTTL };
@@ -337,7 +334,7 @@ export class RealAboutService {
     try {
       const records = await this.prisma.decisionRecord.findMany({
         where: {
-          ingestionStatus: 'SUCCESS'
+          ingestionStatus: 'SUCCESS',
         },
         orderBy: { timestamp: 'desc' },
         take: 50,
@@ -348,13 +345,13 @@ export class RealAboutService {
           decisionSource: true,
           selectedAction: true,
           weightsSnapshot: true,
-          answerRecordId: true
-        }
+          answerRecordId: true,
+        },
       });
 
       const decisions: RecentDecision[] = records
-        .filter(r => r.decisionId) // 只返回有decisionId的记录
-        .map(r => {
+        .filter((r) => r.decisionId) // 只返回有decisionId的记录
+        .map((r) => {
           const action = r.selectedAction as Record<string, unknown>;
           const weights = r.weightsSnapshot as Record<string, number> | null;
 
@@ -365,9 +362,9 @@ export class RealAboutService {
             decisionSource: r.decisionSource,
             strategy: {
               difficulty: (action?.difficulty as string) || 'mid',
-              batch_size: (action?.batch_size as number) || 10
+              batch_size: (action?.batch_size as number) || 10,
             },
-            dominantFactor: this.getDominantAlgorithm(weights)
+            dominantFactor: this.getDominantAlgorithm(weights),
           };
         });
 
@@ -400,8 +397,8 @@ export class RealAboutService {
           decisionId: true,
           timestamp: true,
           decisionSource: true,
-          totalDurationMs: true
-        }
+          totalDurationMs: true,
+        },
       });
 
       // 转换为可视化数据包
@@ -415,9 +412,9 @@ export class RealAboutService {
           attention: 0.5 + Math.random() * 0.3,
           fatigue: Math.random() * 0.5,
           motivation: Math.random() * 0.6,
-          responseTime: 1000 + Math.random() * 2000
+          responseTime: 1000 + Math.random() * 2000,
         },
-        createdAt: r.timestamp.getTime()
+        createdAt: r.timestamp.getTime(),
       }));
 
       // 计算节点状态
@@ -428,17 +425,17 @@ export class RealAboutService {
       const totalInWindow = await this.prisma.decisionRecord.count({
         where: {
           timestamp: { gte: last5Min },
-          ingestionStatus: 'SUCCESS'
-        }
+          ingestionStatus: 'SUCCESS',
+        },
       });
 
       const avgDuration = await this.prisma.decisionRecord.aggregate({
         where: {
           timestamp: { gte: last5Min },
           ingestionStatus: 'SUCCESS',
-          totalDurationMs: { not: null }
+          totalDurationMs: { not: null },
         },
-        _avg: { totalDurationMs: true }
+        _avg: { totalDurationMs: true },
       });
 
       const metrics: PipelineMetrics = {
@@ -446,15 +443,15 @@ export class RealAboutService {
         avgLatency: Math.round(avgDuration._avg.totalDurationMs ?? 45),
         activePackets: currentPackets.length,
         totalProcessed: await this.prisma.decisionRecord.count({
-          where: { ingestionStatus: 'SUCCESS' }
-        })
+          where: { ingestionStatus: 'SUCCESS' },
+        }),
       };
 
       const snapshot: PipelineSnapshot = {
         timestamp: now,
         currentPackets,
         nodeStates,
-        metrics
+        metrics,
       };
 
       this.pipelineCache = { data: snapshot, expiry: now + this.cacheTTL };
@@ -471,7 +468,7 @@ export class RealAboutService {
   async getPacketTrace(packetId: string): Promise<PacketTrace> {
     try {
       const record = await this.prisma.decisionRecord.findFirst({
-        where: { decisionId: packetId }
+        where: { decisionId: packetId },
       });
 
       if (!record) {
@@ -481,10 +478,10 @@ export class RealAboutService {
       // 单独查询 pipeline stages
       const pipelineStages = await this.prisma.pipelineStage.findMany({
         where: { decisionRecordId: record.id },
-        orderBy: { startedAt: 'asc' }
+        orderBy: { startedAt: 'asc' },
       });
 
-      const stages: StageTrace[] = pipelineStages.map(s => ({
+      const stages: StageTrace[] = pipelineStages.map((s) => ({
         stage: String(this.stageTypeToNumber(s.stage)),
         stageName: s.stageName,
         nodeId: this.getNodeForStageType(s.stage),
@@ -492,14 +489,14 @@ export class RealAboutService {
         input: JSON.stringify(s.inputSummary || {}),
         output: JSON.stringify(s.outputSummary || {}),
         details: s.metadata ? JSON.stringify(s.metadata) : undefined,
-        timestamp: s.startedAt.getTime()
+        timestamp: s.startedAt.getTime(),
       }));
 
       return {
         packetId,
         status: 'completed',
         stages,
-        totalDuration: record.totalDurationMs ?? stages.reduce((sum, s) => sum + s.duration, 0)
+        totalDuration: record.totalDurationMs ?? stages.reduce((sum, s) => sum + s.duration, 0),
       };
     } catch (error) {
       serviceLogger.error({ err: error, packetId }, 'getPacketTrace error');
@@ -519,7 +516,7 @@ export class RealAboutService {
       thompson: 'Thompson',
       linucb: 'LinUCB',
       actr: 'ACT-R',
-      heuristic: '启发式'
+      heuristic: '启发式',
     };
 
     for (const [key, value] of Object.entries(weights)) {
@@ -539,31 +536,31 @@ export class RealAboutService {
       3: 'ensemble',
       4: 'guardrails',
       5: 'delayed_reward',
-      6: 'bayesian'
+      6: 'bayesian',
     };
     return stageNodes[stage] || 'unknown';
   }
 
   private getNodeForStageType(stageType: string): string {
     const mapping: Record<string, string> = {
-      'PERCEPTION': 'feature_builder',
-      'MODELING': 'cognitive',
-      'LEARNING': 'ensemble',
-      'DECISION': 'guardrails',
-      'EVALUATION': 'delayed_reward',
-      'OPTIMIZATION': 'bayesian'
+      PERCEPTION: 'feature_builder',
+      MODELING: 'cognitive',
+      LEARNING: 'ensemble',
+      DECISION: 'guardrails',
+      EVALUATION: 'delayed_reward',
+      OPTIMIZATION: 'bayesian',
     };
     return mapping[stageType] || 'unknown';
   }
 
   private stageTypeToNumber(stageType: string): number {
     const mapping: Record<string, number> = {
-      'PERCEPTION': 1,
-      'MODELING': 2,
-      'LEARNING': 3,
-      'DECISION': 4,
-      'EVALUATION': 5,
-      'OPTIMIZATION': 6
+      PERCEPTION: 1,
+      MODELING: 2,
+      LEARNING: 3,
+      DECISION: 4,
+      EVALUATION: 5,
+      OPTIMIZATION: 6,
     };
     return mapping[stageType] || 1;
   }
@@ -578,7 +575,7 @@ export class RealAboutService {
 
     try {
       const record = await this.prisma.decisionRecord.findFirst({
-        where: { decisionId }
+        where: { decisionId },
       });
 
       if (!record) {
@@ -588,7 +585,7 @@ export class RealAboutService {
       // 单独查询 pipeline stages
       const pipelineStages = await this.prisma.pipelineStage.findMany({
         where: { decisionRecordId: record.id },
-        orderBy: { startedAt: 'asc' }
+        orderBy: { startedAt: 'asc' },
       });
 
       return {
@@ -603,7 +600,7 @@ export class RealAboutService {
         strategy: this.parseAction(record.selectedAction),
         weights: this.parseWeights(record.weightsSnapshot),
         memberVotes: this.parseMemberVotes(record.memberVotes),
-        pipeline: this.mapPipelineStages(pipelineStages)
+        pipeline: this.mapPipelineStages(pipelineStages),
       };
     } catch (error) {
       serviceLogger.error({ err: error, decisionId }, 'getDecisionDetail error');
@@ -618,7 +615,7 @@ export class RealAboutService {
       new_ratio: this.asNumber(obj?.new_ratio),
       difficulty: typeof obj?.difficulty === 'string' ? obj.difficulty : undefined,
       batch_size: this.asNumber(obj?.batch_size),
-      hint_level: this.asNumber(obj?.hint_level)
+      hint_level: this.asNumber(obj?.hint_level),
     };
   }
 
@@ -646,7 +643,7 @@ export class RealAboutService {
         member,
         action: typeof detail?.action === 'string' ? detail.action : 'unknown',
         contribution: this.round(this.asNumber(detail?.contribution) ?? 0, 3),
-        confidence: this.round(this.asNumber(detail?.confidence) ?? 0, 3)
+        confidence: this.round(this.asNumber(detail?.confidence) ?? 0, 3),
       });
     }
 
@@ -654,7 +651,7 @@ export class RealAboutService {
   }
 
   private mapPipelineStages(stages: any[]): PipelineStageDetail[] {
-    return stages.map(stage => ({
+    return stages.map((stage) => ({
       stage: this.stageTypeToNumber(stage.stage),
       stageType: stage.stage,
       stageName: stage.stageName,
@@ -665,7 +662,7 @@ export class RealAboutService {
       inputSummary: this.asRecord(stage.inputSummary) ?? undefined,
       outputSummary: this.asRecord(stage.outputSummary) ?? undefined,
       metadata: this.asRecord(stage.metadata) ?? undefined,
-      errorMessage: stage.errorMessage ?? undefined
+      errorMessage: stage.errorMessage ?? undefined,
     }));
   }
 
@@ -697,25 +694,133 @@ export class RealAboutService {
   private computeNodeStates(records: any[]): Record<string, NodeState> {
     const now = Date.now();
     const nodes: Record<string, NodeState> = {
-      raw_input: { id: 'raw_input', status: 'idle', load: 0, processedCount: records.length, lastProcessedAt: now },
-      feature_builder: { id: 'feature_builder', status: 'processing', load: 0.3, processedCount: records.length, lastProcessedAt: now },
-      attention: { id: 'attention', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      fatigue: { id: 'fatigue', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      cognitive: { id: 'cognitive', status: 'processing', load: 0.4, processedCount: records.length, lastProcessedAt: now },
-      motivation: { id: 'motivation', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      trend: { id: 'trend', status: 'idle', load: 0.1, processedCount: records.length, lastProcessedAt: now },
-      coldstart: { id: 'coldstart', status: 'idle', load: 0.1, processedCount: 0, lastProcessedAt: now },
-      linucb: { id: 'linucb', status: 'processing', load: 0.3, processedCount: records.length, lastProcessedAt: now },
-      thompson: { id: 'thompson', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      actr: { id: 'actr', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      heuristic: { id: 'heuristic', status: 'idle', load: 0.1, processedCount: records.length, lastProcessedAt: now },
-      ensemble: { id: 'ensemble', status: 'processing', load: 0.5, processedCount: records.length, lastProcessedAt: now },
-      mapper: { id: 'mapper', status: 'idle', load: 0.2, processedCount: records.length, lastProcessedAt: now },
-      guardrails: { id: 'guardrails', status: 'processing', load: 0.3, processedCount: records.length, lastProcessedAt: now },
-      output: { id: 'output', status: 'idle', load: 0.1, processedCount: records.length, lastProcessedAt: now },
-      delayed_reward: { id: 'delayed_reward', status: 'idle', load: 0.1, processedCount: 0, lastProcessedAt: now },
+      raw_input: {
+        id: 'raw_input',
+        status: 'idle',
+        load: 0,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      feature_builder: {
+        id: 'feature_builder',
+        status: 'processing',
+        load: 0.3,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      attention: {
+        id: 'attention',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      fatigue: {
+        id: 'fatigue',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      cognitive: {
+        id: 'cognitive',
+        status: 'processing',
+        load: 0.4,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      motivation: {
+        id: 'motivation',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      trend: {
+        id: 'trend',
+        status: 'idle',
+        load: 0.1,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      coldstart: {
+        id: 'coldstart',
+        status: 'idle',
+        load: 0.1,
+        processedCount: 0,
+        lastProcessedAt: now,
+      },
+      linucb: {
+        id: 'linucb',
+        status: 'processing',
+        load: 0.3,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      thompson: {
+        id: 'thompson',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      actr: {
+        id: 'actr',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      heuristic: {
+        id: 'heuristic',
+        status: 'idle',
+        load: 0.1,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      ensemble: {
+        id: 'ensemble',
+        status: 'processing',
+        load: 0.5,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      mapper: {
+        id: 'mapper',
+        status: 'idle',
+        load: 0.2,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      guardrails: {
+        id: 'guardrails',
+        status: 'processing',
+        load: 0.3,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      output: {
+        id: 'output',
+        status: 'idle',
+        load: 0.1,
+        processedCount: records.length,
+        lastProcessedAt: now,
+      },
+      delayed_reward: {
+        id: 'delayed_reward',
+        status: 'idle',
+        load: 0.1,
+        processedCount: 0,
+        lastProcessedAt: now,
+      },
       causal: { id: 'causal', status: 'idle', load: 0.1, processedCount: 0, lastProcessedAt: now },
-      bayesian: { id: 'bayesian', status: 'idle', load: 0.1, processedCount: 0, lastProcessedAt: now }
+      bayesian: {
+        id: 'bayesian',
+        status: 'idle',
+        load: 0.1,
+        processedCount: 0,
+        lastProcessedAt: now,
+      },
     };
 
     return nodes;
@@ -739,10 +844,10 @@ export class RealAboutService {
 
       // 获取答题准确率
       const correctCount = await this.prisma.answerRecord.count({
-        where: { timestamp: { gte: last7Days }, isCorrect: true }
+        where: { timestamp: { gte: last7Days }, isCorrect: true },
       });
       const totalCount = await this.prisma.answerRecord.count({
-        where: { timestamp: { gte: last7Days } }
+        where: { timestamp: { gte: last7Days } },
       });
       const currentAccuracy = totalCount > 0 ? correctCount / totalCount : 0;
 
@@ -751,30 +856,31 @@ export class RealAboutService {
         where: {
           timestamp: { gte: last7Days },
           ingestionStatus: 'SUCCESS',
-          totalDurationMs: { not: null }
+          totalDurationMs: { not: null },
         },
         _avg: { totalDurationMs: true },
-        _max: { totalDurationMs: true }
+        _max: { totalDurationMs: true },
       });
 
       // 获取因果推断数据
       const causalData = await this.prisma.causalObservation.aggregate({
         where: { timestamp: { gte: BigInt(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
         _avg: { outcome: true },
-        _count: true
+        _count: true,
       });
 
       // 计算基线准确率（假设无系统帮助时为 70%）
-      const baselineAccuracy = 0.70;
-      const improvement = currentAccuracy > 0 ? ((currentAccuracy - baselineAccuracy) / baselineAccuracy) * 100 : 0;
+      const baselineAccuracy = 0.7;
+      const improvement =
+        currentAccuracy > 0 ? ((currentAccuracy - baselineAccuracy) / baselineAccuracy) * 100 : 0;
 
       return {
         globalAccuracy: this.round(currentAccuracy * 100, 1),
         accuracyImprovement: this.round(Math.max(0, improvement), 1),
         avgInferenceMs: Math.round(latencyStats._avg.totalDurationMs ?? 15),
         p99InferenceMs: Math.round((latencyStats._max.totalDurationMs ?? 50) * 0.9), // 估算 P99
-        causalATE: this.round((causalData._avg.outcome ?? 0.15), 2),
-        causalConfidence: causalData._count > 100 ? 0.95 : causalData._count > 50 ? 0.90 : 0.85
+        causalATE: this.round(causalData._avg.outcome ?? 0.15, 2),
+        causalConfidence: causalData._count > 100 ? 0.95 : causalData._count > 50 ? 0.9 : 0.85,
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getPerformanceMetrics error');
@@ -784,7 +890,7 @@ export class RealAboutService {
         avgInferenceMs: 0,
         p99InferenceMs: 0,
         causalATE: 0,
-        causalConfidence: 0
+        causalConfidence: 0,
       };
     }
   }
@@ -792,18 +898,20 @@ export class RealAboutService {
   /**
    * 获取优化事件日志
    */
-  async getOptimizationEvents(limit = 10): Promise<Array<{
-    id: string;
-    type: 'bayesian' | 'ab_test' | 'causal';
-    title: string;
-    description: string;
-    timestamp: string;
-    impact: string;
-  }>> {
+  async getOptimizationEvents(limit = 10): Promise<
+    Array<{
+      id: string;
+      type: 'bayesian' | 'ab_test' | 'causal';
+      title: string;
+      description: string;
+      timestamp: string;
+      impact: string;
+    }>
+  > {
     try {
       // 从贝叶斯优化器状态获取事件
       const bayesianState = await this.prisma.bayesianOptimizerState.findFirst({
-        where: { id: 'global' }
+        where: { id: 'global' },
       });
 
       const events: Array<{
@@ -823,7 +931,9 @@ export class RealAboutService {
           title: '超参数自动调优',
           description: `已完成 ${bayesianState.evaluationCount} 次参数评估`,
           timestamp: bayesianState.updatedAt.toISOString(),
-          impact: bayesianState.bestValue ? `最优值: ${this.round(bayesianState.bestValue, 3)}` : '优化中'
+          impact: bayesianState.bestValue
+            ? `最优值: ${this.round(bayesianState.bestValue, 3)}`
+            : '优化中',
         });
       }
 
@@ -831,7 +941,7 @@ export class RealAboutService {
       const abExperiments = await this.prisma.aBExperiment.findMany({
         where: { status: { in: ['RUNNING', 'COMPLETED'] } },
         orderBy: { updatedAt: 'desc' },
-        take: 3
+        take: 3,
       });
 
       for (const exp of abExperiments) {
@@ -841,7 +951,7 @@ export class RealAboutService {
           title: `A/B 测试: ${exp.name}`,
           description: exp.description || '实验进行中',
           timestamp: exp.updatedAt.toISOString(),
-          impact: exp.status === 'COMPLETED' ? '已完成' : `样本: ${exp.minSampleSize}`
+          impact: exp.status === 'COMPLETED' ? '已完成' : `样本: ${exp.minSampleSize}`,
         });
       }
 
@@ -849,7 +959,7 @@ export class RealAboutService {
       const causalCount = await this.prisma.causalObservation.count();
       if (causalCount > 0) {
         const latestCausal = await this.prisma.causalObservation.findFirst({
-          orderBy: { timestamp: 'desc' }
+          orderBy: { timestamp: 'desc' },
         });
 
         if (latestCausal) {
@@ -859,7 +969,7 @@ export class RealAboutService {
             title: '因果推断分析',
             description: `累计 ${causalCount} 条观测数据`,
             timestamp: new Date(Number(latestCausal.timestamp)).toISOString(),
-            impact: `ATE: ${this.round(latestCausal.outcome, 2)}`
+            impact: `ATE: ${this.round(latestCausal.outcome, 2)}`,
           });
         }
       }
@@ -893,8 +1003,8 @@ export class RealAboutService {
           speedScore: true,
           stabilityScore: true,
           proficiencyScore: true,
-          accuracyScore: true
-        }
+          accuracyScore: true,
+        },
       });
 
       // 获取答题一致性（连续正确率）
@@ -902,8 +1012,8 @@ export class RealAboutService {
         where: { updatedAt: { gte: last7Days } },
         _avg: {
           consecutiveCorrect: true,
-          masteryLevel: true
-        }
+          masteryLevel: true,
+        },
       });
 
       // 归一化分数到 0-1 范围（数据库存储的可能是 0-100 的百分比）
@@ -918,7 +1028,7 @@ export class RealAboutService {
         speed: this.round(normalizeScore(scoreStats._avg.speedScore), 2),
         stability: this.round(normalizeScore(scoreStats._avg.stabilityScore), 2),
         complexity: this.round(normalizeScore(scoreStats._avg.proficiencyScore), 2),
-        consistency: this.round(Math.min(1, (consistencyData._avg.consecutiveCorrect ?? 0) / 5), 2)
+        consistency: this.round(Math.min(1, (consistencyData._avg.consecutiveCorrect ?? 0) / 5), 2),
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getMasteryRadar error');
@@ -954,38 +1064,38 @@ export class RealAboutService {
       const stageStats = await this.prisma.pipelineStage.groupBy({
         by: ['stage'],
         where: {
-          startedAt: { gte: last5Min }
+          startedAt: { gte: last5Min },
         },
         _count: true,
-        _avg: { durationMs: true }
+        _avg: { durationMs: true },
       });
 
       // 获取今日成功/失败数
       const stageSuccessStats = await this.prisma.pipelineStage.groupBy({
         by: ['stage', 'status'],
         where: {
-          startedAt: { gte: startOfDay }
+          startedAt: { gte: startOfDay },
         },
-        _count: true
+        _count: true,
       });
 
       // 构建层级状态映射
       const layerConfig: Record<string, { name: string; nameCn: string }> = {
-        'PERCEPTION': { name: 'Perception', nameCn: '感知层' },
-        'MODELING': { name: 'Modeling', nameCn: '建模层' },
-        'LEARNING': { name: 'Learning', nameCn: '学习层' },
-        'DECISION': { name: 'Decision', nameCn: '决策层' },
-        'EVALUATION': { name: 'Evaluation', nameCn: '评估层' },
-        'OPTIMIZATION': { name: 'Optimization', nameCn: '优化层' }
+        PERCEPTION: { name: 'Perception', nameCn: '感知层' },
+        MODELING: { name: 'Modeling', nameCn: '建模层' },
+        LEARNING: { name: 'Learning', nameCn: '学习层' },
+        DECISION: { name: 'Decision', nameCn: '决策层' },
+        EVALUATION: { name: 'Evaluation', nameCn: '评估层' },
+        OPTIMIZATION: { name: 'Optimization', nameCn: '优化层' },
       };
 
       const layers = Object.entries(layerConfig).map(([id, config]) => {
-        const stat = stageStats.find(s => s.stage === id);
+        const stat = stageStats.find((s) => s.stage === id);
         const successCount = stageSuccessStats
-          .filter(s => s.stage === id && s.status === 'SUCCESS')
+          .filter((s) => s.stage === id && s.status === 'SUCCESS')
           .reduce((sum, s) => sum + s._count, 0);
         const totalCount = stageSuccessStats
-          .filter(s => s.stage === id)
+          .filter((s) => s.stage === id)
           .reduce((sum, s) => sum + s._count, 0);
 
         const successRate = totalCount > 0 ? successCount / totalCount : 1;
@@ -998,8 +1108,13 @@ export class RealAboutService {
           processedCount: stat?._count ?? 0,
           avgLatencyMs: Math.round(avgLatency),
           successRate: this.round(successRate, 3),
-          status: successRate > 0.95 ? 'healthy' as const : successRate > 0.8 ? 'degraded' as const : 'error' as const,
-          lastProcessedAt: new Date().toISOString()
+          status:
+            successRate > 0.95
+              ? ('healthy' as const)
+              : successRate > 0.8
+                ? ('degraded' as const)
+                : ('error' as const),
+          lastProcessedAt: new Date().toISOString(),
         };
       });
 
@@ -1008,15 +1123,18 @@ export class RealAboutService {
       return {
         layers,
         totalThroughput: this.round(totalThroughput, 2),
-        systemHealth: layers.every(l => l.status === 'healthy') ? 'healthy' :
-                      layers.some(l => l.status === 'error') ? 'error' : 'degraded'
+        systemHealth: layers.every((l) => l.status === 'healthy')
+          ? 'healthy'
+          : layers.some((l) => l.status === 'error')
+            ? 'error'
+            : 'degraded',
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getPipelineLayerStatus error');
       return {
         layers: [],
         totalThroughput: 0,
-        systemHealth: 'error'
+        systemHealth: 'error',
       };
     }
   }
@@ -1050,24 +1168,27 @@ export class RealAboutService {
       const records = await this.prisma.decisionRecord.findMany({
         where: {
           timestamp: { gte: startOfDay },
-          ingestionStatus: 'SUCCESS'
+          ingestionStatus: 'SUCCESS',
         },
         select: {
           decisionSource: true,
           weightsSnapshot: true,
           coldstartPhase: true,
           memberVotes: true,
-          totalDurationMs: true
+          totalDurationMs: true,
         },
-        take: 1000
+        take: 1000,
       });
 
       // 统计算法调用次数和权重
-      const algoStats: Record<string, { callCount: number; totalWeight: number; totalLatency: number }> = {
+      const algoStats: Record<
+        string,
+        { callCount: number; totalWeight: number; totalLatency: number }
+      > = {
         thompson: { callCount: 0, totalWeight: 0, totalLatency: 0 },
         linucb: { callCount: 0, totalWeight: 0, totalLatency: 0 },
         actr: { callCount: 0, totalWeight: 0, totalLatency: 0 },
-        heuristic: { callCount: 0, totalWeight: 0, totalLatency: 0 }
+        heuristic: { callCount: 0, totalWeight: 0, totalLatency: 0 },
       };
 
       let coldstartCount = 0;
@@ -1084,12 +1205,22 @@ export class RealAboutService {
           }
         } else {
           const weights = r.weightsSnapshot as Record<string, number> | null;
+          // 从 memberVotes 提取每个算法的独立延迟
+          const memberVotes = r.memberVotes as Record<string, { durationMs?: number }> | null;
+
           if (weights) {
             for (const algo of Object.keys(algoStats)) {
               if (weights[algo]) {
                 algoStats[algo].callCount++;
                 algoStats[algo].totalWeight += weights[algo];
-                algoStats[algo].totalLatency += r.totalDurationMs ?? 0;
+                // 优先使用 memberVotes 中的独立延迟，否则平均分配总耗时
+                const algoDurationMs = memberVotes?.[algo]?.durationMs;
+                if (typeof algoDurationMs === 'number' && algoDurationMs > 0) {
+                  algoStats[algo].totalLatency += algoDurationMs;
+                } else {
+                  // 回退：将总耗时平均分配给4个算法
+                  algoStats[algo].totalLatency += (r.totalDurationMs ?? 0) / 4;
+                }
               }
             }
           }
@@ -1113,11 +1244,11 @@ export class RealAboutService {
         callCount: stats.callCount,
         avgLatencyMs: Math.round(stats.totalLatency / (stats.callCount || 1)),
         explorationRate: this.round(0.1 + Math.random() * 0.2, 2), // 模拟探索率
-        lastCalledAt: new Date().toISOString()
+        lastCalledAt: new Date().toISOString(),
       }));
 
       // 计算共识率（简化：假设有成员投票数据时计算一致性）
-      const consensusRecords = records.filter(r => r.memberVotes);
+      const consensusRecords = records.filter((r) => r.memberVotes);
       const consensusRate = consensusRecords.length > 0 ? 0.75 + Math.random() * 0.2 : 0.8;
 
       // 归一化用户类型分布
@@ -1133,9 +1264,9 @@ export class RealAboutService {
           userTypeDistribution: {
             fast: this.round(userTypes.fast / totalUserTypes, 2),
             stable: this.round(userTypes.stable / totalUserTypes, 2),
-            cautious: this.round(userTypes.cautious / totalUserTypes, 2)
-          }
-        }
+            cautious: this.round(userTypes.cautious / totalUserTypes, 2),
+          },
+        },
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getAlgorithmStatus error');
@@ -1146,8 +1277,8 @@ export class RealAboutService {
           classifyCount: 0,
           exploreCount: 0,
           normalCount: 0,
-          userTypeDistribution: { fast: 0, stable: 0, cautious: 0 }
-        }
+          userTypeDistribution: { fast: 0, stable: 0, cautious: 0 },
+        },
       };
     }
   }
@@ -1157,7 +1288,7 @@ export class RealAboutService {
       thompson: 'Thompson Sampling',
       linucb: 'LinUCB',
       actr: 'ACT-R Memory',
-      heuristic: 'Heuristic Rules'
+      heuristic: 'Heuristic Rules',
     };
     return names[id] || id;
   }
@@ -1168,8 +1299,20 @@ export class RealAboutService {
   async getUserStateStatus(): Promise<{
     distributions: {
       attention: { avg: number; low: number; medium: number; high: number; lowAlertCount: number };
-      fatigue: { avg: number; fresh: number; normal: number; tired: number; highAlertCount: number };
-      motivation: { avg: number; frustrated: number; neutral: number; motivated: number; lowAlertCount: number };
+      fatigue: {
+        avg: number;
+        fresh: number;
+        normal: number;
+        tired: number;
+        highAlertCount: number;
+      };
+      motivation: {
+        avg: number;
+        frustrated: number;
+        neutral: number;
+        motivated: number;
+        lowAlertCount: number;
+      };
       cognitive: { memory: number; speed: number; stability: number };
     };
     recentInferences: Array<{
@@ -1202,8 +1345,8 @@ export class RealAboutService {
           motivation: true,
           cognitiveProfile: true,
           confidence: true,
-          updatedAt: true
-        }
+          updatedAt: true,
+        },
       });
 
       // 计算分布
@@ -1214,22 +1357,33 @@ export class RealAboutService {
 
       for (const s of states) {
         attention.sum += s.attention;
-        if (s.attention < 0.4) { attention.low++; if (s.attention < 0.3) attention.lowAlertCount++; }
-        else if (s.attention < 0.7) attention.medium++;
+        if (s.attention < 0.4) {
+          attention.low++;
+          if (s.attention < 0.3) attention.lowAlertCount++;
+        } else if (s.attention < 0.7) attention.medium++;
         else attention.high++;
 
         fatigue.sum += s.fatigue;
         if (s.fatigue < 0.3) fatigue.fresh++;
         else if (s.fatigue < 0.6) fatigue.normal++;
-        else { fatigue.tired++; if (s.fatigue > 0.6) fatigue.highAlertCount++; }
+        else {
+          fatigue.tired++;
+          if (s.fatigue > 0.6) fatigue.highAlertCount++;
+        }
 
         motivation.sum += s.motivation;
-        if (s.motivation < -0.3) { motivation.frustrated++; if (s.motivation < -0.3) motivation.lowAlertCount++; }
-        else if (s.motivation < 0.3) motivation.neutral++;
+        if (s.motivation < -0.3) {
+          motivation.frustrated++;
+          if (s.motivation < -0.3) motivation.lowAlertCount++;
+        } else if (s.motivation < 0.3) motivation.neutral++;
         else motivation.motivated++;
 
         // 从 cognitiveProfile JSON 解析认知能力
-        const cogProfile = s.cognitiveProfile as { mem?: number; speed?: number; stability?: number } | null;
+        const cogProfile = s.cognitiveProfile as {
+          mem?: number;
+          speed?: number;
+          stability?: number;
+        } | null;
         cognitive.memory += cogProfile?.mem ?? 0.5;
         cognitive.speed += cogProfile?.speed ?? 0.5;
         cognitive.stability += cogProfile?.stability ?? 0.5;
@@ -1238,13 +1392,13 @@ export class RealAboutService {
       const total = states.length || 1;
 
       // 生成最近推断记录（匿名化）
-      const recentInferences = states.slice(0, 10).map(s => ({
+      const recentInferences = states.slice(0, 10).map((s) => ({
         id: anonymizeUserId(s.userId),
         timestamp: s.updatedAt.toISOString(),
         attention: this.round(s.attention, 2),
         fatigue: this.round(s.fatigue, 2),
         motivation: this.round(s.motivation, 2),
-        confidence: this.round(s.confidence ?? 0.8, 2)
+        confidence: this.round(s.confidence ?? 0.8, 2),
       }));
 
       return {
@@ -1254,34 +1408,37 @@ export class RealAboutService {
             low: this.round(attention.low / total, 2),
             medium: this.round(attention.medium / total, 2),
             high: this.round(attention.high / total, 2),
-            lowAlertCount: attention.lowAlertCount
+            lowAlertCount: attention.lowAlertCount,
           },
           fatigue: {
             avg: this.round(fatigue.sum / total, 2),
             fresh: this.round(fatigue.fresh / total, 2),
             normal: this.round(fatigue.normal / total, 2),
             tired: this.round(fatigue.tired / total, 2),
-            highAlertCount: fatigue.highAlertCount
+            highAlertCount: fatigue.highAlertCount,
           },
           motivation: {
             avg: this.round(motivation.sum / total, 2),
             frustrated: this.round(motivation.frustrated / total, 2),
             neutral: this.round(motivation.neutral / total, 2),
             motivated: this.round(motivation.motivated / total, 2),
-            lowAlertCount: motivation.lowAlertCount
+            lowAlertCount: motivation.lowAlertCount,
           },
           cognitive: {
             memory: this.round(cognitive.memory / total, 2),
             speed: this.round(cognitive.speed / total, 2),
-            stability: this.round(cognitive.stability / total, 2)
-          }
+            stability: this.round(cognitive.stability / total, 2),
+          },
         },
         recentInferences,
         modelParams: {
-          attention: { beta: 0.85, weights: { rt_mean: 0.25, rt_cv: 0.35, pause: 0.15, focus_loss: 0.5 } },
+          attention: {
+            beta: 0.85,
+            weights: { rt_mean: 0.25, rt_cv: 0.35, pause: 0.15, focus_loss: 0.5 },
+          },
           fatigue: { decayK: 0.08, longBreakThreshold: 30 },
-          motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 }
-        }
+          motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 },
+        },
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getUserStateStatus error');
@@ -1290,14 +1447,14 @@ export class RealAboutService {
           attention: { avg: 0, low: 0, medium: 0, high: 0, lowAlertCount: 0 },
           fatigue: { avg: 0, fresh: 0, normal: 0, tired: 0, highAlertCount: 0 },
           motivation: { avg: 0, frustrated: 0, neutral: 0, motivated: 0, lowAlertCount: 0 },
-          cognitive: { memory: 0, speed: 0, stability: 0 }
+          cognitive: { memory: 0, speed: 0, stability: 0 },
         },
         recentInferences: [],
         modelParams: {
           attention: { beta: 0.85, weights: {} },
           fatigue: { decayK: 0.08, longBreakThreshold: 30 },
-          motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 }
-        }
+          motivation: { rho: 0.85, kappa: 0.3, lambda: 0.4 },
+        },
       };
     }
   }
@@ -1324,9 +1481,9 @@ export class RealAboutService {
           masteryLevel: true,
           halfLife: true,
           nextReviewDate: true,
-          easeFactor: true
+          easeFactor: true,
         },
-        take: 5000
+        take: 5000,
       });
 
       // 计算强度分布
@@ -1335,7 +1492,7 @@ export class RealAboutService {
         { range: '20-40%', min: 0.2, max: 0.4, count: 0 },
         { range: '40-60%', min: 0.4, max: 0.6, count: 0 },
         { range: '60-80%', min: 0.6, max: 0.8, count: 0 },
-        { range: '80-100%', min: 0.8, max: 1.0, count: 0 }
+        { range: '80-100%', min: 0.8, max: 1.0, count: 0 },
       ];
 
       let urgentReviewCount = 0;
@@ -1357,7 +1514,8 @@ export class RealAboutService {
 
         // 复习紧急程度
         if (state.nextReviewDate) {
-          const hoursUntilReview = (state.nextReviewDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+          const hoursUntilReview =
+            (state.nextReviewDate.getTime() - now.getTime()) / (1000 * 60 * 60);
           if (hoursUntilReview < 0) urgentReviewCount++;
           else if (hoursUntilReview < 24) soonReviewCount++;
           else stableCount++;
@@ -1370,24 +1528,24 @@ export class RealAboutService {
 
       // 计算今日巩固率
       const todayReviews = await this.prisma.answerRecord.count({
-        where: { timestamp: { gte: startOfDay }, isCorrect: true }
+        where: { timestamp: { gte: startOfDay }, isCorrect: true },
       });
       const todayTotal = await this.prisma.answerRecord.count({
-        where: { timestamp: { gte: startOfDay } }
+        where: { timestamp: { gte: startOfDay } },
       });
       const consolidationRate = todayTotal > 0 ? todayReviews / todayTotal : 0;
 
       return {
-        strengthDistribution: ranges.map(r => ({
+        strengthDistribution: ranges.map((r) => ({
           range: r.range,
           count: r.count,
-          percentage: this.round(r.count / total * 100, 1)
+          percentage: this.round((r.count / total) * 100, 1),
         })),
         urgentReviewCount,
         soonReviewCount,
         stableCount,
         avgHalfLifeDays: this.round(totalHalfLife / total, 1),
-        todayConsolidationRate: this.round(consolidationRate * 100, 1)
+        todayConsolidationRate: this.round(consolidationRate * 100, 1),
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getMemoryStatus error');
@@ -1397,7 +1555,7 @@ export class RealAboutService {
         soonReviewCount: 0,
         stableCount: 0,
         avgHalfLifeDays: 0,
-        todayConsolidationRate: 0
+        todayConsolidationRate: 0,
       };
     }
   }
@@ -1409,7 +1567,7 @@ export class RealAboutService {
       todayDecisions: 0,
       activeUsers: 0,
       avgEfficiencyGain: 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -1419,7 +1577,7 @@ export class RealAboutService {
       linucb: 0.25,
       actr: 0.2,
       heuristic: 0.15,
-      coldstart: 0.15
+      coldstart: 0.15,
     };
   }
 
@@ -1427,7 +1585,7 @@ export class RealAboutService {
     return {
       attention: { low: 0.2, medium: 0.5, high: 0.3 },
       fatigue: { fresh: 0.4, normal: 0.4, tired: 0.2 },
-      motivation: { frustrated: 0.15, neutral: 0.5, motivated: 0.35 }
+      motivation: { frustrated: 0.15, neutral: 0.5, motivated: 0.35 },
     };
   }
 
@@ -1440,8 +1598,8 @@ export class RealAboutService {
         throughput: 0,
         avgLatency: 0,
         activePackets: 0,
-        totalProcessed: 0
-      }
+        totalProcessed: 0,
+      },
     };
   }
 
@@ -1450,7 +1608,7 @@ export class RealAboutService {
       packetId,
       status: 'completed',
       stages: [],
-      totalDuration: 0
+      totalDuration: 0,
     };
   }
 

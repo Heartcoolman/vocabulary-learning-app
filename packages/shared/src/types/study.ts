@@ -5,6 +5,11 @@
 import { BaseEntity, ID, Timestamp } from './common';
 
 /**
+ * 学习类型
+ */
+export type LearningType = 'word-to-meaning' | 'meaning-to-word' | 'flashcard';
+
+/**
  * 学习配置
  */
 export interface StudyConfig extends BaseEntity {

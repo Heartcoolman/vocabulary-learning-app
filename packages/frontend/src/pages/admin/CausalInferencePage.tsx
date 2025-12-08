@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../../services/client';
 import {
   CircleNotch,
@@ -23,14 +23,10 @@ interface CausalEstimate {
   significant: boolean;
 }
 
-interface PropensityDiagnostics {
-  mean: number;
-  std: number;
-  median: number;
-  treatmentMean: number;
-  controlMean: number;
-  overlap: number;
-  auc: number;
+interface CausalDiagnostics {
+  observationCount: number;
+  treatmentDistribution: Record<number, number>;
+  latestEstimate: CausalEstimate | null;
 }
 
 interface StrategyComparison {
@@ -40,29 +36,6 @@ interface StrategyComparison {
   pValue: number;
   significant: boolean;
   sampleSize: number;
-}
-
-// API 响应类型（与 AdminClient 返回类型匹配）
-interface CausalATEApiResponse {
-  ate: number;
-  confidence: number;
-  sampleSize: number;
-  // 可选字段：后端可能返回扩展数据
-  standardError?: number;
-  confidenceInterval?: [number, number];
-  effectiveSampleSize?: number;
-  pValue?: number;
-  significant?: boolean;
-}
-
-interface CausalDiagnosticsApiResponse {
-  mean: number;
-  std: number;
-  median: number;
-  treatmentMean: number;
-  controlMean: number;
-  overlap: number;
-  auc: number;
 }
 
 interface StrategyComparisonApiResponse {
@@ -92,7 +65,7 @@ export default function CausalInferencePage() {
 
   // 数据
   const [ate, setAte] = useState<CausalEstimate | null>(null);
-  const [diagnostics, setDiagnostics] = useState<PropensityDiagnostics | null>(null);
+  const [diagnostics, setDiagnostics] = useState<CausalDiagnostics | null>(null);
   const [comparison, setComparison] = useState<StrategyComparison | null>(null);
 
   // 错误状态
@@ -100,71 +73,64 @@ export default function CausalInferencePage() {
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
   const [comparisonError, setComparisonError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  // AbortController 引用
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const loadAllData = async () => {
-    await Promise.all([loadATE(), loadDiagnostics()]);
-  };
-
-  const loadATE = async () => {
-    try {
-      setIsLoadingATE(true);
-      setAteError(null);
-      const response: CausalATEApiResponse = await apiClient.getCausalATE();
-      if (response) {
-        // 将 API 响应转换为组件期望的 CausalEstimate 格式
-        const causalEstimate: CausalEstimate = {
-          ate: response.ate,
-          standardError: response.standardError ?? response.confidence * 0.5,
-          confidenceInterval: response.confidenceInterval ?? [
-            response.ate - response.confidence,
-            response.ate + response.confidence,
-          ],
-          sampleSize: response.sampleSize,
-          effectiveSampleSize: response.effectiveSampleSize ?? response.sampleSize,
-          pValue: response.pValue ?? 0.05,
-          significant: response.significant ?? response.confidence < 0.1,
-        };
-        setAte(causalEstimate);
+  const loadATE = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setIsLoadingATE(true);
+        setAteError(null);
+        const response = await apiClient.getCausalATE();
+        if (signal?.aborted) return;
+        setAte(response);
+      } catch (err) {
+        if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return;
+        const message = err instanceof Error ? err.message : '加载失败';
+        adminLogger.error({ err }, '加载因果ATE失败');
+        setAteError(message);
+        toast.error('加载因果效应估计失败');
+      } finally {
+        if (!signal?.aborted) {
+          setIsLoadingATE(false);
+        }
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '加载失败';
-      adminLogger.error({ err }, '加载因果ATE失败');
-      setAteError(message);
-      toast.error('加载因果效应估计失败');
-    } finally {
-      setIsLoadingATE(false);
-    }
-  };
+    },
+    [toast],
+  );
 
-  const loadDiagnostics = async () => {
+  const loadDiagnostics = useCallback(async (signal?: AbortSignal) => {
     try {
       setIsLoadingDiagnostics(true);
       setDiagnosticsError(null);
-      const response: CausalDiagnosticsApiResponse = await apiClient.getCausalDiagnostics();
-      if (response) {
-        // API 响应与 PropensityDiagnostics 接口完全匹配
-        const diagnosticsData: PropensityDiagnostics = {
-          mean: response.mean,
-          std: response.std,
-          median: response.median,
-          treatmentMean: response.treatmentMean,
-          controlMean: response.controlMean,
-          overlap: response.overlap,
-          auc: response.auc,
-        };
-        setDiagnostics(diagnosticsData);
-      }
+      const response = await apiClient.getCausalDiagnostics();
+      if (signal?.aborted) return;
+      setDiagnostics(response);
     } catch (err) {
+      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return;
       const message = err instanceof Error ? err.message : '加载失败';
       adminLogger.error({ err }, '加载诊断信息失败');
       setDiagnosticsError(message);
     } finally {
-      setIsLoadingDiagnostics(false);
+      if (!signal?.aborted) {
+        setIsLoadingDiagnostics(false);
+      }
     }
-  };
+  }, []);
+
+  const loadAllData = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    await Promise.all([loadATE(controller.signal), loadDiagnostics(controller.signal)]);
+  }, [loadATE, loadDiagnostics]);
+
+  useEffect(() => {
+    loadAllData();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [loadAllData]);
 
   const handleRecordObservation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,7 +348,7 @@ export default function CausalInferencePage() {
                 平均处理效应 (ATE)
               </h2>
               <button
-                onClick={loadATE}
+                onClick={() => loadATE()}
                 disabled={isLoadingATE}
                 className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
                 title="刷新"
@@ -419,14 +385,27 @@ export default function CausalInferencePage() {
                   <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className="h-full bg-purple-500"
-                          style={{
-                            width: '100%',
-                            marginLeft: `${Math.max(0, Math.min(100, (ate.confidenceInterval[0] + 1) * 50))}%`,
-                          }}
-                        />
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                        {(() => {
+                          const left = Math.max(
+                            0,
+                            Math.min(100, (ate.confidenceInterval[0] + 1) * 50),
+                          );
+                          const right = Math.max(
+                            0,
+                            Math.min(100, (ate.confidenceInterval[1] + 1) * 50),
+                          );
+                          const width = Math.max(0, right - left);
+                          return (
+                            <div
+                              className="absolute h-full bg-purple-500"
+                              style={{
+                                left: `${left}%`,
+                                width: `${width}%`,
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -474,7 +453,13 @@ export default function CausalInferencePage() {
                 </div>
               </div>
             ) : (
-              <div className="py-8 text-center text-gray-500">暂无数据</div>
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 text-center">
+                <Warning size={32} weight="duotone" className="mx-auto mb-2 text-yellow-500" />
+                <p className="font-medium text-yellow-700">样本数据不足</p>
+                <p className="mt-1 text-sm text-yellow-600">
+                  至少需要10个观测数据，且处理组和对照组各需至少5个样本才能计算因果效应。
+                </p>
+              </div>
             )}
           </div>
 
@@ -486,7 +471,7 @@ export default function CausalInferencePage() {
                 倾向得分诊断
               </h2>
               <button
-                onClick={loadDiagnostics}
+                onClick={() => loadDiagnostics()}
                 disabled={isLoadingDiagnostics}
                 className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
                 title="刷新"
@@ -505,37 +490,69 @@ export default function CausalInferencePage() {
                 <p>{diagnosticsError}</p>
               </div>
             ) : diagnostics ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg bg-blue-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">平均倾向得分</p>
-                  <p className="text-2xl font-bold text-gray-900">{diagnostics.mean.toFixed(4)}</p>
+              <div className="space-y-4">
+                {/* 观测统计 */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg bg-blue-50 p-4">
+                    <p className="mb-1 text-sm text-gray-600">总观测数量</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {diagnostics.observationCount}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-green-50 p-4">
+                    <p className="mb-1 text-sm text-gray-600">处理组分布</p>
+                    <div className="flex gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">对照组(0):</span>
+                        <span className="ml-1 font-bold">
+                          {diagnostics.treatmentDistribution[0] ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">处理组(1):</span>
+                        <span className="ml-1 font-bold">
+                          {diagnostics.treatmentDistribution[1] ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-blue-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">标准差</p>
-                  <p className="text-2xl font-bold text-gray-900">{diagnostics.std.toFixed(4)}</p>
-                </div>
-                <div className="rounded-lg bg-green-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">处理组平均</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {diagnostics.treatmentMean.toFixed(4)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-green-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">对照组平均</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {diagnostics.controlMean.toFixed(4)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-purple-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">样本重叠度</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {(diagnostics.overlap * 100).toFixed(2)}%
-                  </p>
-                </div>
-                <div className="rounded-lg bg-purple-50 p-4">
-                  <p className="mb-1 text-sm text-gray-600">AUC (区分度)</p>
-                  <p className="text-2xl font-bold text-gray-900">{diagnostics.auc.toFixed(4)}</p>
-                </div>
+
+                {/* 最新估计（如果有） */}
+                {diagnostics.latestEstimate ? (
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                    <p className="mb-2 text-sm font-medium text-purple-700">最新因果效应估计</p>
+                    <div className="grid gap-2 text-sm md:grid-cols-3">
+                      <div>
+                        <span className="text-gray-600">ATE:</span>
+                        <span className="ml-1 font-bold">
+                          {diagnostics.latestEstimate.ate.toFixed(4)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">样本量:</span>
+                        <span className="ml-1 font-bold">
+                          {diagnostics.latestEstimate.sampleSize}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">显著性:</span>
+                        <span
+                          className={`ml-1 font-bold ${diagnostics.latestEstimate.significant ? 'text-green-600' : 'text-yellow-600'}`}
+                        >
+                          {diagnostics.latestEstimate.significant ? '显著' : '不显著'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+                    <Warning size={16} weight="bold" className="mb-1 inline" />
+                    <span className="ml-1">
+                      样本不足，无法计算因果效应。至少需要10个观测数据，且处理组和对照组各需至少5个样本。
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-8 text-center text-gray-500">暂无数据</div>

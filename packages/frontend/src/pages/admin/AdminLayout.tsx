@@ -84,13 +84,13 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* 侧边栏 */}
-      <aside className="w-64 border-r border-gray-200/60 bg-white/80 backdrop-blur-sm">
+      <aside className="sticky top-0 flex h-screen w-64 flex-col overflow-y-auto border-r border-gray-200/60 bg-white/80 backdrop-blur-sm">
         <div className="border-b border-gray-200 p-6">
           <h1 className="text-xl font-bold text-gray-900">管理后台</h1>
           {user && <p className="mt-1 text-sm text-gray-500">{user.username}</p>}
         </div>
 
-        <nav className="space-y-2 p-4">
+        <nav className="flex-1 space-y-2 p-4">
           {menuItems.map((item) => {
             const isActive = item.exact
               ? location.pathname === item.path
@@ -114,7 +114,7 @@ export default function AdminLayout() {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 w-64 border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-4">
           <Link
             to="/"
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-gray-700 transition-all hover:bg-gray-100"
@@ -126,7 +126,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* 主内容区 */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1">
         <Outlet />
       </main>
     </div>

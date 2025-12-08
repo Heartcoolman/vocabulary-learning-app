@@ -546,7 +546,15 @@ describe('AdminClient', () => {
       const result = await client.getCausalATE();
 
       expect(mockRequest).toHaveBeenCalledWith('/api/evaluation/causal/ate');
-      expect(result.ate).toBe(0.15);
+      expect(result?.ate).toBe(0.15);
+    });
+
+    it('should return null when sample is insufficient', async () => {
+      mockRequest.mockResolvedValue(null);
+
+      const result = await client.getCausalATE();
+
+      expect(result).toBeNull();
     });
   });
 
@@ -561,6 +569,91 @@ describe('AdminClient', () => {
         '/api/evaluation/causal/compare?strategyA=0&strategyB=1',
       );
       expect(result.significant).toBe(true);
+    });
+  });
+
+  describe('getCausalDiagnostics', () => {
+    it('should fetch causal diagnostics', async () => {
+      const mockDiagnostics = {
+        observationCount: 500,
+        treatmentDistribution: { 0: 250, 1: 250 },
+        latestEstimate: {
+          ate: 0.12,
+          standardError: 0.03,
+          confidenceInterval: [0.06, 0.18],
+          pValue: 0.02,
+          significant: true,
+        },
+      };
+      mockRequest.mockResolvedValue(mockDiagnostics);
+
+      const result = await client.getCausalDiagnostics();
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/evaluation/causal/diagnostics');
+      expect(result?.observationCount).toBe(500);
+    });
+
+    it('should return null when diagnostics unavailable', async () => {
+      mockRequest.mockResolvedValue(null);
+
+      const result = await client.getCausalDiagnostics();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getOptimizationDiagnostics', () => {
+    it('should fetch optimization diagnostics', async () => {
+      const mockDiagnostics = {
+        totalTrials: 100,
+        bestValue: 0.95,
+        convergenceRate: 0.8,
+      };
+      mockRequest.mockResolvedValue(mockDiagnostics);
+
+      const result = await client.getOptimizationDiagnostics();
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/optimization/diagnostics');
+      expect(result.totalTrials).toBe(100);
+    });
+  });
+
+  describe('getExperimentVariant', () => {
+    it('should fetch experiment variant for user', async () => {
+      const mockVariant = {
+        variantId: 'variant-1',
+        variantName: 'Treatment A',
+        isControl: false,
+        parameters: { feature: true },
+      };
+      mockRequest.mockResolvedValue(mockVariant);
+
+      const result = await client.getExperimentVariant('exp-1');
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/evaluation/variant/exp-1');
+      expect(result?.variantId).toBe('variant-1');
+    });
+
+    it('should return null when no variant assigned', async () => {
+      mockRequest.mockResolvedValue(null);
+
+      const result = await client.getExperimentVariant('exp-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('recordExperimentMetric', () => {
+    it('should record experiment metric', async () => {
+      mockRequest.mockResolvedValue({ recorded: true });
+
+      const result = await client.recordExperimentMetric('exp-1', 0.85);
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/evaluation/variant/exp-1/metric', {
+        method: 'POST',
+        body: JSON.stringify({ reward: 0.85 }),
+      });
+      expect(result.recorded).toBe(true);
     });
   });
 

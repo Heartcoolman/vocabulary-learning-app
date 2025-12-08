@@ -784,11 +784,20 @@ export async function getMemoryStatus(options?: RequestOptions): Promise<MemoryS
   return parseJsonResponse<MemoryStatusResponse>(response, '获取记忆状态失败');
 }
 
+/** 模块运行状态 */
+export interface ModuleStatus {
+  enabled: boolean;
+  status: 'healthy' | 'warning' | 'error' | 'disabled';
+  latencyMs?: number;
+  errorRate?: number;
+  callCount?: number;
+}
+
 /** 功能开关状态 */
 export interface FeatureFlagsStatus {
   readEnabled: boolean;
   writeEnabled: boolean;
-  flags: Record<string, boolean>;
+  flags: Record<string, ModuleStatus>;
 }
 
 /**

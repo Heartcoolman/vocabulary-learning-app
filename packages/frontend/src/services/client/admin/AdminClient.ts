@@ -671,12 +671,17 @@ export class AdminClient extends BaseClient {
 
   /**
    * 获取平均处理效应估计
+   * @returns CausalEstimate 或 null（样本不足时）
    */
   async getCausalATE(): Promise<{
     ate: number;
-    confidence: number;
+    standardError: number;
+    confidenceInterval: [number, number];
     sampleSize: number;
-  }> {
+    effectiveSampleSize: number;
+    pValue: number;
+    significant: boolean;
+  } | null> {
     return this.request('/api/evaluation/causal/ate');
   }
 
@@ -698,16 +703,21 @@ export class AdminClient extends BaseClient {
 
   /**
    * 获取因果推断诊断信息
+   * @returns 观测统计和最新估计，或 null（功能未启用时）
    */
   async getCausalDiagnostics(): Promise<{
-    mean: number;
-    std: number;
-    median: number;
-    treatmentMean: number;
-    controlMean: number;
-    overlap: number;
-    auc: number;
-  }> {
+    observationCount: number;
+    treatmentDistribution: Record<number, number>;
+    latestEstimate: {
+      ate: number;
+      standardError: number;
+      confidenceInterval: [number, number];
+      sampleSize: number;
+      effectiveSampleSize: number;
+      pValue: number;
+      significant: boolean;
+    } | null;
+  } | null> {
     return this.request('/api/evaluation/causal/diagnostics');
   }
 

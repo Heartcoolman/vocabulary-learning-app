@@ -20,7 +20,7 @@ import {
   recordWriteFailure,
   updateQueueSize,
   recordBackpressure,
-  recordBackpressureTimeout
+  recordBackpressureTimeout,
 } from '../../monitoring/amas-metrics';
 import { amasLogger } from '../../logger';
 import { decisionEventsService } from '../../services/decision-events.service';
@@ -101,11 +101,14 @@ export class DecisionRecorderService {
     } catch (error) {
       // 背压超时，记录告警并丢弃此 trace
       const errorMsg = error instanceof Error ? error.message : String(error);
-      amasLogger.error({
-        decisionId: trace.decisionId,
-        error: errorMsg,
-        queueSize: this.queue.length
-      }, '[DecisionRecorder] Backpressure timeout, dropping trace');
+      amasLogger.error(
+        {
+          decisionId: trace.decisionId,
+          error: errorMsg,
+          queueSize: this.queue.length,
+        },
+        '[DecisionRecorder] Backpressure timeout, dropping trace',
+      );
       recordBackpressureTimeout();
       return; // 丢弃 trace，避免阻塞调用方
     }
@@ -137,9 +140,7 @@ export class DecisionRecorderService {
         const batch = this.queue.splice(0, MAX_BATCH_SIZE);
 
         // 并行处理批次中的每一项（重试逻辑）
-        await Promise.allSettled(
-          batch.map(trace => this.persistWithRetry(trace))
-        );
+        await Promise.allSettled(batch.map((trace) => this.persistWithRetry(trace)));
 
         // 释放回压
         this.releaseBackpressure();
@@ -177,7 +178,7 @@ export class DecisionRecorderService {
           decisionSource: trace.decisionSource,
           selectedAction: trace.selectedAction,
           stateSnapshot: trace.stateSnapshot,
-          isSimulation: trace.isSimulation
+          isSimulation: trace.isSimulation,
         });
 
         return; // 成功
@@ -194,19 +195,25 @@ export class DecisionRecorderService {
     // 所有重试均失败，记录失败指标
     recordWriteFailure(lastError?.message);
 
-    amasLogger.error({
-      decisionId: trace.decisionId,
-      error: lastError?.message
-    }, '[DecisionRecorder] Failed to persist decision after retries');
+    amasLogger.error(
+      {
+        decisionId: trace.decisionId,
+        error: lastError?.message,
+      },
+      '[DecisionRecorder] Failed to persist decision after retries',
+    );
 
     try {
       // 尝试标记为失败
       await this.markAsFailed(trace.decisionId, trace.answerRecordId, lastError?.message);
     } catch (markError) {
-      amasLogger.error({
-        decisionId: trace.decisionId,
-        error: markError
-      }, '[DecisionRecorder] Failed to mark decision as failed');
+      amasLogger.error(
+        {
+          decisionId: trace.decisionId,
+          error: markError,
+        },
+        '[DecisionRecorder] Failed to mark decision as failed',
+      );
     }
   }
 
@@ -219,64 +226,65 @@ export class DecisionRecorderService {
       const existing = await tx.decisionRecord.findFirst({
         where: {
           decisionId: trace.decisionId,
-          timestamp: trace.timestamp
-        }
+          timestamp: trace.timestamp,
+        },
       });
 
-      const record = existing ? await tx.decisionRecord.update({
-        where: {
-          id_timestamp: {
-            id: existing.id,
-            timestamp: existing.timestamp
-          }
-        },
-        data: {
-          decisionSource: trace.decisionSource,
-          coldstartPhase: trace.coldstartPhase ?? null,
-          weightsSnapshot: (trace.weightsSnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-          memberVotes: (trace.memberVotes ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-          selectedAction: trace.selectedAction as Prisma.InputJsonValue,
-          confidence: trace.confidence,
-          reward: trace.reward ?? null,
-          isSimulation: trace.isSimulation ?? false,
-          traceVersion: trace.traceVersion,
-          totalDurationMs: trace.totalDurationMs ?? null,
-          ingestionStatus: 'SUCCESS'
-        }
-      }) : await tx.decisionRecord.create({
-        data: {
-          decisionId: trace.decisionId,
-          answerRecordId: trace.answerRecordId ?? null,
-          sessionId: trace.sessionId ?? null,
-          timestamp: trace.timestamp,
-          decisionSource: trace.decisionSource,
-          coldstartPhase: trace.coldstartPhase ?? null,
-          weightsSnapshot: (trace.weightsSnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-          memberVotes: (trace.memberVotes ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-          selectedAction: trace.selectedAction as Prisma.InputJsonValue,
-          confidence: trace.confidence,
-          reward: trace.reward ?? null,
-          isSimulation: trace.isSimulation ?? false,
-          traceVersion: trace.traceVersion,
-          totalDurationMs: trace.totalDurationMs ?? null,
-          ingestionStatus: 'SUCCESS'
-        }
-      });
+      const record = existing
+        ? await tx.decisionRecord.update({
+            where: {
+              id_timestamp: {
+                id: existing.id,
+                timestamp: existing.timestamp,
+              },
+            },
+            data: {
+              decisionSource: trace.decisionSource,
+              coldstartPhase: trace.coldstartPhase ?? null,
+              weightsSnapshot: (trace.weightsSnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+              memberVotes: (trace.memberVotes ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+              selectedAction: trace.selectedAction as Prisma.InputJsonValue,
+              confidence: trace.confidence,
+              reward: trace.reward ?? null,
+              isSimulation: trace.isSimulation ?? false,
+              traceVersion: trace.traceVersion,
+              totalDurationMs: trace.totalDurationMs ?? null,
+              ingestionStatus: 'SUCCESS',
+            },
+          })
+        : await tx.decisionRecord.create({
+            data: {
+              decisionId: trace.decisionId,
+              answerRecordId: trace.answerRecordId ?? null,
+              sessionId: trace.sessionId ?? null,
+              timestamp: trace.timestamp,
+              decisionSource: trace.decisionSource,
+              coldstartPhase: trace.coldstartPhase ?? null,
+              weightsSnapshot: (trace.weightsSnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+              memberVotes: (trace.memberVotes ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+              selectedAction: trace.selectedAction as Prisma.InputJsonValue,
+              confidence: trace.confidence,
+              reward: trace.reward ?? null,
+              isSimulation: trace.isSimulation ?? false,
+              traceVersion: trace.traceVersion,
+              totalDurationMs: trace.totalDurationMs ?? null,
+              ingestionStatus: 'SUCCESS',
+            },
+          });
 
       // 写入决策洞察（失败不阻塞）
       await this.writeDecisionInsight(trace, tx);
 
       // 删除旧的阶段记录（幂等性）
       await tx.pipelineStage.deleteMany({
-        where: { decisionRecordId: record.id }
+        where: { decisionRecordId: record.id },
       });
 
       // 批量创建阶段记录
       if (trace.stages.length > 0) {
         await tx.pipelineStage.createMany({
-          data: trace.stages.map(stage => ({
+          data: trace.stages.map((stage) => ({
             decisionRecordId: record.id,
-            decisionRecordTimestamp: record.timestamp, // 复合主键所需的 timestamp 字段
             stage: stage.stage,
             stageName: stage.stageName,
             status: stage.status,
@@ -286,8 +294,8 @@ export class DecisionRecorderService {
             inputSummary: (stage.inputSummary ?? Prisma.JsonNull) as Prisma.InputJsonValue,
             outputSummary: (stage.outputSummary ?? Prisma.JsonNull) as Prisma.InputJsonValue,
             metadata: (stage.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-            errorMessage: stage.errorMessage ?? null
-          }))
+            errorMessage: stage.errorMessage ?? null,
+          })),
         });
       }
     });
@@ -299,12 +307,12 @@ export class DecisionRecorderService {
   private async markAsFailed(
     decisionId: string,
     answerRecordId?: string,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     const timestamp = new Date();
     // 尝试查找现有记录
     const existing = await this.prisma.decisionRecord.findFirst({
-      where: { decisionId }
+      where: { decisionId },
     });
 
     if (existing) {
@@ -312,10 +320,10 @@ export class DecisionRecorderService {
         where: {
           id_timestamp: {
             id: existing.id,
-            timestamp: existing.timestamp
-          }
+            timestamp: existing.timestamp,
+          },
         },
-        data: { ingestionStatus: 'FAILED' }
+        data: { ingestionStatus: 'FAILED' },
       });
     } else {
       await this.prisma.decisionRecord.create({
@@ -328,8 +336,8 @@ export class DecisionRecorderService {
           confidence: 0,
           isSimulation: !answerRecordId,
           traceVersion: 1,
-          ingestionStatus: 'FAILED'
-        }
+          ingestionStatus: 'FAILED',
+        },
       });
     }
   }
@@ -352,7 +360,7 @@ export class DecisionRecorderService {
     let isResolved = false;
 
     await Promise.race([
-      new Promise<void>(resolve => {
+      new Promise<void>((resolve) => {
         this.backpressureWaiters.set(waiterId, () => {
           isResolved = true;
           resolve();
@@ -366,7 +374,7 @@ export class DecisionRecorderService {
           }
           reject(new Error('Backpressure timeout: queue is persistently full'));
         }, BACKPRESSURE_TIMEOUT_MS);
-      })
+      }),
     ]);
   }
 
@@ -416,13 +424,16 @@ export class DecisionRecorderService {
    * 工具：休眠
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
    * 写入决策洞察（失败不阻塞主流程）
    */
-  private async writeDecisionInsight(trace: DecisionTrace, tx: Prisma.TransactionClient): Promise<void> {
+  private async writeDecisionInsight(
+    trace: DecisionTrace,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
     if (!trace.userId || !trace.stateSnapshot) return;
 
     try {
@@ -435,7 +446,7 @@ export class DecisionRecorderService {
           stateSnapshot: trace.stateSnapshot as Prisma.InputJsonValue,
           difficultyFactors: (trace.difficultyFactors ?? Prisma.JsonNull) as Prisma.InputJsonValue,
           triggers: trace.triggers ?? [],
-          featureVectorHash
+          featureVectorHash,
         },
         create: {
           decisionId: trace.decisionId,
@@ -443,22 +454,22 @@ export class DecisionRecorderService {
           stateSnapshot: trace.stateSnapshot as Prisma.InputJsonValue,
           difficultyFactors: (trace.difficultyFactors ?? Prisma.JsonNull) as Prisma.InputJsonValue,
           triggers: trace.triggers ?? [],
-          featureVectorHash
-        }
+          featureVectorHash,
+        },
       });
     } catch (error) {
-      amasLogger.error({
-        decisionId: trace.decisionId,
-        error
-      }, '[DecisionRecorder] Failed to write decision insight');
+      amasLogger.error(
+        {
+          decisionId: trace.decisionId,
+          error,
+        },
+        '[DecisionRecorder] Failed to write decision insight',
+      );
     }
   }
 
   private hashFeatureVector(state: Record<string, unknown>): string {
-    return createHash('sha256')
-      .update(JSON.stringify(state))
-      .digest('hex')
-      .substring(0, 16);
+    return createHash('sha256').update(JSON.stringify(state)).digest('hex').substring(0, 16);
   }
 
   /**
@@ -468,7 +479,7 @@ export class DecisionRecorderService {
     return {
       queueLength: this.queue.length,
       isFlushing: this.flushing,
-      backpressureWaiters: this.backpressureWaiters.size
+      backpressureWaiters: this.backpressureWaiters.size,
     };
   }
 }

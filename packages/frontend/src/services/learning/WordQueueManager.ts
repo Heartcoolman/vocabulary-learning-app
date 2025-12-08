@@ -277,9 +277,45 @@ export class WordQueueManager {
     mastered: boolean;
     progress: WordProgress;
   } {
-    const progress = this.activeWords.get(wordId);
+    let progress = this.activeWords.get(wordId);
+
+    // 如果单词不在活跃队列，尝试从 pending 队列中移动过来
     if (!progress) {
-      throw new Error(`Word ${wordId} not in active queue`);
+      const pendingIndex = this.pendingWords.findIndex((w) => w.id === wordId);
+      if (pendingIndex !== -1) {
+        // 从 pending 中移除并添加到 active
+        this.pendingWords.splice(pendingIndex, 1);
+        progress = {
+          wordId,
+          correctCount: 0,
+          wrongCount: 0,
+          consecutiveCorrect: 0,
+          attempts: 0,
+          lastAttemptTime: 0,
+        };
+        this.activeWords.set(wordId, progress);
+        learningLogger.info(
+          `[WordQueue] 自动将单词从 pending 移动到 active: ${this.getWordItem(wordId)?.spelling}`,
+        );
+      } else if (this.masteredWords.has(wordId)) {
+        // 单词已经被标记为掌握，返回一个虚拟的 progress
+        learningLogger.warn(`[WordQueue] 单词 ${wordId} 已被标记为掌握，忽略此次答题`);
+        return {
+          mastered: true,
+          progress: {
+            wordId,
+            correctCount: 1,
+            wrongCount: 0,
+            consecutiveCorrect: 1,
+            attempts: 1,
+            lastAttemptTime: Date.now(),
+          },
+        };
+      } else {
+        // 单词不在任何队列中，可能是数据不一致
+        learningLogger.error(`[WordQueue] 单词 ${wordId} 不在任何队列中`);
+        throw new Error(`Word ${wordId} not found in any queue`);
+      }
     }
 
     progress.attempts++;

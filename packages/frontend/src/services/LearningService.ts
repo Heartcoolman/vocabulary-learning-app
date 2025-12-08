@@ -564,14 +564,20 @@ class LearningService {
       distractors = distractors.slice(0, requiredDistractorCount);
     }
 
-    // 动态调整选项数量：如果干扰项不足，减少选项数量而非使用占位符
+    // 动态调整选项数量：如果干扰项不足，使用备用干扰项
     // 最少保留2个选项（1个正确答案 + 1个干扰项）
-    const actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
+    let actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
 
-    // 极端情况警告：只有一个选项（完全没有干扰项）
-    if (actualDistractorCount === 0) {
-      learningLogger.warn({ word: correctWord.spelling }, '单词无法生成干扰项，词库可能过小');
-      // 此时返回只有正确答案的选项，UI层应处理此情况
+    // 极端情况：干扰项不足时，使用预设的备用干扰项
+    if (actualDistractorCount < requiredDistractorCount) {
+      learningLogger.warn({ word: correctWord.spelling }, '单词干扰项不足，使用备用干扰项补充');
+      const fallbackDistractors = ['未知释义', '其他含义', '暂无解释', '无此选项'];
+      const availableFallbacks = fallbackDistractors.filter(
+        (f) => f !== correctAnswer && !distractors.includes(f),
+      );
+      const needed = requiredDistractorCount - actualDistractorCount;
+      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
+      actualDistractorCount = Math.min(distractors.length, requiredDistractorCount);
     }
 
     const options = [correctAnswer, ...distractors.slice(0, actualDistractorCount)];
@@ -591,6 +597,41 @@ class LearningService {
     // 检查答案是否匹配任何释义（不区分前后空格）
     const normalizedAnswer = answer.trim();
     return word.meanings.some((meaning: string) => meaning.trim() === normalizedAnswer);
+  }
+
+  /**
+   * 生成反向测试选项（根据释义选择单词拼写）
+   * @param word 正确的单词
+   * @param allWords 所有可用单词
+   * @param count 选项数量
+   * @returns { options: string[], correctAnswer: string } 选项数组和正确答案
+   */
+  generateReverseTestOptions(
+    word: { id: string; spelling: string; meanings: string[] },
+    allWords: { id: string; spelling: string; meanings: string[] }[],
+    count: number = 4,
+  ): { options: string[]; correctAnswer: string } {
+    const correctAnswer = word.spelling;
+    const requiredDistractorCount = count - 1;
+
+    // 从其他单词中获取干扰项
+    const otherWords = allWords.filter((w) => w.id !== word.id);
+    const shuffled = [...otherWords].sort(() => Math.random() - 0.5);
+    let distractors = shuffled.slice(0, requiredDistractorCount).map((w) => w.spelling);
+
+    // 干扰项不足时，使用备用干扰项
+    if (distractors.length < requiredDistractorCount) {
+      learningLogger.warn({ word: word.spelling }, '反向测试干扰项不足，使用备用干扰项补充');
+      const fallbackDistractors = ['unknown', 'other', 'none', 'N/A'];
+      const availableFallbacks = fallbackDistractors.filter(
+        (f) => f !== correctAnswer && !distractors.includes(f),
+      );
+      const needed = requiredDistractorCount - distractors.length;
+      distractors = [...distractors, ...this.shuffleArray(availableFallbacks).slice(0, needed)];
+    }
+
+    const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5);
+    return { options, correctAnswer };
   }
 
   /**

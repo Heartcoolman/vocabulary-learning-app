@@ -147,6 +147,14 @@ export default function AMASExplainabilityPage() {
         setIsLoadingCounterfactual(true);
         setCounterfactualError(null);
         const result = await explainabilityApi.runCounterfactual(input);
+
+        // 处理没有决策记录的情况
+        if (!result) {
+          setCounterfactualResult(null);
+          setCounterfactualError('暂无决策记录，请先进行一些学习后再运行反事实分析');
+          return;
+        }
+
         setCounterfactualResult(result);
         toast.success('反事实分析完成');
       } catch (err) {

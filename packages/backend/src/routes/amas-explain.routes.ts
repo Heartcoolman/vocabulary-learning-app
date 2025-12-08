@@ -105,13 +105,13 @@ router.post(
         req.validatedBody as CounterfactualBody,
       );
 
+      // 如果没有决策记录，返回空数据而不是404（与explain-decision保持一致）
       if (!result) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: 'Decision not found or counterfactual analysis not available',
-          });
+        return res.json({
+          success: true,
+          data: null,
+          message: '暂无决策记录，请先进行一些学习后再运行反事实分析',
+        });
       }
 
       res.json({ success: true, data: result });
