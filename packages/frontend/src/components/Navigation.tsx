@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   CaretDown,
@@ -13,6 +13,7 @@ import {
   List,
   X,
 } from './Icon';
+import { prefetchAll } from '../routes/prefetch';
 
 /**
  * Navigation 组件 - 顶部导航栏
@@ -66,6 +67,11 @@ function NavigationComponent() {
     setIsMobileMenuOpen(false);
     setIsInsightsOpen(false);
   }, [location.pathname]);
+
+  // 预加载处理函数 - 鼠标悬停时预加载页面代码和数据
+  const handlePrefetch = useCallback((path: string) => {
+    prefetchAll(path);
+  }, []);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -146,6 +152,7 @@ function NavigationComponent() {
               to="/vocabulary"
               className={linkClass('/vocabulary')}
               aria-current={isActive('/vocabulary') ? 'page' : undefined}
+              onMouseEnter={() => handlePrefetch('/vocabulary')}
             >
               词库管理
             </Link>
@@ -153,6 +160,7 @@ function NavigationComponent() {
               to="/study-settings"
               className={linkClass('/study-settings')}
               aria-current={isActive('/study-settings') ? 'page' : undefined}
+              onMouseEnter={() => handlePrefetch('/study-settings')}
             >
               学习设置
             </Link>
@@ -160,6 +168,7 @@ function NavigationComponent() {
               to="/history"
               className={linkClass('/history')}
               aria-current={isActive('/history') ? 'page' : undefined}
+              onMouseEnter={() => handlePrefetch('/history')}
             >
               学习历史
             </Link>
@@ -193,6 +202,7 @@ function NavigationComponent() {
                         to={path}
                         className={dropdownLinkClass(path)}
                         onClick={() => setIsInsightsOpen(false)}
+                        onMouseEnter={() => handlePrefetch(path)}
                       >
                         <Icon size={18} weight="bold" />
                         {label}
@@ -209,6 +219,7 @@ function NavigationComponent() {
                 to="/admin"
                 className={linkClass('/admin')}
                 aria-current={isActive('/admin') ? 'page' : undefined}
+                onMouseEnter={() => handlePrefetch('/admin')}
               >
                 管理后台
               </Link>
@@ -221,6 +232,7 @@ function NavigationComponent() {
                 className={linkClass('/profile')}
                 aria-current={isActive('/profile') ? 'page' : undefined}
                 aria-label={`个人资料 - ${user?.username}`}
+                onMouseEnter={() => handlePrefetch('/profile')}
               >
                 {user?.username || '个人资料'}
               </Link>
@@ -257,13 +269,25 @@ function NavigationComponent() {
               <Link to="/" className={mobileLinkClass('/')}>
                 学习
               </Link>
-              <Link to="/vocabulary" className={mobileLinkClass('/vocabulary')}>
+              <Link
+                to="/vocabulary"
+                className={mobileLinkClass('/vocabulary')}
+                onTouchStart={() => handlePrefetch('/vocabulary')}
+              >
                 词库管理
               </Link>
-              <Link to="/study-settings" className={mobileLinkClass('/study-settings')}>
+              <Link
+                to="/study-settings"
+                className={mobileLinkClass('/study-settings')}
+                onTouchStart={() => handlePrefetch('/study-settings')}
+              >
                 学习设置
               </Link>
-              <Link to="/history" className={mobileLinkClass('/history')}>
+              <Link
+                to="/history"
+                className={mobileLinkClass('/history')}
+                onTouchStart={() => handlePrefetch('/history')}
+              >
                 学习历史
               </Link>
 
@@ -278,6 +302,7 @@ function NavigationComponent() {
                       key={path}
                       to={path}
                       className={`${mobileLinkClass(path)} flex items-center gap-2 pl-8`}
+                      onTouchStart={() => handlePrefetch(path)}
                     >
                       <Icon size={18} weight="bold" />
                       {label}
@@ -288,7 +313,11 @@ function NavigationComponent() {
 
               {/* 管理后台 */}
               {isAuthenticated && user?.role === 'ADMIN' && (
-                <Link to="/admin" className={mobileLinkClass('/admin')}>
+                <Link
+                  to="/admin"
+                  className={mobileLinkClass('/admin')}
+                  onTouchStart={() => handlePrefetch('/admin')}
+                >
                   管理后台
                 </Link>
               )}
@@ -298,7 +327,11 @@ function NavigationComponent() {
 
               {/* 认证相关 */}
               {isAuthenticated ? (
-                <Link to="/profile" className={mobileLinkClass('/profile')}>
+                <Link
+                  to="/profile"
+                  className={mobileLinkClass('/profile')}
+                  onTouchStart={() => handlePrefetch('/profile')}
+                >
                   {user?.username || '个人资料'}
                 </Link>
               ) : (

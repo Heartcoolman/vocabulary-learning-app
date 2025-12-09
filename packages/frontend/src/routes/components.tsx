@@ -1,13 +1,11 @@
 import { Suspense, ReactNode, lazy, ComponentType } from 'react';
+import { PageSkeleton } from '../components/skeletons/PageSkeleton';
 
 /**
- * 页面加载组件
+ * 页面加载组件 - 使用骨架屏替代全屏旋转加载器
+ * 提供更好的用户体验，让用户感知页面结构正在加载
  */
-export const PageLoader = () => (
-  <div className="flex min-h-screen items-center justify-center">
-    <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
-  </div>
-);
+export const PageLoader = () => <PageSkeleton />;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyProps = any;
