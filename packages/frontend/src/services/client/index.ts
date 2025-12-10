@@ -43,6 +43,7 @@ export type {
   WordScoreHistory,
   UserLearningHeatmap,
   AnomalyFlag,
+  VisualFatigueStats,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================
@@ -62,6 +63,9 @@ export type {
   LLMAdvisorPendingCountResponse,
 } from './llm/LLMAdvisorClient';
 
+// ==================== Visual Fatigue 模块 ====================
+export { VisualFatigueClient, visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -72,6 +76,7 @@ import { LearningClient } from './learning/LearningClient';
 import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
+import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -110,6 +115,7 @@ export const apiClient = {
   amas: amasClient,
   admin: adminClient,
   llmAdvisor: llmAdvisorClient,
+  visualFatigue: visualFatigueClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -264,6 +270,7 @@ export const apiClient = {
   startExperiment: adminClient.startExperiment.bind(adminClient),
   stopExperiment: adminClient.stopExperiment.bind(adminClient),
   deleteExperiment: adminClient.deleteExperiment.bind(adminClient),
+  getVisualFatigueStats: adminClient.getVisualFatigueStats.bind(adminClient),
 
   // ==================== LLM 顾问相关 ====================
   getLLMAdvisorConfig: llmAdvisorClient.getConfig.bind(llmAdvisorClient),
@@ -276,6 +283,14 @@ export const apiClient = {
   getLatestLLMAdvisorSuggestion: llmAdvisorClient.getLatestSuggestion.bind(llmAdvisorClient),
   getLLMAdvisorPendingCount: llmAdvisorClient.getPendingCount.bind(llmAdvisorClient),
 
+  // ==================== 视觉疲劳相关 ====================
+  submitVisualFatigueMetrics: visualFatigueClient.submitMetrics.bind(visualFatigueClient),
+  getVisualFatigueBaseline: visualFatigueClient.getBaseline.bind(visualFatigueClient),
+  updateVisualFatigueBaseline: visualFatigueClient.updateBaseline.bind(visualFatigueClient),
+  getVisualFatigueConfig: visualFatigueClient.getConfig.bind(visualFatigueClient),
+  getVisualFatigueFusion: visualFatigueClient.getFusion.bind(visualFatigueClient),
+  resetVisualFatigue: visualFatigueClient.reset.bind(visualFatigueClient),
+
   // ==================== 设置 ====================
   setOnUnauthorized(callback: (() => void) | null): void {
     authClient.setOnUnauthorized(callback);
@@ -285,6 +300,7 @@ export const apiClient = {
     amasClient.setOnUnauthorized(callback);
     adminClient.setOnUnauthorized(callback);
     llmAdvisorClient.setOnUnauthorized(callback);
+    visualFatigueClient.setOnUnauthorized(callback);
   },
 };
 

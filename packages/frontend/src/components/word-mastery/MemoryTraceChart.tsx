@@ -1,5 +1,6 @@
 import React from 'react';
 import { ReviewTraceRecord } from '../../types/word-mastery';
+import { chartColors } from '../../utils/iconColors';
 
 interface MemoryTraceChartProps {
   trace: ReviewTraceRecord[];
@@ -50,11 +51,17 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
                 y1={y}
                 x2={width - padding.right}
                 y2={y}
-                stroke="#e5e7eb"
+                stroke={chartColors.grid}
                 strokeWidth="1"
                 strokeDasharray="4 4"
               />
-              <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
+              <text
+                x={padding.left - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill={chartColors.label}
+              >
                 {value === 1 ? '正确' : '错误'}
               </text>
             </g>
@@ -65,7 +72,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
         <path
           d={pathData}
           fill="none"
-          stroke="#8b5cf6"
+          stroke={chartColors.secondary}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -80,7 +87,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
                 cx={p.x}
                 cy={p.y}
                 r="4"
-                fill={isCorrect ? '#10b981' : '#ef4444'}
+                fill={isCorrect ? chartColors.success : chartColors.error}
                 stroke="white"
                 strokeWidth="2"
                 className="origin-center cursor-pointer transition-transform hover:scale-150"
@@ -104,7 +111,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
               y={height - padding.bottom + 20}
               textAnchor="middle"
               fontSize="10"
-              fill="#9ca3af"
+              fill={chartColors.label}
             >
               {formatDate(p.data.timestamp)}
             </text>

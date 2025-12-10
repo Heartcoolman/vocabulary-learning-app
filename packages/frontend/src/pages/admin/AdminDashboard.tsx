@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdminStatistics, useSystemHealth } from '../../hooks/queries';
+import { useAdminStatistics, useSystemHealth, useVisualFatigueStats } from '../../hooks/queries';
 import { amasClient } from '../../services/client';
 import {
   UsersThree,
@@ -18,6 +18,7 @@ import {
   Brain,
   ArrowClockwise,
   Lightning,
+  Eye,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
@@ -32,6 +33,11 @@ export default function AdminDashboard() {
   // 使用新的 hooks
   const { data: stats, isLoading, error: statsError, refetch: refetchStats } = useAdminStatistics();
   const { data: health } = useSystemHealth();
+  const {
+    data: visualFatigueStats,
+    isLoading: isVfLoading,
+    error: vfError,
+  } = useVisualFatigueStats();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
@@ -535,6 +541,143 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="py-8 text-center text-gray-500">暂无AMAS策略数据</div>
+          )}
+        </div>
+      </div>
+
+      {/* 视觉疲劳检测统计 */}
+      <div className="mb-8">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+          <Eye size={28} weight="duotone" className="text-cyan-500" />
+          视觉疲劳检测统计
+        </h2>
+        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          {isVfLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <CircleNotch className="animate-spin" size={32} weight="bold" color="#06b6d4" />
+            </div>
+          ) : vfError ? (
+            <div className="py-8 text-center text-red-500">
+              <Warning size={48} weight="duotone" className="mx-auto mb-4 text-red-400" />
+              <p>加载视觉疲劳数据失败</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {vfError instanceof Error ? vfError.message : '请检查后端服务是否正常'}
+              </p>
+            </div>
+          ) : visualFatigueStats ? (
+            <div>
+              {/* 主要���标卡片 */}
+              <div className="mb-6 grid gap-4 md:grid-cols-4">
+                <div className="rounded-lg bg-cyan-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ChartBar size={20} weight="duotone" className="text-cyan-600" />
+                    <span className="text-sm text-gray-600">数据量</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {visualFatigueStats.dataVolume.totalRecords.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    今日 +{visualFatigueStats.dataVolume.recordsToday}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-blue-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <UsersThree size={20} weight="duotone" className="text-blue-600" />
+                    <span className="text-sm text-gray-600">启用率</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Math.round(visualFatigueStats.usage.enableRate)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {visualFatigueStats.usage.enabledUsers}/{visualFatigueStats.usage.totalUsers}{' '}
+                    用户
+                  </p>
+                </div>
+                <div className="rounded-lg bg-amber-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Pulse size={20} weight="duotone" className="text-amber-600" />
+                    <span className="text-sm text-gray-600">平均疲劳度</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(visualFatigueStats.fatigue.avgVisualFatigue * 100).toFixed(0)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    融合后 {(visualFatigueStats.fatigue.avgFusedFatigue * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="rounded-lg bg-red-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Warning size={20} weight="duotone" className="text-red-600" />
+                    <span className="text-sm text-gray-600">高疲劳用户</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {visualFatigueStats.fatigue.highFatigueUsers}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">疲劳度 &gt;60%</p>
+                </div>
+              </div>
+
+              {/* 疲劳度分布 */}
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="mb-3 text-sm font-semibold text-gray-700">疲劳度分布</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">低 (0-30%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-green-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.low}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.low}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">中 (30-60%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-yellow-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.medium}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.medium}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">高 (60-100%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-red-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.high}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.high}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500">
+              <Eye size={48} weight="duotone" className="mx-auto mb-4 text-gray-300" />
+              <p>暂无视觉疲劳检测数据</p>
+              <p className="mt-1 text-sm">用户启用摄像头检测后，数据将在此显示</p>
+            </div>
           )}
         </div>
       </div>

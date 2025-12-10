@@ -41,6 +41,7 @@ export { metricsService } from './metrics.service';
 export { explainabilityService } from './explainability.service';
 export { decisionEventsService } from './decision-events.service';
 export { trackingService } from './tracking.service';
+export { behaviorFatigueService } from './behavior-fatigue.service';
 
 // Analysis Services
 export { trendAnalysisService } from './trend-analysis.service';

@@ -1604,6 +1604,129 @@ export class AdminService {
       }),
     );
   }
+
+  // ==================== 视觉疲劳统计 ====================
+
+  /**
+   * 获取视觉疲劳统计数据
+   */
+  async getVisualFatigueStats() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+
+    // 并行查询所有统计数据
+    const [
+      totalRecords,
+      recordsToday,
+      recordsThisWeek,
+      totalUsers,
+      enabledUsers,
+      activeToday,
+      fatigueAggregate,
+      fatigueDistribution,
+    ] = await Promise.all([
+      // 总记录数
+      prisma.visualFatigueRecord.count(),
+      // 今日记录数
+      prisma.visualFatigueRecord.count({
+        where: { createdAt: { gte: todayStart } },
+      }),
+      // 本周记录数
+      prisma.visualFatigueRecord.count({
+        where: { createdAt: { gte: weekStart } },
+      }),
+      // 总用户数
+      prisma.user.count(),
+      // 启用视觉检测的用户数
+      prisma.userVisualFatigueConfig.count({
+        where: { enabled: true },
+      }),
+      // 今日活跃用户数（有视觉疲劳记录）
+      prisma.visualFatigueRecord.groupBy({
+        by: ['userId'],
+        where: { createdAt: { gte: todayStart } },
+      }),
+      // 疲劳度聚合
+      prisma.visualFatigueRecord.aggregate({
+        _avg: { score: true, fusedScore: true },
+        where: { createdAt: { gte: weekStart } },
+      }),
+      // 疲劳度分布（按区间分组）
+      prisma.$queryRaw<Array<{ range: string; count: bigint }>>`
+        SELECT
+          CASE
+            WHEN "fusedScore" < 0.3 THEN 'low'
+            WHEN "fusedScore" < 0.6 THEN 'medium'
+            ELSE 'high'
+          END as range,
+          COUNT(*) as count
+        FROM "visual_fatigue_records"
+        WHERE "createdAt" >= ${weekStart}
+        GROUP BY range
+      `,
+    ]);
+
+    // 计算平均每用户记录数
+    const usersWithRecords = await prisma.visualFatigueRecord.groupBy({
+      by: ['userId'],
+    });
+    const avgRecordsPerUser =
+      usersWithRecords.length > 0 ? totalRecords / usersWithRecords.length : 0;
+
+    // 高疲劳用户数（融合疲劳度 > 0.6）
+    const highFatigueUsers = await prisma.visualFatigueRecord.groupBy({
+      by: ['userId'],
+      where: {
+        createdAt: { gte: weekStart },
+        fusedScore: { gte: 0.6 },
+      },
+    });
+
+    // 解析疲劳度分布
+    const distributionMap: Record<string, number> = { low: 0, medium: 0, high: 0 };
+    fatigueDistribution.forEach((item) => {
+      distributionMap[item.range] = Number(item.count);
+    });
+    const totalDistribution = distributionMap.low + distributionMap.medium + distributionMap.high;
+
+    return {
+      dataVolume: {
+        totalRecords,
+        recordsToday,
+        recordsThisWeek,
+        avgRecordsPerUser: Math.round(avgRecordsPerUser * 10) / 10,
+      },
+      usage: {
+        totalUsers,
+        enabledUsers,
+        enableRate: totalUsers > 0 ? Math.round((enabledUsers / totalUsers) * 100) : 0,
+        activeToday: activeToday.length,
+      },
+      fatigue: {
+        avgVisualFatigue: fatigueAggregate._avg.score ?? 0,
+        avgFusedFatigue: fatigueAggregate._avg.fusedScore ?? 0,
+        highFatigueUsers: highFatigueUsers.length,
+        fatigueDistribution: {
+          low:
+            totalDistribution > 0 ? Math.round((distributionMap.low / totalDistribution) * 100) : 0,
+          medium:
+            totalDistribution > 0
+              ? Math.round((distributionMap.medium / totalDistribution) * 100)
+              : 0,
+          high:
+            totalDistribution > 0
+              ? Math.round((distributionMap.high / totalDistribution) * 100)
+              : 0,
+        },
+      },
+      period: {
+        start: weekStart.toISOString(),
+        end: now.toISOString(),
+      },
+    };
+  }
 }
 
 export default new AdminService();

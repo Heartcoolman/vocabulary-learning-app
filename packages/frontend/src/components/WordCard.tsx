@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Star, Clock, Target, SpeakerHigh } from './Icon';
 import { slideUpVariants, fadeInVariants, g3SpringSnappy } from '../utils/animations';
 import { trackingService } from '../services/TrackingService';
+import { IconColor } from '../utils/iconColors';
 
 export interface WordCardWord {
   id: string;
@@ -141,7 +142,7 @@ function WordCard({
                       key={index}
                       size={20}
                       weight={index < masteryLevel ? 'fill' : 'regular'}
-                      color={index < masteryLevel ? '#f59e0b' : '#d1d5db'}
+                      color={index < masteryLevel ? IconColor.star : IconColor.starEmpty}
                     />
                   ))}
                 </div>
@@ -153,7 +154,7 @@ function WordCard({
               <div className="flex flex-col items-center">
                 <span className="mb-1 text-xs text-gray-500">单词得分</span>
                 <div className="flex items-center gap-1">
-                  <Target size={18} weight="duotone" color="#3b82f6" />
+                  <Target size={18} weight="duotone" color={IconColor.target} />
                   <span
                     className="text-lg font-bold text-gray-900"
                     aria-label={`得分: ${Math.round(wordScore)} 分`}
@@ -169,7 +170,7 @@ function WordCard({
               <div className="flex flex-col items-center">
                 <span className="mb-1 text-xs text-gray-500">下次复习</span>
                 <div className="flex items-center gap-1">
-                  <Clock size={18} weight="duotone" color="#8b5cf6" />
+                  <Clock size={18} weight="duotone" color={IconColor.time} />
                   <span
                     className="text-sm font-medium text-gray-900"
                     aria-label={`下次复习: ${nextReviewDate}`}

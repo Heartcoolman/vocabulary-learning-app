@@ -116,6 +116,9 @@ export {
   // SSE 连接状态图标
   WifiHigh,
   WifiSlash,
+  // 视觉疲劳检测图标
+  EyeSlash,
+  Camera,
 } from '@phosphor-icons/react';
 
 // 图标别名

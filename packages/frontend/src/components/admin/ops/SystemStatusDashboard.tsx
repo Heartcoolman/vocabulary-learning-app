@@ -123,176 +123,36 @@ function formatUptime(seconds: number): string {
 }
 
 /**
- * 获取状态颜色
+ * 获取状态样式类
  */
-function getStatusColor(status: 'healthy' | 'unhealthy' | 'degraded' | string): string {
+function getStatusClass(status: 'healthy' | 'unhealthy' | 'degraded' | string): string {
   switch (status) {
     case 'healthy':
-      return '#4caf50';
+      return 'bg-green-500';
     case 'degraded':
-      return '#ff9800';
+      return 'bg-amber-500';
     case 'unhealthy':
-      return '#f44336';
+      return 'bg-red-500';
     default:
-      return '#9e9e9e';
+      return 'bg-gray-400';
   }
 }
 
 /**
- * 获取告警严重程度颜色
+ * 获取告警严重程度样式类
  */
-function getSeverityColor(severity: string): string {
+function getSeverityClass(severity: string): string {
   switch (severity) {
     case 'critical':
-      return '#f44336';
+      return 'bg-red-500';
     case 'warning':
-      return '#ff9800';
+      return 'bg-amber-500';
     case 'info':
-      return '#2196f3';
+      return 'bg-blue-500';
     default:
-      return '#9e9e9e';
+      return 'bg-gray-400';
   }
 }
-
-// ============================================
-// 组件样式
-// ============================================
-
-const styles = {
-  container: {
-    padding: '24px',
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-  } as React.CSSProperties,
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-  } as React.CSSProperties,
-  title: {
-    fontSize: '24px',
-    fontWeight: 600,
-    color: '#333',
-    margin: 0,
-  } as React.CSSProperties,
-  refreshButton: {
-    padding: '8px 16px',
-    backgroundColor: '#1976d2',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  } as React.CSSProperties,
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '16px',
-    marginBottom: '24px',
-  } as React.CSSProperties,
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '20px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  } as React.CSSProperties,
-  cardTitle: {
-    fontSize: '16px',
-    fontWeight: 600,
-    color: '#333',
-    marginBottom: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  } as React.CSSProperties,
-  statusBadge: {
-    display: 'inline-block',
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: 500,
-    color: 'white',
-  } as React.CSSProperties,
-  metricItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: '1px solid #eee',
-  } as React.CSSProperties,
-  metricLabel: {
-    color: '#666',
-    fontSize: '14px',
-  } as React.CSSProperties,
-  metricValue: {
-    color: '#333',
-    fontSize: '14px',
-    fontWeight: 500,
-  } as React.CSSProperties,
-  alertList: {
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-  } as React.CSSProperties,
-  alertItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '8px',
-    backgroundColor: '#f9f9f9',
-  } as React.CSSProperties,
-  alertDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    marginTop: '4px',
-    flexShrink: 0,
-  } as React.CSSProperties,
-  alertContent: {
-    flex: 1,
-  } as React.CSSProperties,
-  alertName: {
-    fontWeight: 500,
-    fontSize: '14px',
-    color: '#333',
-    marginBottom: '4px',
-  } as React.CSSProperties,
-  alertTime: {
-    fontSize: '12px',
-    color: '#999',
-  } as React.CSSProperties,
-  emptyState: {
-    textAlign: 'center' as const,
-    color: '#999',
-    padding: '20px',
-  } as React.CSSProperties,
-  loadingState: {
-    textAlign: 'center' as const,
-    color: '#666',
-    padding: '40px',
-  } as React.CSSProperties,
-  errorState: {
-    textAlign: 'center' as const,
-    color: '#f44336',
-    padding: '40px',
-  } as React.CSSProperties,
-  progressBar: {
-    width: '100%',
-    height: '8px',
-    backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    marginTop: '8px',
-  } as React.CSSProperties,
-  progressFill: {
-    height: '100%',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease',
-  } as React.CSSProperties,
-};
 
 // ============================================
 // 子组件
@@ -307,67 +167,68 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
 }) => {
   if (loading) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>系统健康状态</div>
-        <div style={styles.loadingState}>加载中...</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          系统健康状态
+        </div>
+        <div className="py-10 text-center text-gray-600">加载中...</div>
       </div>
     );
   }
 
   if (!health) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>系统健康状态</div>
-        <div style={styles.errorState}>无法获取健康状态</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          系统健康状态
+        </div>
+        <div className="py-10 text-center text-red-500">无法获取健康状态</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>
+    <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         系统健康状态
         <span
-          style={{
-            ...styles.statusBadge,
-            backgroundColor: getStatusColor(health.status),
-          }}
+          className={`inline-block rounded-xl px-3 py-1 text-xs font-medium text-white ${getStatusClass(health.status)}`}
         >
           {health.status === 'healthy' ? '健康' : health.status === 'degraded' ? '降级' : '异常'}
         </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>版本</span>
-        <span style={styles.metricValue}>{health.version || 'unknown'}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">版本</span>
+        <span className="text-sm font-medium text-gray-800">{health.version || 'unknown'}</span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>运行时间</span>
-        <span style={styles.metricValue}>{formatUptime(health.uptime)}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">运行时间</span>
+        <span className="text-sm font-medium text-gray-800">{formatUptime(health.uptime)}</span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>数据库</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">数据库</span>
         <span
-          style={{
-            ...styles.metricValue,
-            color: health.checks.database === 'connected' ? '#4caf50' : '#f44336',
-          }}
+          className={`text-sm font-medium ${
+            health.checks.database === 'connected' ? 'text-green-500' : 'text-red-500'
+          }`}
         >
           {health.checks.database === 'connected' ? '已连接' : '未连接'}
         </span>
       </div>
       {health.details?.databaseLatency !== undefined && (
-        <div style={styles.metricItem}>
-          <span style={styles.metricLabel}>数据库延迟</span>
-          <span style={styles.metricValue}>{health.details.databaseLatency}ms</span>
+        <div className="flex items-center justify-between border-b border-gray-200 py-2">
+          <span className="text-sm text-gray-600">数据库延迟</span>
+          <span className="text-sm font-medium text-gray-800">
+            {health.details.databaseLatency}ms
+          </span>
         </div>
       )}
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>内存状态</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">内存状态</span>
         <span
-          style={{
-            ...styles.metricValue,
-            color: health.checks.memory ? '#4caf50' : '#f44336',
-          }}
+          className={`text-sm font-medium ${
+            health.checks.memory ? 'text-green-500' : 'text-red-500'
+          }`}
         >
           {health.checks.memory ? '正常' : '警告'}
         </span>
@@ -385,18 +246,22 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
 }) => {
   if (loading) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>性能指标</div>
-        <div style={styles.loadingState}>加载中...</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          性能指标
+        </div>
+        <div className="py-10 text-center text-gray-600">加载中...</div>
       </div>
     );
   }
 
   if (!metrics) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>性能指标</div>
-        <div style={styles.errorState}>无法获取性能指标</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          性能指标
+        </div>
+        <div className="py-10 text-center text-red-500">无法获取性能指标</div>
       </div>
     );
   }
@@ -405,62 +270,72 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
     (metrics.process.memoryUsage.heapUsed / metrics.process.memoryUsage.heapTotal) * 100;
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>性能指标</div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>请求总数</span>
-        <span style={styles.metricValue}>{metrics.http.totalRequests.toLocaleString()}</span>
+    <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+        性能指标
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>5xx 错误数</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">请求总数</span>
+        <span className="text-sm font-medium text-gray-800">
+          {metrics.http.totalRequests.toLocaleString()}
+        </span>
+      </div>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">5xx 错误数</span>
         <span
-          style={{
-            ...styles.metricValue,
-            color: metrics.http.errorRequests5xx > 0 ? '#f44336' : '#4caf50',
-          }}
+          className={`text-sm font-medium ${
+            metrics.http.errorRequests5xx > 0 ? 'text-red-500' : 'text-green-500'
+          }`}
         >
           {metrics.http.errorRequests5xx}
         </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>平均响应时间</span>
-        <span style={styles.metricValue}>{metrics.http.requestDuration.avg.toFixed(2)}ms</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">平均响应时间</span>
+        <span className="text-sm font-medium text-gray-800">
+          {metrics.http.requestDuration.avg.toFixed(2)}ms
+        </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>P95 响应时间</span>
-        <span style={styles.metricValue}>{metrics.http.requestDuration.p95.toFixed(2)}ms</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">P95 响应时间</span>
+        <span className="text-sm font-medium text-gray-800">
+          {metrics.http.requestDuration.p95.toFixed(2)}ms
+        </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>P99 响应时间</span>
-        <span style={styles.metricValue}>{metrics.http.requestDuration.p99.toFixed(2)}ms</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">P99 响应时间</span>
+        <span className="text-sm font-medium text-gray-800">
+          {metrics.http.requestDuration.p99.toFixed(2)}ms
+        </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>慢查询数</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">慢查询数</span>
         <span
-          style={{
-            ...styles.metricValue,
-            color: metrics.database.slowQueryTotal > 10 ? '#ff9800' : '#333',
-          }}
+          className={`text-sm font-medium ${
+            metrics.database.slowQueryTotal > 10 ? 'text-amber-500' : 'text-gray-800'
+          }`}
         >
           {metrics.database.slowQueryTotal}
         </span>
       </div>
-      <div style={{ marginTop: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={styles.metricLabel}>堆内存使用</span>
-          <span style={styles.metricValue}>
+      <div className="mt-4">
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-600">堆内存使用</span>
+          <span className="text-sm font-medium text-gray-800">
             {formatBytes(metrics.process.memoryUsage.heapUsed)} /{' '}
             {formatBytes(metrics.process.memoryUsage.heapTotal)}
           </span>
         </div>
-        <div style={styles.progressBar}>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-300">
           <div
-            style={{
-              ...styles.progressFill,
-              width: `${memoryPercent}%`,
-              backgroundColor:
-                memoryPercent > 90 ? '#f44336' : memoryPercent > 70 ? '#ff9800' : '#4caf50',
-            }}
+            className={`h-full rounded transition-all duration-300 ${
+              memoryPercent > 90
+                ? 'bg-red-500'
+                : memoryPercent > 70
+                  ? 'bg-amber-500'
+                  : 'bg-green-500'
+            }`}
+            style={{ width: `${memoryPercent}%` }}
           />
         </div>
       </div>
@@ -477,56 +352,64 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 }) => {
   if (loading) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>系统信息</div>
-        <div style={styles.loadingState}>加载中...</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          系统信息
+        </div>
+        <div className="py-10 text-center text-gray-600">加载中...</div>
       </div>
     );
   }
 
   if (!metrics) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>系统信息</div>
-        <div style={styles.errorState}>无法获取系统信息</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          系统信息
+        </div>
+        <div className="py-10 text-center text-red-500">无法获取系统信息</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>系统信息</div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>主机名</span>
-        <span style={styles.metricValue}>{metrics.system.hostname}</span>
+    <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+        系统信息
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>平台</span>
-        <span style={styles.metricValue}>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">主机名</span>
+        <span className="text-sm font-medium text-gray-800">{metrics.system.hostname}</span>
+      </div>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">平台</span>
+        <span className="text-sm font-medium text-gray-800">
           {metrics.system.platform} / {metrics.system.arch}
         </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>Node 版本</span>
-        <span style={styles.metricValue}>{metrics.system.nodeVersion}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">Node 版本</span>
+        <span className="text-sm font-medium text-gray-800">{metrics.system.nodeVersion}</span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>CPU 核心数</span>
-        <span style={styles.metricValue}>{metrics.system.cpuCount}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">CPU 核心数</span>
+        <span className="text-sm font-medium text-gray-800">{metrics.system.cpuCount}</span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>系统负载 (1/5/15分钟)</span>
-        <span style={styles.metricValue}>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">系统负载 (1/5/15分钟)</span>
+        <span className="text-sm font-medium text-gray-800">
           {metrics.system.loadAverage.map((l) => l.toFixed(2)).join(' / ')}
         </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>系统运行时间</span>
-        <span style={styles.metricValue}>{formatUptime(metrics.system.uptime)}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">系统运行时间</span>
+        <span className="text-sm font-medium text-gray-800">
+          {formatUptime(metrics.system.uptime)}
+        </span>
       </div>
-      <div style={styles.metricItem}>
-        <span style={styles.metricLabel}>进程 PID</span>
-        <span style={styles.metricValue}>{metrics.process.pid}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2">
+        <span className="text-sm text-gray-600">进程 PID</span>
+        <span className="text-sm font-medium text-gray-800">{metrics.process.pid}</span>
       </div>
     </div>
   );
@@ -538,46 +421,42 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, loading }) => {
   if (loading) {
     return (
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>活跃告警</div>
-        <div style={styles.loadingState}>加载中...</div>
+      <div className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          活跃告警
+        </div>
+        <div className="py-10 text-center text-gray-600">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>
+    <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         活跃告警
         {alerts.length > 0 && (
-          <span
-            style={{
-              ...styles.statusBadge,
-              backgroundColor: '#f44336',
-            }}
-          >
+          <span className="inline-block rounded-xl bg-red-500 px-3 py-1 text-xs font-medium text-white">
             {alerts.length}
           </span>
         )}
       </div>
       {alerts.length === 0 ? (
-        <div style={styles.emptyState}>
-          <span style={{ fontSize: '32px' }}>✓</span>
+        <div className="p-5 text-center text-gray-400">
+          <span className="text-3xl">✓</span>
           <p>无活跃告警</p>
         </div>
       ) : (
-        <ul style={styles.alertList}>
+        <ul className="m-0 list-none p-0">
           {alerts.map((alert, index) => (
-            <li key={index} style={styles.alertItem}>
+            <li key={index} className="mb-2 flex items-start gap-3 rounded bg-gray-50 p-3">
               <div
-                style={{
-                  ...styles.alertDot,
-                  backgroundColor: getSeverityColor(alert.severity),
-                }}
+                className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${getSeverityClass(alert.severity)}`}
               />
-              <div style={styles.alertContent}>
-                <div style={styles.alertName}>{alert.ruleName}</div>
-                <div style={styles.alertTime}>{new Date(alert.triggeredAt).toLocaleString()}</div>
+              <div className="flex-1">
+                <div className="mb-1 text-sm font-medium text-gray-800">{alert.ruleName}</div>
+                <div className="text-xs text-gray-400">
+                  {new Date(alert.triggeredAt).toLocaleString()}
+                </div>
               </div>
             </li>
           ))}
@@ -665,34 +544,32 @@ export const SystemStatusDashboard: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>系统状态仪表板</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="m-0 text-2xl font-semibold text-gray-800">系统状态仪表板</h1>
+        <div className="flex items-center gap-4">
           {lastUpdate && (
-            <span style={{ color: '#666', fontSize: '14px' }}>
+            <span className="text-sm text-gray-600">
               更新时间: {lastUpdate.toLocaleTimeString()}
             </span>
           )}
-          <button style={styles.refreshButton} onClick={refresh} disabled={loading}>
+          <button
+            className="cursor-pointer rounded border-none bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={refresh}
+            disabled={loading}
+          >
             {loading ? '刷新中...' : '刷新'}
           </button>
         </div>
       </div>
 
       {error && (
-        <div
-          style={{
-            ...styles.card,
-            backgroundColor: '#ffebee',
-            marginBottom: '24px',
-          }}
-        >
-          <div style={{ color: '#f44336' }}>{error}</div>
+        <div className="mb-6 rounded-lg bg-red-50 p-5 shadow-sm">
+          <div className="text-red-500">{error}</div>
         </div>
       )}
 
-      <div style={styles.grid}>
+      <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
         <HealthCard health={health} loading={loading} />
         <MetricsCard metrics={metrics} loading={loading} />
         <SystemInfoCard metrics={metrics} loading={loading} />

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './components/ui';
 import Navigation from './components/Navigation';
 import SyncIndicator from './components/SyncIndicator';
+import { FloatingEyeIndicator } from './components/visual-fatigue';
 import { routes } from './routes';
 import { queryClient } from './lib/queryClient';
 import { prefetchPriorityRoutes, prefetchPriorityData } from './routes/prefetch';
@@ -50,6 +51,9 @@ function AppContent() {
 
       {/* 同步状态指示器（仅登录时显示） */}
       {isAuthenticated && <SyncIndicator />}
+
+      {/* 视觉疲劳检测浮动指示器（仅登录时显示） */}
+      {isAuthenticated && <FloatingEyeIndicator />}
     </>
   );
 }

@@ -40,6 +40,7 @@ import llmAdvisorRoutes from './routes/llm-advisor.routes';
 import experimentRoutes from './routes/experiment.routes';
 import trackingRoutes from './routes/tracking.routes';
 import healthRoutes from './routes/health.routes';
+import visualFatigueRoutes from './routes/visual-fatigue.routes';
 
 const app = express();
 
@@ -213,6 +214,7 @@ app.use('/api/llm-advisor', llmAdvisorRoutes);
 app.use('/api/users/profile', profileRoutes);
 app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/visual-fatigue', visualFatigueRoutes);
 
 // 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
 app.use('/health', healthRoutes);

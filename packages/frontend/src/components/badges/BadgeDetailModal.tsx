@@ -3,6 +3,7 @@ import { Badge, BadgeProgress, BadgeCategory } from '../../types/amas-enhanced';
 import { amasClient } from '../../services/client';
 import { Trophy, Star, Fire, Brain, Target, CheckCircle, X, Info, CircleNotch } from '../Icon';
 import { uiLogger } from '../../utils/logger';
+import { IconColor } from '../../utils/iconColors';
 
 interface BadgeDetailModalProps {
   badge: Badge;
@@ -59,13 +60,13 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
       case 'STREAK':
         return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c' };
       case 'ACCURACY':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: '#16a34a' };
+        return { bg: 'bg-green-100', text: 'text-green-700', icon: IconColor.success };
       case 'COGNITIVE':
         return { bg: 'bg-purple-100', text: 'text-purple-700', icon: '#9333ea' };
       case 'MILESTONE':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', icon: '#2563eb' };
+        return { bg: 'bg-blue-100', text: 'text-blue-700', icon: IconColor.primaryDark };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', icon: '#6b7280' };
+        return { bg: 'bg-gray-100', text: 'text-gray-700', icon: IconColor.secondary };
     }
   };
 
@@ -104,7 +105,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
           aria-label="关闭"
         >
-          <X size={16} weight="bold" color="#6b7280" />
+          <X size={16} weight="bold" color={IconColor.secondary} />
         </button>
 
         {/* 徽章图标 */}
@@ -115,7 +116,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
             <CategoryIcon
               size={48}
               weight={isUnlocked ? 'duotone' : 'regular'}
-              color={isUnlocked ? categoryColor.icon : '#9ca3af'}
+              color={isUnlocked ? categoryColor.icon : IconColor.muted}
             />
           </div>
         </div>
@@ -130,7 +131,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
               key={i}
               size={20}
               weight={i < badge.tier ? 'fill' : 'regular'}
-              color={isUnlocked && i < badge.tier ? '#f59e0b' : '#d1d5db'}
+              color={isUnlocked && i < badge.tier ? IconColor.star : IconColor.starEmpty}
             />
           ))}
         </div>
@@ -150,7 +151,12 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 解锁状态 */}
         {isUnlocked ? (
           <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
-            <CheckCircle size={24} weight="fill" color="#22c55e" className="mx-auto mb-2" />
+            <CheckCircle
+              size={24}
+              weight="fill"
+              color={IconColor.success}
+              className="mx-auto mb-2"
+            />
             <p className="font-medium text-green-700">已解锁</p>
             <p className="text-sm text-green-600">
               {new Date(badge.unlockedAt!).toLocaleString('zh-CN')}
@@ -159,12 +165,17 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="mb-3 flex items-center gap-2">
-              <Info size={20} weight="fill" color="#6b7280" />
+              <Info size={20} weight="fill" color={IconColor.secondary} />
               <span className="font-medium text-gray-700">解锁进度</span>
             </div>
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
-                <CircleNotch className="animate-spin" size={24} weight="bold" color="#3b82f6" />
+                <CircleNotch
+                  className="animate-spin"
+                  size={24}
+                  weight="bold"
+                  color={IconColor.primary}
+                />
               </div>
             ) : badgeProgress ? (
               <>
@@ -190,7 +201,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 奖励说明 */}
         <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
           <div className="mb-2 flex items-center gap-2">
-            <Trophy size={20} weight="duotone" color="#2563eb" />
+            <Trophy size={20} weight="duotone" color={IconColor.primaryDark} />
             <span className="font-medium text-blue-900">奖励说明</span>
           </div>
           <p className="text-sm text-blue-700">

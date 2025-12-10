@@ -39,3 +39,24 @@ export {
   type ACTRWrapperConfig,
   type ACTRWrapperStats,
 } from './actr-memory-native';
+
+// 视觉疲劳处理器
+export {
+  VisualFatigueProcessor,
+  createVisualFatigueProcessor,
+  defaultVisualFatigueProcessor,
+  DEFAULT_VISUAL_PROCESSOR_CONFIG,
+  type VisualFatigueProcessorConfig,
+  type ProcessedVisualFatigue,
+  type UserVisualProfile,
+} from './visual-fatigue-processor';
+
+// 疲劳融合引擎
+export {
+  FatigueFusionEngine,
+  createFatigueFusionEngine,
+  defaultFatigueFusionEngine,
+  DEFAULT_FUSION_CONFIG,
+  type FusionInput,
+  type FusionResult,
+} from './fatigue-fusion-engine';

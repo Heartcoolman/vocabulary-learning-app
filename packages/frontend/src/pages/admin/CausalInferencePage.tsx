@@ -38,17 +38,6 @@ interface StrategyComparison {
   sampleSize: number;
 }
 
-interface StrategyComparisonApiResponse {
-  difference: number;
-  pValue: number;
-  significant: boolean;
-  // 可选字段：后端可能返回扩展数据
-  diff?: number;
-  standardError?: number;
-  confidenceInterval?: [number, number];
-  sampleSize?: number;
-}
-
 export default function CausalInferencePage() {
   const toast = useToast();
 
@@ -96,7 +85,7 @@ export default function CausalInferencePage() {
         }
       }
     },
-    [toast],
+    [], // 移除 toast 依赖，防止无限循环
   );
 
   const loadDiagnostics = useCallback(async (signal?: AbortSignal) => {
@@ -202,19 +191,10 @@ export default function CausalInferencePage() {
       setIsLoadingComparison(true);
       setComparisonError(null);
 
-      const response: StrategyComparisonApiResponse = await apiClient.compareStrategies(1, 0);
+      const response = await apiClient.compareStrategies(1, 0);
       if (response) {
-        // 将 API 响应转换为组件期望的 StrategyComparison 格式
-        // 属性可能是 difference 或 diff，优先使用 difference
-        const comparisonData: StrategyComparison = {
-          diff: response.difference ?? response.diff ?? 0,
-          standardError: response.standardError ?? 0.01,
-          confidenceInterval: response.confidenceInterval ?? [0, 0],
-          pValue: response.pValue ?? 0,
-          significant: response.significant ?? false,
-          sampleSize: response.sampleSize ?? 0,
-        };
-        setComparison(comparisonData);
+        // 后端已返回标准格式，直接使用
+        setComparison(response);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '比较失败';
