@@ -230,6 +230,12 @@ export const queryKeys = {
       details: () => [...queryKeys.admin.configHistory.all, 'detail'] as const,
       detail: (id: string) => [...queryKeys.admin.configHistory.details(), id] as const,
     },
+
+    // 视觉疲劳统计
+    visualFatigue: {
+      all: ['admin', 'visualFatigue'] as const,
+      stats: () => [...queryKeys.admin.visualFatigue.all, 'stats'] as const,
+    },
   },
 
   /**

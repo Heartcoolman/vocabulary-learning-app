@@ -28,6 +28,7 @@ import {
   ArrowDown,
   Calendar,
 } from '../components/Icon';
+import { IconColor, chartColors } from '../utils/iconColors';
 
 interface WordStats {
   wordId: string;
@@ -403,7 +404,7 @@ export default function HistoryPage() {
             className="mx-auto mb-4 animate-spin"
             size={48}
             weight="bold"
-            color="#3b82f6"
+            color={IconColor.primary}
           />
           <p className="text-gray-600" role="status" aria-live="polite">
             正在加载...
@@ -421,7 +422,7 @@ export default function HistoryPage() {
             className="mx-auto mb-4"
             size={64}
             weight="fill"
-            color="#ef4444"
+            color={IconColor.danger}
             aria-hidden="true"
           />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
@@ -477,7 +478,7 @@ export default function HistoryPage() {
             {/* 日期范围选择器 */}
             <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-4">
-                <Calendar size={20} weight="duotone" color="#3b82f6" />
+                <Calendar size={20} weight="duotone" color={IconColor.primary} />
                 <span className="text-sm font-medium text-gray-700">时间范围:</span>
                 <div className="flex gap-2">
                   {([7, 30, 90] as DateRangeOption[]).map((range) => (
@@ -503,7 +504,7 @@ export default function HistoryPage() {
                   className="mx-auto mb-4 animate-spin"
                   size={48}
                   weight="bold"
-                  color="#3b82f6"
+                  color={IconColor.primary}
                 />
                 <p className="text-gray-600">正在加载状态历史...</p>
               </div>
@@ -513,7 +514,7 @@ export default function HistoryPage() {
                 {cognitiveGrowth && (
                   <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
                     <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
-                      <Brain size={24} weight="duotone" color="#a855f7" />
+                      <Brain size={24} weight="duotone" color={chartColors.memory} />
                       认知成长对比（{cognitiveGrowth.period} 天）
                     </h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -621,7 +622,7 @@ export default function HistoryPage() {
                   <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
                     <div className="mb-5 flex items-center justify-between">
                       <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                        <ChartLine size={24} weight="duotone" color="#3b82f6" />
+                        <ChartLine size={24} weight="duotone" color={IconColor.primary} />
                         状态历史趋势
                       </h2>
                       <span className="text-sm text-gray-400">
@@ -630,12 +631,12 @@ export default function HistoryPage() {
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                      {renderStateChart(stateHistory, 'attention', '#3b82f6', '注意力')}
-                      {renderStateChart(stateHistory, 'motivation', '#22c55e', '动机')}
-                      {renderStateChart(stateHistory, 'memory', '#a855f7', '记忆力')}
-                      {renderStateChart(stateHistory, 'speed', '#f59e0b', '速度')}
-                      {renderStateChart(stateHistory, 'stability', '#06b6d4', '稳定性')}
-                      {renderStateChart(stateHistory, 'fatigue', '#ef4444', '疲劳度')}
+                      {renderStateChart(stateHistory, 'attention', chartColors.attention, '注意力')}
+                      {renderStateChart(stateHistory, 'motivation', chartColors.motivation, '动机')}
+                      {renderStateChart(stateHistory, 'memory', chartColors.memory, '记���力')}
+                      {renderStateChart(stateHistory, 'speed', chartColors.speed, '速度')}
+                      {renderStateChart(stateHistory, 'stability', chartColors.stability, '稳定性')}
+                      {renderStateChart(stateHistory, 'fatigue', chartColors.fatigue, '疲劳度')}
                     </div>
                   </div>
                 )}
@@ -644,7 +645,7 @@ export default function HistoryPage() {
                 {significantChanges.length > 0 && (
                   <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
                     <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
-                      <Target size={24} weight="duotone" color="#f59e0b" />
+                      <Target size={24} weight="duotone" color={IconColor.warning} />
                       显著变化
                     </h2>
                     <div className="space-y-3">
@@ -661,9 +662,9 @@ export default function HistoryPage() {
                             className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${change.isPositive ? 'bg-green-500' : 'bg-red-500'} `}
                           >
                             {change.direction === 'up' ? (
-                              <TrendUp size={20} weight="fill" color="#ffffff" />
+                              <TrendUp size={20} weight="fill" color={IconColor.white} />
                             ) : (
-                              <TrendDown size={20} weight="fill" color="#ffffff" />
+                              <TrendDown size={20} weight="fill" color={IconColor.white} />
                             )}
                           </div>
                           <div className="flex-1">
@@ -699,7 +700,7 @@ export default function HistoryPage() {
                       <ChartLine
                         size={64}
                         weight="duotone"
-                        color="#3b82f6"
+                        color={IconColor.primary}
                         className="mx-auto mb-4"
                       />
                       <h2 className="mb-2 text-xl font-bold text-blue-800">暂无状态历史数据</h2>
@@ -726,7 +727,7 @@ export default function HistoryPage() {
                   className="mx-auto mb-6 animate-pulse"
                   size={96}
                   weight="thin"
-                  color="#9ca3af"
+                  color={IconColor.muted}
                 />
                 <h2 className="mb-3 text-2xl font-bold text-gray-900">还没有学习记录</h2>
                 <p className="mb-8 text-gray-600">开始学习单词后，这里会显示你的学习统计</p>
@@ -743,7 +744,7 @@ export default function HistoryPage() {
                 <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
                   <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
                     <div className="mb-2 flex items-center gap-3">
-                      <ChartBar size={32} weight="duotone" color="#3b82f6" />
+                      <ChartBar size={32} weight="duotone" color={IconColor.primary} />
                       <span className="text-sm font-medium text-gray-600">总学习单词</span>
                     </div>
                     <p className="text-3xl font-bold text-gray-900">{statistics.total}</p>
@@ -751,7 +752,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
                     <div className="mb-2 flex items-center gap-3">
-                      <Target size={32} weight="duotone" color="#a855f7" />
+                      <Target size={32} weight="duotone" color={chartColors.memory} />
                       <span className="text-sm font-medium text-gray-600">平均正确率</span>
                     </div>
                     <p
@@ -763,7 +764,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-xl border border-green-200 bg-green-50 p-6 shadow-sm">
                     <div className="mb-2 flex items-center gap-3">
-                      <CheckCircle size={32} weight="duotone" color="#16a34a" />
+                      <CheckCircle size={32} weight="duotone" color={IconColor.success} />
                       <span className="text-sm font-medium text-green-700">已掌握</span>
                     </div>
                     <p className="text-3xl font-bold text-green-600">{statistics.mastered}</p>
@@ -771,7 +772,7 @@ export default function HistoryPage() {
 
                   <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
                     <div className="mb-2 flex items-center gap-3">
-                      <Warning size={32} weight="duotone" color="#dc2626" />
+                      <Warning size={32} weight="duotone" color={IconColor.danger} />
                       <span className="text-sm font-medium text-red-700">需复习</span>
                     </div>
                     <p className="text-3xl font-bold text-red-600">
@@ -880,7 +881,7 @@ export default function HistoryPage() {
                       className="mx-auto mb-4"
                       size={80}
                       weight="thin"
-                      color="#9ca3af"
+                      color={IconColor.muted}
                     />
                     <p className="text-lg text-gray-600">没有找到符合条件的单词</p>
                   </div>

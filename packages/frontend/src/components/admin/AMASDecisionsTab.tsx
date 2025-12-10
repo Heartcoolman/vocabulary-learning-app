@@ -255,39 +255,43 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   };
 
   if (loading && decisions.length === 0) {
-    return <div style={styles.container}>加载中...</div>;
+    return <div className="p-5">加载中...</div>;
   }
 
   if (error && decisions.length === 0) {
     return (
-      <div style={styles.container}>
-        <div style={styles.error}>{error}</div>
+      <div className="p-5">
+        <div className="rounded bg-red-50 p-3 text-red-700">{error}</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div className="p-5">
       {/* 统计面板 */}
       {statistics && (
-        <div style={styles.statsPanel}>
-          <h3 style={styles.statsTitle}>决策统计</h3>
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statLabel}>总决策数</div>
-              <div style={styles.statValue}>{statistics.totalDecisions}</div>
+        <div className="mb-5 rounded-lg bg-gray-50 p-5">
+          <h3 className="mb-4 text-lg font-bold">决策统计</h3>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-2 text-sm text-gray-500">总决策数</div>
+              <div className="text-2xl font-bold text-gray-900">{statistics.totalDecisions}</div>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statLabel}>平均置信度</div>
-              <div style={styles.statValue}>{(statistics.averageConfidence * 100).toFixed(1)}%</div>
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-2 text-sm text-gray-500">平均置信度</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {(statistics.averageConfidence * 100).toFixed(1)}%
+              </div>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statLabel}>平均奖励</div>
-              <div style={styles.statValue}>{statistics.averageReward.toFixed(3)}</div>
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-2 text-sm text-gray-500">平均奖励</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {statistics.averageReward.toFixed(3)}
+              </div>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statLabel}>决策来源</div>
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-2 text-sm text-gray-500">决策来源</div>
+              <div className="mt-1 text-xs">
                 {Object.entries(statistics.decisionSourceDistribution).map(([source, count]) => (
                   <div key={source}>
                     {source}: {count}
@@ -300,82 +304,105 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
       )}
 
       {/* 筛选栏 */}
-      <div style={styles.filterBar}>
+      <div className="mb-5 flex flex-wrap gap-3">
         <input
           type="date"
           value={filters.startDate}
           onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
           placeholder="开始日期"
-          style={styles.filterInput}
+          className="rounded border border-gray-300 px-3 py-2 text-sm"
         />
         <input
           type="date"
           value={filters.endDate}
           onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
           placeholder="结束日期"
-          style={styles.filterInput}
+          className="rounded border border-gray-300 px-3 py-2 text-sm"
         />
         <select
           value={filters.decisionSource}
           onChange={(e) => setFilters({ ...filters, decisionSource: e.target.value })}
-          style={styles.filterInput}
+          className="rounded border border-gray-300 px-3 py-2 text-sm"
         >
           <option value="">所有来源</option>
           <option value="coldstart">冷启动</option>
           <option value="ensemble">集成学习</option>
         </select>
-        <button onClick={() => loadDecisions()} style={styles.refreshButton}>
+        <button
+          onClick={() => loadDecisions()}
+          className="cursor-pointer rounded border-none bg-blue-500 px-4 py-2 text-sm text-white"
+        >
           刷新
         </button>
       </div>
 
       {/* 决策列表 */}
-      <div style={styles.tableContainer}>
-        <table style={styles.table}>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th style={styles.th}>时间</th>
-              <th style={styles.th}>来源</th>
-              <th style={styles.th}>策略</th>
-              <th style={styles.th}>置信度</th>
-              <th style={styles.th}>奖励</th>
-              <th style={styles.th}>耗时</th>
-              <th style={styles.th}>操作</th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                ���间
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                来源
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                策略
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                置信度
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                奖励
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                耗时
+              </th>
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+                操作
+              </th>
             </tr>
           </thead>
           <tbody>
             {decisions.map((d) => (
-              <tr key={d.decisionId} style={styles.tr}>
-                <td style={styles.td}>{new Date(d.timestamp).toLocaleString('zh-CN')}</td>
-                <td style={styles.td}>
+              <tr key={d.decisionId} className="border-b border-gray-100">
+                <td className="p-3 text-sm text-gray-900">
+                  {new Date(d.timestamp).toLocaleString('zh-CN')}
+                </td>
+                <td className="p-3 text-sm text-gray-900">
                   <span
-                    style={{
-                      ...styles.badge,
-                      ...(d.decisionSource === 'ensemble'
-                        ? styles.badgeEnsemble
-                        : styles.badgeColdstart),
-                    }}
+                    className={`rounded px-2 py-1 text-xs font-bold ${
+                      d.decisionSource === 'ensemble'
+                        ? 'bg-blue-50 text-blue-800'
+                        : 'bg-amber-50 text-amber-900'
+                    }`}
                   >
                     {d.decisionSource}
                   </span>
                 </td>
-                <td style={styles.td}>
+                <td className="p-3 text-sm text-gray-900">
                   {d.strategy.difficulty}, {d.strategy.batch_size}词
                 </td>
-                <td style={styles.td}>
-                  <div style={styles.progressBarContainer}>
-                    <div style={{ ...styles.progressBar, width: `${d.confidence * 100}%` }} />
+                <td className="p-3 text-sm text-gray-900">
+                  <div className="mr-2 inline-block h-2 w-20 rounded bg-gray-200">
+                    <div
+                      className="h-full rounded bg-blue-500"
+                      style={{ width: `${d.confidence * 100}%` }}
+                    />
                   </div>
-                  <span style={{ fontSize: '12px' }}>{(d.confidence * 100).toFixed(0)}%</span>
+                  <span className="text-xs">{(d.confidence * 100).toFixed(0)}%</span>
                 </td>
-                <td style={styles.td}>
+                <td className="p-3 text-sm text-gray-900">
                   {d.reward !== null && d.reward !== undefined ? d.reward.toFixed(3) : '-'}
                 </td>
-                <td style={styles.td}>{d.totalDurationMs ? `${d.totalDurationMs}ms` : '-'}</td>
-                <td style={styles.td}>
+                <td className="p-3 text-sm text-gray-900">
+                  {d.totalDurationMs ? `${d.totalDurationMs}ms` : '-'}
+                </td>
+                <td className="p-3 text-sm text-gray-900">
                   <button
                     onClick={() => handleViewDetail(d.decisionId)}
-                    style={styles.detailButton}
+                    className="cursor-pointer rounded border border-gray-300 bg-gray-100 px-3 py-1.5 text-[13px]"
                   >
                     详情
                   </button>
@@ -385,26 +412,28 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           </tbody>
         </table>
 
-        {decisions.length === 0 && <div style={styles.emptyState}>暂无决策记录</div>}
+        {decisions.length === 0 && (
+          <div className="py-10 text-center text-gray-500">暂无决策记录</div>
+        )}
       </div>
 
       {/* 分页 */}
       {pagination.totalPages > 1 && (
-        <div style={styles.pagination}>
+        <div className="mt-5 flex items-center justify-center gap-4">
           <button
             disabled={pagination.page === 1}
             onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-            style={styles.paginationButton}
+            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm"
           >
             上一页
           </button>
-          <span style={styles.paginationInfo}>
+          <span className="text-sm text-gray-500">
             第 {pagination.page} / {pagination.totalPages} 页（共 {pagination.total} 条）
           </span>
           <button
             disabled={pagination.page === pagination.totalPages}
             onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-            style={styles.paginationButton}
+            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm"
           >
             下一页
           </button>
@@ -413,23 +442,32 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
       {/* 决策详情模态框 */}
       {selectedDecisionId && (
-        <div style={styles.modalOverlay} onClick={closeDetail}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
+        <div
+          className="fixed bottom-0 left-0 right-0 top-0 z-[1000] flex items-center justify-center bg-black/50"
+          onClick={closeDetail}
+        >
+          <div
+            className="max-h-[90vh] w-[90%] max-w-[900px] overflow-auto rounded-xl bg-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 p-5">
               <h3>决策详情</h3>
-              <button onClick={closeDetail} style={styles.closeButton}>
+              <button
+                onClick={closeDetail}
+                className="cursor-pointer border-none bg-none text-[28px] leading-none text-gray-500"
+              >
                 ×
               </button>
             </div>
 
             {detailLoading ? (
-              <div style={styles.modalBody}>加载中...</div>
+              <div className="p-5">加载中...</div>
             ) : decisionDetail ? (
-              <div style={styles.modalBody}>
+              <div className="p-5">
                 {/* 基本信息 */}
-                <div style={styles.section}>
-                  <h4 style={styles.sectionTitle}>基本信息</h4>
-                  <div style={styles.infoGrid}>
+                <div className="mb-6">
+                  <h4 className="mb-3 text-base font-bold text-gray-900">基本信息</h4>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm">
                     <div>
                       <strong>决策ID:</strong> {decisionDetail.decision.decisionId}
                     </div>
@@ -460,14 +498,14 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
                 {/* 状态快照 */}
                 {decisionDetail.insight?.stateSnapshot && (
-                  <div style={styles.section}>
-                    <h4 style={styles.sectionTitle}>用户状态快照</h4>
-                    <div style={styles.stateGrid}>
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-base font-bold text-gray-900">用户状态快照</h4>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
                       {Object.entries(decisionDetail.insight.stateSnapshot).map(
                         ([key, value]: [string, StateSnapshotValue]) => (
-                          <div key={key} style={styles.stateItem}>
-                            <span style={styles.stateLabel}>{key}:</span>
-                            <span style={styles.stateValue}>
+                          <div key={key} className="rounded bg-gray-50 p-2 text-[13px]">
+                            <span className="mr-1 font-bold">{key}:</span>
+                            <span className="text-gray-500">
                               {typeof value === 'number' ? value.toFixed(2) : JSON.stringify(value)}
                             </span>
                           </div>
@@ -479,13 +517,18 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
                 {/* 流水线执行 */}
                 {decisionDetail.pipeline && decisionDetail.pipeline.length > 0 && (
-                  <div style={styles.section}>
-                    <h4 style={styles.sectionTitle}>流水线执行（六层架构）</h4>
-                    <div style={styles.pipelineContainer}>
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-base font-bold text-gray-900">
+                      流水线执行（六层架构）
+                    </h4>
+                    <div className="flex flex-col gap-3">
                       {decisionDetail.pipeline.map((stage: PipelineStage, index: number) => (
-                        <div key={index} style={styles.pipelineStage}>
-                          <div style={styles.stageHeader}>
-                            <span style={styles.stageIcon}>
+                        <div
+                          key={index}
+                          className="rounded-md border-l-4 border-blue-500 bg-gray-50 p-3"
+                        >
+                          <div className="mb-2 flex items-center gap-3">
+                            <span className="text-lg font-bold">
                               {stage.status === 'SUCCESS'
                                 ? '✓'
                                 : stage.status === 'FAILED'
@@ -494,28 +537,32 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                                     ? '⏳'
                                     : '─'}
                             </span>
-                            <span style={styles.stageName}>{stage.stageName || stage.stage}</span>
+                            <span className="flex-1 text-sm font-bold">
+                              {stage.stageName || stage.stage}
+                            </span>
                             <span
+                              className="text-xs font-bold"
                               style={{
-                                ...styles.stageStatus,
                                 color: stage.status === 'SUCCESS' ? '#22c55e' : '#ef4444',
                               }}
                             >
                               {stage.status}
                             </span>
-                            <span style={styles.stageDuration}>
+                            <span className="text-xs text-gray-500">
                               {stage.durationMs !== null && stage.durationMs !== undefined
                                 ? `${stage.durationMs}ms`
                                 : '-'}
                             </span>
                           </div>
                           {stage.outputSummary && (
-                            <div style={styles.stageSummary}>
+                            <div className="ml-[30px] text-xs text-gray-500">
                               输出: {JSON.stringify(stage.outputSummary).substring(0, 100)}...
                             </div>
                           )}
                           {stage.errorMessage && (
-                            <div style={styles.stageError}>错误: {stage.errorMessage}</div>
+                            <div className="ml-[30px] mt-1 text-xs text-red-500">
+                              错误: {stage.errorMessage}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -524,18 +571,18 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 )}
 
                 {/* 选择的动作 */}
-                <div style={styles.section}>
-                  <h4 style={styles.sectionTitle}>选择的动作</h4>
-                  <pre style={styles.jsonBlock}>
+                <div className="mb-6">
+                  <h4 className="mb-3 text-base font-bold text-gray-900">选择的动作</h4>
+                  <pre className="max-h-[300px] overflow-auto rounded bg-gray-100 p-3 text-xs">
                     {JSON.stringify(decisionDetail.decision.selectedAction, null, 2)}
                   </pre>
                 </div>
 
                 {/* 上下文信息 */}
                 {decisionDetail.context && (
-                  <div style={styles.section}>
-                    <h4 style={styles.sectionTitle}>上下文</h4>
-                    <div style={styles.infoGrid}>
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-base font-bold text-gray-900">上下文</h4>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm">
                       <div>
                         <strong>单词:</strong> {decisionDetail.context.answerRecord.wordSpelling}
                       </div>
@@ -554,287 +601,13 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 )}
               </div>
             ) : (
-              <div style={styles.modalBody}>加载失败</div>
+              <div className="p-5">加载失败</div>
             )}
           </div>
         </div>
       )}
     </div>
   );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    padding: '20px',
-  },
-  statsPanel: {
-    backgroundColor: '#f9fafb',
-    padding: '20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-  },
-  statsTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-  },
-  statCard: {
-    backgroundColor: '#fff',
-    padding: '16px',
-    borderRadius: '6px',
-    border: '1px solid #e5e7eb',
-  },
-  statLabel: {
-    fontSize: '14px',
-    color: '#6b7280',
-    marginBottom: '8px',
-  },
-  statValue: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  filterBar: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '20px',
-    flexWrap: 'wrap',
-  },
-  filterInput: {
-    padding: '8px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '14px',
-  },
-  refreshButton: {
-    padding: '8px 16px',
-    backgroundColor: '#3b82f6',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  tableContainer: {
-    overflowX: 'auto',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    backgroundColor: '#f9fafb',
-    padding: '12px',
-    textAlign: 'left',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#374151',
-    borderBottom: '2px solid #e5e7eb',
-  },
-  tr: {
-    borderBottom: '1px solid #f3f4f6',
-  },
-  td: {
-    padding: '12px',
-    fontSize: '14px',
-    color: '#111827',
-  },
-  badge: {
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-  },
-  badgeEnsemble: {
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
-  },
-  badgeColdstart: {
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
-  },
-  progressBarContainer: {
-    width: '80px',
-    height: '8px',
-    backgroundColor: '#e5e7eb',
-    borderRadius: '4px',
-    display: 'inline-block',
-    marginRight: '8px',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#3b82f6',
-    borderRadius: '4px',
-  },
-  detailButton: {
-    padding: '6px 12px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '13px',
-  },
-  emptyState: {
-    padding: '40px',
-    textAlign: 'center',
-    color: '#6b7280',
-  },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '16px',
-    marginTop: '20px',
-  },
-  paginationButton: {
-    padding: '8px 16px',
-    backgroundColor: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  paginationInfo: {
-    fontSize: '14px',
-    color: '#6b7280',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    maxWidth: '900px',
-    maxHeight: '90vh',
-    width: '90%',
-    overflow: 'auto',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #e5e7eb',
-  },
-  closeButton: {
-    fontSize: '28px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#6b7280',
-    lineHeight: 1,
-  },
-  modalBody: {
-    padding: '20px',
-  },
-  section: {
-    marginBottom: '24px',
-  },
-  sectionTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '12px',
-    color: '#111827',
-  },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '12px',
-    fontSize: '14px',
-  },
-  stateGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '8px',
-  },
-  stateItem: {
-    padding: '8px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '4px',
-    fontSize: '13px',
-  },
-  stateLabel: {
-    fontWeight: 'bold',
-    marginRight: '4px',
-  },
-  stateValue: {
-    color: '#6b7280',
-  },
-  pipelineContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  pipelineStage: {
-    padding: '12px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '6px',
-    borderLeft: '4px solid #3b82f6',
-  },
-  stageHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px',
-  },
-  stageIcon: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-  },
-  stageName: {
-    fontSize: '14px',
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  stageStatus: {
-    fontSize: '12px',
-    fontWeight: 'bold',
-  },
-  stageDuration: {
-    fontSize: '12px',
-    color: '#6b7280',
-  },
-  stageSummary: {
-    fontSize: '12px',
-    color: '#6b7280',
-    marginLeft: '30px',
-  },
-  stageError: {
-    fontSize: '12px',
-    color: '#ef4444',
-    marginLeft: '30px',
-    marginTop: '4px',
-  },
-  jsonBlock: {
-    backgroundColor: '#f3f4f6',
-    padding: '12px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    overflow: 'auto',
-    maxHeight: '300px',
-  },
-  error: {
-    padding: '12px',
-    backgroundColor: '#fee',
-    color: '#c33',
-    borderRadius: '4px',
-  },
 };
 
 export default AMASDecisionsTab;

@@ -200,7 +200,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             type="button"
             onClick={handleRemoveFile}
             disabled={disabled}
-            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="rounded-full p-2 text-gray-400 transition-all duration-200 hover:scale-105 hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
             aria-label="Remove file"
             title="删除文件"
           >

@@ -15,6 +15,9 @@ export default defineConfig({
     }),
   ],
 
+  // 确保 WASM 和模型文件正确处理
+  assetsInclude: ['**/*.wasm', '**/*.task'],
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -40,6 +43,8 @@ export default defineConfig({
   // 优化依赖预构建
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', '@phosphor-icons/react'],
+    // 排除 MediaPipe（动态加载 WASM）
+    exclude: ['@mediapipe/tasks-vision'],
   },
 
   // 构建优化配置

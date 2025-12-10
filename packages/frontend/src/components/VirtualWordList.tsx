@@ -7,6 +7,7 @@
 import { memo, useEffect, createContext, useContext, CSSProperties } from 'react';
 import { List, useListCallbackRef, RowComponentProps } from 'react-window';
 import { Star, Target, Clock, CheckCircle, Warning, ArrowClockwise } from './Icon';
+import { IconColor } from '../utils/iconColors';
 
 interface WordWithState {
   id: string;
@@ -77,7 +78,7 @@ const WordItem = memo<{
                     key={index}
                     size={16}
                     weight={index < word.masteryLevel ? 'fill' : 'regular'}
-                    color={index < word.masteryLevel ? '#f59e0b' : '#d1d5db'}
+                    color={index < word.masteryLevel ? IconColor.star : IconColor.starEmpty}
                   />
                 ))}
               </div>
@@ -87,7 +88,7 @@ const WordItem = memo<{
             <div className="flex flex-col items-center">
               <span className="mb-1 text-xs text-gray-500">得分</span>
               <div className="flex items-center gap-1">
-                <Target size={16} weight="duotone" color="#3b82f6" />
+                <Target size={16} weight="duotone" color={IconColor.target} />
                 <span className="text-lg font-bold text-gray-900">{Math.round(word.score)}</span>
               </div>
             </div>
@@ -96,7 +97,7 @@ const WordItem = memo<{
             <div className="flex flex-col items-center">
               <span className="mb-1 text-xs text-gray-500">下次复习</span>
               <div className="flex items-center gap-1">
-                <Clock size={16} weight="duotone" color="#8b5cf6" />
+                <Clock size={16} weight="duotone" color={IconColor.time} />
                 <span className="text-sm font-medium text-gray-900">{word.nextReviewDate}</span>
               </div>
             </div>

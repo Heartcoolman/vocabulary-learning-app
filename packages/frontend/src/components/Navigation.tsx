@@ -90,21 +90,24 @@ function NavigationComponent() {
   };
 
   const linkClass = (path: string) => {
-    const base = 'px-4 py-2 rounded-lg text-base font-medium transition-all duration-200';
+    const base =
+      'px-4 py-2 rounded-lg text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
       ? `${base} bg-blue-500 text-white shadow-sm`
       : `${base} text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`;
   };
 
   const mobileLinkClass = (path: string) => {
-    const base = 'block px-4 py-3 rounded-lg text-base font-medium transition-all duration-200';
+    const base =
+      'block px-4 py-3 rounded-lg text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
       ? `${base} bg-blue-500 text-white shadow-sm`
       : `${base} text-gray-700 hover:bg-gray-100`;
   };
 
   const dropdownLinkClass = (path: string) => {
-    const base = 'flex items-center gap-2 px-4 py-2 text-sm transition-colors';
+    const base =
+      'flex items-center gap-2 px-4 py-2 text-sm transition-colors duration-g3-fast ease-g3';
     return isActive(path)
       ? `${base} bg-blue-50 text-blue-600`
       : `${base} text-gray-700 hover:bg-gray-100`;

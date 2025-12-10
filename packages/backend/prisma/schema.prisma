@@ -830,3 +830,39 @@ model ObjectiveHistory {
   @@index([timestamp])
   @@map("objective_history")
 }
+
+/// 视觉疲劳记录
+model VisualFatigueRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  score       Float    // 视觉疲劳评分 [0-1]
+  fusedScore  Float    // 融合后疲劳评分
+  perclos     Float    // PERCLOS 值
+  blinkRate   Float    // 眨眼频率
+  yawnCount   Int      @default(0)
+  headPitch   Float?   // 头部俯仰角
+  headYaw     Float?   // 头部偏航角
+  confidence  Float    // 置信度
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+  @@map("visual_fatigue_records")
+}
+
+/// 用户视觉疲劳配置
+model UserVisualFatigueConfig {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  enabled              Boolean  @default(false)
+  detectionFps         Int      @default(5)
+  uploadIntervalMs     Int      @default(5000)
+  vlmAnalysisEnabled   Boolean  @default(false)
+  personalBaselineData Json?    // 个人基线数据
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_visual_fatigue_configs")
+}

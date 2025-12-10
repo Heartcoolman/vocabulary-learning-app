@@ -136,7 +136,7 @@ const HabitProfileTab: React.FC = () => {
           <p className="mb-4 text-red-600">{error || '数据加载失败'}</p>
           <button
             onClick={loadHabitProfile}
-            className="mx-auto flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="mx-auto flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             <ArrowClockwise size={16} weight="bold" />
             重试
@@ -273,7 +273,7 @@ const HabitProfileTab: React.FC = () => {
           <button
             onClick={handleSaveProfile}
             disabled={actionLoading !== null}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {actionLoading === 'save' ? (
               <ArrowClockwise size={16} weight="bold" className="animate-spin" />
@@ -286,7 +286,7 @@ const HabitProfileTab: React.FC = () => {
           <button
             onClick={handleInitProfile}
             disabled={actionLoading !== null}
-            className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {actionLoading === 'init' ? (
               <ArrowClockwise size={16} weight="bold" className="animate-spin" />

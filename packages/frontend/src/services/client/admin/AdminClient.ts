@@ -214,6 +214,38 @@ export interface AnomalyFlag {
 }
 
 /**
+ * 视觉疲劳统计数据（管理员）
+ */
+export interface VisualFatigueStats {
+  dataVolume: {
+    totalRecords: number;
+    recordsToday: number;
+    recordsThisWeek: number;
+    avgRecordsPerUser: number;
+  };
+  usage: {
+    totalUsers: number;
+    enabledUsers: number;
+    enableRate: number;
+    activeToday: number;
+  };
+  fatigue: {
+    avgVisualFatigue: number;
+    avgFusedFatigue: number;
+    highFatigueUsers: number;
+    fatigueDistribution: {
+      low: number;
+      medium: number;
+      high: number;
+    };
+  };
+  period: {
+    start: string;
+    end: string;
+  };
+}
+
+/**
  * API 响应中的 WordBook 类型（日期字段为字符串）
  */
 interface ApiWordBook {
@@ -692,9 +724,12 @@ export class AdminClient extends BaseClient {
     strategyA: number,
     strategyB: number,
   ): Promise<{
-    difference: number;
+    diff: number;
+    standardError: number;
+    confidenceInterval: [number, number];
     pValue: number;
     significant: boolean;
+    sampleSize: number;
   }> {
     return this.request(
       `/api/evaluation/causal/compare?strategyA=${strategyA}&strategyB=${strategyB}`,
@@ -890,5 +925,14 @@ export class AdminClient extends BaseClient {
     return this.request(`/api/experiments/${experimentId}`, {
       method: 'DELETE',
     });
+  }
+
+  // ==================== 视觉疲劳统计 API ====================
+
+  /**
+   * 获取视觉疲劳统计数据（管理员）
+   */
+  async getVisualFatigueStats(): Promise<VisualFatigueStats> {
+    return this.request<VisualFatigueStats>('/api/admin/visual-fatigue/stats');
   }
 }

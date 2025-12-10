@@ -24,3 +24,9 @@ export * from './admin';
 
 // Express相关（Backend专用）
 export * from './express';
+
+// 视觉疲劳检测相关
+export * from './visual-fatigue';
+
+// 智能疲劳系统相关
+export * from './intelligent-fatigue';
