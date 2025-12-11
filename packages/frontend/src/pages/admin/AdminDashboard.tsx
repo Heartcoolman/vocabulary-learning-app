@@ -43,7 +43,6 @@ export default function AdminDashboard() {
   const [isAmasLoading, setIsAmasLoading] = useState(false);
   const [amasError, setAmasError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [, setIsBatchProcessing] = useState(false); // isBatchProcessing 目前未在UI中显示，但保留setter用于状态管理
 
   // 对话框状态
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -105,33 +104,6 @@ export default function AdminDashboard() {
       });
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const handleBatchProcessEvents = async () => {
-    // 由于批量处理需要具体的事件数据源，这里展示正确的状态管理流程
-    // 实际使用时需要根据业务需求提供事件数据
-    setIsBatchProcessing(true);
-    try {
-      // 示例：如果有待处理事件，可以调用 apiClient.batchProcessEvents(events)
-      // 目前显示提示信息，因为没有具体的事件来源
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 模拟处理延迟
-      setAlertModal({
-        isOpen: true,
-        title: '功能提示',
-        message: '批量处理事件功能需要在后端实现具体的事件来源逻辑。',
-        variant: 'info',
-      });
-    } catch (err) {
-      adminLogger.error({ err }, '批量处理事件失败');
-      setAlertModal({
-        isOpen: true,
-        title: '操作失败',
-        message: err instanceof Error ? err.message : '批量处理失败',
-        variant: 'error',
-      });
-    } finally {
-      setIsBatchProcessing(false);
     }
   };
 
@@ -524,18 +496,6 @@ export default function AdminDashboard() {
                       重置状态
                     </>
                   )}
-                </button>
-                <button
-                  onClick={handleBatchProcessEvents}
-                  disabled={true}
-                  className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-400 px-4 py-2 text-white transition-all duration-200"
-                  title="功能开发中"
-                >
-                  <Lightning size={18} weight="bold" />
-                  批量处理事件
-                  <span className="ml-1 rounded bg-yellow-500 px-1.5 py-0.5 text-xs text-white">
-                    开发中
-                  </span>
                 </button>
               </div>
             </div>

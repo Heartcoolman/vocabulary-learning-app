@@ -8,6 +8,9 @@
  * - 提供类型安全的访问接口
  */
 
+import { amasLogger } from '../../logger';
+import { redisCacheService, REDIS_CACHE_KEYS } from '../../services/redis-cache.service';
+
 // ==================== 功能开关定义 ====================
 
 /**
@@ -72,7 +75,7 @@ export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
   enableCausalInference: true,
 
   // 优化层
-  enableBayesianOptimizer: true
+  enableBayesianOptimizer: true,
 };
 
 // ==================== 环境变量映射 ====================
@@ -91,7 +94,7 @@ const ENV_VAR_MAP: Record<keyof AMASFeatureFlags, string> = {
   enableUserParamsManager: 'AMAS_FEATURE_USER_PARAMS_MANAGER',
   enableDelayedRewardAggregator: 'AMAS_FEATURE_DELAYED_REWARD_AGGREGATOR',
   enableCausalInference: 'AMAS_FEATURE_CAUSAL_INFERENCE',
-  enableBayesianOptimizer: 'AMAS_FEATURE_BAYESIAN_OPTIMIZER'
+  enableBayesianOptimizer: 'AMAS_FEATURE_BAYESIAN_OPTIMIZER',
 };
 
 // ==================== 运行时配置 ====================
@@ -137,15 +140,13 @@ function loadFromEnvironment(): Partial<AMASFeatureFlags> {
  * 初始化功能开关
  * 合并默认配置和环境变量覆盖
  */
-export function initializeFeatureFlags(
-  overrides?: Partial<AMASFeatureFlags>
-): AMASFeatureFlags {
+export function initializeFeatureFlags(overrides?: Partial<AMASFeatureFlags>): AMASFeatureFlags {
   const envOverrides = loadFromEnvironment();
 
   currentFlags = {
     ...DEFAULT_FEATURE_FLAGS,
     ...envOverrides,
-    ...overrides
+    ...overrides,
   };
 
   return currentFlags;
@@ -167,24 +168,91 @@ export function isFeatureEnabled(feature: keyof AMASFeatureFlags): boolean {
   return currentFlags[feature];
 }
 
+// 功能开关变更回调（用于通知引擎清空缓存）
+type FeatureFlagsChangeCallback = () => void;
+const changeCallbacks: FeatureFlagsChangeCallback[] = [];
+
+/**
+ * 注册功能开关变更回调
+ */
+export function onFeatureFlagsChange(callback: FeatureFlagsChangeCallback): void {
+  changeCallbacks.push(callback);
+}
+
+/**
+ * 触发变更回调
+ */
+function notifyChange(): void {
+  for (const cb of changeCallbacks) {
+    try {
+      cb();
+    } catch (e) {
+      amasLogger.error({ err: e }, 'Feature flags change callback error');
+    }
+  }
+}
+
 /**
  * 更新功能开关（运行时动态调整）
+ * 同时清除相关的 Redis 缓存，确保配置变更立即生效
  */
-export function updateFeatureFlags(
-  updates: Partial<AMASFeatureFlags>
-): AMASFeatureFlags {
+export async function updateFeatureFlags(
+  updates: Partial<AMASFeatureFlags>,
+): Promise<AMASFeatureFlags> {
   currentFlags = {
     ...currentFlags,
-    ...updates
+    ...updates,
   };
+
+  // 清除 Redis 中的用户状态和模型缓存
+  // 确保配置变更后不会使用过期的缓存数据
+  try {
+    const deletedStateCount = await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_STATE);
+    const deletedModelCount = await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_MODEL);
+    amasLogger.info(
+      {
+        updates,
+        deletedStateCount,
+        deletedModelCount,
+      },
+      '[FeatureFlags] 功能开关已更新，Redis 缓存已清除',
+    );
+  } catch (error) {
+    amasLogger.warn(
+      {
+        updates,
+        error: (error as Error).message,
+      },
+      '[FeatureFlags] 清除 Redis 缓存失败，配置变更可能延迟生效',
+    );
+  }
+
+  notifyChange();
   return currentFlags;
 }
 
 /**
  * 重置为默认配置
+ * 同时清除相关的 Redis 缓存
  */
-export function resetFeatureFlags(): AMASFeatureFlags {
+export async function resetFeatureFlags(): Promise<AMASFeatureFlags> {
   currentFlags = { ...DEFAULT_FEATURE_FLAGS };
+
+  // 清除 Redis 缓存
+  try {
+    await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_STATE);
+    await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_MODEL);
+    amasLogger.info('[FeatureFlags] 功能开关已重置，Redis 缓存已清除');
+  } catch (error) {
+    amasLogger.warn(
+      {
+        error: (error as Error).message,
+      },
+      '[FeatureFlags] 重置时清除 Redis 缓存失败',
+    );
+  }
+
+  notifyChange();
   return currentFlags;
 }
 
@@ -238,7 +306,7 @@ export function getEnsembleLearnerFlags(): {
   return {
     heuristic: currentFlags.enableHeuristicBaseline,
     thompson: currentFlags.enableThompsonSampling,
-    actr: currentFlags.enableACTRMemory
+    actr: currentFlags.enableACTRMemory,
   };
 }
 
@@ -246,20 +314,14 @@ export function getEnsembleLearnerFlags(): {
  * 检查是否有任何评估层模块启用
  */
 export function hasEvaluationModulesEnabled(): boolean {
-  return (
-    currentFlags.enableDelayedRewardAggregator ||
-    currentFlags.enableCausalInference
-  );
+  return currentFlags.enableDelayedRewardAggregator || currentFlags.enableCausalInference;
 }
 
 /**
  * 检查是否有任何高级优化模块启用
  */
 export function hasAdvancedOptimizationEnabled(): boolean {
-  return (
-    currentFlags.enableBayesianOptimizer ||
-    currentFlags.enableCausalInference
-  );
+  return currentFlags.enableBayesianOptimizer || currentFlags.enableCausalInference;
 }
 
 // ==================== 调试与诊断 ====================
@@ -283,7 +345,7 @@ export function getFeatureFlagsSummary(): string {
   return [
     `AMAS Feature Flags:`,
     `  Enabled (${enabled.length}): ${enabled.join(', ') || 'none'}`,
-    `  Disabled (${disabled.length}): ${disabled.join(', ') || 'none'}`
+    `  Disabled (${disabled.length}): ${disabled.join(', ') || 'none'}`,
   ].join('\n');
 }
 

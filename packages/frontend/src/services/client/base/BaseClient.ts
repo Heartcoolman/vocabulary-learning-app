@@ -32,6 +32,29 @@ export class ApiError extends Error {
 /** 默认请求超时时间（毫秒） */
 const DEFAULT_TIMEOUT = 30000;
 
+/** CSRF Cookie 名称 */
+const CSRF_COOKIE_NAME = 'csrf_token';
+
+/** CSRF Header 名称 */
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+
+/** 需要 CSRF Token 的 HTTP 方法 */
+const CSRF_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+/**
+ * 从 Cookie 中获取 CSRF Token
+ */
+function getCsrfTokenFromCookie(): string | null {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === CSRF_COOKIE_NAME && value) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
+
 /**
  * BaseClient - 所有API客户端的基类
  *
@@ -119,6 +142,15 @@ export abstract class BaseClient {
     const token = this.tokenManager.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 对于状态修改请求（POST, PUT, DELETE, PATCH），添加 CSRF Token
+    const method = (options.method || 'GET').toUpperCase();
+    if (CSRF_METHODS.includes(method)) {
+      const csrfToken = getCsrfTokenFromCookie();
+      if (csrfToken) {
+        headers[CSRF_HEADER_NAME] = csrfToken;
+      }
     }
 
     // 创建 AbortController 用于超时控制

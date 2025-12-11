@@ -5,9 +5,11 @@
  * - 数据验证和校准
  * - 用户档案管理
  * - 历史记录和趋势分析
+ * - 个性化阈值学习
  */
 
 import type { VisualFatigueInput, PersonalBaseline, ColdStartBaselineType } from '@danci/shared';
+import { ThresholdLearner, type ThresholdObservation } from './threshold-learner';
 
 /**
  * 视觉疲劳处理配置
@@ -46,6 +48,16 @@ export interface ProcessedVisualFatigue {
     yawnCount: number;
     headPitch: number;
     headYaw: number;
+    // 扩展指标
+    eyeAspectRatio?: number;
+    avgBlinkDuration?: number;
+    headRoll?: number;
+    headStability?: number;
+    squintIntensity?: number;
+    expressionFatigueScore?: number;
+    gazeOffScreenRatio?: number;
+    browDownIntensity?: number;
+    mouthOpenRatio?: number;
   };
   /** 置信度 [0-1] */
   confidence: number;
@@ -95,9 +107,11 @@ export class VisualFatigueProcessor {
   private profiles: Map<string, UserVisualProfile> = new Map();
   private history: Map<string, HistoryPoint[]> = new Map();
   private lastData: Map<string, ProcessedVisualFatigue> = new Map();
+  private thresholdLearner: ThresholdLearner;
 
   constructor(config: Partial<VisualFatigueProcessorConfig> = {}) {
     this.config = { ...DEFAULT_VISUAL_PROCESSOR_CONFIG, ...config };
+    this.thresholdLearner = new ThresholdLearner();
   }
 
   /**
@@ -132,6 +146,16 @@ export class VisualFatigueProcessor {
         yawnCount: input.yawnCount,
         headPitch: input.headPitch ?? 0,
         headYaw: input.headYaw ?? 0,
+        // 扩展指标：直接传递前端上报的真实数据
+        eyeAspectRatio: input.eyeAspectRatio,
+        avgBlinkDuration: input.avgBlinkDuration,
+        headRoll: input.headRoll,
+        headStability: input.headStability,
+        squintIntensity: input.squintIntensity,
+        expressionFatigueScore: input.expressionFatigueScore,
+        gazeOffScreenRatio: input.gazeOffScreenRatio,
+        browDownIntensity: input.browDownIntensity,
+        mouthOpenRatio: input.mouthOpenRatio,
       },
       confidence: input.confidence * freshness,
       freshness,
@@ -265,6 +289,53 @@ export class VisualFatigueProcessor {
     this.profiles.delete(userId);
     this.history.delete(userId);
     this.lastData.delete(userId);
+    this.thresholdLearner.resetUser(userId);
+  }
+
+  /**
+   * 获取用户的个性化阈值
+   */
+  getPersonalizedThresholds(userId: string) {
+    return this.thresholdLearner.getThresholds(userId);
+  }
+
+  /**
+   * 记录行为观察用于阈值学习
+   *
+   * @param userId 用户ID
+   * @param behaviorMetrics 行为指标
+   */
+  recordBehaviorObservation(
+    userId: string,
+    behaviorMetrics: {
+      errorRate: number;
+      responseTimeIncrease: number;
+      fatigueScore: number;
+    },
+  ): void {
+    const visualData = this.lastData.get(userId);
+    if (!visualData || !visualData.isValid) {
+      return;
+    }
+
+    const observation: ThresholdObservation = {
+      visual: {
+        perclos: visualData.metrics.perclos,
+        blinkRate: visualData.metrics.blinkRate,
+        fatigueScore: visualData.score,
+      },
+      behavior: behaviorMetrics,
+      timestamp: Date.now(),
+    };
+
+    this.thresholdLearner.observe(userId, observation);
+  }
+
+  /**
+   * 获取阈值学习器（用于高级访问）
+   */
+  getThresholdLearner(): ThresholdLearner {
+    return this.thresholdLearner;
   }
 
   /**
@@ -323,8 +394,9 @@ export class VisualFatigueProcessor {
     // 基于个人基线调整 PERCLOS 阈值影响
     const baseline = profile.baseline;
     // 计算 EAR 阈值：mean - 1.5 * std
-    const earThreshold = baseline.ear.mean - baseline.ear.std * 1.5;
-    const perclosRatio = input.perclos / Math.max(0.01, earThreshold);
+    // 使用 0.05 作为下限，防止 earThreshold 为负数或过小导致 perclosRatio 异常放大
+    const earThreshold = Math.max(0.05, baseline.ear.mean - baseline.ear.std * 1.5);
+    const perclosRatio = input.perclos / earThreshold;
 
     // 综合调整
     const adjustmentFactor = Math.min(1.5, Math.max(0.5, perclosRatio));

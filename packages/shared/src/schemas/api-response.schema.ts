@@ -123,13 +123,23 @@ export const WordBookListResponseSchema = z.array(WordBookApiSchema);
 
 /**
  * 学习进度 Schema
+ * 注意：correctRate 可能是 0-1（小数）或 0-100（百分比），取决于 API
+ * weeklyTrend 在 getTodayWords 中不返回，仅在 getStudyProgress 中返回
  */
 export const StudyProgressSchema = z.object({
   todayStudied: z.number().int().nonnegative(),
   todayTarget: z.number().int().nonnegative(),
   totalStudied: z.number().int().nonnegative(),
-  correctRate: z.number().min(0).max(1),
-  weeklyTrend: z.array(z.number()),
+  correctRate: z.number().min(0).max(100), // 支持 0-100 百分比格式
+  weeklyTrend: z.array(z.number()).optional(), // getTodayWords 不返回此字段
+});
+
+/**
+ * 今日学习策略 Schema（AMAS 返回的选词策略）
+ */
+export const TodayWordsStrategySchema = z.object({
+  difficulty: z.enum(['easy', 'mid', 'hard']),
+  newRatio: z.number().min(0).max(1),
 });
 
 /**
@@ -138,6 +148,7 @@ export const StudyProgressSchema = z.object({
 export const TodayWordsResponseSchema = z.object({
   words: z.array(WordApiSchema),
   progress: StudyProgressSchema,
+  strategy: TodayWordsStrategySchema.optional(), // AMAS 策略信息
 });
 
 /**
@@ -199,6 +210,7 @@ export type UserStatisticsType = z.infer<typeof UserStatisticsSchema>;
 export type WordApiType = z.infer<typeof WordApiSchema>;
 export type WordBookApiType = z.infer<typeof WordBookApiSchema>;
 export type StudyProgressType = z.infer<typeof StudyProgressSchema>;
+export type TodayWordsStrategyType = z.infer<typeof TodayWordsStrategySchema>;
 export type TodayWordsResponseType = z.infer<typeof TodayWordsResponseSchema>;
 export type StudyConfigApiType = z.infer<typeof StudyConfigApiSchema>;
 export type AnswerRecordApiType = z.infer<typeof AnswerRecordApiSchema>;

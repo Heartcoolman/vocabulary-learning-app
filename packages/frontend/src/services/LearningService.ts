@@ -135,7 +135,7 @@ class LearningService {
         excellent: 3000,
         good: 5000,
         average: 10000,
-        slow: 10000,
+        slow: 15000,
       },
       newWordRatio: {
         default: 0.3,
@@ -334,8 +334,11 @@ class LearningService {
         await StorageService.saveWordLearningState(result.wordState);
         await StorageService.saveWordScore(result.wordScore);
 
-        // 更新答题记录的掌握程度信息
-        record.masteryLevelBefore = result.wordState.masteryLevel - result.masteryLevelChange;
+        // 更新答题记录的掌握程度信息（添加边界检查防止负数）
+        record.masteryLevelBefore = Math.max(
+          0,
+          result.wordState.masteryLevel - result.masteryLevelChange,
+        );
         record.masteryLevelAfter = result.wordState.masteryLevel;
 
         // 准备反馈信息

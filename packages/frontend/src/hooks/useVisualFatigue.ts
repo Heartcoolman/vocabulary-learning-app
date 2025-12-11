@@ -110,6 +110,8 @@ export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisu
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const reportTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const metricsBufferRef = useRef<VisualFatigueMetrics[]>([]);
+  // 用于在 cleanup effect 中访问最新的 stop 函数，避免依赖数组问题
+  const stopRef = useRef<() => void>(() => {});
 
   /**
    * 获取或创建检测器
@@ -288,6 +290,11 @@ export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisu
         }
         reportTimerRef.current = setInterval(reportMetrics, reportIntervalMs);
 
+        // 同步启用状态到后端（用于统计启用率）
+        visualFatigueClient.updateConfig({ enabled: true }).catch((err) => {
+          console.warn('[useVisualFatigue] Failed to sync enabled state:', err);
+        });
+
         return true;
       } catch (error) {
         const err = error instanceof Error ? error : new Error('未知错误');
@@ -337,7 +344,15 @@ export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisu
 
     setEnabled(false);
     videoElementRef.current = null;
+
+    // 同步关闭状态到后端
+    visualFatigueClient.updateConfig({ enabled: false }).catch((err) => {
+      console.warn('[useVisualFatigue] Failed to sync disabled state:', err);
+    });
   }, [updateDetectorState, setEnabled]);
+
+  // 保持 stopRef 指向最新的 stop 函数
+  stopRef.current = stop;
 
   /**
    * 开始校准
@@ -402,16 +417,26 @@ export function useVisualFatigue(options: UseVisualFatigueOptions = {}): UseVisu
     }
   }, [autoStart, enabled, detectorState.isDetecting, start]);
 
-  // 清理
+  // 清理 - 组件卸载时停止检测并释放资源
+  // 使用 stopRef 避免 stop 函数变化导致 effect 重新执行
   useEffect(() => {
     return () => {
-      stop();
+      // 清除上报定时器
+      if (reportTimerRef.current) {
+        clearInterval(reportTimerRef.current);
+        reportTimerRef.current = null;
+      }
+
+      // 调用最新的 stop 函数
+      stopRef.current();
+
+      // 释放检测器资源
       if (detectorRef.current) {
         detectorRef.current.dispose();
         detectorRef.current = null;
       }
     };
-  }, [stop]);
+  }, []); // 空依赖数组，只在组件卸载时执行
 
   // 更新 FPS
   useEffect(() => {

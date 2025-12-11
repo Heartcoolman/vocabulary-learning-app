@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import ApiClient from '../../services/client';
 import type { UserState } from '../../types/amas';
 
@@ -22,11 +23,8 @@ export function useAmasState() {
     queryFn: async () => {
       return await ApiClient.getAmasState();
     },
-    // AMAS状态实时性配置
-    staleTime: 30 * 1000, // 30秒
-    gcTime: 5 * 60 * 1000, // 5分钟
-    refetchOnWindowFocus: true, // 窗口获得焦点时重新获取
-    retry: 2, // 失败重试2次
+    // AMAS状态实时性配置 - 使用 DATA_CACHE_CONFIG.amasState 预设
+    ...DATA_CACHE_CONFIG.amasState,
   });
 }
 
@@ -41,8 +39,8 @@ export function useAmasStrategy() {
     queryFn: async () => {
       return await ApiClient.getAmasStrategy();
     },
-    staleTime: 60 * 1000, // 1分钟
-    gcTime: 10 * 60 * 1000, // 10分钟
+    staleTime: CACHE_TIME.SHORT, // 1分钟
+    gcTime: GC_TIME.MEDIUM, // 10分钟
     retry: 2,
   });
 }
@@ -58,8 +56,8 @@ export function useAmasColdStartPhase() {
     queryFn: async () => {
       return await ApiClient.getAmasColdStartPhase();
     },
-    staleTime: 2 * 60 * 1000, // 2分钟
-    gcTime: 15 * 60 * 1000, // 15分钟
+    staleTime: CACHE_TIME.MEDIUM_SHORT, // 2分钟
+    gcTime: GC_TIME.LONG, // 15分钟
     retry: 2,
   });
 }
@@ -129,7 +127,7 @@ export function usePrefetchAmasState() {
       queryFn: async () => {
         return await ApiClient.getAmasState();
       },
-      staleTime: 30 * 1000,
+      staleTime: CACHE_TIME.REALTIME,
     });
   };
 

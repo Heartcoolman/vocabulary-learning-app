@@ -6,11 +6,12 @@
  * - 获取今日学习单词
  * - 获取学习进度
  *
- * 配置了1小时的长缓存时间，因为配置不经常变化
+ * 使用 DATA_CACHE_CONFIG 中的预设配置
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import apiClient from '../../services/client';
 import type { StudyConfig } from '../../types/models';
 
@@ -50,9 +51,8 @@ export interface StudyProgressResponse {
  * 获取用户学习配置
  *
  * 特点：
- * - 1小时的长缓存时间（配置不经常变化）
- * - 5分钟的数据保鲜时间
- * - 启用后台更新
+ * - 使用 DATA_CACHE_CONFIG.studyConfig 预设配置（静态数据）
+ * - 配置数据不经常变化
  */
 export function useStudyConfig() {
   return useQuery<StudyConfig>({
@@ -60,10 +60,7 @@ export function useStudyConfig() {
     queryFn: async () => {
       return await apiClient.getStudyConfig();
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 60, // 1小时（长缓存）
-    refetchOnWindowFocus: false, // 配置不需要频繁重新获取
-    refetchOnReconnect: false,
+    ...DATA_CACHE_CONFIG.studyConfig,
   });
 }
 
@@ -94,8 +91,8 @@ export function useTodayWords(enabled = true) {
         progress: response.progress,
       };
     },
-    staleTime: 1000 * 30, // 30秒
-    gcTime: 1000 * 60 * 5, // 5分钟
+    staleTime: CACHE_TIME.REALTIME, // 30秒
+    gcTime: GC_TIME.SHORT, // 5分钟
     enabled,
   });
 }
@@ -104,8 +101,8 @@ export function useTodayWords(enabled = true) {
  * 获取学习进度
  *
  * 特点：
- * - 较短的缓存时间，因为进度会随着学习实时变化
- * - 启用后台更新
+ * - 使用 DATA_CACHE_CONFIG.studyProgress 预设配置（实时数据）
+ * - 进度会随着学习实时变化
  *
  * @param enabled - 是否启用查询，默认true
  */
@@ -115,9 +112,7 @@ export function useStudyProgress(enabled = true) {
     queryFn: async () => {
       return await apiClient.getStudyProgress();
     },
-    staleTime: 1000 * 30, // 30秒
-    gcTime: 1000 * 60 * 5, // 5分钟
-    refetchOnMount: true, // 进度数据在组件挂载时重新获取
+    ...DATA_CACHE_CONFIG.studyProgress,
     enabled,
   });
 }

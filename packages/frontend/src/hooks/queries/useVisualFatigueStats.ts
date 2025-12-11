@@ -6,6 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS, REFETCH_INTERVALS } from '../../lib/cacheConfig';
 import { adminClient, type VisualFatigueStats } from '../../services/client';
 
 /**
@@ -35,10 +36,9 @@ export function useVisualFatigueStats(enabled = true) {
     queryFn: async () => {
       return await adminClient.getVisualFatigueStats();
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 10, // 10分钟
+    ...QUERY_PRESETS.admin,
     enabled,
     retry: false, // 统计数据失败时不重试
-    refetchOnWindowFocus: false, // 不在窗口获得焦点时重新获取
+    refetchInterval: REFETCH_INTERVALS.REALTIME, // 每 30 秒自动刷新
   });
 }

@@ -9,8 +9,23 @@ import {
   HIGH_FATIGUE,
   CRITICAL_FATIGUE,
   LOW_MOTIVATION,
-  CRITICAL_MOTIVATION
+  CRITICAL_MOTIVATION,
 } from '../config/action-space';
+
+// ==================== 融合疲劳阈值 ====================
+
+/** 高融合疲劳阈值 */
+export const HIGH_FUSED_FATIGUE = 0.6;
+/** 极高融合疲劳阈值 */
+export const CRITICAL_FUSED_FATIGUE = 0.75;
+/** 高视觉疲劳阈值 */
+export const HIGH_VISUAL_FATIGUE = 0.7;
+/** 中度视觉疲劳阈值 */
+export const MODERATE_VISUAL_FATIGUE = 0.5;
+/** 视觉置信度阈值（低于此值不应用视觉保护） */
+export const MIN_VISUAL_CONFIDENCE = 0.6;
+/** 疲劳趋势上升阈值 */
+export const FATIGUE_TREND_THRESHOLD = 0.1;
 
 // ==================== 安全约束函数 ====================
 
@@ -21,14 +36,18 @@ import {
  * @param params 原始策略参数
  * @returns 约束后的策略参数
  */
-export function applyGuardrails(
-  state: UserState,
-  params: StrategyParams
-): StrategyParams {
+export function applyGuardrails(state: UserState, params: StrategyParams): StrategyParams {
   let result = { ...params };
 
-  // 应用各项保护
-  result = applyFatigueProtection(state, result);
+  // 疲劳保护：优先使用融合疲劳，否则回退到行为疲劳
+  // 这避免了两套保护机制的冲突
+  if (state.fusedFatigue !== undefined) {
+    result = applyFusedFatigueProtection(state, result);
+  } else {
+    result = applyFatigueProtection(state, result);
+  }
+
+  // 其他保护
   result = applyMotivationProtection(state, result);
   result = applyAttentionProtection(state, result);
   result = applyTrendProtection(state, result);
@@ -37,12 +56,9 @@ export function applyGuardrails(
 }
 
 /**
- * 疲劳度保护
+ * 疲劳度保护（基于行为疲劳 F）
  */
-export function applyFatigueProtection(
-  state: UserState,
-  params: StrategyParams
-): StrategyParams {
+export function applyFatigueProtection(state: UserState, params: StrategyParams): StrategyParams {
   const result = { ...params };
 
   // 高疲劳保护
@@ -64,11 +80,81 @@ export function applyFatigueProtection(
 }
 
 /**
+ * 融合疲劳保护（基于融合疲劳度 fusedFatigue）
+ *
+ * 使用融合后的疲劳度进行保护决策，而非双阈值判断
+ * 这避免了视觉/行为疲劳冲突时的不一致保护
+ */
+export function applyFusedFatigueProtection(
+  state: UserState,
+  params: StrategyParams,
+): StrategyParams {
+  const result = { ...params };
+
+  // 如果没有融合疲劳数据，跳过此保护
+  if (state.fusedFatigue === undefined) {
+    return result;
+  }
+
+  const fusedFatigue = state.fusedFatigue;
+
+  // 中度融合疲劳保护 (0.5 - 0.6)
+  if (fusedFatigue > 0.5 && fusedFatigue <= HIGH_FUSED_FATIGUE) {
+    result.new_ratio = Math.min(result.new_ratio, 0.25);
+    result.batch_size = Math.min(result.batch_size, 10);
+  }
+
+  // 高融合疲劳保护 (0.6 - 0.75)
+  if (fusedFatigue > HIGH_FUSED_FATIGUE && fusedFatigue <= CRITICAL_FUSED_FATIGUE) {
+    result.interval_scale = Math.max(result.interval_scale, 1.1);
+    result.new_ratio = Math.min(result.new_ratio, 0.2);
+    result.batch_size = Math.min(result.batch_size, 8);
+    result.hint_level = Math.max(result.hint_level, 1);
+  }
+
+  // 极高融合疲劳强制保护 (> 0.75)
+  if (fusedFatigue > CRITICAL_FUSED_FATIGUE) {
+    result.interval_scale = Math.max(result.interval_scale, 1.2);
+    result.new_ratio = Math.min(result.new_ratio, 0.15);
+    result.difficulty = 'easy';
+    result.batch_size = Math.min(result.batch_size, 5);
+    result.hint_level = Math.max(result.hint_level, 1);
+  }
+
+  // 视觉疲劳保护（需要满足置信度门控）
+  if (state.visualFatigue && state.visualFatigue.confidence >= MIN_VISUAL_CONFIDENCE) {
+    // 高视觉疲劳保护 (score > 0.7)
+    // 按计划: interval_scale ≥ 1.2, new_ratio ≤ 0.15, difficulty = easy, batch_size ≤ 5, hint_level ≥ 1
+    if (state.visualFatigue.score > HIGH_VISUAL_FATIGUE) {
+      result.interval_scale = Math.max(result.interval_scale, 1.2);
+      result.new_ratio = Math.min(result.new_ratio, 0.15);
+      result.difficulty = 'easy';
+      result.batch_size = Math.min(result.batch_size, 5);
+      result.hint_level = Math.max(result.hint_level, 1);
+    }
+    // 中度视觉疲劳保护 (score > 0.5)
+    // 按计划: new_ratio ≤ 0.25, batch_size ≤ 8
+    else if (state.visualFatigue.score > MODERATE_VISUAL_FATIGUE) {
+      result.new_ratio = Math.min(result.new_ratio, 0.25);
+      result.batch_size = Math.min(result.batch_size, 8);
+    }
+
+    // 疲劳趋势上升保护 (trend > 0.1)
+    // 按计划: interval_scale *= 1.1
+    if (state.visualFatigue.trend > FATIGUE_TREND_THRESHOLD) {
+      result.interval_scale = result.interval_scale * 1.1;
+    }
+  }
+
+  return result;
+}
+
+/**
  * 动机保护
  */
 export function applyMotivationProtection(
   state: UserState,
-  params: StrategyParams
+  params: StrategyParams,
 ): StrategyParams {
   const result = { ...params };
 
@@ -92,10 +178,7 @@ export function applyMotivationProtection(
 /**
  * 注意力保护
  */
-export function applyAttentionProtection(
-  state: UserState,
-  params: StrategyParams
-): StrategyParams {
+export function applyAttentionProtection(state: UserState, params: StrategyParams): StrategyParams {
   const result = { ...params };
 
   // 低注意力保护
@@ -114,10 +197,7 @@ export function applyAttentionProtection(
  * 注意: state.T 可能为 undefined（如旧版状态数据或首次使用）
  * 当 T 未定义时，不应用任何趋势保护
  */
-export function applyTrendProtection(
-  state: UserState,
-  params: StrategyParams
-): StrategyParams {
+export function applyTrendProtection(state: UserState, params: StrategyParams): StrategyParams {
   const result = { ...params };
 
   // 保护: state.T 为 undefined 时跳过趋势保护
@@ -130,6 +210,8 @@ export function applyTrendProtection(
     result.difficulty = 'easy';
     // 趋势下降时应该缩短复习间隔（更频繁复习），而不是延长
     result.interval_scale = Math.min(result.interval_scale, 0.7);
+    // 表现下降时提供更多提示帮助用户恢复信心
+    result.hint_level = Math.max(result.hint_level, 1);
   }
 
   if (state.T === 'stuck') {
@@ -143,15 +225,25 @@ export function applyTrendProtection(
 
 /**
  * 检查是否需要休息提示
+ * 优先使用融合疲劳度，否则使用行为疲劳度
  */
 export function shouldSuggestBreak(state: UserState): boolean {
+  // 优先检查融合疲劳
+  if (state.fusedFatigue !== undefined) {
+    return state.fusedFatigue > HIGH_FUSED_FATIGUE;
+  }
   return state.F > HIGH_FATIGUE;
 }
 
 /**
  * 检查是否需要强制休息
+ * 优先使用融合疲劳度，否则使用行为疲劳度
  */
 export function shouldForceBreak(state: UserState): boolean {
+  // 优先检查融合疲劳
+  if (state.fusedFatigue !== undefined) {
+    return state.fusedFatigue > CRITICAL_FUSED_FATIGUE;
+  }
   return state.F > CRITICAL_FATIGUE;
 }
 
@@ -159,11 +251,12 @@ export function shouldForceBreak(state: UserState): boolean {
  * 检查是否处于危险状态
  */
 export function isInDangerZone(state: UserState): boolean {
-  return (
-    state.F > CRITICAL_FATIGUE ||
-    state.M < CRITICAL_MOTIVATION ||
-    state.A < MIN_ATTENTION
-  );
+  const isFatigueHigh =
+    state.fusedFatigue !== undefined
+      ? state.fusedFatigue > CRITICAL_FUSED_FATIGUE
+      : state.F > CRITICAL_FATIGUE;
+
+  return isFatigueHigh || state.M < CRITICAL_MOTIVATION || state.A < MIN_ATTENTION;
 }
 
 /**
@@ -173,6 +266,19 @@ export function getActiveProtections(state: UserState): string[] {
   const protections: string[] = [];
 
   if (state.F > HIGH_FATIGUE) protections.push('fatigue');
+  if (state.fusedFatigue !== undefined && state.fusedFatigue > HIGH_FUSED_FATIGUE) {
+    protections.push('fused_fatigue');
+  }
+  if (state.visualFatigue && state.visualFatigue.confidence >= MIN_VISUAL_CONFIDENCE) {
+    if (state.visualFatigue.score > HIGH_VISUAL_FATIGUE) {
+      protections.push('visual_fatigue_high');
+    } else if (state.visualFatigue.score > MODERATE_VISUAL_FATIGUE) {
+      protections.push('visual_fatigue_moderate');
+    }
+    if (state.visualFatigue.trend > FATIGUE_TREND_THRESHOLD) {
+      protections.push('visual_fatigue_trend');
+    }
+  }
   if (state.M < LOW_MOTIVATION) protections.push('motivation');
   if (state.A < MIN_ATTENTION) protections.push('attention');
   // 保护: state.T 可能为 undefined

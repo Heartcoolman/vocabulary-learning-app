@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { learningClient, wordBookClient } from '../../services/client';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS, GC_TIME } from '../../lib/cacheConfig';
 import type { AnswerRecord } from '../../types/models';
 import type { StudyProgress } from '../../services/client/wordbook/WordBookClient';
 
@@ -135,8 +136,8 @@ export function useLearningRecords(
     queryFn: async () => {
       return await learningClient.getRecords(options);
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 30, // 30分钟
+    staleTime: QUERY_PRESETS.frequent.staleTime,
+    gcTime: GC_TIME.VERY_LONG,
     ...queryOptions,
   });
 }
@@ -162,8 +163,8 @@ export function useProgress(
     queryFn: async () => {
       return await wordBookClient.getStudyProgress();
     },
-    staleTime: 1000 * 60, // 1分钟
-    refetchInterval: 1000 * 60, // 每分钟自动刷新
+    staleTime: QUERY_PRESETS.frequent.staleTime,
+    refetchInterval: QUERY_PRESETS.frequent.staleTime,
     refetchOnWindowFocus: true,
     ...queryOptions,
   });
@@ -374,7 +375,7 @@ export async function prefetchLearningRecords(
     queryFn: async () => {
       return await learningClient.getRecords(options);
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: QUERY_PRESETS.frequent.staleTime,
   });
 }
 
@@ -387,7 +388,7 @@ export async function prefetchProgress(queryClient: ReturnType<typeof useQueryCl
     queryFn: async () => {
       return await wordBookClient.getStudyProgress();
     },
-    staleTime: 1000 * 60,
+    staleTime: QUERY_PRESETS.frequent.staleTime,
   });
 }
 

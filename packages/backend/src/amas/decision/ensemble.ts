@@ -214,6 +214,9 @@ export class EnsembleLearningFramework implements BaseLearner<
   private recentRewards: number[] = [];
   private readonly REWARD_HISTORY_SIZE = 10;
 
+  /** 上次缺席的成员（用于权重恢复） */
+  private lastAbsentMembers: Set<EnsembleMember> = new Set();
+
   // ==================== BaseLearner接口实现 ====================
 
   /**
@@ -387,6 +390,7 @@ export class EnsembleLearningFramework implements BaseLearner<
     this.lastVotes = undefined;
     this.lastConfidence = undefined;
     this.recentRewards = [];
+    this.lastAbsentMembers = new Set();
 
     this.coldStart.reset();
     this.linucb.reset();
@@ -698,6 +702,7 @@ export class EnsembleLearningFramework implements BaseLearner<
     }
 
     const updated: Partial<EnsembleWeights> = {};
+    const currentAbsentMembers = new Set<EnsembleMember>();
 
     for (const member of members) {
       const decision = this.lastDecisions[member];
@@ -712,7 +717,19 @@ export class EnsembleLearningFramework implements BaseLearner<
         const ABSENCE_MIN = MIN_WEIGHT * 2; // 下限提高到MIN_WEIGHT*2，保留恢复空间
         const decayed = currentWeight * ABSENCE_DECAY;
         updated[member] = Math.max(ABSENCE_MIN, decayed);
+        currentAbsentMembers.add(member);
         continue;
+      }
+
+      // 检查成员是否从缺席状态恢复
+      const wasAbsent = this.lastAbsentMembers.has(member);
+      if (wasAbsent) {
+        // 成员从缺席恢复，给予权重恢复奖励
+        const RECOVERY_BOOST = 1.05;
+        const boostedWeight = Math.min(0.35, currentWeight * RECOVERY_BOOST);
+        // 使用恢复后的权重作为本次更新的基准
+        updated[member] = boostedWeight;
+        // 后续正常更新会基于这个值继续调整
       }
 
       // 使用归一化权重（与aggregateDecisions保持一致）
@@ -733,6 +750,9 @@ export class EnsembleLearningFramework implements BaseLearner<
 
     // 归一化
     this.weights = this.normalizeWeights(updated);
+
+    // 更新缺席成员记录（用于下次恢复检测）
+    this.lastAbsentMembers = currentAbsentMembers;
   }
 
   /**

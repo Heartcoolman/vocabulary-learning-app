@@ -8,17 +8,37 @@
  *
  * 融合公式：
  * F_fused = α*F_behavior + β*F_visual + γ*F_temporal
- * 默认权重: behavior=0.4, visual=0.4, temporal=0.2
+ * 权重通过 DynamicWeightCalculator 动态计算
  */
 
-import type { FusionConfig, FusedFatigueResult } from '@danci/shared';
-import { FatigueEstimator } from './fatigue-estimator';
+import type { FusionConfig, FusedFatigueResult, ProcessedVisualFatigueData } from '@danci/shared';
 import { VisualFatigueProcessor, type ProcessedVisualFatigue } from './visual-fatigue-processor';
+import {
+  DynamicWeightCalculator,
+  type SceneContext,
+  type DynamicWeightConfig,
+} from './dynamic-weight-calculator';
+
+/**
+ * 扩展融合配置（含卡尔曼滤波参数）
+ */
+export interface ExtendedFusionConfig extends FusionConfig {
+  /** 卡尔曼滤波过程噪声 Q，默认 0.01 */
+  kalmanQ?: number;
+  /** 卡尔曼滤波测量噪声 R，默认 0.1 */
+  kalmanR?: number;
+}
+
+/**
+ * 默认卡尔曼滤波参数
+ */
+const DEFAULT_KALMAN_Q = 0.01;
+const DEFAULT_KALMAN_R = 0.1;
 
 /**
  * 默认融合配置
  */
-export const DEFAULT_FUSION_CONFIG: FusionConfig = {
+export const DEFAULT_FUSION_CONFIG: ExtendedFusionConfig = {
   weights: {
     visual: 0.4,
     behavior: 0.4,
@@ -30,6 +50,8 @@ export const DEFAULT_FUSION_CONFIG: FusionConfig = {
   useKalmanFilter: true,
   ageDecayRate: 0.01,
   maxDataAge: 30000,
+  kalmanQ: DEFAULT_KALMAN_Q,
+  kalmanR: DEFAULT_KALMAN_R,
 };
 
 /**
@@ -40,12 +62,14 @@ export interface FusionInput {
   userId: string;
   /** 行为疲劳（来自 FatigueEstimator） */
   behaviorFatigue?: number;
-  /** 视觉疲劳数据（来自 VisualFatigueProcessor） */
-  visualData?: ProcessedVisualFatigue;
+  /** 视觉疲劳数据（来自 VisualFatigueProcessor 或前端上报） */
+  visualData?: ProcessedVisualFatigue | ProcessedVisualFatigueData;
   /** 学习时长（分钟） */
   studyDurationMinutes?: number;
   /** 时间戳 */
   timestamp?: number;
+  /** 是否使用动态权重（默认 true） */
+  useDynamicWeights?: boolean;
 }
 
 /**
@@ -92,14 +116,18 @@ interface UserFusionState {
  * 疲劳融合引擎类
  */
 export class FatigueFusionEngine {
-  private config: FusionConfig;
+  private config: ExtendedFusionConfig;
   private userStates: Map<string, UserFusionState> = new Map();
+  private dynamicWeightCalculator: DynamicWeightCalculator;
 
-  // 卡尔曼滤波参数
-  private readonly Q = 0.01; // 过程噪声
-  private readonly R = 0.1; // 测量噪声
+  // 卡尔曼滤波参数（从配置读取）
+  private Q: number;
+  private R: number;
 
-  constructor(config: Partial<FusionConfig> = {}) {
+  constructor(
+    config: Partial<ExtendedFusionConfig> = {},
+    weightConfig?: Partial<DynamicWeightConfig>,
+  ) {
     this.config = {
       ...DEFAULT_FUSION_CONFIG,
       ...config,
@@ -108,6 +136,10 @@ export class FatigueFusionEngine {
         ...config.weights,
       },
     };
+    // 从配置初始化卡尔曼参数
+    this.Q = this.config.kalmanQ ?? DEFAULT_KALMAN_Q;
+    this.R = this.config.kalmanR ?? DEFAULT_KALMAN_R;
+    this.dynamicWeightCalculator = new DynamicWeightCalculator(weightConfig);
   }
 
   /**
@@ -120,6 +152,7 @@ export class FatigueFusionEngine {
       visualData,
       studyDurationMinutes = 0,
       timestamp = Date.now(),
+      useDynamicWeights = true,
     } = input;
 
     // 获取用户状态
@@ -129,12 +162,49 @@ export class FatigueFusionEngine {
     const visualFatigue = this.processVisualFatigue(visualData);
     const temporalFatigue = this.calculateTemporalFatigue(studyDurationMinutes);
 
-    // 计算动态权重
-    const weights = this.calculateDynamicWeights(
-      behaviorFatigue,
-      visualFatigue,
-      visualData?.confidence ?? 0,
-    );
+    // 计算权重 (使用动态权重计算器或旧逻辑)
+    let weights: { behavior: number; visual: number; temporal: number };
+
+    if (useDynamicWeights) {
+      // 转换为 ProcessedVisualFatigueData 格式
+      const processedData = this.toProcessedVisualFatigueData(visualData);
+
+      // 构建场景上下文
+      const context: SceneContext = {
+        behaviorFatigue,
+        visualFatigue,
+        studyDurationMinutes,
+        hourOfDay: new Date(timestamp).getHours(),
+      };
+
+      // 使用动态权重计算器
+      const dynamicWeights = this.dynamicWeightCalculator.calculate(processedData, userId, context);
+      weights = {
+        visual: dynamicWeights.visual,
+        behavior: dynamicWeights.behavior,
+        temporal: dynamicWeights.temporal,
+      };
+
+      // 更新历史记录（用于相关性学习）
+      if (processedData && processedData.isValid) {
+        this.dynamicWeightCalculator.updateHistory(userId, visualFatigue, behaviorFatigue);
+      }
+    } else {
+      // 使用旧的固定权重逻辑
+      weights = this.calculateStaticWeights(
+        behaviorFatigue,
+        visualFatigue,
+        visualData?.confidence ?? 0,
+      );
+    }
+
+    // 权重归一化校验：确保权重和为 1
+    const totalWeight = weights.behavior + weights.visual + weights.temporal;
+    if (Math.abs(totalWeight - 1) > 0.001) {
+      weights.behavior /= totalWeight;
+      weights.visual /= totalWeight;
+      weights.temporal /= totalWeight;
+    }
 
     // 加权融合
     let fusedFatigue =
@@ -255,7 +325,7 @@ export class FatigueFusionEngine {
   /**
    * 更新配置
    */
-  updateConfig(config: Partial<FusionConfig>): void {
+  updateConfig(config: Partial<ExtendedFusionConfig>): void {
     this.config = {
       ...this.config,
       ...config,
@@ -264,12 +334,33 @@ export class FatigueFusionEngine {
         ...config.weights,
       },
     };
+    // 更新卡尔曼参数
+    if (config.kalmanQ !== undefined) {
+      this.Q = config.kalmanQ;
+    }
+    if (config.kalmanR !== undefined) {
+      this.R = config.kalmanR;
+    }
+  }
+
+  /**
+   * 获取动态权重计算器（用于高级访问）
+   */
+  getDynamicWeightCalculator(): DynamicWeightCalculator {
+    return this.dynamicWeightCalculator;
+  }
+
+  /**
+   * 获取用户视觉历史（用于调试/监控）
+   */
+  getUserVisualHistory(userId: string) {
+    return this.dynamicWeightCalculator.getHistory(userId);
   }
 
   /**
    * 处理视觉疲劳数据
    */
-  private processVisualFatigue(data?: ProcessedVisualFatigue): number {
+  private processVisualFatigue(data?: ProcessedVisualFatigue | ProcessedVisualFatigueData): number {
     if (!data || !data.isValid) {
       return 0;
     }
@@ -293,10 +384,10 @@ export class FatigueFusionEngine {
   }
 
   /**
-   * 计算动态权重
+   * 计算静态权重（旧逻辑，保留兼容）
    * 根据数据可用性和置信度调整
    */
-  private calculateDynamicWeights(
+  private calculateStaticWeights(
     behaviorFatigue: number,
     visualFatigue: number,
     visualConfidence: number,
@@ -324,6 +415,31 @@ export class FatigueFusionEngine {
       behavior: behaviorWeight / total,
       visual: visualWeight / total,
       temporal: baseWeights.temporal / total,
+    };
+  }
+
+  /**
+   * 转换视觉数据为标准格式
+   */
+  private toProcessedVisualFatigueData(
+    data?: ProcessedVisualFatigue | ProcessedVisualFatigueData,
+  ): ProcessedVisualFatigueData | undefined {
+    if (!data) return undefined;
+
+    // 检查是否已经是 ProcessedVisualFatigueData 格式
+    if ('cognitiveSignals' in data || 'metrics' in data) {
+      return data as ProcessedVisualFatigueData;
+    }
+
+    // 从 ProcessedVisualFatigue 转换
+    const processed = data as ProcessedVisualFatigue;
+    return {
+      score: processed.score,
+      confidence: processed.confidence,
+      freshness: processed.freshness,
+      isValid: processed.isValid,
+      trend: 0, // ProcessedVisualFatigue 没有 trend 字段
+      timestamp: Date.now(),
     };
   }
 
@@ -469,5 +585,9 @@ export function createFatigueFusionEngine(config?: Partial<FusionConfig>): Fatig
 
 /**
  * 默认融合引擎实例
+ *
+ * @warning 此实例仅用于单用户测试或无状态查询。
+ * 生产环境多用户场景应为每个用户创建独立实例，
+ * 避免用户状态污染导致的疲劳计算错误。
  */
 export const defaultFatigueFusionEngine = new FatigueFusionEngine();

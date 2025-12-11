@@ -96,9 +96,14 @@ export class VisualFatigueDetector {
   private lastDetectionTime: number = 0;
   private frameCount: number = 0;
   private fpsUpdateTime: number = 0;
+  private resultCount: number = 0;
 
   // 视频元素
   private videoElement: HTMLVideoElement | null = null;
+
+  // 暂停时保存的状态（用于 resume）
+  private pausedVideoElement: HTMLVideoElement | null = null;
+  private pausedCallback: DetectionCallback | null = null;
   // Canvas (用于降级或辅助，目前主要用 ImageBitmap)
   private offscreenCanvas: OffscreenCanvas | null = null;
 
@@ -224,12 +229,23 @@ export class VisualFatigueDetector {
   /**
    * 处理检测结果
    */
-  private handleDetectionResult(result: any) {
-    // 使用 any 避免类型循环引用问题，实际上是 WorkerDetectionResult
+  private handleDetectionResult(result: DetectionResult) {
+    // 调试日志：每 50 次输出一次
+    this.resultCount = (this.resultCount || 0) + 1;
+    if (this.resultCount <= 5 || this.resultCount % 50 === 0) {
+      console.log(`[VisualFatigue] Result #${this.resultCount}:`, {
+        faceDetected: result.faceDetected,
+        hasCallback: !!this.detectionCallback,
+        score: result.metrics?.visualFatigueScore?.toFixed(2),
+      });
+    }
+
     // 在线更新校准基线 (这部分逻辑保留在主线程可能更方便访问 Store，或者也移入 Worker？
     // 目前 Calibrator 在主线程，需要保留)
-    if (result.metrics.earValue > 0 && result.metrics.marValue > 0) {
-      this.calibrator.updateBaselineOnline(result.metrics.earValue, result.metrics.marValue);
+    const earValue = result.metrics?.earValue;
+    const marValue = result.metrics?.marValue;
+    if (earValue !== undefined && earValue > 0 && marValue !== undefined && marValue > 0) {
+      this.calibrator.updateBaselineOnline(earValue, marValue);
     }
 
     if (this.detectionCallback) {
@@ -284,20 +300,41 @@ export class VisualFatigueDetector {
     this.state.currentFps = 0;
     this.detectionCallback = null;
     this.videoElement = null;
+    this.resultCount = 0; // 重置日志计数器
   }
 
   /**
-   * 暂停/恢复 (类似 stop/start 但保持状态)
+   * 暂停检测（保留状态以便恢复）
    */
   pause(): void {
-    this.stop();
+    // 保存当前状态用于恢复
+    this.pausedVideoElement = this.videoElement;
+    this.pausedCallback = this.detectionCallback;
+
+    // 只停止检测循环，不清除 videoElement 和 detectionCallback
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    this.state.isDetecting = false;
+    this.state.currentFps = 0;
   }
 
+  /**
+   * 恢复检测
+   */
   resume(): void {
-    // 简化处理，需要重新 start
-    if (this.videoElement && this.detectionCallback) {
-      this.start(this.videoElement, this.detectionCallback);
+    // 使用暂停时保存的状态恢复
+    const videoElement = this.pausedVideoElement || this.videoElement;
+    const callback = this.pausedCallback || this.detectionCallback;
+
+    if (videoElement && callback) {
+      this.start(videoElement, callback);
     }
+
+    // 清除暂停状态
+    this.pausedVideoElement = null;
+    this.pausedCallback = null;
   }
 
   /**

@@ -139,6 +139,91 @@ const envSchema = z.object({
     .default('0')
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().nonnegative().max(15, 'Redis DB 索引必须在 0-15 范围内')),
+
+  // ============================================
+  // 告警 Webhook 配置
+  // ============================================
+  ALERT_WEBHOOK_URL: z.string().url('ALERT_WEBHOOK_URL 必须是有效的 URL').optional(),
+  SLACK_WEBHOOK_URL: z.string().url('SLACK_WEBHOOK_URL 必须是有效的 URL').optional(),
+
+  // ============================================
+  // AMAS Native 模块配置
+  // ============================================
+  AMAS_USE_NATIVE: z
+    .string()
+    .default('true')
+    .transform((val) => val !== 'false'),
+
+  // ============================================
+  // 调试模式配置
+  // ============================================
+  DEBUG_MODE: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  // ============================================
+  // AMAS 遥测配置
+  // ============================================
+  AMAS_TELEMETRY_MODE: z.enum(['off', 'basic', 'detailed']).default('basic'),
+
+  // ============================================
+  // AMAS 数据可视化配置
+  // ============================================
+  AMAS_VISUALIZATION_ENABLED: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  AMAS_REAL_DATA_WRITE_ENABLED: z
+    .string()
+    .default('true')
+    .transform((val) => val === 'true'),
+
+  AMAS_REAL_DATA_READ_ENABLED: z
+    .string()
+    .default('true')
+    .transform((val) => val === 'true'),
+
+  // ============================================
+  // LLM 顾问配置
+  // ============================================
+  LLM_PROVIDER: z.enum(['openai', 'anthropic', 'ollama', 'custom']).default('openai'),
+
+  LLM_MODEL: z.string().optional(),
+
+  LLM_API_KEY: z.string().optional(),
+
+  LLM_BASE_URL: z.string().url('LLM_BASE_URL 必须是有效的 URL').optional(),
+
+  LLM_TIMEOUT: z
+    .string()
+    .default('60000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive()),
+
+  LLM_MAX_RETRIES: z
+    .string()
+    .default('2')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().nonnegative().max(5)),
+
+  LLM_TEMPERATURE: z
+    .string()
+    .default('0.3')
+    .transform((val) => parseFloat(val))
+    .pipe(z.number().min(0).max(2)),
+
+  LLM_MAX_TOKENS: z
+    .string()
+    .default('4096')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive()),
+
+  LLM_ADVISOR_ENABLED: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
 });
 
 /**
@@ -173,6 +258,26 @@ function validateEnv(): Env {
       REDIS_PORT: process.env.REDIS_PORT,
       REDIS_PASSWORD: process.env.REDIS_PASSWORD,
       REDIS_DB: process.env.REDIS_DB,
+      // 告警配置
+      ALERT_WEBHOOK_URL: process.env.ALERT_WEBHOOK_URL,
+      SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL,
+      // AMAS 配置
+      AMAS_USE_NATIVE: process.env.AMAS_USE_NATIVE,
+      DEBUG_MODE: process.env.DEBUG_MODE,
+      AMAS_TELEMETRY_MODE: process.env.AMAS_TELEMETRY_MODE,
+      AMAS_VISUALIZATION_ENABLED: process.env.AMAS_VISUALIZATION_ENABLED,
+      AMAS_REAL_DATA_WRITE_ENABLED: process.env.AMAS_REAL_DATA_WRITE_ENABLED,
+      AMAS_REAL_DATA_READ_ENABLED: process.env.AMAS_REAL_DATA_READ_ENABLED,
+      // LLM 配置
+      LLM_PROVIDER: process.env.LLM_PROVIDER,
+      LLM_MODEL: process.env.LLM_MODEL,
+      LLM_API_KEY: process.env.LLM_API_KEY,
+      LLM_BASE_URL: process.env.LLM_BASE_URL,
+      LLM_TIMEOUT: process.env.LLM_TIMEOUT,
+      LLM_MAX_RETRIES: process.env.LLM_MAX_RETRIES,
+      LLM_TEMPERATURE: process.env.LLM_TEMPERATURE,
+      LLM_MAX_TOKENS: process.env.LLM_MAX_TOKENS,
+      LLM_ADVISOR_ENABLED: process.env.LLM_ADVISOR_ENABLED,
     });
 
     // 开发环境警告

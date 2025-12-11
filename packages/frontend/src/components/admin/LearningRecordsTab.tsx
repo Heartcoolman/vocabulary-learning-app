@@ -1,5 +1,6 @@
 import { CheckCircle, XCircle, Clock, Hash, BookOpen, ArrowClockwise } from '@phosphor-icons/react';
 import { useLearningData } from '../../hooks/useLearningData';
+import { DISPLAY_CONFIG } from '../../constants/systemHealth';
 
 interface LearningRecordsTabProps {
   userId: string;
@@ -82,7 +83,9 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-          <h3 className="font-bold text-gray-900">最近学习记录（最新 50 条）</h3>
+          <h3 className="font-bold text-gray-900">
+            最近学习记录（最新 {DISPLAY_CONFIG.LEARNING_RECORDS_LIMIT} 条）
+          </h3>
           <button
             onClick={refresh}
             className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"

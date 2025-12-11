@@ -1,41 +1,22 @@
 import { useState, useEffect } from 'react';
 import { ConfigHistory } from '../../types/models';
-import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 import { Clock, MagnifyingGlass, ArrowCounterClockwise } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
+import { useConfigHistory } from '../../hooks/queries';
 
 /**
  * 配置历史页面
  * 显示所有配置修改记录，支持按时间筛选
  */
 export default function ConfigHistoryPage() {
-  const [history, setHistory] = useState<ConfigHistory[]>([]);
+  const { data: history = [], isLoading, error, refetch } = useConfigHistory();
   const [filteredHistory, setFilteredHistory] = useState<ConfigHistory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
-
-  const configService = new AlgorithmConfigService();
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
 
   useEffect(() => {
     applyFilters();
   }, [history, searchTerm, dateFilter]);
-
-  const loadHistory = async () => {
-    try {
-      setIsLoading(true);
-      const records = await configService.getConfigHistory();
-      setHistory(records);
-    } catch (error) {
-      adminLogger.error({ err: error }, '加载配置历史失败');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const applyFilters = () => {
     // 防御性检查：确保 history 是数组
@@ -74,6 +55,26 @@ export default function ConfigHistoryPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-gray-500">加载配置历史中...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    adminLogger.error({ err: error }, '加载配置历史失败');
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="mb-2 text-lg font-semibold">加载配置历史失败</p>
+          <p className="mb-4 text-sm text-gray-600">
+            {error instanceof Error ? error.message : '未知错误'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="rounded-lg bg-blue-500 px-4 py-2 text-white transition hover:bg-blue-600"
+          >
+            重试
+          </button>
+        </div>
       </div>
     );
   }

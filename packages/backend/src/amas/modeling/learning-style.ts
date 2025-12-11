@@ -12,6 +12,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import prisma from '../../config/database';
+import { amasLogger } from '../../logger';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
 
@@ -83,8 +84,8 @@ export class LearningStyleProfiler {
           avgDwellTime: interactions.avgDwellTime,
           avgResponseTime: interactions.avgResponseTime,
           pauseFrequency: 0,
-          switchFrequency: 0
-        }
+          switchFrequency: 0,
+        },
       };
     }
 
@@ -117,8 +118,8 @@ export class LearningStyleProfiler {
           avgDwellTime: interactions.avgDwellTime,
           avgResponseTime: interactions.avgResponseTime,
           pauseFrequency: interactions.pauseCount / interactions.sampleCount,
-          switchFrequency: interactions.switchCount / interactions.sampleCount
-        }
+          switchFrequency: interactions.switchCount / interactions.sampleCount,
+        },
       };
     }
 
@@ -144,8 +145,8 @@ export class LearningStyleProfiler {
         avgDwellTime: interactions.avgDwellTime,
         avgResponseTime: interactions.avgResponseTime,
         pauseFrequency: interactions.pauseCount / interactions.sampleCount,
-        switchFrequency: interactions.switchCount / interactions.sampleCount
-      }
+        switchFrequency: interactions.switchCount / interactions.sampleCount,
+      },
     };
   }
 
@@ -160,7 +161,7 @@ export class LearningStyleProfiler {
       switchCount: 0,
       dwellTimeVariance: 0,
       responseTimeVariance: 0,
-      sampleCount: 0
+      sampleCount: 0,
     };
 
     try {
@@ -169,10 +170,10 @@ export class LearningStyleProfiler {
         select: {
           dwellTime: true,
           responseTime: true,
-          timestamp: true
+          timestamp: true,
         },
         orderBy: { timestamp: 'desc' },
-        take: this.recentRecordLimit
+        take: this.recentRecordLimit,
       });
 
       if (records.length === 0) {
@@ -180,17 +181,20 @@ export class LearningStyleProfiler {
       }
 
       const avgDwellTime = records.reduce((sum, r) => sum + (r.dwellTime || 0), 0) / records.length;
-      const avgResponseTime = records.reduce((sum, r) => sum + (r.responseTime || 0), 0) / records.length;
+      const avgResponseTime =
+        records.reduce((sum, r) => sum + (r.responseTime || 0), 0) / records.length;
 
-      const dwellTimeVariance = records.reduce((sum, r) => {
-        const diff = (r.dwellTime || 0) - avgDwellTime;
-        return sum + diff * diff;
-      }, 0) / records.length;
+      const dwellTimeVariance =
+        records.reduce((sum, r) => {
+          const diff = (r.dwellTime || 0) - avgDwellTime;
+          return sum + diff * diff;
+        }, 0) / records.length;
 
-      const responseTimeVariance = records.reduce((sum, r) => {
-        const diff = (r.responseTime || 0) - avgResponseTime;
-        return sum + diff * diff;
-      }, 0) / records.length;
+      const responseTimeVariance =
+        records.reduce((sum, r) => {
+          const diff = (r.responseTime || 0) - avgResponseTime;
+          return sum + diff * diff;
+        }, 0) / records.length;
 
       let pauseCount = 0;
       for (let i = 1; i < records.length; i++) {
@@ -214,10 +218,10 @@ export class LearningStyleProfiler {
         switchCount,
         dwellTimeVariance,
         responseTimeVariance,
-        sampleCount: records.length
+        sampleCount: records.length,
       };
     } catch (error) {
-      console.error('[LearningStyleProfiler] 获取用户交互模式失败:', error);
+      amasLogger.error({ err: error }, '[LearningStyleProfiler] 获取用户交互模式失败');
       return emptyPatterns;
     }
   }
@@ -244,13 +248,15 @@ export class LearningStyleProfiler {
    */
   private computeAuditoryScore(interactions: InteractionPatterns): number {
     const dwellTimeStdDev = Math.sqrt(interactions.dwellTimeVariance || 0);
-    const coefficientOfVariation = interactions.avgDwellTime > 0
-      ? dwellTimeStdDev / interactions.avgDwellTime
-      : 1;
+    const coefficientOfVariation =
+      interactions.avgDwellTime > 0 ? dwellTimeStdDev / interactions.avgDwellTime : 1;
 
-    const stabilityScore = coefficientOfVariation < 0.3 ? 0.4 : coefficientOfVariation < 0.5 ? 0.25 : 0.1;
-    const dwellScore = interactions.avgDwellTime >= 3000 && interactions.avgDwellTime <= 6000 ? 0.3 : 0.1;
-    const pauseRate = interactions.sampleCount > 0 ? interactions.pauseCount / interactions.sampleCount : 0;
+    const stabilityScore =
+      coefficientOfVariation < 0.3 ? 0.4 : coefficientOfVariation < 0.5 ? 0.25 : 0.1;
+    const dwellScore =
+      interactions.avgDwellTime >= 3000 && interactions.avgDwellTime <= 6000 ? 0.3 : 0.1;
+    const pauseRate =
+      interactions.sampleCount > 0 ? interactions.pauseCount / interactions.sampleCount : 0;
     const pauseScore = pauseRate > 0.1 ? 0.2 : 0.1;
 
     return Math.min(stabilityScore + dwellScore + pauseScore, 1.0);
@@ -262,16 +268,16 @@ export class LearningStyleProfiler {
    * 特征：高交互密度、频繁切换、快速尝试
    */
   private computeKinestheticScore(interactions: InteractionPatterns): number {
-    const speedScore = interactions.avgResponseTime < 2000 ? 0.4
-      : interactions.avgResponseTime < 3000 ? 0.3 : 0.15;
+    const speedScore =
+      interactions.avgResponseTime < 2000 ? 0.4 : interactions.avgResponseTime < 3000 ? 0.3 : 0.15;
 
-    const switchRate = interactions.sampleCount > 0 ? interactions.switchCount / interactions.sampleCount : 0;
+    const switchRate =
+      interactions.sampleCount > 0 ? interactions.switchCount / interactions.sampleCount : 0;
     const switchScore = switchRate > 0.2 ? 0.3 : switchRate > 0.1 ? 0.2 : 0.1;
 
     const responseTimeStdDev = Math.sqrt(interactions.responseTimeVariance || 0);
-    const responseCV = interactions.avgResponseTime > 0
-      ? responseTimeStdDev / interactions.avgResponseTime
-      : 0;
+    const responseCV =
+      interactions.avgResponseTime > 0 ? responseTimeStdDev / interactions.avgResponseTime : 0;
     const variabilityScore = responseCV > 0.5 ? 0.2 : 0.1;
 
     return Math.min(speedScore + switchScore + variabilityScore, 1.0);
@@ -287,20 +293,20 @@ export class LearningStyleProfiler {
     const recommendations: Record<LearningStyle, { emphasize: string[]; avoid: string[] }> = {
       visual: {
         emphasize: ['图片', '图表', '视觉化例句', '颜色标记'],
-        avoid: ['纯文字', '长段落']
+        avoid: ['纯文字', '长段落'],
       },
       auditory: {
         emphasize: ['发音音频', '韵律记忆', '口语例句'],
-        avoid: ['无声阅读', '纯视觉内容']
+        avoid: ['无声阅读', '纯视觉内容'],
       },
       kinesthetic: {
         emphasize: ['互动练习', '打字输入', '拖拽排序', '游戏化'],
-        avoid: ['被动阅读', '长时等待']
+        avoid: ['被动阅读', '长时等待'],
       },
       mixed: {
         emphasize: ['多样化内容', '组合呈现'],
-        avoid: []
-      }
+        avoid: [],
+      },
     };
 
     return recommendations[style];

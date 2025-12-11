@@ -309,30 +309,34 @@ export function useBatchDelete(options?: {
 
   return useMutation({
     mutationFn: async (params: BatchDeleteParams): Promise<BatchDeleteResult> => {
-      const { wordIds, batchSize = 50 } = params;
+      const { wordIds } = params;
 
-      const { results, errors } = await processBatches(
-        wordIds,
-        batchSize,
-        async (batch) => {
-          // 逐个删除（假设后端没有批量删除API）
-          const deletePromises = batch.map(async (wordId) => {
-            await wordClient.deleteWord(wordId);
-            return wordId;
-          });
+      options?.onProgress?.({
+        progress: 10,
+        stage: '提交批量删除请求',
+        processed: 0,
+        total: wordIds.length,
+        succeeded: 0,
+        failed: 0,
+        errors: [],
+      });
 
-          return await Promise.all(deletePromises);
-        },
-        options?.onProgress,
-      );
+      await wordClient.batchDeleteWords(wordIds);
+
+      options?.onProgress?.({
+        progress: 100,
+        stage: '完成',
+        processed: wordIds.length,
+        total: wordIds.length,
+        succeeded: wordIds.length,
+        failed: 0,
+        errors: [],
+      });
 
       return {
-        deleted: results.length,
-        failed: errors.length,
-        errors: errors.map((e) => ({
-          wordId: wordIds[e.index],
-          message: e.message,
-        })),
+        deleted: wordIds.length,
+        failed: 0,
+        errors: [],
       };
     },
     onSuccess: (result) => {

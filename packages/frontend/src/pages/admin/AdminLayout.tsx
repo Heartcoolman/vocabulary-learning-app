@@ -15,6 +15,7 @@ import {
   Brain,
   Robot,
   Lightbulb,
+  Bug,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
@@ -79,6 +80,7 @@ export default function AdminLayout() {
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/logs', label: '系统日志', icon: FileText },
     { path: '/admin/log-alerts', label: '告警规则', icon: Bell },
+    { path: '/admin/system-debug', label: '系统调试', icon: Bug },
   ];
 
   return (

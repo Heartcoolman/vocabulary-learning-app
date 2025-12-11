@@ -15,6 +15,8 @@ import {
   batchAddWordsSchema,
   flagAnomalySchema,
   exportFormatSchema,
+  exportHistoryQuerySchema,
+  metricsRangeSchema,
   adminDecisionsQuerySchema,
   decisionIdParamSchema,
 } from '../validators/admin.validator';
@@ -24,6 +26,7 @@ import {
   userIdParamSchema,
 } from '../validators/common.validator';
 import { AuthRequest } from '../types';
+import { alertMonitoringService } from '../monitoring/monitoring-service';
 
 /**
  * 安全获取当前用户ID
@@ -199,6 +202,25 @@ router.get(
   },
 );
 
+// 获取指定单词详情
+router.get(
+  '/users/:userId/words/:wordId',
+  validateParams(userWordParamsSchema),
+  async (req: AuthRequest, res: Response, next) => {
+    try {
+      const { userId, wordId } = req.validatedParams as { userId: string; wordId: string };
+      const data = await adminService.getUserWordDetail(userId, wordId);
+
+      res.json({
+        success: true,
+        data,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // 修改用户角色
 router.put(
   '/users/:id/role',
@@ -233,6 +255,95 @@ router.delete(
       res.json({
         success: true,
         message: '用户删除成功',
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 导出历史
+router.get(
+  '/export/history',
+  validateQuery(exportHistoryQuerySchema),
+  async (req: AuthRequest, res: Response, next) => {
+    try {
+      const { limit, dataType } = req.validatedQuery as { limit: number; dataType?: string };
+      const history = await adminService.getExportHistory(limit, dataType);
+      res.json({ success: true, data: history });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 系统错误率趋势（基于健康指标快照）
+router.get(
+  '/metrics/error-rate',
+  validateQuery(metricsRangeSchema),
+  async (req: AuthRequest, res: Response, next) => {
+    try {
+      const { range } = req.validatedQuery as { range: number };
+      const snapshots = alertMonitoringService.getSnapshots(range);
+
+      const points = [];
+      for (let i = 1; i < snapshots.length; i++) {
+        const prev = snapshots[i - 1];
+        const curr = snapshots[i];
+        const totalDelta = curr.http.total - prev.http.total;
+        const fiveXxDelta = curr.http.fiveXx - prev.http.fiveXx;
+        const errorRate = totalDelta > 0 ? (fiveXxDelta / totalDelta) * 100 : 0;
+        points.push({
+          timestamp: curr.timestamp,
+          totalRequests: totalDelta > 0 ? totalDelta : curr.http.total,
+          errorRequests: fiveXxDelta > 0 ? fiveXxDelta : curr.http.fiveXx,
+          errorRate,
+        });
+      }
+
+      // 若历史不足，至少返回当前快照
+      if (points.length === 0 && snapshots.length > 0) {
+        const curr = snapshots[snapshots.length - 1];
+        const errorRate = curr.http.total > 0 ? (curr.http.fiveXx / curr.http.total) * 100 : 0;
+        points.push({
+          timestamp: curr.timestamp,
+          totalRequests: curr.http.total,
+          errorRequests: curr.http.fiveXx,
+          errorRate,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: points,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 系统性能趋势（基于健康指标快照）
+router.get(
+  '/metrics/performance',
+  validateQuery(metricsRangeSchema),
+  async (req: AuthRequest, res: Response, next) => {
+    try {
+      const { range } = req.validatedQuery as { range: number };
+      const snapshots = alertMonitoringService.getSnapshots(range);
+
+      const points = snapshots.map((s) => ({
+        timestamp: s.timestamp,
+        avg: s.http.avg,
+        p50: s.http.p50,
+        p95: s.http.p95,
+        p99: s.http.p99,
+        count: s.http.count,
+      }));
+
+      res.json({
+        success: true,
+        data: points,
       });
     } catch (error) {
       next(error);

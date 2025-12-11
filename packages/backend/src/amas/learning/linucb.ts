@@ -6,28 +6,24 @@
  * 用于在线学习最优策略
  */
 
-import {
-  Action,
-  BanditModel,
-  UserState
-} from '../types';
+import { Action, BanditModel, UserState } from '../types';
 import {
   DEFAULT_ALPHA,
   DEFAULT_DIMENSION,
   DEFAULT_LAMBDA,
-  ACTION_SPACE
+  ACTION_SPACE,
 } from '../config/action-space';
 import {
   ActionSelection,
   BaseLearner,
   BaseLearnerContext,
-  LearnerCapabilities
+  LearnerCapabilities,
 } from './base-learner';
 import {
   choleskyRank1Update,
   addOuterProduct,
   addScaledVector,
-  hasInvalidValues
+  hasInvalidValues,
 } from './math-utils';
 import { amasLogger } from '../../logger';
 
@@ -38,16 +34,33 @@ const MAX_COVARIANCE = 1e9;
 const MAX_FEATURE_ABS = 50;
 
 /**
- * 特征维度校验常量
+ * 特征维度配置 (v2)
+ *
  * 特征结构: 状态5 + 错误1 + 动作5 + 交互1 + 时间3 + 处理键6 + bias1 = 22
- * 必须与 DEFAULT_DIMENSION 保持同步
+ *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │ 维护指南：添加新特征时需同步更新以下位置：                          │
+ * │ 1. 本文件的 FEATURE_DIMENSION_V2 常量                            │
+ * │ 2. config/action-space.ts 中的 DEFAULT_DIMENSION                 │
+ * │ 3. 本文件的 buildContextVector() 方法                            │
+ * │ 4. 更新下方特征结构说明                                          │
+ * └─────────────────────────────────────────────────────────────────┘
+ *
+ * 当前特征结构（共 22 维）：
+ * - [0-4]   状态特征 (5维): A, F, C.mem, C.speed, M
+ * - [5]     错误率 (1维): recentErrorRate
+ * - [6-10]  动作特征 (5维): interval_scale, new_ratio, difficulty, hint_level, batch_size
+ * - [11]    交互特征 (1维): rtNorm
+ * - [12-14] 时间特征 (3维): timeNorm, timeSin, timeCos
+ * - [15-20] 交叉特征 (6维): attentionFatigue, motivationFatigue, paceMatch, memoryNewRatio, fatigueLatency, newRatioMotivation
+ * - [21]    bias项 (1维): 1.0
  */
 const FEATURE_DIMENSION_V2 = 22;
 
 // 静态校验：确保特征维度与配置常量一致
 if (DEFAULT_DIMENSION !== FEATURE_DIMENSION_V2) {
   throw new Error(
-    `[LinUCB] 配置不一致: DEFAULT_DIMENSION(${DEFAULT_DIMENSION}) !== FEATURE_DIMENSION_V2(${FEATURE_DIMENSION_V2})`
+    `[LinUCB] 配置不一致: DEFAULT_DIMENSION(${DEFAULT_DIMENSION}) !== FEATURE_DIMENSION_V2(${FEATURE_DIMENSION_V2})`,
   );
 }
 
@@ -131,7 +144,7 @@ function normalizeTimeFeatures(timeBucket: number): {
   return {
     norm,
     sin: Math.sin(phase),
-    cos: Math.cos(phase)
+    cos: Math.cos(phase),
   };
 }
 
@@ -164,7 +177,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       A: this.initIdentityMatrix(d, lambda),
       b: new Float32Array(d),
       L: this.initIdentityMatrix(d, lambda),
-      updateCount: 0
+      updateCount: 0,
     };
   }
 
@@ -176,7 +189,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   selectAction(
     state: UserState,
     actions: Action[],
-    context: LinUCBContext
+    context: LinUCBContext,
   ): ActionSelection<Action> {
     if (!actions || actions.length === 0) {
       throw new Error('[LinUCB] actions array must not be empty');
@@ -190,7 +203,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
         action,
         recentErrorRate: context.recentErrorRate,
         recentResponseTime: context.recentResponseTime,
-        timeBucket: context.timeBucket
+        timeBucket: context.timeBucket,
       });
 
       const { score, confidence, exploitation } = this.computeUCBStats(x);
@@ -200,7 +213,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
           action,
           score,
           confidence,
-          meta: { exploitation, exploration: this.model.alpha * confidence }
+          meta: { exploitation, exploration: this.model.alpha * confidence },
         };
       }
     }
@@ -210,7 +223,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       return {
         action: actions[0],
         score: -Number.MAX_VALUE,
-        confidence: 0
+        confidence: 0,
       };
     }
 
@@ -220,28 +233,20 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   /**
    * 使用默认动作空间选择（便捷方法，返回Action而非ActionSelection）
    */
-  selectFromActionSpace(
-    state: UserState,
-    context: LinUCBContext
-  ): Action {
+  selectFromActionSpace(state: UserState, context: LinUCBContext): Action {
     return this.selectAction(state, ACTION_SPACE, context).action;
   }
 
   /**
    * 更新模型（实现 BaseLearner 接口）
    */
-  update(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: LinUCBContext
-  ): void {
+  update(state: UserState, action: Action, reward: number, context: LinUCBContext): void {
     const x = this.buildContextVector({
       state,
       action,
       recentErrorRate: context.recentErrorRate,
       recentResponseTime: context.recentResponseTime,
-      timeBucket: context.timeBucket
+      timeBucket: context.timeBucket,
     });
 
     this.updateWithFeatureVector(x, reward);
@@ -255,13 +260,9 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    * @param featureVector 特征向量 (d维Float32Array或数组)
    * @param reward 奖励值
    */
-  updateWithFeatureVector(
-    featureVector: Float32Array | number[],
-    reward: number
-  ): void {
-    const rawX = featureVector instanceof Float32Array
-      ? featureVector
-      : new Float32Array(featureVector);
+  updateWithFeatureVector(featureVector: Float32Array | number[], reward: number): void {
+    const rawX =
+      featureVector instanceof Float32Array ? featureVector : new Float32Array(featureVector);
 
     const { d, lambda } = this.model;
     const A = this.model.A;
@@ -271,9 +272,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
     // 验证维度匹配
     if (x.length !== d) {
-      throw new Error(
-        `[LinUCB] 特征向量维度不匹配: expected d=${d}, got ${x.length}`
-      );
+      throw new Error(`[LinUCB] 特征向量维度不匹配: expected d=${d}, got ${x.length}`);
     }
 
     // 验证特征向量的数值有效性
@@ -311,11 +310,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     // 检查A矩阵对角线
     for (let i = 0; i < d; i++) {
       const diag = A[i * d + i];
-      if (
-        !Number.isFinite(diag) ||
-        diag < lambda * 0.1 ||
-        Math.abs(diag) > MAX_COVARIANCE
-      ) {
+      if (!Number.isFinite(diag) || diag < lambda * 0.1 || Math.abs(diag) > MAX_COVARIANCE) {
         needsFullRecompute = true;
         // 确保对角线元素至少为lambda
         if (!Number.isFinite(diag) || diag < lambda) {
@@ -353,11 +348,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   /**
    * 获取冷启动阶段的探索率
    */
-  getColdStartAlpha(
-    interactionCount: number,
-    recentAccuracy: number,
-    fatigue: number
-  ): number {
+  getColdStartAlpha(interactionCount: number, recentAccuracy: number, fatigue: number): number {
     if (interactionCount < 15) {
       return 0.5; // 低探索，安全策略
     }
@@ -400,7 +391,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       A: new Float32Array(this.model.A),
       b: new Float32Array(this.model.b),
       L: new Float32Array(this.model.L),
-      updateCount: this.model.updateCount
+      updateCount: this.model.updateCount,
     };
   }
 
@@ -418,11 +409,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       return;
     }
 
-    const sanitizedA = this.sanitizeCovariance(
-      new Float32Array(model.A),
-      targetD,
-      effectiveLambda
-    );
+    const sanitizedA = this.sanitizeCovariance(new Float32Array(model.A), targetD, effectiveLambda);
     let sanitizedL: Float32Array;
     const loadedL = new Float32Array(model.L);
     if (hasInvalidValues(loadedL)) {
@@ -439,7 +426,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       A: sanitizedA,
       b: new Float32Array(model.b),
       L: sanitizedL,
-      updateCount: model.updateCount
+      updateCount: model.updateCount,
     };
   }
 
@@ -494,7 +481,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       supportsBatchUpdate: true,
       requiresPretraining: false,
       minSamplesForReliability: 50,
-      primaryUseCase: '基于上下文的动态策略选择，适合稳定期利用'
+      primaryUseCase: '基于上下文的动态策略选择，适合稳定期利用',
     };
   }
 
@@ -754,7 +741,11 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
    * 高精度线性方程组求解 (通过 Cholesky 分解)
    * 使用 Float64 进行中间计算，提高数值稳定性
    */
-  private solveLinearSystemHighPrecision(L: Float64Array, b: Float64Array, d: number): Float64Array {
+  private solveLinearSystemHighPrecision(
+    L: Float64Array,
+    b: Float64Array,
+    d: number,
+  ): Float64Array {
     const y = new Float64Array(d);
     const x = new Float64Array(d);
     const minDiag = MIN_RANK1_DIAG;
@@ -808,7 +799,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
         A: this.initIdentityMatrix(targetD, lambda),
         b: new Float32Array(targetD),
         L: this.initIdentityMatrix(targetD, lambda),
-        updateCount: 0
+        updateCount: 0,
       };
     }
 
@@ -837,7 +828,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
       // 保留原始 updateCount，旧特征的学习进度仍然有价值
       // 新特征维度会通过后续更新自然学习
       // 仅在降维时重置为 0（见上方分支）
-      updateCount: model.updateCount
+      updateCount: model.updateCount,
     };
   }
 
@@ -870,11 +861,7 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
   /**
    * 清理协方差矩阵的异常值并强制对称/正则化
    */
-  private sanitizeCovariance(
-    A: Float32Array,
-    d: number,
-    lambda: number
-  ): Float32Array {
+  private sanitizeCovariance(A: Float32Array, d: number, lambda: number): Float32Array {
     const safe = new Float32Array(d * d);
     const diagFloor = Math.max(lambda, MIN_LAMBDA);
     let corrected = false;
@@ -941,16 +928,15 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     if (this.model.d !== FEATURE_DIMENSION_V2) {
       amasLogger.warn(
         { modelDimension: this.model.d, expectedDimension: FEATURE_DIMENSION_V2 },
-        '[LinUCB] 模型维度与特征构建器不匹配，可能导致特征截断或填充'
+        '[LinUCB] 模型维度与特征构建器不匹配，可能导致特征截断或填充',
       );
     }
 
     const vec = new Float32Array(this.model.d);
 
     // 归一化反应时间
-    const rtNorm = recentResponseTime > 0
-      ? clamp(5000 / Math.max(recentResponseTime, 1000), 0, 2)
-      : 1; // 无数据时使用中间值1，而不是0
+    const rtNorm =
+      recentResponseTime > 0 ? clamp(5000 / Math.max(recentResponseTime, 1000), 0, 2) : 1; // 无数据时使用中间值1，而不是0
 
     // 时间特征 (norm + sin/cos)
     const { norm: timeNorm, sin: timeSin, cos: timeCos } = normalizeTimeFeatures(timeBucket);
@@ -978,24 +964,24 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     };
 
     // 状态特征 (5维)
-    push(clamp(state.A, 0, 1));        // 注意力
-    push(clamp(state.F, 0, 1));        // 疲劳度
-    push(clamp(state.C.mem, 0, 1));    // 记忆力
-    push(clamp(state.C.speed, 0, 1));  // 速度
-    push(clamp(state.M, -1, 1));       // 动机
+    push(clamp(state.A, 0, 1)); // 注意力
+    push(clamp(state.F, 0, 1)); // 疲劳度
+    push(clamp(state.C.mem, 0, 1)); // 记忆力
+    push(clamp(state.C.speed, 0, 1)); // 速度
+    push(clamp(state.M, -1, 1)); // 动机
 
     // 错误率 (1维)
     push(clamp(recentErrorRate, 0, 1));
 
     // 动作特征 (5维)
-    push(action.interval_scale);       // 间隔缩放
-    push(action.new_ratio);            // 新词比例
-    push(difficulty);                  // 难度等级 (0.2/0.5/0.8)
-    push(hintNorm);                    // 提示级别 (0..1)
-    push(batchNorm);                   // 批量大小归一化
+    push(action.interval_scale); // 间隔缩放
+    push(action.new_ratio); // 新词比例
+    push(difficulty); // 难度等级 (0.2/0.5/0.8)
+    push(hintNorm); // 提示级别 (0..1)
+    push(batchNorm); // 批量大小归一化
 
     // 交互特征 (1维)
-    push(rtNorm);                      // 近期反应时
+    push(rtNorm); // 近期反应时
 
     // 时间特征 (3维: norm + sin/cos)
     push(timeNorm);
@@ -1003,12 +989,12 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
     push(timeCos);
 
     // 处理键 (6维: 交叉特征)
-    push(attentionFatigue);            // 注意力 × (1-F)
-    push(motivationFatigue);           // 动机 × (1-F)
-    push(paceMatch);                   // 速度 × interval
-    push(memoryNewRatio);              // 记忆 × new_ratio
-    push(fatigueLatency);              // F × rt
-    push(newRatioMotivation);          // new_ratio × motivation
+    push(attentionFatigue); // 注意力 × (1-F)
+    push(motivationFatigue); // 动机 × (1-F)
+    push(paceMatch); // 速度 × interval
+    push(memoryNewRatio); // 记忆 × new_ratio
+    push(fatigueLatency); // F × rt
+    push(newRatioMotivation); // new_ratio × motivation
 
     // bias项 (1维)
     push(1.0);
@@ -1019,4 +1005,11 @@ export class LinUCB implements BaseLearner<UserState, Action, LinUCBContext, Ban
 
 // ==================== 导出默认实例 ====================
 
+/**
+ * 默认 LinUCB 实例
+ *
+ * @warning 此实例仅用于单用户测试或无状态查询。
+ * 生产环境多用户场景应为每个用户创建独立实例，
+ * 避免模型状态（A, b, L 矩阵）污染导致的策略错误。
+ */
 export const defaultLinUCB = new LinUCB();

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy, DifficultyLevel } from '@danci/shared';
+import { PAGINATION_CONFIG } from '../../constants/pagination';
 
 // ============================================
 // 类型定义
@@ -131,7 +132,12 @@ interface Props {
 export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   const [decisions, setDecisions] = useState<DecisionListItem[]>([]);
   const [statistics, setStatistics] = useState<DecisionStatistics | null>(null);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: PAGINATION_CONFIG.ADMIN_LIST,
+    total: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -342,7 +348,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           <thead>
             <tr>
               <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
-                ���间
+                时间
               </th>
               <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
                 来源

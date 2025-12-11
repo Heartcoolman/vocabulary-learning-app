@@ -8,6 +8,8 @@
  * - 流水线阶段耗时
  */
 
+import { alertMonitoringService } from './monitoring-service';
+
 type LabelValue = string | Record<string, string | number>;
 
 function serializeLabel(label?: LabelValue): string | undefined {
@@ -38,10 +40,7 @@ function formatPrometheusLabel(labels: Record<string, string | number>): string 
   const parts = Object.entries(labels)
     .filter(([, v]) => v !== undefined)
     .map(([k, v]) => {
-      const escaped = String(v)
-        .replace(/\\/g, '\\\\')
-        .replace(/\n/g, '\\n')
-        .replace(/"/g, '\\"');
+      const escaped = String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
       return `${k}="${escaped}"`;
     });
   return parts.length > 0 ? `{${parts.join(',')}}` : '';
@@ -346,8 +345,92 @@ export const amasMetrics = {
   nativeCallsTotal: new Counter(), // labels: method (selectAction/update), status (success/fallback)
   nativeFailuresTotal: new Counter(), // Native 调用失败次数
   nativeDuration: new LabeledBucketHistogram(NATIVE_LATENCY_BUCKETS), // Native 调用延迟 (秒), labels: method (selectAction/update)
-  nativeCircuitBreakerState: new Gauge() // 熔断器状态: 0=closed, 1=open, 2=half-open
+  nativeCircuitBreakerState: new Gauge(), // 熔断器状态: 0=closed, 1=open, 2=half-open
+
+  // AMAS模块运行状态追踪
+  moduleCallTotal: new Counter(), // labels: module, status (success/skipped/error)
+  moduleLastCallTime: new Map<string, number>(), // 模块最后调用时间
+  moduleErrorMessages: new Map<string, string>(), // 模块最后错误信息
 };
+
+// ==================== 模块状态追踪 ====================
+
+export type ModuleCallStatus = 'success' | 'skipped' | 'error';
+
+/**
+ * 记录模块调用状态
+ */
+export function recordModuleCall(
+  module: string,
+  status: ModuleCallStatus,
+  errorMessage?: string,
+): void {
+  amasMetrics.moduleCallTotal.inc({ module, status });
+  amasMetrics.moduleLastCallTime.set(module, Date.now());
+  if (status === 'error' && errorMessage) {
+    amasMetrics.moduleErrorMessages.set(module, errorMessage);
+  } else if (status === 'success') {
+    amasMetrics.moduleErrorMessages.delete(module);
+  }
+}
+
+/**
+ * 获取模块运行状态
+ */
+export function getModuleStatus(module: string): {
+  totalCalls: number;
+  successCalls: number;
+  skippedCalls: number;
+  errorCalls: number;
+  lastCallTime: number | null;
+  lastError: string | null;
+  status: 'healthy' | 'warning' | 'error' | 'disabled' | 'idle';
+} {
+  const success = amasMetrics.moduleCallTotal.get({ module, status: 'success' });
+  const skipped = amasMetrics.moduleCallTotal.get({ module, status: 'skipped' });
+  const error = amasMetrics.moduleCallTotal.get({ module, status: 'error' });
+  const total = success + skipped + error;
+  const lastCallTime = amasMetrics.moduleLastCallTime.get(module) || null;
+  const lastError = amasMetrics.moduleErrorMessages.get(module) || null;
+
+  let status: 'healthy' | 'warning' | 'error' | 'disabled' | 'idle' = 'idle';
+  if (total === 0) {
+    status = 'idle';
+  } else if (skipped > 0 && success === 0 && error === 0) {
+    status = 'disabled';
+  } else if (error > 0) {
+    const errorRate = error / total;
+    status = errorRate > 0.1 ? 'error' : 'warning';
+  } else if (success > 0) {
+    status = 'healthy';
+  }
+
+  return {
+    totalCalls: total,
+    successCalls: success,
+    skippedCalls: skipped,
+    errorCalls: error,
+    lastCallTime,
+    lastError,
+    status,
+  };
+}
+
+/**
+ * 获取所有模块状态
+ */
+export function getAllModuleStatuses(): Record<string, ReturnType<typeof getModuleStatus>> {
+  const modules = new Set<string>();
+  for (const [key] of amasMetrics.moduleCallTotal.entries()) {
+    const parsed = parseLabel(key);
+    if (parsed.module) modules.add(parsed.module);
+  }
+  const result: Record<string, ReturnType<typeof getModuleStatus>> = {};
+  for (const module of modules) {
+    result[module] = getModuleStatus(module);
+  }
+  return result;
+}
 
 // ==================== 便捷函数 ====================
 
@@ -442,8 +525,14 @@ export interface DbQueryMetric {
 
 export function recordDbQuery(metric: DbQueryMetric): void {
   if (!Number.isFinite(metric.durationMs) || metric.durationMs < 0) return;
-  const model = metric.model && metric.model.length > 48 ? metric.model.substring(0, 48) : (metric.model || 'unknown');
-  const action = metric.action && metric.action.length > 48 ? metric.action.substring(0, 48) : (metric.action || 'unknown');
+  const model =
+    metric.model && metric.model.length > 48
+      ? metric.model.substring(0, 48)
+      : metric.model || 'unknown';
+  const action =
+    metric.action && metric.action.length > 48
+      ? metric.action.substring(0, 48)
+      : metric.action || 'unknown';
 
   amasMetrics.dbQueryTotal.inc({ model, action });
   amasMetrics.dbQueryDuration.observe(metric.durationMs);
@@ -463,7 +552,7 @@ export function recordHttpRequest(metric: HttpRequestMetric): void {
   const labels = {
     route: metric.route,
     method: metric.method.toUpperCase(),
-    status: metric.status
+    status: metric.status,
   };
   amasMetrics.httpRequestTotal.inc(labels);
   amasMetrics.httpRequestDuration.observe(metric.durationSeconds);
@@ -538,30 +627,28 @@ export function getAllMetrics(): Record<string, unknown> {
 
   const cacheHits = amasMetrics.cacheHits.get();
   const cacheMisses = amasMetrics.cacheMisses.get();
-  const cacheHitRate = cacheHits + cacheMisses > 0
-    ? cacheHits / (cacheHits + cacheMisses)
-    : 0;
+  const cacheHitRate = cacheHits + cacheMisses > 0 ? cacheHits / (cacheHits + cacheMisses) : 0;
 
   return {
     decision: {
       writeTotal: amasMetrics.decisionWriteTotal.get(),
       writeSuccess: amasMetrics.decisionWriteSuccess.get(),
       writeFailed: amasMetrics.decisionWriteFailed.get(),
-      writeDuration: writeStats
+      writeDuration: writeStats,
     },
     queue: {
       currentSize: amasMetrics.queueSize.get(),
       backpressureTotal: amasMetrics.queueBackpressureTotal.get(),
-      backpressureTimeout: amasMetrics.queueBackpressureTimeout.get()
+      backpressureTimeout: amasMetrics.queueBackpressureTimeout.get(),
     },
     cache: {
       hits: cacheHits,
       misses: cacheMisses,
-      hitRate: Math.round(cacheHitRate * 1000) / 1000
+      hitRate: Math.round(cacheHitRate * 1000) / 1000,
     },
     pipeline: {
       stageTotal: amasMetrics.pipelineStageTotal.getAll(),
-      stageDuration: stageStats
+      stageDuration: stageStats,
     },
     amasDecision: {
       confidence: confidenceStats,
@@ -572,13 +659,13 @@ export function getAllMetrics(): Record<string, unknown> {
           const labels = parseLabel(key);
           const readable = `D${labels.difficulty}|B${labels.batch_size}|H${labels.hint_level}|I${labels.interval_scale}|N${labels.new_ratio}`;
           return [readable, count];
-        })
-      )
+        }),
+      ),
     },
     db: {
       durationMs: dbStats,
       total: amasMetrics.dbQueryTotal.getAll(),
-      slow: amasMetrics.dbSlowQueryTotal.getAll()
+      slow: amasMetrics.dbSlowQueryTotal.getAll(),
     },
     http: {
       total: amasMetrics.httpRequestTotal.get(),
@@ -589,10 +676,10 @@ export function getAllMetrics(): Record<string, unknown> {
           const labels = parseLabel(key);
           const readable = `${labels.route || 'unknown'} ${labels.method || 'UNKNOWN'} ${labels.status || '0'}`;
           return [readable, count];
-        })
-      )
+        }),
+      ),
     },
-    errors: amasMetrics.errorTotal.getAll()
+    errors: amasMetrics.errorTotal.getAll(),
   };
 }
 
@@ -624,7 +711,9 @@ export function getPrometheusMetrics(): string {
   lines.push('# TYPE amas_queue_backpressure_total counter');
   lines.push(`amas_queue_backpressure_total ${amasMetrics.queueBackpressureTotal.get()}`);
 
-  lines.push('# HELP amas_queue_backpressure_timeout_total Queue backpressure timeout events (data loss)');
+  lines.push(
+    '# HELP amas_queue_backpressure_timeout_total Queue backpressure timeout events (data loss)',
+  );
   lines.push('# TYPE amas_queue_backpressure_timeout_total counter');
   lines.push(`amas_queue_backpressure_timeout_total ${amasMetrics.queueBackpressureTimeout.get()}`);
 
@@ -764,19 +853,49 @@ export function getPrometheusMetrics(): string {
     // 输出每个 bucket
     for (const bucket of histogram.getBuckets()) {
       const leStr = bucket.le === Infinity ? '+Inf' : bucket.le.toString();
-      lines.push(`amas_native_duration_seconds_bucket{method="${methodLabel}",le="${leStr}"} ${bucket.count}`);
+      lines.push(
+        `amas_native_duration_seconds_bucket{method="${methodLabel}",le="${leStr}"} ${bucket.count}`,
+      );
     }
     // 输出 sum 和 count
     lines.push(`amas_native_duration_seconds_sum{method="${methodLabel}"} ${histogram.getSum()}`);
-    lines.push(`amas_native_duration_seconds_count{method="${methodLabel}"} ${histogram.getCount()}`);
+    lines.push(
+      `amas_native_duration_seconds_count{method="${methodLabel}"} ${histogram.getCount()}`,
+    );
   }
 
   // 熔断器状态
-  lines.push('# HELP amas_native_circuit_breaker_state Circuit breaker state (0=closed, 1=open, 2=half-open)');
+  lines.push(
+    '# HELP amas_native_circuit_breaker_state Circuit breaker state (0=closed, 1=open, 2=half-open)',
+  );
   lines.push('# TYPE amas_native_circuit_breaker_state gauge');
   lines.push(`amas_native_circuit_breaker_state ${amasMetrics.nativeCircuitBreakerState.get()}`);
 
   return lines.join('\n');
+}
+
+/**
+ * 收集关键指标快照，供管理端 API 使用
+ */
+export function collectMonitoringSnapshot() {
+  const httpStats = amasMetrics.httpRequestDuration.getStats();
+  const activeAlerts = alertMonitoringService.getActiveAlerts();
+
+  return {
+    timestamp: Date.now(),
+    http: {
+      totalRequests: amasMetrics.httpRequestTotal.get(),
+      errorRequests5xx: amasMetrics.httpRequest5xxTotal.get(),
+      requestDuration: {
+        avg: httpStats.avg,
+        p50: httpStats.p50,
+        p95: httpStats.p95,
+        p99: httpStats.p99,
+        count: httpStats.count,
+      },
+    },
+    alerts: activeAlerts,
+  };
 }
 
 /**

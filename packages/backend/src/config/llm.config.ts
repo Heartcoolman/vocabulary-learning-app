@@ -5,6 +5,8 @@
  * 用于配置 LLM 周度顾问系统的参数
  */
 
+import { env } from './env';
+
 // ==================== 类型定义 ====================
 
 /**
@@ -64,7 +66,7 @@ export const DEFAULT_MODELS: Record<LLMProvider, string> = {
   openai: 'gpt-4o-mini',
   anthropic: 'claude-3-haiku-20240307',
   ollama: 'llama3.2',
-  custom: 'default'
+  custom: 'default',
 };
 
 /**
@@ -74,7 +76,7 @@ export const DEFAULT_BASE_URLS: Record<LLMProvider, string> = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com/v1',
   ollama: 'http://localhost:11434/api',
-  custom: ''
+  custom: '',
 };
 
 // ==================== 配置加载 ====================
@@ -90,20 +92,21 @@ function parseProvider(value: string | undefined): LLMProvider {
 
 /**
  * 从环境变量加载 LLM 配置
+ * 使用 env.ts 中的已验证环境变量
  */
 export function loadLLMConfig(): LLMConfig {
-  const provider = parseProvider(process.env.LLM_PROVIDER);
+  const provider = env.LLM_PROVIDER;
 
   return {
-    enabled: process.env.LLM_ADVISOR_ENABLED === 'true',
+    enabled: env.LLM_ADVISOR_ENABLED,
     provider,
-    model: process.env.LLM_MODEL || DEFAULT_MODELS[provider],
-    apiKey: process.env.LLM_API_KEY || '',
-    baseUrl: process.env.LLM_BASE_URL || DEFAULT_BASE_URLS[provider],
-    timeout: parseInt(process.env.LLM_TIMEOUT || '60000', 10),
-    maxRetries: parseInt(process.env.LLM_MAX_RETRIES || '2', 10),
-    temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.3'),
-    maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '4096', 10)
+    model: env.LLM_MODEL || DEFAULT_MODELS[provider],
+    apiKey: env.LLM_API_KEY || '',
+    baseUrl: env.LLM_BASE_URL || DEFAULT_BASE_URLS[provider],
+    timeout: env.LLM_TIMEOUT,
+    maxRetries: env.LLM_MAX_RETRIES,
+    temperature: env.LLM_TEMPERATURE,
+    maxTokens: env.LLM_MAX_TOKENS,
   };
 }
 
@@ -113,7 +116,7 @@ export function loadLLMConfig(): LLMConfig {
 export function loadScheduleConfig(): LLMAdvisorScheduleConfig {
   return {
     weeklyAnalysisCron: process.env.LLM_WEEKLY_CRON || '0 4 * * 0', // 周日 04:00
-    autoAnalysisEnabled: process.env.LLM_AUTO_ANALYSIS !== 'false'
+    autoAnalysisEnabled: process.env.LLM_AUTO_ANALYSIS !== 'false',
   };
 }
 
@@ -158,7 +161,7 @@ export function validateLLMConfig(config: LLMConfig): {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -175,6 +178,6 @@ export function getConfigSummary(config: LLMConfig): Record<string, unknown> {
     maxRetries: config.maxRetries,
     temperature: config.temperature,
     maxTokens: config.maxTokens,
-    apiKeySet: !!config.apiKey
+    apiKeySet: !!config.apiKey,
   };
 }

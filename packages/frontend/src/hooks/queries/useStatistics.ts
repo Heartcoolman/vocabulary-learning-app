@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { CACHE_TIME, GC_TIME, REFETCH_INTERVALS, DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
 import ApiClient from '../../services/client';
 import StorageService from '../../services/StorageService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -121,7 +122,9 @@ export function useStatistics() {
         .slice(-14) // 只显示最近14天
         .map(([date, { correct, total }]) => ({
           date,
-          accuracy: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,
+          // 返回 0-1 的比率，与 overallAccuracy 保持一致
+          // UI 层统一处理百分比显示
+          accuracy: total > 0 ? correct / total : 0,
         }));
 
       // 生成按星期的练习热度
@@ -142,8 +145,8 @@ export function useStatistics() {
       };
     },
     enabled: !!user,
-    staleTime: 60 * 1000, // 1分钟后标记为过期
-    refetchInterval: 60 * 1000, // 每分钟自动刷新
+    staleTime: CACHE_TIME.SHORT, // 1分钟后标记为过期
+    refetchInterval: REFETCH_INTERVALS.FREQUENT, // 每分钟自动刷新
     refetchOnWindowFocus: true, // 窗口聚焦时刷新
   });
 }
@@ -157,8 +160,8 @@ export function useStudyProgress() {
     queryFn: async () => {
       return await ApiClient.getStudyProgress();
     },
-    staleTime: 60 * 1000, // 1分钟
-    refetchInterval: 60 * 1000, // 每分钟自动刷新
+    staleTime: CACHE_TIME.SHORT, // 1分钟
+    refetchInterval: REFETCH_INTERVALS.FREQUENT, // 每分钟自动刷新
   });
 }
 
@@ -171,7 +174,7 @@ export function useUserStatistics() {
     queryFn: async () => {
       return await ApiClient.getUserStatistics();
     },
-    staleTime: 5 * 60 * 1000, // 5分钟
+    ...DATA_CACHE_CONFIG.userStatistics,
   });
 }
 
@@ -184,7 +187,7 @@ export function useLearningRecords(options?: { page?: number; pageSize?: number 
     queryFn: async () => {
       return await ApiClient.getRecords(options);
     },
-    staleTime: 2 * 60 * 1000, // 2分钟
+    staleTime: CACHE_TIME.MEDIUM_SHORT, // 2分钟
   });
 }
 

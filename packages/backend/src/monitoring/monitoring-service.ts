@@ -18,7 +18,7 @@ import {
   ALERT_RULES,
   AlertMetricKey,
   DEFAULT_EVALUATION_INTERVAL_MS,
-  DEFAULT_EVALUATION_JITTER_MS
+  DEFAULT_EVALUATION_JITTER_MS,
 } from './alert-rules';
 import { amasMetrics } from './amas-metrics';
 import { monitorLogger } from '../logger';
@@ -39,7 +39,11 @@ interface RawSnapshot {
   timestamp: number;
   http: {
     total: number;
+    avg: number;
+    p50: number;
     p95: number;
+    p99: number;
+    count: number;
     fiveXx: number;
   };
   db: {
@@ -72,6 +76,8 @@ export class MonitoringService {
   private lastSnapshot?: RawSnapshot;
   private running = false;
   private evaluating = false;
+  private history: RawSnapshot[] = [];
+  private readonly maxHistory = 12 * 60; // 最多保存 12 小时，每分钟 1 个点
 
   constructor(config: MonitoringServiceConfig = {}) {
     this.intervalMs = config.evaluationIntervalMs ?? DEFAULT_EVALUATION_INTERVAL_MS;
@@ -144,6 +150,7 @@ export class MonitoringService {
           const raw = this.captureSnapshot();
           const frame = this.buildSnapshot(raw);
           const changes = this.engine.evaluate(frame);
+          this.pushHistory(raw);
 
           if (changes.length > 0) {
             monitorLogger.info({ count: changes.length }, 'Alert state change(s) processed');
@@ -225,15 +232,19 @@ export class MonitoringService {
       timestamp,
       http: {
         total: httpCounts.total,
+        avg: httpStats.avg,
+        p50: httpStats.p50,
         p95: httpStats.p95,
-        fiveXx: httpCounts.fiveXx
+        p99: httpStats.p99,
+        count: httpStats.count,
+        fiveXx: httpCounts.fiveXx,
       },
       db: {
-        slowQueryTotal: amasMetrics.dbSlowQueryTotal.get()
+        slowQueryTotal: amasMetrics.dbSlowQueryTotal.get(),
       },
       amas: {
-        decisionConfidenceP50: confidenceStats.count > 0 ? confidenceStats.p50 : NaN
-      }
+        decisionConfidenceP50: confidenceStats.count > 0 ? confidenceStats.p50 : NaN,
+      },
     };
   }
 
@@ -245,6 +256,24 @@ export class MonitoringService {
     const total = amasMetrics.httpRequestTotal.get();
     const fiveXx = amasMetrics.httpRequest5xxTotal.get();
     return { total, fiveXx };
+  }
+
+  /**
+   * 保存原始快照到内存（环形缓冲）
+   */
+  private pushHistory(snapshot: RawSnapshot) {
+    this.history.push(snapshot);
+    if (this.history.length > this.maxHistory) {
+      this.history.splice(0, this.history.length - this.maxHistory);
+    }
+  }
+
+  /**
+   * 获取指定时间范围内的原始快照
+   */
+  getSnapshots(rangeMinutes: number): RawSnapshot[] {
+    const cutoff = Date.now() - rangeMinutes * 60 * 1000;
+    return this.history.filter((s) => s.timestamp >= cutoff);
   }
 }
 

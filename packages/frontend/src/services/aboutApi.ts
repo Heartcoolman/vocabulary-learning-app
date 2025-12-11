@@ -5,6 +5,7 @@
  */
 
 import { apiLogger } from '../utils/logger';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const API_BASE = '/api/about';
 
@@ -280,6 +281,13 @@ interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  source?: 'real' | 'virtual' | 'mixed';
+}
+
+/** 带数据源的响应类型 */
+export interface WithSource<T> {
+  data: T;
+  source: 'real' | 'virtual' | 'mixed';
 }
 
 // ==================== 辅助函数 ====================
@@ -301,7 +309,7 @@ interface RequestOptions {
  * 获取认证token（用于需要管理员权限的真实数据接口）
  */
 function getAuthToken(): string | null {
-  return localStorage.getItem('auth_token');
+  return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 }
 
 /**
@@ -352,6 +360,45 @@ async function parseJsonResponse<T>(response: Response, errorPrefix: string): Pr
   }
 
   return result.data;
+}
+
+/**
+ * 安全解析 JSON 响应（带数据源信息）
+ */
+async function parseJsonResponseWithSource<T>(
+  response: Response,
+  errorPrefix: string,
+): Promise<WithSource<T>> {
+  // 检查响应状态
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`${errorPrefix}: HTTP ${response.status} - ${text || response.statusText}`);
+  }
+
+  // 检查内容类型
+  const contentType = response.headers.get('content-type');
+  if (!contentType?.includes('application/json')) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`${errorPrefix}: 响应不是 JSON 格式 - ${text.slice(0, 100)}`);
+  }
+
+  // 解析 JSON
+  let result: ApiResponse<T>;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`${errorPrefix}: JSON 解析失败`);
+  }
+
+  // 检查业务状态
+  if (!result.success || !result.data) {
+    throw new Error(result.error || `${errorPrefix}: 未知错误`);
+  }
+
+  return {
+    data: result.data,
+    source: result.source || 'virtual',
+  };
 }
 
 /**
@@ -436,6 +483,21 @@ export async function getOverviewStats(options?: RequestOptions): Promise<Overvi
     options,
   );
   return parseJsonResponse<OverviewStats>(response, '获取统计失败');
+}
+
+/**
+ * 获取概览统计（带数据源信息）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getOverviewStatsWithSource(
+  options?: RequestOptions,
+): Promise<WithSource<OverviewStats>> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/stats/overview`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponseWithSource<OverviewStats>(response, '获取统计失败');
 }
 
 /**
@@ -724,6 +786,11 @@ export interface MemoryStatusResponse {
   stableCount: number;
   avgHalfLifeDays: number;
   todayConsolidationRate: number;
+  actrConfig: {
+    maxTraceRecords: number;
+    errorPenalty: number;
+    defaultDecay: number;
+  };
 }
 
 /**
@@ -813,11 +880,192 @@ export async function getFeatureFlags(options?: RequestOptions): Promise<Feature
   return parseJsonResponse<FeatureFlagsStatus>(response, '获取功能开关状态失败');
 }
 
+/** 学习模式分布响应 */
+export interface LearningModeDistributionResponse {
+  exam: number;
+  daily: number;
+  travel: number;
+  custom: number;
+}
+
+/**
+ * 获取学习模式分布
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getLearningModeDistribution(
+  options?: RequestOptions,
+): Promise<LearningModeDistributionResponse> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/stats/learning-mode-distribution`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponse<LearningModeDistributionResponse>(response, '获取学习模式分布失败');
+}
+
+/** 半衰期分布项 */
+export interface HalfLifeDistributionItem {
+  range: string;
+  count: number;
+  percentage: number;
+}
+
+/** 半衰期分布响应 */
+export interface HalfLifeDistributionResponse {
+  distribution: HalfLifeDistributionItem[];
+  avgHalfLife: number;
+  totalWords: number;
+}
+
+/** 算法趋势数据 */
+export interface AlgorithmTrend {
+  thompson: number[];
+  linucb: number[];
+  actr: number[];
+  heuristic: number[];
+  coldstart: number[];
+}
+
+/**
+ * 获取半衰期分布
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getHalfLifeDistribution(
+  options?: RequestOptions,
+): Promise<HalfLifeDistributionResponse> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/stats/half-life-distribution`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponse<HalfLifeDistributionResponse>(response, '获取半衰期分布失败');
+}
+
+/**
+ * 获取算法趋势数据（用于 MemberCard 趋势线）
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getAlgorithmTrend(options?: RequestOptions): Promise<AlgorithmTrend> {
+  const response = await fetchWithTimeout(
+    `${API_BASE}/stats/algorithm-trend`,
+    { headers: buildHeaders() },
+    options,
+  );
+  return parseJsonResponse<AlgorithmTrend>(response, '获取算法趋势失败');
+}
+
+// ==================== 健康检查 API ====================
+
+const HEALTH_API_BASE = '/api/health';
+
+/** 进程内存使用 */
+export interface ProcessMemoryUsage {
+  rss: number;
+  heapTotal: number;
+  heapUsed: number;
+  external: number;
+  arrayBuffers: number;
+}
+
+/** 健康检查指标响应 */
+export interface HealthMetricsResponse {
+  timestamp: string;
+  system: {
+    hostname: string;
+    platform: string;
+    arch: string;
+    nodeVersion: string;
+    uptime: number;
+    loadAverage: number[];
+    cpuCount: number;
+  };
+  process: {
+    pid: number;
+    uptime: number;
+    memoryUsage: ProcessMemoryUsage;
+    cpuUsage: NodeJS.CpuUsage;
+  };
+  http: {
+    totalRequests: number;
+    errorRequests5xx: number;
+    requestDuration: {
+      avg: number;
+      p50: number;
+      p95: number;
+      p99: number;
+      count: number;
+    };
+  };
+  database: {
+    slowQueryTotal: number;
+  };
+  alerts: {
+    activeCount: number;
+    active: Array<{ ruleName: string; severity: string; triggeredAt: string }>;
+  };
+}
+
+/** 就绪检查响应 */
+export interface HealthReadyResponse {
+  status: 'healthy' | 'unhealthy' | 'degraded';
+  timestamp: string;
+  uptime: number;
+  version?: string;
+  checks: {
+    database: 'connected' | 'disconnected' | 'timeout';
+    memory: boolean;
+    diskSpace?: boolean;
+  };
+  details?: {
+    databaseLatency?: number;
+    memoryUsage?: number;
+    memoryLimit?: number;
+  };
+}
+
+/**
+ * 获取健康检查指标
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getHealthMetrics(options?: RequestOptions): Promise<HealthMetricsResponse> {
+  const response = await fetchWithTimeout(
+    `${HEALTH_API_BASE}/metrics`,
+    { headers: buildHeaders() },
+    options,
+  );
+
+  // 健康检查 API 直接返回数据，不包装在 { success, data } 中
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`获取健康指标失败: HTTP ${response.status} - ${text || response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * 获取就绪检查状态
+ * @param options 请求选项（超时、取消信号）
+ */
+export async function getHealthReady(options?: RequestOptions): Promise<HealthReadyResponse> {
+  const response = await fetchWithTimeout(
+    `${HEALTH_API_BASE}/ready`,
+    { headers: buildHeaders() },
+    options,
+  );
+
+  // 健康检查 API 直接返回数据，不包装在 { success, data } 中
+  // 注意：即使服务降级（degraded），也会返回 200，所以不检查 response.ok
+  return response.json();
+}
+
 // 默认导出
 export default {
   simulate,
   getOverviewStats,
+  getOverviewStatsWithSource,
   getAlgorithmDistribution,
+  getAlgorithmTrend,
   getPerformanceMetrics,
   getOptimizationEvents,
   getMasteryRadar,
@@ -833,6 +1081,9 @@ export default {
   getUserStateStatus,
   getMemoryStatus,
   getFeatureFlags,
+  // 健康检查 API
+  getHealthMetrics,
+  getHealthReady,
 };
 
 // ==================== SSE 实时推送 ====================

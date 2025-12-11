@@ -89,10 +89,7 @@ export class WordService {
 
     // 如果提供了userId，检查权限
     if (userId) {
-      if (
-        word.wordBook.type === 'USER' &&
-        word.wordBook.userId !== userId
-      ) {
+      if (word.wordBook.type === 'USER' && word.wordBook.userId !== userId) {
         throw new Error('无权访问此单词');
       }
     }
@@ -107,7 +104,7 @@ export class WordService {
    */
   async createWord(
     userIdOrData: string | (CreateWordDto & { wordBookId?: string; userId?: string }),
-    dataOrUndefined?: CreateWordDto & { wordBookId?: string; userId?: string }
+    dataOrUndefined?: CreateWordDto & { wordBookId?: string; userId?: string },
   ) {
     let userId: string;
     let data: CreateWordDto & { wordBookId?: string; userId?: string };
@@ -148,21 +145,26 @@ export class WordService {
       throw new Error('wordBookId is required to create a word');
     }
 
-    const word = await prisma.word.create({
-      data: {
-        wordBook: { connect: { id: wordBookId } },
-        spelling: data.spelling,
-        phonetic: data.phonetic ?? '',
-        meanings: data.meanings,
-        examples: data.examples,
-        audioUrl: data.audioUrl ?? undefined,
-      },
-    });
+    // 使用事务确保单词创建和计数更新的原子性
+    const word = await prisma.$transaction(async (tx) => {
+      const created = await tx.word.create({
+        data: {
+          wordBook: { connect: { id: wordBookId } },
+          spelling: data.spelling,
+          phonetic: data.phonetic ?? '',
+          meanings: data.meanings,
+          examples: data.examples,
+          audioUrl: data.audioUrl ?? undefined,
+        },
+      });
 
-    // 更新词书单词计数
-    await prisma.wordBook.update({
-      where: { id: wordBookId },
-      data: { wordCount: { increment: 1 } },
+      // 在同一事务内更新词书单词计数
+      await tx.wordBook.update({
+        where: { id: wordBookId },
+        data: { wordCount: { increment: 1 } },
+      });
+
+      return created;
     });
 
     return word;
@@ -175,7 +177,7 @@ export class WordService {
   async updateWord(
     wordId: string,
     userIdOrData: string | UpdateWordDto,
-    dataOrUndefined?: UpdateWordDto
+    dataOrUndefined?: UpdateWordDto,
   ) {
     let data: UpdateWordDto;
     let userId: string | undefined;
@@ -270,10 +272,7 @@ export class WordService {
    * 修复 Bug #39: 按词书ID分组统计，批量更新各词书的计数
    * 原问题：只更新默认词书计数，其他词书不更新
    */
-  async batchCreateWords(
-    userId: string,
-    words: (CreateWordDto & { wordBookId?: string })[]
-  ) {
+  async batchCreateWords(userId: string, words: (CreateWordDto & { wordBookId?: string })[]) {
     // 获取或创建默认词书
     let defaultWordBook = await prisma.wordBook.findFirst({
       where: { userId, type: 'USER' },
@@ -298,34 +297,87 @@ export class WordService {
       wordCountByBookId.set(bookId, (wordCountByBookId.get(bookId) || 0) + 1);
     }
 
-    const createdWords = await prisma.$transaction(
-      words.map((word) =>
-        prisma.word.create({
-          data: {
-            wordBook: {
-              connect: { id: word.wordBookId || defaultWordBook!.id },
+    // 使用交互式事务，确保单词创建和计数更新在同一事务内完成
+    const createdWords = await prisma.$transaction(async (tx) => {
+      // 创建所有单词
+      const created = await Promise.all(
+        words.map((word) =>
+          tx.word.create({
+            data: {
+              wordBook: {
+                connect: { id: word.wordBookId || defaultWordBook!.id },
+              },
+              spelling: word.spelling,
+              phonetic: word.phonetic ?? '',
+              meanings: word.meanings,
+              examples: word.examples,
+              audioUrl: word.audioUrl ?? undefined,
             },
-            spelling: word.spelling,
-            phonetic: word.phonetic ?? '',
-            meanings: word.meanings,
-            examples: word.examples,
-            audioUrl: word.audioUrl ?? undefined,
-          },
-        })
-      )
-    );
+          }),
+        ),
+      );
 
-    // 批量更新各词书的单词计数
-    const updatePromises = Array.from(wordCountByBookId.entries()).map(
-      ([bookId, count]) =>
-        prisma.wordBook.update({
-          where: { id: bookId },
-          data: { wordCount: { increment: count } },
-        })
-    );
-    await Promise.all(updatePromises);
+      // 在同一事务内更新各词书的单词计数
+      await Promise.all(
+        Array.from(wordCountByBookId.entries()).map(([bookId, count]) =>
+          tx.wordBook.update({
+            where: { id: bookId },
+            data: { wordCount: { increment: count } },
+          }),
+        ),
+      );
+
+      return created;
+    });
 
     return createdWords;
+  }
+
+  /**
+   * 批量删除单词
+   */
+  async batchDeleteWords(wordIds: string[], userId?: string) {
+    if (!wordIds || wordIds.length === 0) {
+      return;
+    }
+
+    // 获取需要更新计数的词书
+    const words = await prisma.word.findMany({
+      where: { id: { in: wordIds } },
+      select: { id: true, wordBookId: true },
+    });
+
+    if (userId) {
+      // 确保这些单词归当前用户所有（用于权限）
+      const unauthorized = await prisma.word.findMany({
+        where: { id: { in: wordIds }, wordBook: { userId: { not: userId } } },
+        select: { id: true },
+      });
+      if (unauthorized.length > 0) {
+        throw new Error('存在无权限删除的单词');
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.word.deleteMany({
+        where: { id: { in: wordIds } },
+      });
+
+      // 按词书减少计数
+      const countByBook = new Map<string, number>();
+      words.forEach((w) => {
+        if (w.wordBookId) {
+          countByBook.set(w.wordBookId, (countByBook.get(w.wordBookId) || 0) + 1);
+        }
+      });
+
+      for (const [bookId, count] of countByBook.entries()) {
+        await tx.wordBook.update({
+          where: { id: bookId },
+          data: { wordCount: { decrement: count } },
+        });
+      }
+    });
   }
 }
 

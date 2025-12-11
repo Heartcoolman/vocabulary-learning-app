@@ -3,6 +3,7 @@ import { X, Clock, Fire, ChartLine, Warning, CheckCircle, CircleNotch, Lightbulb
 import { Modal } from '../ui/Modal';
 import { MemoryTraceChart } from './MemoryTraceChart';
 import apiClient from '../../services/client';
+import { wordService } from '../../services/word.service';
 import { learningLogger } from '../../utils/logger';
 import type {
   MasteryEvaluation,
@@ -45,8 +46,20 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 
       // 并发加载所有数据
       const [wordData, masteryData, traceData, intervalData] = await Promise.all([
-        // 通过 getLearnedWords 获取单词基本信息（假设单词在已学习列表中）
-        apiClient.getLearnedWords().then((words) => words.find((w) => w.id === wordId)),
+        // 优先从已学习列表获取，失败则回退到单词详情查询
+        apiClient
+          .getLearnedWords()
+          .then((words) => words.find((w) => w.id === wordId))
+          .catch(() => undefined)
+          .then(async (found) => {
+            if (found) return found;
+            try {
+              const { data } = await wordService.getWordById(wordId);
+              return data;
+            } catch {
+              return undefined;
+            }
+          }),
         // 获取掌握度评估
         apiClient.getWordMasteryDetail(wordId).catch(() => null),
         // 获取学习轨迹

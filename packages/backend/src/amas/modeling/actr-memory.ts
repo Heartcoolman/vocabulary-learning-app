@@ -28,7 +28,7 @@ import {
   BaseLearner,
   BaseLearnerContext,
   ActionSelection,
-  LearnerCapabilities
+  LearnerCapabilities,
 } from '../learning/base-learner';
 import { amasLogger } from '../../logger';
 
@@ -175,9 +175,7 @@ const ERROR_PENALTY = 0.3;
  * - 计算最优复习间隔
  * - 长期记忆保持率优化
  */
-export class ACTRMemoryModel
-  implements BaseLearner<UserState, Action, ACTRContext, ACTRState>
-{
+export class ACTRMemoryModel implements BaseLearner<UserState, Action, ACTRContext, ACTRState> {
   private static readonly NAME = 'ACTRMemoryModel';
   private static readonly VERSION = '1.0.0';
 
@@ -252,7 +250,7 @@ export class ACTRMemoryModel
   selectAction(
     _state: UserState,
     actions: Action[],
-    context: ACTRContext
+    context: ACTRContext,
   ): ActionSelection<Action> {
     if (!actions || actions.length === 0) {
       throw new Error('[ACTRMemoryModel] 动作列表不能为空');
@@ -265,7 +263,7 @@ export class ACTRMemoryModel
 
     // 按难度排序（从易到难）
     const sorted = [...actions].sort(
-      (a, b) => this.computeDifficultyScore(a) - this.computeDifficultyScore(b)
+      (a, b) => this.computeDifficultyScore(a) - this.computeDifficultyScore(b),
     );
 
     // 回忆概率低时选简单动作，高时选难动作
@@ -289,8 +287,8 @@ export class ACTRMemoryModel
         baseActivation: result.baseActivation,
         activation: result.activation,
         recallProbability: prob,
-        traceLength: context.trace?.length ?? 0
-      }
+        traceLength: context.trace?.length ?? 0,
+      },
     };
   }
 
@@ -300,12 +298,7 @@ export class ACTRMemoryModel
    * 注意: ACT-R模型本身不存储复习历史
    * 复习轨迹由上层（如单词记录服务）管理
    */
-  update(
-    _state: UserState,
-    _action: Action,
-    _reward: number,
-    _context: ACTRContext
-  ): void {
+  update(_state: UserState, _action: Action, _reward: number, _context: ACTRContext): void {
     this.updateCount += 1;
   }
 
@@ -317,7 +310,7 @@ export class ACTRMemoryModel
       decay: this.decay,
       threshold: this.threshold,
       noiseScale: this.noiseScale,
-      updateCount: this.updateCount
+      updateCount: this.updateCount,
     };
   }
 
@@ -357,7 +350,7 @@ export class ACTRMemoryModel
       supportsBatchUpdate: false,
       requiresPretraining: false,
       minSamplesForReliability: 1,
-      primaryUseCase: '基于认知科学的记忆衰减建模，适合长期记忆保持率优化'
+      primaryUseCase: '基于认知科学的记忆衰减建模，适合长期记忆保持率优化',
     };
   }
 
@@ -378,11 +371,7 @@ export class ACTRMemoryModel
    * @param addNoise 是否添加噪声
    * @returns 激活度值
    */
-  computeActivation(
-    trace: ReviewTrace[],
-    decay = this.decay,
-    addNoise = true
-  ): number {
+  computeActivation(trace: ReviewTrace[], decay = this.decay, addNoise = true): number {
     if (!trace || trace.length === 0) {
       return -Infinity;
     }
@@ -424,7 +413,7 @@ export class ACTRMemoryModel
       return {
         baseActivation: -Infinity,
         activation: -Infinity,
-        recallProbability: 0
+        recallProbability: 0,
       };
     }
 
@@ -440,7 +429,7 @@ export class ACTRMemoryModel
       return {
         baseActivation: -Infinity,
         activation: -Infinity,
-        recallProbability: 0
+        recallProbability: 0,
       };
     }
 
@@ -452,7 +441,7 @@ export class ACTRMemoryModel
     return {
       baseActivation,
       activation,
-      recallProbability
+      recallProbability,
     };
   }
 
@@ -467,7 +456,7 @@ export class ACTRMemoryModel
   computeRecallProbability(
     activation: number,
     threshold = this.threshold,
-    noiseScale = this.noiseScale
+    noiseScale = this.noiseScale,
   ): number {
     if (!Number.isFinite(activation)) {
       return 0;
@@ -493,7 +482,7 @@ export class ACTRMemoryModel
   computeOptimalInterval(
     trace: ReviewTrace[],
     targetProbability: number,
-    decay = this.decay
+    decay = this.decay,
   ): number {
     const target = this.clamp(targetProbability, 0.01, 0.99);
 
@@ -517,9 +506,9 @@ export class ACTRMemoryModel
       const mid = (low + high) / 2;
 
       // 计算mid秒后的激活度
-      const futureTrace = trace.map(r => ({
+      const futureTrace = trace.map((r) => ({
         ...r,
-        secondsAgo: r.secondsAgo + mid
+        secondsAgo: r.secondsAgo + mid,
       }));
       const futureActivation = this.computeActivation(futureTrace, decay, false);
       const futureProb = this.computeRecallProbability(futureActivation);
@@ -570,7 +559,7 @@ export class ACTRMemoryModel
       return {
         activation: -Infinity,
         recallProbability: 0,
-        confidence: 0
+        confidence: 0,
       };
     }
 
@@ -578,26 +567,32 @@ export class ACTRMemoryModel
     const activation = this.computeActivation(trace, this.decay, false);
     const recallProbability = this.computeRecallProbability(activation);
 
-    // 置信度基于复习次数和时间跨度
-    // 复习次数越多，时间跨度越大，置信度越高
+    // 置信度计算
+    // 基于两个因素：复习次数和时间跨度
     const reviewCount = trace.length;
-    const timeSpan = Math.max(...trace.map(t => t.secondsAgo)) - Math.min(...trace.map(t => t.secondsAgo));
     const countFactor = Math.min(1, reviewCount / 10); // 10次复习达到满置信度
-    const timeFactor = Math.min(1, timeSpan / (7 * 24 * 3600)); // 7天跨度达到满置信度
 
-    // 单次复习特殊处理：给予基础置信度0.3
-    // 原因：单次复习时timeSpan=0导致置信度仅为0.05，这不合理
-    // 单次复习虽然信息有限，但仍有一定参考价值
+    // 单次复习特殊处理
+    // 原因：单次复习时 timeSpan=0，若直接使用 timeFactor 会导致置信度过低
+    // 单次复习虽然信息有限，但仍有一定参考价值，给予基础置信度
     const BASE_SINGLE_REVIEW_CONFIDENCE = 0.3;
-    const rawConfidence = 0.5 * countFactor + 0.5 * timeFactor;
-    const confidence = reviewCount === 1
-      ? Math.max(BASE_SINGLE_REVIEW_CONFIDENCE, rawConfidence)
-      : this.clamp(rawConfidence, 0, 1);
+
+    let confidence: number;
+    if (reviewCount === 1) {
+      // 单次复习：给予基础置信度，因为信息有限但仍有参考价值
+      confidence = Math.max(BASE_SINGLE_REVIEW_CONFIDENCE, countFactor * 0.5);
+    } else {
+      // 多次复习：基于复习次数和时间跨度综合计算
+      const timeSpan =
+        Math.max(...trace.map((t) => t.secondsAgo)) - Math.min(...trace.map((t) => t.secondsAgo));
+      const timeFactor = Math.min(1, timeSpan / (7 * 24 * 3600)); // 7天跨度达到满置信度
+      confidence = this.clamp(0.5 * countFactor + 0.5 * timeFactor, 0, 1);
+    }
 
     return {
       activation,
       recallProbability,
-      confidence
+      confidence,
     };
   }
 
@@ -632,7 +627,7 @@ export class ACTRMemoryModel
       optimalSeconds: this.clamp(optimalSeconds, MIN_INTERVAL, MAX_INTERVAL),
       minSeconds: this.clamp(minSeconds, MIN_INTERVAL, MAX_INTERVAL),
       maxSeconds: this.clamp(maxSeconds, MIN_INTERVAL, MAX_INTERVAL),
-      targetRecall: target
+      targetRecall: target,
     };
   }
 
@@ -642,14 +637,8 @@ export class ACTRMemoryModel
    * 计算动作难度分数（用于策略选择）
    */
   private computeDifficultyScore(action: Action): number {
-    const diffWeight =
-      action.difficulty === 'hard' ? 2 : action.difficulty === 'mid' ? 1 : 0;
-    return (
-      action.interval_scale +
-      diffWeight +
-      action.new_ratio * 2 -
-      action.hint_level * 0.3
-    );
+    const diffWeight = action.difficulty === 'hard' ? 2 : action.difficulty === 'mid' ? 1 : 0;
+    return action.interval_scale + diffWeight + action.new_ratio * 2 - action.hint_level * 0.3;
   }
 
   /**
@@ -664,12 +653,7 @@ export class ACTRMemoryModel
   /**
    * 参数校验
    */
-  private validateParam(
-    value: unknown,
-    fallback: number,
-    min: number,
-    max: number
-  ): number {
+  private validateParam(value: unknown, fallback: number, min: number, max: number): number {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       return fallback;
     }
@@ -719,10 +703,7 @@ export class ACTRMemoryModel
 /**
  * 计算激活度（独立函数）
  */
-export function computeActivation(
-  trace: ReviewTrace[],
-  decay = DEFAULT_DECAY
-): number {
+export function computeActivation(trace: ReviewTrace[], decay = DEFAULT_DECAY): number {
   const model = new ACTRMemoryModel({ decay });
   return model.computeActivation(trace, decay, false);
 }
@@ -733,7 +714,7 @@ export function computeActivation(
 export function computeRecallProbability(
   activation: number,
   threshold = DEFAULT_THRESHOLD,
-  noiseScale = DEFAULT_NOISE_SCALE
+  noiseScale = DEFAULT_NOISE_SCALE,
 ): number {
   const model = new ACTRMemoryModel({ threshold, noiseScale });
   return model.computeRecallProbability(activation, threshold, noiseScale);
@@ -747,7 +728,7 @@ export function computeOptimalInterval(
   targetProbability: number,
   decay = DEFAULT_DECAY,
   threshold = DEFAULT_THRESHOLD,
-  noiseScale = DEFAULT_NOISE_SCALE
+  noiseScale = DEFAULT_NOISE_SCALE,
 ): number {
   const model = new ACTRMemoryModel({ decay, threshold, noiseScale });
   return model.computeOptimalInterval(trace, targetProbability, decay);
@@ -755,4 +736,11 @@ export function computeOptimalInterval(
 
 // ==================== 导出默认实例 ====================
 
+/**
+ * 默认 ACT-R 记忆模型实例
+ *
+ * @warning 此实例仅用于单用户测试或无状态查询。
+ * 生产环境多用户场景应为每个用户创建独立实例，
+ * 避免模型参数（衰减率等）相互干扰。
+ */
 export const defaultACTRMemoryModel = new ACTRMemoryModel();

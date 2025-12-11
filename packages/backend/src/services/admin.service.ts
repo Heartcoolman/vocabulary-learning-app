@@ -3,6 +3,10 @@ import { UserRole, WordBookType, WordState, Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify/sync';
 import ExcelJS from 'exceljs';
 import type { JsonValue } from '@prisma/client/runtime/library';
+import { getRedisClient } from '../config/redis';
+import { redisCacheService, REDIS_CACHE_KEYS } from './redis-cache.service';
+import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../logger';
 
 // ==================== 类型定义 ====================
 
@@ -321,7 +325,7 @@ export class AdminService {
    * 创建系统��库
    */
   async createSystemWordBook(data: { name: string; description?: string; coverImage?: string }) {
-    return await prisma.wordBook.create({
+    const wordBook = await prisma.wordBook.create({
       data: {
         name: data.name,
         description: data.description,
@@ -332,6 +336,11 @@ export class AdminService {
         wordCount: 0,
       },
     });
+
+    // 失效系统词书缓存
+    await redisCacheService.del(REDIS_CACHE_KEYS.SYSTEM_WORDBOOKS);
+
+    return wordBook;
   }
 
   /**
@@ -357,7 +366,7 @@ export class AdminService {
       throw new Error('只能修改系统词库');
     }
 
-    return await prisma.wordBook.update({
+    const updatedWordBook = await prisma.wordBook.update({
       where: { id },
       data: {
         name: data.name,
@@ -365,6 +374,11 @@ export class AdminService {
         coverImage: data.coverImage,
       },
     });
+
+    // 失效系统词书缓存
+    await redisCacheService.del(REDIS_CACHE_KEYS.SYSTEM_WORDBOOKS);
+
+    return updatedWordBook;
   }
 
   /**
@@ -409,6 +423,9 @@ export class AdminService {
         where: { id },
       });
     });
+
+    // 失效系统词书缓存
+    await redisCacheService.del(REDIS_CACHE_KEYS.SYSTEM_WORDBOOKS);
   }
 
   /**
@@ -760,6 +777,12 @@ export class AdminService {
       nextReviewDate: state.nextReviewDate?.toISOString() || '',
     }));
 
+    let payload: {
+      data: Buffer | ArrayBuffer | string;
+      filename: string;
+      contentType: string;
+    };
+
     if (format === 'csv') {
       const csv = stringify(exportData, {
         header: true,
@@ -776,7 +799,7 @@ export class AdminService {
         },
       });
 
-      return {
+      payload = {
         data: csv,
         filename: `${user.username}_words_${new Date().toISOString().split('T')[0]}.csv`,
         contentType: 'text/csv',
@@ -804,12 +827,37 @@ export class AdminService {
 
       const buffer = await workbook.xlsx.writeBuffer();
 
-      return {
+      payload = {
         data: buffer,
         filename: `${user.username}_words_${new Date().toISOString().split('T')[0]}.xlsx`,
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       };
     }
+
+    // 记录导出历史（Redis 列表，保留最近200条）
+    try {
+      const redis = getRedisClient();
+      const historyKey = 'admin:export-history';
+      await redis.lpush(
+        historyKey,
+        JSON.stringify({
+          id: uuidv4(),
+          userId,
+          dataType: 'words',
+          format,
+          status: 'success',
+          timestamp: Date.now(),
+          count: exportData.length,
+          filename: payload.filename,
+        }),
+      );
+      await redis.ltrim(historyKey, 0, 199);
+    } catch (error) {
+      // 记录失败不影响导出流程
+      logger.warn({ err: error }, '记录导出历史失败');
+    }
+
+    return payload;
   }
 
   /**
@@ -1612,9 +1660,12 @@ export class AdminService {
    */
   async getVisualFatigueStats() {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // 使用 UTC 时间计算，避免时区问题
+    const todayStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
     const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - 7);
+    weekStart.setUTCDate(weekStart.getUTCDate() - 7);
 
     // 并行查询所有统计数据
     const [
@@ -1622,8 +1673,9 @@ export class AdminService {
       recordsToday,
       recordsThisWeek,
       totalUsers,
-      enabledUsers,
+      enabledUsersFromConfig,
       activeToday,
+      usersWithRecordsThisWeek,
       fatigueAggregate,
       fatigueDistribution,
     ] = await Promise.all([
@@ -1639,7 +1691,8 @@ export class AdminService {
       }),
       // 总用户数
       prisma.user.count(),
-      // 启用视觉检测的用户数
+      // 启用视觉检测的用户数（基于配置表或本周有记录的用户）
+      // 优先使用配置表，如果配置表为空则回退到有记录的用户数
       prisma.userVisualFatigueConfig.count({
         where: { enabled: true },
       }),
@@ -1647,6 +1700,11 @@ export class AdminService {
       prisma.visualFatigueRecord.groupBy({
         by: ['userId'],
         where: { createdAt: { gte: todayStart } },
+      }),
+      // 本周有记录的用户数（作为 enabledUsers 的回退）
+      prisma.visualFatigueRecord.groupBy({
+        by: ['userId'],
+        where: { createdAt: { gte: weekStart } },
       }),
       // 疲劳度聚合
       prisma.visualFatigueRecord.aggregate({
@@ -1691,6 +1749,10 @@ export class AdminService {
     });
     const totalDistribution = distributionMap.low + distributionMap.medium + distributionMap.high;
 
+    // 如果配置表中没有启用用户，则使用本周有记录的用户数作为回退
+    const enabledUsers =
+      enabledUsersFromConfig > 0 ? enabledUsersFromConfig : usersWithRecordsThisWeek.length;
+
     return {
       dataVolume: {
         totalRecords,
@@ -1726,6 +1788,88 @@ export class AdminService {
         end: now.toISOString(),
       },
     };
+  }
+
+  /**
+   * 获取指定用户的单词详情
+   */
+  async getUserWordDetail(userId: string, wordId: string): Promise<UserWordItem> {
+    const state = await prisma.wordLearningState.findUnique({
+      where: { unique_user_word: { userId, wordId } },
+      include: {
+        word: true,
+      },
+    });
+
+    if (!state) {
+      throw new Error('未找到该单词的学习状态');
+    }
+
+    const wordInfo: WordBasicInfo = {
+      id: state.word.id,
+      spelling: state.word.spelling,
+      phonetic: state.word.phonetic,
+      meanings: state.word.meanings,
+      examples: state.word.examples,
+    };
+
+    const score = await prisma.wordScore.findUnique({
+      where: { unique_user_word_score: { userId, wordId } },
+      select: {
+        totalScore: true,
+        recentAccuracy: true,
+        totalAttempts: true,
+        correctAttempts: true,
+      },
+    });
+
+    const accuracy =
+      score?.recentAccuracy !== null && score?.recentAccuracy !== undefined
+        ? score.recentAccuracy * 100
+        : score && score.totalAttempts > 0
+          ? (score.correctAttempts / score.totalAttempts) * 100
+          : 0;
+
+    return {
+      word: wordInfo,
+      score: score?.totalScore ?? 0,
+      masteryLevel: state.masteryLevel,
+      accuracy,
+      reviewCount: state.reviewCount,
+      lastReviewDate: state.lastReviewDate,
+      nextReviewDate: state.nextReviewDate,
+      state: state.state,
+    };
+  }
+
+  /**
+   * 获取导出历史（当前返回空列表，可扩展为读取审计日志）
+   */
+  async getExportHistory(limit: number, dataType?: string) {
+    const redis = getRedisClient();
+    const key = 'admin:export-history';
+    const raw = await redis.lrange(key, 0, Math.max(0, limit - 1));
+    const parsed = raw
+      .map((item) => {
+        try {
+          return JSON.parse(item) as {
+            id: string;
+            dataType: string;
+            format: string;
+            status: string;
+            timestamp: number;
+            count?: number;
+            filename?: string;
+            userId?: string;
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter((v): v is NonNullable<typeof v> => v !== null);
+
+    const filtered = dataType ? parsed.filter((h) => h.dataType === dataType) : parsed;
+    return filtered.slice(0, limit);
   }
 }
 

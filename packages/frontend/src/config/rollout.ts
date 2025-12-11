@@ -5,6 +5,7 @@
  */
 
 import { UserContext, getFeatureFlagManager } from '../utils/featureFlags';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // ===================== 类型定义 =====================
 
@@ -274,7 +275,7 @@ export class RolloutManager {
    */
   private loadFromStorage(): void {
     try {
-      const stored = localStorage.getItem('rollout_configs');
+      const stored = localStorage.getItem(STORAGE_KEYS.ROLLOUT_CONFIGS);
       if (stored) {
         const data = JSON.parse(stored) as RolloutConfig[];
         data.forEach((config) => this.rollouts.set(config.id, config));
@@ -290,7 +291,7 @@ export class RolloutManager {
   private saveToStorage(): void {
     try {
       const data = Array.from(this.rollouts.values());
-      localStorage.setItem('rollout_configs', JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEYS.ROLLOUT_CONFIGS, JSON.stringify(data));
     } catch (error) {
       console.error('Failed to save rollout configs:', error);
     }

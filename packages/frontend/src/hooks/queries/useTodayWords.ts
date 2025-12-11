@@ -1,5 +1,6 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { CACHE_TIME } from '../../lib/cacheConfig';
 import apiClient, { TodayWordsResponse } from '../../services/client';
 
 /**
@@ -17,7 +18,7 @@ export function useTodayWords(): UseQueryResult<TodayWordsResponse, Error> {
       const data = await apiClient.getTodayWords();
       return data;
     },
-    staleTime: 60 * 1000, // 1分钟
+    staleTime: CACHE_TIME.SHORT, // 1分钟
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });

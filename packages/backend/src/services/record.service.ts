@@ -52,6 +52,34 @@ export interface PaginatedResult<T> {
   };
 }
 
+/**
+ * 答题记录关联的单词信息
+ */
+export interface AnswerRecordWord {
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+}
+
+/**
+ * 答题记录（含关联单词）
+ */
+export interface AnswerRecordWithWord {
+  id: string;
+  userId: string;
+  wordId: string;
+  selectedAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  timestamp: Date;
+  dwellTime: number | null;
+  masteryLevelAfter: number | null;
+  masteryLevelBefore: number | null;
+  responseTime: number | null;
+  sessionId: string | null;
+  word: AnswerRecordWord;
+}
+
 export class RecordService {
   /**
    * 获取用户的学习记录（带分页）
@@ -60,8 +88,8 @@ export class RecordService {
    */
   async getRecordsByUserId(
     userId: string,
-    options?: PaginationOptions
-  ): Promise<PaginatedResult<any>> {
+    options?: PaginationOptions,
+  ): Promise<PaginatedResult<AnswerRecordWithWord>> {
     const page = Math.max(1, options?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 50));
     const skip = (page - 1) * pageSize;
@@ -137,7 +165,6 @@ export class RecordService {
       masteryLevelAfter: data.masteryLevelAfter,
     };
 
-
     // 使用客户端时间戳以保证与本地记录一致，从而实现可靠去重
     // 验证时间戳的合理性，防止恶意提交无效时间戳
     if (typeof data.timestamp === 'number') {
@@ -153,7 +180,7 @@ export class RecordService {
       await wordMasteryService.recordReview(userId, data.wordId, {
         timestamp: data.timestamp ?? Date.now(),
         isCorrect: data.isCorrect,
-        responseTime: data.responseTime ?? 0
+        responseTime: data.responseTime ?? 0,
       });
     } catch (error) {
       // 记录失败不阻断主流程，仅警告
@@ -167,16 +194,16 @@ export class RecordService {
     // 检查批量大小限制
     if (records.length > MAX_BATCH_SIZE) {
       throw new Error(
-        `批量操作上限为 ${MAX_BATCH_SIZE} 条，当前 ${records.length} 条。请分批提交。`
+        `批量操作上限为 ${MAX_BATCH_SIZE} 条，当前 ${records.length} 条。请分批提交。`,
       );
     }
 
     // 检查是否有记录缺少时间戳，如果有则警告但不阻止
-    const recordsWithoutTimestamp = records.filter(r => !r.timestamp);
+    const recordsWithoutTimestamp = records.filter((r) => !r.timestamp);
     if (recordsWithoutTimestamp.length > 0) {
       serviceLogger.warn(
         { count: recordsWithoutTimestamp.length },
-        '部分记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性'
+        '部分记录缺少时间戳，将使用服务端时间。建议客户端提供时间戳以保证跨端一致性和幂等性',
       );
     }
 
@@ -194,7 +221,7 @@ export class RecordService {
     }
 
     // 验证所有单词都存在且用户有权限访问（先去重提高查询效率）
-    const wordIds = Array.from(new Set(records.map(r => r.wordId)));
+    const wordIds = Array.from(new Set(records.map((r) => r.wordId)));
     const words = await prisma.word.findMany({
       where: { id: { in: wordIds } },
       select: {
@@ -212,12 +239,12 @@ export class RecordService {
     // 获取用户有权限访问的单词ID集合（系统词书或用户自己的词书）
     const accessibleWordIds = new Set(
       words
-        .filter(w => w.wordBook.type === 'SYSTEM' || w.wordBook.userId === userId)
-        .map(w => w.id)
+        .filter((w) => w.wordBook.type === 'SYSTEM' || w.wordBook.userId === userId)
+        .map((w) => w.id),
     );
 
     // 只保留用户有权限访问的单词记录
-    const validRecords = records.filter(record => accessibleWordIds.has(record.wordId));
+    const validRecords = records.filter((record) => accessibleWordIds.has(record.wordId));
 
     if (validRecords.length === 0) {
       throw new Error('所有单词都不存在或无权访问');
@@ -232,42 +259,44 @@ export class RecordService {
     serviceLogger.info({ count: validRecords.length }, '准备创建学习记录（数据库自动跳过重复）');
 
     // 收集所有有效的 sessionId 并确保对应的 LearningSession 存在
-    const sessionIds = [...new Set(validRecords.map(r => r.sessionId).filter((id): id is string => !!id))];
+    const sessionIds = [
+      ...new Set(validRecords.map((r) => r.sessionId).filter((id): id is string => !!id)),
+    ];
     for (const sessionId of sessionIds) {
       await this.ensureLearningSession(sessionId, userId);
     }
 
     // 修复：先检查已存在的记录，避免重复记录轨迹
     // 构建用于检查重复的键集合
-    const recordKeys = validRecords.map(record => ({
+    const recordKeys = validRecords.map((record) => ({
       userId,
       wordId: record.wordId,
       timestamp: record.timestamp
         ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
-        : new Date()
+        : new Date(),
     }));
 
     // 查询已存在的记录
     const existingRecords = await prisma.answerRecord.findMany({
       where: {
-        OR: recordKeys.map(key => ({
+        OR: recordKeys.map((key) => ({
           userId: key.userId,
           wordId: key.wordId,
-          timestamp: key.timestamp
-        }))
+          timestamp: key.timestamp,
+        })),
       },
-      select: { userId: true, wordId: true, timestamp: true }
+      select: { userId: true, wordId: true, timestamp: true },
     });
 
     // 创建已存在记录的键集合用于快速查找
     const existingKeySet = new Set(
-      existingRecords.map(r => `${r.userId}-${r.wordId}-${r.timestamp.getTime()}`)
+      existingRecords.map((r) => `${r.userId}-${r.wordId}-${r.timestamp.getTime()}`),
     );
 
     // 使用数据库的 skipDuplicates 选项，依赖唯一约束自动去重
     // 这样避免了将所有记录加载到内存中进行去重，大幅提升性能
     const result = await prisma.answerRecord.createMany({
-      data: validRecords.map(record => ({
+      data: validRecords.map((record) => ({
         userId,
         wordId: record.wordId,
         selectedAnswer: record.selectedAnswer ?? '',
@@ -289,7 +318,7 @@ export class RecordService {
 
     // 修复：只对实际创建的记录同步轨迹，避免重复
     // 过滤掉已存在的记录
-    const newRecords = validRecords.filter(record => {
+    const newRecords = validRecords.filter((record) => {
       const timestamp = record.timestamp
         ? (validatedTimestamps.get(record.timestamp) ?? new Date(record.timestamp))
         : new Date();
@@ -300,13 +329,13 @@ export class RecordService {
     // 批量同步到 WordReviewTrace 用于掌握度评估（只同步新创建的记录）
     if (newRecords.length > 0) {
       try {
-        const reviewEvents = newRecords.map(record => ({
+        const reviewEvents = newRecords.map((record) => ({
           wordId: record.wordId,
           event: {
             timestamp: record.timestamp ?? Date.now(),
             isCorrect: record.isCorrect,
-            responseTime: record.responseTime ?? 0
-          }
+            responseTime: record.responseTime ?? 0,
+          },
         }));
         await wordMasteryService.batchRecordReview(userId, reviewEvents);
       } catch (error) {
@@ -322,10 +351,7 @@ export class RecordService {
     // 获取用户可访问的所有词书（系统词库 + 用户自己的词库）
     const userWordBooks = await prisma.wordBook.findMany({
       where: {
-        OR: [
-          { type: 'SYSTEM' },
-          { type: 'USER', userId: userId },
-        ],
+        OR: [{ type: 'SYSTEM' }, { type: 'USER', userId: userId }],
       },
       select: { id: true },
     });
@@ -378,7 +404,7 @@ export class RecordService {
       await prisma.$transaction(async (tx) => {
         // 先尝试查询现有会话
         const existing = await tx.learningSession.findUnique({
-          where: { id: sessionId }
+          where: { id: sessionId },
         });
 
         if (existing) {
@@ -386,7 +412,7 @@ export class RecordService {
           if (existing.userId !== userId) {
             serviceLogger.warn(
               { sessionId, expectedUserId: userId, actualUserId: existing.userId },
-              '学习会话用户不匹配'
+              '学习会话用户不匹配',
             );
             throw new Error(`Session ${sessionId} belongs to different user`);
           }
@@ -398,8 +424,8 @@ export class RecordService {
         await tx.learningSession.create({
           data: {
             id: sessionId,
-            userId
-          }
+            userId,
+          },
         });
       });
     } catch (error) {
@@ -411,7 +437,7 @@ export class RecordService {
       if (error instanceof Error && error.message.includes('Unique constraint')) {
         // 再次检查会话归属
         const session = await prisma.learningSession.findUnique({
-          where: { id: sessionId }
+          where: { id: sessionId },
         });
         if (session && session.userId !== userId) {
           throw new Error(`Session ${sessionId} belongs to different user`);

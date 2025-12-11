@@ -1,14 +1,16 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
 import apiClient, { StudyProgress } from '../../services/client';
 
 /**
  * 获取学习进度的 Query Hook
  *
  * 配置说明:
+ * - 使用 DATA_CACHE_CONFIG.studyProgress 预设配置（实时数据）
  * - staleTime: 30秒 - 学习进度数据可以容忍30秒的过期时间
  * - refetchOnWindowFocus: true - 窗口重新获得焦点时刷新
- * - refetchOnReconnect: true - 网络重连时刷新
+ * - refetchOnMount: true - 组件挂载时刷新
  */
 export function useStudyProgress(): UseQueryResult<StudyProgress, Error> {
   return useQuery({
@@ -17,8 +19,7 @@ export function useStudyProgress(): UseQueryResult<StudyProgress, Error> {
       const data = await apiClient.getStudyProgress();
       return data;
     },
-    staleTime: 30 * 1000, // 30秒
-    refetchOnWindowFocus: true,
+    ...DATA_CACHE_CONFIG.studyProgress,
     refetchOnReconnect: true,
   });
 }

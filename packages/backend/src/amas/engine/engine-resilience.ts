@@ -13,9 +13,10 @@ import {
   ProcessOptions,
   ProcessResult,
   StateRepository,
-  TimeoutFlag
+  TimeoutFlag,
 } from './engine-types';
 import { UserState, Action } from '../types';
+import { shouldForceCircuitOpen, getSimulateFallbackReason } from '../../config/debug-config';
 
 /**
  * 弹性保护管理器
@@ -40,15 +41,33 @@ export class ResilienceManager {
       (from, to) => {
         telemetry.record('amas.circuit.transition', { from, to });
         this.logger?.warn(`Circuit breaker transition: ${from} → ${to}`);
-      }
+      },
     );
   }
 
   /**
    * 检查熔断器是否允许执行
+   * 支持通过调试配置强制打开熔断器
    */
   canExecute(): boolean {
+    // 检查调试配置是否强制打开熔断器
+    if (shouldForceCircuitOpen()) {
+      this.logger?.warn('Circuit breaker forced OPEN by debug config');
+      return false;
+    }
     return this.circuit.canExecute();
+  }
+
+  /**
+   * 获取调试配置中的模拟降级原因
+   * 如果设置了模拟原因，返回该原因；否则返回 null
+   */
+  getDebugFallbackReason(): FallbackReason | null {
+    const reason = getSimulateFallbackReason();
+    if (reason && ['timeout', 'circuit_open', 'degraded_state', 'error'].includes(reason)) {
+      return reason as FallbackReason;
+    }
+    return null;
   }
 
   /**
@@ -79,7 +98,7 @@ export class ResilienceManager {
     timeoutMs: number,
     userId: string,
     abortController?: AbortController,
-    onTimeout?: () => void
+    onTimeout?: () => void,
   ): Promise<T> {
     let timeoutHandle: NodeJS.Timeout;
 
@@ -114,24 +133,21 @@ export class ResilienceManager {
     opts: ProcessOptions,
     stateLoader: () => Promise<UserState>,
     interactionCountGetter: (userId: string, provided?: number) => number,
-    eventTimestamp?: number
+    eventTimestamp?: number,
   ): Promise<ProcessResult> {
     const state = await stateLoader();
     const interactionCount = interactionCountGetter(userId, opts.interactionCount);
-    const recentErrorRate = opts.recentAccuracy !== undefined
-      ? 1 - opts.recentAccuracy
-      : undefined;
+    const recentErrorRate = opts.recentAccuracy !== undefined ? 1 - opts.recentAccuracy : undefined;
 
     // 使用事件时间而非当前时间，确保离线回放正确性
-    const hour = eventTimestamp !== undefined
-      ? new Date(eventTimestamp).getHours()
-      : new Date().getHours();
+    const hour =
+      eventTimestamp !== undefined ? new Date(eventTimestamp).getHours() : new Date().getHours();
 
     // 使用智能降级策略
     const fallbackResult = intelligentFallback(state, reason, {
       interactionCount,
       recentErrorRate,
-      hour
+      hour,
     });
 
     return {
@@ -141,7 +157,7 @@ export class ResilienceManager {
       state,
       reward: 0,
       suggestion: null,
-      shouldBreak: false
+      shouldBreak: false,
     };
   }
 
@@ -152,14 +168,14 @@ export class ResilienceManager {
   async createFallbackResult(
     userId: string,
     stateLoader: () => Promise<UserState>,
-    interactionCountGetter: (userId: string, provided?: number) => number
+    interactionCountGetter: (userId: string, provided?: number) => number,
   ): Promise<ProcessResult> {
     return this.createIntelligentFallbackResult(
       userId,
       'degraded_state',
       {},
       stateLoader,
-      interactionCountGetter
+      interactionCountGetter,
     );
   }
 

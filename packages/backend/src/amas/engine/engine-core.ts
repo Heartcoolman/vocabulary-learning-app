@@ -43,6 +43,7 @@ import {
 } from '../config/action-space';
 import { getRewardProfile } from '../config/reward-profiles';
 import { telemetry } from '../common/telemetry';
+import { recordModuleCall } from '../../monitoring/amas-metrics';
 import prisma from '../../config/database';
 import {
   ColdStartPhase,
@@ -347,6 +348,9 @@ export class AMASEngine {
       rawEvent,
       recentErrorRate,
       models,
+      opts.visualFatigueData, // 传递视觉疲劳数据
+      opts.studyDurationMinutes, // 传递学习时长
+      userId, // 传递真实用户ID，用于融合引擎按用户聚合
     );
     stageTiming.modeling.end = Date.now();
 
@@ -389,6 +393,60 @@ export class AMASEngine {
     if (confidence !== undefined && Number.isFinite(confidence)) {
       recordDecisionConfidence(confidence);
     }
+
+    // 记录模块调用状态（用于系统状态页面）
+    // 模块被关闭时记录为error（故障），启用时记录为success
+    const flags = getFeatureFlags();
+    recordModuleCall(
+      'ensemble',
+      flags.enableEnsemble ? 'success' : 'error',
+      flags.enableEnsemble ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'thompsonSampling',
+      flags.enableThompsonSampling ? 'success' : 'error',
+      flags.enableThompsonSampling ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'heuristicBaseline',
+      flags.enableHeuristicBaseline ? 'success' : 'error',
+      flags.enableHeuristicBaseline ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'actrMemory',
+      flags.enableACTRMemory ? 'success' : 'error',
+      flags.enableACTRMemory ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'coldStartManager',
+      flags.enableColdStartManager ? 'success' : 'error',
+      flags.enableColdStartManager ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'userParamsManager',
+      flags.enableUserParamsManager ? 'success' : 'error',
+      flags.enableUserParamsManager ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'trendAnalyzer',
+      flags.enableTrendAnalyzer ? 'success' : 'error',
+      flags.enableTrendAnalyzer ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'bayesianOptimizer',
+      flags.enableBayesianOptimizer ? 'success' : 'error',
+      flags.enableBayesianOptimizer ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'causalInference',
+      flags.enableCausalInference ? 'success' : 'error',
+      flags.enableCausalInference ? undefined : '模块已被禁用',
+    );
+    recordModuleCall(
+      'delayedReward',
+      flags.enableDelayedRewardAggregator ? 'success' : 'error',
+      flags.enableDelayedRewardAggregator ? undefined : '模块已被禁用',
+    );
 
     // 8. 策略映射和安全约束（决策层）
     stageTiming.decision.start = Date.now();
@@ -650,10 +708,13 @@ export class AMASEngine {
       // Bug修复：处理特征向量版本不匹配
       let alignedFeatureVector = featureVector;
       if (featureVector.length !== model.d) {
-        this.logger?.info('Feature vector dimension mismatch, applying compatibility fix', {
+        const action = featureVector.length > model.d ? 'truncate' : 'pad';
+        this.logger?.warn('Feature vector dimension mismatch, applying compatibility fix', {
           userId,
-          featureVectorLength: featureVector.length,
-          modelDimension: model.d,
+          originalDim: featureVector.length,
+          modelDim: model.d,
+          action,
+          delta: Math.abs(featureVector.length - model.d),
         });
 
         // 使用 FeatureVectorBuilder 进行维度对齐
