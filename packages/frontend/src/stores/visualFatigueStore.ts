@@ -18,6 +18,7 @@ import type {
   HeadPose,
   PersonalBaseline,
 } from '@danci/shared';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 /**
  * 实时指标数据
@@ -117,7 +118,7 @@ const DEFAULT_CONFIG: VisualFatigueConfig = {
   enabled: false,
   detectionIntervalMs: 200,
   reportIntervalMs: 5000,
-  earThreshold: 0.2,
+  earThreshold: 0.25, // 与 BlinkDetector 保持一致
   perclosThreshold: 0.15,
   yawnDurationMs: 2000,
   windowSizeSeconds: 60,
@@ -252,6 +253,7 @@ export const useVisualFatigueStore = create<VisualFatigueState>()(
             {
               enabled: false,
               detectorState: DEFAULT_DETECTOR_STATE,
+              cameraPermission: 'not_requested',
               cameraError: null,
               metrics: DEFAULT_METRICS,
               lastFullMetrics: null,
@@ -262,7 +264,7 @@ export const useVisualFatigueStore = create<VisualFatigueState>()(
           ),
       }),
       {
-        name: 'visual-fatigue-storage',
+        name: STORAGE_KEYS.VISUAL_FATIGUE_STORAGE,
         // 只持久化部分状态
         partialize: (state) => ({
           enabled: state.enabled,

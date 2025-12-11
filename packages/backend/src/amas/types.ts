@@ -3,6 +3,11 @@
  * 自适应多维度用户感知智能学习算法 - 核心类型定义
  */
 
+import type { ProcessedVisualFatigueData } from '@danci/shared';
+
+// 重导出视觉疲劳数据类型，供其他模块使用
+export type { ProcessedVisualFatigueData } from '@danci/shared';
+
 // ==================== 用户状态建模 ====================
 
 /**
@@ -84,6 +89,26 @@ export interface UserState {
   conf: number;
   /** 时间戳 - 前端字段: timestamp */
   ts: number;
+  /** 视觉疲劳数据 (用于融合) - 可选 */
+  visualFatigue?: VisualFatigueState;
+  /** 融合疲劳度 [0,1] - 融合了视觉/行为/时间疲劳 */
+  fusedFatigue?: number;
+}
+
+/**
+ * 视觉疲劳状态 (存储在 UserState 中)
+ */
+export interface VisualFatigueState {
+  /** 视觉疲劳评分 [0-1] */
+  score: number;
+  /** 置信度 [0-1] */
+  confidence: number;
+  /** 数据新鲜度 [0-1] */
+  freshness: number;
+  /** 疲劳趋势 [-1, 1] */
+  trend: number;
+  /** 最后更新时间 */
+  lastUpdated: number;
 }
 
 // ==================== 动作与策略 ====================
@@ -449,4 +474,71 @@ export interface ColdStartStateData {
 export interface UserStateWithColdStart extends UserState {
   /** 冷启动状态数据（可选） */
   coldStartState?: ColdStartStateData;
+}
+
+// ==================== 处理选项类型 ====================
+
+/**
+ * 单词复习历史记录（用于 ACT-R 记忆模型）
+ */
+export interface WordReviewHistory {
+  /** 距今时间（秒） */
+  secondsAgo: number;
+  /** 是否正确 */
+  isCorrect?: boolean;
+}
+
+/**
+ * 会话统计数据
+ */
+export interface SessionStats {
+  /** 正确率 */
+  accuracy: number;
+  /** 平均响应时间 */
+  avgResponseTime: number;
+  /** 保持率 */
+  retentionRate: number;
+  /** 复习成功率 */
+  reviewSuccessRate: number;
+  /** 记忆稳定性 */
+  memoryStability: number;
+  /** 每分钟单词数 */
+  wordsPerMinute: number;
+  /** 时间利用率 */
+  timeUtilization: number;
+  /** 认知负荷 */
+  cognitiveLoad: number;
+  /** 会话时长 */
+  sessionDuration: number;
+}
+
+/**
+ * 处理选项 - AMAS 引擎处理学习事件时的可选参数
+ *
+ * 此类型定义了传递给 AMASEngine.processEvent 的所有可选参数，
+ * 包括视觉疲劳数据和学习时长等用于融合疲劳计算的字段。
+ */
+export interface ProcessOptions {
+  /** 当前策略参数 */
+  currentParams?: StrategyParams;
+  /** 交互次数 */
+  interactionCount?: number;
+  /** 近期正确率 */
+  recentAccuracy?: number;
+  /** 是否跳过模型更新 */
+  skipUpdate?: boolean;
+  /** 答题记录ID (用于关联决策记录) */
+  answerRecordId?: string;
+  /** 学习会话ID */
+  sessionId?: string;
+  /** 学习目标配置 */
+  learningObjectives?: LearningObjectives;
+  /** 会话统计数据 */
+  sessionStats?: SessionStats;
+  /** 单词复习历史（用于 ACT-R 记忆模型） */
+  wordReviewHistory?: WordReviewHistory[];
+  /** 视觉疲劳数据（用于融合到 AMAS 状态） */
+  visualFatigueData?: ProcessedVisualFatigueData;
+  /** 学习时长（分钟，用于时间疲劳计算） */
+  studyDurationMinutes?: number;
 }

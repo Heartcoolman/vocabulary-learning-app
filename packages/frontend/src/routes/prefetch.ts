@@ -11,6 +11,7 @@
 import { queryClient } from '../lib/queryClient';
 import { queryKeys } from '../lib/queryKeys';
 import { wordBookClient, learningClient, amasClient, authClient } from '../services/client';
+import { PAGINATION_CONFIG } from '../constants/pagination';
 
 // ==================== 页面代码预加载 ====================
 
@@ -76,7 +77,7 @@ export const routeDataPrefetchers: Record<string, () => void> = {
   '/statistics': () => {
     queryClient.prefetchQuery({
       queryKey: queryKeys.learningRecords.statistics(),
-      queryFn: () => learningClient.getRecords({ page: 1, pageSize: 50 }),
+      queryFn: () => learningClient.getRecords({ page: 1, pageSize: PAGINATION_CONFIG.PREFETCH }),
       staleTime: 2 * 60 * 1000, // 2 分钟
     });
     queryClient.prefetchQuery({

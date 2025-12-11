@@ -41,9 +41,10 @@ export interface CognitiveConfig {
  * 计算遗忘因子（0-1范围）
  */
 export function calculateForgettingFactor(trace: MemoryTrace): number {
-  const lastReviewMs = typeof trace.lastReviewTime === 'string'
-    ? new Date(trace.lastReviewTime).getTime()
-    : trace.lastReviewTime.getTime();
+  const lastReviewMs =
+    typeof trace.lastReviewTime === 'string'
+      ? new Date(trace.lastReviewTime).getTime()
+      : trace.lastReviewTime.getTime();
 
   const daysSinceReview = Math.max(0, (Date.now() - lastReviewMs) / MS_PER_DAY);
 
@@ -79,7 +80,7 @@ export function updateHalfLife(
   currentHalfLife: number,
   wasCorrect: boolean,
   responseTime: number,
-  cogConfig?: CognitiveConfig
+  cogConfig?: CognitiveConfig,
 ): HalfLifeUpdate {
   let timeFactor: number;
   if (responseTime < 1500) {
@@ -116,7 +117,7 @@ export function updateHalfLife(
   return {
     newHalfLife,
     change,
-    isSignificant: relativeChange > 0.1
+    isSignificant: relativeChange > 0.1,
   };
 }
 
@@ -125,7 +126,8 @@ export function updateHalfLife(
  */
 export function computeOptimalInterval(halfLife: number, targetRetention = 0.8): number {
   const interval = -halfLife * Math.log(targetRetention);
-  return clamp(interval, 0.1, 365);
+  // 最小间隔设为 1 天，避免过于频繁的复习循环
+  return clamp(interval, 1, 365);
 }
 
 /**

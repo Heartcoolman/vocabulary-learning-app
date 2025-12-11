@@ -6,10 +6,9 @@
  * 范围: A ∈ [0,1], 0=完全分心, 1=高度专注
  */
 
-import {
-  DEFAULT_ATTENTION_WEIGHTS,
-  ATTENTION_SMOOTHING
-} from '../config/action-space';
+import { DEFAULT_ATTENTION_WEIGHTS, ATTENTION_SMOOTHING } from '../config/action-space';
+import type { ProcessedVisualFatigueData } from '@danci/shared';
+import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
 
@@ -34,6 +33,47 @@ export interface AttentionFeatures {
   /** 失焦累计时长 */
   focus_loss_duration: number;
 }
+
+/**
+ * 视觉注意力信号
+ */
+export interface VisualAttentionSignals {
+  /** 头部姿态稳定性 [0-1] */
+  headPoseStability: number;
+  /** 眯眼强度 [0-1] */
+  eyeSquint: number;
+  /** 视线离屏比例 [0-1] */
+  gazeOffScreen: number;
+  /** 信号置信度 [0-1] */
+  confidence: number;
+}
+
+/**
+ * 视觉融合配置
+ */
+export interface VisualFusionConfig {
+  /** 基础视觉权重 [0-1] */
+  baseVisualWeight: number;
+  /** 最低置信度阈值 */
+  minConfidence: number;
+  /** 头部稳定性权重 */
+  headPoseWeight: number;
+  /** 眯眼权重 */
+  squintWeight: number;
+  /** 视线离屏权重 */
+  gazeWeight: number;
+}
+
+/**
+ * 默认视觉融合配置
+ */
+export const DEFAULT_VISUAL_FUSION_CONFIG: VisualFusionConfig = {
+  baseVisualWeight: 0.3,
+  minConfidence: 0.4,
+  headPoseWeight: 0.4,
+  squintWeight: 0.3,
+  gazeWeight: 0.3,
+};
 
 // ==================== 工具函数 ====================
 
@@ -77,10 +117,10 @@ export class AttentionMonitor {
       DEFAULT_ATTENTION_WEIGHTS.switch,
       DEFAULT_ATTENTION_WEIGHTS.drift,
       DEFAULT_ATTENTION_WEIGHTS.interaction,
-      DEFAULT_ATTENTION_WEIGHTS.focus_loss
+      DEFAULT_ATTENTION_WEIGHTS.focus_loss,
     ]),
     beta: number = ATTENTION_SMOOTHING,
-    initialAttention: number = 0.7
+    initialAttention: number = 0.7,
   ) {
     this.weights = weights;
     this.beta = beta;
@@ -102,13 +142,14 @@ export class AttentionMonitor {
       features.z_switch,
       features.z_drift,
       features.interaction_density,
-      features.focus_loss_duration
+      features.focus_loss_duration,
     ];
 
     // 维度检查：确保特征向量长度与权重数组长度匹配
     if (featureVector.length < this.weights.length) {
-      console.warn(
-        `[AttentionMonitor] 特征向量维度不匹配: 期望 ${this.weights.length}, 实际 ${featureVector.length}。跳过更新，返回上一次的注意力值。`
+      amasLogger.warn(
+        { expected: this.weights.length, actual: featureVector.length },
+        '[AttentionMonitor] 特征向量维度不匹配，跳过更新',
       );
       return this.prevAttention;
     }
@@ -121,8 +162,9 @@ export class AttentionMonitor {
       const feature = featureVector[i];
       // 检查 NaN 值
       if (Number.isNaN(weight) || Number.isNaN(feature)) {
-        console.warn(
-          `[AttentionMonitor] 检测到 NaN 值: weights[${i}]=${weight}, featureVector[${i}]=${feature}。使用 0 替代。`
+        amasLogger.warn(
+          { index: i, weight, feature },
+          '[AttentionMonitor] 检测到 NaN 值，使用 0 替代',
         );
         continue;
       }
@@ -157,7 +199,7 @@ export class AttentionMonitor {
       z_switch: features[4],
       z_drift: features[5],
       interaction_density: features[6],
-      focus_loss_duration: features[7]
+      focus_loss_duration: features[7],
     });
   }
 
@@ -205,7 +247,7 @@ export class AttentionMonitor {
   getState(): { prevAttention: number; beta: number } {
     return {
       prevAttention: this.prevAttention,
-      beta: this.beta
+      beta: this.beta,
     };
   }
 
@@ -217,6 +259,117 @@ export class AttentionMonitor {
     if (state.beta !== undefined) {
       this.beta = clamp01(state.beta);
     }
+  }
+
+  /**
+   * 更新并融合视觉信号
+   *
+   * 当有视觉数据时，将行为注意力与视觉注意力融合
+   *
+   * @param features 行为特征
+   * @param visualData 视觉疲劳数据 (可选)
+   * @param fusionConfig 融合配置 (可选)
+   * @returns 融合后的注意力值 [0-1]
+   */
+  updateWithVisualFusion(
+    features: AttentionFeatures,
+    visualData?: ProcessedVisualFatigueData,
+    fusionConfig: VisualFusionConfig = DEFAULT_VISUAL_FUSION_CONFIG,
+  ): number {
+    // 首先计算行为注意力
+    const behaviorAttention = this.update(features);
+
+    // 如果没有有效的视觉数据，直接返回行为注意力
+    if (!visualData || !visualData.isValid || !visualData.cognitiveSignals) {
+      return behaviorAttention;
+    }
+
+    const { cognitiveSignals } = visualData;
+    const { attentionSignals, confidence } = cognitiveSignals;
+
+    // 置信度不足时降低视觉权重
+    if (confidence < fusionConfig.minConfidence) {
+      return behaviorAttention;
+    }
+
+    // 计算视觉注意力
+    const visualAttention = this.calculateVisualAttention(attentionSignals, fusionConfig);
+
+    // 计算有效视觉权重 (根据置信度调整)
+    const confidenceBoost = Math.min(1, confidence / 0.8);
+    const effectiveVisualWeight = fusionConfig.baseVisualWeight * confidenceBoost;
+    const behaviorWeight = 1 - effectiveVisualWeight;
+
+    // 加权融合
+    const fusedAttention =
+      behaviorWeight * behaviorAttention + effectiveVisualWeight * visualAttention;
+
+    // 更新内部状态
+    this.prevAttention = clamp01(fusedAttention);
+
+    return this.prevAttention;
+  }
+
+  /**
+   * 仅融合视觉信号 (不更新行为注意力)
+   *
+   * 用于在已有行为注意力的基础上融合视觉信号
+   *
+   * @param visualData 视觉疲劳数据
+   * @param fusionConfig 融合配置
+   * @returns 融合后的注意力值 [0-1]
+   */
+  fuseWithVisualSignals(
+    visualData?: ProcessedVisualFatigueData,
+    fusionConfig: VisualFusionConfig = DEFAULT_VISUAL_FUSION_CONFIG,
+  ): number {
+    const behaviorAttention = this.prevAttention;
+
+    if (!visualData || !visualData.isValid || !visualData.cognitiveSignals) {
+      return behaviorAttention;
+    }
+
+    const { cognitiveSignals } = visualData;
+    const { attentionSignals, confidence } = cognitiveSignals;
+
+    if (confidence < fusionConfig.minConfidence) {
+      return behaviorAttention;
+    }
+
+    const visualAttention = this.calculateVisualAttention(attentionSignals, fusionConfig);
+    const confidenceBoost = Math.min(1, confidence / 0.8);
+    const effectiveVisualWeight = fusionConfig.baseVisualWeight * confidenceBoost;
+    const behaviorWeight = 1 - effectiveVisualWeight;
+
+    const fusedAttention =
+      behaviorWeight * behaviorAttention + effectiveVisualWeight * visualAttention;
+    this.prevAttention = clamp01(fusedAttention);
+
+    return this.prevAttention;
+  }
+
+  /**
+   * 从视觉注意力信号计算视觉注意力值
+   */
+  private calculateVisualAttention(
+    signals: { headPoseStability: number; eyeSquint: number; gazeOffScreen: number },
+    config: VisualFusionConfig,
+  ): number {
+    // 头部稳定性正向影响注意力
+    const headPoseContribution = signals.headPoseStability * config.headPoseWeight;
+
+    // 眯眼负向影响注意力 (眯眼可能表示困倦)
+    const squintContribution = (1 - signals.eyeSquint) * config.squintWeight;
+
+    // 视线离屏负向影响注意力
+    const gazeContribution = (1 - signals.gazeOffScreen) * config.gazeWeight;
+
+    // 归一化
+    const totalWeight = config.headPoseWeight + config.squintWeight + config.gazeWeight;
+    const visualAttention =
+      (headPoseContribution + squintContribution + gazeContribution) / totalWeight;
+
+    return clamp01(visualAttention);
   }
 }
 

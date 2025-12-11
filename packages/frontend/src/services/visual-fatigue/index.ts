@@ -54,3 +54,6 @@ export {
 
 // 算法模块
 export * from './algorithms';
+
+// Video 元素单例管理
+export { videoElementManager, default as VideoElementManager } from './VideoElementManager';

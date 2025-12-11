@@ -116,34 +116,72 @@ export function useMasteryLearning(
       setIsLoading(true);
       setError(null);
       try {
-        let restored = false;
+        // 尝试从缓存恢复进度信息（不恢复单词列表）
+        let cachedProgress: {
+          masteredWordIds: string[];
+          totalQuestions: number;
+          sessionId: string;
+          masteryThreshold: number;
+          maxTotalQuestions: number;
+        } | null = null;
+
         if (!isReset && syncRef.current) {
           const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
-          if (cache?.queueState?.words?.length) {
-            wordQueueRef.current.restoreQueue(cache.queueState.words, cache.queueState, {
+          if (cache?.queueState?.masteredWordIds?.length || cache?.queueState?.totalQuestions) {
+            // 只提取进度信息，不使用缓存的单词列表
+            cachedProgress = {
+              masteredWordIds: cache.queueState.masteredWordIds || [],
+              totalQuestions: cache.queueState.totalQuestions || 0,
+              sessionId: cache.sessionId,
               masteryThreshold: cache.masteryThreshold,
               maxTotalQuestions: cache.maxTotalQuestions,
-            });
-            currentSessionIdRef.current = cache.sessionId;
-            setHasRestoredSession(true);
-            restored = true;
+            };
           }
         }
-        if (!restored) {
-          const words = await getMasteryStudyWords(initialTargetCount);
-          if (!isMountedRef.current) return;
+
+        // 总是从服务端获取最新单词列表（后端会自动排除已学习的单词）
+        const words = await getMasteryStudyWords(initialTargetCount);
+        if (!isMountedRef.current) return;
+
+        // 如果有缓存的进度，过滤掉已掌握的单词
+        let filteredWords = words.words;
+        if (cachedProgress && cachedProgress.masteredWordIds.length > 0) {
+          const masteredSet = new Set(cachedProgress.masteredWordIds);
+          filteredWords = words.words.filter((w) => !masteredSet.has(w.id));
+        }
+
+        // 创建或恢复会话
+        if (cachedProgress) {
+          currentSessionIdRef.current = cachedProgress.sessionId;
+          sessionStartTimeRef.current = Date.now();
+          // 初始化队列，然后恢复进度
+          wordQueueRef.current.initializeQueue(filteredWords, {
+            masteryThreshold: cachedProgress.masteryThreshold,
+            maxTotalQuestions: cachedProgress.maxTotalQuestions,
+            targetMasteryCount: words.meta.targetCount,
+          });
+          // 恢复已掌握的单词计数（通过标记）
+          if (cachedProgress.masteredWordIds.length > 0) {
+            wordQueueRef.current.restoreMasteredCount(
+              cachedProgress.masteredWordIds.length,
+              cachedProgress.totalQuestions,
+            );
+          }
+          setHasRestoredSession(true);
+        } else {
           const session = await createMasterySession(words.meta.targetCount);
           if (!isMountedRef.current) return;
           currentSessionIdRef.current = session?.sessionId ?? '';
           sessionStartTimeRef.current = Date.now();
-          // 使用服务端返回的 targetCount，确保客户端与服务端一致
           wordQueueRef.current.initializeQueue(words.words, {
             masteryThreshold: words.meta.masteryThreshold,
             maxTotalQuestions: words.meta.maxQuestions,
             targetMasteryCount: words.meta.targetCount,
           });
         }
-        if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
+
+        if (isMountedRef.current)
+          wordQueueRef.current.updateFromManager({ consume: !cachedProgress });
       } catch (err) {
         if (isMountedRef.current) setError(err instanceof Error ? err.message : '初始化失败');
       } finally {

@@ -95,19 +95,19 @@ export class VisualFatigueClient extends BaseClient {
    * @param metrics 视觉疲劳指标数据
    */
   async submitMetrics(metrics: VisualFatigueInput): Promise<SubmitMetricsResponse['data']> {
-    const response = await this.request<SubmitMetricsResponse>('/api/visual-fatigue/metrics', {
+    // BaseClient.request() 已经返回 data.data，无需再次访问 .data
+    return await this.request<SubmitMetricsResponse['data']>('/api/visual-fatigue/metrics', {
       method: 'POST',
       body: JSON.stringify(metrics),
     });
-    return response.data;
   }
 
   /**
    * 获取用户基线
    */
   async getBaseline(): Promise<BaselineResponse['data']> {
-    const response = await this.request<BaselineResponse>('/api/visual-fatigue/baseline');
-    return response.data;
+    // BaseClient.request() 已经返回 data.data，无需再次访问 .data
+    return await this.request<BaselineResponse['data']>('/api/visual-fatigue/baseline');
   }
 
   /**
@@ -125,16 +125,34 @@ export class VisualFatigueClient extends BaseClient {
    * 获取视觉疲劳检测配置
    */
   async getConfig(): Promise<VisualFatigueConfig> {
-    const response = await this.request<ConfigResponse>('/api/visual-fatigue/config');
-    return response.data;
+    // BaseClient.request() 已经返回 data.data，无需再次访问 .data
+    return await this.request<VisualFatigueConfig>('/api/visual-fatigue/config');
+  }
+
+  /**
+   * 更新视觉疲劳检测配置
+   * @param config 配置项（enabled, detectionFps, uploadIntervalMs 等）
+   */
+  async updateConfig(
+    config: Partial<{
+      enabled: boolean;
+      detectionFps: number;
+      uploadIntervalMs: number;
+      vlmAnalysisEnabled: boolean;
+    }>,
+  ): Promise<void> {
+    await this.request('/api/visual-fatigue/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
   }
 
   /**
    * 获取最新融合疲劳结果
    */
   async getFusion(): Promise<FusionResponse['data']> {
-    const response = await this.request<FusionResponse>('/api/visual-fatigue/fusion');
-    return response.data;
+    // BaseClient.request() 已经返回 data.data，无需再次访问 .data
+    return await this.request<FusionResponse['data']>('/api/visual-fatigue/fusion');
   }
 
   /**

@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { recordDbQuery, DbQueryMetric } from '../monitoring/amas-metrics';
+import {
+  shouldSimulateSlowQuery,
+  getSlowQueryDelay,
+  shouldSimulateDbFailure,
+} from './debug-config';
 
 const DB_SAMPLE_RATE = 0.2;
 const DB_SLOW_THRESHOLD_MS = 200;
@@ -33,14 +38,29 @@ const prisma = new PrismaClient({
 
 if (process.env.NODE_ENV !== 'test') {
   prisma.$use(async (params, next) => {
+    // ==================== 调试模式：故障模拟 ====================
+    // 检查是否需要模拟数据库连接故障
+    if (shouldSimulateDbFailure()) {
+      throw new Error('Database connection failure (simulated by debug config)');
+    }
+
+    // 检查是否需要模拟慢查询
+    if (shouldSimulateSlowQuery()) {
+      const delay = getSlowQueryDelay();
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    // ==================== 正常查询执行 ====================
     const start = process.hrtime.bigint();
     const result = await next(params);
-    
+
     // Record metrics after query completes
     const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
     const isSlow = durationMs > DB_SLOW_THRESHOLD_MS;
     const shouldRecord = isSlow || Math.random() < DB_SAMPLE_RATE;
-    
+
     if (shouldRecord) {
       const model = typeof params.model === 'string' ? params.model : undefined;
       const action = typeof params.action === 'string' ? params.action : undefined;
@@ -51,11 +71,11 @@ if (process.env.NODE_ENV !== 'test') {
           model,
           action,
           durationMs,
-          slow: isSlow
-        })
+          slow: isSlow,
+        }),
       );
     }
-    
+
     return result;
   });
 }

@@ -451,7 +451,7 @@ impl CausalInferenceNative {
         let mut sorted = arr.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mid = sorted.len() / 2;
-        if !sorted.len().is_multiple_of(2) {
+        if sorted.len() % 2 != 0 {
             sorted[mid]
         } else {
             (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -713,6 +713,34 @@ mod tests {
 
         let empty: Vec<f64> = vec![];
         assert_eq!(CausalInferenceNative::median(&empty), 0.0);
+    }
+
+    #[test]
+    fn test_median_single_element() {
+        // 单元素数组（奇数情况的边界）
+        let single = vec![42.0];
+        assert!((CausalInferenceNative::median(&single) - 42.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_median_two_elements() {
+        // 两个元素（偶数情况的边界）
+        let two = vec![10.0, 20.0];
+        assert!((CausalInferenceNative::median(&two) - 15.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_median_unsorted_input() {
+        // 验证函数内部排序正确工作
+        let unsorted = vec![9.0, 1.0, 5.0, 3.0, 7.0];
+        assert!((CausalInferenceNative::median(&unsorted) - 5.0).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_median_with_negative_numbers() {
+        // 包含负数
+        let with_negatives = vec![-5.0, -1.0, 0.0, 1.0, 5.0];
+        assert!((CausalInferenceNative::median(&with_negatives) - 0.0).abs() < EPSILON);
     }
 
     #[test]

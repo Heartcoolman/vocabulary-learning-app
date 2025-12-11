@@ -198,8 +198,11 @@ impl ACTRMemoryNative {
     /// Compute activation: A = ln(Σ w_j · t_j^(-d))
     ///
     /// # Arguments
-    /// * `traces` - Memory traces with timestamps and correctness
-    /// * `current_time` - Current time in seconds (traces.timestamp represents "seconds ago")
+    /// * `traces` - Memory traces where `timestamp` is the **absolute time** of each review
+    /// * `current_time` - Current time in seconds (same unit as traces.timestamp)
+    ///
+    /// # Note
+    /// For "seconds ago" format, use `compute_activation_from_seconds_ago` instead.
     ///
     /// # Returns
     /// Activation value (can be -Infinity for empty traces)
@@ -220,6 +223,7 @@ impl ACTRMemoryNative {
     }
 
     /// Internal activation computation
+    /// Uses absolute timestamps: age = current_time - timestamp
     fn compute_activation_internal(
         &self,
         traces: &[MemoryTrace],
@@ -234,9 +238,7 @@ impl ACTRMemoryNative {
             .iter()
             .filter(|t| t.timestamp < current_time)
             .map(|t| {
-                // timestamp represents "seconds ago" from current_time
-                // So age = current_time - (current_time - timestamp) = timestamp
-                // But if timestamp is actual time, age = current_time - timestamp
+                // timestamp is absolute time, so age = current_time - timestamp
                 let age = (current_time - t.timestamp).max(MIN_TIME);
                 let weight = if t.is_correct { 1.0 } else { ERROR_PENALTY };
                 weight * age.powf(-decay)
@@ -253,10 +255,11 @@ impl ACTRMemoryNative {
     /// Compute activation from "seconds ago" format traces (matching TypeScript API)
     ///
     /// # Arguments
-    /// * `traces` - Memory traces where timestamp represents "seconds ago"
+    /// * `traces` - Memory traces where `timestamp` represents **seconds ago from now**
+    ///   (e.g., timestamp=60 means this review happened 60 seconds ago)
     ///
     /// # Returns
-    /// Activation value
+    /// Activation value (can be -Infinity for empty traces)
     #[napi]
     pub fn compute_activation_from_seconds_ago(&self, traces: Vec<MemoryTrace>) -> f64 {
         self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay)

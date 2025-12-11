@@ -74,17 +74,43 @@ export function useUserWordDetail(userId: string, wordId: string) {
   return useQuery({
     queryKey: queryKeys.admin.userWords.detail(userId, wordId),
     queryFn: async () => {
-      // 这里假设后端有对应的API，如果没有则需要从列表中获取
-      // 或者使用 adminGetUserWords 配合客户端筛选
-      const response = await apiClient.adminGetUserWords(userId, {
-        page: 1,
-        pageSize: 1000, // 获取所有单词
-      });
-      const word = response.words.find((w) => w.word.id === wordId);
-      if (!word) {
-        throw new Error('Word not found');
+      // 尝试直接获取指定单词详情，失败后回退到分页查找
+      try {
+        const response = await fetch(`/api/admin/users/${userId}/words/${wordId}`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result?.data) {
+            return result.data as UserWordDetail;
+          }
+        }
+      } catch {
+        // ignore and fallback
       }
-      return word;
+
+      // 分页查找指定单词，避免一次性拉取超大列表
+      let page = 1;
+      const pageSize = 100;
+
+      while (true) {
+        const response = await apiClient.adminGetUserWords(userId, {
+          page,
+          pageSize,
+        });
+
+        const found = response.words.find((w) => w.word.id === wordId);
+        if (found) {
+          return found;
+        }
+
+        if (page >= response.pagination.totalPages) {
+          break;
+        }
+        page += 1;
+      }
+
+      throw new Error('Word not found');
     },
     enabled: !!userId && !!wordId,
     staleTime: 2 * 60 * 1000,

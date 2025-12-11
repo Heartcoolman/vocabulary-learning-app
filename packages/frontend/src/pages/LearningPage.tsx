@@ -18,11 +18,13 @@ import {
   ChartPie,
   Lightbulb,
 } from '../components/Icon';
+import { FloatingEyeIndicator } from '../components/visual-fatigue';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
 import { useTestOptionsGenerator } from '../hooks/useTestOptions';
 import { trackingService } from '../services/TrackingService';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export default function LearningPage() {
   const navigate = useNavigate();
@@ -36,7 +38,7 @@ export default function LearningPage() {
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
   const [learningType, setLearningType] = useState<'word-to-meaning' | 'meaning-to-word'>(() => {
     return (
-      (localStorage.getItem('learningType') as 'word-to-meaning' | 'meaning-to-word') ||
+      (localStorage.getItem(STORAGE_KEYS.LEARNING_TYPE) as 'word-to-meaning' | 'meaning-to-word') ||
       'word-to-meaning'
     );
   });
@@ -47,7 +49,7 @@ export default function LearningPage() {
 
   // 保存学习类型偏好
   useEffect(() => {
-    localStorage.setItem('learningType', learningType);
+    localStorage.setItem(STORAGE_KEYS.LEARNING_TYPE, learningType);
   }, [learningType]);
 
   // 页面切换埋点
@@ -177,7 +179,14 @@ export default function LearningPage() {
       const isCorrect = correctAnswers.includes(answer);
       const responseTime = Date.now() - responseStartTime;
 
-      await submitAnswer(isCorrect, responseTime);
+      try {
+        await submitAnswer(isCorrect, responseTime);
+      } catch (error) {
+        // 提交失败时记录错误，但不阻止用户继续学习
+        // 答案会被保存到本地队列，后续会自动重试同步
+        console.error('[LearningPage] 提交答案失败:', error);
+      }
+      // 注意: isSubmittingRef 在 handleNext 中重置，确保用户看到结果后才能进入下一题
     },
     [currentWord, showResult, responseStartTime, submitAnswer, learningType],
   );
@@ -372,6 +381,7 @@ export default function LearningPage() {
                 >
                   <Brain size={20} />
                 </button>
+                <FloatingEyeIndicator embedded size="sm" />
               </>
             }
           />

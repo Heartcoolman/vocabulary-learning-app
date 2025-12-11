@@ -7,12 +7,18 @@
  * - 词库统计
  * - 学习记录统计
  *
- * 缓存时间为5分钟，因为统计数据不需要实时更新
+ * 使用 QUERY_PRESETS.admin 预设配置
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS } from '../../lib/cacheConfig';
 import apiClient, { AdminStatistics } from '../../services/client';
+import {
+  HEALTH_THRESHOLDS,
+  HEALTH_PENALTIES,
+  HEALTH_STATUS_THRESHOLDS,
+} from '../../constants/systemHealth';
 
 /**
  * 获取系统整体统计数据
@@ -25,8 +31,7 @@ import apiClient, { AdminStatistics } from '../../services/client';
  * - 总学习记录数
  *
  * 特点：
- * - 5分钟缓存时间
- * - 失败时不重试（避免频繁请求）
+ * - 使用 QUERY_PRESETS.admin 预设配置
  * - 可通过 enabled 参数控制是否启用
  *
  * @param enabled - 是否启用查询，默认为 true
@@ -53,11 +58,9 @@ export function useAdminStatistics(enabled = true) {
     queryFn: async () => {
       return await apiClient.adminGetStatistics();
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 10, // 10分钟
+    ...QUERY_PRESETS.admin,
     enabled,
     retry: false, // 统计数据失败时不重试
-    refetchOnWindowFocus: false, // 不在窗口获得焦点时重新获取
   });
 }
 
@@ -106,36 +109,36 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
   const avgRecordsPerUser = stats.totalUsers > 0 ? stats.totalRecords / stats.totalUsers : 0;
 
   // 检查活跃率
-  if (activeRate < 30) {
-    issues.push('用户活跃率较低（< 30%）');
-    score -= 20;
-  } else if (activeRate < 50) {
-    issues.push('用户活跃率偏低（< 50%）');
-    score -= 10;
+  if (activeRate < HEALTH_THRESHOLDS.ACTIVE_RATE.LOW) {
+    issues.push(`用户活跃率较低（< ${HEALTH_THRESHOLDS.ACTIVE_RATE.LOW}%）`);
+    score -= HEALTH_PENALTIES.LOW_ACTIVE_RATE;
+  } else if (activeRate < HEALTH_THRESHOLDS.ACTIVE_RATE.MEDIUM) {
+    issues.push(`用户活跃率偏低（< ${HEALTH_THRESHOLDS.ACTIVE_RATE.MEDIUM}%）`);
+    score -= HEALTH_PENALTIES.MEDIUM_ACTIVE_RATE;
   }
 
   // 检查系统词库
-  if (stats.systemWordBooks < 3) {
-    issues.push('系统词库数量较少（< 3个）');
-    score -= 15;
+  if (stats.systemWordBooks < HEALTH_THRESHOLDS.MIN_SYSTEM_WORDBOOKS) {
+    issues.push(`系统词库数量较少（< ${HEALTH_THRESHOLDS.MIN_SYSTEM_WORDBOOKS}个）`);
+    score -= HEALTH_PENALTIES.LOW_WORDBOOKS;
   }
 
   // 检查单词数量
-  if (avgWordsPerBook < 50) {
-    issues.push('平均词库单词数较少（< 50个）');
-    score -= 15;
+  if (avgWordsPerBook < HEALTH_THRESHOLDS.MIN_AVG_WORDS_PER_BOOK) {
+    issues.push(`平均词库单词数较少（< ${HEALTH_THRESHOLDS.MIN_AVG_WORDS_PER_BOOK}个）`);
+    score -= HEALTH_PENALTIES.LOW_WORDS;
   }
 
   // 检查学习记录
-  if (avgRecordsPerUser < 10) {
-    issues.push('用户学习活跃度低（平均 < 10条记录）');
-    score -= 10;
+  if (avgRecordsPerUser < HEALTH_THRESHOLDS.MIN_AVG_RECORDS_PER_USER) {
+    issues.push(`用户学习活跃度低（平均 < ${HEALTH_THRESHOLDS.MIN_AVG_RECORDS_PER_USER}条记录）`);
+    score -= HEALTH_PENALTIES.LOW_RECORDS;
   }
 
   // 检查总用户数
-  if (stats.totalUsers < 1) {
+  if (stats.totalUsers < HEALTH_THRESHOLDS.MIN_USERS) {
     issues.push('系统尚无用户');
-    score -= 30;
+    score -= HEALTH_PENALTIES.NO_USERS;
   }
 
   // 确保分数不低于0
@@ -143,9 +146,9 @@ export function calculateSystemHealth(stats: AdminStatistics): SystemHealth {
 
   // 确定健康状态
   let status: SystemHealth['status'] = 'excellent';
-  if (score < 60) status = 'error';
-  else if (score < 75) status = 'warning';
-  else if (score < 90) status = 'good';
+  if (score < HEALTH_STATUS_THRESHOLDS.ERROR) status = 'error';
+  else if (score < HEALTH_STATUS_THRESHOLDS.WARNING) status = 'warning';
+  else if (score < HEALTH_STATUS_THRESHOLDS.GOOD) status = 'good';
 
   return {
     status,

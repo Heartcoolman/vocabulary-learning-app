@@ -1,4 +1,5 @@
 import { apiLogger } from '../../../utils/logger';
+import { STORAGE_KEYS } from '../../../constants/storageKeys';
 
 /**
  * JWT解码后的payload结构
@@ -68,7 +69,7 @@ function isTokenExpired(token: string): boolean {
 class TokenManager {
   private static instance: TokenManager;
   private token: string | null = null;
-  private readonly STORAGE_KEY = 'auth_token';
+  private readonly STORAGE_KEY = STORAGE_KEYS.AUTH_TOKEN;
 
   private constructor() {
     this.loadToken();

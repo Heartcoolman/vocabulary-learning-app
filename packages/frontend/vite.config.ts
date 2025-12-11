@@ -47,6 +47,17 @@ export default defineConfig({
     exclude: ['@mediapipe/tasks-vision'],
   },
 
+  // Worker 配置
+  worker: {
+    format: 'es', // 使用 ES 模块格式，避免与 code-splitting 冲突
+    rollupOptions: {
+      output: {
+        // Worker 独立打包，不参与主 bundle 的代码分割
+        inlineDynamicImports: true,
+      },
+    },
+  },
+
   // 构建优化配置
   build: {
     // 启用 CSS 代码分割

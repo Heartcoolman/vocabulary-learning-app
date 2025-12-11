@@ -10,10 +10,7 @@ import {
   useUserWordBooks,
   useSearchWords,
 } from '../hooks/queries/useWordBooks';
-import {
-  useCreateWordBook,
-  useDeleteWordBook,
-} from '../hooks/mutations/useWordBookMutations';
+import { useCreateWordBook, useDeleteWordBook } from '../hooks/mutations/useWordBookMutations';
 
 // 搜索结果类型
 type SearchResult = Word & { wordBook?: { id: string; name: string; type: string } };
@@ -237,6 +234,8 @@ export default function VocabularyPage() {
                       if (word.wordBook) {
                         navigate(`/wordbooks/${word.wordBook.id}`);
                         clearSearch();
+                      } else {
+                        toast.info('该单词未关联词书');
                       }
                     }}
                     className="cursor-pointer p-4 transition-colors hover:bg-gray-50"

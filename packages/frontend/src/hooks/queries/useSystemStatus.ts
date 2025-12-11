@@ -2,11 +2,13 @@
  * 系统状态监控的 React Query Hooks
  *
  * 提供系统运行状态、性能指标、服务健康度等监控功能
- * 注意：目前后端可能没有完整的系统状态API，这个文件提供前端计算和模拟的状态
+ * 通过调用后端健康检查 API 获取真实数据
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS, REFETCH_INTERVALS } from '../../lib/cacheConfig';
+import { getHealthMetrics, getHealthReady } from '../../services/aboutApi';
 import { useAdminStatistics } from './useAdminStatistics';
 
 /**
@@ -38,8 +40,7 @@ export interface SystemStatus {
 /**
  * 获取系统服务状态
  *
- * 目前通过检查API响应时间来判断服务健康度
- * 未来可以扩展为调用专门的健康检查端点
+ * 通过调用 /api/health/ready 获取真实的系统状态
  *
  * @param enabled - 是否启用查询
  * @returns 系统状态查询结果
@@ -52,10 +53,17 @@ export function useSystemStatus(enabled = true) {
     queryFn: async () => {
       const checkStart = Date.now();
 
-      // 检查 API 服务状态（通过统计API响应时间）
+      // 调用健康检查 API 获取真实数据
+      const [healthReady, healthMetrics] = await Promise.all([
+        getHealthReady(),
+        getHealthMetrics(),
+      ]);
       const apiLatency = Date.now() - checkStart;
+      const totalRequests = healthMetrics.http.totalRequests || 0;
+      const errorRate =
+        totalRequests > 0 ? (healthMetrics.http.errorRequests5xx / totalRequests) * 100 : 0;
 
-      // 模拟检查结果（实际应该调用专门的健康检查端点）
+      // 根据健康检查结果构建服务状态
       const services: ServiceStatus[] = [
         {
           name: 'API Server',
@@ -66,9 +74,20 @@ export function useSystemStatus(enabled = true) {
         },
         {
           name: 'Database',
-          status: stats ? 'healthy' : 'unknown',
+          status:
+            healthReady.checks.database === 'connected'
+              ? 'healthy'
+              : healthReady.checks.database === 'timeout'
+                ? 'degraded'
+                : 'down',
+          latency: healthReady.details?.databaseLatency,
           lastCheck: new Date(),
-          message: stats ? '连接正常' : '状态未知',
+          message:
+            healthReady.checks.database === 'connected'
+              ? '连接正常'
+              : healthReady.checks.database === 'timeout'
+                ? '连接超时'
+                : '连接断开',
         },
         {
           name: 'AMAS Service',
@@ -90,19 +109,18 @@ export function useSystemStatus(enabled = true) {
       return {
         overall,
         services,
-        uptime: 0, // 需要后端提供
+        uptime: healthReady.uptime, // 从 API 获取真实的 uptime
         lastUpdate: new Date(),
         metrics: {
           apiLatency,
-          errorRate: 0, // 需要后端提供
-          activeConnections: stats?.activeUsers || 0,
+          errorRate: Math.round(errorRate * 100) / 100,
+          activeConnections: healthMetrics.http.requestDuration.count || stats?.activeUsers || 0,
         },
       };
     },
-    staleTime: 1000 * 30, // 30秒
-    gcTime: 1000 * 60 * 2, // 2分钟
+    ...QUERY_PRESETS.realtime,
     enabled: enabled && !statsLoading,
-    refetchInterval: 1000 * 60, // 每分钟自动刷新
+    refetchInterval: REFETCH_INTERVALS.FREQUENT,
   });
 }
 
@@ -121,7 +139,7 @@ export interface PerformanceMetrics {
 /**
  * 获取系统性能指标
  *
- * 注意：目前返回模拟数据，需要后端实现真实的性能监控API
+ * 通过调用 /api/health/metrics 获取真实的性能数据
  *
  * @param enabled - 是否启用查询
  * @returns 性能指标查询结果
@@ -130,21 +148,40 @@ export function usePerformanceMetrics(enabled = true) {
   return useQuery<PerformanceMetrics>({
     queryKey: queryKeys.admin.system.performance(),
     queryFn: async () => {
-      // TODO: 调用真实的性能监控API
-      // 目前返回模拟数据
+      // 调用真实的性能监控API
+      const metrics = await getHealthMetrics();
+
+      // 从 API 响应中提取并转换数据
+      const { http, process: processInfo } = metrics;
+
+      // 计算错误率：5xx 错误数 / 总请求数 * 100
+      const errorRate =
+        http.totalRequests > 0 ? (http.errorRequests5xx / http.totalRequests) * 100 : 0;
+
+      // 计算 CPU 使用率：将 cpuUsage 转换为百分比
+      // cpuUsage 返回的是用户态和系统态的 CPU 时间（微秒）
+      // 这里简化处理，使用系统负载作为近似值（1 分钟负载平均值 / CPU 核心数 * 100）
+      const cpuUsage = Math.min(
+        (metrics.system.loadAverage[0] / metrics.system.cpuCount) * 100,
+        100,
+      );
+
+      // 计算内存使用率：heapUsed / heapTotal * 100
+      const memoryUsage =
+        (processInfo.memoryUsage.heapUsed / processInfo.memoryUsage.heapTotal) * 100;
+
       return {
-        avgResponseTime: 120,
-        requestsPerMinute: 45,
-        errorRate: 0.5,
-        cpuUsage: 35,
-        memoryUsage: 60,
-        diskUsage: 45,
+        avgResponseTime: http.requestDuration.avg,
+        requestsPerMinute: http.requestDuration.count, // 使用请求计数作为近似值
+        errorRate: Math.round(errorRate * 100) / 100, // 保留两位小数
+        cpuUsage: Math.round(cpuUsage * 100) / 100,
+        memoryUsage: Math.round(memoryUsage * 100) / 100,
+        diskUsage: undefined, // 后端暂不提供磁盘使用率
       };
     },
-    staleTime: 1000 * 30, // 30秒
-    gcTime: 1000 * 60 * 2, // 2分钟
+    ...QUERY_PRESETS.realtime,
     enabled,
-    refetchInterval: 1000 * 30, // 每30秒自动刷新
+    refetchInterval: REFETCH_INTERVALS.REALTIME,
   });
 }
 
@@ -174,40 +211,54 @@ export function useSystemAlerts(limit = 50, enabled = true) {
   return useQuery<SystemAlert[]>({
     queryKey: queryKeys.admin.system.alerts(limit),
     queryFn: async () => {
-      // TODO: 调用真实的告警API
-      // 目前基于系统状态生成模拟告警
-      const alerts: SystemAlert[] = [];
+      const metrics = await getHealthMetrics();
 
+      const alerts: SystemAlert[] =
+        metrics.alerts?.active?.map((item, idx) => ({
+          id: `health-${idx}-${item.ruleName}`,
+          level:
+            item.severity === 'critical'
+              ? 'critical'
+              : item.severity === 'warning'
+                ? 'warning'
+                : 'info',
+          title: item.ruleName,
+          message: item.severity === 'critical' ? '需要立即处理的系统告警' : '系统健康提示',
+          timestamp: new Date(item.triggeredAt),
+          resolved: false,
+          source: 'Health Metrics',
+        })) || [];
+
+      // 如果健康检查已降级/宕机，补充概要告警
       if (status?.overall === 'degraded') {
-        alerts.push({
-          id: 'sys-1',
+        alerts.unshift({
+          id: 'sys-degraded',
           level: 'warning',
           title: '系统性能下降',
           message: '部分服务响应缓慢',
           timestamp: new Date(),
           resolved: false,
-          source: 'System Monitor',
+          source: 'Health Ready',
         });
       }
 
       if (status?.overall === 'down') {
-        alerts.push({
-          id: 'sys-2',
+        alerts.unshift({
+          id: 'sys-down',
           level: 'critical',
           title: '系统服务异常',
           message: '关键服务不可用',
           timestamp: new Date(),
           resolved: false,
-          source: 'System Monitor',
+          source: 'Health Ready',
         });
       }
 
-      return alerts;
+      return alerts.slice(0, limit);
     },
-    staleTime: 1000 * 30, // 30秒
-    gcTime: 1000 * 60 * 5, // 5分钟
+    ...QUERY_PRESETS.realtime,
     enabled: enabled && !!status,
-    refetchInterval: 1000 * 60, // 每分钟自动刷新
+    refetchInterval: REFETCH_INTERVALS.FREQUENT,
   });
 }
 

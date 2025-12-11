@@ -87,6 +87,9 @@ interface SessionCacheData {
     words: WordItem[];
     currentIndex: number;
     progress: QueueProgress;
+    // 用于会话恢复的额外信息
+    masteredWordIds?: string[];
+    totalQuestions?: number;
   };
   timestamp: number;
   userId: string | null;
@@ -329,10 +332,14 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     const manager = queueManagerRef.current;
     if (!manager) return null;
 
+    const fullState = manager.getState();
     return {
       words: allWords,
       currentIndex: 0,
       progress: manager.getProgress(),
+      // 额外的恢复信息
+      masteredWordIds: fullState.masteredWordIds,
+      totalQuestions: fullState.totalQuestions,
     };
   }, [allWords]);
 
@@ -372,6 +379,18 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     adaptiveManagerRef.current?.resetCounter();
   }, []);
 
+  /**
+   * 恢复已掌握单词计数（用于会话恢复时更新进度显示）
+   * 注意：这只更新进度状态，不影响队列中的单词
+   */
+  const restoreMasteredCount = useCallback((masteredCount: number, totalQuestions: number) => {
+    setProgress((prev) => ({
+      ...prev,
+      masteredCount,
+      totalQuestions,
+    }));
+  }, []);
+
   return {
     currentWord,
     allWords,
@@ -390,6 +409,7 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     skipWord,
     resetQueue,
     resetAdaptiveCounter,
+    restoreMasteredCount,
   };
 }
 

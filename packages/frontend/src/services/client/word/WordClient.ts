@@ -91,6 +91,16 @@ export class WordClient extends BaseClient {
   }
 
   /**
+   * 批量删除单词
+   */
+  async batchDeleteWords(wordIds: string[]): Promise<{ deleted: number }> {
+    return this.request<{ deleted: number }>(`/api/words/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ wordIds }),
+    });
+  }
+
+  /**
    * 批量创建单词
    */
   async batchCreateWords(words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {

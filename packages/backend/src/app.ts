@@ -41,6 +41,8 @@ import experimentRoutes from './routes/experiment.routes';
 import trackingRoutes from './routes/tracking.routes';
 import healthRoutes from './routes/health.routes';
 import visualFatigueRoutes from './routes/visual-fatigue.routes';
+import debugRoutes from './routes/debug.routes';
+import { csrfTokenMiddleware, csrfValidationMiddleware } from './middleware/csrf.middleware';
 
 const app = express();
 
@@ -107,7 +109,13 @@ app.use(
     origin: env.CORS_ORIGIN,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Request-ID',
+      'X-CSRF-Token',
+    ],
     exposedHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     maxAge: 86400, // 24小时预检请求缓存
   }),
@@ -149,6 +157,12 @@ if (env.NODE_ENV !== 'test') {
 
 // Cookie 解析（用于 HttpOnly Cookie 认证）
 app.use(cookieParser());
+
+// CSRF 防护中间件
+// csrfTokenMiddleware: 设置 CSRF cookie
+// csrfValidationMiddleware: 验证 POST/PUT/DELETE/PATCH 请求的 CSRF token
+app.use(csrfTokenMiddleware);
+app.use('/api', csrfValidationMiddleware);
 
 // 解析JSON并限制请求体大小（防止大包攻击）
 app.use(express.json({ limit: '200kb' }));
@@ -215,6 +229,7 @@ app.use('/api/users/profile', profileRoutes);
 app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/visual-fatigue', visualFatigueRoutes);
+app.use('/api/debug', debugRoutes);
 
 // 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
 app.use('/health', healthRoutes);

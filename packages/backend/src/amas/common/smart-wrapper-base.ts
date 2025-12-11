@@ -10,11 +10,7 @@
  */
 
 import { SmartRouter, RouteDecision, RouteOptions } from './smart-router';
-import {
-  CircuitBreaker,
-  CircuitBreakerOptions,
-  CircuitState,
-} from './circuit-breaker';
+import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from './circuit-breaker';
 
 import {
   recordNativeCall,
@@ -25,6 +21,8 @@ import {
 } from '../../monitoring/amas-metrics';
 
 import { amasLogger } from '../../logger';
+
+import { env } from '../../config/env';
 
 /**
  * 包装器统计信息
@@ -65,10 +63,10 @@ export interface SmartExecuteOptions extends RouteOptions {
  * 熔断器默认配置
  */
 const DEFAULT_CIRCUIT_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
-  failureThreshold: 0.5,  // 50% 失败率触发熔断
-  windowSize: 20,         // 20 个样本的滑动窗口
-  openDurationMs: 60000,  // 60 秒后尝试半开
-  halfOpenProbe: 3,       // 半开状态允许 3 个探测请求
+  failureThreshold: 0.5, // 50% 失败率触发熔断
+  windowSize: 20, // 20 个样本的滑动窗口
+  openDurationMs: 60000, // 60 秒后尝试半开
+  halfOpenProbe: 3, // 半开状态允许 3 个探测请求
 };
 
 /**
@@ -146,7 +144,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
       windowSize = DEFAULT_CIRCUIT_BREAKER_OPTIONS.windowSize,
       recoveryTimeout = DEFAULT_CIRCUIT_BREAKER_OPTIONS.openDurationMs,
       halfOpenProbe = DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenProbe,
-      useNative = process.env.AMAS_USE_NATIVE !== 'false',
+      useNative = env.AMAS_USE_NATIVE,
     } = config;
 
     this.moduleName = moduleName;
@@ -161,7 +159,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
       onStateChange: (from, to) => {
         amasLogger.info(
           { from, to, module: this.moduleName },
-          `[${this.moduleName}] Circuit breaker state changed`
+          `[${this.moduleName}] Circuit breaker state changed`,
         );
         this.updateMetricState(to);
       },
@@ -169,12 +167,12 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
         if (evt.type === 'open') {
           amasLogger.warn(
             { reason: evt.reason, module: this.moduleName },
-            `[${this.moduleName}] Circuit breaker opened`
+            `[${this.moduleName}] Circuit breaker opened`,
           );
         } else if (evt.type === 'close') {
           amasLogger.info(
             { module: this.moduleName },
-            `[${this.moduleName}] Circuit breaker closed, native recovered`
+            `[${this.moduleName}] Circuit breaker closed, native recovered`,
           );
         }
       },
@@ -200,7 +198,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
     operation: string,
     nativeFn: () => TResult,
     fallbackFn: () => TResult,
-    options?: SmartExecuteOptions
+    options?: SmartExecuteOptions,
   ): TResult {
     const {
       dataSize,
@@ -246,7 +244,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
     operation: string,
     nativeFn: () => Promise<TResult>,
     fallbackFn: () => Promise<TResult>,
-    options?: SmartExecuteOptions
+    options?: SmartExecuteOptions,
   ): Promise<TResult> {
     const {
       dataSize,
@@ -292,7 +290,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
   protected forceNative<TResult>(
     nativeFn: () => TResult,
     fallbackFn: () => TResult,
-    method: NativeMethod = 'selectAction'
+    method: NativeMethod = 'selectAction',
   ): TResult {
     if (this.native && this.nativeEnabled && this.circuitBreaker.canExecute()) {
       return this.executeNative(nativeFn, fallbackFn, method, true);
@@ -318,7 +316,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
     nativeFn: () => TResult,
     fallbackFn: () => TResult,
     method: NativeMethod,
-    recordMetrics: boolean
+    recordMetrics: boolean,
   ): TResult {
     const startTime = performance.now();
 
@@ -346,7 +344,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
 
       amasLogger.warn(
         { error: error.message, module: this.moduleName },
-        `[${this.moduleName}] Native call failed, falling back to TypeScript`
+        `[${this.moduleName}] Native call failed, falling back to TypeScript`,
       );
 
       // 降级到 TypeScript
@@ -365,7 +363,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
     nativeFn: () => Promise<TResult>,
     fallbackFn: () => Promise<TResult>,
     method: NativeMethod,
-    recordMetrics: boolean
+    recordMetrics: boolean,
   ): Promise<TResult> {
     const startTime = performance.now();
 
@@ -393,7 +391,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
 
       amasLogger.warn(
         { error: error.message, module: this.moduleName },
-        `[${this.moduleName}] Native async call failed, falling back to TypeScript`
+        `[${this.moduleName}] Native async call failed, falling back to TypeScript`,
       );
 
       // 降级到 TypeScript
@@ -467,7 +465,7 @@ export abstract class SmartWrapperBase<TNative, TFallback> {
     this.circuitBreaker.reset();
     amasLogger.info(
       { module: this.moduleName },
-      `[${this.moduleName}] Circuit breaker manually reset`
+      `[${this.moduleName}] Circuit breaker manually reset`,
     );
   }
 

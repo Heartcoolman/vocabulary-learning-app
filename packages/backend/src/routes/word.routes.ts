@@ -1,6 +1,10 @@
 import { Router, Response } from 'express';
 import wordService from '../services/word.service';
-import { createWordSchema, updateWordSchema } from '../validators/word.validator';
+import {
+  createWordSchema,
+  updateWordSchema,
+  batchDeleteWordsSchema,
+} from '../validators/word.validator';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { validateParams } from '../middleware/validate.middleware';
 import { idParamSchema } from '../validators/common.validator';
@@ -95,12 +99,27 @@ router.post('/batch', async (req: AuthRequest, res: Response, next) => {
       throw new Error('words必须是数组');
     }
 
-    const validatedWords = words.map(word => createWordSchema.parse(word));
+    const validatedWords = words.map((word) => createWordSchema.parse(word));
     const result = await wordService.batchCreateWords(req.user!.id, validatedWords);
 
     res.status(201).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 批量删除单词
+router.post('/batch-delete', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { wordIds } = batchDeleteWordsSchema.parse(req.body);
+    await wordService.batchDeleteWords(wordIds, req.user!.id);
+
+    res.json({
+      success: true,
+      data: { deleted: wordIds.length },
     });
   } catch (error) {
     next(error);
@@ -124,18 +143,22 @@ router.put('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: 
 });
 
 // 删除单词
-router.delete('/:id', validateParams(idParamSchema), async (req: AuthRequest, res: Response, next) => {
-  try {
-    const { id } = req.validatedParams as { id: string };
-    await wordService.deleteWord(id, req.user!.id);
+router.delete(
+  '/:id',
+  validateParams(idParamSchema),
+  async (req: AuthRequest, res: Response, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      await wordService.deleteWord(id, req.user!.id);
 
-    res.json({
-      success: true,
-      message: '单词删除成功',
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      res.json({
+        success: true,
+        message: '单词删除成功',
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;

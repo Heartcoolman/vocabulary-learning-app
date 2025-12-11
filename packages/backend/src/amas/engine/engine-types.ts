@@ -284,6 +284,10 @@ export interface ProcessOptions {
   };
   /** 单词复习历史（用于 ACT-R 记忆模型） */
   wordReviewHistory?: WordReviewHistory[];
+  /** 视觉疲劳数据（用于融合到 AMAS 状态） */
+  visualFatigueData?: import('@danci/shared').ProcessedVisualFatigueData;
+  /** 学习时长（分钟，用于时间疲劳计算） */
+  studyDurationMinutes?: number;
 }
 
 /**

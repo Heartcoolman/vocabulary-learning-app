@@ -47,6 +47,8 @@ import {
 
 import { amasLogger } from '../../logger';
 
+import { env } from '../../config/env';
+
 // ==================== 类型定义 ====================
 
 /**
@@ -185,7 +187,7 @@ export class ThompsonSamplingNativeWrapper {
       windowSize = DEFAULT_CIRCUIT_BREAKER_OPTIONS.windowSize,
       recoveryTimeout = DEFAULT_CIRCUIT_BREAKER_OPTIONS.openDurationMs,
       halfOpenProbe = DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenProbe,
-      useNative = process.env.AMAS_USE_NATIVE !== 'false',
+      useNative = env.AMAS_USE_NATIVE,
     } = config;
 
     this.nativeEnabled = useNative;

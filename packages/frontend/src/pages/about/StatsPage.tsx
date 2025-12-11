@@ -26,16 +26,22 @@ import {
   Graph,
 } from '../../components/Icon';
 import {
-  getOverviewStats,
+  getOverviewStatsWithSource,
   getAlgorithmDistribution,
+  getAlgorithmTrend,
   getPerformanceMetrics,
   getOptimizationEvents,
   getMasteryRadar,
+  getLearningModeDistribution,
+  getHalfLifeDistribution,
   OverviewStats,
   AlgorithmDistribution,
+  AlgorithmTrend,
   PerformanceMetrics,
   OptimizationEvent,
   MasteryRadarData,
+  LearningModeDistributionResponse,
+  HalfLifeDistributionResponse,
 } from '../../services/aboutApi';
 import { amasLogger } from '../../utils/logger';
 
@@ -140,17 +146,19 @@ function MemberCard({
   id,
   percentage,
   totalDecisions,
+  trend,
 }: {
   id: string;
   percentage: number;
   totalDecisions: number;
+  trend?: number[];
 }) {
   const config = ALGO_CONFIG[id] || { name: id, color: 'text-gray-500', icon: CheckCircle };
   const Icon = config.icon;
   const decisions = Math.floor(totalDecisions * percentage);
 
-  // 模拟趋势数据
-  const trend = useMemo(() => Array.from({ length: 10 }, () => 40 + Math.random() * 40), []);
+  // 使用传入的真实趋势数据，若无则使用默认平稳线
+  const displayTrend = trend || Array(10).fill(50);
 
   return (
     <div className="animate-g3-fade-in rounded-xl border border-gray-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
@@ -173,7 +181,7 @@ function MemberCard({
 
       {/* Sparkline Visualization */}
       <div className="flex h-8 items-end gap-1 opacity-50">
-        {trend.map((h, i) => (
+        {displayTrend.map((h, i) => (
           <div
             key={i}
             style={{ height: `${h}%`, transitionDelay: `${i * 50}ms` }}
@@ -254,21 +262,22 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
 }
 
 // 4. 学习模式分布 (LearningModeDistribution)
-function LearningModeDistribution() {
-  // 模拟数据 - 实际应从 API 获取
-  const modeData = useMemo(
-    () => ({
-      standard: 0.65,
-      cram: 0.2,
-      relaxed: 0.15,
-    }),
-    [],
-  );
+function LearningModeDistribution({ data }: { data: LearningModeDistributionResponse | null }) {
+  // 将后端模式映射到前端显示模式
+  // 后端: exam, daily, travel, custom
+  // 前端显示: 考试模式, 日常模式, 旅行模式, 自定义模式
+  const modeData = useMemo(() => {
+    if (!data) {
+      return { exam: 0, daily: 0, travel: 0, custom: 0 };
+    }
+    return data;
+  }, [data]);
 
   const modeConfig = {
-    standard: { name: '标准模式', color: 'bg-blue-500', desc: '平衡长期记忆' },
-    cram: { name: '突击模式', color: 'bg-amber-500', desc: '考前冲刺' },
-    relaxed: { name: '轻松模式', color: 'bg-emerald-500', desc: '降低压力' },
+    exam: { name: '考试模式', color: 'bg-amber-500', desc: '考前冲刺' },
+    daily: { name: '日常模式', color: 'bg-blue-500', desc: '平衡长期记忆' },
+    travel: { name: '旅行模式', color: 'bg-emerald-500', desc: '碎片时间学习' },
+    custom: { name: '自定义模式', color: 'bg-purple-500', desc: '个性化配置' },
   };
 
   return (
@@ -302,20 +311,16 @@ function LearningModeDistribution() {
 }
 
 // 5. 半衰期分布 (HalfLifeDistribution)
-function HalfLifeDistribution() {
-  // 模拟数据 - 实际应从 API 获取
-  const halfLifeData = useMemo(
-    () => [
-      { range: '0-1天', count: 120, percentage: 15 },
-      { range: '1-3天', count: 280, percentage: 35 },
-      { range: '3-7天', count: 200, percentage: 25 },
-      { range: '7-14天', count: 120, percentage: 15 },
-      { range: '14+天', count: 80, percentage: 10 },
-    ],
-    [],
-  );
+function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | null }) {
+  const halfLifeData = useMemo(() => {
+    if (!data || !data.distribution) {
+      return [];
+    }
+    return data.distribution;
+  }, [data]);
 
-  const avgHalfLife = 4.2;
+  const avgHalfLife = data?.avgHalfLife ?? 0;
+  const totalWords = data?.totalWords ?? 0;
 
   return (
     <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
@@ -401,25 +406,38 @@ function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
 export default function StatsPage() {
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [algoDist, setAlgoDist] = useState<AlgorithmDistribution | null>(null);
+  const [algoTrend, setAlgoTrend] = useState<AlgorithmTrend | null>(null);
   const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
   const [events, setEvents] = useState<OptimizationEvent[]>([]);
   const [radarData, setRadarData] = useState<MasteryRadarData | null>(null);
+  const [learningModeDist, setLearningModeDist] = useState<LearningModeDistributionResponse | null>(
+    null,
+  );
+  const [halfLifeDist, setHalfLifeDist] = useState<HalfLifeDistributionResponse | null>(null);
   const [time, setTime] = useState(new Date());
+  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed'>('virtual');
 
   const fetchData = useCallback(async () => {
     try {
-      const [ov, ad, perf, evts, radar] = await Promise.all([
-        getOverviewStats(),
+      const [ovResult, ad, trend, perf, evts, radar, learningMode, halfLife] = await Promise.all([
+        getOverviewStatsWithSource(),
         getAlgorithmDistribution(),
+        getAlgorithmTrend(),
         getPerformanceMetrics(),
         getOptimizationEvents(),
         getMasteryRadar(),
+        getLearningModeDistribution(),
+        getHalfLifeDistribution(),
       ]);
-      setOverview(ov);
+      setOverview(ovResult.data);
+      setDataSource(ovResult.source);
       setAlgoDist(ad);
+      setAlgoTrend(trend);
       setPerformance(perf);
       setEvents(evts);
       setRadarData(radar);
+      setLearningModeDist(learningMode);
+      setHalfLifeDist(halfLife);
     } catch (e) {
       amasLogger.error({ err: e }, '获取统计数据失败');
     }
@@ -447,10 +465,28 @@ export default function StatsPage() {
         {/* Header */}
         <header className="mb-10 flex items-end justify-between">
           <div>
-            <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 md:text-4xl">
-              <ShareNetwork className="text-blue-600" weight="duotone" />
-              AMAS 神经网络监控
-            </h1>
+            <div className="mb-2 flex items-center gap-3">
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 md:text-4xl">
+                <ShareNetwork className="text-blue-600" weight="duotone" />
+                AMAS 神经网络监控
+              </h1>
+              {/* 数据源标识 */}
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  dataSource === 'real'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : dataSource === 'mixed'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {dataSource === 'real'
+                  ? '真实数据'
+                  : dataSource === 'mixed'
+                    ? '混合数据'
+                    : '模拟数据'}
+              </span>
+            </div>
             <p className="text-gray-500">Ensemble Learning Framework 实时性能遥测</p>
           </div>
           <div className="hidden text-right md:block">
@@ -483,6 +519,7 @@ export default function StatsPage() {
                   id={id}
                   percentage={val}
                   totalDecisions={overview?.todayDecisions || 0}
+                  trend={algoTrend?.[id as keyof AlgorithmTrend]}
                 />
               ))}
             </div>
@@ -500,12 +537,12 @@ export default function StatsPage() {
 
           {/* 5. Learning Mode Distribution */}
           <div className="lg:col-span-1">
-            <LearningModeDistribution />
+            <LearningModeDistribution data={learningModeDist} />
           </div>
 
           {/* 6. Half-Life Distribution */}
           <div className="lg:col-span-1">
-            <HalfLifeDistribution />
+            <HalfLifeDistribution data={halfLifeDist} />
           </div>
         </div>
       </div>

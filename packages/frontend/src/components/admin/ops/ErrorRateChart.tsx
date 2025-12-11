@@ -50,27 +50,6 @@ const CHART_COLORS = {
 /**
  * 生成模拟数据（用于演示）
  */
-function generateMockData(count: number): ErrorDataPoint[] {
-  const now = Date.now();
-  const data: ErrorDataPoint[] = [];
-
-  for (let i = count - 1; i >= 0; i--) {
-    const timestamp = now - i * 60000; // 每分钟一个点
-    const totalRequests = Math.floor(Math.random() * 500) + 100;
-    const errorRequests = Math.floor(Math.random() * 10);
-    const errorRate = (errorRequests / totalRequests) * 100;
-
-    data.push({
-      timestamp,
-      totalRequests,
-      errorRequests,
-      errorRate,
-    });
-  }
-
-  return data;
-}
-
 /**
  * 格式化时间
  */
@@ -91,6 +70,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
   const [data, setData] = useState<ErrorDataPoint[]>([]);
   const [selectedRange, setSelectedRange] = useState(timeRange);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /**
@@ -98,6 +78,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
    */
   const fetchData = useCallback(async () => {
     try {
+      setFetchError(null);
       const response = await fetch(
         `${env.apiUrl}/api/admin/metrics/error-rate?range=${selectedRange}`,
         { credentials: 'include' },
@@ -110,13 +91,12 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
           return;
         }
       }
-
-      // 如果获取失败，使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('无法获取错误率数据');
+      setData([]);
     } catch (e) {
       console.error('Failed to fetch error rate data:', e);
-      // 使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('请求错误率数据失败');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -342,6 +322,10 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
             style={{ height }}
           >
             加载中...
+          </div>
+        ) : fetchError ? (
+          <div className="flex items-center justify-center text-sm text-red-500" style={{ height }}>
+            {fetchError}
           </div>
         ) : data.length === 0 ? (
           <div

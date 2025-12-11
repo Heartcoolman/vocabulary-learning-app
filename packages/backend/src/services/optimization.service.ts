@@ -16,8 +16,9 @@ import {
   BayesianOptimizerState,
   ParamBound,
   Observation,
-  defaultBayesianOptimizer
+  defaultBayesianOptimizer,
 } from '../amas';
+import { logger } from '../logger';
 import { isBayesianOptimizerEnabled } from '../amas/config/feature-flags';
 
 // ==================== 类型定义 ====================
@@ -58,7 +59,7 @@ const DEFAULT_PARAM_SPACE: OptimizationParamSpace = {
   interval_scale: { min: 0.5, max: 2.0 },
   new_ratio: { min: 0.0, max: 0.5 },
   difficulty: { min: 1, max: 3 },
-  hint_level: { min: 0, max: 2 }
+  hint_level: { min: 0, max: 2 },
 };
 
 // ==================== 优化服务类 ====================
@@ -84,14 +85,14 @@ export class OptimizationService {
     this.config = {
       maxEvaluations: 50,
       beta: 2.0,
-      noiseVariance: 0.1
+      noiseVariance: 0.1,
     };
 
     // 异步初始化，添加错误处理避免 unhandled rejection
-    this.initializeOptimizer().catch(err => {
+    this.initializeOptimizer().catch((err) => {
       // 在测试环境或 Prisma 不可用时静默处理
       if (process.env.NODE_ENV !== 'test') {
-        console.error('[OptimizationService] 初始化失败:', err);
+        logger.error({ err }, '[OptimizationService] 初始化失败');
       }
     });
   }
@@ -103,7 +104,7 @@ export class OptimizationService {
     return Object.entries(DEFAULT_PARAM_SPACE).map(([name, bound]) => ({
       name,
       min: bound.min,
-      max: bound.max
+      max: bound.max,
     }));
   }
 
@@ -119,7 +120,7 @@ export class OptimizationService {
     const paramSpace = this.convertParamSpaceToArray();
     this.optimizer = new BayesianOptimizer({
       ...this.config,
-      paramSpace
+      paramSpace,
     });
 
     // 尝试从数据库恢复状态
@@ -145,10 +146,7 @@ export class OptimizationService {
    * @param params 参数组合
    * @param value 评估值（学习效果，越高越好）
    */
-  async recordEvaluation(
-    params: Record<string, number>,
-    value: number
-  ): Promise<void> {
+  async recordEvaluation(params: Record<string, number>, value: number): Promise<void> {
     if (!isBayesianOptimizerEnabled() || !this.optimizer) {
       return;
     }
@@ -177,7 +175,7 @@ export class OptimizationService {
 
     return {
       params: this.optimizer.paramsToObject(best.params),
-      value: best.value
+      value: best.value,
     };
   }
 
@@ -190,21 +188,21 @@ export class OptimizationService {
         observations: [],
         bestParams: null,
         bestValue: null,
-        evaluationCount: 0
+        evaluationCount: 0,
       };
     }
 
     const state = this.optimizer.getState();
 
     return {
-      observations: state.observations.map(obs => ({
+      observations: state.observations.map((obs) => ({
         params: this.optimizer!.paramsToObject(obs.params),
         value: obs.value,
-        timestamp: obs.timestamp ?? Date.now()
+        timestamp: obs.timestamp ?? Date.now(),
       })),
       bestParams: state.best ? this.optimizer.paramsToObject(state.best.params) : null,
       bestValue: state.best?.value ?? null,
-      evaluationCount: state.observations.length
+      evaluationCount: state.observations.length,
     };
   }
 
@@ -256,12 +254,12 @@ export class OptimizationService {
     // 获取近24小时的学习记录
     const records = await prisma.answerRecord.findMany({
       where: {
-        timestamp: { gte: oneDayAgo }
+        timestamp: { gte: oneDayAgo },
       },
       select: {
         isCorrect: true,
-        responseTime: true
-      }
+        responseTime: true,
+      },
     });
 
     if (records.length < 10) {
@@ -270,12 +268,12 @@ export class OptimizationService {
 
     // 计算综合效果分数
     // 效果 = 正确率 * 0.6 + 速度分 * 0.4
-    const correctCount = records.filter(r => r.isCorrect).length;
+    const correctCount = records.filter((r) => r.isCorrect).length;
     const accuracy = correctCount / records.length;
 
     const validResponseTimes = records
-      .filter(r => r.responseTime !== null && r.responseTime > 0)
-      .map(r => r.responseTime as number);
+      .filter((r) => r.responseTime !== null && r.responseTime > 0)
+      .map((r) => r.responseTime as number);
 
     let speedScore = 0.5; // 默认中等
     if (validResponseTimes.length > 0) {
@@ -305,16 +303,16 @@ export class OptimizationService {
       create: {
         id: this.GLOBAL_STATE_ID,
         observations: state.observations as unknown as object,
-        bestParams: state.best?.params as unknown as object ?? null,
+        bestParams: (state.best?.params as unknown as object) ?? null,
         bestValue: state.best?.value ?? null,
-        evaluationCount: state.observations.length
+        evaluationCount: state.observations.length,
       },
       update: {
         observations: state.observations as unknown as object,
-        bestParams: state.best?.params as unknown as object ?? null,
+        bestParams: (state.best?.params as unknown as object) ?? null,
         bestValue: state.best?.value ?? null,
-        evaluationCount: state.observations.length
-      }
+        evaluationCount: state.observations.length,
+      },
     });
   }
 
@@ -327,7 +325,7 @@ export class OptimizationService {
     }
 
     const saved = await prisma.bayesianOptimizerState.findUnique({
-      where: { id: this.GLOBAL_STATE_ID }
+      where: { id: this.GLOBAL_STATE_ID },
     });
 
     if (saved && saved.observations) {
@@ -354,12 +352,12 @@ export class OptimizationService {
     const paramSpace = this.convertParamSpaceToArray();
     this.optimizer = new BayesianOptimizer({
       ...this.config,
-      paramSpace
+      paramSpace,
     });
 
     // 清除数据库状态
     await prisma.bayesianOptimizerState.deleteMany({
-      where: { id: this.GLOBAL_STATE_ID }
+      where: { id: this.GLOBAL_STATE_ID },
     });
   }
 
@@ -396,7 +394,7 @@ export class OptimizationService {
       evaluationCount: history.evaluationCount,
       paramSpace: this.getParamSpace(),
       bestParams: history.bestParams,
-      bestValue: history.bestValue
+      bestValue: history.bestValue,
     };
   }
 }

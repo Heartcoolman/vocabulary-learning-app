@@ -43,6 +43,12 @@ export interface VisualFatigueMetrics {
   squintIntensity?: number;
   /** Blendshape 分析结果 */
   blendshapeAnalysis?: BlendshapeAnalysis;
+  /** 皱眉强度 [0-1] - 来自 Blendshape 分析 */
+  browDownIntensity?: number;
+  /** 嘴巴张开程度 [0-1] - 用于打哈欠检测 */
+  mouthOpenRatio?: number;
+  /** 头部稳定性 [0-1], 1=非常稳定 */
+  headStability?: number;
 }
 
 // ==================== 配置类型 ====================
@@ -83,7 +89,7 @@ export const DEFAULT_VISUAL_FATIGUE_CONFIG: VisualFatigueConfig = {
   enabled: false,
   detectionIntervalMs: 200, // 5 FPS
   reportIntervalMs: 5000, // 5秒上报一次
-  earThreshold: 0.2,
+  earThreshold: 0.25, // 与 BlinkDetector 保持一致
   perclosThreshold: 0.15,
   yawnDurationMs: 2000,
   windowSizeSeconds: 60,
@@ -210,6 +216,25 @@ export interface VisualFatigueInput {
   timestamp: number;
   /** 会话ID */
   sessionId?: string;
+  // ==================== 扩展字段 ====================
+  /** 眼睛纵横比 EAR [0-0.5] */
+  eyeAspectRatio?: number;
+  /** 平均眨眼持续时间 (ms) */
+  avgBlinkDuration?: number;
+  /** 头部翻滚角 [-1, 1] */
+  headRoll?: number;
+  /** 头部稳定性 [0-1], 1=非常稳定 */
+  headStability?: number;
+  /** 眯眼强度 [0-1] */
+  squintIntensity?: number;
+  /** 表情疲劳分数 [0-1] */
+  expressionFatigueScore?: number;
+  /** 视线离屏比例 [0-1] */
+  gazeOffScreenRatio?: number;
+  /** 皱眉强度 [0-1] - 来自 Blendshape */
+  browDownIntensity?: number;
+  /** 嘴巴张开程度 [0-1] - 用于打哈欠检测 */
+  mouthOpenRatio?: number;
 }
 
 /**
@@ -365,4 +390,108 @@ export interface BlendshapeAnalysis {
   confidence: number;
   /** 原始 Blendshapes 值 */
   rawBlendshapes: Record<string, number>;
+}
+
+// ==================== AMAS 集成类型 ====================
+
+/**
+ * 动态权重配置
+ * 用于视觉/行为/时间疲劳的动态权重分配
+ */
+export interface DynamicWeights {
+  /** 视觉疲劳权重 [0-1] */
+  visual: number;
+  /** 行为疲劳权重 [0-1] */
+  behavior: number;
+  /** 时间疲劳权重 [0-1] */
+  temporal: number;
+  /** 权重计算时间戳 */
+  calculatedAt: number;
+}
+
+/**
+ * 视觉认知信号
+ * 用于融合到 AMAS 的 A/F/M/C 状态
+ */
+export interface VisualCognitiveSignals {
+  /** 注意力相关信号 */
+  attentionSignals: {
+    /** 头部姿态稳定性 [0-1], 1=非常稳定 */
+    headPoseStability: number;
+    /** 眯眼强度 [0-1] */
+    eyeSquint: number;
+    /** 视线离屏比例 [0-1] */
+    gazeOffScreen: number;
+  };
+  /** 疲劳相关信号 */
+  fatigueSignals: {
+    /** PERCLOS 值 [0-1] */
+    perclos: number;
+    /** 眨眼疲劳评分 [0-1] */
+    blinkFatigue: number;
+    /** 打哈欠评分 [0-1] */
+    yawnScore: number;
+  };
+  /** 动机相关信号 */
+  motivationSignals: {
+    /** 皱眉强度 [0-1] */
+    browDown: number;
+    /** 嘴角下垂程度 [0-1] */
+    mouthCornerDown: number;
+  };
+  /** 信号置信度 [0-1] */
+  confidence: number;
+  /** 时间戳 */
+  timestamp: number;
+}
+
+/**
+ * 个性化阈值配置
+ * 用于贝叶斯阈值学习
+ */
+export interface PersonalizedThresholds {
+  /** PERCLOS 阈值 (默认 0.15) */
+  perclos: { mean: number; std: number };
+  /** 眨眼频率阈值 (次/分钟, 默认 25) */
+  blinkRate: { mean: number; std: number };
+  /** 疲劳评分阈值 (默认 0.6) */
+  fatigueScore: { mean: number; std: number };
+  /** 更新时间戳 */
+  updatedAt: number;
+  /** 学习样本数 */
+  sampleCount: number;
+}
+
+/**
+ * 默认个性化阈值
+ */
+export const DEFAULT_PERSONALIZED_THRESHOLDS: PersonalizedThresholds = {
+  perclos: { mean: 0.15, std: 0.05 },
+  blinkRate: { mean: 25, std: 5 },
+  fatigueScore: { mean: 0.6, std: 0.1 },
+  updatedAt: 0,
+  sampleCount: 0,
+};
+
+/**
+ * 视觉疲劳处理后的数据
+ * 用于在 AMAS 主流程中传递
+ */
+export interface ProcessedVisualFatigueData {
+  /** 视觉疲劳评分 [0-1] */
+  score: number;
+  /** 置信度 [0-1] */
+  confidence: number;
+  /** 数据新鲜度 [0-1], 随时间衰减 */
+  freshness: number;
+  /** 是否有效 */
+  isValid: boolean;
+  /** 认知信号 (用于状态融合) */
+  cognitiveSignals?: VisualCognitiveSignals;
+  /** 疲劳趋势 [-1, 1], 正值表示上升 */
+  trend: number;
+  /** 原始指标 */
+  metrics?: VisualFatigueMetrics;
+  /** 时间戳 */
+  timestamp: number;
 }

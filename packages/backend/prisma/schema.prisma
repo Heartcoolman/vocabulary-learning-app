@@ -30,6 +30,12 @@ model User {
   learningStates   WordLearningState[]
   reviewTraces     WordReviewTrace[]
   wordScores       WordScore[]
+  // 视觉疲劳相关
+  visualFatigueRecords  VisualFatigueRecord[]
+  visualFatigueConfig   UserVisualFatigueConfig?
+  // 用户交互追踪
+  interactionStats      UserInteractionStats?
+  trackingEvents        UserTrackingEvent[]
 
   @@index([rewardProfile])
   @@map("users")
@@ -148,6 +154,7 @@ model WordLearningState {
   consecutiveCorrect Int       @default(0)
   consecutiveWrong   Int       @default(0)
   halfLife           Float     @default(1.0) // 个性化遗忘曲线半衰期（天）
+  version            Int       @default(0) // 乐观锁版本号，用于并发控制
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -845,6 +852,9 @@ model VisualFatigueRecord {
   confidence  Float    // 置信度
   createdAt   DateTime @default(now())
 
+  // 外键关系
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, createdAt])
   @@index([createdAt])
   @@index([userId])
@@ -863,6 +873,46 @@ model UserVisualFatigueConfig {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  // 外键关系
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("user_visual_fatigue_configs")
+}
+
+/// 用户交互统计（用于学习风格分析）
+model UserInteractionStats {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  pronunciationClicks  Int      @default(0)
+  pauseCount           Int      @default(0)
+  pageSwitchCount      Int      @default(0)
+  totalInteractions    Int      @default(0)
+  totalSessionDuration Int      @default(0)
+  lastActivityTime     DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // 外键关系
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_interaction_stats")
+}
+
+/// 用户追踪事件记录
+model UserTrackingEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  sessionId String
+  eventType String
+  eventData Json?
+  timestamp DateTime @default(now())
+
+  // 外键关系
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([sessionId])
+  @@map("user_tracking_events")
 }

@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import { CreateWordBookDto, UpdateWordBookDto } from '../types';
 import { WordBookType, Prisma, WordBook, Word } from '@prisma/client';
+import { redisCacheService, REDIS_CACHE_KEYS } from './redis-cache.service';
 
 /**
  * 扩展的 Prisma 客户端接口，用于处理可能存在的兼容性属性
@@ -176,15 +177,29 @@ export class WordBookService {
   }
 
   /**
-   * 获取系统词书列表
+   * 获取系统词书列表（带 Redis 缓存）
    */
-  async getSystemWordBooks() {
-    return await prisma.wordBook.findMany({
+  async getSystemWordBooks(): Promise<WordBook[]> {
+    const cacheKey = REDIS_CACHE_KEYS.SYSTEM_WORDBOOKS;
+
+    // 尝试从 Redis 缓存获取
+    const cached = await redisCacheService.get<WordBook[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // 查询数据库
+    const wordBooks = await prisma.wordBook.findMany({
       where: {
         type: WordBookType.SYSTEM,
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // 存入缓存（30分钟）
+    await redisCacheService.set(cacheKey, wordBooks, 30 * 60);
+
+    return wordBooks;
   }
 
   /**

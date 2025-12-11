@@ -3,7 +3,7 @@ import {
   paginationSchema as basePaginationSchema,
   searchSchema,
   limitSchema,
-  userIdParamSchema
+  userIdParamSchema,
 } from './common.validator';
 
 export const paginationSchema = basePaginationSchema;
@@ -94,11 +94,11 @@ export const batchAddWordsSchema = z.object({
     .array(
       z.object({
         spelling: z.string().min(1, '单词拼写不能为空'),
-        phonetic: z.string().min(1, '音标不能为空'),
+        phonetic: z.union([z.string().min(1, '音标不能为空'), z.null()]).transform((v) => v ?? ''),
         meanings: z.array(z.string()).min(1, '至少需要一个释义'),
         examples: z.array(z.string()),
         audioUrl: z.string().url().optional(),
-      })
+      }),
     )
     .min(1, '单词列表不能为空')
     .max(1000, '单次最多添加1000个单词'),
@@ -118,6 +118,21 @@ export const flagAnomalySchema = z.object({
  */
 export const exportFormatSchema = z.object({
   format: z.enum(['csv', 'excel']).default('csv'),
+});
+
+/**
+ * 导出历史查询
+ */
+export const exportHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  dataType: z.enum(['words', 'records', 'progress', 'all']).optional(),
+});
+
+/**
+ * 监控指标查询（时间范围，分钟）
+ */
+export const metricsRangeSchema = z.object({
+  range: z.coerce.number().int().min(1).max(720).default(60),
 });
 
 /**

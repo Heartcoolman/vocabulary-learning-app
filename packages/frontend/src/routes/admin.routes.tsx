@@ -20,6 +20,7 @@ const OptimizationDashboard = lazy(() => import('../pages/admin/OptimizationDash
 const CausalInferencePage = lazy(() => import('../pages/admin/CausalInferencePage'));
 const LLMAdvisorPage = lazy(() => import('../pages/admin/LLMAdvisorPage'));
 const AMASExplainabilityPage = lazy(() => import('../pages/admin/AMASExplainabilityPage'));
+const SystemDebugPage = lazy(() => import('../pages/admin/SystemDebugPage'));
 
 /**
  * 懒加载包装组件
@@ -166,6 +167,15 @@ const adminChildren: AppRoute[] = [
       </LazyWrapper>
     ),
     meta: { title: 'AMAS可解释性', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'system-debug',
+    element: (
+      <LazyWrapper>
+        <SystemDebugPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '系统调试', requireAuth: true, requireAdmin: true },
   },
 ];
 

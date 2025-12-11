@@ -60,3 +60,51 @@ export {
   type FusionInput,
   type FusionResult,
 } from './fatigue-fusion-engine';
+
+// 动态权重计算器
+export {
+  DynamicWeightCalculator,
+  createDynamicWeightCalculator,
+  defaultDynamicWeightCalculator,
+  DEFAULT_DYNAMIC_WEIGHT_CONFIG,
+  type DynamicWeightConfig,
+  type UserVisualHistory,
+  type SceneContext,
+} from './dynamic-weight-calculator';
+
+// 认知视觉融合器
+export {
+  CognitiveVisualFusion,
+  createCognitiveVisualFusion,
+  defaultCognitiveVisualFusion,
+  DEFAULT_COGNITIVE_VISUAL_FUSION_CONFIG,
+  type CognitiveVisualFusionConfig,
+  type CognitiveFusionResult,
+  type AttentionFusionConfig,
+  type MotivationFusionConfig,
+  type StabilityFusionConfig,
+} from './cognitive-visual-fusion';
+
+// 个性化阈值学习器
+export {
+  ThresholdLearner,
+  createThresholdLearner,
+  defaultThresholdLearner,
+  DEFAULT_THRESHOLD_LEARNER_CONFIG,
+  type ThresholdLearnerConfig,
+  type ThresholdObservation,
+} from './threshold-learner';
+
+// 视觉疲劳集成入口（统一 API）
+export {
+  VisualFatigueIntegration,
+  createVisualFatigueIntegration,
+  defaultVisualFatigueIntegration,
+  DEFAULT_INTEGRATION_CONFIG,
+  quickFuseFatigue,
+  shouldSuggestBreak as shouldSuggestVisualBreak,
+  shouldForceBreak as shouldForceVisualBreak,
+  type VisualFatigueIntegrationConfig,
+  type IntegrationInput,
+  type IntegrationResult,
+} from './visual-fatigue-integration';

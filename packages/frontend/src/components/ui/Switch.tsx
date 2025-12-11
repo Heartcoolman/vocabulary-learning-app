@@ -79,8 +79,18 @@ export const Switch = memo(
         onChange?.(e);
       };
 
+      const handleClick = () => {
+        if (disabled) return;
+        const newChecked = !isChecked;
+        if (controlledChecked === undefined) {
+          setInternalChecked(newChecked);
+        }
+        onCheckedChange?.(newChecked);
+      };
+
       const switchElement = (
         <span
+          onClick={handleClick}
           className={cn(
             'relative inline-flex flex-shrink-0 cursor-pointer',
             'rounded-full p-0.5',

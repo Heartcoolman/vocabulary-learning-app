@@ -16,12 +16,13 @@ import { ThompsonSampling } from '../learning/thompson-sampling';
 import { HeuristicLearner } from '../learning/heuristic';
 import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
-import { getFeatureFlags } from '../config/feature-flags';
+import { getFeatureFlags, onFeatureFlagsChange } from '../config/feature-flags';
+import { amasLogger } from '../../logger';
 import {
   DecisionModel,
   UserModels,
   ColdStartStateData,
-  MemoryManagementConfig as BaseMemoryConfig
+  MemoryManagementConfig as BaseMemoryConfig,
 } from './engine-types';
 
 /**
@@ -48,7 +49,7 @@ const DEFAULT_MEMORY_CONFIG: MemoryManagementConfig = {
   modelTtlMs: 30 * 60 * 1000, // 30 分钟
   interactionCountTtlMs: 60 * 60 * 1000, // 1 小时
   cleanupIntervalMs: 5 * 60 * 1000, // 5 分钟
-  lruEvictionThreshold: 0.9
+  lruEvictionThreshold: 0.9,
 };
 
 /**
@@ -105,6 +106,11 @@ export class IsolationManager {
 
     // 启动定期清理任务
     this.startCleanupTimer();
+
+    // 注册功能开关变更回调，当开关改变时清空用户模型缓存
+    onFeatureFlagsChange(() => {
+      this.clearAllUserModels();
+    });
   }
 
   /**
@@ -204,15 +210,18 @@ export class IsolationManager {
    * 当缓存达到阈值时，淘汰最久未访问的用户
    */
   private performLruEviction(): void {
-    const threshold = Math.floor(this.memoryConfig.maxUsers * this.memoryConfig.lruEvictionThreshold);
+    const threshold = Math.floor(
+      this.memoryConfig.maxUsers * this.memoryConfig.lruEvictionThreshold,
+    );
 
     if (this.userModels.size <= threshold) {
       return;
     }
 
     // 按最后访问时间排序
-    const entries = Array.from(this.userModels.entries())
-      .sort((a, b) => a[1].lastAccessedAt - b[1].lastAccessedAt);
+    const entries = Array.from(this.userModels.entries()).sort(
+      (a, b) => a[1].lastAccessedAt - b[1].lastAccessedAt,
+    );
 
     // 淘汰最久未访问的用户，直到达到阈值的 80%
     const targetSize = Math.floor(threshold * 0.8);
@@ -240,7 +249,7 @@ export class IsolationManager {
       userLocksCount: this.userLocks.size,
       interactionCountsCount: this.interactionCounts.size,
       maxUsers: this.memoryConfig.maxUsers,
-      utilizationPercent: (this.userModels.size / this.memoryConfig.maxUsers) * 100
+      utilizationPercent: (this.userModels.size / this.memoryConfig.maxUsers) * 100,
     };
   }
 
@@ -264,9 +273,9 @@ export class IsolationManager {
           phase: coldStartState.phase,
           userType: coldStartState.userType,
           probeIndex: coldStartState.probeIndex,
-          results: [],  // 探测结果不需要持久化
+          results: [], // 探测结果不需要持久化
           settledStrategy: coldStartState.settledStrategy,
-          updateCount: coldStartState.updateCount
+          updateCount: coldStartState.updateCount,
         });
       }
 
@@ -299,30 +308,18 @@ export class IsolationManager {
       bandit,
 
       // 扩展模块 (根据功能开关创建)
-      trendAnalyzer: flags.enableTrendAnalyzer
-        ? this.cloneTrendAnalyzer()
-        : null,
-      coldStart: flags.enableColdStartManager
-        ? this.cloneColdStartManager(coldStartState)
-        : null,
-      thompson: flags.enableThompsonSampling
-        ? this.cloneThompsonSampling()
-        : null,
-      heuristic: flags.enableHeuristicBaseline
-        ? this.cloneHeuristicLearner()
-        : null,
-      actrMemory: flags.enableACTRMemory
-        ? this.cloneACTRMemoryModel()
-        : null,
-      userParams: flags.enableUserParamsManager
-        ? this.cloneUserParamsManager()
-        : null
+      trendAnalyzer: flags.enableTrendAnalyzer ? this.cloneTrendAnalyzer() : null,
+      coldStart: flags.enableColdStartManager ? this.cloneColdStartManager(coldStartState) : null,
+      thompson: flags.enableThompsonSampling ? this.cloneThompsonSampling() : null,
+      heuristic: flags.enableHeuristicBaseline ? this.cloneHeuristicLearner() : null,
+      actrMemory: flags.enableACTRMemory ? this.cloneACTRMemoryModel() : null,
+      userParams: flags.enableUserParamsManager ? this.cloneUserParamsManager() : null,
     };
 
     this.userModels.set(userId, {
       models,
       lastAccessedAt: now,
-      createdAt: now
+      createdAt: now,
     });
 
     return models;
@@ -336,6 +333,14 @@ export class IsolationManager {
   }
 
   /**
+   * 清空所有用户模型缓存
+   * 用于功能开关变更后强制重新创建模型
+   */
+  clearAllUserModels(): void {
+    this.userModels.clear();
+  }
+
+  /**
    * 用户级锁机制
    *
    * 防止同一用户的并发请求导致 Lost Update
@@ -343,7 +348,11 @@ export class IsolationManager {
    *
    * Bug修复：使用单一定时器管理超时，避免重复释放锁和状态不一致
    */
-  async withUserLock<T>(userId: string, fn: () => Promise<T>, timeoutMs: number = 30000): Promise<T> {
+  async withUserLock<T>(
+    userId: string,
+    fn: () => Promise<T>,
+    timeoutMs: number = 30000,
+  ): Promise<T> {
     const previousLock = this.userLocks.get(userId) ?? Promise.resolve();
 
     let releaseLock: () => void;
@@ -351,7 +360,12 @@ export class IsolationManager {
       releaseLock = resolve;
     });
 
-    const chainedLock = previousLock.catch(() => {}).then(() => currentLock);
+    const chainedLock = previousLock
+      .catch((err) => {
+        // 前一个请求的异常被有意忽略，记录日志便于调试
+        amasLogger.debug({ userId, error: err }, '[UserIsolation] Previous lock error ignored');
+      })
+      .then(() => currentLock);
     this.userLocks.set(userId, chainedLock);
 
     // 使用单一定时器管理超时，避免重复释放锁
@@ -382,7 +396,16 @@ export class IsolationManager {
 
     // 等待前一个锁释放（带超时）
     try {
-      await Promise.race([previousLock.catch(() => {}), timeoutPromise]);
+      await Promise.race([
+        previousLock.catch((err) => {
+          // 等待时前一个锁的异常被有意忽略
+          amasLogger.debug(
+            { userId, error: err },
+            '[UserIsolation] Previous lock wait error ignored',
+          );
+        }),
+        timeoutPromise,
+      ]);
     } catch (error) {
       cleanup();
       throw error;
@@ -416,7 +439,7 @@ export class IsolationManager {
     } else {
       this.interactionCounts.set(userId, {
         count: 1,
-        lastUpdatedAt: now
+        lastUpdatedAt: now,
       });
     }
   }
@@ -439,7 +462,7 @@ export class IsolationManager {
     const clone = new AttentionMonitor(
       undefined, // 使用默认权重
       state.beta,
-      state.prevAttention // prevAttention 是 number 类型
+      state.prevAttention, // prevAttention 是 number 类型
     );
     return clone;
   }
@@ -487,7 +510,7 @@ export class IsolationManager {
       return new LinUCB({
         alpha: model.alpha,
         lambda: model.lambda,
-        dimension: model.d
+        dimension: model.d,
       });
     }
     // 如果模板是 Ensemble，创建新的 LinUCB
@@ -540,9 +563,9 @@ export class IsolationManager {
         phase,
         userType: savedState.userType,
         probeIndex,
-        results: [],  // 探测结果不需要持久化
+        results: [], // 探测结果不需要持久化
         settledStrategy: savedState.settledStrategy,
-        updateCount: savedState.updateCount
+        updateCount: savedState.updateCount,
       });
     }
     return manager;

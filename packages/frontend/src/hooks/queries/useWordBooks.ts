@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
 import apiClient from '../../services/client';
 import type { WordBook, Word } from '../../types/models';
 
@@ -38,8 +39,8 @@ export function useSystemWordBooks(options?: UseWordBooksOptions) {
       return await apiClient.getSystemWordBooks();
     },
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 10 * 60 * 1000, // 10分钟缓存
-    gcTime: options?.gcTime ?? 15 * 60 * 1000, // 15分钟垃圾回收
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.wordBooks.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.wordBooks.gcTime,
   });
 }
 
@@ -54,8 +55,8 @@ export function useUserWordBooks(options?: UseWordBooksOptions) {
       return await apiClient.getUserWordBooks();
     },
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 10 * 60 * 1000, // 10分钟缓存
-    gcTime: options?.gcTime ?? 15 * 60 * 1000, // 15分钟垃圾回收
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.wordBooks.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.wordBooks.gcTime,
   });
 }
 
@@ -70,8 +71,8 @@ export function useAllAvailableWordBooks(options?: UseWordBooksOptions) {
       return await apiClient.getAllAvailableWordBooks();
     },
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 10 * 60 * 1000,
-    gcTime: options?.gcTime ?? 15 * 60 * 1000,
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.wordBooks.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.wordBooks.gcTime,
   });
 }
 
@@ -114,8 +115,8 @@ export function useWordBooks(
       }
     },
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 10 * 60 * 1000,
-    gcTime: options?.gcTime ?? 15 * 60 * 1000,
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.wordBooks.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.wordBooks.gcTime,
   });
 }
 
@@ -140,8 +141,8 @@ export function useWordBook(id: string, options?: UseWordBooksOptions) {
       return await apiClient.getWordBookById(id);
     },
     enabled: (options?.enabled ?? true) && !!id, // 只有ID存在时才执行查询
-    staleTime: options?.staleTime ?? 10 * 60 * 1000,
-    gcTime: options?.gcTime ?? 15 * 60 * 1000,
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.wordBooks.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.wordBooks.gcTime,
   });
 }
 
@@ -157,8 +158,8 @@ export function useWordBookWords(wordBookId: string, options?: UseWordBooksOptio
       return await apiClient.getWordBookWords(wordBookId);
     },
     enabled: (options?.enabled ?? true) && !!wordBookId,
-    staleTime: options?.staleTime ?? 5 * 60 * 1000, // 单词列表缓存5分钟
-    gcTime: options?.gcTime ?? 10 * 60 * 1000,
+    staleTime: options?.staleTime ?? DATA_CACHE_CONFIG.words.staleTime,
+    gcTime: options?.gcTime ?? DATA_CACHE_CONFIG.words.gcTime,
   });
 }
 
@@ -174,8 +175,8 @@ export function useSearchWords(query: string, limit: number = 20) {
       return await apiClient.searchWords(query, limit);
     },
     enabled: query.length > 0, // 只有搜索词不为空时才执行查询
-    staleTime: 2 * 60 * 1000, // 搜索结果缓存2分钟
-    gcTime: 5 * 60 * 1000,
+    staleTime: DATA_CACHE_CONFIG.words.staleTime,
+    gcTime: DATA_CACHE_CONFIG.words.gcTime,
   });
 }
 
@@ -213,7 +214,7 @@ export async function prefetchWordBooks(
           return await apiClient.getAllAvailableWordBooks();
       }
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: DATA_CACHE_CONFIG.wordBooks.staleTime,
   });
 }
 
@@ -226,7 +227,7 @@ export async function prefetchWordBook(queryClient: ReturnType<typeof useQueryCl
     queryFn: async () => {
       return await apiClient.getWordBookById(id);
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: DATA_CACHE_CONFIG.wordBooks.staleTime,
   });
 }
 
@@ -242,7 +243,7 @@ export async function prefetchWordBookWords(
     queryFn: async () => {
       return await apiClient.getWordBookWords(wordBookId);
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: DATA_CACHE_CONFIG.words.staleTime,
   });
 }
 
