@@ -1,0 +1,34 @@
+{
+  "default": {
+    "identifier": "default",
+    "description": "Danci app default capabilities",
+    "local": true,
+    "windows": ["main"],
+    "permissions": [
+      "core:default",
+      "core:window:default",
+      "core:window:allow-set-size",
+      "core:window:allow-set-fullscreen",
+      "core:window:allow-minimize",
+      "core:window:allow-maximize",
+      "core:window:allow-close",
+      "sql:default",
+      "sql:allow-execute",
+      "sql:allow-select",
+      "sql:allow-close",
+      "sql:allow-load",
+      "http:default",
+      "http:allow-fetch",
+      "http:allow-fetch-cancel",
+      "store:default",
+      "store:allow-get",
+      "store:allow-set",
+      "store:allow-delete",
+      "store:allow-keys",
+      "store:allow-clear",
+      "store:allow-save",
+      "store:allow-load"
+    ],
+    "platforms": ["linux", "windows", "macOS", "android", "iOS"]
+  }
+}

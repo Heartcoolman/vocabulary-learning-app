@@ -6,9 +6,12 @@
  * - 摄像头生命周期管理（启动/停止/切换）
  * - 视频流配置
  * - 错误处理和降级
+ * - Tauri 原生权限支持
  */
 
 import type { CameraPermissionStatus, VisualFatigueConfig } from '@danci/shared';
+import { isTauri } from '../../utils/platform';
+import { permissionService, type PermissionStatus } from '../PermissionService';
 
 /**
  * 摄像头状态
@@ -102,6 +105,7 @@ export class CameraManager {
 
   /**
    * 检查权限状态
+   * 在 Tauri 环境下优先使用原生权限 API
    */
   async checkPermission(): Promise<CameraPermissionStatus> {
     if (!CameraManager.isSupported()) {
@@ -109,6 +113,20 @@ export class CameraManager {
       return 'unavailable';
     }
 
+    // 在 Tauri 环境下优先使用 PermissionService
+    if (isTauri()) {
+      try {
+        const status = await permissionService.checkPermission('camera');
+        this.state.permission = this.mapPermissionStatus(status);
+        console.log('[CameraManager] Tauri 权限检查结果:', status, '->', this.state.permission);
+        return this.state.permission;
+      } catch (error) {
+        console.warn('[CameraManager] Tauri 权限检查失败，降级到 Web API:', error);
+        // 降级到 Web API
+      }
+    }
+
+    // Web API 实现
     try {
       // 使用 Permissions API 查询（如果可用）
       if (navigator.permissions && navigator.permissions.query) {
@@ -131,6 +149,7 @@ export class CameraManager {
 
   /**
    * 请求摄像头权限
+   * 在 Tauri 环境下优先使用原生权限 API
    */
   async requestPermission(): Promise<CameraPermissionStatus> {
     if (!CameraManager.isSupported()) {
@@ -139,6 +158,29 @@ export class CameraManager {
       return 'unavailable';
     }
 
+    // 在 Tauri 环境下优先使用 PermissionService
+    if (isTauri()) {
+      try {
+        const status = await permissionService.requestPermission('camera');
+        this.state.permission = this.mapPermissionStatus(status);
+        console.log('[CameraManager] Tauri 权限请求结果:', status, '->', this.state.permission);
+
+        if (this.state.permission === 'granted') {
+          this.state.error = null;
+          this.emit({ type: 'permission_change', data: 'granted' });
+        } else if (this.state.permission === 'denied') {
+          this.state.error = '用户拒绝了摄像头访问权限';
+          this.emit({ type: 'permission_change', data: this.state.permission });
+        }
+
+        return this.state.permission;
+      } catch (error) {
+        console.warn('[CameraManager] Tauri 权限请求失败，降级到 Web API:', error);
+        // 降级到 Web API
+      }
+    }
+
+    // Web API 实现
     try {
       // 尝试获取媒体流来触发权限请求
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -391,6 +433,23 @@ export class CameraManager {
         // 忽略回调错误
       }
     });
+  }
+
+  /**
+   * 将 PermissionService 的状态映射到 CameraPermissionStatus
+   */
+  private mapPermissionStatus(status: PermissionStatus): CameraPermissionStatus {
+    switch (status) {
+      case 'granted':
+        return 'granted';
+      case 'denied':
+        return 'denied';
+      case 'prompt':
+        return 'not_requested';
+      case 'unavailable':
+      default:
+        return 'unavailable';
+    }
   }
 
   /**

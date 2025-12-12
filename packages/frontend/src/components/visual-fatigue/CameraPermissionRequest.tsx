@@ -9,6 +9,7 @@
 
 import { memo, useState } from 'react';
 import type { CameraPermissionStatus } from '@danci/shared';
+import { isTauri, getPlatformOS } from '../../utils/platform';
 
 interface CameraPermissionRequestProps {
   /** 当前权限状态 */
@@ -17,6 +18,8 @@ interface CameraPermissionRequestProps {
   onRequestPermission: () => Promise<CameraPermissionStatus>;
   /** 跳过/关闭回调 */
   onSkip?: () => void;
+  /** 打开系统设置回调（仅 Tauri 平台） */
+  onOpenSettings?: () => void;
   /** 是否显示详细隐私说明 */
   showPrivacyDetails?: boolean;
   /** 自定义类名 */
@@ -97,11 +100,17 @@ function CameraPermissionRequestComponent({
   permissionStatus,
   onRequestPermission,
   onSkip,
+  onOpenSettings,
   showPrivacyDetails = true,
   className = '',
 }: CameraPermissionRequestProps) {
   const [isRequesting, setIsRequesting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+
+  // 平台检测
+  const inTauri = isTauri();
+  const platformOS = getPlatformOS();
+  const isAndroid = platformOS === 'android';
 
   const handleRequest = async () => {
     setIsRequesting(true);
@@ -127,14 +136,23 @@ function CameraPermissionRequestComponent({
 
   // 已拒绝
   if (permissionStatus === 'denied') {
+    // 根据平台显示不同的提示信息
+    const getDeniedMessage = () => {
+      if (inTauri && isAndroid) {
+        return '摄像头权限被拒绝。如果您之前选择了"不再询问"，需要在系统设置中手动开启权限。';
+      }
+      if (inTauri) {
+        return '摄像头权限被拒绝，请在系统设置中允许访问摄像头。';
+      }
+      return '请在浏览器设置中允许访问摄像头，然后刷新页面重试';
+    };
+
     return (
       <div className={`rounded-lg border border-red-200 bg-red-50 p-4 ${className}`}>
         <div className="flex flex-col items-center text-center">
           <PermissionIcon status="denied" />
           <p className="mt-2 font-medium text-red-700">摄像头权限被拒绝</p>
-          <p className="mt-1 text-sm text-red-600">
-            请在浏览器设置中允许访问摄像头，然后刷新页面重试
-          </p>
+          <p className="mt-1 text-sm text-red-600">{getDeniedMessage()}</p>
           <div className="mt-4 flex gap-2">
             <button
               onClick={handleRequest}
@@ -143,6 +161,29 @@ function CameraPermissionRequestComponent({
             >
               重试
             </button>
+            {/* Tauri 平台显示"打开设置"按钮 */}
+            {inTauri && onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="flex items-center gap-1 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                打开设置
+              </button>
+            )}
             {onSkip && (
               <button
                 onClick={onSkip}
@@ -152,6 +193,12 @@ function CameraPermissionRequestComponent({
               </button>
             )}
           </div>
+          {/* Android 平台额外提示 */}
+          {inTauri && isAndroid && (
+            <p className="mt-3 text-xs text-gray-500">
+              提示：设置 &gt; 应用 &gt; 单词学习 &gt; 权限 &gt; 相机
+            </p>
+          )}
         </div>
       </div>
     );

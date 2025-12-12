@@ -1,8 +1,10 @@
 import { logger } from '../utils/logger';
+import { ttsService, TtsConfig } from './TtsService';
 
 /**
  * 音频服务 - 处理单词发音播放
  * 使用 Web Audio API 和 HTML5 Audio
+ * 在 Tauri 环境中优先使用原生 TTS
  */
 class AudioService {
   private audioContext: AudioContext | null = null;
@@ -11,24 +13,36 @@ class AudioService {
   private preloadQueue: Set<string> = new Set();
   private isPlaying = false;
   private maxCacheSize = 20; // 最多缓存20个音频
+  private ttsInitialized = false;
 
   /**
-   * 初始化音频上下文
+   * 初始化音频上下文和 TTS
    */
-  private initAudioContext(): void {
+  private async initAudio(): Promise<void> {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+
+    // 初始化 TTS 服务
+    if (!this.ttsInitialized) {
+      try {
+        await ttsService.initialize();
+        this.ttsInitialized = true;
+      } catch (error) {
+        logger.warn({ err: error }, 'TTS 初始化失败，将使用降级方案');
+      }
     }
   }
 
   /**
    * 播放单词发音
    * @param word 单词拼写
+   * @param config TTS 配置（可选）
    * @returns Promise，播放完成时resolve
    */
-  async playPronunciation(word: string): Promise<void> {
+  async playPronunciation(word: string, config?: TtsConfig): Promise<void> {
     try {
-      this.initAudioContext();
+      await this.initAudio();
 
       // 如果正在播放，先停止
       if (this.isPlaying && this.currentAudio) {
@@ -36,15 +50,14 @@ class AudioService {
       }
 
       // 使用 TTS API 或预设音频
-      // 这里使用浏览器的 Speech Synthesis API 作为降级方案
       const audioUrl = this.getAudioUrl(word);
 
       if (audioUrl && audioUrl.startsWith('http')) {
         // 如果有音频URL，使用HTML5 Audio播放
         await this.playFromUrl(word, audioUrl);
       } else {
-        // 使用 Speech Synthesis API
-        await this.playWithSpeechSynthesis(word);
+        // 使用 TTS 服务（会自动选择 Tauri 原生或 Web Speech API）
+        await this.playWithTts(word, config);
       }
     } catch (error) {
       logger.error({ err: error }, '发音播放失败');
@@ -107,33 +120,27 @@ class AudioService {
   }
 
   /**
+   * 使用 TTS 服务播放（支持 Tauri 原生和 Web Speech API）
+   */
+  private async playWithTts(word: string, config?: TtsConfig): Promise<void> {
+    this.isPlaying = true;
+    try {
+      await ttsService.speak(word, {
+        language: config?.language || 'en-US',
+        rate: config?.rate ?? 0.9, // 稍慢一点，便于学习
+        pitch: config?.pitch ?? 1.0,
+      });
+    } finally {
+      this.isPlaying = false;
+    }
+  }
+
+  /**
    * 使用 Speech Synthesis API 播放
+   * @deprecated 使用 playWithTts 代替
    */
   private async playWithSpeechSynthesis(word: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!('speechSynthesis' in window)) {
-        reject(new Error('浏览器不支持语音合成'));
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9; // 稍慢一点，便于学习
-
-      this.isPlaying = true;
-
-      utterance.onend = () => {
-        this.isPlaying = false;
-        resolve();
-      };
-
-      utterance.onerror = (event) => {
-        this.isPlaying = false;
-        reject(new Error(`语音合成失败: ${event.error}`));
-      };
-
-      window.speechSynthesis.speak(utterance);
-    });
+    return this.playWithTts(word);
   }
 
   /**
@@ -227,9 +234,10 @@ class AudioService {
       this.currentAudio = null;
     }
 
-    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
+    // 停止 TTS 服务
+    ttsService.stop().catch((err) => {
+      logger.warn({ err }, '停止 TTS 失败');
+    });
 
     this.isPlaying = false;
   }

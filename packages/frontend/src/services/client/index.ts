@@ -7,10 +7,17 @@
  * - 导出相关类型和接口
  */
 
+// ==================== 共享类型 ====================
+export { ApiError } from './base/types';
+export type { ApiResponse, IHttpClient, HttpRequestOptions } from './base/types';
+
 // ==================== Base 模块 ====================
-export { BaseClient, ApiError } from './base/BaseClient';
-export type { ApiResponse } from './base/BaseClient';
+export { BaseClient } from './base/BaseClient';
+export type { BaseClientOptions } from './base/BaseClient';
 export { default as TokenManager } from './base/TokenManager';
+
+// ==================== HTTP Client 抽象层 ====================
+export { FetchHttpClient, createHttpClient, defaultHttpClient } from './base/HttpClient';
 
 // ==================== Auth 模块 ====================
 export { AuthClient } from './auth/AuthClient';

@@ -26,6 +26,26 @@
     },
     "clean": {
       "cache": false
+    },
+    "tauri:dev": {
+      "dependsOn": ["@danci/frontend#build"],
+      "cache": false,
+      "persistent": true
+    },
+    "tauri:build": {
+      "dependsOn": ["@danci/frontend#build"],
+      "outputs": ["src-tauri/target/release/bundle/**"],
+      "cache": false
+    },
+    "tauri:build:android": {
+      "dependsOn": ["@danci/frontend#build"],
+      "outputs": ["src-tauri/gen/android/app/build/outputs/**"],
+      "cache": false
+    },
+    "tauri:build:ios": {
+      "dependsOn": ["@danci/frontend#build"],
+      "outputs": ["src-tauri/gen/apple/build/**"],
+      "cache": false
     }
   }
 }

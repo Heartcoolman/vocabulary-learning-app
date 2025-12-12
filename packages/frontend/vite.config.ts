@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
+// 检测是否在 Tauri 环境中运行
+const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -14,6 +17,9 @@ export default defineConfig({
       brotliSize: true,
     }),
   ],
+
+  // Tauri 需要使用相对路径
+  base: './',
 
   // 确保 WASM 和模型文件正确处理
   assetsInclude: ['**/*.wasm', '**/*.task'],
@@ -27,6 +33,10 @@ export default defineConfig({
 
   // 开发服务器配置
   server: {
+    // Tauri Mobile 开发需要监听所有网络接口
+    host: isTauri ? '0.0.0.0' : 'localhost',
+    // 确保端口固定，Tauri 配置依赖此端口
+    strictPort: true,
     // 启用强缓存，减少重复请求
     warmup: {
       clientFiles: ['./src/main.tsx', './src/App.tsx'],
@@ -69,7 +79,14 @@ export default defineConfig({
     // 生成 sourcemap 用于生产环境调试
     sourcemap: false,
 
+    // Tauri Mobile 兼容性目标
+    target: isTauri ? ['es2021', 'chrome100', 'safari15'] : 'es2015',
+
     rollupOptions: {
+      // 在非 Tauri 环境下，将 Tauri 相关模块标记为外部依赖
+      // 这些模块在 Web 端不可用，但代码中使用动态导入并有运行时检查
+      external: isTauri ? [] : [/^@tauri-apps\/.*/],
+
       output: {
         // 手动代码分割策略
         manualChunks: (id) => {
@@ -119,8 +136,14 @@ export default defineConfig({
 
     // 压缩选项
     minify: 'esbuild',
-
-    // 提高 esbuild 的压缩性能
-    target: 'es2015',
   },
+
+  // 定义全局常量
+  define: {
+    // Tauri 环境标识
+    __TAURI__: isTauri,
+  },
+
+  // 环境变量前缀
+  envPrefix: ['VITE_', 'TAURI_'],
 });

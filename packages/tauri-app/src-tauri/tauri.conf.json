@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Danci",
+  "version": "0.1.0",
+  "identifier": "com.danci.app",
+  "build": {
+    "frontendDist": "../../frontend/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https://* wss://*; media-src 'self' blob:; font-src 'self' data:"
+    },
+    "windows": [
+      {
+        "title": "Danci",
+        "label": "main",
+        "fullscreen": false,
+        "width": 1024,
+        "height": 768,
+        "resizable": true,
+        "center": true,
+        "minWidth": 375,
+        "minHeight": 667
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "targets": "all",
+    "iOS": {
+      "minimumSystemVersion": "13.0"
+    }
+  },
+  "plugins": {
+    "sql": {},
+    "http": {
+      "scope": {
+        "allow": [
+          {
+            "url": "http://localhost:*"
+          },
+          {
+            "url": "https://*"
+          }
+        ]
+      }
+    },
+    "store": {
+      "path": ".danci-store.json"
+    }
+  }
+}

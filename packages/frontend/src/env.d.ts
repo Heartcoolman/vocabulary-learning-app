@@ -13,6 +13,13 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
 
   /**
+   * Tauri Mobile 环境下的 API 地址
+   * 在移动设备上，localhost 需要替换为实际的服务器地址
+   * @example "http://192.168.1.100:3000"
+   */
+  readonly VITE_TAURI_API_URL?: string;
+
+  /**
    * Sentry DSN（可选）
    * 用于错误追踪和监控
    * @example "https://xxxx@xxxx.ingest.sentry.io/xxxx"
@@ -39,3 +46,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Tauri 全局标识
+ * 在 Vite 配置中通过 define 注入
+ */
+declare const __TAURI__: boolean;

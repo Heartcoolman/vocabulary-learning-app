@@ -1,0 +1,74 @@
+name: Build Tauri Android
+
+on:
+  push:
+    branches: [main, develop, feat/frontend-refactor-2025]
+    paths:
+      - 'packages/tauri-app/**'
+      - 'packages/frontend/**'
+      - 'packages/algo/**'
+      - '.github/workflows/tauri-android.yml'
+  pull_request:
+    paths:
+      - 'packages/tauri-app/**'
+      - 'packages/frontend/**'
+      - 'packages/algo/**'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Android NDK
+        run: |
+          sdkmanager "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm --filter @danci/frontend build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli
+
+      - name: Build Android APK
+        working-directory: packages/tauri-app
+        run: cargo tauri android build --target aarch64
+        continue-on-error: true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: android-apk
+          path: packages/tauri-app/src-tauri/gen/android/app/build/outputs/apk/
+          retention-days: 30

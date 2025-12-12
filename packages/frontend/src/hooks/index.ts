@@ -71,3 +71,23 @@ export {
 // ==================== 视觉疲劳检测 Hooks ====================
 export { useVisualFatigue } from './useVisualFatigue';
 export type { UseVisualFatigueOptions, UseVisualFatigueReturn } from './useVisualFatigue';
+
+// ==================== 平台检测 Hooks ====================
+export { usePlatform } from './usePlatform';
+export type { PlatformInfo } from './usePlatform';
+
+// ==================== 存储服务 Hooks ====================
+export { useStorageService } from './useStorageService';
+export type { UseStorageServiceOptions } from './useStorageService';
+export type {
+  IStorageService,
+  LearningStats,
+  DailyStats,
+  SyncResult,
+  SyncStatus,
+} from './useStorageService';
+export { StorageServiceError } from './useStorageService';
+
+// ==================== 权限管理 Hooks ====================
+export { usePermission } from './usePermission';
+export type { PermissionType, PermissionStatus, UsePermissionReturn } from './usePermission';

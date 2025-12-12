@@ -3,6 +3,18 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { createElement, Fragment } from 'react';
 
+// ==================== Tauri API Mock ====================
+
+import { mockInvoke, resetTauriMock } from './mocks/tauri';
+
+// Mock @tauri-apps/api/core
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: mockInvoke,
+}));
+
+// Export for tests
+export { mockInvoke, resetTauriMock };
+
 // ==================== Global Toast Mock ====================
 
 // Global mock for useToast hook to prevent "useToast must be used within a ToastProvider" errors
@@ -976,6 +988,7 @@ vi.mock('../utils/animations', () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  resetTauriMock();
 });
 
 // ==================== LocalStorage Mock ====================

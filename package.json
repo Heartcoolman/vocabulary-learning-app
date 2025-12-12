@@ -36,7 +36,11 @@
     "lighthouse:collect": "lhci collect",
     "lighthouse:assert": "lhci assert",
     "preview": "pnpm --filter @danci/frontend preview",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:tauri": "pnpm --filter @danci/tauri tauri dev",
+    "build:tauri": "pnpm --filter @danci/tauri tauri build",
+    "build:android": "pnpm --filter @danci/tauri tauri android build",
+    "build:ios": "pnpm --filter @danci/tauri tauri ios build"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
