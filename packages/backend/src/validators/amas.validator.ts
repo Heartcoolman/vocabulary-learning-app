@@ -10,19 +10,21 @@ export const userStateSchema = z.object({
   A: z.number().min(0).max(1),
   F: z.number().min(0).max(1),
   M: z.number().min(-1).max(1),
-  C: z.object({
-    mem: z.number().min(0).max(1).optional(),
-    speed: z.number().min(0).max(1).optional(),
-    stability: z.number().min(0).max(1).optional()
-  }).partial()
+  C: z
+    .object({
+      mem: z.number().min(0).max(1).optional(),
+      speed: z.number().min(0).max(1).optional(),
+      stability: z.number().min(0).max(1).optional(),
+    })
+    .partial(),
 });
 
 export const actionSchema = z.object({
   interval_scale: z.number(),
   new_ratio: z.number().min(0).max(1),
-  difficulty: z.enum(['low', 'mid', 'high']),
+  difficulty: z.enum(['easy', 'mid', 'hard']),
   batch_size: z.number().int().positive(),
-  hint_level: z.number().int().min(0)
+  hint_level: z.number().int().min(0),
 });
 
 /**
@@ -33,7 +35,8 @@ export const actionSchema = z.object({
 export const processEventSchema = z.object({
   wordId: z.string().min(1, '单词ID不能为空'),
   isCorrect: z.boolean({ required_error: 'isCorrect 必须是布尔值' }),
-  responseTime: z.coerce.number()
+  responseTime: z.coerce
+    .number()
     .positive('响应时间必须为正数')
     .max(300000, '响应时间不能超过5分钟'),
   sessionId: z.string().optional(),
@@ -54,15 +57,14 @@ export const processEventSchema = z.object({
 const batchEventItemSchema = z.object({
   wordId: z.string().min(1, '单词ID不能为空'),
   isCorrect: z.boolean({ required_error: 'isCorrect 必须是布尔值' }),
-  responseTime: z.coerce.number()
+  responseTime: z.coerce
+    .number()
     .positive('响应时间必须为正数')
     .max(300000, '响应时间不能超过5分钟'),
-  timestamp: z.coerce.number()
+  timestamp: z.coerce
+    .number()
     .positive('时间戳必须为正数')
-    .refine(
-      (ts) => ts <= Date.now() + 86400000,
-      { message: '时间戳不能超过未来24小时' }
-    ),
+    .refine((ts) => ts <= Date.now() + 86400000, { message: '时间戳不能超过未来24小时' }),
 });
 
 /**
@@ -71,7 +73,8 @@ const batchEventItemSchema = z.object({
  * 限制最大 100 条事件防止 DoS
  */
 export const batchProcessSchema = z.object({
-  events: z.array(batchEventItemSchema)
+  events: z
+    .array(batchEventItemSchema)
     .min(1, '事件数组不能为空')
     .max(100, '单次批量处理最多100条事件'),
 });

@@ -1622,12 +1622,12 @@ export class AdminService {
    */
   private extractStrategyFromAction(action: JsonValue): StrategyFromAction {
     if (!action || typeof action !== 'object' || Array.isArray(action)) {
-      return { difficulty: 'normal', batch_size: 10 };
+      return { difficulty: 'mid', batch_size: 10 };
     }
 
     const actionObj = action as SelectedActionJson;
     return {
-      difficulty: actionObj.difficulty || 'normal',
+      difficulty: actionObj.difficulty || 'mid',
       batch_size: actionObj.batch_size || 10,
       interval_scale: actionObj.interval_scale,
       new_ratio: actionObj.new_ratio,

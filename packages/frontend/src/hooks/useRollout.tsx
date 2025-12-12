@@ -544,6 +544,9 @@ export function useFeatureWithExperiment(
  * ```
  */
 export function useRolloutDebug() {
+  // 尝试从 RolloutContext 获取 userContext（可能在 Provider 外部使用）
+  const rolloutContext = useContext(RolloutContext);
+
   const [debugInfo, setDebugInfo] = useState<{
     flags: FeatureFlag[];
     experiments: Experiment[];
@@ -553,7 +556,7 @@ export function useRolloutDebug() {
     flags: [],
     experiments: [],
     rollouts: [],
-    userContext: null,
+    userContext: rolloutContext?.userContext || null,
   });
 
   useEffect(() => {
@@ -562,7 +565,7 @@ export function useRolloutDebug() {
         flags: getFeatureFlagManager().getAllFlags(),
         experiments: getABTestingManager().getAllExperiments(),
         rollouts: getRolloutManager().getAllRollouts(),
-        userContext: null, // 从 context 获取
+        userContext: rolloutContext?.userContext || null,
       });
     };
 
@@ -570,7 +573,7 @@ export function useRolloutDebug() {
     const interval = setInterval(updateDebugInfo, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [rolloutContext?.userContext]);
 
   return debugInfo;
 }

@@ -42,6 +42,8 @@ import trackingRoutes from './routes/tracking.routes';
 import healthRoutes from './routes/health.routes';
 import visualFatigueRoutes from './routes/visual-fatigue.routes';
 import debugRoutes from './routes/debug.routes';
+import contentEnhanceRoutes from './routes/content-enhance.routes';
+import opsEnhanceRoutes from './routes/ops-enhance.routes';
 import { csrfTokenMiddleware, csrfValidationMiddleware } from './middleware/csrf.middleware';
 
 const app = express();
@@ -230,6 +232,8 @@ app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/visual-fatigue', visualFatigueRoutes);
 app.use('/api/debug', debugRoutes);
+app.use('/api/admin/content', contentEnhanceRoutes);
+app.use('/api/admin/ops', opsEnhanceRoutes);
 
 // 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
 app.use('/health', healthRoutes);

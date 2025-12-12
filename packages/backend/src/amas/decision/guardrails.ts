@@ -51,6 +51,7 @@ export function applyGuardrails(state: UserState, params: StrategyParams): Strat
   result = applyMotivationProtection(state, result);
   result = applyAttentionProtection(state, result);
   result = applyTrendProtection(state, result);
+  result = applyHabitProfileProtection(state, result);
 
   return result;
 }
@@ -194,6 +195,12 @@ export function applyAttentionProtection(state: UserState, params: StrategyParam
 /**
  * 趋势保护 (扩展版功能)
  *
+ * 基于长期学习趋势调整策略参数:
+ * - 'up': 表现上升 - 可以适当增加挑战
+ * - 'flat': 表现稳定 - 保持当前策略
+ * - 'stuck': 停滞 - 减少新词，保持复习
+ * - 'down': 表现下降 - 保护模式，降低难度
+ *
  * 注意: state.T 可能为 undefined（如旧版状态数据或首次使用）
  * 当 T 未定义时，不应用任何趋势保护
  */
@@ -205,6 +212,22 @@ export function applyTrendProtection(state: UserState, params: StrategyParams): 
     return result;
   }
 
+  // 上升趋势 - 可以适当增加挑战以加速学习
+  if (state.T === 'up') {
+    // 仅在注意力和动机良好时增加挑战
+    if (state.A > 0.6 && state.M > 0) {
+      // 可以稍微增加新词比例
+      result.new_ratio = Math.min(result.new_ratio * 1.1, 0.4);
+      // 可以稍微增加批量大小
+      result.batch_size = Math.min(result.batch_size + 2, 16);
+      // 如果稳定性高，可以考虑增加难度
+      if (state.C.stability > 0.7 && result.difficulty === 'easy') {
+        result.difficulty = 'mid';
+      }
+    }
+  }
+
+  // 下降趋势 - 保护模式
   if (state.T === 'down') {
     result.new_ratio = Math.min(result.new_ratio, 0.1);
     result.difficulty = 'easy';
@@ -212,10 +235,15 @@ export function applyTrendProtection(state: UserState, params: StrategyParams): 
     result.interval_scale = Math.min(result.interval_scale, 0.7);
     // 表现下降时提供更多提示帮助用户恢复信心
     result.hint_level = Math.max(result.hint_level, 1);
+    // 减少批量大小以降低压力
+    result.batch_size = Math.min(result.batch_size, 8);
   }
 
+  // 停滞趋势 - 稳定策略，减少新词专注复习
   if (state.T === 'stuck') {
     result.new_ratio = Math.min(result.new_ratio, 0.15);
+    // 停滞时稍微缩短间隔，增加复习频率
+    result.interval_scale = Math.min(result.interval_scale, 0.9);
   }
 
   return result;
@@ -283,6 +311,69 @@ export function getActiveProtections(state: UserState): string[] {
   if (state.A < MIN_ATTENTION) protections.push('attention');
   // 保护: state.T 可能为 undefined
   if (state.T && (state.T === 'down' || state.T === 'stuck')) protections.push('trend');
+  // 习惯画像保护
+  if (state.H) protections.push('habit_profile');
 
   return protections;
+}
+
+// ==================== 习惯画像保护 ====================
+
+/** 习惯画像最小会话数阈值（需要至少3次会话才应用习惯适配） */
+const MIN_HABIT_SESSIONS = 3;
+
+/**
+ * 习惯画像保护
+ *
+ * 根据用户学习习惯调整策略参数：
+ * - 调整批量大小以匹配用户偏好
+ * - 根据最佳学习时段调整难度
+ *
+ * @param state 用户状态
+ * @param params 原始策略参数
+ * @returns 约束后的策略参数
+ */
+export function applyHabitProfileProtection(
+  state: UserState,
+  params: StrategyParams,
+): StrategyParams {
+  const result = { ...params };
+
+  // 如果没有习惯画像数据，跳过
+  if (!state.H) {
+    return result;
+  }
+
+  const habit = state.H;
+
+  // 批量大小适配：使用用户偏好的批量大小（如果有足够数据）
+  // 使用 rhythmPref.batchMedian 作为用户偏好的批量大小
+  // 使用 samples.batches 检查数据充足性
+  if (habit.rhythmPref.batchMedian > 0 && habit.samples.batches >= MIN_HABIT_SESSIONS) {
+    // 以用户习惯为基准，允许+3的浮动上限
+    const preferredBatch = Math.round(habit.rhythmPref.batchMedian);
+    // 限制批量大小不超过用户习惯的批量+3，但至少为5
+    result.batch_size = Math.max(5, Math.min(result.batch_size, preferredBatch + 3));
+  }
+
+  // 时段适配：如果当前不是用户的最佳学习时段，适当降低挑战
+  // 使用 preferredTimeSlots 数组和 samples.timeEvents 检查数据充足性
+  if (habit.preferredTimeSlots.length > 0 && habit.samples.timeEvents >= MIN_HABIT_SESSIONS) {
+    const currentHour = new Date().getHours();
+    // 时段分桶：早(0: 0-11) / 午(1: 12-17) / 晚(2: 18-23)
+    const currentSlot = currentHour < 12 ? 0 : currentHour < 18 ? 1 : 2;
+
+    // 检查用户偏好的时间段是否与当前时段匹配
+    // preferredTimeSlots 是小时数组，需要转换为时段
+    const preferredSlots = new Set(
+      habit.preferredTimeSlots.map((hour) => (hour < 12 ? 0 : hour < 18 ? 1 : 2)),
+    );
+
+    if (!preferredSlots.has(currentSlot)) {
+      // 非最佳时段，略微降低新词比例
+      result.new_ratio = Math.min(result.new_ratio, 0.25);
+    }
+  }
+
+  return result;
 }

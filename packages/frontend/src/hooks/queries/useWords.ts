@@ -64,23 +64,10 @@ export function useWords(filters?: Record<string, unknown>) {
  * @returns 单词详情查询结果
  */
 export function useWord(id: string) {
-  const { data: words } = useWords();
-
   return useQuery({
     queryKey: queryKeys.words.detail(id),
     queryFn: async () => {
-      // 首先尝试从缓存的单词列表中获取
-      const cachedWord = words?.find((w) => w.id === id);
-      if (cachedWord) {
-        return cachedWord;
-      }
-      // 如果缓存中没有，从列表中获取
-      const allWords = await wordClient.getWords();
-      const word = allWords.find((w) => w.id === id);
-      if (!word) {
-        throw new Error(`单词不存在: ${id}`);
-      }
-      return word;
+      return await wordClient.getWordById(id);
     },
     enabled: !!id,
     ...DATA_CACHE_CONFIG.words,

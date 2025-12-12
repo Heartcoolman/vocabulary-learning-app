@@ -16,6 +16,7 @@ import { ThompsonSampling } from '../learning/thompson-sampling';
 import { HeuristicLearner } from '../learning/heuristic';
 import { EnsembleLearningFramework } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
+import { HabitRecognizer } from '../modeling/habit-recognizer';
 import { getFeatureFlags, onFeatureFlagsChange } from '../config/feature-flags';
 import { amasLogger } from '../../logger';
 import {
@@ -314,6 +315,7 @@ export class IsolationManager {
       heuristic: flags.enableHeuristicBaseline ? this.cloneHeuristicLearner() : null,
       actrMemory: flags.enableACTRMemory ? this.cloneACTRMemoryModel() : null,
       userParams: flags.enableUserParamsManager ? this.cloneUserParamsManager() : null,
+      habitRecognizer: flags.enableHabitRecognizer ? this.cloneHabitRecognizer() : null,
     };
 
     this.userModels.set(userId, {
@@ -597,5 +599,12 @@ export class IsolationManager {
    */
   private cloneUserParamsManager(): UserParamsManager {
     return new UserParamsManager();
+  }
+
+  /**
+   * 克隆 HabitRecognizer
+   */
+  private cloneHabitRecognizer(): HabitRecognizer {
+    return new HabitRecognizer();
   }
 }

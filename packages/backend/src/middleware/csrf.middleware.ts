@@ -28,6 +28,9 @@ const CSRF_EXEMPT_PATHS = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/refresh',
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
   '/health',
   '/metrics',
 ];
@@ -104,7 +107,8 @@ export function csrfValidationMiddleware(req: Request, res: Response, next: Next
   }
 
   // 检查豁免路径
-  if (isExemptPath(req.path)) {
+  const requestPath = `${req.baseUrl ?? ''}${req.path}`;
+  if (isExemptPath(requestPath)) {
     next();
     return;
   }
@@ -116,7 +120,7 @@ export function csrfValidationMiddleware(req: Request, res: Response, next: Next
   if (!cookieToken || !headerToken) {
     csrfLogger.warn(
       {
-        path: req.path,
+        path: requestPath,
         method: req.method,
         hasCookie: !!cookieToken,
         hasHeader: !!headerToken,
@@ -136,7 +140,7 @@ export function csrfValidationMiddleware(req: Request, res: Response, next: Next
   if (!secureCompare(cookieToken, headerToken)) {
     csrfLogger.warn(
       {
-        path: req.path,
+        path: requestPath,
         method: req.method,
         ip: req.ip,
       },

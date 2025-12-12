@@ -9,10 +9,16 @@ import prisma from '../../../config/database';
 import { llmConfig } from '../../../config/llm.config';
 import { LLMProviderService, llmProviderService } from '../../../services/llm-provider.service';
 import { StatsCollector, statsCollector, WeeklyStats } from './stats-collector';
-import { SuggestionParser, suggestionParser, LLMSuggestion, SuggestionItem } from './suggestion-parser';
+import {
+  SuggestionParser,
+  suggestionParser,
+  LLMSuggestion,
+  SuggestionItem,
+} from './suggestion-parser';
 import { SYSTEM_PROMPT, buildWeeklyAnalysisPrompt } from './prompts';
 import { amasLogger } from '../../../logger';
 import { amasConfigService } from '../../../services/amas-config.service';
+import { effectTracker, EffectTracker } from './effect-tracker';
 
 // ==================== 类型定义 ====================
 
@@ -69,7 +75,8 @@ export class LLMWeeklyAdvisor {
   constructor(
     private collector: StatsCollector = statsCollector,
     private llmProvider: LLMProviderService = llmProviderService,
-    private parser: SuggestionParser = suggestionParser
+    private parser: SuggestionParser = suggestionParser,
+    private tracker: EffectTracker = effectTracker,
   ) {}
 
   /**
@@ -99,11 +106,9 @@ export class LLMWeeklyAdvisor {
 
       // 3. 调用 LLM
       amasLogger.info('[LLMWeeklyAdvisor] 调用 LLM 分析');
-      const rawResponse = await this.llmProvider.completeWithSystem(
-        SYSTEM_PROMPT,
-        userPrompt,
-        { temperature: 0.3 }
-      );
+      const rawResponse = await this.llmProvider.completeWithSystem(SYSTEM_PROMPT, userPrompt, {
+        temperature: 0.3,
+      });
 
       // 4. 解析响应
       const suggestion = this.parser.parse(rawResponse);
@@ -111,35 +116,44 @@ export class LLMWeeklyAdvisor {
       // 5. 验证建议
       const validation = this.parser.validate(suggestion);
       if (!validation.valid) {
-        amasLogger.warn({
-          errors: validation.errors
-        }, '[LLMWeeklyAdvisor] 建议验证失败');
+        amasLogger.warn(
+          {
+            errors: validation.errors,
+          },
+          '[LLMWeeklyAdvisor] 建议验证失败',
+        );
       }
 
       // 6. 持久化到数据库
       const stored = await this.storeSuggestion(stats, rawResponse, suggestion);
 
       const duration = Date.now() - startTime;
-      amasLogger.info({
-        id: stored.id,
-        duration,
-        suggestionsCount: suggestion.suggestions.length,
-        confidence: suggestion.confidence
-      }, '[LLMWeeklyAdvisor] 周度分析完成');
+      amasLogger.info(
+        {
+          id: stored.id,
+          duration,
+          suggestionsCount: suggestion.suggestions.length,
+          confidence: suggestion.confidence,
+        },
+        '[LLMWeeklyAdvisor] 周度分析完成',
+      );
 
       return {
         id: stored.id,
         stats,
         suggestion,
         rawResponse,
-        createdAt: stored.createdAt
+        createdAt: stored.createdAt,
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      amasLogger.error({
-        error: (error as Error).message,
-        duration
-      }, '[LLMWeeklyAdvisor] 周度分析失败');
+      amasLogger.error(
+        {
+          error: (error as Error).message,
+          duration,
+        },
+        '[LLMWeeklyAdvisor] 周度分析失败',
+      );
       throw error;
     }
   }
@@ -150,7 +164,7 @@ export class LLMWeeklyAdvisor {
   private async storeSuggestion(
     stats: WeeklyStats,
     rawResponse: string,
-    suggestion: LLMSuggestion
+    suggestion: LLMSuggestion,
   ): Promise<StoredSuggestion> {
     const record = await prisma.lLMAdvisorSuggestion.create({
       data: {
@@ -159,8 +173,8 @@ export class LLMWeeklyAdvisor {
         statsSnapshot: stats as object,
         rawResponse,
         parsedSuggestion: suggestion as object,
-        status: 'pending'
-      }
+        status: 'pending',
+      },
     });
 
     return {
@@ -175,7 +189,7 @@ export class LLMWeeklyAdvisor {
       reviewedAt: record.reviewedAt,
       reviewNotes: record.reviewNotes,
       appliedItems: record.appliedItems as string[] | null,
-      createdAt: record.createdAt
+      createdAt: record.createdAt,
     };
   }
 
@@ -194,14 +208,14 @@ export class LLMWeeklyAdvisor {
         where,
         orderBy: { createdAt: 'desc' },
         take: options?.limit ?? 20,
-        skip: options?.offset ?? 0
+        skip: options?.offset ?? 0,
       }),
-      prisma.lLMAdvisorSuggestion.count({ where })
+      prisma.lLMAdvisorSuggestion.count({ where }),
     ]);
 
     return {
       items: items.map(this.mapToStoredSuggestion),
-      total
+      total,
     };
   }
 
@@ -210,7 +224,7 @@ export class LLMWeeklyAdvisor {
    */
   async getSuggestion(id: string): Promise<StoredSuggestion | null> {
     const record = await prisma.lLMAdvisorSuggestion.findUnique({
-      where: { id }
+      where: { id },
     });
 
     return record ? this.mapToStoredSuggestion(record) : null;
@@ -233,8 +247,8 @@ export class LLMWeeklyAdvisor {
     }
 
     // 验证选择的项目
-    const validItems = suggestion.parsedSuggestion.suggestions.map(s => s.id);
-    const invalidItems = selectedItems.filter(id => !validItems.includes(id));
+    const validItems = suggestion.parsedSuggestion.suggestions.map((s) => s.id);
+    const invalidItems = selectedItems.filter((id) => !validItems.includes(id));
     if (invalidItems.length > 0) {
       throw new Error(`无效的建议项: ${invalidItems.join(', ')}`);
     }
@@ -245,11 +259,12 @@ export class LLMWeeklyAdvisor {
     }
 
     // 更新状态
-    const status: SuggestionStatus = selectedItems.length === 0
-      ? 'rejected'
-      : selectedItems.length === validItems.length
-        ? 'approved'
-        : 'partial';
+    const status: SuggestionStatus =
+      selectedItems.length === 0
+        ? 'rejected'
+        : selectedItems.length === validItems.length
+          ? 'approved'
+          : 'partial';
 
     const updated = await prisma.lLMAdvisorSuggestion.update({
       where: { id: suggestionId },
@@ -258,16 +273,19 @@ export class LLMWeeklyAdvisor {
         reviewedBy: approvedBy,
         reviewedAt: new Date(),
         reviewNotes: notes,
-        appliedItems: selectedItems
-      }
+        appliedItems: selectedItems,
+      },
     });
 
-    amasLogger.info({
-      id: suggestionId,
-      status,
-      appliedCount: selectedItems.length,
-      reviewedBy: approvedBy
-    }, '[LLMWeeklyAdvisor] 建议已审批');
+    amasLogger.info(
+      {
+        id: suggestionId,
+        status,
+        appliedCount: selectedItems.length,
+        reviewedBy: approvedBy,
+      },
+      '[LLMWeeklyAdvisor] 建议已审批',
+    );
 
     return this.mapToStoredSuggestion(updated);
   }
@@ -278,7 +296,7 @@ export class LLMWeeklyAdvisor {
   async rejectSuggestion(
     suggestionId: string,
     rejectedBy: string,
-    notes?: string
+    notes?: string,
   ): Promise<StoredSuggestion> {
     const suggestion = await this.getSuggestion(suggestionId);
     if (!suggestion) {
@@ -296,14 +314,17 @@ export class LLMWeeklyAdvisor {
         reviewedBy: rejectedBy,
         reviewedAt: new Date(),
         reviewNotes: notes,
-        appliedItems: []
-      }
+        appliedItems: [],
+      },
     });
 
-    amasLogger.info({
-      id: suggestionId,
-      rejectedBy
-    }, '[LLMWeeklyAdvisor] 建议已拒绝');
+    amasLogger.info(
+      {
+        id: suggestionId,
+        rejectedBy,
+      },
+      '[LLMWeeklyAdvisor] 建议已拒绝',
+    );
 
     return this.mapToStoredSuggestion(updated);
   }
@@ -313,10 +334,11 @@ export class LLMWeeklyAdvisor {
    */
   private async applySelectedItems(
     suggestion: StoredSuggestion,
-    selectedItems: string[]
+    selectedItems: string[],
   ): Promise<void> {
-    const itemsToApply = suggestion.parsedSuggestion.suggestions
-      .filter(s => selectedItems.includes(s.id));
+    const itemsToApply = suggestion.parsedSuggestion.suggestions.filter((s) =>
+      selectedItems.includes(s.id),
+    );
 
     const appliedItems: string[] = [];
     const failedItems: { id: string; error: string }[] = [];
@@ -328,31 +350,40 @@ export class LLMWeeklyAdvisor {
       } catch (error) {
         failedItems.push({
           id: item.id,
-          error: (error as Error).message
+          error: (error as Error).message,
         });
-        amasLogger.error({
-          itemId: item.id,
-          suggestionId: suggestion.id,
-          error: (error as Error).message
-        }, '[LLMWeeklyAdvisor] 应用建议项失败，继续处理其他项');
+        amasLogger.error(
+          {
+            itemId: item.id,
+            suggestionId: suggestion.id,
+            error: (error as Error).message,
+          },
+          '[LLMWeeklyAdvisor] 应用建议项失败，继续处理其他项',
+        );
       }
     }
 
     if (failedItems.length > 0) {
-      amasLogger.warn({
-        suggestionId: suggestion.id,
-        appliedCount: appliedItems.length,
-        failedCount: failedItems.length,
-        failedItems
-      }, '[LLMWeeklyAdvisor] 部分建议项应用失败');
+      amasLogger.warn(
+        {
+          suggestionId: suggestion.id,
+          appliedCount: appliedItems.length,
+          failedCount: failedItems.length,
+          failedItems,
+        },
+        '[LLMWeeklyAdvisor] 部分建议项应用失败',
+      );
     }
 
     if (appliedItems.length > 0) {
-      amasLogger.info({
-        suggestionId: suggestion.id,
-        appliedCount: appliedItems.length,
-        appliedItems
-      }, '[LLMWeeklyAdvisor] 建议项应用完成');
+      amasLogger.info(
+        {
+          suggestionId: suggestion.id,
+          appliedCount: appliedItems.length,
+          appliedItems,
+        },
+        '[LLMWeeklyAdvisor] 建议项应用完成',
+      );
     }
   }
 
@@ -368,16 +399,16 @@ export class LLMWeeklyAdvisor {
    * @param item 建议项
    * @param suggestionId 建议记录ID（可选，用于关联追溯）
    */
-  private async applySuggestionItem(
-    item: SuggestionItem,
-    suggestionId?: string
-  ): Promise<void> {
-    amasLogger.info({
-      type: item.type,
-      target: item.target,
-      currentValue: item.currentValue,
-      suggestedValue: item.suggestedValue
-    }, '[LLMWeeklyAdvisor] 应用建议项');
+  private async applySuggestionItem(item: SuggestionItem, suggestionId?: string): Promise<void> {
+    amasLogger.info(
+      {
+        type: item.type,
+        target: item.target,
+        currentValue: item.currentValue,
+        suggestedValue: item.suggestedValue,
+      },
+      '[LLMWeeklyAdvisor] 应用建议项',
+    );
 
     const changedBy = 'llm-advisor';
     const changeReason = item.reason;
@@ -394,13 +425,16 @@ export class LLMWeeklyAdvisor {
             item.suggestedValue,
             changedBy,
             changeReason,
-            suggestionId
+            suggestionId,
           );
-          amasLogger.info({
-            target: item.target,
-            previousValue: item.currentValue,
-            newValue: item.suggestedValue
-          }, '[LLMWeeklyAdvisor] 已应用调整阈值变更');
+          amasLogger.info(
+            {
+              target: item.target,
+              previousValue: item.currentValue,
+              newValue: item.suggestedValue,
+            },
+            '[LLMWeeklyAdvisor] 已应用调整阈值变更',
+          );
           break;
 
         case 'reward_weight':
@@ -409,13 +443,16 @@ export class LLMWeeklyAdvisor {
             item.suggestedValue,
             changedBy,
             changeReason,
-            suggestionId
+            suggestionId,
           );
-          amasLogger.info({
-            target: item.target,
-            previousValue: item.currentValue,
-            newValue: item.suggestedValue
-          }, '[LLMWeeklyAdvisor] 已应用奖励权重变更');
+          amasLogger.info(
+            {
+              target: item.target,
+              previousValue: item.currentValue,
+              newValue: item.suggestedValue,
+            },
+            '[LLMWeeklyAdvisor] 已应用奖励权重变更',
+          );
           break;
 
         case 'safety_threshold':
@@ -424,27 +461,66 @@ export class LLMWeeklyAdvisor {
             item.suggestedValue,
             changedBy,
             changeReason,
-            suggestionId
+            suggestionId,
           );
-          amasLogger.info({
-            target: item.target,
-            previousValue: item.currentValue,
-            newValue: item.suggestedValue
-          }, '[LLMWeeklyAdvisor] 已应用安全阈值变更');
+          amasLogger.info(
+            {
+              target: item.target,
+              previousValue: item.currentValue,
+              newValue: item.suggestedValue,
+            },
+            '[LLMWeeklyAdvisor] 已应用安全阈值变更',
+          );
           break;
 
         default:
-          amasLogger.warn({
-            type: item.type,
-            target: item.target
-          }, '[LLMWeeklyAdvisor] 未知的建议类型，跳过应用');
+          amasLogger.warn(
+            {
+              type: item.type,
+              target: item.target,
+            },
+            '[LLMWeeklyAdvisor] 未知的建议类型，跳过应用',
+          );
+          return; // 不记录效果追踪
+      }
+
+      // 记录效果追踪（新增）
+      if (suggestionId) {
+        try {
+          await this.tracker.recordApplication(
+            suggestionId,
+            item.id,
+            item.target,
+            item.currentValue,
+            item.suggestedValue,
+          );
+          amasLogger.info(
+            {
+              suggestionId,
+              itemId: item.id,
+              target: item.target,
+            },
+            '[LLMWeeklyAdvisor] 已记录效果追踪',
+          );
+        } catch (trackError) {
+          // 效果追踪失败不影响建议应用
+          amasLogger.warn(
+            {
+              error: (trackError as Error).message,
+            },
+            '[LLMWeeklyAdvisor] 记录效果追踪失败',
+          );
+        }
       }
     } catch (error) {
-      amasLogger.error({
-        type: item.type,
-        target: item.target,
-        error: (error as Error).message
-      }, '[LLMWeeklyAdvisor] 应用建议项失败');
+      amasLogger.error(
+        {
+          type: item.type,
+          target: item.target,
+          error: (error as Error).message,
+        },
+        '[LLMWeeklyAdvisor] 应用建议项失败',
+      );
       throw error;
     }
   }
@@ -460,7 +536,7 @@ export class LLMWeeklyAdvisor {
     item: SuggestionItem,
     changedBy: string,
     changeReason: string,
-    suggestionId?: string
+    suggestionId?: string,
   ): Promise<void> {
     let paramName: string;
     let boundType: 'min' | 'max';
@@ -487,13 +563,17 @@ export class LLMWeeklyAdvisor {
         boundType = 'max';
       } else {
         // 如果无法确定，根据建议值与当前边界的关系判断
-        boundType = item.suggestedValue < (currentBounds.min + currentBounds.max) / 2 ? 'min' : 'max';
-        amasLogger.warn({
-          target: item.target,
-          currentValue: item.currentValue,
-          suggestedValue: item.suggestedValue,
-          inferredBoundType: boundType
-        }, '[LLMWeeklyAdvisor] 无法精确确定边界类型，已推断');
+        boundType =
+          item.suggestedValue < (currentBounds.min + currentBounds.max) / 2 ? 'min' : 'max';
+        amasLogger.warn(
+          {
+            target: item.target,
+            currentValue: item.currentValue,
+            suggestedValue: item.suggestedValue,
+            inferredBoundType: boundType,
+          },
+          '[LLMWeeklyAdvisor] 无法精确确定边界类型，已推断',
+        );
       }
     }
 
@@ -503,15 +583,18 @@ export class LLMWeeklyAdvisor {
       item.suggestedValue,
       changedBy,
       changeReason,
-      suggestionId
+      suggestionId,
     );
 
-    amasLogger.info({
-      paramName,
-      boundType,
-      previousValue: item.currentValue,
-      newValue: item.suggestedValue
-    }, '[LLMWeeklyAdvisor] 已应用参数边界变更');
+    amasLogger.info(
+      {
+        paramName,
+        boundType,
+        previousValue: item.currentValue,
+        newValue: item.suggestedValue,
+      },
+      '[LLMWeeklyAdvisor] 已应用参数边界变更',
+    );
   }
 
   /**
@@ -519,7 +602,7 @@ export class LLMWeeklyAdvisor {
    */
   async getPendingCount(): Promise<number> {
     return prisma.lLMAdvisorSuggestion.count({
-      where: { status: 'pending' }
+      where: { status: 'pending' },
     });
   }
 
@@ -528,7 +611,7 @@ export class LLMWeeklyAdvisor {
    */
   async getLatestSuggestion(): Promise<StoredSuggestion | null> {
     const record = await prisma.lLMAdvisorSuggestion.findFirst({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return record ? this.mapToStoredSuggestion(record) : null;
@@ -563,7 +646,7 @@ export class LLMWeeklyAdvisor {
       reviewedAt: record.reviewedAt,
       reviewNotes: record.reviewNotes,
       appliedItems: record.appliedItems as string[] | null,
-      createdAt: record.createdAt
+      createdAt: record.createdAt,
     };
   }
 }

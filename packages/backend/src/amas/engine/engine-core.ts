@@ -17,13 +17,21 @@ import { CognitiveProfiler } from '../modeling/cognitive-profiler';
 import { MotivationTracker } from '../modeling/motivation-tracker';
 import { TrendAnalyzer } from '../modeling/trend-analyzer';
 import { ACTRMemoryModel } from '../modeling/actr-memory';
+import { HabitRecognizer } from '../modeling/habit-recognizer';
 import { LinUCB } from '../learning/linucb';
 import { ColdStartManager } from '../learning/coldstart';
 import { ThompsonSampling } from '../learning/thompson-sampling';
 import { HeuristicLearner } from '../learning/heuristic';
-import { EnsembleLearningFramework } from '../decision/ensemble';
+import { EnsembleLearningFramework, EnsembleConfig } from '../decision/ensemble';
 import { UserParamsManager } from '../config/user-params';
-import { getFeatureFlags, isColdStartEnabled } from '../config/feature-flags';
+import {
+  getFeatureFlags,
+  isColdStartEnabled,
+  isNativeLinUCBEnabled,
+  isNativeThompsonEnabled,
+  isNativeACTREnabled,
+  isDelayedRewardAggregatorEnabled,
+} from '../config/feature-flags';
 import { mapActionToStrategy, mapStrategyToAction } from '../decision/mapper';
 import { applyGuardrails, shouldForceBreak, shouldSuggestBreak } from '../decision/guardrails';
 import {
@@ -45,6 +53,7 @@ import { getRewardProfile } from '../config/reward-profiles';
 import { telemetry } from '../common/telemetry';
 import { recordModuleCall } from '../../monitoring/amas-metrics';
 import prisma from '../../config/database';
+import { env as serverEnv } from '../../config/env';
 import {
   ColdStartPhase,
   ObjectiveEvaluation,
@@ -97,6 +106,7 @@ import {
   DefaultRewardCacheManager,
   createRewardCacheManager,
 } from './engine-reward-cache';
+import { EvaluationManager } from './engine-evaluation';
 
 /**
  * AMAS 核心引擎
@@ -117,9 +127,15 @@ export class AMASEngine {
   private isolation: IsolationManager;
   private modeling: ModelingManager;
   private learning: LearningManager;
+  private evaluation: EvaluationManager;
 
   // 奖励配置缓存管理器
   private rewardCacheManager: RewardCacheManager;
+
+  // 因果分析事件计数器（全局）
+  private causalAnalysisEventCounter: number = 0;
+  // 因果分析触发间隔
+  private readonly CAUSAL_ANALYSIS_INTERVAL = 20;
 
   constructor(deps: EngineDependencies = {}) {
     this.featureBuilder = deps.featureBuilder ?? new FeatureBuilder(DEFAULT_PERCEPTION_CONFIG);
@@ -130,8 +146,42 @@ export class AMASEngine {
     const flags = getFeatureFlags();
 
     // 根据功能开关决定默认决策模型
-    const defaultBandit: DecisionModel =
-      deps.bandit ?? (flags.enableEnsemble ? new EnsembleLearningFramework() : new LinUCB());
+    // 如果启用 Ensemble 并且有 Native Wrapper 依赖，则传递给 EnsembleLearningFramework
+    let defaultBandit: DecisionModel;
+    if (deps.bandit) {
+      defaultBandit = deps.bandit;
+    } else if (flags.enableEnsemble) {
+      // 构建 EnsembleConfig，传递 Native Wrappers（如果启用且提供）
+      const ensembleConfig: EnsembleConfig = {};
+
+      // 根据特性标志和依赖注入来决定是否使用 Native Wrappers
+      if (isNativeLinUCBEnabled() && deps.linucbNativeWrapper) {
+        ensembleConfig.linucbNativeWrapper = deps.linucbNativeWrapper;
+      }
+      if (isNativeThompsonEnabled() && deps.thompsonNativeWrapper) {
+        ensembleConfig.thompsonNativeWrapper = deps.thompsonNativeWrapper;
+      }
+      if (isNativeACTREnabled() && deps.actrNativeWrapper) {
+        ensembleConfig.actrNativeWrapper = deps.actrNativeWrapper;
+      }
+
+      defaultBandit = new EnsembleLearningFramework(ensembleConfig);
+
+      // 记录 Native Wrapper 注入状态
+      const hasNative = Object.keys(ensembleConfig).length > 0;
+      if (hasNative) {
+        amasLogger.info(
+          {
+            linucb: !!ensembleConfig.linucbNativeWrapper,
+            thompson: !!ensembleConfig.thompsonNativeWrapper,
+            actr: !!ensembleConfig.actrNativeWrapper,
+          },
+          '[AMAS Engine] EnsembleLearningFramework 已注入 Native Wrappers',
+        );
+      }
+    } else {
+      defaultBandit = new LinUCB();
+    }
 
     // 初始化模型模板（用于克隆给新用户）
     const modelTemplates: UserModels = {
@@ -152,6 +202,9 @@ export class AMASEngine {
       actrMemory: flags.enableACTRMemory ? (deps.actrMemory ?? new ACTRMemoryModel()) : null,
       userParams: flags.enableUserParamsManager
         ? (deps.userParamsManager ?? new UserParamsManager())
+        : null,
+      habitRecognizer: flags.enableHabitRecognizer
+        ? (deps.habitRecognizer ?? new HabitRecognizer())
         : null,
     };
 
@@ -190,6 +243,7 @@ export class AMASEngine {
     this.isolation = new IsolationManager(modelTemplates, deps.memoryConfig);
     this.modeling = new ModelingManager();
     this.learning = new LearningManager();
+    this.evaluation = new EvaluationManager();
 
     // 初始化奖励配置缓存管理器
     this.rewardCacheManager =
@@ -208,6 +262,7 @@ export class AMASEngine {
   destroy(): void {
     this.isolation.destroy();
     this.rewardCacheManager.clearAll();
+    this.evaluation.destroy();
   }
 
   /**
@@ -257,7 +312,8 @@ export class AMASEngine {
 
       try {
         // 决策超时时间：生产环境 100ms，测试环境 500ms
-        const decisionTimeout = process.env.NODE_ENV === 'production' ? 100 : 500;
+        const decisionTimeout =
+          process.env.NODE_ENV === 'test' ? 500 : serverEnv.AMAS_DECISION_TIMEOUT_MS;
 
         // 使用超时保护执行决策
         const result = await this.resilience.executeWithTimeout(
@@ -342,6 +398,16 @@ export class AMASEngine {
 
     // 5. 状态更新（建模层）
     stageTiming.modeling.start = Date.now();
+    // 构建会话统计参数用于习惯识别
+    // sessionStats.sessionDuration 是秒，需要转换为分钟
+    const sessionStatsForHabit = opts.sessionStats
+      ? {
+          durationMinutes: opts.sessionStats.sessionDuration / 60,
+          batchSize: Math.round(
+            opts.sessionStats.wordsPerMinute * (opts.sessionStats.sessionDuration / 60),
+          ),
+        }
+      : undefined;
     const state = this.modeling.updateUserState(
       prevState,
       featureVec,
@@ -351,6 +417,7 @@ export class AMASEngine {
       opts.visualFatigueData, // 传递视觉疲劳数据
       opts.studyDurationMinutes, // 传递学习时长
       userId, // 传递真实用户ID，用于融合引擎按用户聚合
+      sessionStatsForHabit, // 传递会话统计，用于习惯识别
     );
     stageTiming.modeling.end = Date.now();
 
@@ -536,6 +603,32 @@ export class AMASEngine {
       phase: coldStartPhase !== 'normal' ? coldStartPhase : undefined,
     });
 
+    // 9.5. 应用延迟奖励更新（评估层集成）
+    // 在计算即时奖励之前，先处理之前累积的延迟奖励
+    if (isDelayedRewardAggregatorEnabled()) {
+      const delayedRewardUpdate = this.evaluation.applyDelayedRewardUpdate(userId);
+      if (delayedRewardUpdate && delayedRewardUpdate.updatableBreakdown.length > 0) {
+        // 将延迟奖励更新应用到模型
+        for (const breakdown of delayedRewardUpdate.updatableBreakdown) {
+          if (breakdown.featureVector) {
+            try {
+              await this.applyDelayedRewardUpdateUnlocked(
+                userId,
+                breakdown.featureVector.values,
+                breakdown.increment,
+              );
+            } catch (err) {
+              this.logger?.warn('Failed to apply delayed reward update', {
+                userId,
+                eventId: breakdown.eventId,
+                error: err,
+              });
+            }
+          }
+        }
+      }
+    }
+
     // 10. 计算奖励（评估层）
     stageTiming.evaluation.start = Date.now();
     const reward = this.learning.computeReward(rawEvent, state, rewardProfile);
@@ -563,6 +656,63 @@ export class AMASEngine {
         opts.wordReviewHistory,
       );
       this.isolation.incrementInteractionCount(userId);
+
+      // 11.5. 记录奖励到延迟聚合器（评估层集成）
+      // 将即时奖励加入延迟聚合队列，用于后续多时间尺度评估
+      if (isDelayedRewardAggregatorEnabled()) {
+        // 使用 finalContextVec 构建持久化特征向量
+        const featureVectorForAggregation = this.featureVectorBuilder.buildPersistableFeatureVector(
+          finalContextVec,
+          featureVec.ts,
+        );
+        this.evaluation.recordRewardForAggregation(
+          userId,
+          {
+            timestamp: rawEvent.timestamp,
+            reward: reward,
+            action: alignedAction,
+            context: { wordId: rawEvent.wordId, eventType: 'learning' },
+          },
+          featureVectorForAggregation,
+        );
+      }
+
+      // 11.6. 记录因果推断观察（评估层集成）
+      // 用于策略效果的因果推断验证
+      this.evaluation.recordCausalObservation({
+        userId,
+        treatment: alignedAction.interval_scale,
+        outcome: reward,
+        covariates: this.evaluation.extractCovariates(state, prevState),
+        propensityScore: this.evaluation.estimatePropensity(state, alignedAction),
+      });
+
+      // 11.7. 周期性因果效应分析
+      // 每 N 个事件执行一次因果效应估计，验证策略有效性
+      this.causalAnalysisEventCounter++;
+      if (this.causalAnalysisEventCounter >= this.CAUSAL_ANALYSIS_INTERVAL) {
+        this.causalAnalysisEventCounter = 0;
+        const causalEffect = this.evaluation.getCausalStrategyEffect();
+        if (causalEffect) {
+          this.logger?.info('Causal strategy effect analysis', {
+            ate: causalEffect.ate,
+            standardError: causalEffect.standardError,
+            confidenceInterval: causalEffect.confidenceInterval,
+            sampleSize: causalEffect.sampleSize,
+            effectiveSampleSize: causalEffect.effectiveSampleSize,
+            pValue: causalEffect.pValue,
+            significant: causalEffect.significant,
+          });
+
+          // 如果 ATE 显著为负（策略效果差），记录警告
+          if (causalEffect.significant && causalEffect.ate < -0.1) {
+            this.logger?.warn('Causal analysis indicates negative strategy effect', {
+              ate: causalEffect.ate,
+              pValue: causalEffect.pValue,
+            });
+          }
+        }
+      }
     }
     stageTiming.optimization.end = Date.now();
 
@@ -695,6 +845,16 @@ export class AMASEngine {
    * - 这允许在特征版本升级期间继续处理旧的延迟奖励
    */
   async applyDelayedRewardUpdate(
+    userId: string,
+    featureVector: number[],
+    reward: number,
+  ): Promise<{ success: boolean; error?: string }> {
+    return this.isolation.withUserLock(userId, () =>
+      this.applyDelayedRewardUpdateUnlocked(userId, featureVector, reward),
+    );
+  }
+
+  private async applyDelayedRewardUpdateUnlocked(
     userId: string,
     featureVector: number[],
     reward: number,

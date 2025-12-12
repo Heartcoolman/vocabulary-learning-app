@@ -56,18 +56,28 @@ export function useConfigHistory(limit?: number, enabled = true) {
  * 获取算法配置预设列表
  *
  * 特点：
+ * - 优先从后端API获取预设
+ * - API失败时回退到本地默认预设
  * - 较长的缓存时间，因为预设列表很少变化
- *
- * 注意：此功能暂未实现，返回空数组
  */
 export function useAlgorithmConfigPresets() {
   return useQuery<AlgorithmConfig[]>({
     queryKey: queryKeys.algorithmConfig.presets(),
     queryFn: async () => {
-      // 使用本地默认配置生成预设列表
+      try {
+        // 优先从后端API获取预设
+        const presets = await apiClient.getAllAlgorithmConfigs();
+        if (presets && presets.length > 0) {
+          return presets;
+        }
+      } catch (error) {
+        console.warn('获取后端预设失败，使用本地默认配置:', error);
+      }
+
+      // 回退到本地默认配置
       const defaults = new AlgorithmConfigService().getDefaultConfig();
 
-      const presets: AlgorithmConfig[] = [
+      const localPresets: AlgorithmConfig[] = [
         defaults,
         {
           ...defaults,
@@ -122,7 +132,7 @@ export function useAlgorithmConfigPresets() {
         },
       ];
 
-      return presets;
+      return localPresets;
     },
     staleTime: CACHE_TIME.LONG, // 10分钟
     gcTime: GC_TIME.STATIC, // 1小时

@@ -119,6 +119,10 @@ export {
   // 视觉疲劳检测图标
   EyeSlash,
   Camera,
+  // 实验管理页面图标
+  Stop,
+  // 词库质量管理页面图标
+  Wrench,
 } from '@phosphor-icons/react';
 
 // 图标别名

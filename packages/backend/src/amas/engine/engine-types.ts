@@ -17,6 +17,7 @@ import { ColdStartManager } from '../learning/coldstart';
 import { ThompsonSampling } from '../learning/thompson-sampling';
 import { HeuristicLearner } from '../learning/heuristic';
 import { UserParamsManager } from '../config/user-params';
+import { HabitRecognizer } from '../modeling/habit-recognizer';
 import { FeatureBuilder } from '../perception/feature-builder';
 import { Action, BanditModel, PersistableFeatureVector, StrategyParams, UserState } from '../types';
 import type { DecisionRecorderService } from '../services/decision-recorder.service';
@@ -24,6 +25,10 @@ import type { DecisionTracer } from './engine-decision-trace';
 import type { PersistenceManager } from './engine-persistence';
 import type { FeatureVectorBuilder } from './engine-feature-vector';
 import type { RewardCacheManager } from './engine-reward-cache';
+// Native Wrapper 类型导入
+import type { LinUCBNativeWrapper } from '../learning/linucb-native-wrapper';
+import type { ThompsonSamplingNativeWrapper } from '../learning/thompson-sampling-native';
+import type { ACTRMemoryNativeWrapper } from '../modeling/actr-memory-native';
 
 // 重导出 Action 类型供其他模块使用
 export type { Action } from '../types';
@@ -107,6 +112,7 @@ export interface UserModels {
   heuristic: HeuristicLearner | null;
   actrMemory: ACTRMemoryModel | null;
   userParams: UserParamsManager | null;
+  habitRecognizer: HabitRecognizer | null;
 }
 
 /**
@@ -228,6 +234,7 @@ export interface EngineDependencies {
   heuristic?: HeuristicLearner;
   actrMemory?: ACTRMemoryModel;
   userParamsManager?: UserParamsManager;
+  habitRecognizer?: HabitRecognizer;
   /** 决策记录器（可选，用于持久化决策轨迹） */
   recorder?: DecisionRecorderService;
   /** 决策轨迹记录器（可选，优先于 recorder） */
@@ -240,6 +247,14 @@ export interface EngineDependencies {
   persistence?: PersistenceManager;
   /** 奖励配置缓存管理器（可选，用于缓存用户奖励配置） */
   rewardCacheManager?: RewardCacheManager;
+
+  // ==================== Native 加速层 Wrapper ====================
+  /** LinUCB Native Wrapper（可选，用于 Rust 加速的 LinUCB 决策） */
+  linucbNativeWrapper?: LinUCBNativeWrapper;
+  /** Thompson Sampling Native Wrapper（可选，用于 Rust 加速的 Thompson Sampling） */
+  thompsonNativeWrapper?: ThompsonSamplingNativeWrapper;
+  /** ACT-R Memory Native Wrapper（可选，用于 Rust 加速的 ACT-R 记忆模型） */
+  actrNativeWrapper?: ACTRMemoryNativeWrapper;
 }
 
 /**

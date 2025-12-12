@@ -110,8 +110,8 @@ async function startServer() {
 }
 
 // 优雅关闭处理函数
-async function gracefulShutdown(signal: string) {
-  startupLogger.info({ signal }, 'Received signal, shutting down gracefully');
+async function gracefulShutdown(signal: string, exitCode: number = 0) {
+  startupLogger.info({ signal, exitCode }, 'Received signal, shutting down gracefully');
 
   // Critical Fix #2: Flush决策记录器队列，避免丢失尾部轨迹
   try {
@@ -191,7 +191,7 @@ async function gracefulShutdown(signal: string) {
     startupLogger.warn({ err: error }, 'Failed to close Sentry client');
   }
 
-  process.exit(0);
+  process.exit(exitCode);
 }
 
 // 注册信号处理
@@ -214,7 +214,7 @@ process.on('uncaughtException', (error: Error) => {
   sentryCaptureException(error, { type: 'uncaughtException' });
   // 未捕获异常通常意味着应用状态不可预测，应该重启
   // 但先尝试优雅关闭
-  gracefulShutdown('uncaughtException').catch(() => {
+  gracefulShutdown('uncaughtException', 1).catch(() => {
     process.exit(1);
   });
 });

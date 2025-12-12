@@ -18,6 +18,9 @@ import {
   isEnsembleEnabled,
   isCausalInferenceEnabled,
   isBayesianOptimizerEnabled,
+  applyExperimentOverrides,
+  getUserFeatureFlags,
+  clearUserFeatureFlagOverrides,
 } from '../amas/config/feature-flags';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import { recordFeatureVectorSaved } from './metrics.service';
@@ -26,6 +29,7 @@ import { delayedRewardService } from './delayed-reward.service';
 import { stateHistoryService } from './state-history.service';
 import { habitProfileService } from './habit-profile.service';
 import { evaluationService } from './evaluation.service';
+import { experimentService } from './experiment.service';
 import { Prisma, WordState } from '@prisma/client';
 import { LearningObjectivesService } from './learning-objectives.service';
 import { LearningObjectives } from '../amas/types';
@@ -312,6 +316,52 @@ class AMASService {
 
     // 记录学习时间事件（用于习惯画像）
     habitProfileService.recordTimeEvent(userId, rawEvent.timestamp);
+
+    // ==================== A/B 测试实验集成 ====================
+    // 获取用户参与的活跃实验并应用变体参数
+    let userExperiments: Array<{
+      experimentId: string;
+      experimentName: string;
+      variantId: string;
+      variantName: string;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }> = [];
+
+    try {
+      userExperiments = await experimentService.getUserActiveExperiments(userId);
+
+      // 先清除旧的用户覆盖，再合并所有活跃实验的参数
+      // 这样可以确保：1) 实验停止后覆盖被清理  2) 多个实验的参数能正确叠加
+      clearUserFeatureFlagOverrides(userId);
+
+      // 合并所有活跃实验的参数
+      const mergedOverrides: Record<string, unknown> = {};
+      for (const exp of userExperiments) {
+        if (exp.parameters && Object.keys(exp.parameters).length > 0) {
+          Object.assign(mergedOverrides, exp.parameters);
+          serviceLogger.debug(
+            {
+              userId,
+              experimentId: exp.experimentId,
+              variantId: exp.variantId,
+              parameters: exp.parameters,
+            },
+            '[A/B Test] 合并实验变体参数',
+          );
+        }
+      }
+
+      // 一次性应用合并后的参数
+      if (Object.keys(mergedOverrides).length > 0) {
+        applyExperimentOverrides(userId, mergedOverrides);
+        serviceLogger.debug({ userId, mergedOverrides }, '[A/B Test] 已应用合并后的实验参数');
+      }
+    } catch (error) {
+      // 实验获取失败不影响主流程
+      serviceLogger.warn({ err: error, userId }, '[A/B Test] 获取用户实验失败');
+    }
+    // ==================== A/B 测试实验集成结束 ====================
 
     // 定期自动持久化习惯画像（每 10 个事件检查一次）
     // 使用异步方式，不阻塞主流程，带重试机制
@@ -819,6 +869,33 @@ class AMASService {
           serviceLogger.warn({ err, userId }, '因果观测记录失败');
         });
     }
+
+    // ==================== A/B 测试指标记录 ====================
+    // 为用户参与的所有活跃实验记录指标
+    if (userExperiments.length > 0) {
+      // 计算实验奖励（综合准确率、响应速度、掌握度提升）
+      const experimentReward = this.calculateExperimentReward(event, result);
+
+      // 异步记录所有实验的指标
+      Promise.all(
+        userExperiments.map((exp) =>
+          experimentService
+            .recordMetric(exp.experimentId, exp.variantId, experimentReward)
+            .catch((err) => {
+              serviceLogger.warn(
+                { err, userId, experimentId: exp.experimentId, variantId: exp.variantId },
+                '[A/B Test] 记录实验指标失败',
+              );
+            }),
+        ),
+      ).then(() => {
+        serviceLogger.debug(
+          { userId, experimentsCount: userExperiments.length, reward: experimentReward.toFixed(3) },
+          '[A/B Test] 实验指标已记录',
+        );
+      });
+    }
+    // ==================== A/B 测试指标记录结束 ====================
 
     // 个性化阈值学习：记录行为观察（用于贝叶斯阈值更新）
     // 当有有效的视觉疲劳数据时，记录行为指标供阈值学习器使用
@@ -1695,6 +1772,47 @@ class AMASService {
           }
         : undefined,
     };
+  }
+
+  /**
+   * 计算 A/B 测试实验奖励
+   * 综合考虑准确率、响应速度和掌握度变化
+   *
+   * 奖励公式：
+   * - 准确率权重 50%：答对得 1，答错得 0
+   * - 速度奖励权重 20%：10秒内响应可获得最高分
+   * - 掌握度权重 30%：基于认知状态（记忆、稳定性、速度）的综合提升
+   *
+   * @param event 学习事件
+   * @param result 处理结果
+   * @returns 归一化奖励值 [0, 1]
+   */
+  private calculateExperimentReward(
+    event: { isCorrect: boolean; responseTime: number },
+    result: ProcessResult,
+  ): number {
+    // 1. 准确率得分（0 或 1）
+    const accuracy = event.isCorrect ? 1 : 0;
+
+    // 2. 速度奖励（0-1），10秒内响应可获得最高分
+    // responseTime 单位是毫秒，10000ms = 10秒
+    const speedBonus = Math.max(0, 1 - event.responseTime / 10000);
+
+    // 3. 掌握度得分：基于认知状态的综合评估
+    // 使用 AMAS 状态中的认知指标
+    const mem = this.clamp01(result.state.C.mem);
+    const stability = this.clamp01(result.state.C.stability);
+    const speed = this.clamp01(result.state.C.speed);
+
+    // 加权计算掌握度（与 mapToMasteryLevel 一致）
+    const masteryScore = 0.6 * mem + 0.3 * stability + 0.1 * speed;
+
+    // 4. 综合奖励计算
+    // 权重分配：准确率 50%，速度 20%，掌握度 30%
+    const reward = 0.5 * accuracy + 0.2 * speedBonus + 0.3 * masteryScore;
+
+    // 确保返回值在 [0, 1] 范围内
+    return this.clamp01(reward);
   }
 
   /**
