@@ -39,8 +39,26 @@ import { ACTRContext, ACTRMemoryModel, ACTRState } from '../modeling/actr-memory
 import { HeuristicContext, HeuristicLearner, HeuristicState } from '../learning/heuristic';
 import { ACTION_SPACE, getActionIndex } from '../config/action-space';
 import { amasLogger } from '../../logger';
+// Native Wrapper 类型导入
+import type { LinUCBNativeWrapper } from '../learning/linucb-native-wrapper';
+import type { ThompsonSamplingNativeWrapper } from '../learning/thompson-sampling-native';
+import type { ACTRMemoryNativeWrapper } from '../modeling/actr-memory-native';
 
 // ==================== 类型定义 ====================
+
+/**
+ * 集成学习框架配置选项
+ */
+export interface EnsembleConfig {
+  /** LinUCB Native Wrapper（可选，用于 Rust 加速） */
+  linucbNativeWrapper?: LinUCBNativeWrapper;
+  /** Thompson Sampling Native Wrapper（可选，用于 Rust 加速） */
+  thompsonNativeWrapper?: ThompsonSamplingNativeWrapper;
+  /** ACT-R Memory Native Wrapper（可选，用于 Rust 加速） */
+  actrNativeWrapper?: ACTRMemoryNativeWrapper;
+  /** 初始权重配置（可选） */
+  initialWeights?: Partial<EnsembleWeights>;
+}
 
 /**
  * 集成成员标识
@@ -195,6 +213,11 @@ export class EnsembleLearningFramework implements BaseLearner<
   private readonly actr = new ACTRMemoryModel();
   private readonly heuristic = new HeuristicLearner();
 
+  /** Native Wrappers（可选，用于性能加速） */
+  private readonly linucbNativeWrapper: LinUCBNativeWrapper | null = null;
+  private readonly thompsonNativeWrapper: ThompsonSamplingNativeWrapper | null = null;
+  private readonly actrNativeWrapper: ACTRMemoryNativeWrapper | null = null;
+
   /** 集成权重 */
   private weights: EnsembleWeights = { ...INITIAL_WEIGHTS };
 
@@ -216,6 +239,35 @@ export class EnsembleLearningFramework implements BaseLearner<
 
   /** 上次缺席的成员（用于权重恢复） */
   private lastAbsentMembers: Set<EnsembleMember> = new Set();
+
+  /**
+   * 构造函数
+   * @param config 可选配置，支持注入 Native Wrappers
+   */
+  constructor(config?: EnsembleConfig) {
+    if (config) {
+      // 注入 Native Wrappers
+      if (config.linucbNativeWrapper) {
+        this.linucbNativeWrapper = config.linucbNativeWrapper;
+        amasLogger.debug('[EnsembleLearningFramework] LinUCB Native Wrapper injected');
+      }
+      if (config.thompsonNativeWrapper) {
+        this.thompsonNativeWrapper = config.thompsonNativeWrapper;
+        amasLogger.debug('[EnsembleLearningFramework] Thompson Sampling Native Wrapper injected');
+      }
+      if (config.actrNativeWrapper) {
+        this.actrNativeWrapper = config.actrNativeWrapper;
+        amasLogger.debug('[EnsembleLearningFramework] ACT-R Memory Native Wrapper injected');
+      }
+      // 应用初始权重
+      if (config.initialWeights) {
+        this.weights = this.normalizeWeights({
+          ...INITIAL_WEIGHTS,
+          ...config.initialWeights,
+        });
+      }
+    }
+  }
 
   // ==================== BaseLearner接口实现 ====================
 
@@ -952,6 +1004,43 @@ export class EnsembleLearningFramework implements BaseLearner<
    */
   private clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
+  }
+
+  // ==================== Native Wrapper 公共方法 ====================
+
+  /**
+   * 获取 Native Wrapper 状态
+   */
+  getNativeWrapperStatus(): {
+    linucb: { injected: boolean; available: boolean };
+    thompson: { injected: boolean; available: boolean };
+    actr: { injected: boolean; available: boolean };
+  } {
+    return {
+      linucb: {
+        injected: this.linucbNativeWrapper !== null,
+        available: this.linucbNativeWrapper !== null,
+      },
+      thompson: {
+        injected: this.thompsonNativeWrapper !== null,
+        available: this.thompsonNativeWrapper !== null,
+      },
+      actr: {
+        injected: this.actrNativeWrapper !== null,
+        available: this.actrNativeWrapper !== null,
+      },
+    };
+  }
+
+  /**
+   * 检查是否有任何 Native Wrapper 可用
+   */
+  hasNativeAcceleration(): boolean {
+    return (
+      this.linucbNativeWrapper !== null ||
+      this.thompsonNativeWrapper !== null ||
+      this.actrNativeWrapper !== null
+    );
   }
 }
 

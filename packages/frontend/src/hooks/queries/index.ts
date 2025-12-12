@@ -21,9 +21,6 @@ export {
   useLogin,
   useRegister,
   useLogout,
-  useRefreshAuth,
-  usePrefetchAuth,
-  useAuthStatus,
   type LoginParams,
   type RegisterParams,
   type AuthResponse,
@@ -95,8 +92,6 @@ export {
 
 // 用户设置（学习目标、奖励配置、认知画像）
 export {
-  useLearningSettings,
-  useUpdateLearningSettings,
   useLearningObjectives,
   useUpdateLearningObjectives,
   useSwitchLearningMode,
@@ -206,3 +201,52 @@ export {
 } from './useLearningRecords';
 
 export * from './useNextWords';
+
+// ==================== LLM 顾问相关 ====================
+export * from './useLLMAdvisor';
+
+// ==================== 内容增强相关 ====================
+export {
+  // Query Keys
+  contentEnhanceKeys,
+  // 质量检查
+  useQualityCheckHistory,
+  useQualityCheckDetail,
+  useOpenIssues,
+  useQualityStats,
+  useStartQualityCheck,
+  useMarkIssueFix,
+  useIgnoreIssue,
+  useBatchApplyFixes,
+  // 内容增强
+  usePendingVariants,
+  useEnhanceTaskHistory,
+  useEnhanceWords,
+  usePreviewEnhance,
+  useApproveVariant,
+  useRejectVariant,
+  useBatchApproveVariants,
+} from './useContentEnhance';
+
+// ==================== 运维增强相关 ====================
+export {
+  // Query Keys
+  opsEnhanceKeys,
+  // 告警分析
+  useAlertAnalyses,
+  useAlertAnalysis,
+  useAlertStats,
+  useAnalyzeAlert,
+  useUpdateAlertStatus,
+  // 周报
+  useWeeklyReports,
+  useWeeklyReport,
+  useLatestWeeklyReport,
+  useHealthTrend,
+  useGenerateWeeklyReport,
+  // 洞察
+  useInsights,
+  useInsight,
+  useSegments,
+  useGenerateInsight,
+} from './useOpsEnhance';

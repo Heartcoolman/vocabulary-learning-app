@@ -165,4 +165,13 @@ export class WordClient extends BaseClient {
       throw error;
     }
   }
+
+  /**
+   * 根据ID获取单个单词
+   * @param wordId 单词ID
+   */
+  async getWordById(wordId: string): Promise<Word> {
+    const apiWord = await this.request<ApiWord>(`/api/words/${wordId}`);
+    return convertApiWord(apiWord);
+  }
 }

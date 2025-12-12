@@ -75,7 +75,16 @@ class ExperimentService {
    * 创建新实验
    */
   async createExperiment(input: CreateExperimentInput): Promise<{ id: string; name: string }> {
-    const { name, description, trafficAllocation, minSampleSize, significanceLevel, minimumDetectableEffect, autoDecision, variants } = input;
+    const {
+      name,
+      description,
+      trafficAllocation,
+      minSampleSize,
+      significanceLevel,
+      minimumDetectableEffect,
+      autoDecision,
+      variants,
+    } = input;
 
     // 验证变体权重
     if (variants.length < 2) {
@@ -87,16 +96,16 @@ class ExperimentService {
       throw new Error('变体权重总和必须为 1');
     }
 
-    const controlCount = variants.filter(v => v.isControl).length;
+    const controlCount = variants.filter((v) => v.isControl).length;
     if (controlCount !== 1) {
       throw new Error('必须有且仅有一个控制组');
     }
 
     // 映射流量分配类型
     const allocationMap: Record<string, ABTrafficAllocation> = {
-      'EVEN': ABTrafficAllocation.EVEN,
-      'WEIGHTED': ABTrafficAllocation.WEIGHTED,
-      'DYNAMIC': ABTrafficAllocation.DYNAMIC,
+      EVEN: ABTrafficAllocation.EVEN,
+      WEIGHTED: ABTrafficAllocation.WEIGHTED,
+      DYNAMIC: ABTrafficAllocation.DYNAMIC,
     };
 
     const experiment = await this.prisma.aBExperiment.create({
@@ -110,7 +119,7 @@ class ExperimentService {
         autoDecision,
         status: ABExperimentStatus.DRAFT,
         variants: {
-          create: variants.map(v => ({
+          create: variants.map((v) => ({
             id: v.id,
             name: v.name,
             weight: v.weight,
@@ -135,11 +144,13 @@ class ExperimentService {
   /**
    * 获取实验列表
    */
-  async listExperiments(params: {
-    status?: ABExperimentStatus;
-    page?: number;
-    pageSize?: number;
-  } = {}): Promise<{ experiments: ExperimentListItem[]; total: number }> {
+  async listExperiments(
+    params: {
+      status?: ABExperimentStatus;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ): Promise<{ experiments: ExperimentListItem[]; total: number }> {
     const { status, page = 1, pageSize = 20 } = params;
 
     const where = status ? { status } : {};
@@ -158,7 +169,7 @@ class ExperimentService {
       this.prisma.aBExperiment.count({ where }),
     ]);
 
-    const items: ExperimentListItem[] = experiments.map(exp => ({
+    const items: ExperimentListItem[] = experiments.map((exp) => ({
       id: exp.id,
       name: exp.name,
       description: exp.description,
@@ -213,7 +224,7 @@ class ExperimentService {
     }
 
     // 计算样本量
-    const sampleSizes = experiment.metrics.map(m => ({
+    const sampleSizes = experiment.metrics.map((m) => ({
       variantId: m.variantId,
       sampleCount: m.sampleCount,
     }));
@@ -221,18 +232,23 @@ class ExperimentService {
     const totalSamples = sampleSizes.reduce((sum, s) => sum + s.sampleCount, 0);
 
     // 获取控制组和实验组指标
-    const controlVariant = experiment.variants.find(v => v.isControl);
-    const treatmentVariant = experiment.variants.find(v => !v.isControl);
+    const controlVariant = experiment.variants.find((v) => v.isControl);
+    const treatmentVariant = experiment.variants.find((v) => !v.isControl);
 
     if (!controlVariant || !treatmentVariant) {
       return this.getDefaultStatus(experiment.status, sampleSizes);
     }
 
-    const controlMetrics = experiment.metrics.find(m => m.variantId === controlVariant.id);
-    const treatmentMetrics = experiment.metrics.find(m => m.variantId === treatmentVariant.id);
+    const controlMetrics = experiment.metrics.find((m) => m.variantId === controlVariant.id);
+    const treatmentMetrics = experiment.metrics.find((m) => m.variantId === treatmentVariant.id);
 
     // 如果没有数据，返回默认状态
-    if (!controlMetrics || !treatmentMetrics || controlMetrics.sampleCount === 0 || treatmentMetrics.sampleCount === 0) {
+    if (
+      !controlMetrics ||
+      !treatmentMetrics ||
+      controlMetrics.sampleCount === 0 ||
+      treatmentMetrics.sampleCount === 0
+    ) {
       return this.getDefaultStatus(experiment.status, sampleSizes);
     }
 
@@ -245,7 +261,7 @@ class ExperimentService {
     const { pValue, isSignificant, confidenceInterval } = this.calculateSignificance(
       controlMetrics,
       treatmentMetrics,
-      experiment.significanceLevel
+      experiment.significanceLevel,
     );
 
     // 计算统计功效
@@ -253,7 +269,7 @@ class ExperimentService {
       controlMetrics.sampleCount,
       treatmentMetrics.sampleCount,
       effectSize,
-      experiment.significanceLevel
+      experiment.significanceLevel,
     );
 
     // 确定获胜者和建议
@@ -331,7 +347,7 @@ class ExperimentService {
         },
       }),
       // 创建指标记录
-      ...experiment.variants.map(variant =>
+      ...experiment.variants.map((variant) =>
         this.prisma.aBExperimentMetrics.upsert({
           where: {
             experimentId_variantId: {
@@ -349,7 +365,7 @@ class ExperimentService {
             stdDev: 0,
             m2: 0,
           },
-        })
+        }),
       ),
     ]);
 
@@ -408,43 +424,54 @@ class ExperimentService {
 
   /**
    * 记录实验指标（用于用户参与实验时更新指标）
+   * 使用事务和行级锁保证并发安全
    */
   async recordMetric(experimentId: string, variantId: string, reward: number): Promise<void> {
-    const metrics = await this.prisma.aBExperimentMetrics.findUnique({
-      where: {
-        experimentId_variantId: {
-          experimentId,
-          variantId,
+    // 使用事务 + FOR UPDATE 锁保证 Welford 算法的原子性
+    await this.prisma.$transaction(async (tx) => {
+      // 使用 $queryRaw 执行 SELECT ... FOR UPDATE 获取行级锁
+      const metrics = await tx.$queryRaw<
+        Array<{
+          sampleCount: number;
+          averageReward: number;
+          m2: number;
+        }>
+      >`
+        SELECT "sampleCount", "averageReward", "m2"
+        FROM "ABExperimentMetrics"
+        WHERE "experimentId" = ${experimentId} AND "variantId" = ${variantId}
+        FOR UPDATE
+      `;
+
+      if (!metrics || metrics.length === 0) {
+        throw new Error('指标记录不存在');
+      }
+
+      const current = metrics[0];
+
+      // Welford 算法更新均值和方差
+      const n = current.sampleCount + 1;
+      const delta = reward - current.averageReward;
+      const newMean = current.averageReward + delta / n;
+      const delta2 = reward - newMean;
+      const newM2 = current.m2 + delta * delta2;
+      const newStdDev = n > 1 ? Math.sqrt(newM2 / (n - 1)) : 0;
+
+      await tx.aBExperimentMetrics.update({
+        where: {
+          experimentId_variantId: {
+            experimentId,
+            variantId,
+          },
         },
-      },
-    });
-
-    if (!metrics) {
-      throw new Error('指标记录不存在');
-    }
-
-    // Welford 算法更新均值和方差
-    const n = metrics.sampleCount + 1;
-    const delta = reward - metrics.averageReward;
-    const newMean = metrics.averageReward + delta / n;
-    const delta2 = reward - newMean;
-    const newM2 = metrics.m2 + delta * delta2;
-    const newStdDev = n > 1 ? Math.sqrt(newM2 / (n - 1)) : 0;
-
-    await this.prisma.aBExperimentMetrics.update({
-      where: {
-        experimentId_variantId: {
-          experimentId,
-          variantId,
+        data: {
+          sampleCount: n,
+          averageReward: newMean,
+          m2: newM2,
+          stdDev: newStdDev,
+          primaryMetric: newMean, // 主要指标使用平均奖励
         },
-      },
-      data: {
-        sampleCount: n,
-        averageReward: newMean,
-        m2: newM2,
-        stdDev: newStdDev,
-        primaryMetric: newMean, // 主要指标使用平均奖励
-      },
+      });
     });
   }
 
@@ -456,8 +483,12 @@ class ExperimentService {
   private calculateSignificance(
     controlMetrics: { averageReward: number; stdDev: number; sampleCount: number },
     treatmentMetrics: { averageReward: number; stdDev: number; sampleCount: number },
-    significanceLevel: number
-  ): { pValue: number; isSignificant: boolean; confidenceInterval: { lower: number; upper: number } } {
+    significanceLevel: number,
+  ): {
+    pValue: number;
+    isSignificant: boolean;
+    confidenceInterval: { lower: number; upper: number };
+  } {
     const n1 = controlMetrics.sampleCount;
     const n2 = treatmentMetrics.sampleCount;
     const mean1 = controlMetrics.averageReward;
@@ -475,10 +506,11 @@ class ExperimentService {
     const t = se > 0 ? diff / se : 0;
 
     // 自由度（Welch-Satterthwaite）
-    const df = se > 0
-      ? Math.pow((std1 * std1) / n1 + (std2 * std2) / n2, 2) /
-        (Math.pow((std1 * std1) / n1, 2) / (n1 - 1) + Math.pow((std2 * std2) / n2, 2) / (n2 - 1))
-      : 1;
+    const df =
+      se > 0
+        ? Math.pow((std1 * std1) / n1 + (std2 * std2) / n2, 2) /
+          (Math.pow((std1 * std1) / n1, 2) / (n1 - 1) + Math.pow((std2 * std2) / n2, 2) / (n2 - 1))
+        : 1;
 
     // 简化的 p 值计算（使用正态近似）
     const pValue = 2 * (1 - this.normalCDF(Math.abs(t)));
@@ -502,12 +534,7 @@ class ExperimentService {
   /**
    * 计算统计功效
    */
-  private calculatePower(
-    n1: number,
-    n2: number,
-    effectSize: number,
-    alpha: number
-  ): number {
+  private calculatePower(n1: number, n2: number, effectSize: number, alpha: number): number {
     // 简化的功效计算
     const pooledN = 2 / (1 / n1 + 1 / n2);
     const nonCentrality = Math.abs(effectSize) * Math.sqrt(pooledN / 2);
@@ -521,8 +548,9 @@ class ExperimentService {
    */
   private normalCDF(x: number): number {
     const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989422804 * Math.exp(-x * x / 2);
-    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    const d = 0.3989422804 * Math.exp((-x * x) / 2);
+    const p =
+      d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
     return x > 0 ? 1 - p : p;
   }
 
@@ -535,34 +563,18 @@ class ExperimentService {
     if (p === 0.5) return 0;
 
     const a = [
-      -3.969683028665376e1,
-      2.209460984245205e2,
-      -2.759285104469687e2,
-      1.383577518672690e2,
-      -3.066479806614716e1,
-      2.506628277459239e0,
+      -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2,
+      -3.066479806614716e1, 2.506628277459239,
     ];
     const b = [
-      -5.447609879822406e1,
-      1.615858368580409e2,
-      -1.556989798598866e2,
-      6.680131188771972e1,
+      -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1,
       -1.328068155288572e1,
     ];
     const c = [
-      -7.784894002430293e-3,
-      -3.223964580411365e-1,
-      -2.400758277161838e0,
-      -2.549732539343734e0,
-      4.374664141464968e0,
-      2.938163982698783e0,
+      -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734,
+      4.374664141464968, 2.938163982698783,
     ];
-    const d = [
-      7.784695709041462e-3,
-      3.224671290700398e-1,
-      2.445134137142996e0,
-      3.754408661907416e0,
-    ];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
 
     const pLow = 0.02425;
     const pHigh = 1 - pLow;
@@ -571,17 +583,23 @@ class ExperimentService {
 
     if (p < pLow) {
       q = Math.sqrt(-2 * Math.log(p));
-      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      return (
+        (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     } else if (p <= pHigh) {
       q = p - 0.5;
       r = q * q;
-      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
-        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+      return (
+        ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+      );
     } else {
       q = Math.sqrt(-2 * Math.log(1 - p));
-      return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      return (
+        -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     }
   }
 
@@ -590,7 +608,7 @@ class ExperimentService {
    */
   private getDefaultStatus(
     status: ABExperimentStatus,
-    sampleSizes: Array<{ variantId: string; sampleCount: number }>
+    sampleSizes: Array<{ variantId: string; sampleCount: number }>,
   ): ExperimentStatus {
     const statusMap: Record<ABExperimentStatus, 'running' | 'completed' | 'stopped'> = {
       [ABExperimentStatus.DRAFT]: 'stopped',
@@ -612,6 +630,259 @@ class ExperimentService {
       reason: '需要更多样本数据',
       isActive: status === ABExperimentStatus.RUNNING,
     };
+  }
+
+  // ==================== 用户变体分配 ====================
+
+  /**
+   * 获取用户在指定实验中的变体分配
+   * @param userId 用户ID
+   * @param experimentId 实验ID
+   * @param requireRunning 是否要求实验必须在运行状态（默认 false）
+   */
+  async getUserVariant(
+    userId: string,
+    experimentId: string,
+    requireRunning: boolean = false,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  } | null> {
+    const assignment = await this.prisma.aBUserAssignment.findUnique({
+      where: {
+        userId_experimentId: {
+          userId,
+          experimentId,
+        },
+      },
+      include: {
+        variant: true,
+        experiment: requireRunning ? { select: { status: true } } : false,
+      },
+    });
+
+    if (!assignment) {
+      return null;
+    }
+
+    // 如果要求实验运行状态，检查实验是否在运行中
+    if (requireRunning && (assignment as any).experiment?.status !== 'RUNNING') {
+      return null;
+    }
+
+    return {
+      variantId: assignment.variant.id,
+      variantName: assignment.variant.name,
+      isControl: assignment.variant.isControl,
+      parameters: assignment.variant.parameters as Record<string, unknown>,
+    };
+  }
+
+  /**
+   * 分配用户到实验变体（粘性分配，基于权重随机）
+   * 使用 upsert 和异常处理保证并发安全和幂等性
+   */
+  async assignUserToVariant(
+    userId: string,
+    experimentId: string,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  }> {
+    // 检查是否已分配
+    const existingAssignment = await this.getUserVariant(userId, experimentId);
+    if (existingAssignment) {
+      return existingAssignment;
+    }
+
+    // 获取实验及其变体
+    const experiment = await this.prisma.aBExperiment.findUnique({
+      where: { id: experimentId },
+      include: { variants: true },
+    });
+
+    if (!experiment) {
+      throw new Error('实验不存在');
+    }
+
+    if (experiment.status !== ABExperimentStatus.RUNNING) {
+      throw new Error('实验未在运行中');
+    }
+
+    if (experiment.variants.length === 0) {
+      throw new Error('实验没有配置变体');
+    }
+
+    // 基于权重随机选择变体
+    const selectedVariant = this.selectVariantByWeight(experiment.variants);
+
+    try {
+      // 使用 upsert 保证幂等性，避免并发创建时的唯一约束冲突
+      const assignment = await this.prisma.aBUserAssignment.upsert({
+        where: {
+          userId_experimentId: {
+            userId,
+            experimentId,
+          },
+        },
+        create: {
+          userId,
+          experimentId,
+          variantId: selectedVariant.id,
+        },
+        update: {}, // 如果已存在，不做任何更新
+        include: {
+          variant: true,
+        },
+      });
+
+      logger.info(
+        { userId, experimentId, variantId: assignment.variantId },
+        '用户已分配到实验变体',
+      );
+
+      return {
+        variantId: assignment.variant.id,
+        variantName: assignment.variant.name,
+        isControl: assignment.variant.isControl,
+        parameters: assignment.variant.parameters as Record<string, unknown>,
+      };
+    } catch (error) {
+      // 处理极端并发情况：如果 upsert 仍然失败，重新查询已存在的分配
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const assignment = await this.getUserVariant(userId, experimentId);
+        if (assignment) {
+          logger.info({ userId, experimentId }, '并发分配冲突，返回已有分配');
+          return assignment;
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户或分配变体（如果未分配则自动分配）
+   */
+  async getOrAssignVariant(
+    userId: string,
+    experimentId: string,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  } | null> {
+    // 检查实验是否存在且运行中
+    const experiment = await this.prisma.aBExperiment.findUnique({
+      where: { id: experimentId },
+    });
+
+    if (!experiment || experiment.status !== ABExperimentStatus.RUNNING) {
+      return null;
+    }
+
+    // 获取或分配
+    const existing = await this.getUserVariant(userId, experimentId);
+    if (existing) {
+      return existing;
+    }
+
+    return this.assignUserToVariant(userId, experimentId);
+  }
+
+  /**
+   * 获取所有运行中的实验
+   */
+  async getActiveExperiments(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      description: string | null;
+    }>
+  > {
+    const experiments = await this.prisma.aBExperiment.findMany({
+      where: { status: ABExperimentStatus.RUNNING },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+    });
+
+    return experiments;
+  }
+
+  /**
+   * 获取用户参与的所有活跃实验及其变体
+   * 按实验创建时间排序，确保多实验覆盖时的确定性
+   */
+  async getUserActiveExperiments(userId: string): Promise<
+    Array<{
+      experimentId: string;
+      experimentName: string;
+      variantId: string;
+      variantName: string;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }>
+  > {
+    // 获取用户的所有分配，按实验创建时间排序保证确定性
+    const assignments = await this.prisma.aBUserAssignment.findMany({
+      where: {
+        userId,
+        experiment: {
+          status: ABExperimentStatus.RUNNING,
+        },
+      },
+      include: {
+        experiment: true,
+        variant: true,
+      },
+      orderBy: {
+        experiment: {
+          createdAt: 'asc', // 按创建时间升序，早创建的实验优先级更低（后合并的覆盖先合并的）
+        },
+      },
+    });
+
+    return assignments.map((a) => ({
+      experimentId: a.experiment.id,
+      experimentName: a.experiment.name,
+      variantId: a.variant.id,
+      variantName: a.variant.name,
+      isControl: a.variant.isControl,
+      parameters: a.variant.parameters as Record<string, unknown>,
+    }));
+  }
+
+  /**
+   * 基于权重随机选择变体
+   */
+  private selectVariantByWeight(
+    variants: Array<{
+      id: string;
+      name: string;
+      weight: number;
+      isControl: boolean;
+      parameters: Prisma.JsonValue;
+    }>,
+  ): (typeof variants)[0] {
+    const totalWeight = variants.reduce((sum, v) => sum + v.weight, 0);
+    let random = Math.random() * totalWeight;
+
+    for (const variant of variants) {
+      random -= variant.weight;
+      if (random <= 0) {
+        return variant;
+      }
+    }
+
+    // 默认返回第一个（理论上不会执行到这里）
+    return variants[0];
   }
 }
 

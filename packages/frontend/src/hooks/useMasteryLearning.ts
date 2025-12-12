@@ -16,6 +16,8 @@ import {
   createMasterySession,
   endHabitSession,
 } from './mastery';
+import { useSubmitAnswer, extractAmasState } from './mutations';
+import { learningLogger } from '../utils/logger';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -38,17 +40,8 @@ export interface UseMasteryLearningReturn {
   allWords: WordItem[];
   error: string | null;
   latestAmasResult: AmasProcessResult | null;
+  isSubmitting: boolean; // 提交状态（来自 React Query mutation）
 }
-
-// 辅助函数：提取 AMAS 状态
-const extractAmasState = (result: AmasProcessResult | null) =>
-  result?.state
-    ? {
-        fatigue: result.state.fatigue,
-        attention: result.state.attention,
-        motivation: result.state.motivation,
-      }
-    : undefined;
 
 export function useMasteryLearning(
   options: UseMasteryLearningOptions = {},
@@ -109,6 +102,26 @@ export function useMasteryLearning(
     },
   });
   syncRef.current = sync;
+
+  // 使用 React Query mutation hook 进行答案提交
+  // 提供乐观更新、自动重试和错误回滚
+  const submitAnswerMutation = useSubmitAnswer({
+    onOptimisticUpdate: (decision) => {
+      learningLogger.debug({ decision }, '[useMasteryLearning] Optimistic update');
+    },
+    onAmasResult: (result) => {
+      setLatestAmasResult(result);
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+    onSuccess: () => {
+      setError(null);
+    },
+    enableOptimisticUpdate: true,
+    retryCount: 3,
+    retryDelay: 1000,
+  });
 
   // 初始化会话
   const initSession = useCallback(
@@ -248,7 +261,10 @@ export function useMasteryLearning(
     async (isCorrect: boolean, responseTime: number) => {
       const word = wordQueue.getCurrentWord();
       if (!wordQueue.queueManagerRef.current || !word) return;
+
       setError(null);
+
+      // 先执行本地乐观更新
       const amasState = extractAmasState(latestAmasResult);
       const localDecision = sync.submitAnswerOptimistic({
         wordId: word.id,
@@ -257,19 +273,43 @@ export function useMasteryLearning(
         latestAmasState: amasState,
       });
       saveCache();
+
+      // 检查自适应调整
       const adaptive = wordQueue.adaptiveManagerRef.current;
       if (adaptive) {
         const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
+        if (should && reason) {
+          sync.triggerQueueAdjustment(
+            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
+            adaptive.getRecentPerformance(),
+          );
+        }
       }
+
+      // 获取暂停时间
       const pausedTimeMs = getDialogPausedTime?.() ?? 0;
       if (pausedTimeMs > 0) resetDialogPausedTime?.();
-      sync.syncAnswerToServer(
-        { wordId: word.id, isCorrect, responseTime, pausedTimeMs, latestAmasState: amasState },
-        localDecision,
-      );
+
+      // 使用 React Query mutation hook 提交到服务器
+      // 提供自动重试和错误回滚
+      submitAnswerMutation.mutate({
+        wordId: word.id,
+        isCorrect,
+        responseTime,
+        sessionId: currentSessionIdRef.current,
+        pausedTimeMs,
+        latestAmasState: amasState,
+      });
     },
-    [wordQueue, latestAmasResult, sync, saveCache, getDialogPausedTime, resetDialogPausedTime],
+    [
+      wordQueue,
+      latestAmasResult,
+      sync,
+      saveCache,
+      getDialogPausedTime,
+      resetDialogPausedTime,
+      submitAnswerMutation,
+    ],
   );
 
   const advanceToNext = useCallback(
@@ -311,5 +351,6 @@ export function useMasteryLearning(
     allWords: wordQueue.allWords,
     error,
     latestAmasResult,
+    isSubmitting: submitAnswerMutation.isPending, // 提交状态
   };
 }

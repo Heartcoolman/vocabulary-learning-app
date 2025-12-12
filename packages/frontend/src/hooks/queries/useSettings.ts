@@ -12,11 +12,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import { DATA_CACHE_CONFIG, QUERY_PRESETS } from '../../lib/cacheConfig';
+import { QUERY_PRESETS } from '../../lib/cacheConfig';
 import ApiClient from '../../services/client';
-import { wordBookClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
-import type { StudyConfig } from '../../types/models';
 
 /**
  * 学习目标配置接口
@@ -78,55 +76,6 @@ export interface LearningStyleProfile {
 export interface CognitiveProfile {
   chronotype: ChronotypeProfile;
   learningStyle: LearningStyleProfile;
-}
-
-// ==================== 学习配置 ====================
-
-/**
- * 获取用户学习配置
- *
- * @deprecated 请使用 useStudyConfig 替代（位于 ./useStudyConfig.ts）
- */
-export function useLearningSettings() {
-  const { isAuthenticated } = useAuth();
-
-  return useQuery<StudyConfig>({
-    queryKey: queryKeys.studyConfig.config(),
-    queryFn: async () => {
-      return await wordBookClient.getStudyConfig();
-    },
-    enabled: isAuthenticated,
-    ...QUERY_PRESETS.static,
-  });
-}
-
-/**
- * 更新学习配置
- *
- * @deprecated 请使用 useUpdateStudyConfig 替代（位于 ./mutations/useConfigMutations.ts）
- */
-export function useUpdateLearningSettings() {
-  const queryClient = useQueryClient();
-
-  return useMutation<
-    StudyConfig,
-    Error,
-    {
-      selectedWordBookIds: string[];
-      dailyWordCount: number;
-      studyMode?: string;
-    }
-  >({
-    mutationFn: async (data) => {
-      return await wordBookClient.updateStudyConfig(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.studyConfig.config() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.studyConfig.todayWords() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.studyConfig.progress() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.words.lists() });
-    },
-  });
 }
 
 // ==================== 学习目标 ====================

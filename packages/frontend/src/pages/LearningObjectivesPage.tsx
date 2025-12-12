@@ -6,8 +6,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ApiClient from '../services/client';
 import { LearningObjectives, LearningObjectiveMode } from '../types/learning-objectives';
-import { NotePencil, Books, Globe, Gear } from '../components/Icon';
+import { NotePencil, Books, Globe, Gear, Warning, CheckCircle } from '../components/Icon';
 import { IconProps } from '@phosphor-icons/react';
+import {
+  ModeCard,
+  WeightSlider,
+  ConfigDisplay,
+  LearningObjectivesSkeleton,
+} from '../components/learning-objectives';
 
 interface ModeConfig {
   label: string;
@@ -109,6 +115,7 @@ export const LearningObjectivesPage: React.FC = () => {
   const handleModeChange = async (mode: LearningObjectiveMode) => {
     try {
       setSaving(true);
+      setError(null);
       const response = await ApiClient.switchLearningMode(mode, 'manual');
       // Handle both direct response and wrapped response
       const data =
@@ -145,254 +152,128 @@ export const LearningObjectivesPage: React.FC = () => {
       await ApiClient.updateLearningObjectives(objectives);
       showSuccessMessage('配置已保存');
       setError(null);
-    } catch (err) {
+    } catch (_err) {
       setError('保存失败');
     } finally {
       setSaving(false);
     }
   };
 
+  // 加载状态 - 显示骨架屏
   if (loading) {
-    return <div style={styles.container}>加载中...</div>;
+    return <LearningObjectivesSkeleton />;
   }
 
+  // 无数据状态
   if (!objectives) {
-    return <div style={styles.container}>无法加载配置</div>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <Warning size={48} className="mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600">无法加载配置</p>
+        </div>
+      </div>
+    );
   }
+
+  const weightSum =
+    objectives.weightShortTerm + objectives.weightLongTerm + objectives.weightEfficiency;
+  const isWeightValid = Math.abs(weightSum - 1.0) <= 0.01;
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>学习目标配置</h1>
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <h1 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">学习目标配置</h1>
 
-      {error && <div style={styles.error}>{error}</div>}
-      {successMessage && <div style={styles.success}>{successMessage}</div>}
+      {/* 错误提示 */}
+      {error && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+          <Warning size={20} weight="bold" className="flex-shrink-0" />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
 
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>学习模式</h2>
-        <div style={styles.modeGrid}>
-          {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => {
-            const { Icon } = MODE_CONFIGS[mode];
-            return (
-              <button
-                key={mode}
-                onClick={() => handleModeChange(mode)}
-                disabled={saving || objectives.mode === mode}
-                style={{
-                  ...styles.modeCard,
-                  ...(objectives.mode === mode ? styles.modeCardActive : {}),
-                }}
-              >
-                <div style={styles.modeIcon}>
-                  <Icon size={48} weight="duotone" />
-                </div>
-                <div style={styles.modeLabel}>{MODE_CONFIGS[mode].label}</div>
-                <div style={styles.modeDescription}>{MODE_CONFIGS[mode].description}</div>
-              </button>
-            );
-          })}
+      {/* 成功提示 */}
+      {successMessage && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
+          <CheckCircle size={20} weight="bold" className="flex-shrink-0" />
+          <p className="font-medium">{successMessage}</p>
+        </div>
+      )}
+
+      {/* 学习模式选择 */}
+      <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-bold text-gray-900">学习模式</h2>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => (
+            <ModeCard
+              key={mode}
+              mode={mode}
+              label={MODE_CONFIGS[mode].label}
+              description={MODE_CONFIGS[mode].description}
+              Icon={MODE_CONFIGS[mode].Icon}
+              isActive={objectives.mode === mode}
+              disabled={saving}
+              onClick={() => handleModeChange(mode)}
+            />
+          ))}
         </div>
       </section>
 
+      {/* 自定义权重配置 */}
       {objectives.mode === 'custom' && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>权重配置</h2>
+        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="mb-6 text-xl font-bold text-gray-900">权重配置</h2>
 
-          <div style={styles.sliderGroup}>
-            <label style={styles.sliderLabel}>
-              短期记忆: {objectives.weightShortTerm.toFixed(2)}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={objectives.weightShortTerm}
-              onChange={(e) => handleWeightChange('weightShortTerm', parseFloat(e.target.value))}
-              style={styles.slider}
-            />
+          <WeightSlider
+            label="短期记忆"
+            value={objectives.weightShortTerm}
+            onChange={(value) => handleWeightChange('weightShortTerm', value)}
+            colorClass="blue"
+          />
+
+          <WeightSlider
+            label="长期记忆"
+            value={objectives.weightLongTerm}
+            onChange={(value) => handleWeightChange('weightLongTerm', value)}
+            colorClass="purple"
+          />
+
+          <WeightSlider
+            label="学习效率"
+            value={objectives.weightEfficiency}
+            onChange={(value) => handleWeightChange('weightEfficiency', value)}
+            colorClass="green"
+          />
+
+          {/* 权重总和提示 */}
+          <div
+            className={`mb-6 rounded-lg p-3 text-center font-semibold ${
+              isWeightValid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            }`}
+          >
+            权重总和: {weightSum.toFixed(2)}
+            {!isWeightValid && ' (需要等于 1.0)'}
           </div>
 
-          <div style={styles.sliderGroup}>
-            <label style={styles.sliderLabel}>
-              长期记忆: {objectives.weightLongTerm.toFixed(2)}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={objectives.weightLongTerm}
-              onChange={(e) => handleWeightChange('weightLongTerm', parseFloat(e.target.value))}
-              style={styles.slider}
-            />
-          </div>
-
-          <div style={styles.sliderGroup}>
-            <label style={styles.sliderLabel}>
-              学习效率: {objectives.weightEfficiency.toFixed(2)}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={objectives.weightEfficiency}
-              onChange={(e) => handleWeightChange('weightEfficiency', parseFloat(e.target.value))}
-              style={styles.slider}
-            />
-          </div>
-
-          <div style={styles.weightSum}>
-            权重总和:{' '}
-            {(
-              objectives.weightShortTerm +
-              objectives.weightLongTerm +
-              objectives.weightEfficiency
-            ).toFixed(2)}
-          </div>
-
-          <button onClick={handleSaveCustom} disabled={saving} style={styles.saveButton}>
+          {/* 保存按钮 */}
+          <button
+            onClick={handleSaveCustom}
+            disabled={saving || !isWeightValid}
+            className={`w-full rounded-lg px-6 py-3 text-base font-bold text-white transition-all ${
+              saving || !isWeightValid
+                ? 'cursor-not-allowed bg-gray-400'
+                : 'bg-blue-500 hover:bg-blue-600 active:scale-[0.98]'
+            } `}
+          >
             {saving ? '保存中...' : '保存配置'}
           </button>
         </section>
       )}
 
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>当前配置</h2>
-        <div style={styles.configDisplay}>
-          <p>
-            <strong>模式:</strong> {MODE_CONFIGS[objectives.mode].label}
-          </p>
-          <p>
-            <strong>主要目标:</strong> {objectives.primaryObjective}
-          </p>
-          <p>
-            <strong>权重分布:</strong>
-          </p>
-          <ul>
-            <li>短期记忆: {(objectives.weightShortTerm * 100).toFixed(0)}%</li>
-            <li>长期记忆: {(objectives.weightLongTerm * 100).toFixed(0)}%</li>
-            <li>学习效率: {(objectives.weightEfficiency * 100).toFixed(0)}%</li>
-          </ul>
-        </div>
-      </section>
+      {/* 当前配置展示 */}
+      <ConfigDisplay objectives={objectives} modeLabel={MODE_CONFIGS[objectives.mode].label} />
     </div>
   );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '24px',
-    fontFamily: 'Arial, sans-serif',
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    marginBottom: '24px',
-    color: '#333',
-  },
-  error: {
-    padding: '12px',
-    marginBottom: '16px',
-    backgroundColor: '#fee',
-    color: '#c33',
-    borderRadius: '4px',
-    border: '1px solid #fcc',
-  },
-  success: {
-    padding: '12px',
-    marginBottom: '16px',
-    backgroundColor: '#efe',
-    color: '#3c3',
-    borderRadius: '4px',
-    border: '1px solid #cfc',
-  },
-  section: {
-    marginBottom: '32px',
-    padding: '20px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0',
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-    color: '#555',
-  },
-  modeGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-  },
-  modeCard: {
-    padding: '20px',
-    backgroundColor: '#fff',
-    border: '2px solid #ddd',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    textAlign: 'center',
-    transition: 'all 0.2s',
-  },
-  modeCardActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2196f3',
-    transform: 'scale(1.05)',
-  },
-  modeIcon: {
-    marginBottom: '12px',
-    display: 'flex',
-    justifyContent: 'center',
-    color: '#2196f3',
-  },
-  modeLabel: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-    color: '#333',
-  },
-  modeDescription: {
-    fontSize: '14px',
-    color: '#666',
-  },
-  sliderGroup: {
-    marginBottom: '20px',
-  },
-  sliderLabel: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  slider: {
-    width: '100%',
-    height: '6px',
-  },
-  weightSum: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginTop: '16px',
-    marginBottom: '16px',
-    color: '#333',
-  },
-  saveButton: {
-    padding: '12px 24px',
-    backgroundColor: '#2196f3',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-  configDisplay: {
-    fontSize: '14px',
-    color: '#555',
-  },
 };
 
 export default LearningObjectivesPage;

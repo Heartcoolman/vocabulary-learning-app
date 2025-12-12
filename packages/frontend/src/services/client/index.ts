@@ -66,6 +66,37 @@ export type {
 // ==================== Visual Fatigue 模块 ====================
 export { VisualFatigueClient, visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 
+// ==================== Content Enhance 模块 ====================
+export { ContentEnhanceClient, contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
+export type {
+  CheckType,
+  IssueSeverity,
+  CheckStatus,
+  EnhanceType,
+  WordIssue,
+  QualityCheckResult,
+  QualityStats,
+  EnhanceResult,
+  ContentVariant,
+  BatchEnhanceResult,
+} from './content-enhance/ContentEnhanceClient';
+
+// ==================== Ops Enhance 模块 ====================
+export { OpsEnhanceClient, opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
+export type {
+  AlertSeverity,
+  AlertStatus,
+  UserSegment,
+  AlertInput,
+  AlertAnalysisResult,
+  AlertStats,
+  WeeklyReportSummary,
+  WeeklyReportDetail,
+  HealthTrendPoint,
+  UserBehaviorInsight,
+  UserSegmentInfo,
+} from './ops-enhance/OpsEnhanceClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -77,6 +108,8 @@ import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
 import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
+import { contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
+import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -116,6 +149,8 @@ export const apiClient = {
   admin: adminClient,
   llmAdvisor: llmAdvisorClient,
   visualFatigue: visualFatigueClient,
+  contentEnhance: contentEnhanceClient,
+  opsEnhance: opsEnhanceClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -131,6 +166,7 @@ export const apiClient = {
   // ==================== 单词相关 ====================
   getWords: wordClient.getWords.bind(wordClient),
   getLearnedWords: wordClient.getLearnedWords.bind(wordClient),
+  getWordById: wordClient.getWordById.bind(wordClient),
   createWord: wordClient.createWord.bind(wordClient),
   updateWord: wordClient.updateWord.bind(wordClient),
   deleteWord: wordClient.deleteWord.bind(wordClient),
@@ -179,6 +215,7 @@ export const apiClient = {
   updateAlgorithmConfig: amasClient.updateAlgorithmConfig.bind(amasClient),
   resetAlgorithmConfig: amasClient.resetAlgorithmConfig.bind(amasClient),
   getConfigHistory: amasClient.getConfigHistory.bind(amasClient),
+  getAllAlgorithmConfigs: amasClient.getAllAlgorithmConfigs.bind(amasClient),
   processLearningEvent: amasClient.processLearningEvent.bind(amasClient),
   getAmasState: amasClient.getAmasState.bind(amasClient),
   getAmasStrategy: amasClient.getAmasStrategy.bind(amasClient),
@@ -301,6 +338,8 @@ export const apiClient = {
     adminClient.setOnUnauthorized(callback);
     llmAdvisorClient.setOnUnauthorized(callback);
     visualFatigueClient.setOnUnauthorized(callback);
+    contentEnhanceClient.setOnUnauthorized(callback);
+    opsEnhanceClient.setOnUnauthorized(callback);
   },
 };
 

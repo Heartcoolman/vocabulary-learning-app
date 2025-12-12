@@ -16,6 +16,8 @@ import {
   Robot,
   Lightbulb,
   Bug,
+  ChartLine,
+  Sparkle,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
@@ -72,12 +74,14 @@ export default function AdminLayout() {
     { path: '/admin', label: '仪表盘', icon: ChartBar, exact: true },
     { path: '/admin/users', label: '用户管理', icon: UsersThree },
     { path: '/admin/wordbooks', label: '系统词库', icon: Books },
+    { path: '/admin/word-quality', label: '词库质量', icon: Sparkle },
     { path: '/admin/algorithm-config', label: '算法配置', icon: Gear },
     { path: '/admin/config-history', label: '配置历史', icon: Clock },
     { path: '/admin/optimization', label: '优化分析', icon: Target },
     { path: '/admin/causal-analysis', label: '因果分析', icon: Brain },
     { path: '/admin/llm-advisor', label: 'LLM 顾问', icon: Robot },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
+    { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
     { path: '/admin/logs', label: '系统日志', icon: FileText },
     { path: '/admin/log-alerts', label: '告警规则', icon: Bell },
     { path: '/admin/system-debug', label: '系统调试', icon: Bug },

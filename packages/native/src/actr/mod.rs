@@ -159,6 +159,78 @@ pub struct BatchComputeResult {
     pub recall_probability: f64,
 }
 
+// ==================== Action Selection Types ====================
+
+/// User state for action selection
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct ACTRSelectionState {
+    /// Attention level [0, 1]
+    #[napi(js_name = "A")]
+    pub attention: f64,
+    /// Fatigue level [0, 1]
+    #[napi(js_name = "F")]
+    pub fatigue: f64,
+    /// Motivation level [-1, 1]
+    #[napi(js_name = "M")]
+    pub motivation: f64,
+    /// Confidence level [0, 1]
+    pub conf: f64,
+    /// Timestamp
+    pub ts: f64,
+    /// Memory factor [0, 1]
+    pub mem: f64,
+    /// Speed factor [0, 1]
+    pub speed: f64,
+    /// Stability factor [0, 1]
+    pub stability: f64,
+}
+
+/// Context for action selection
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct ACTRSelectionContext {
+    /// Current time (timestamp)
+    #[napi(js_name = "currentTime")]
+    pub current_time: f64,
+    /// Session duration in milliseconds
+    #[napi(js_name = "sessionDuration")]
+    pub session_duration: f64,
+    /// Number of words reviewed in session
+    #[napi(js_name = "wordsReviewed")]
+    pub words_reviewed: u32,
+}
+
+/// Action parameters for selection
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct ACTRActionParams {
+    /// Interval scale factor
+    pub interval_scale: f64,
+    /// New word ratio [0, 1]
+    pub new_ratio: f64,
+    /// Difficulty level ("easy", "mid", "hard")
+    pub difficulty: String,
+    /// Batch size
+    pub batch_size: u32,
+    /// Hint level (0, 1, 2)
+    pub hint_level: u32,
+}
+
+/// Action selection result
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct ACTRSelectionResult {
+    /// Selected action index
+    #[napi(js_name = "selectedIndex")]
+    pub selected_index: u32,
+    /// Selection score
+    pub score: f64,
+    /// Confidence level [0, 1]
+    pub confidence: f64,
+    /// Optional metadata (JSON string)
+    pub metadata: Option<String>,
+}
+
 // ==================== ACT-R Memory Model ====================
 
 /// ACT-R Memory Model Native Implementation
@@ -759,6 +831,178 @@ impl ACTRMemoryNative {
             self.state.threshold,
             self.state.noise_scale,
         )
+    }
+
+    /// Select action from serialized state and actions
+    ///
+    /// This method enables Native-side action selection based on ACT-R memory model principles.
+    /// The selection is based on:
+    /// 1. User state (attention, fatigue, motivation, cognitive profile)
+    /// 2. Available actions with their parameters
+    /// 3. Context information (session duration, words reviewed)
+    ///
+    /// # Arguments
+    /// * `state` - Serialized user state
+    /// * `actions` - Serialized action parameters (JSON array string)
+    /// * `context` - Context information (JSON object string)
+    ///
+    /// # Returns
+    /// Selection result with selected index, score and confidence
+    #[napi]
+    pub fn select_action_from_serialized(
+        &self,
+        state: ACTRSelectionState,
+        actions: String,
+        context: ACTRSelectionContext,
+    ) -> ACTRSelectionResult {
+        // Parse actions from JSON string
+        let parsed_actions: Vec<ACTRActionParams> = match serde_json::from_str(&actions) {
+            Ok(a) => a,
+            Err(_) => {
+                // Return fallback (first action) on parse error
+                return ACTRSelectionResult {
+                    selected_index: 0,
+                    score: 0.5,
+                    confidence: 0.0,
+                    metadata: None,
+                };
+            }
+        };
+
+        if parsed_actions.is_empty() {
+            return ACTRSelectionResult {
+                selected_index: 0,
+                score: 0.0,
+                confidence: 0.0,
+                metadata: None,
+            };
+        }
+
+        // Calculate scores for each action
+        let scores: Vec<f64> = parsed_actions
+            .iter()
+            .map(|action| self.compute_action_score(&state, action, &context))
+            .collect();
+
+        // Find best action (highest score)
+        let (selected_index, &best_score) = scores
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or((0, &0.0));
+
+        // Calculate confidence based on score spread
+        let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
+        let variance = scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
+        let confidence = if variance > 0.0 {
+            // Higher variance = more confident in selection
+            (variance.sqrt() * 2.0).min(1.0)
+        } else {
+            0.5 // Uniform scores = low confidence
+        };
+
+        ACTRSelectionResult {
+            selected_index: selected_index as u32,
+            score: best_score,
+            confidence,
+            metadata: Some(format!(
+                "{{\"scores\":[{}],\"mean_score\":{:.4}}}",
+                scores.iter().map(|s| format!("{:.4}", s)).collect::<Vec<_>>().join(","),
+                mean_score
+            )),
+        }
+    }
+
+    /// Compute score for a single action based on user state and context
+    fn compute_action_score(
+        &self,
+        state: &ACTRSelectionState,
+        action: &ACTRActionParams,
+        context: &ACTRSelectionContext,
+    ) -> f64 {
+        // Base score starts at 0.5
+        let mut score = 0.5;
+
+        // Factor 1: Fatigue adjustment
+        // High fatigue (>0.6) favors lower difficulty and higher interval_scale
+        if state.fatigue > 0.6 {
+            let fatigue_penalty = (state.fatigue - 0.6) * 0.5;
+            // Favor easier difficulty
+            score += match action.difficulty.as_str() {
+                "easy" => 0.1,
+                "mid" => 0.0,
+                "hard" => -0.15,
+                _ => 0.0,
+            };
+            // Favor longer intervals
+            if action.interval_scale > 1.0 {
+                score += 0.05 * (action.interval_scale - 1.0).min(0.5);
+            }
+            score -= fatigue_penalty * 0.3;
+        }
+
+        // Factor 2: Attention adjustment
+        // Low attention (<0.5) favors smaller batch sizes and more hints
+        if state.attention < 0.5 {
+            let attention_penalty = (0.5 - state.attention) * 0.4;
+            // Favor smaller batches
+            if action.batch_size <= 6 {
+                score += 0.08;
+            } else if action.batch_size > 10 {
+                score -= 0.1;
+            }
+            // Favor more hints
+            score += action.hint_level as f64 * 0.03;
+            score -= attention_penalty * 0.2;
+        }
+
+        // Factor 3: Motivation adjustment
+        // Low motivation favors easier content and fewer new words
+        if state.motivation < 0.0 {
+            let motivation_penalty = -state.motivation * 0.3;
+            score += match action.difficulty.as_str() {
+                "easy" => 0.08,
+                "mid" => 0.0,
+                "hard" => -0.12,
+                _ => 0.0,
+            };
+            // Favor lower new_ratio
+            if action.new_ratio < 0.2 {
+                score += 0.05;
+            }
+            score -= motivation_penalty * 0.25;
+        }
+
+        // Factor 4: Memory stability adjustment
+        // High stability (>0.7) can handle more challenging content
+        if state.stability > 0.7 {
+            let stability_bonus = (state.stability - 0.7) * 0.3;
+            // Can handle harder difficulty
+            score += match action.difficulty.as_str() {
+                "easy" => -0.02,
+                "mid" => 0.02,
+                "hard" => 0.05,
+                _ => 0.0,
+            };
+            // Can handle more new words
+            score += action.new_ratio * stability_bonus * 0.3;
+        }
+
+        // Factor 5: Session context adjustment
+        // Longer sessions should have more conservative parameters
+        let session_minutes = context.session_duration / 60000.0;
+        if session_minutes > 30.0 {
+            // Favor easier content as session extends
+            let session_factor = ((session_minutes - 30.0) / 30.0).min(1.0);
+            score += match action.difficulty.as_str() {
+                "easy" => 0.05 * session_factor,
+                "hard" => -0.08 * session_factor,
+                _ => 0.0,
+            };
+        }
+
+        // Clamp score to [0, 1]
+        score.clamp(0.0, 1.0)
     }
 }
 

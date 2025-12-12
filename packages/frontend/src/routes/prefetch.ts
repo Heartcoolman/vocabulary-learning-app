@@ -39,6 +39,8 @@ export const routePrefetchers: Record<string, () => Promise<unknown>> = {
   '/word-mastery': () => import('../pages/WordMasteryPage'),
   '/habit-profile': () => import('../pages/HabitProfilePage'),
   '/learning-profile': () => import('../pages/LearningProfilePage'),
+  '/learning-objectives': () => import('../pages/LearningObjectivesPage'),
+  '/word-list': () => import('../pages/WordListPage'),
 
   // 管理员页面
   '/admin': () => import('../pages/admin/AdminDashboard'),
@@ -142,6 +144,9 @@ export const routeDataPrefetchers: Record<string, () => void> = {
       staleTime: 5 * 60 * 1000,
     });
   },
+
+  // 注意: /learning-objectives 和 /word-list 页面直接使用 API 调用而非 React Query
+  // 因此不配置数据预取（只保留页面代码预加载）
 };
 
 /**

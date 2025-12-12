@@ -5,7 +5,7 @@
  */
 
 import { AttentionFeatures } from '../modeling/attention-monitor';
-import { isTrendAnalyzerEnabled } from '../config/feature-flags';
+import { isTrendAnalyzerEnabled, isHabitRecognizerEnabled } from '../config/feature-flags';
 import { FeatureVector, RawEvent, UserState, VisualFatigueState } from '../types';
 import { UserModels, clamp } from './engine-types';
 import type { ProcessedVisualFatigueData } from '@danci/shared';
@@ -49,6 +49,7 @@ export class ModelingManager {
     visualData?: ProcessedVisualFatigueData,
     studyDurationMinutes?: number,
     userId?: string, // 真实用户ID，用于融合引擎按用户聚合
+    sessionStats?: { durationMinutes: number; batchSize: number }, // 会话统计，用于习惯识别
   ): UserState {
     // 使用真实 userId，如果未提供则回退到 wordId（兼容旧逻辑）
     const effectiveUserId = userId ?? event.wordId;
@@ -159,6 +160,23 @@ export class ModelingManager {
       trendState = models.trendAnalyzer.update(ability, event.timestamp);
     }
 
+    // 习惯识别更新 (如果启用)
+    let habitProfile = prevState.H;
+    if (models.habitRecognizer && isHabitRecognizerEnabled()) {
+      // 更新时间偏好
+      const eventHour = new Date(event.timestamp).getHours();
+      models.habitRecognizer.updateTimePref(eventHour);
+
+      // 更新会话时长和批量大小（如果提供了会话统计）
+      if (sessionStats) {
+        models.habitRecognizer.updateSessionDuration(sessionStats.durationMinutes);
+        models.habitRecognizer.updateBatchSize(sessionStats.batchSize);
+      }
+
+      // 获取更新后的习惯画像
+      habitProfile = models.habitRecognizer.getHabitProfile();
+    }
+
     return {
       ...prevState,
       A: finalA,
@@ -166,6 +184,7 @@ export class ModelingManager {
       C: finalC,
       M,
       T: trendState,
+      H: habitProfile,
       ts: event.timestamp,
       conf: Math.min(1, prevState.conf + 0.01),
       visualFatigue: visualFatigueState,

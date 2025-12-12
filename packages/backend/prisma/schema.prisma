@@ -916,3 +916,149 @@ model UserTrackingEvent {
   @@index([sessionId])
   @@map("user_tracking_events")
 }
+
+// ==================== LLM 增强相关模型 ====================
+
+/// 词库质量检查记录
+model WordQualityCheck {
+  id            String   @id @default(uuid())
+  wordBookId    String
+  checkType     String   // SPELLING, MEANING, EXAMPLE, FULL
+  totalWords    Int
+  checkedWords  Int      @default(0)
+  issuesFound   Int      @default(0)
+  issueDetails  Json     @default("[]")
+  status        String   @default("pending") // pending, processing, completed, failed
+  taskId        String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  issues        WordContentIssue[]
+
+  @@index([wordBookId])
+  @@index([status])
+  @@map("word_quality_checks")
+}
+
+/// 词库内容问题记录
+model WordContentIssue {
+  id          String    @id @default(uuid())
+  wordId      String
+  checkId     String
+  field       String    // spelling, phonetic, meanings, examples
+  severity    String    // error, warning, suggestion
+  description String
+  suggestion  String?
+  status      String    @default("open") // open, fixed, ignored
+  fixedBy     String?
+  fixedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  check       WordQualityCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@index([wordId])
+  @@index([checkId])
+  @@index([status])
+  @@map("word_content_issues")
+}
+
+/// 词库内容增强版本
+model WordContentVariant {
+  id             String    @id @default(uuid())
+  wordId         String
+  field          String    // meanings, examples, mnemonics, usage_notes
+  originalValue  Json?
+  generatedValue Json
+  confidence     Float     @default(0.8)
+  taskId         String?
+  status         String    @default("pending") // pending, approved, rejected
+  approvedBy     String?
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([wordId])
+  @@index([status])
+  @@map("word_content_variants")
+}
+
+/// LLM 分析任务队列
+model LLMAnalysisTask {
+  id          String    @id @default(uuid())
+  type        String    // WORD_QUALITY_CHECK, CONTENT_ENHANCEMENT, etc.
+  status      String    @default("pending") // pending, processing, completed, failed
+  priority    Int       @default(5)
+  input       Json
+  output      Json?
+  tokensUsed  Int?
+  error       String?
+  retryCount  Int       @default(0)
+  createdBy   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, priority])
+  @@index([type, status])
+  @@map("llm_analysis_tasks")
+}
+
+/// 系统周报
+model SystemWeeklyReport {
+  id              String   @id @default(uuid())
+  weekStart       DateTime
+  weekEnd         DateTime
+  summary         String
+  healthScore     Float
+  keyMetrics      Json
+  highlights      Json
+  concerns        Json
+  recommendations Json
+  userMetrics     Json
+  learningMetrics Json
+  systemMetrics   Json
+  rawLLMResponse  String?
+  tokensUsed      Int?
+  createdAt       DateTime @default(now())
+
+  @@unique([weekStart, weekEnd])
+  @@map("system_weekly_reports")
+}
+
+/// 用户行为洞察
+model UserBehaviorInsight {
+  id              String   @id @default(uuid())
+  analysisDate    DateTime @db.Date
+  userSegment     String
+  patterns        Json
+  insights        Json
+  recommendations Json
+  userCount       Int
+  dataPoints      Int
+  createdAt       DateTime @default(now())
+
+  @@unique([analysisDate, userSegment])
+  @@map("user_behavior_insights")
+}
+
+/// 告警根因分析
+model AlertRootCauseAnalysis {
+  id             String    @id @default(uuid())
+  alertRuleId    String
+  severity       String
+  rootCause      String
+  suggestedFixes Json
+  relatedMetrics Json
+  confidence     Float
+  status         String    @default("open")
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  resolution     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([alertRuleId])
+  @@index([status])
+  @@map("alert_root_cause_analyses")
+}

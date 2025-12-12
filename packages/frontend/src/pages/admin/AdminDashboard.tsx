@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStatistics, useSystemHealth, useVisualFatigueStats } from '../../hooks/queries';
+import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
 import { amasClient } from '../../services/client';
 import {
   UsersThree,
@@ -19,6 +20,7 @@ import {
   ArrowClockwise,
   Lightning,
   Eye,
+  Robot,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
@@ -26,6 +28,26 @@ import { ConfirmModal, AlertModal } from '../../components/ui';
 
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
+
+/**
+ * 根据健康分数返回对应的 Tailwind 颜色类
+ */
+function getScoreColorClass(score: number): string {
+  if (score >= 90) return 'text-green-500';
+  if (score >= 75) return 'text-blue-500';
+  if (score >= 60) return 'text-yellow-500';
+  return 'text-red-500';
+}
+
+/**
+ * 根据健康分数返回进度条背景色类
+ */
+function getScoreBarColorClass(score: number): string {
+  if (score >= 90) return 'bg-green-500';
+  if (score >= 75) return 'bg-blue-500';
+  if (score >= 60) return 'bg-yellow-500';
+  return 'bg-red-500';
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -38,6 +60,7 @@ export default function AdminDashboard() {
     isLoading: isVfLoading,
     error: vfError,
   } = useVisualFatigueStats();
+  const { data: llmPendingCount } = useLLMPendingCount();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
@@ -196,6 +219,12 @@ export default function AdminDashboard() {
       icon: ChartBar,
       color: 'red',
     },
+    {
+      label: 'LLM待审核',
+      value: llmPendingCount ?? 0,
+      icon: Robot,
+      color: 'purple',
+    },
   ];
 
   const getColorClasses = (color: ColorKey): string => {
@@ -292,19 +321,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div
-                      className="text-3xl font-bold"
-                      style={{
-                        color:
-                          systemHealth.score >= 90
-                            ? '#10b981'
-                            : systemHealth.score >= 75
-                              ? '#3b82f6'
-                              : systemHealth.score >= 60
-                                ? '#f59e0b'
-                                : '#ef4444',
-                      }}
-                    >
+                    <div className={`text-3xl font-bold ${getScoreColorClass(systemHealth.score)}`}>
                       {systemHealth.score}
                     </div>
                     <div className="text-xs text-gray-500">健康分</div>
@@ -315,18 +332,8 @@ export default function AdminDashboard() {
                 <div className="mb-4">
                   <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full transition-all duration-500"
-                      style={{
-                        width: `${systemHealth.score}%`,
-                        backgroundColor:
-                          systemHealth.score >= 90
-                            ? '#10b981'
-                            : systemHealth.score >= 75
-                              ? '#3b82f6'
-                              : systemHealth.score >= 60
-                                ? '#f59e0b'
-                                : '#ef4444',
-                      }}
+                      className={`h-full transition-all duration-500 ${getScoreBarColorClass(systemHealth.score)}`}
+                      style={{ width: `${systemHealth.score}%` }}
                     />
                   </div>
                 </div>

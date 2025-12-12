@@ -31,9 +31,14 @@ const envSchema = z.object({
       (val) => {
         // 生产环境不允许使用默认值
         if (process.env.NODE_ENV === 'production') {
+          if (val.length < 32) {
+            return false;
+          }
           return (
             val !== 'default_secret_change_me' &&
-            val !== 'dev_only_weak_secret_change_in_production'
+            val !== 'dev_only_weak_secret_change_in_production' &&
+            val !== 'change_this_in_production_use_random_64_chars' &&
+            !/change_this_in_production/i.test(val)
           );
         }
         return true;
@@ -90,6 +95,12 @@ const envSchema = z.object({
     .default('86400000')
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().min(60000, 'DELAYED_REWARD_DELAY_MS 最小值为 60000（60秒）')),
+
+  AMAS_DECISION_TIMEOUT_MS: z
+    .string()
+    .default('250')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(50).max(5000)),
 
   // ============================================
   // 速率限制配置
@@ -246,6 +257,7 @@ function validateEnv(): Env {
       TRUST_PROXY: process.env.TRUST_PROXY,
       WORKER_LEADER: process.env.WORKER_LEADER,
       DELAYED_REWARD_DELAY_MS: process.env.DELAYED_REWARD_DELAY_MS,
+      AMAS_DECISION_TIMEOUT_MS: process.env.AMAS_DECISION_TIMEOUT_MS,
       RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
       RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
       LOG_LEVEL: process.env.LOG_LEVEL,
@@ -334,4 +346,4 @@ function validateEnv(): Env {
  * console.log(`JWT expires in ${env.JWT_EXPIRES_IN}`);
  * ```
  */
-export const env = validateEnv();
+export const env: Env = validateEnv();

@@ -143,7 +143,7 @@ router.get('/strategy', authMiddleware, async (req: AuthRequest, res, next) => {
       new_ratio: 0.2,
       batch_size: 10,
       hint_level: 1,
-      difficulty: 'normal' as const,
+      difficulty: 'mid' as const,
     };
 
     res.json({

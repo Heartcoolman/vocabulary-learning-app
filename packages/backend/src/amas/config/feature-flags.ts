@@ -20,6 +20,8 @@ export interface AMASFeatureFlags {
   // 建模层
   /** TrendAnalyzer - 长期趋势分析模型 */
   enableTrendAnalyzer: boolean;
+  /** HabitRecognizer - 用户学习习惯识别器 */
+  enableHabitRecognizer: boolean;
 
   // 学习层 (Ensemble 内部学习器)
   /** HeuristicLearner - 启发式基准学习器 */
@@ -48,6 +50,14 @@ export interface AMASFeatureFlags {
   // 优化层
   /** BayesianOptimizer - 贝叶斯超参数优化 */
   enableBayesianOptimizer: boolean;
+
+  // Native 加速层
+  /** LinUCB Native Wrapper - 使用 Rust 实现的 LinUCB */
+  enableNativeLinUCB: boolean;
+  /** Thompson Sampling Native Wrapper - 使用 Rust 实现的 Thompson Sampling */
+  enableNativeThompson: boolean;
+  /** ACT-R Native Wrapper - 使用 Rust 实现的 ACT-R 记忆模型 */
+  enableNativeACTR: boolean;
 }
 
 /**
@@ -57,6 +67,7 @@ export interface AMASFeatureFlags {
 export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
   // 建模层
   enableTrendAnalyzer: true,
+  enableHabitRecognizer: true,
 
   // 学习层
   enableHeuristicBaseline: true,
@@ -71,11 +82,16 @@ export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
   enableUserParamsManager: true,
 
   // 评估层
-  enableDelayedRewardAggregator: true,
+  enableDelayedRewardAggregator: false,
   enableCausalInference: true,
 
   // 优化层
   enableBayesianOptimizer: true,
+
+  // Native 加速层（默认启用，自动降级到 TS 实现）
+  enableNativeLinUCB: true,
+  enableNativeThompson: true,
+  enableNativeACTR: true,
 };
 
 // ==================== 环境变量映射 ====================
@@ -86,6 +102,7 @@ export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
  */
 const ENV_VAR_MAP: Record<keyof AMASFeatureFlags, string> = {
   enableTrendAnalyzer: 'AMAS_FEATURE_TREND_ANALYZER',
+  enableHabitRecognizer: 'AMAS_FEATURE_HABIT_RECOGNIZER',
   enableHeuristicBaseline: 'AMAS_FEATURE_HEURISTIC_BASELINE',
   enableThompsonSampling: 'AMAS_FEATURE_THOMPSON_SAMPLING',
   enableACTRMemory: 'AMAS_FEATURE_ACTR_MEMORY',
@@ -95,6 +112,9 @@ const ENV_VAR_MAP: Record<keyof AMASFeatureFlags, string> = {
   enableDelayedRewardAggregator: 'AMAS_FEATURE_DELAYED_REWARD_AGGREGATOR',
   enableCausalInference: 'AMAS_FEATURE_CAUSAL_INFERENCE',
   enableBayesianOptimizer: 'AMAS_FEATURE_BAYESIAN_OPTIMIZER',
+  enableNativeLinUCB: 'AMAS_FEATURE_NATIVE_LINUCB',
+  enableNativeThompson: 'AMAS_FEATURE_NATIVE_THOMPSON',
+  enableNativeACTR: 'AMAS_FEATURE_NATIVE_ACTR',
 };
 
 // ==================== 运行时配置 ====================
@@ -293,6 +313,26 @@ export function isUserParamsManagerEnabled(): boolean {
   return currentFlags.enableUserParamsManager;
 }
 
+/** 检查习惯识别器是否启用 */
+export function isHabitRecognizerEnabled(): boolean {
+  return currentFlags.enableHabitRecognizer;
+}
+
+/** 检查 Native LinUCB 是否启用 */
+export function isNativeLinUCBEnabled(): boolean {
+  return currentFlags.enableNativeLinUCB;
+}
+
+/** 检查 Native Thompson Sampling 是否启用 */
+export function isNativeThompsonEnabled(): boolean {
+  return currentFlags.enableNativeThompson;
+}
+
+/** 检查 Native ACT-R 是否启用 */
+export function isNativeACTREnabled(): boolean {
+  return currentFlags.enableNativeACTR;
+}
+
 // ==================== 模块分组检查 ====================
 
 /**
@@ -358,3 +398,78 @@ export function exportFeatureFlagsAsJSON(): string {
 
 // 初始化时自动加载环境变量
 initializeFeatureFlags();
+
+// ==================== 用户级功能开关覆盖（用于 A/B 测试） ====================
+
+/**
+ * 用户级功能开关覆盖缓存
+ * key: userId, value: 功能开关覆盖配置
+ */
+const userFeatureFlagOverrides = new Map<string, Partial<AMASFeatureFlags>>();
+
+/**
+ * 应用实验变体的功能开关覆盖
+ * @param userId 用户ID
+ * @param overrides 变体参数（来自 ABVariant.parameters）
+ */
+export function applyExperimentOverrides(userId: string, overrides: Record<string, unknown>): void {
+  const validOverrides: Partial<AMASFeatureFlags> = {};
+
+  // 只接受已定义的功能开关键
+  const flagKeys = Object.keys(DEFAULT_FEATURE_FLAGS) as Array<keyof AMASFeatureFlags>;
+
+  for (const key of flagKeys) {
+    if (key in overrides && typeof overrides[key] === 'boolean') {
+      validOverrides[key] = overrides[key] as boolean;
+    }
+  }
+
+  if (Object.keys(validOverrides).length > 0) {
+    userFeatureFlagOverrides.set(userId, validOverrides);
+    amasLogger.debug({ userId, overrides: validOverrides }, '[FeatureFlags] 应用用户级实验覆盖');
+  }
+}
+
+/**
+ * 获取用户的功能开关配置（合并全局配置和用户覆盖）
+ * @param userId 用户ID
+ */
+export function getUserFeatureFlags(userId: string): Readonly<AMASFeatureFlags> {
+  const userOverrides = userFeatureFlagOverrides.get(userId);
+  if (!userOverrides) {
+    return currentFlags;
+  }
+
+  return {
+    ...currentFlags,
+    ...userOverrides,
+  };
+}
+
+/**
+ * 清除用户的功能开关覆盖
+ * @param userId 用户ID
+ */
+export function clearUserFeatureFlagOverrides(userId: string): void {
+  userFeatureFlagOverrides.delete(userId);
+}
+
+/**
+ * 清除所有用户的功能开关覆盖
+ */
+export function clearAllUserFeatureFlagOverrides(): void {
+  userFeatureFlagOverrides.clear();
+}
+
+/**
+ * 获取用户级覆盖统计（用于调试）
+ */
+export function getUserOverridesStats(): {
+  totalUsers: number;
+  overrides: Map<string, Partial<AMASFeatureFlags>>;
+} {
+  return {
+    totalUsers: userFeatureFlagOverrides.size,
+    overrides: new Map(userFeatureFlagOverrides),
+  };
+}

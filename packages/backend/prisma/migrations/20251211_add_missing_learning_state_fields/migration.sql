@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "word_learning_states" ADD COLUMN IF NOT EXISTS "halfLife" DOUBLE PRECISION NOT NULL DEFAULT 1.0;
+ALTER TABLE "word_learning_states" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0;
