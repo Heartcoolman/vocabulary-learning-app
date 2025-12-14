@@ -217,7 +217,11 @@ router.get('/:sessionId/records', async (req: AuthRequest, res: Response, next) 
       Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? undefined : parsedPageSize;
 
     // 获取该会话的所有记录
-    const result = await recordService.getRecordsByUserId(userId, { page, pageSize });
+    const result = await recordService.getRecordsByUserId(userId, {
+      page,
+      pageSize,
+      sessionId,
+    });
 
     res.json({
       success: true,
