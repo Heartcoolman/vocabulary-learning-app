@@ -70,3 +70,4 @@ packages/backend/prisma/*.db
 
 *storybook.log
 storybook-static
+packages/tauri-app/src-tauri/gen/android/app/build/
