@@ -112,7 +112,7 @@ export default function VocabularyPage() {
   const renderWordBookCard = (book: WordBook, isUserBook: boolean) => (
     <div
       key={book.id}
-      className="animate-g3-fade-in cursor-pointer rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+      className="animate-g3-fade-in cursor-pointer rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-elevated"
     >
       {/* 词书信息 */}
       <div onClick={() => navigate(`/wordbooks/${book.id}`)}>
@@ -139,7 +139,7 @@ export default function VocabularyPage() {
       <div className="flex gap-2">
         <button
           onClick={() => navigate(`/wordbooks/${book.id}`)}
-          className="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+          className="flex-1 rounded-button bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
         >
           查看详情
         </button>
@@ -150,7 +150,7 @@ export default function VocabularyPage() {
               e.stopPropagation();
               openDeleteConfirm(book.id, book.name);
             }}
-            className="rounded-lg bg-red-50 px-4 py-2 text-red-600 transition-all duration-200 hover:bg-red-100"
+            className="rounded-button bg-red-50 px-4 py-2 text-red-600 transition-all duration-g3-fast hover:bg-red-100"
           >
             删除
           </button>
@@ -184,7 +184,7 @@ export default function VocabularyPage() {
         {activeTab === 'user' && (
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             + 新建词书
           </button>
@@ -203,7 +203,7 @@ export default function VocabularyPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索单词..."
-            className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-12 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-card border border-gray-300 py-3 pl-12 pr-12 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           {searchQuery && (
             <button
@@ -217,7 +217,7 @@ export default function VocabularyPage() {
 
         {/* 搜索结果下拉 */}
         {showSearchResults && (
-          <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-card border border-gray-200 bg-white shadow-elevated">
             {isSearching || isSearchingFetching ? (
               <div className="p-4 text-center text-gray-500">
                 <CircleNotch className="mx-auto mb-2 animate-spin" size={24} />
@@ -271,7 +271,7 @@ export default function VocabularyPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
           {error instanceof Error ? error.message : '加载失败'}
         </div>
       )}
@@ -310,7 +310,7 @@ export default function VocabularyPage() {
           {activeTab === 'user' && (
             <button
               onClick={() => setShowCreateDialog(true)}
-              className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+              className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
             >
               创建第一个词书
             </button>
@@ -338,7 +338,7 @@ export default function VocabularyPage() {
             type="text"
             value={newBookName}
             onChange={(e) => setNewBookName(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             placeholder="例如：考研核心词汇"
           />
         </div>
@@ -348,7 +348,7 @@ export default function VocabularyPage() {
           <textarea
             value={newBookDesc}
             onChange={(e) => setNewBookDesc(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             rows={3}
             placeholder="简单描述这个词书的用途..."
           />
@@ -357,7 +357,7 @@ export default function VocabularyPage() {
         <div className="flex gap-3">
           <button
             onClick={handleCreateBook}
-            className="flex-1 rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+            className="flex-1 rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             创建
           </button>
@@ -367,7 +367,7 @@ export default function VocabularyPage() {
               setNewBookName('');
               setNewBookDesc('');
             }}
-            className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
           >
             取消
           </button>

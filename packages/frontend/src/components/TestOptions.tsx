@@ -61,13 +61,13 @@ function TestOptions({
 
     if (isSelected && isCorrect) {
       // 选中且正确
-      return 'bg-green-500 text-white shadow-lg';
+      return 'bg-green-500 text-white shadow-elevated';
     } else if (isSelected && !isCorrect) {
       // 选中但错误
-      return 'bg-red-500 text-white shadow-lg';
+      return 'bg-red-500 text-white shadow-elevated';
     } else if (isCorrect) {
       // 正确答案高亮（用户选错时）
-      return 'bg-green-100 border-2 border-green-500 text-gray-900 shadow-md';
+      return 'bg-green-100 border-2 border-green-500 text-gray-900 shadow-elevated';
     } else {
       // 其他选项
       return 'bg-gray-100 text-gray-500 opacity-60';
@@ -112,8 +112,10 @@ function TestOptions({
           }}
           disabled={showResult}
           data-testid={`option-${index}`}
-          className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-xl px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
-          style={{ animation: `staggerFadeIn 0.3s ease-out ${index * 50}ms forwards` }}
+          className={`stagger-item btn-scale min-w-[150px] max-w-[260px] flex-1 rounded-card px-7 py-4 text-lg font-medium opacity-0 sm:min-w-[170px] md:text-xl ${getButtonStyle(option)} ${!showResult ? 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : ''} disabled:cursor-not-allowed`}
+          style={{
+            animation: `staggerFadeIn 0.3s var(--ease-g3-standard) ${index * 50}ms forwards`,
+          }}
           aria-label={getAriaLabel(option, index)}
           aria-pressed={showResult && option === selectedAnswer}
           tabIndex={showResult ? -1 : 0}

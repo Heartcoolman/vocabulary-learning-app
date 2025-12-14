@@ -53,7 +53,7 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
         isBreakSuggestion
           ? 'border-orange-200/60 bg-orange-50/80'
           : 'border-blue-200/60 bg-blue-50/80'
-      } animate-g3-fade-in rounded-xl border shadow-sm backdrop-blur-sm transition-all duration-200`}
+      } animate-g3-fade-in rounded-card border shadow-soft backdrop-blur-sm transition-all duration-g3-fast`}
       role="alert"
       aria-live="polite"
     >
@@ -78,7 +78,7 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
 
       {/* 具体建议 */}
       {result.suggestion && (
-        <div className="mb-3 flex items-start gap-2 rounded-lg bg-white/50 p-2 text-xs text-gray-600">
+        <div className="mb-3 flex items-start gap-2 rounded-button bg-white/50 p-2 text-xs text-gray-600">
           <PushPin size={16} weight="duotone" className="mt-0.5 flex-shrink-0 text-gray-500" />
           <p className="flex-1">{result.suggestion}</p>
         </div>
@@ -116,7 +116,7 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
       {isBreakSuggestion && onBreak && (
         <button
           onClick={onBreak}
-          className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-orange-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:scale-95"
+          className="w-full rounded-button bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-orange-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:scale-95"
           aria-label="休息一下"
         >
           好的，休息一下

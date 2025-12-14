@@ -96,7 +96,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
       onClick={onClose}
     >
       <div
-        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl"
+        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 关闭按钮 */}
@@ -150,7 +150,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
 
         {/* 解锁状态 */}
         {isUnlocked ? (
-          <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+          <div className="rounded-card border border-green-200 bg-green-50 p-4 text-center">
             <CheckCircle
               size={24}
               weight="fill"
@@ -163,7 +163,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="rounded-card border border-gray-200 bg-gray-50 p-4">
             <div className="mb-3 flex items-center gap-2">
               <Info size={20} weight="fill" color={IconColor.secondary} />
               <span className="font-medium text-gray-700">解锁进度</span>
@@ -181,7 +181,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
               <>
                 <div className="mb-2 h-3 w-full rounded-full bg-gray-200">
                   <div
-                    className="h-3 rounded-full bg-blue-500 transition-all duration-500"
+                    className="h-3 rounded-full bg-blue-500 transition-all duration-g3-slow"
                     style={{ width: `${badgeProgress.percentage}%` }}
                   />
                 </div>
@@ -199,7 +199,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         )}
 
         {/* 奖励说明 */}
-        <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div className="mt-6 rounded-card border border-blue-200 bg-blue-50 p-4">
           <div className="mb-2 flex items-center gap-2">
             <Trophy size={20} weight="duotone" color={IconColor.primaryDark} />
             <span className="font-medium text-blue-900">奖励说明</span>
@@ -212,7 +212,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="mt-6 w-full rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200"
+          className="mt-6 w-full rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200"
         >
           关闭
         </button>

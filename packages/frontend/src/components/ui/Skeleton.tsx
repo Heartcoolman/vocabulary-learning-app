@@ -179,7 +179,7 @@ export const SkeletonCard = memo(
           {...props}
         >
           {image && (
-            <Skeleton variant="rectangular" height={160} className="-mx-4 -mt-4 rounded-lg" />
+            <Skeleton variant="rectangular" height={160} className="-mx-4 -mt-4 rounded-button" />
           )}
 
           {avatar && (

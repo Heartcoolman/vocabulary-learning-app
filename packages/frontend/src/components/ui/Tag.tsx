@@ -150,7 +150,7 @@ export const Tag = memo(
           className={cn(
             'inline-flex items-center font-medium',
             'transition-all duration-g3-fast ease-g3',
-            rounded ? 'rounded-full' : 'rounded-md',
+            rounded ? 'rounded-full' : 'rounded',
             outlined && 'border',
             // 样式
             selected ? styles.selected : outlined ? styles.outline : styles.solid,

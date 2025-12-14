@@ -26,8 +26,8 @@ type Story = StoryObj<typeof meta>;
 
 // 导航链接类名
 const linkClass = (active = false) =>
-  `px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 ${
-    active ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
+  `px-4 py-2 rounded-button text-base font-medium transition-all duration-g3-fast ${
+    active ? 'bg-blue-500 text-white shadow-soft' : 'text-gray-700 hover:bg-gray-100'
   }`;
 
 /**
@@ -38,7 +38,7 @@ const linkClass = (active = false) =>
 export const Default: Story = {
   render: () => (
     <div className="min-h-[400px] bg-gray-50">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
@@ -81,7 +81,7 @@ export const Default: Story = {
 export const LoggedIn: Story = {
   render: () => (
     <div className="min-h-[400px] bg-gray-50">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
@@ -104,7 +104,7 @@ export const LoggedIn: Story = {
 
               {/* 学习洞察下拉菜单 */}
               <div className="relative">
-                <button className="flex items-center gap-1 rounded-lg px-4 py-2 text-base font-medium text-gray-700 transition-all duration-200 hover:bg-gray-100">
+                <button className="flex items-center gap-1 rounded-button px-4 py-2 text-base font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-100">
                   学习洞察
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -140,7 +140,7 @@ export const LoggedIn: Story = {
 export const WithDropdown: Story = {
   render: () => (
     <div className="min-h-[400px] bg-gray-50">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
@@ -157,7 +157,7 @@ export const WithDropdown: Story = {
 
               {/* 学习洞察下拉菜单 - 展开状态 */}
               <div className="relative">
-                <button className="flex items-center gap-1 rounded-lg bg-blue-500 px-4 py-2 text-base font-medium text-white shadow-sm">
+                <button className="flex items-center gap-1 rounded-button bg-blue-500 px-4 py-2 text-base font-medium text-white shadow-soft">
                   学习洞察
                   <svg
                     className="h-4 w-4 rotate-180"
@@ -174,7 +174,7 @@ export const WithDropdown: Story = {
                   </svg>
                 </button>
 
-                <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-button border border-gray-200 bg-white py-1 shadow-elevated">
                   {[
                     { icon: '📊', label: '学习统计' },
                     { icon: '⏰', label: '学习时机' },
@@ -219,14 +219,14 @@ export const WithDropdown: Story = {
 export const Mobile: Story = {
   render: () => (
     <div className="min-h-[400px] w-[375px] bg-gray-50">
-      <header className="border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-gray-900">词汇学习</h1>
             </a>
 
-            <button className="rounded-lg p-2 text-gray-700 hover:bg-gray-100">
+            <button className="rounded-button p-2 text-gray-700 hover:bg-gray-100">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -255,14 +255,14 @@ export const Mobile: Story = {
 export const MobileMenuOpen: Story = {
   render: () => (
     <div className="min-h-[600px] w-[375px] bg-gray-50">
-      <header className="border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-gray-900">词汇学习</h1>
             </a>
 
-            <button className="rounded-lg p-2 text-gray-700 hover:bg-gray-100">
+            <button className="rounded-button p-2 text-gray-700 hover:bg-gray-100">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -278,25 +278,25 @@ export const MobileMenuOpen: Story = {
           <nav className="mt-4 flex flex-col space-y-2 border-t border-gray-200 pt-4">
             <a
               href="#"
-              className="block rounded-lg bg-blue-500 px-4 py-3 text-base font-medium text-white shadow-sm"
+              className="block rounded-button bg-blue-500 px-4 py-3 text-base font-medium text-white shadow-soft"
             >
               学习
             </a>
             <a
               href="#"
-              className="block rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
+              className="block rounded-button px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
             >
               词库管理
             </a>
             <a
               href="#"
-              className="block rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
+              className="block rounded-button px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
             >
               学习设置
             </a>
             <a
               href="#"
-              className="block rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
+              className="block rounded-button px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
             >
               学习历史
             </a>
@@ -318,7 +318,7 @@ export const MobileMenuOpen: Story = {
               <a
                 key={item}
                 href="#"
-                className="block rounded-lg px-4 py-3 pl-8 text-base font-medium text-gray-700 hover:bg-gray-100"
+                className="block rounded-button px-4 py-3 pl-8 text-base font-medium text-gray-700 hover:bg-gray-100"
               >
                 {item}
               </a>
@@ -328,7 +328,7 @@ export const MobileMenuOpen: Story = {
 
             <a
               href="#"
-              className="block rounded-lg px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
+              className="block rounded-button px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100"
             >
               登录
             </a>
@@ -347,7 +347,7 @@ export const MobileMenuOpen: Story = {
 export const Sticky: Story = {
   render: () => (
     <div className="min-h-[1200px] bg-gray-50">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
             <a href="#" className="flex items-center space-x-2">
@@ -374,7 +374,7 @@ export const Sticky: Story = {
 
       <div className="space-y-4 p-8 pt-24">
         {Array.from({ length: 15 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div key={i} className="rounded-button border border-gray-200 bg-white p-4 shadow-soft">
             <h3 className="font-medium text-gray-900">内容块 {i + 1}</h3>
             <p className="text-gray-600">滚动页面查看导航栏的固定效果。导航栏会保持在页面顶部。</p>
           </div>

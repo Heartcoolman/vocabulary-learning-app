@@ -53,7 +53,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="absolute right-4 top-4 z-20">
       <motion.div
         layout
-        className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900/90 backdrop-blur-md"
+        className="overflow-hidden rounded-card border border-slate-700 bg-slate-900/90 backdrop-blur-md"
         transition={g3SpringSnappy}
       >
         {/* 头部控制栏 */}
@@ -61,7 +61,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           {/* 暂停/播放按钮 */}
           <button
             onClick={onTogglePause}
-            className={`rounded-lg p-2 transition-colors ${
+            className={`rounded-button p-2 transition-colors ${
               isPaused
                 ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
@@ -74,7 +74,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           {/* 故障注入下拉 */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
+            className={`flex items-center gap-2 rounded-button px-3 py-2 transition-colors ${
               isExpanded
                 ? 'bg-amber-500/20 text-amber-400'
                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
@@ -106,10 +106,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     key={option.type}
                     onClick={() => handleInjectFault(option.type)}
                     disabled={isInjecting}
-                    className={`flex w-full items-center gap-3 rounded-lg bg-slate-800/50 p-2.5 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50`}
+                    className={`flex w-full items-center gap-3 rounded-button bg-slate-800/50 p-2.5 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     <div
-                      className="flex h-8 w-8 items-center justify-center rounded-lg"
+                      className="flex h-8 w-8 items-center justify-center rounded-button"
                       style={{ backgroundColor: `${option.color}20` }}
                     >
                       {isInjecting ? (
@@ -133,7 +133,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {/* 最近注入结果 */}
                 {lastInjection && (
-                  <div className="mt-3 rounded-lg border border-slate-700 bg-slate-800/50 p-2.5">
+                  <div className="mt-3 rounded-button border border-slate-700 bg-slate-800/50 p-2.5">
                     <div className="mb-1 text-xs text-slate-400">最近注入结果</div>
                     <div className="text-sm text-amber-400">{lastInjection.expectedOutcome}</div>
                     {lastInjection.guardRailTriggers.length > 0 && (

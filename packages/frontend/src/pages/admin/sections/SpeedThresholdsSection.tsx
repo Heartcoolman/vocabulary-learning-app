@@ -29,7 +29,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">答题速度评分标准</h2>
         <p className="mt-1 text-sm text-gray-600">
@@ -53,7 +53,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
             onChange={(e) => updateThreshold('excellent', parseInt(e.target.value) || 0)}
             min="0"
             step="100"
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           <span className="w-16 text-sm text-gray-600">毫秒</span>
           <span className="w-24 text-sm text-gray-500">
@@ -75,7 +75,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
             onChange={(e) => updateThreshold('good', parseInt(e.target.value) || 0)}
             min="0"
             step="100"
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           <span className="w-16 text-sm text-gray-600">毫秒</span>
           <span className="w-24 text-sm text-gray-500">
@@ -97,7 +97,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
             onChange={(e) => updateThreshold('average', parseInt(e.target.value) || 0)}
             min="0"
             step="100"
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           <span className="w-16 text-sm text-gray-600">毫秒</span>
           <span className="w-24 text-sm text-gray-500">
@@ -119,7 +119,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
             onChange={(e) => updateThreshold('slow', parseInt(e.target.value) || 0)}
             min="0"
             step="100"
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           <span className="w-16 text-sm text-gray-600">毫秒</span>
           <span className="w-24 text-sm text-gray-500">
@@ -128,7 +128,7 @@ export const SpeedThresholdsSection = memo(function SpeedThresholdsSection({
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      <div className="mt-4 rounded-button bg-gray-50 p-3">
         <p className="text-sm text-gray-600">
           <strong>默认值：</strong>
           优秀 &lt; {defaultThresholds.excellent}ms、 良好 &lt; {defaultThresholds.good}ms、 一般

@@ -159,7 +159,7 @@ function ConsensusVisualizer({
     : 0.5;
 
   return (
-    <div className="relative min-h-[240px] overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="relative min-h-[240px] overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 opacity-20" />
 
       <div className="mb-8 flex items-center justify-between">
@@ -217,7 +217,7 @@ function ConsensusVisualizer({
                 style={{ left: `${vote.position * 100}%` }}
               >
                 <div
-                  className={`h-4 w-4 rounded-full border-2 border-white shadow-sm ${ALGO_BG[vote.id] || 'bg-gray-400'}`}
+                  className={`h-4 w-4 rounded-full border-2 border-white shadow-soft ${ALGO_BG[vote.id] || 'bg-gray-400'}`}
                 />
 
                 <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
@@ -234,10 +234,10 @@ function ConsensusVisualizer({
             className="absolute top-[-8px] z-20 -ml-4 flex flex-col items-center"
             style={{ left: `${finalPosition * 100}%` }}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-4 border-rose-500 bg-white shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border-4 border-rose-500 bg-white shadow-elevated">
               <div className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
             </div>
-            <div className="mt-2 rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+            <div className="mt-2 rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white shadow-soft">
               FINAL
             </div>
           </motion.div>
@@ -257,7 +257,7 @@ function DecisionReceipt({ result }: { result: ExtendedSimulateResponse | null }
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative overflow-hidden rounded-xl border-2 border-gray-200/60 bg-white/80 p-0 shadow-sm backdrop-blur-sm"
+      className="relative overflow-hidden rounded-card border-2 border-gray-200/60 bg-white/80 p-0 shadow-soft backdrop-blur-sm"
     >
       <div className="absolute left-0 top-0 h-2 w-full bg-gradient-to-r from-amber-500 to-rose-500 opacity-10" />
 
@@ -426,7 +426,7 @@ export default function SimulationPage() {
             <p className="mt-1 text-gray-500">Interactive Neural Ensemble Simulator</p>
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full border border-gray-200/60 bg-white/80 px-4 py-2 shadow-sm backdrop-blur-sm md:flex">
+          <div className="hidden items-center gap-2 rounded-full border border-gray-200/60 bg-white/80 px-4 py-2 shadow-soft backdrop-blur-sm md:flex">
             <Robot
               size={20}
               className={
@@ -451,7 +451,7 @@ export default function SimulationPage() {
             animate="visible"
             className="space-y-6 lg:col-span-4"
           >
-            <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
                 <Shuffle /> 模拟场景
               </h2>
@@ -460,7 +460,7 @@ export default function SimulationPage() {
                   <button
                     key={s.id}
                     onClick={() => handleScenarioChange(s.id)}
-                    className={`rounded-xl border p-3 text-left transition-all ${
+                    className={`rounded-card border p-3 text-left transition-all ${
                       selectedScenario === s.id
                         ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
                         : 'border-transparent bg-gray-50 hover:bg-gray-100'
@@ -487,7 +487,7 @@ export default function SimulationPage() {
                     <button
                       key={m.id}
                       onClick={() => setSelectedMode(m.id)}
-                      className={`rounded-lg border p-2 text-center transition-all ${
+                      className={`rounded-button border p-2 text-center transition-all ${
                         selectedMode === m.id
                           ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
                           : 'border-transparent bg-gray-50 hover:bg-gray-100'
@@ -520,7 +520,7 @@ export default function SimulationPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h2 className="mb-6 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-400">
                 <Sliders /> 用户状态向量
               </h2>
@@ -569,7 +569,7 @@ export default function SimulationPage() {
             <button
               onClick={runSimulation}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400"
+              className="flex w-full items-center justify-center gap-2 rounded-card bg-indigo-600 py-4 font-bold text-white shadow-elevated shadow-indigo-500/20 transition-all hover:bg-indigo-700 disabled:bg-gray-400"
             >
               {loading ? (
                 <Gear className="animate-spin" size={20} />
@@ -586,7 +586,7 @@ export default function SimulationPage() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <motion.div
                 variants={fadeInVariants}
-                className="rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2"
+                className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm md:col-span-2"
               >
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
                   <Brain className="text-gray-400" /> Neural Logic Trace

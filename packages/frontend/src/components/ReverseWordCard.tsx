@@ -31,7 +31,7 @@ function ReverseWordCard({
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-2xl border border-gray-200/60 bg-white/80 px-10 py-10 shadow-sm backdrop-blur-sm md:px-16 md:py-14"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm md:px-16 md:py-14"
       role="article"
       aria-label="中译英单词卡片"
       data-testid="reverse-word-card"
@@ -96,7 +96,7 @@ function ReverseWordCard({
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               transition={g3SpringSnappy}
-              className={`flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 shadow-lg hover:bg-blue-600 hover:shadow-xl ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
+              className={`flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 hover:shadow-floating ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
               aria-label={isPronouncing ? '正在播放发音' : `播放 ${word.spelling} 的发音`}
               aria-pressed={isPronouncing}
               title="播放发音"

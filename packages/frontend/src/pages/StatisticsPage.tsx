@@ -47,7 +47,7 @@ export default function StatisticsPage() {
           </p>
           <button
             onClick={() => navigate('/')}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             返回学习
           </button>
@@ -68,7 +68,7 @@ export default function StatisticsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-200 hover:scale-105 hover:bg-gray-50 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95"
               aria-label="返回"
             >
               <ArrowLeft size={20} weight="bold" />
@@ -80,7 +80,7 @@ export default function StatisticsPage() {
         {/* 统计卡片 */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* 总学习单词数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated">
             <div className="mb-4 flex items-center justify-between">
               <ChartBar size={32} weight="duotone" color="#3b82f6" />
             </div>
@@ -89,7 +89,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* 整体正确率 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated">
             <div className="mb-4 flex items-center justify-between">
               <Target size={32} weight="duotone" color="#a855f7" />
             </div>
@@ -100,7 +100,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* 学习天数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated">
             <div className="mb-4 flex items-center justify-between">
               <Clock size={32} weight="duotone" color="#f59e0b" />
             </div>
@@ -109,7 +109,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* 连续学习天数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated">
             <div className="mb-4 flex items-center justify-between">
               <TrendUp size={32} weight="duotone" color="#16a34a" />
             </div>
@@ -119,7 +119,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* 掌握程度分布 */}
-        <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+        <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-8 shadow-soft backdrop-blur-sm">
           <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
             <CheckCircle size={24} weight="duotone" color="#3b82f6" />
             掌握程度分布
@@ -132,9 +132,9 @@ export default function StatisticsPage() {
               return (
                 <div key={level} className="flex items-center gap-4">
                   <div className="w-20 text-sm font-medium text-gray-700">{level} 级</div>
-                  <div className="h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="h-8 flex-1 overflow-hidden rounded-button bg-gray-100">
                     <div
-                      className="flex h-full items-center justify-end bg-gradient-to-r from-blue-400 to-blue-600 pr-3 transition-all duration-500"
+                      className="flex h-full items-center justify-end bg-gradient-to-r from-blue-400 to-blue-600 pr-3 transition-all duration-g3-slow"
                       style={{ width: `${percentage}%` }}
                     >
                       {count > 0 && (
@@ -152,7 +152,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* 每日正确率趋势（近似遗忘曲线） */}
-        <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+        <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-8 shadow-soft backdrop-blur-sm">
           <h2 className="mb-6 text-xl font-bold text-gray-900">每日正确率趋势</h2>
           <div className="flex h-64 items-end gap-2 overflow-x-auto pb-4">
             {statistics.dailyAccuracy.length === 0 ? (
@@ -163,7 +163,7 @@ export default function StatisticsPage() {
               statistics.dailyAccuracy.map((point) => (
                 <div key={point.date} className="flex min-w-[40px] flex-col items-center gap-2">
                   <div
-                    className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-300 hover:from-blue-600 hover:to-blue-500"
+                    className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-g3-normal hover:from-blue-600 hover:to-blue-500"
                     style={{ height: `${Math.max(8, point.accuracy * 200)}px` }}
                     title={`${point.date}: ${(point.accuracy * 100).toFixed(1)}%`}
                   />
@@ -180,7 +180,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* 学习热力图（按星期统计） */}
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-8 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-8 shadow-soft backdrop-blur-sm">
           <h2 className="mb-6 text-xl font-bold text-gray-900">每周学习分布</h2>
           <div className="grid grid-cols-7 gap-3">
             {['日', '一', '二', '三', '四', '五', '六'].map((label, idx) => {
@@ -190,7 +190,7 @@ export default function StatisticsPage() {
               return (
                 <div
                   key={label}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-gray-200/60 p-4 transition-all duration-200 hover:shadow-md"
+                  className="flex flex-col items-center gap-2 rounded-card border border-gray-200/60 p-4 transition-all duration-g3-fast hover:shadow-elevated"
                   style={{ backgroundColor: `rgba(59, 130, 246, ${intensity})` }}
                   title={`星期${label}：${count} 次练习`}
                 >

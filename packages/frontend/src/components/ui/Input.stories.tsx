@@ -529,7 +529,7 @@ export const SearchExample: Story = {
           onChange={(e) => handleSearch(e.target.value)}
         />
         {results.length > 0 && (
-          <div className="divide-y rounded-lg border">
+          <div className="divide-y rounded-button border">
             {results.map((item) => (
               <div
                 key={item}
@@ -599,7 +599,7 @@ export const LoginForm: Story = {
         <button
           type="submit"
           disabled={loading || !username || !password}
-          className="mt-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? '登录中...' : '登录'}
         </button>

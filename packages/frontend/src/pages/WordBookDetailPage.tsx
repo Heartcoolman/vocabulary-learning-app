@@ -203,7 +203,7 @@ export default function WordBookDetailPage() {
           <p className="mb-6 text-gray-600">{error || '词书不存在'}</p>
           <button
             onClick={() => navigate('/vocabulary')}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             返回词库列表
           </button>
@@ -222,7 +222,7 @@ export default function WordBookDetailPage() {
           <nav className="mb-6">
             <button
               onClick={() => navigate('/vocabulary')}
-              className="inline-flex items-center rounded-lg px-3 py-2 font-medium text-blue-500 transition-all duration-200 hover:scale-105 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center rounded-button px-3 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="返回词库列表"
             >
               <ArrowLeft size={16} weight="bold" className="mr-2" />
@@ -259,7 +259,7 @@ export default function WordBookDetailPage() {
             {isUserBook && (
               <button
                 onClick={() => setShowAddWord(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-5 py-2.5 font-medium text-white shadow-sm transition-all hover:bg-blue-600 hover:shadow-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-5 py-2.5 font-medium text-white shadow-soft transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label="添加新单词"
               >
                 <Plus size={18} weight="bold" />
@@ -284,7 +284,7 @@ export default function WordBookDetailPage() {
               {isUserBook && (
                 <button
                   onClick={() => setShowAddWord(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-3 font-medium text-white shadow-md transition-all hover:bg-blue-600 hover:shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="inline-flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all hover:bg-blue-600 hover:shadow-elevated focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   aria-label="添加第一个单词"
                 >
                   <Plus size={20} weight="bold" />
@@ -306,7 +306,7 @@ export default function WordBookDetailPage() {
                     onClick={() => handleWordClick(word)}
                     role="gridcell"
                     aria-label={`单词: ${word.spelling}, ${word.phonetic}`}
-                    className="group animate-g3-fade-in cursor-pointer rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:scale-[1.02] hover:border-blue-300 hover:bg-white/95 hover:shadow-lg"
+                    className="group animate-g3-fade-in cursor-pointer rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:scale-[1.02] hover:border-blue-300 hover:bg-white/95 hover:shadow-elevated"
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <div className="space-y-3">
@@ -346,7 +346,7 @@ export default function WordBookDetailPage() {
                           e.stopPropagation();
                           openDeleteConfirm(word.id, word.spelling);
                         }}
-                        className="mt-4 flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
+                        className="mt-4 flex w-full items-center justify-center gap-1 rounded-button px-3 py-2 text-sm font-medium text-red-500 transition-all hover:bg-red-50 hover:text-red-600"
                         aria-label={`删除单词 ${word.spelling}`}
                       >
                         <Trash size={14} weight="bold" />
@@ -360,7 +360,7 @@ export default function WordBookDetailPage() {
               {/* 分页控件 */}
               {totalPages > 1 && (
                 <nav
-                  className="flex flex-col items-center justify-between gap-4 rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:flex-row"
+                  className="flex flex-col items-center justify-between gap-4 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm sm:flex-row"
                   role="navigation"
                   aria-label="分页导航"
                 >
@@ -376,7 +376,7 @@ export default function WordBookDetailPage() {
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="flex h-10 items-center rounded-lg bg-gray-100 px-4 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                      className="flex h-10 items-center rounded-button bg-gray-100 px-4 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                       aria-label="上一页"
                     >
                       <ArrowLeft size={16} weight="bold" className="mr-1" />
@@ -403,9 +403,9 @@ export default function WordBookDetailPage() {
                             onClick={() => handlePageChange(pageNum)}
                             aria-label={`第 ${pageNum} 页`}
                             aria-current={currentPage === pageNum ? 'page' : undefined}
-                            className={`h-10 w-10 rounded-lg font-medium transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 ${
+                            className={`h-10 w-10 rounded-button font-medium transition-all duration-g3-fast hover:scale-105 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 ${
                               currentPage === pageNum
-                                ? 'bg-blue-500 text-white shadow-lg'
+                                ? 'bg-blue-500 text-white shadow-elevated'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             } `}
                           >
@@ -418,7 +418,7 @@ export default function WordBookDetailPage() {
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="flex h-10 items-center rounded-lg bg-gray-100 px-4 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                      className="flex h-10 items-center rounded-button bg-gray-100 px-4 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                       aria-label="下一页"
                     >
                       下一页
@@ -447,7 +447,7 @@ export default function WordBookDetailPage() {
                 />
 
                 {/* 弹窗内容 */}
-                <div className="relative max-h-[85vh] w-full max-w-xl animate-g3-slide-up overflow-hidden rounded-2xl border border-gray-200/60 bg-white/95 shadow-2xl backdrop-blur-md">
+                <div className="relative max-h-[85vh] w-full max-w-xl animate-g3-slide-up overflow-hidden rounded-card border border-gray-200/60 bg-white/95 shadow-2xl backdrop-blur-md">
                   {/* 关闭按钮 */}
                   <button
                     onClick={() => setShowWordDetail(false)}
@@ -471,7 +471,7 @@ export default function WordBookDetailPage() {
                         <button
                           onClick={() => handlePronounceDetail(selectedWord.spelling)}
                           disabled={isPronouncing}
-                          className={`flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 shadow-lg transition-all hover:bg-blue-600 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed ${isPronouncing ? 'animate-pulse' : 'hover:scale-110 active:scale-95'}`}
+                          className={`flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 shadow-elevated transition-all hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed ${isPronouncing ? 'animate-pulse' : 'hover:scale-110 active:scale-95'}`}
                           aria-label={
                             isPronouncing ? '正在播放发音' : `播放 ${selectedWord.spelling} 的发音`
                           }
@@ -552,7 +552,7 @@ export default function WordBookDetailPage() {
                 />
 
                 {/* 弹窗内容 */}
-                <div className="relative max-h-[85vh] w-full max-w-lg animate-g3-slide-up overflow-y-auto rounded-2xl border border-gray-200/60 bg-white p-8 shadow-2xl">
+                <div className="relative max-h-[85vh] w-full max-w-lg animate-g3-slide-up overflow-y-auto rounded-card border border-gray-200/60 bg-white p-8 shadow-2xl">
                   <h2 id="add-word-title" className="mb-6 text-3xl font-bold text-gray-900">
                     添加新单词
                   </h2>
@@ -566,7 +566,7 @@ export default function WordBookDetailPage() {
                         type="text"
                         value={newWord.spelling}
                         onChange={(e) => setNewWord({ ...newWord, spelling: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-button border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                         placeholder="例如：hello"
                         aria-required="true"
                       />
@@ -580,7 +580,7 @@ export default function WordBookDetailPage() {
                         type="text"
                         value={newWord.phonetic}
                         onChange={(e) => setNewWord({ ...newWord, phonetic: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-button border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                         placeholder="例如：həˈloʊ"
                         aria-required="true"
                       />
@@ -596,13 +596,13 @@ export default function WordBookDetailPage() {
                           type="text"
                           value={meaning}
                           onChange={(e) => updateMeaning(idx, e.target.value)}
-                          className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                          className="mb-3 w-full rounded-button border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                           placeholder={`释义 ${idx + 1}`}
                         />
                       ))}
                       <button
                         onClick={addMeaning}
-                        className="flex items-center rounded-lg px-4 py-2 font-medium text-blue-500 transition-all duration-200 hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
+                        className="flex items-center rounded-button px-4 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
                       >
                         <Plus size={16} weight="bold" className="mr-1" />
                         添加更多释义
@@ -617,13 +617,13 @@ export default function WordBookDetailPage() {
                           type="text"
                           value={example}
                           onChange={(e) => updateExample(idx, e.target.value)}
-                          className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                          className="mb-3 w-full rounded-button border border-gray-300 px-4 py-3 text-lg transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                           placeholder={`例句 ${idx + 1}`}
                         />
                       ))}
                       <button
                         onClick={addExample}
-                        className="flex items-center rounded-lg px-4 py-2 font-medium text-blue-500 transition-all duration-200 hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
+                        className="flex items-center rounded-button px-4 py-2 font-medium text-blue-500 transition-all duration-g3-fast hover:scale-105 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
                       >
                         <Plus size={16} weight="bold" className="mr-1" />
                         添加更多例句
@@ -634,7 +634,7 @@ export default function WordBookDetailPage() {
                   <div className="mt-8 flex gap-4">
                     <button
                       onClick={handleAddWord}
-                      className="flex-1 rounded-xl bg-blue-500 px-6 py-3 text-lg font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+                      className="flex-1 rounded-card bg-blue-500 px-6 py-3 text-lg font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
                     >
                       添加单词
                     </button>
@@ -648,7 +648,7 @@ export default function WordBookDetailPage() {
                           examples: [''],
                         });
                       }}
-                      className="flex-1 rounded-xl bg-gray-100 px-6 py-3 text-lg font-medium text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+                      className="flex-1 rounded-card bg-gray-100 px-6 py-3 text-lg font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
                     >
                       取消
                     </button>

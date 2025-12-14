@@ -290,7 +290,7 @@ export default function LogViewerPage() {
               loadStats();
               loadLogs();
             }}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
           >
             重试
           </button>
@@ -307,7 +307,7 @@ export default function LogViewerPage() {
       {stats && (
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
           {/* 总日志数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <File size={32} weight="duotone" className="text-gray-500" />
             </div>
@@ -316,7 +316,7 @@ export default function LogViewerPage() {
           </div>
 
           {/* ERROR 数量 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <XCircle size={32} weight="duotone" className="text-red-500" />
             </div>
@@ -325,7 +325,7 @@ export default function LogViewerPage() {
           </div>
 
           {/* WARN 数量 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <WarningCircle size={32} weight="duotone" className="text-yellow-500" />
             </div>
@@ -334,7 +334,7 @@ export default function LogViewerPage() {
           </div>
 
           {/* 前端日志数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <Info size={32} weight="duotone" className="text-purple-500" />
             </div>
@@ -343,7 +343,7 @@ export default function LogViewerPage() {
           </div>
 
           {/* 后端日志数 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <Info size={32} weight="duotone" className="text-green-500" />
             </div>
@@ -354,13 +354,13 @@ export default function LogViewerPage() {
       )}
 
       {/* 日志列表 */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="rounded-card border border-gray-200 bg-white shadow-soft">
         <div className="border-b border-gray-200 p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">日志列表</h2>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
+              className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
             >
               <MagnifyingGlass size={16} weight="bold" />
               <span>筛选</span>
@@ -374,7 +374,7 @@ export default function LogViewerPage() {
 
           {/* 筛选器 */}
           {showFilters && (
-            <div className="space-y-4 rounded-lg bg-gray-50 p-4">
+            <div className="space-y-4 rounded-button bg-gray-50 p-4">
               {/* 级别多选 */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">日志级别</label>
@@ -383,7 +383,7 @@ export default function LogViewerPage() {
                     <button
                       key={level}
                       onClick={() => handleLevelToggle(level)}
-                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                      className={`rounded-button px-4 py-2 text-sm font-medium transition-all ${
                         filters.levels.includes(level)
                           ? getLevelColor(level)
                           : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -403,7 +403,7 @@ export default function LogViewerPage() {
                   <select
                     value={filters.module || ''}
                     onChange={(e) => handleFilterChange({ module: e.target.value || undefined })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">全部模块</option>
                     {availableModules.map((module) => (
@@ -424,7 +424,7 @@ export default function LogViewerPage() {
                         source: e.target.value as LogSource | undefined,
                       })
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">全部来源</option>
                     <option value="frontend">前端</option>
@@ -440,7 +440,7 @@ export default function LogViewerPage() {
                     value={filters.search || ''}
                     onChange={(e) => handleFilterChange({ search: e.target.value || undefined })}
                     placeholder="搜索日志内容..."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -453,7 +453,7 @@ export default function LogViewerPage() {
                     type="datetime-local"
                     value={filters.startDate || ''}
                     onChange={(e) => handleFilterChange({ startDate: e.target.value || undefined })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -462,7 +462,7 @@ export default function LogViewerPage() {
                     type="datetime-local"
                     value={filters.endDate || ''}
                     onChange={(e) => handleFilterChange({ endDate: e.target.value || undefined })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -562,7 +562,7 @@ export default function LogViewerPage() {
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page === 1}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <CaretLeft size={16} weight="bold" />
                   </button>
@@ -587,7 +587,7 @@ export default function LogViewerPage() {
                           <button
                             key={page}
                             onClick={() => handlePageChange(page)}
-                            className={`rounded-lg px-4 py-2 transition-all ${
+                            className={`rounded-button px-4 py-2 transition-all ${
                               page === pagination.page
                                 ? 'bg-blue-500 text-white'
                                 : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -601,7 +601,7 @@ export default function LogViewerPage() {
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.totalPages}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <CaretRight size={16} weight="bold" />
                   </button>

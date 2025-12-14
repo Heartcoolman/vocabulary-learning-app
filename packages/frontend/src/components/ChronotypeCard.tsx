@@ -73,11 +73,11 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div className="animate-g3-fade-in overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm">
+    <div className="animate-g3-fade-in overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-gray-50 p-6">
         <div className="flex items-center gap-3">
-          <div className={`rounded-xl p-3 ${config.bg} ${config.color}`}>
+          <div className={`rounded-card p-3 ${config.bg} ${config.color}`}>
             <Icon size={24} weight="duotone" />
           </div>
           <div>
@@ -90,7 +90,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
               <div className="ml-1 h-1.5 w-16 overflow-hidden rounded-full bg-gray-200">
                 <div
                   style={{ width: `${profile.confidence * 100}%` }}
-                  className={`h-full bg-gradient-to-r transition-all duration-1000 ease-out ${config.gradient}`}
+                  className={`h-full bg-gradient-to-r transition-all duration-g3-slower ease-g3 ${config.gradient}`}
                 />
               </div>
             </div>
@@ -112,7 +112,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
             <span>23:59</span>
           </div>
 
-          <div className="relative flex h-12 items-end gap-[2px] overflow-hidden rounded-lg border border-gray-100 bg-gray-50 p-1">
+          <div className="relative flex h-12 items-end gap-[2px] overflow-hidden rounded-button border border-gray-100 bg-gray-50 p-1">
             {hours.map((hour) => {
               const isPeak = profile.peakHours.includes(hour);
               return (
@@ -123,7 +123,7 @@ const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ data, type, confidence,
                     opacity: isPeak ? 1 : 0.3,
                     transitionDelay: `${hour * 20}ms`,
                   }}
-                  className={`group relative flex-1 cursor-default rounded-sm transition-all duration-300 ${isPeak ? `bg-gradient-to-t ${config.gradient}` : 'bg-gray-300'} `}
+                  className={`group relative flex-1 cursor-default rounded-sm transition-all duration-g3-normal ${isPeak ? `bg-gradient-to-t ${config.gradient}` : 'bg-gray-300'} `}
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 group-hover:block">

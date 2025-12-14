@@ -159,7 +159,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           tabIndex={disabled ? -1 : 0}
           aria-label="Upload file"
           aria-disabled={disabled}
-          className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center outline-none transition-all duration-200 ease-in-out ${
+          className={`relative flex cursor-pointer flex-col items-center justify-center rounded-card border-2 border-dashed p-8 text-center outline-none transition-all duration-g3-fast ease-g3 ${
             disabled
               ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
               : isDragging
@@ -184,8 +184,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
           </p>
         </div>
       ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm duration-300">
-          <div className="rounded-lg bg-blue-50 p-3">
+        <div className="animate-in fade-in slide-in-from-bottom-2 relative flex items-center gap-4 rounded-card border border-gray-200 bg-white p-4 shadow-soft duration-g3-normal">
+          <div className="rounded-button bg-blue-50 p-3">
             <FileText className="h-6 w-6 text-blue-600" weight="duotone" />
           </div>
 
@@ -200,7 +200,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             type="button"
             onClick={handleRemoveFile}
             disabled={disabled}
-            className="rounded-full p-2 text-gray-400 transition-all duration-200 hover:scale-105 hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
+            className="rounded-full p-2 text-gray-400 transition-all duration-g3-fast hover:scale-105 hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
             aria-label="Remove file"
             title="删除文件"
           >

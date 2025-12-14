@@ -32,13 +32,13 @@ export default function TodayWordsPage() {
   if (error || !plan) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+        <div className="max-w-md rounded-card border border-gray-100 bg-white p-8 text-center shadow-soft">
           <Books size={64} weight="thin" color="#9ca3af" className="mx-auto mb-4" />
           <h2 className="mb-2 text-xl font-bold text-gray-800">无法加载学习计划</h2>
           <p className="mb-6 text-gray-600">{error || '无法生成今日学习计划'}</p>
           <button
             onClick={() => refresh()}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
+            className="rounded-button bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
           >
             重新加载
           </button>
@@ -71,13 +71,13 @@ export default function TodayWordsPage() {
             />
 
             {plan.words.length > 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
                 <h3 className="mb-4 text-lg font-bold text-gray-800">今日单词预览</h3>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   {plan.words.slice(0, 6).map((word, index) => (
                     <div
                       key={word.id}
-                      className="rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-3 transition-colors hover:border-blue-300"
+                      className="rounded-button border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 p-3 transition-colors hover:border-blue-300"
                     >
                       <div className="text-sm font-bold text-blue-600">#{index + 1}</div>
                       <div className="mt-1 font-bold text-gray-900">{word.spelling}</div>
@@ -95,7 +95,7 @@ export default function TodayWordsPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
               <h3 className="mb-4 font-bold text-gray-800">学习统计</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -113,11 +113,11 @@ export default function TodayWordsPage() {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-6 text-white shadow-lg">
+            <div className="relative overflow-hidden rounded-card bg-gradient-to-br from-indigo-600 to-purple-600 p-6 text-white shadow-elevated">
               <div className="relative z-10">
                 <h3 className="mb-1 text-lg font-bold">继续加油！</h3>
                 <p className="mb-4 text-sm text-indigo-100">每天坚持学习，词汇量持续提升</p>
-                <div className="inline-block flex items-center gap-2 rounded-lg bg-white/20 px-3 py-2 backdrop-blur-md">
+                <div className="inline-block flex items-center gap-2 rounded-button bg-white/20 px-3 py-2 backdrop-blur-md">
                   <Books size={20} weight="fill" />
                   <span className="text-sm font-medium">词汇大师之路</span>
                 </div>

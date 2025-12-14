@@ -93,7 +93,9 @@ function errSerializer(err: Error): pino.SerializedError {
 
   // 确保包含错误代码（如果存在）
   if ('code' in err && serialized) {
-    (serialized as pino.SerializedError & { code?: string }).code = (err as Error & { code?: string }).code;
+    (serialized as pino.SerializedError & { code?: string }).code = (
+      err as Error & { code?: string }
+    ).code;
   }
 
   return serialized;
@@ -239,28 +241,37 @@ function createPgWriteStream(): Writable {
         }
 
         const entry = JSON.parse(line);
-        const level = PINO_LEVEL_TO_LOG_LEVEL[entry.level] || 'INFO';
+        let level = 'INFO';
+
+        // 兼容数字级别（Pino标准）和字符串级别（格式化后）
+        if (typeof entry.level === 'number') {
+          level = PINO_LEVEL_TO_LOG_LEVEL[entry.level] || 'INFO';
+        } else if (typeof entry.level === 'string') {
+          level = entry.level.toUpperCase();
+        }
 
         // 异步写入数据库，不阻塞日志流
-        getLogStorageService().then(service => {
-          if (service) {
-            service.writeLog({
-              level,
-              message: entry.msg || '',
-              module: entry.module,
-              source: 'BACKEND',
-              context: entry,
-              error: entry.err,
-              requestId: entry.requestId,
-              userId: entry.userId,
-              app: entry.app || APP_NAME,
-              env: entry.env || NODE_ENV,
-              timestamp: entry.time ? new Date(entry.time) : new Date(),
-            });
-          }
-        }).catch(() => {
-          // 写入失败时静默忽略
-        });
+        getLogStorageService()
+          .then((service) => {
+            if (service) {
+              service.writeLog({
+                level,
+                message: entry.msg || '',
+                module: entry.module,
+                source: 'BACKEND',
+                context: entry,
+                error: entry.err,
+                requestId: entry.requestId,
+                userId: entry.userId,
+                app: entry.app || APP_NAME,
+                env: entry.env || NODE_ENV,
+                timestamp: entry.time ? new Date(entry.time) : new Date(),
+              });
+            }
+          })
+          .catch(() => {
+            // 写入失败时静默忽略
+          });
 
         callback();
       } catch {
@@ -281,10 +292,7 @@ const pgStream = IS_TEST ? undefined : createPgWriteStream();
 let destination: DestinationStream | undefined;
 if (transport && pgStream) {
   // 使用 pino.multistream 同时写入多个目标
-  destination = pino.multistream([
-    { stream: transport },
-    { stream: pgStream },
-  ]);
+  destination = pino.multistream([{ stream: transport }, { stream: pgStream }]);
 } else {
   destination = transport;
 }

@@ -87,12 +87,12 @@ export default function RegisterPage() {
         </div>
 
         {/* 注册表单 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="rounded-button border border-gray-200 bg-white p-6 shadow-soft md:p-8">
           <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
             {/* 错误提示 */}
             {error && (
               <div
-                className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                className="mb-4 rounded-button border border-red-300 bg-red-100 p-3 text-sm text-red-700"
                 role="alert"
                 aria-live="assertive"
               >
@@ -111,7 +111,7 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="您的昵称"
                 autoComplete="name"
                 aria-required="true"
@@ -130,7 +130,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="your@email.com"
                 autoComplete="email"
                 aria-required="true"
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="至少8个字符"
                 autoComplete="new-password"
                 aria-required="true"
@@ -175,7 +175,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="再次输入密码"
                 autoComplete="new-password"
                 aria-required="true"
@@ -187,7 +187,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
               aria-label={loading ? '正在注册...' : '注册'}
             >
               {loading ? (

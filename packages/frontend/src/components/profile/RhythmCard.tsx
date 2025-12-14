@@ -40,14 +40,14 @@ export const RhythmCard: React.FC<RhythmCardProps> = ({ type, avgDuration, prefe
   const meta = getMeta();
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated">
       <div
-        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-500 ${meta.bg}`}
+        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-g3-slow ${meta.bg}`}
       />
 
       <div className="relative z-10">
         <div className="mb-4 flex items-start justify-between">
-          <div className="rounded-xl bg-gray-50 p-3 transition-transform duration-300 group-hover:scale-110">
+          <div className="rounded-card bg-gray-50 p-3 transition-transform duration-g3-normal group-hover:scale-110">
             {meta.icon}
           </div>
         </div>

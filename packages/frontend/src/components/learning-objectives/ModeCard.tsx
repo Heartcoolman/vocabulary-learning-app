@@ -20,10 +20,10 @@ export function ModeCard({ label, description, Icon, isActive, disabled, onClick
     <button
       onClick={onClick}
       disabled={disabled || isActive}
-      className={`group flex flex-col items-center rounded-2xl border-2 p-5 text-center transition-all duration-200 ${
+      className={`group flex flex-col items-center rounded-card border-2 p-5 text-center transition-all duration-g3-fast ${
         isActive
-          ? 'scale-[1.02] border-blue-500 bg-blue-50 shadow-md'
-          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+          ? 'scale-[1.02] border-blue-500 bg-blue-50 shadow-elevated'
+          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-soft'
       } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
     >
       <div

@@ -271,17 +271,17 @@ export const NODE_STATUS_STYLES = {
   processing: {
     border: 'border-sky-500',
     bg: 'bg-sky-900/50',
-    shadow: 'shadow-lg shadow-sky-500/20',
+    shadow: 'shadow-elevated shadow-sky-500/20',
   },
   warning: {
     border: 'border-amber-500',
     bg: 'bg-amber-900/50',
-    shadow: 'shadow-lg shadow-amber-500/20',
+    shadow: 'shadow-elevated shadow-amber-500/20',
   },
   error: {
     border: 'border-red-500',
     bg: 'bg-red-900/50 animate-pulse',
-    shadow: 'shadow-lg shadow-red-500/30',
+    shadow: 'shadow-elevated shadow-red-500/30',
   },
 } as const;
 

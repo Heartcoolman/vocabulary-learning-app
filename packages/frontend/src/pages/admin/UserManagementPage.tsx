@@ -77,7 +77,7 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
             <p className="mb-4 text-red-600">{error}</p>
             <button
               onClick={loadUserDetail}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+              className="rounded-button bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
             >
               重试
             </button>
@@ -125,13 +125,13 @@ function UserQuickViewModal({ userId, isOpen, onClose, onViewDetails }: UserQuic
             <div className="flex gap-3 pt-4">
               <button
                 onClick={handleViewFullDetails}
-                className="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+                className="flex-1 rounded-button bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
               >
                 查看完整详情
               </button>
               <button
                 onClick={onClose}
-                className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200"
+                className="rounded-button bg-gray-100 px-4 py-2 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200"
               >
                 关闭
               </button>
@@ -285,12 +285,12 @@ export default function UserManagementPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyPress={handleSearchKeyPress}
-              className="w-full rounded-lg border border-gray-300 py-3 pl-12 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-button border border-gray-300 py-3 pl-12 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <button
             onClick={handleSearch}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             搜索
           </button>
@@ -299,7 +299,7 @@ export default function UserManagementPage() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4">
           <p className="text-red-600">{error}</p>
         </div>
       )}
@@ -315,14 +315,14 @@ export default function UserManagementPage() {
       ) : (
         <>
           {/* 统计信息 */}
-          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="mb-6 rounded-button border border-blue-200 bg-blue-50 p-4">
             <p className="text-blue-900">
               共找到 <span className="font-bold">{pagination.total}</span> 个用户
             </p>
           </div>
 
           {/* 用户表格 */}
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-button border border-gray-200 bg-white shadow-soft">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="border-b border-gray-200 bg-gray-50">
@@ -432,7 +432,7 @@ export default function UserManagementPage() {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CaretLeft size={16} weight="bold" />
                 </button>
@@ -459,7 +459,7 @@ export default function UserManagementPage() {
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`rounded-lg px-4 py-2 transition-all ${
+                          className={`rounded-button px-4 py-2 transition-all ${
                             page === pagination.page
                               ? 'bg-blue-500 text-white'
                               : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -473,7 +473,7 @@ export default function UserManagementPage() {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CaretRight size={16} weight="bold" />
                 </button>

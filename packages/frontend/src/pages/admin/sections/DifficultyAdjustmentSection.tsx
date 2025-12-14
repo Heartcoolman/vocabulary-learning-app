@@ -40,7 +40,7 @@ export const DifficultyAdjustmentSection = memo(function DifficultyAdjustmentSec
     adjustmentInterval === defaultAdjustmentInterval;
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">难度调整参数</h2>
         <p className="mt-1 text-sm text-gray-600">
@@ -62,7 +62,7 @@ export const DifficultyAdjustmentSection = memo(function DifficultyAdjustmentSec
             max="10"
             value={consecutiveCorrect}
             onChange={(e) => onChange({ consecutiveCorrectThreshold: parseInt(e.target.value) })}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-blue-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500"
           />
           <div className="mt-1 flex justify-between text-xs text-gray-500">
             <span>3 次</span>
@@ -83,7 +83,7 @@ export const DifficultyAdjustmentSection = memo(function DifficultyAdjustmentSec
             max="5"
             value={consecutiveWrong}
             onChange={(e) => onChange({ consecutiveWrongThreshold: parseInt(e.target.value) })}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-red-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-red-500"
           />
           <div className="mt-1 flex justify-between text-xs text-gray-500">
             <span>2 次</span>
@@ -105,7 +105,7 @@ export const DifficultyAdjustmentSection = memo(function DifficultyAdjustmentSec
             onChange={(e) =>
               onChange({ difficultyAdjustmentInterval: parseInt(e.target.value) || 1 })
             }
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
           <p className="mt-2 text-xs text-gray-500">默认值：{defaultAdjustmentInterval} 个会话</p>
         </div>

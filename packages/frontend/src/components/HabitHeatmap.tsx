@@ -84,7 +84,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
             aria-label={`${group.label}: ${getIntensityLabel(group.value)}`}
           >
             <div
-              className={`${getColor(group.value)} cursor-pointer rounded-lg p-4 transition-all duration-200 hover:scale-105 hover:shadow-md`}
+              className={`${getColor(group.value)} cursor-pointer rounded-button p-4 transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated`}
             >
               <div className="mb-1 text-xs font-medium text-gray-700">{group.label}</div>
               <div className="text-sm font-semibold text-gray-900">
@@ -112,7 +112,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
               aria-label={`${hour}:00 - ${hour}:59: ${getIntensityLabel(value)}`}
             >
               <div
-                className={`${getColor(value)} flex aspect-square cursor-pointer flex-col items-center justify-center rounded transition-all duration-200 hover:scale-110 hover:shadow-md`}
+                className={`${getColor(value)} flex aspect-square cursor-pointer flex-col items-center justify-center rounded transition-all duration-g3-fast hover:scale-110 hover:shadow-elevated`}
               >
                 <div className="text-xs font-semibold text-gray-700">{hour}</div>
               </div>

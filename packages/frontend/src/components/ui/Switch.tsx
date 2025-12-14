@@ -116,7 +116,7 @@ export const Switch = memo(
           />
           <span
             className={cn(
-              'pointer-events-none inline-block rounded-full bg-white shadow-sm',
+              'pointer-events-none inline-block rounded-full bg-white shadow-soft',
               'transform transition-transform duration-g3-fast ease-g3',
               thumb,
               isChecked ? translate : thumbOffset,

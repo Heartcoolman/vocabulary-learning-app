@@ -13,7 +13,7 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
 
   return (
     <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-card bg-white shadow-floating">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-2 text-blue-600">
@@ -38,7 +38,7 @@ const StatusModalComponent = ({ isOpen, onClose, refreshTrigger = 0 }: StatusMod
         <div className="flex justify-end bg-gray-50 px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+            className="rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             关闭
           </button>

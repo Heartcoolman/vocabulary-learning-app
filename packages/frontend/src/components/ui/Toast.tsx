@@ -72,7 +72,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex min-w-[280px] max-w-[400px] animate-g3-slide-in-right items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${toastStyles[toast.type]}`}
+              className={`pointer-events-auto flex min-w-[280px] max-w-[400px] animate-g3-slide-in-right items-start gap-3 rounded-button border px-4 py-3 shadow-elevated ${toastStyles[toast.type]}`}
               role="alert"
             >
               <Icon

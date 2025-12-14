@@ -70,7 +70,7 @@ const PredictionResultCard = memo(function PredictionResultCard({
 
   return (
     <div
-      className={`rounded-lg border p-4 ${
+      className={`rounded-button border p-4 ${
         wouldTrigger ? 'border-yellow-200 bg-yellow-50' : 'border-green-200 bg-green-50'
       }`}
     >
@@ -124,7 +124,7 @@ const StateComparisonCard = memo(function StateComparisonCard({
   };
 
   return (
-    <div className="rounded-lg bg-gray-50 p-4">
+    <div className="rounded-button bg-gray-50 p-4">
       <h4 className="mb-3 text-sm font-semibold text-gray-700">状态对比</h4>
       <div className="grid gap-2">
         <div className="flex items-center justify-between text-sm">
@@ -206,7 +206,7 @@ function AMASDetailPanelComponent({
   );
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
@@ -231,7 +231,7 @@ function AMASDetailPanelComponent({
           <button
             type="submit"
             disabled={isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-3 font-medium text-white transition-all duration-200 hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-teal-500 px-4 py-3 font-medium text-white transition-all duration-g3-fast hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -252,7 +252,7 @@ function AMASDetailPanelComponent({
           {/* 错误/信息提示 */}
           {error && (
             <div
-              className={`rounded-lg border p-4 text-sm ${
+              className={`rounded-button border p-4 text-sm ${
                 errorType === 'info'
                   ? 'border-blue-200 bg-blue-50 text-blue-700'
                   : 'border-red-200 bg-red-50 text-red-700'
@@ -275,7 +275,7 @@ function AMASDetailPanelComponent({
               />
 
               {/* 解释说明 */}
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
                 <p className="text-sm text-blue-800">
                   <strong>分析说明：</strong> {result.explanation}
                 </p>

@@ -244,7 +244,7 @@ export default function CausalInferencePage() {
       <div className="grid gap-8 lg:grid-cols-3">
         {/* 左侧：观测记录表单 */}
         <div className="lg:col-span-1">
-          <div className="sticky top-8 rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="sticky top-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
               <Lightbulb size={24} weight="duotone" className="text-yellow-500" />
               记录观测
@@ -259,7 +259,7 @@ export default function CausalInferencePage() {
                   value={features}
                   onChange={(e) => setFeatures(e.target.value)}
                   placeholder="例如: 0.5, 0.8, 0.3"
-                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   disabled={isRecording}
                 />
@@ -271,7 +271,7 @@ export default function CausalInferencePage() {
                 <select
                   value={treatment}
                   onChange={(e) => setTreatment(e.target.value as '0' | '1')}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isRecording}
                 >
                   <option value="0">策略 A (对照组)</option>
@@ -291,7 +291,7 @@ export default function CausalInferencePage() {
                   min="-1"
                   max="1"
                   step="0.01"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isRecording}
                 />
                 <p className="mt-1 text-xs text-gray-500">观测到的学习效果或奖励</p>
@@ -300,7 +300,7 @@ export default function CausalInferencePage() {
               <button
                 type="submit"
                 disabled={isRecording}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-200 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-button bg-blue-500 px-4 py-2 font-medium text-white transition-all duration-g3-fast hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isRecording ? (
                   <>
@@ -321,7 +321,7 @@ export default function CausalInferencePage() {
         {/* 右侧：分析展示 */}
         <div className="space-y-6 lg:col-span-2">
           {/* ATE分析 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                 <ChartBar size={24} weight="duotone" className="text-blue-500" />
@@ -330,7 +330,7 @@ export default function CausalInferencePage() {
               <button
                 onClick={() => loadATE()}
                 disabled={isLoadingATE}
-                className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
                 title="刷新"
               >
                 <ArrowClockwise size={20} weight="bold" />
@@ -349,11 +349,11 @@ export default function CausalInferencePage() {
             ) : ate ? (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-blue-50 p-4">
+                  <div className="rounded-button bg-blue-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">平均处理效应</p>
                     <p className="text-3xl font-bold text-gray-900">{ate.ate.toFixed(4)}</p>
                   </div>
-                  <div className="rounded-lg bg-green-50 p-4">
+                  <div className="rounded-button bg-green-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">标准误</p>
                     <p className="text-3xl font-bold text-gray-900">
                       {ate.standardError.toFixed(4)}
@@ -361,7 +361,7 @@ export default function CausalInferencePage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg bg-purple-50 p-4">
+                <div className="rounded-button bg-purple-50 p-4">
                   <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
@@ -395,22 +395,22 @@ export default function CausalInferencePage() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">样本量</p>
                     <p className="text-xl font-bold text-gray-900">{ate.sampleSize}</p>
                   </div>
-                  <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">有效样本</p>
                     <p className="text-xl font-bold text-gray-900">{ate.effectiveSampleSize}</p>
                   </div>
-                  <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">P 值</p>
                     <p className="text-xl font-bold text-gray-900">{ate.pValue.toFixed(4)}</p>
                   </div>
                 </div>
 
                 <div
-                  className={`rounded-lg p-4 ${
+                  className={`rounded-button p-4 ${
                     ate.significant
                       ? 'border border-green-200 bg-green-50'
                       : 'border border-yellow-200 bg-yellow-50'
@@ -433,7 +433,7 @@ export default function CausalInferencePage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 text-center">
+              <div className="rounded-button border border-yellow-200 bg-yellow-50 p-6 text-center">
                 <Warning size={32} weight="duotone" className="mx-auto mb-2 text-yellow-500" />
                 <p className="font-medium text-yellow-700">样本数据不足</p>
                 <p className="mt-1 text-sm text-yellow-600">
@@ -444,7 +444,7 @@ export default function CausalInferencePage() {
           </div>
 
           {/* 倾向得分诊断 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                 <Lightbulb size={24} weight="duotone" className="text-yellow-500" />
@@ -453,7 +453,7 @@ export default function CausalInferencePage() {
               <button
                 onClick={() => loadDiagnostics()}
                 disabled={isLoadingDiagnostics}
-                className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
                 title="刷新"
               >
                 <ArrowClockwise size={20} weight="bold" />
@@ -473,13 +473,13 @@ export default function CausalInferencePage() {
               <div className="space-y-4">
                 {/* 观测统计 */}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-blue-50 p-4">
+                  <div className="rounded-button bg-blue-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">总观测数量</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {diagnostics.observationCount}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-green-50 p-4">
+                  <div className="rounded-button bg-green-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">处理组分布</p>
                     <div className="flex gap-4">
                       <div>
@@ -500,7 +500,7 @@ export default function CausalInferencePage() {
 
                 {/* 最新估计（如果有） */}
                 {diagnostics.latestEstimate ? (
-                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                  <div className="rounded-button border border-purple-200 bg-purple-50 p-4">
                     <p className="mb-2 text-sm font-medium text-purple-700">最新因果效应估计</p>
                     <div className="grid gap-2 text-sm md:grid-cols-3">
                       <div>
@@ -526,7 +526,7 @@ export default function CausalInferencePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+                  <div className="rounded-button border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
                     <Warning size={16} weight="bold" className="mb-1 inline" />
                     <span className="ml-1">
                       样本不足，无法计算因果效应。至少需要10个观测数据，且处理组和对照组各需至少5个样本。
@@ -540,7 +540,7 @@ export default function CausalInferencePage() {
           </div>
 
           {/* 策略对比 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                 <ChartBar size={24} weight="duotone" className="text-indigo-500" />
@@ -551,11 +551,11 @@ export default function CausalInferencePage() {
             {comparison ? (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-indigo-50 p-4">
+                  <div className="rounded-button bg-indigo-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">效应差异</p>
                     <p className="text-3xl font-bold text-gray-900">{comparison.diff.toFixed(4)}</p>
                   </div>
-                  <div className="rounded-lg bg-indigo-50 p-4">
+                  <div className="rounded-button bg-indigo-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">标准误</p>
                     <p className="text-3xl font-bold text-gray-900">
                       {comparison.standardError.toFixed(4)}
@@ -563,7 +563,7 @@ export default function CausalInferencePage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg bg-pink-50 p-4">
+                <div className="rounded-button bg-pink-50 p-4">
                   <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
                   <p className="text-sm text-gray-700">
                     [{comparison.confidenceInterval[0].toFixed(4)},{' '}
@@ -572,20 +572,20 @@ export default function CausalInferencePage() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">P 值</p>
                     <p className="text-xl font-bold text-gray-900">
                       {comparison.pValue.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">样本量</p>
                     <p className="text-xl font-bold text-gray-900">{comparison.sampleSize}</p>
                   </div>
                 </div>
 
                 <div
-                  className={`rounded-lg p-4 ${
+                  className={`rounded-button p-4 ${
                     comparison.significant
                       ? 'border border-green-200 bg-green-50'
                       : 'border border-yellow-200 bg-yellow-50'
@@ -611,7 +611,7 @@ export default function CausalInferencePage() {
               <button
                 onClick={handleCompareStrategies}
                 disabled={isLoadingComparison}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-3 font-medium text-white transition-all duration-200 hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-button bg-indigo-500 px-4 py-3 font-medium text-white transition-all duration-g3-fast hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoadingComparison ? (
                   <>
@@ -628,7 +628,7 @@ export default function CausalInferencePage() {
             )}
 
             {comparisonError && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="mt-4 rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 {comparisonError}
               </div>
             )}
@@ -637,7 +637,7 @@ export default function CausalInferencePage() {
           {/* 导出按钮 */}
           <button
             onClick={handleExportData}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-3 font-medium text-white transition-all duration-200 hover:bg-green-600"
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-green-500 px-4 py-3 font-medium text-white transition-all duration-g3-fast hover:bg-green-600"
           >
             <FileText size={20} weight="bold" />
             导出分析数据
@@ -646,7 +646,7 @@ export default function CausalInferencePage() {
       </div>
 
       {/* 说明信息 */}
-      <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-6">
+      <div className="mt-8 rounded-card border border-blue-200 bg-blue-50 p-6">
         <h3 className="mb-3 text-lg font-semibold text-blue-900">因果分析说明</h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li>

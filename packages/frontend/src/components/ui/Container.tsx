@@ -215,19 +215,19 @@ const marginYStyles: Record<string, string> = {
 const roundedStyles: Record<string, string> = {
   none: 'rounded-none',
   sm: 'rounded-sm',
-  md: 'rounded-md',
-  lg: 'rounded-lg',
-  xl: 'rounded-xl',
-  '2xl': 'rounded-2xl',
+  md: 'rounded-button',
+  lg: 'rounded-button',
+  xl: 'rounded-card',
+  '2xl': 'rounded-card',
   full: 'rounded-full',
 };
 
 const shadowStyles: Record<string, string> = {
   none: 'shadow-none',
-  sm: 'shadow-sm',
-  md: 'shadow-md',
-  lg: 'shadow-lg',
-  xl: 'shadow-xl',
+  sm: 'shadow-soft',
+  md: 'shadow-elevated',
+  lg: 'shadow-elevated',
+  xl: 'shadow-floating',
   '2xl': 'shadow-2xl',
 };
 

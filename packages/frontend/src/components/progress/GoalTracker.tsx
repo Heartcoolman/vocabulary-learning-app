@@ -21,7 +21,7 @@ export const GoalTracker = ({
     weeklyGoal > 0 ? Math.min(100, Math.round((weeklyProgress / weeklyGoal) * 100)) : 0;
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
       <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
         <Target className="h-6 w-6 text-blue-500" weight="duotone" />
         学习目标追踪
@@ -43,7 +43,7 @@ export const GoalTracker = ({
           <div className="relative">
             <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
               <div
-                className={`h-3 rounded-full transition-all duration-500 ${
+                className={`h-3 rounded-full transition-all duration-g3-slow ${
                   dailyPercentage >= 100
                     ? 'bg-gradient-to-r from-green-400 to-green-600'
                     : 'bg-gradient-to-r from-blue-400 to-blue-600'
@@ -53,7 +53,7 @@ export const GoalTracker = ({
             </div>
             <div className="absolute -top-1 left-1/2 -translate-x-1/2 transform">
               {dailyPercentage >= 50 && (
-                <span className="text-xs font-semibold text-white drop-shadow-md">
+                <span className="drop-shadow-elevated text-xs font-semibold text-white">
                   {dailyPercentage}%
                 </span>
               )}
@@ -88,7 +88,7 @@ export const GoalTracker = ({
           <div className="relative">
             <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
               <div
-                className={`h-3 rounded-full transition-all duration-500 ${
+                className={`h-3 rounded-full transition-all duration-g3-slow ${
                   weeklyPercentage >= 100
                     ? 'bg-gradient-to-r from-green-400 to-green-600'
                     : 'bg-gradient-to-r from-purple-400 to-purple-600'
@@ -104,7 +104,7 @@ export const GoalTracker = ({
         {/* 预计完成时间 */}
         {estimatedDaysToComplete !== null && estimatedDaysToComplete > 0 && (
           <div className="border-t border-gray-100 pt-4">
-            <div className="rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+            <div className="rounded-button bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-indigo-600" weight="bold" />
                 <span className="text-sm font-semibold text-gray-900">完成预测</span>

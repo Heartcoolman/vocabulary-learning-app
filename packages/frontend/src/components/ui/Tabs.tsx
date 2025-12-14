@@ -115,7 +115,7 @@ export const TabsList = memo(
         orientation === 'horizontal'
           ? 'border-b border-gray-200 gap-0'
           : 'border-r border-gray-200 gap-0',
-      pills: 'bg-gray-100 rounded-lg p-1 gap-1',
+      pills: 'bg-gray-100 rounded-button p-1 gap-1',
       enclosed: 'border-b border-gray-200 gap-0',
     };
 
@@ -223,8 +223,8 @@ export const Tab = memo(
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
         ),
         pills: cn(
-          'rounded-md',
-          isSelected ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+          'rounded-button',
+          isSelected ? 'bg-white text-gray-900 shadow-soft' : 'text-gray-500 hover:text-gray-700',
         ),
         enclosed: cn(
           'border border-transparent rounded-t-lg',

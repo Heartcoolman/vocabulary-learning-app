@@ -74,7 +74,7 @@ export const List = memo(
     ) => {
       const variantStyles = {
         default: '',
-        bordered: 'border border-gray-200 rounded-lg overflow-hidden',
+        bordered: 'border border-gray-200 rounded-button overflow-hidden',
         divided: horizontal
           ? '[&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-gray-200'
           : '[&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-gray-200',

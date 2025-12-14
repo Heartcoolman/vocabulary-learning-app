@@ -69,7 +69,7 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
   const level = getMasteryLevel();
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
+    <div className="overflow-hidden rounded-card border border-gray-200 bg-white transition-shadow hover:shadow-elevated">
       <button
         onClick={handleToggle}
         className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
@@ -134,7 +134,7 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
               <>
                 {/* Memory Trace Chart */}
                 {trace && trace.length > 0 && (
-                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                  <div className="rounded-card bg-white p-4 shadow-soft">
                     <h4 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-700">
                       <Fire size={18} className="text-purple-500" />
                       记忆强度轨迹
@@ -145,7 +145,7 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
 
                 {/* Next Review Info */}
                 {nextReview && (
-                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                  <div className="rounded-card bg-white p-4 shadow-soft">
                     <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
                       <Clock size={18} className="text-blue-500" />
                       复习预测
@@ -175,7 +175,7 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
 
                 {/* Mastery Details */}
                 {mastery && (
-                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                  <div className="rounded-card bg-white p-4 shadow-soft">
                     <h4 className="mb-3 text-sm font-bold text-gray-700">详细统计</h4>
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
@@ -198,7 +198,7 @@ const MasteryWordItemComponent: React.FC<MasteryWordItemProps> = ({
                       </div>
                     </div>
                     {mastery.suggestion && (
-                      <div className="mt-4 rounded-lg bg-blue-50 p-3">
+                      <div className="mt-4 rounded-button bg-blue-50 p-3">
                         <p className="text-sm text-blue-700">{mastery.suggestion}</p>
                       </div>
                     )}

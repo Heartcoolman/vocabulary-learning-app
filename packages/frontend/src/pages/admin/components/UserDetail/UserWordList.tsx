@@ -117,7 +117,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
   );
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-card border border-gray-200 bg-white shadow-soft">
       <div className="border-b border-gray-200 p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">单词列表</h2>
@@ -127,7 +127,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
               <button
                 onClick={() => onExport('csv')}
                 disabled={isExporting || isLoading || words.length === 0}
-                className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-white transition-all hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-button bg-green-500 px-4 py-2 text-white transition-all hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
                 title="导出为CSV格式"
               >
                 {isExporting ? (
@@ -147,7 +147,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
               <button
                 onClick={() => onExport('excel')}
                 disabled={isExporting || isLoading || words.length === 0}
-                className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                 title="导出为Excel格式"
               >
                 {isExporting ? (
@@ -167,7 +167,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
             </div>
             <button
               onClick={onToggleFilters}
-              className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
+              className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
             >
               <MagnifyingGlass size={16} weight="bold" />
               <span>筛选和排序</span>
@@ -182,7 +182,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
         {/* 筛选器 */}
         {showFilters && (
-          <div className="grid grid-cols-1 gap-4 rounded-lg bg-gray-50 p-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 rounded-button bg-gray-50 p-4 md:grid-cols-2 lg:grid-cols-4">
             {/* 得分范围 */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">得分范围</label>
@@ -193,7 +193,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     scoreRange: (e.target.value as FilterState['scoreRange']) || undefined,
                   })
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">全部</option>
                 <option value="low">低分 (0-40)</option>
@@ -212,7 +212,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     masteryLevel: e.target.value === '' ? undefined : parseInt(e.target.value),
                   })
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">全部</option>
                 <option value="0">新单词</option>
@@ -234,7 +234,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     state: (e.target.value as FilterState['state']) || undefined,
                   })
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">全部</option>
                 <option value="new">新单词</option>
@@ -255,7 +255,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                       sortBy: e.target.value as FilterState['sortBy'],
                     })
                   }
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="score">单词得分</option>
                   <option value="accuracy">正确率</option>
@@ -264,7 +264,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 </select>
                 <button
                   onClick={onToggleSortOrder}
-                  className="rounded-lg bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200"
+                  className="rounded-button bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200"
                   title={filters.sortOrder === 'asc' ? '升序' : '降序'}
                 >
                   {filters.sortOrder === 'asc' ? (
@@ -408,7 +408,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 <button
                   onClick={() => onPageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CaretLeft size={16} weight="bold" />
                 </button>
@@ -428,7 +428,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                           {showEllipsis && <span className="px-2 text-gray-400">...</span>}
                           <button
                             onClick={() => onPageChange(page)}
-                            className={`rounded-lg px-4 py-2 transition-all ${
+                            className={`rounded-button px-4 py-2 transition-all ${
                               page === pagination.page
                                 ? 'bg-blue-500 text-white'
                                 : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -443,7 +443,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 <button
                   onClick={() => onPageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CaretRight size={16} weight="bold" />
                 </button>

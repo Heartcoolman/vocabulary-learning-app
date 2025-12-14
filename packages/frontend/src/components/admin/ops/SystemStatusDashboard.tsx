@@ -167,7 +167,7 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
 }) => {
   if (loading) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           系统健康状态
         </div>
@@ -178,7 +178,7 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
 
   if (!health) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           系统健康状态
         </div>
@@ -188,11 +188,11 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
   }
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div className="rounded-button bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         系统健康状态
         <span
-          className={`inline-block rounded-xl px-3 py-1 text-xs font-medium text-white ${getStatusClass(health.status)}`}
+          className={`inline-block rounded-card px-3 py-1 text-xs font-medium text-white ${getStatusClass(health.status)}`}
         >
           {health.status === 'healthy' ? '健康' : health.status === 'degraded' ? '降级' : '异常'}
         </span>
@@ -246,7 +246,7 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
 }) => {
   if (loading) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           性能指标
         </div>
@@ -257,7 +257,7 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
 
   if (!metrics) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           性能指标
         </div>
@@ -270,7 +270,7 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
     (metrics.process.memoryUsage.heapUsed / metrics.process.memoryUsage.heapTotal) * 100;
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div className="rounded-button bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         性能指标
       </div>
@@ -328,7 +328,7 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-300">
           <div
-            className={`h-full rounded transition-all duration-300 ${
+            className={`h-full rounded transition-all duration-g3-normal ${
               memoryPercent > 90
                 ? 'bg-red-500'
                 : memoryPercent > 70
@@ -352,7 +352,7 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 }) => {
   if (loading) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           系统信息
         </div>
@@ -363,7 +363,7 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 
   if (!metrics) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           系统信息
         </div>
@@ -373,7 +373,7 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
   }
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div className="rounded-button bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         系统信息
       </div>
@@ -421,7 +421,7 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, loading }) => {
   if (loading) {
     return (
-      <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="rounded-button bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
           活跃告警
         </div>
@@ -431,11 +431,11 @@ const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, l
   }
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div className="rounded-button bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
         活跃告警
         {alerts.length > 0 && (
-          <span className="inline-block rounded-xl bg-red-500 px-3 py-1 text-xs font-medium text-white">
+          <span className="inline-block rounded-card bg-red-500 px-3 py-1 text-xs font-medium text-white">
             {alerts.length}
           </span>
         )}
@@ -564,7 +564,7 @@ export const SystemStatusDashboard: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg bg-red-50 p-5 shadow-sm">
+        <div className="mb-6 rounded-button bg-red-50 p-5 shadow-soft">
           <div className="text-red-500">{error}</div>
         </div>
       )}

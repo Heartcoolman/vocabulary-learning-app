@@ -276,7 +276,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     <div className="p-5">
       {/* 统计面板 */}
       {statistics && (
-        <div className="mb-5 rounded-lg bg-gray-50 p-5">
+        <div className="mb-5 rounded-button bg-gray-50 p-5">
           <h3 className="mb-4 text-lg font-bold">决策统计</h3>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
             <div className="rounded-md border border-gray-200 bg-white p-4">
@@ -343,7 +343,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
       </div>
 
       {/* 决策列表 */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-button border border-gray-200">
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -453,7 +453,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           onClick={closeDetail}
         >
           <div
-            className="max-h-[90vh] w-[90%] max-w-[900px] overflow-auto rounded-xl bg-white"
+            className="max-h-[90vh] w-[90%] max-w-[900px] overflow-auto rounded-card bg-white"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-200 p-5">

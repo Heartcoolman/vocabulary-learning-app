@@ -67,7 +67,7 @@ function SystemVitality({
 }) {
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Target size={80} weight="fill" className="text-emerald-500" />
         </div>
@@ -86,7 +86,7 @@ function SystemVitality({
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Atom size={80} weight="fill" className="text-blue-500" />
         </div>
@@ -103,7 +103,7 @@ function SystemVitality({
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Lightning size={80} weight="fill" className="text-amber-500" />
         </div>
@@ -120,7 +120,7 @@ function SystemVitality({
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Timer size={80} weight="fill" className="text-purple-500" />
         </div>
@@ -161,10 +161,10 @@ function MemberCard({
   const displayTrend = trend || Array(10).fill(50);
 
   return (
-    <div className="animate-g3-fade-in rounded-xl border border-gray-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-5 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated">
       <div className="mb-4 flex items-start justify-between">
         <div
-          className={`rounded-lg bg-current bg-opacity-10 p-2.5 ${config.color.replace('text-', 'bg-')}`}
+          className={`rounded-button bg-current bg-opacity-10 p-2.5 ${config.color.replace('text-', 'bg-')}`}
         >
           <Icon size={24} className={config.color} />
         </div>
@@ -185,7 +185,7 @@ function MemberCard({
           <div
             key={i}
             style={{ height: `${h}%`, transitionDelay: `${i * 50}ms` }}
-            className={`flex-1 rounded-t-sm transition-all duration-500 ${config.color.replace('text-', 'bg-')}`}
+            className={`flex-1 rounded-t-sm transition-all duration-g3-slow ${config.color.replace('text-', 'bg-')}`}
           />
         ))}
       </div>
@@ -208,7 +208,7 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
     .join(' ');
 
   return (
-    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Brain className="text-rose-500" />
         群体掌握度评估
@@ -281,7 +281,7 @@ function LearningModeDistribution({ data }: { data: LearningModeDistributionResp
   };
 
   return (
-    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Target className="text-blue-500" />
         学习模式分布
@@ -298,7 +298,7 @@ function LearningModeDistribution({ data }: { data: LearningModeDistributionResp
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                 <div
                   style={{ width: `${value * 100}%`, transitionDelay: `${idx * 100}ms` }}
-                  className={`h-full ${config.color} rounded-full transition-all duration-700 ease-out`}
+                  className={`h-full ${config.color} rounded-full transition-all duration-g3-slower ease-g3`}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">{config.desc}</p>
@@ -323,7 +323,7 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
   const totalWords = data?.totalWords ?? 0;
 
   return (
-    <div className="animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Timer className="text-purple-500" />
         半衰期分布
@@ -339,7 +339,7 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
             <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
               <div
                 style={{ width: `${item.percentage}%`, transitionDelay: `${idx * 100}ms` }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-700 ease-out"
+                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-g3-slower ease-g3"
               />
             </div>
             <span className="w-10 text-right text-xs text-gray-600">{item.percentage}%</span>
@@ -353,7 +353,7 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
 // 6. 优化事件时间轴 (OptimizationTimeline)
 function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
-    <div className="col-span-1 animate-g3-fade-in rounded-2xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm md:col-span-2">
+    <div className="col-span-1 animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm md:col-span-2">
       <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
         <Flask className="text-amber-500" />
         自进化事件日志

@@ -2,7 +2,11 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, BadgeProgress, NewBadgeResult, BadgeCategory } from '../types/amas-enhanced';
 import BadgeCelebration from '../components/BadgeCelebration';
-import { useAchievements, useCheckNewBadges, useAchievementProgress } from '../hooks/queries/useAchievements';
+import {
+  useAchievements,
+  useCheckNewBadges,
+  useAchievementProgress,
+} from '../hooks/queries/useAchievements';
 import {
   Trophy,
   Star,
@@ -34,13 +38,14 @@ export default function AchievementPage() {
   const { data, isLoading, error, refetch } = useAchievements();
   const checkNewBadgesMutation = useCheckNewBadges();
   const { data: badgeProgress } = useAchievementProgress(
-    selectedBadge && !selectedBadge.unlockedAt ? selectedBadge.id : null
+    selectedBadge && !selectedBadge.unlockedAt ? selectedBadge.id : null,
   );
 
-  const badges = data?.badges.map((badge) => ({
-    ...badge,
-    unlockedAt: badge.unlocked ? badge.unlockedAt : undefined,
-  })) || [];
+  const badges =
+    data?.badges.map((badge) => ({
+      ...badge,
+      unlockedAt: badge.unlocked ? badge.unlockedAt : undefined,
+    })) || [];
   const badgeCount = data?.totalCount || 0;
 
   // 检查并获取新徽章
@@ -173,10 +178,12 @@ export default function AchievementPage() {
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error instanceof Error ? error.message : '加载失败'}</p>
+          <p className="mb-6 text-gray-600">
+            {error instanceof Error ? error.message : '加载失败'}
+          </p>
           <button
             onClick={() => refetch()}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -199,7 +206,7 @@ export default function AchievementPage() {
 
         {/* 统计卡片 */}
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Medal size={24} weight="duotone" color="#ca8a04" />
@@ -211,7 +218,7 @@ export default function AchievementPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Star size={24} weight="duotone" color="#2563eb" />
@@ -223,7 +230,7 @@ export default function AchievementPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle size={24} weight="duotone" color="#16a34a" />
@@ -242,7 +249,7 @@ export default function AchievementPage() {
         <div className="mb-6 flex justify-end gap-3">
           <button
             onClick={() => navigate('/badges')}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-50 active:scale-95"
+            className="flex items-center gap-2 rounded-button border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95"
           >
             <Trophy size={18} weight="bold" />
             查看所有成就
@@ -250,7 +257,7 @@ export default function AchievementPage() {
           <button
             onClick={checkForNewBadges}
             disabled={checkNewBadgesMutation.isPending}
-            className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {checkNewBadgesMutation.isPending ? (
               <>
@@ -270,9 +277,9 @@ export default function AchievementPage() {
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             onClick={() => setActiveCategory('ALL')}
-            className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
+            className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
               activeCategory === 'ALL'
-                ? 'bg-blue-500 text-white shadow-sm'
+                ? 'bg-blue-500 text-white shadow-soft'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -285,9 +292,9 @@ export default function AchievementPage() {
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
                   activeCategory === category
-                    ? 'bg-blue-500 text-white shadow-sm'
+                    ? 'bg-blue-500 text-white shadow-soft'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -315,7 +322,7 @@ export default function AchievementPage() {
                 <div
                   key={badge.id}
                   onClick={() => openBadgeDetail(badge)}
-                  className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  className={`relative cursor-pointer rounded-card border-2 p-4 transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated ${
                     isUnlocked
                       ? `${tierColor.bg} ${tierColor.border}`
                       : 'border-gray-300 bg-gray-100 opacity-60'
@@ -356,7 +363,7 @@ export default function AchievementPage() {
                     <div className="mt-2">
                       <div className="h-1.5 w-full rounded-full bg-gray-300">
                         <div
-                          className="h-1.5 rounded-full bg-blue-500 transition-all duration-500"
+                          className="h-1.5 rounded-full bg-blue-500 transition-all duration-g3-slow"
                           style={{ width: `${badge.progress}%` }}
                         />
                       </div>
@@ -375,13 +382,13 @@ export default function AchievementPage() {
             })}
           </div>
         ) : (
-          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
             <Trophy size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800">暂无徽章</h2>
             <p className="mb-4 text-blue-600">继续学习，解锁更多成就徽章！</p>
             <button
               onClick={() => navigate('/learning')}
-              className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               开始学习
             </button>
@@ -395,7 +402,7 @@ export default function AchievementPage() {
             onClick={closeBadgeDetail}
           >
             <div
-              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl"
+              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 关闭按钮 */}
@@ -466,7 +473,7 @@ export default function AchievementPage() {
 
               {/* 解锁状态 */}
               {selectedBadge.unlockedAt ? (
-                <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+                <div className="rounded-card border border-green-200 bg-green-50 p-4 text-center">
                   <CheckCircle size={24} weight="fill" color="#22c55e" className="mx-auto mb-2" />
                   <p className="font-medium text-green-700">已解锁</p>
                   <p className="text-sm text-green-600">
@@ -474,7 +481,7 @@ export default function AchievementPage() {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="rounded-card border border-gray-200 bg-gray-50 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Info size={20} weight="fill" color="#6b7280" />
                     <span className="font-medium text-gray-700">解锁进度</span>
@@ -483,7 +490,7 @@ export default function AchievementPage() {
                     <>
                       <div className="mb-2 h-3 w-full rounded-full bg-gray-200">
                         <div
-                          className="h-3 rounded-full bg-blue-500 transition-all duration-500"
+                          className="h-3 rounded-full bg-blue-500 transition-all duration-g3-slow"
                           style={{ width: `${badgeProgress.percentage}%` }}
                         />
                       </div>
@@ -503,7 +510,7 @@ export default function AchievementPage() {
               {/* 关闭按钮 */}
               <button
                 onClick={closeBadgeDetail}
-                className="mt-6 w-full rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200"
+                className="mt-6 w-full rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200"
               >
                 关闭
               </button>

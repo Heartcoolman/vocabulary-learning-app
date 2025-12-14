@@ -68,7 +68,7 @@ function FlashCard({
       >
         {/* 正面 - 单词 */}
         <div
-          className="flex min-h-[440px] flex-col items-center justify-center rounded-2xl border border-gray-200/60 bg-white/80 px-10 py-10 shadow-sm backdrop-blur-sm"
+          className="flex min-h-[440px] flex-col items-center justify-center rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm"
           style={{
             backfaceVisibility: 'hidden',
             pointerEvents: isFlipped ? 'none' : 'auto',
@@ -83,7 +83,7 @@ function FlashCard({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             transition={g3SpringSnappy}
-            className={`mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isPronouncing ? 'animate-pulse' : ''}`}
+            className={`mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isPronouncing ? 'animate-pulse' : ''}`}
             aria-label="播放发音"
           >
             <SpeakerHigh size={32} weight="fill" className="text-white" />
@@ -97,7 +97,7 @@ function FlashCard({
 
         {/* 背面 - 释义 */}
         <div
-          className="absolute inset-0 flex min-h-[440px] flex-col items-center justify-center rounded-2xl border border-gray-200/60 bg-white/80 px-10 py-10 shadow-sm backdrop-blur-sm"
+          className="absolute inset-0 flex min-h-[440px] flex-col items-center justify-center rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm"
           style={{
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
@@ -116,7 +116,7 @@ function FlashCard({
                 e.stopPropagation();
                 onUnknown();
               }}
-              className="flex items-center gap-2 rounded-xl bg-red-100 px-8 py-4 text-lg font-medium text-red-700 transition-all duration-200 hover:scale-105 hover:bg-red-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
+              className="flex items-center gap-2 rounded-card bg-red-100 px-8 py-4 text-lg font-medium text-red-700 transition-all duration-g3-fast hover:scale-105 hover:bg-red-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
               aria-label="标记为不认识"
             >
               <X size={20} /> 不认识 (2)
@@ -126,7 +126,7 @@ function FlashCard({
                 e.stopPropagation();
                 onKnown();
               }}
-              className="flex items-center gap-2 rounded-xl bg-green-100 px-8 py-4 text-lg font-medium text-green-700 transition-all duration-200 hover:scale-105 hover:bg-green-200 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 active:scale-95"
+              className="flex items-center gap-2 rounded-card bg-green-100 px-8 py-4 text-lg font-medium text-green-700 transition-all duration-g3-fast hover:scale-105 hover:bg-green-200 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 active:scale-95"
               aria-label="标记为认识"
             >
               <Check size={20} /> 认识 (1)

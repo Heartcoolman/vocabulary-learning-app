@@ -186,7 +186,7 @@ export const LearningObjectivesPage: React.FC = () => {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="mb-4 flex items-center gap-3 rounded-button border border-red-200 bg-red-50 p-4 text-red-700">
           <Warning size={20} weight="bold" className="flex-shrink-0" />
           <p className="font-medium">{error}</p>
         </div>
@@ -194,14 +194,14 @@ export const LearningObjectivesPage: React.FC = () => {
 
       {/* 成功提示 */}
       {successMessage && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
+        <div className="mb-4 flex items-center gap-3 rounded-button border border-green-200 bg-green-50 p-4 text-green-700">
           <CheckCircle size={20} weight="bold" className="flex-shrink-0" />
           <p className="font-medium">{successMessage}</p>
         </div>
       )}
 
       {/* 学习模式选择 */}
-      <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft">
         <h2 className="mb-4 text-xl font-bold text-gray-900">学习模式</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {(Object.keys(MODE_CONFIGS) as LearningObjectiveMode[]).map((mode) => (
@@ -221,7 +221,7 @@ export const LearningObjectivesPage: React.FC = () => {
 
       {/* 自定义权重配置 */}
       {objectives.mode === 'custom' && (
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <section className="mb-8 rounded-card border border-gray-100 bg-white p-6 shadow-soft">
           <h2 className="mb-6 text-xl font-bold text-gray-900">权重配置</h2>
 
           <WeightSlider
@@ -247,7 +247,7 @@ export const LearningObjectivesPage: React.FC = () => {
 
           {/* 权重总和提示 */}
           <div
-            className={`mb-6 rounded-lg p-3 text-center font-semibold ${
+            className={`mb-6 rounded-button p-3 text-center font-semibold ${
               isWeightValid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
             }`}
           >
@@ -259,7 +259,7 @@ export const LearningObjectivesPage: React.FC = () => {
           <button
             onClick={handleSaveCustom}
             disabled={saving || !isWeightValid}
-            className={`w-full rounded-lg px-6 py-3 text-base font-bold text-white transition-all ${
+            className={`w-full rounded-button px-6 py-3 text-base font-bold text-white transition-all ${
               saving || !isWeightValid
                 ? 'cursor-not-allowed bg-gray-400'
                 : 'bg-blue-500 hover:bg-blue-600 active:scale-[0.98]'

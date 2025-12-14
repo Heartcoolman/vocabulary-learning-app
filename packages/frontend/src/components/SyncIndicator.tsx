@@ -99,7 +99,7 @@ function SyncIndicatorComponent() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="max-w-sm animate-g3-fade-in rounded-lg border border-gray-200/50 bg-white/90 p-4 shadow-lg backdrop-blur-md">
+      <div className="max-w-sm animate-g3-fade-in rounded-button border border-gray-200/50 bg-white/90 p-4 shadow-elevated backdrop-blur-md">
         {/* 主状态 */}
         <div
           className="flex cursor-pointer items-center gap-3"

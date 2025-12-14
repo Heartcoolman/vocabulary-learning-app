@@ -137,7 +137,7 @@ export const AllVariants: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 p-8">
+      <div className="rounded-card bg-gradient-to-br from-blue-50 to-purple-50 p-8">
         <Story />
       </div>
     ),
@@ -204,7 +204,7 @@ export const Glass: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 p-8">
+      <div className="rounded-card bg-gradient-to-br from-blue-400 to-purple-500 p-8">
         <Story />
       </div>
     ),
@@ -641,7 +641,7 @@ export const CardGrid: Story = {
     <div className="grid grid-cols-3 gap-4">
       {[1, 2, 3, 4, 5, 6].map((i) => (
         <Card key={i} clickable className="w-48">
-          <div className="mb-3 flex h-24 items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-200">
+          <div className="mb-3 flex h-24 items-center justify-center rounded-button bg-gradient-to-br from-blue-100 to-blue-200">
             <span className="text-2xl">🎯</span>
           </div>
           <h3 className="font-semibold text-gray-900">项目 {i}</h3>

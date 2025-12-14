@@ -115,9 +115,9 @@ function StageCard({
     <motion.div
       layout
       onClick={onClick}
-      className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-colors duration-300 ${
+      className={`relative cursor-pointer overflow-hidden rounded-card border transition-colors duration-g3-normal ${
         isOpen
-          ? 'border-slate-300 bg-white shadow-lg'
+          ? 'border-slate-300 bg-white shadow-elevated'
           : 'border-slate-200 bg-white/60 hover:border-slate-300 hover:bg-white/80'
       } `}
       initial={false}
@@ -132,13 +132,13 @@ function StageCard({
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className={`rounded-xl p-3 transition-colors duration-200 ${isOpen ? `${bgColor} text-slate-700` : 'bg-slate-100 text-slate-500'} `}
+              className={`rounded-card p-3 transition-colors duration-g3-fast ${isOpen ? `${bgColor} text-slate-700` : 'bg-slate-100 text-slate-500'} `}
             >
               {icon}
             </div>
             <div>
               <h3
-                className={`text-lg font-bold transition-colors duration-200 ${isOpen ? 'text-slate-900' : 'text-slate-700'} `}
+                className={`text-lg font-bold transition-colors duration-g3-fast ${isOpen ? 'text-slate-900' : 'text-slate-700'} `}
               >
                 {title}
                 <span className="ml-2 text-sm font-normal text-slate-400">{subtitle}</span>

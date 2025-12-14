@@ -110,7 +110,7 @@ export const Stat = memo(
           {icon && direction === 'horizontal' && (
             <div
               className={cn(
-                'flex items-center justify-center rounded-lg bg-gray-100 text-gray-600',
+                'flex items-center justify-center rounded-button bg-gray-100 text-gray-600',
                 styles.icon,
               )}
             >
@@ -176,9 +176,9 @@ export const StatCard = memo(
       return (
         <div
           className={cn(
-            'rounded-lg bg-white p-4',
+            'rounded-button bg-white p-4',
             bordered && 'border border-gray-200',
-            shadow && 'shadow-sm',
+            shadow && 'shadow-soft',
             className,
           )}
         >

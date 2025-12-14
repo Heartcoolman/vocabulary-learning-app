@@ -56,10 +56,12 @@ export const MilestoneCard = ({ milestone }: MilestoneCardProps) => {
 
   return (
     <div
-      className={`${colors.bg} ${colors.border} rounded-xl border p-5 transition-all duration-200 hover:shadow-md`}
+      className={`${colors.bg} ${colors.border} rounded-card border p-5 transition-all duration-g3-fast hover:shadow-elevated`}
     >
       <div className="mb-3 flex items-start justify-between">
-        <div className={`h-10 w-10 ${colors.progress} flex items-center justify-center rounded-lg`}>
+        <div
+          className={`h-10 w-10 ${colors.progress} flex items-center justify-center rounded-button`}
+        >
           <Icon className="h-5 w-5 text-white" />
         </div>
         {milestone.achieved && (
@@ -82,7 +84,7 @@ export const MilestoneCard = ({ milestone }: MilestoneCardProps) => {
 
         <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
           <div
-            className={`${colors.progress} h-2 rounded-full transition-all duration-500`}
+            className={`${colors.progress} h-2 rounded-full transition-all duration-g3-slow`}
             style={{ width: `${percentage}%` }}
           />
         </div>

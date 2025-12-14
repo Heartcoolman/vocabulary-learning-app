@@ -37,7 +37,7 @@ export const DecisionTooltip: React.FC<Props> = ({ explanation }) => {
 
           {/* Tooltip内容 */}
           <div
-            className="absolute left-0 top-full z-50 mt-2 w-96 animate-g3-scale-in rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+            className="absolute left-0 top-full z-50 mt-2 w-96 animate-g3-scale-in rounded-button border border-gray-200 bg-white p-4 shadow-elevated"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 主要原因 */}

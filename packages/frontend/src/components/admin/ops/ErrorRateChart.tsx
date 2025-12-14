@@ -295,7 +295,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
   }, [data]);
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div className="rounded-button bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="m-0 text-base font-semibold text-gray-800">错误率趋势</h3>
         <div className="flex gap-2">

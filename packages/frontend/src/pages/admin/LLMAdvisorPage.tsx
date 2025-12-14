@@ -191,7 +191,7 @@ export default function LLMAdvisorPage() {
         <button
           onClick={handleTrigger}
           disabled={triggering || !config?.enabled}
-          className="flex items-center gap-2 rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-button bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {triggering ? (
             <CircleNotch className="animate-spin" size={18} />
@@ -205,7 +205,7 @@ export default function LLMAdvisorPage() {
       {/* 状态卡片 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* 配置状态 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
             <Gear size={20} className="text-gray-500" />
             <span className="font-medium">配置状态</span>
@@ -233,7 +233,7 @@ export default function LLMAdvisorPage() {
         </div>
 
         {/* Worker 状态 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
             <ArrowsClockwise size={20} className="text-gray-500" />
             <span className="font-medium">Worker 状态</span>
@@ -263,7 +263,7 @@ export default function LLMAdvisorPage() {
         </div>
 
         {/* 健康状态 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
             <Brain size={20} className="text-gray-500" />
             <span className="font-medium">LLM 服务</span>
@@ -296,7 +296,7 @@ export default function LLMAdvisorPage() {
       </div>
 
       {/* 建议列表 */}
-      <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="rounded-card border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h2 className="font-semibold text-gray-900">
             建议列表{' '}
@@ -306,7 +306,7 @@ export default function LLMAdvisorPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm"
             >
               <option value="all">全部</option>
               <option value="pending">待审核</option>
@@ -314,7 +314,7 @@ export default function LLMAdvisorPage() {
               <option value="rejected">已拒绝</option>
               <option value="partial">部分采纳</option>
             </select>
-            <button onClick={loadData} className="rounded-lg p-2 hover:bg-gray-100">
+            <button onClick={loadData} className="rounded-button p-2 hover:bg-gray-100">
               <ArrowsClockwise size={18} />
             </button>
           </div>
@@ -408,7 +408,7 @@ function SuggestionRow({
             <span>数据质量: {suggestion.parsedSuggestion.dataQuality}</span>
           </div>
         </div>
-        <button onClick={onView} className="rounded-lg p-2 hover:bg-gray-100">
+        <button onClick={onView} className="rounded-button p-2 hover:bg-gray-100">
           <Eye size={20} />
         </button>
       </div>
@@ -463,12 +463,12 @@ function SuggestionDetail({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-card bg-white">
         {/* 头部 */}
         <div className="border-b border-gray-200 p-6">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">建议详情</h2>
-            <button onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100">
+            <button onClick={onClose} className="rounded-button p-2 hover:bg-gray-100">
               <XCircle size={24} />
             </button>
           </div>
@@ -479,7 +479,7 @@ function SuggestionDetail({
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {/* 分析结果 */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-green-50 p-4">
+            <div className="rounded-button bg-green-50 p-4">
               <h3 className="mb-2 font-medium text-green-800">关键发现</h3>
               <ul className="space-y-1 text-sm text-green-700">
                 {suggestion.parsedSuggestion.analysis.keyFindings.map((finding, i) => (
@@ -487,7 +487,7 @@ function SuggestionDetail({
                 ))}
               </ul>
             </div>
-            <div className="rounded-lg bg-orange-50 p-4">
+            <div className="rounded-button bg-orange-50 p-4">
               <h3 className="mb-2 font-medium text-orange-800">需关注问题</h3>
               <ul className="space-y-1 text-sm text-orange-700">
                 {suggestion.parsedSuggestion.analysis.concerns.map((concern, i) => (
@@ -519,7 +519,7 @@ function SuggestionDetail({
               {suggestion.parsedSuggestion.suggestions.map((item) => (
                 <div
                   key={item.id}
-                  className={`overflow-hidden rounded-lg border ${
+                  className={`overflow-hidden rounded-button border ${
                     isPending && selectedItems.has(item.id)
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200'
@@ -585,7 +585,7 @@ function SuggestionDetail({
           </div>
 
           {/* 下周关注 */}
-          <div className="rounded-lg bg-blue-50 p-4">
+          <div className="rounded-button bg-blue-50 p-4">
             <h3 className="mb-1 font-medium text-blue-800">下周关注重点</h3>
             <p className="text-sm text-blue-700">{suggestion.parsedSuggestion.nextReviewFocus}</p>
           </div>
@@ -601,14 +601,14 @@ function SuggestionDetail({
               <button
                 onClick={onReject}
                 disabled={rejecting || approving}
-                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-button border border-gray-300 px-4 py-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {rejecting ? '拒绝中...' : '全部拒绝'}
               </button>
               <button
                 onClick={onApprove}
                 disabled={selectedItems.size === 0 || approving || rejecting}
-                className="rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-button bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {approving ? '应用中...' : `应用选中项 (${selectedItems.size})`}
               </button>
