@@ -11,38 +11,36 @@ import {
   StrategyParams,
   ColdStartPhase,
 } from '../amas';
-import { FlowDetector, FlowState } from '../amas/models/flow-detector';
-import { EmotionDetector, EmotionState, BehaviorSignals } from '../amas/models/emotion-detector';
-import { cachedStateRepository, cachedModelRepository } from '../repositories';
+import { cachedStateRepository, cachedModelRepository } from '../amas/repositories';
 import {
   getFeatureFlags,
   getFeatureFlagsSummary,
   isEnsembleEnabled,
   isCausalInferenceEnabled,
   isBayesianOptimizerEnabled,
+  applyExperimentOverrides,
+  getUserFeatureFlags,
+  clearUserFeatureFlagOverrides,
 } from '../amas/config/feature-flags';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import { recordFeatureVectorSaved } from './metrics.service';
 import prisma from '../config/database';
 import { delayedRewardService } from './delayed-reward.service';
 import { stateHistoryService } from './state-history.service';
-import { userProfileService } from './user-profile.service';
+import { habitProfileService } from './habit-profile.service';
 import { evaluationService } from './evaluation.service';
+import { experimentService } from './experiment.service';
 import { Prisma, WordState } from '@prisma/client';
 import { LearningObjectivesService } from './learning-objectives.service';
 import { LearningObjectives } from '../amas/types';
-import { updateHalfLife, computeOptimalInterval } from '../amas/models/forgetting-curve';
+import { updateHalfLife, computeOptimalInterval } from '../amas/modeling/forgetting-curve';
 import { serviceLogger } from '../logger';
+import { defaultVisualFatigueProcessor } from '../amas/modeling';
+import { behaviorFatigueService } from './behavior-fatigue.service';
+import type { ProcessedVisualFatigueData, VisualCognitiveSignals } from '@danci/shared';
 
 class AMASService {
   private engine: AMASEngine;
-
-  // 检测器实例（共享）
-  private readonly flowDetector: FlowDetector;
-  private readonly emotionDetector: EmotionDetector;
-
-  // 用户最近事件缓存（用于心流和情绪检测）
-  private readonly userRecentEvents: Map<string, RawEvent[]> = new Map();
 
   // 延迟奖励配置
   private readonly MIN_DELAY_MS = 60_000; // 最小延迟60秒
@@ -65,12 +63,8 @@ class AMASService {
       prisma,
     });
 
-    // 初始化检测器
-    this.flowDetector = new FlowDetector();
-    this.emotionDetector = new EmotionDetector();
-
     // 记录功能开关状态
-    serviceLogger.info('AMAS Service初始化完成（已启用心流和情绪检测）');
+    serviceLogger.info('AMAS Service初始化完成');
     serviceLogger.info({ summary: getFeatureFlagsSummary() }, '功能开关状态');
   }
 
@@ -240,10 +234,14 @@ class AMASService {
       // P2024: 连接池等待超时；P2034: 事务被中断/超时
       return error.code === 'P2024' || error.code === 'P2034';
     }
-    return (
-      error instanceof Error &&
-      error.message.includes('Unable to start a transaction in the given time')
-    );
+    if (error instanceof Error) {
+      // 乐观锁冲突也应该重试
+      if (error.message.includes('OPTIMISTIC_LOCK_CONFLICT')) {
+        return true;
+      }
+      return error.message.includes('Unable to start a transaction in the given time');
+    }
+    return false;
   }
 
   /**
@@ -257,7 +255,7 @@ class AMASService {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await userProfileService.persistHabitProfile(userId);
+        await habitProfileService.persistHabitProfile(userId);
         serviceLogger.info({ userId, attempt }, '习惯画像持久化成功');
         return;
       } catch (error) {
@@ -317,11 +315,57 @@ class AMASService {
     };
 
     // 记录学习时间事件（用于习惯画像）
-    userProfileService.recordTimeEvent(userId, rawEvent.timestamp);
+    habitProfileService.recordTimeEvent(userId, rawEvent.timestamp);
+
+    // ==================== A/B 测试实验集成 ====================
+    // 获取用户参与的活跃实验并应用变体参数
+    let userExperiments: Array<{
+      experimentId: string;
+      experimentName: string;
+      variantId: string;
+      variantName: string;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }> = [];
+
+    try {
+      userExperiments = await experimentService.getUserActiveExperiments(userId);
+
+      // 先清除旧的用户覆盖，再合并所有活跃实验的参数
+      // 这样可以确保：1) 实验停止后覆盖被清理  2) 多个实验的参数能正确叠加
+      clearUserFeatureFlagOverrides(userId);
+
+      // 合并所有活跃实验的参数
+      const mergedOverrides: Record<string, unknown> = {};
+      for (const exp of userExperiments) {
+        if (exp.parameters && Object.keys(exp.parameters).length > 0) {
+          Object.assign(mergedOverrides, exp.parameters);
+          serviceLogger.debug(
+            {
+              userId,
+              experimentId: exp.experimentId,
+              variantId: exp.variantId,
+              parameters: exp.parameters,
+            },
+            '[A/B Test] 合并实验变体参数',
+          );
+        }
+      }
+
+      // 一次性应用合并后的参数
+      if (Object.keys(mergedOverrides).length > 0) {
+        applyExperimentOverrides(userId, mergedOverrides);
+        serviceLogger.debug({ userId, mergedOverrides }, '[A/B Test] 已应用合并后的实验参数');
+      }
+    } catch (error) {
+      // 实验获取失败不影响主流程
+      serviceLogger.warn({ err: error, userId }, '[A/B Test] 获取用户实验失败');
+    }
+    // ==================== A/B 测试实验集成结束 ====================
 
     // 定期自动持久化习惯画像（每 10 个事件检查一次）
     // 使用异步方式，不阻塞主流程，带重试机制
-    const profile = userProfileService.getHabitProfile(userId);
+    const profile = habitProfileService.getHabitProfile(userId);
     if (profile.samples.timeEvents >= 10 && profile.samples.timeEvents % 10 === 0) {
       this.persistHabitProfileWithRetry(userId).catch((error) => {
         serviceLogger.warn({ err: error, userId }, '习惯画像自动持久化最终失败');
@@ -364,23 +408,46 @@ class AMASService {
     }
 
     // 并行获取当前策略、统计、学习目标和单词复习历史
-    // 这些查询相互独立，可以并行执行以提升性能
-    const [currentStrategy, stats, learningObjectivesResult, wordReviewHistory] = await Promise.all(
-      [
+    // 使用 Promise.allSettled 确保部分查询失败不会影响其他查询
+    const [currentStrategyResult, statsResult, learningObjectivesResult, wordReviewHistoryResult] =
+      await Promise.allSettled([
         this.getCurrentStrategy(userId),
         this.getUserStats(userId),
-        sessionId
-          ? LearningObjectivesService.getUserObjectives(userId).catch((error) => {
-              serviceLogger.warn({ err: error, userId }, '获取学习目标失败');
-              return null;
-            })
-          : Promise.resolve(null),
+        sessionId ? LearningObjectivesService.getUserObjectives(userId) : Promise.resolve(null),
         this.getWordReviewHistory(userId, event.wordId),
-      ],
-    );
+      ]);
+
+    // 安全解包结果，失败时使用默认值
+    const currentStrategy =
+      currentStrategyResult.status === 'fulfilled' ? currentStrategyResult.value : null;
+
+    const stats =
+      statsResult.status === 'fulfilled'
+        ? statsResult.value
+        : { interactionCount: 0, recentAccuracy: 0.5 }; // 默认统计值
+
+    const learningObjectivesValue =
+      learningObjectivesResult.status === 'fulfilled' ? learningObjectivesResult.value : null;
+
+    const wordReviewHistory =
+      wordReviewHistoryResult.status === 'fulfilled' ? wordReviewHistoryResult.value : [];
+
+    // 记录失败的查询（用于调试）
+    if (currentStrategyResult.status === 'rejected') {
+      serviceLogger.warn({ err: currentStrategyResult.reason, userId }, '获取当前策略失败');
+    }
+    if (statsResult.status === 'rejected') {
+      serviceLogger.warn({ err: statsResult.reason, userId }, '获取用户统计失败，使用默认值');
+    }
+    if (learningObjectivesResult.status === 'rejected') {
+      serviceLogger.warn({ err: learningObjectivesResult.reason, userId }, '获取学习目标失败');
+    }
+    if (wordReviewHistoryResult.status === 'rejected') {
+      serviceLogger.warn({ err: wordReviewHistoryResult.reason, userId }, '获取单词复习历史失败');
+    }
 
     // 获取学习目标和会话统计（用于多目标优化）
-    let learningObjectives: LearningObjectives | undefined = learningObjectivesResult ?? undefined;
+    let learningObjectives: LearningObjectives | undefined = learningObjectivesValue ?? undefined;
     let sessionStats: Awaited<ReturnType<AMASService['getSessionStats']>> | undefined = undefined;
 
     // 会话统计依赖学习目标，需要串行获取
@@ -390,6 +457,59 @@ class AMASService {
       } catch (error) {
         serviceLogger.warn({ err: error, userId }, '获取会话统计失败');
       }
+    }
+
+    // 获取视觉疲劳数据（用于融合疲劳计算）
+    let visualFatigueData: ProcessedVisualFatigueData | undefined;
+    let studyDurationMinutes: number | undefined;
+    try {
+      const visualData = defaultVisualFatigueProcessor.getLatest(userId);
+
+      // Fallback 逻辑：当视觉数据无效时，尝试使用降级数据
+      // 最大过期时间 120 秒（2分钟），超过此时间完全跳过视觉疲劳
+      const MAX_STALE_DATA_MS = 120_000;
+
+      if (visualData && visualData.isValid) {
+        // 正常情况：使用新鲜的有效数据
+        visualFatigueData = this.buildVisualFatigueData(userId, visualData);
+      } else if (visualData && !visualData.isValid) {
+        // Fallback：数据存在但已过期，检查是否在可接受范围内
+        const staleDuration = Date.now() - visualData.timestamp;
+
+        if (staleDuration < MAX_STALE_DATA_MS) {
+          // 在可接受范围内，使用过期数据但降低置信度
+          const confidenceReduction = staleDuration / MAX_STALE_DATA_MS; // 0 -> 1
+          const adjustedConfidence = visualData.confidence * (1 - confidenceReduction * 0.5);
+
+          serviceLogger.info(
+            {
+              userId,
+              staleDuration: Math.round(staleDuration / 1000),
+              originalConfidence: visualData.confidence.toFixed(2),
+              adjustedConfidence: adjustedConfidence.toFixed(2),
+            },
+            '[AMAS] 使用过期视觉数据（降低置信度）',
+          );
+
+          // 标记为有效以便后续处理，但置信度已调整
+          const adjustedVisualData = {
+            ...visualData,
+            confidence: adjustedConfidence,
+            isValid: true, // 标记为有效以便进入处理流程
+          };
+          visualFatigueData = this.buildVisualFatigueData(userId, adjustedVisualData);
+        } else {
+          // 数据过期太久，完全跳过
+          serviceLogger.debug(
+            { userId, staleDuration: Math.round(staleDuration / 1000) },
+            '[AMAS] 视觉数据过期太久，跳过融合疲劳',
+          );
+        }
+      }
+
+      studyDurationMinutes = await behaviorFatigueService.getStudyDurationMinutes(userId);
+    } catch (error) {
+      serviceLogger.warn({ err: error, userId }, '获取视觉疲劳数据失败');
     }
 
     // 处理事件（多目标优化在引擎内部完成）
@@ -402,53 +522,9 @@ class AMASService {
       learningObjectives,
       sessionStats,
       wordReviewHistory,
+      visualFatigueData,
+      studyDurationMinutes,
     });
-
-    // ==================== 心流检测 ====================
-    let flowState: FlowState | undefined;
-    try {
-      // 更新用户最近事件缓存（保留最近20个事件用于心流检测）
-      const recentEvents = this.updateRecentEvents(userId, rawEvent);
-
-      // 执行心流检测
-      flowState = this.flowDetector.detectFlow(result.state, recentEvents);
-
-      serviceLogger.debug(
-        {
-          userId,
-          flowScore: flowState.score.toFixed(2),
-          flowState: flowState.state,
-          recommendation: flowState.recommendation,
-        },
-        '心流检测完成',
-      );
-    } catch (error) {
-      serviceLogger.warn({ error, userId }, '心流检测失败');
-    }
-
-    // ==================== 情绪检测 ====================
-    let emotionState: EmotionState | undefined;
-    try {
-      // 获取用户最近事件用于构建行为信号
-      const recentEvents = this.userRecentEvents.get(userId) || [];
-
-      // 构建行为信号
-      const behaviorSignals = this.buildBehaviorSignals(recentEvents, stats.recentAccuracy, event);
-
-      // 执行情绪检测（暂时不使用自我报告）
-      emotionState = this.emotionDetector.detectEmotion(null, behaviorSignals);
-
-      serviceLogger.debug(
-        {
-          userId,
-          emotion: emotionState.emotion,
-          confidence: emotionState.confidence.toFixed(2),
-        },
-        '情绪检测完成',
-      );
-    } catch (error) {
-      serviceLogger.warn({ error, userId }, '情绪检测失败');
-    }
 
     // 缓存新策略
     await this.cacheStrategy(userId, result.strategy);
@@ -533,12 +609,13 @@ class AMASService {
             ? { consecutiveCorrect: { increment: 1 }, consecutiveWrong: 0 }
             : { consecutiveCorrect: 0, consecutiveWrong: { increment: 1 } };
 
-          // 获取当前半衰期（用于更新计算）
+          // 获取当前状态（包含版本号用于乐观锁）
           const existingState = await tx.wordLearningState.findUnique({
             where: { unique_user_word: { userId, wordId: event.wordId } },
-            select: { halfLife: true },
+            select: { halfLife: true, version: true },
           });
           const currentHalfLife = existingState?.halfLife ?? 1.0;
+          const currentVersion = existingState?.version ?? 0;
 
           // 使用个性化遗忘曲线更新半衰期
           const halfLifeUpdate = updateHalfLife(
@@ -556,35 +633,66 @@ class AMASService {
             rawEvent.timestamp + finalIntervalDays * 24 * 60 * 60 * 1000,
           );
 
-          const upsertedState = await tx.wordLearningState.upsert({
-            where: {
-              unique_user_word: { userId, wordId: event.wordId },
-            },
-            create: {
-              userId,
-              wordId: event.wordId,
-              masteryLevel,
-              state: initialWordState,
-              reviewCount: 1,
-              lastReviewDate: new Date(rawEvent.timestamp),
-              nextReviewDate: finalNextReviewDate,
-              currentInterval: finalIntervalDays,
-              easeFactor: 2.5 + (stability - 0.5) * 0.5,
-              consecutiveCorrect: event.isCorrect ? 1 : 0,
-              consecutiveWrong: event.isCorrect ? 0 : 1,
-              halfLife: halfLifeUpdate.newHalfLife, // 新单词使用计算出的半衰期
-            },
-            update: {
-              masteryLevel,
-              reviewCount: { increment: 1 }, // 原子递增
-              lastReviewDate: new Date(rawEvent.timestamp),
-              nextReviewDate: finalNextReviewDate,
-              currentInterval: finalIntervalDays,
-              easeFactor: 2.5 + (stability - 0.5) * 0.5,
-              halfLife: halfLifeUpdate.newHalfLife, // 更新半衰期
-              ...streakUpdate,
-            },
-          });
+          let upsertedState;
+
+          if (existingState) {
+            // 已有记录：使用乐观锁更新
+            // updateMany 支持复合条件（包括版本检查）
+            const updateResult = await tx.wordLearningState.updateMany({
+              where: {
+                userId,
+                wordId: event.wordId,
+                version: currentVersion, // 乐观锁：只在版本匹配时更新
+              },
+              data: {
+                masteryLevel,
+                reviewCount: { increment: 1 },
+                lastReviewDate: new Date(rawEvent.timestamp),
+                nextReviewDate: finalNextReviewDate,
+                currentInterval: finalIntervalDays,
+                easeFactor: 2.5 + (stability - 0.5) * 0.5,
+                halfLife: halfLifeUpdate.newHalfLife,
+                version: { increment: 1 }, // 版本号递增
+                ...streakUpdate,
+              },
+            });
+
+            // 检查乐观锁冲突
+            if (updateResult.count === 0) {
+              // 版本冲突，抛出错误让事务重试
+              throw new Error(
+                'OPTIMISTIC_LOCK_CONFLICT: WordLearningState concurrent update detected',
+              );
+            }
+
+            // 重新获取更新后的状态
+            upsertedState = await tx.wordLearningState.findUnique({
+              where: { unique_user_word: { userId, wordId: event.wordId } },
+            });
+          } else {
+            // 新记录：直接创建
+            upsertedState = await tx.wordLearningState.create({
+              data: {
+                userId,
+                wordId: event.wordId,
+                masteryLevel,
+                state: initialWordState,
+                reviewCount: 1,
+                lastReviewDate: new Date(rawEvent.timestamp),
+                nextReviewDate: finalNextReviewDate,
+                currentInterval: finalIntervalDays,
+                easeFactor: 2.5 + (stability - 0.5) * 0.5,
+                consecutiveCorrect: event.isCorrect ? 1 : 0,
+                consecutiveWrong: event.isCorrect ? 0 : 1,
+                halfLife: halfLifeUpdate.newHalfLife,
+                version: 0, // 新记录初始版本号
+              },
+            });
+          }
+
+          if (!upsertedState) {
+            throw new Error('Failed to upsert WordLearningState');
+          }
 
           // 3. 用正确的 reviewCount 计算 wordState
           const reviewCount = upsertedState.reviewCount;
@@ -659,13 +767,29 @@ class AMASService {
       );
 
       // 清除相关缓存（事务成功后）
-      // 直接使用 cacheService 清除，避免访问 service 私有方法
-      cacheService.delete(CacheKeys.USER_LEARNING_STATE(userId, event.wordId));
-      cacheService.delete(CacheKeys.USER_LEARNING_STATES(userId));
-      cacheService.delete(CacheKeys.USER_DUE_WORDS(userId));
-      cacheService.delete(CacheKeys.USER_STATS(userId));
-      cacheService.delete(CacheKeys.WORD_SCORE(userId, event.wordId));
-      cacheService.delete(CacheKeys.WORD_SCORES(userId));
+      // 使用延迟双删策略防止并发读写不一致：
+      // 1. 立即删除缓存（防止脏读）
+      // 2. 延迟 100ms 后再次删除（防止并发写入穿透）
+      const cacheKeysToDelete = [
+        CacheKeys.USER_LEARNING_STATE(userId, event.wordId),
+        CacheKeys.USER_LEARNING_STATES(userId),
+        CacheKeys.USER_DUE_WORDS(userId),
+        CacheKeys.USER_STATS(userId),
+        CacheKeys.WORD_SCORE(userId, event.wordId),
+        CacheKeys.WORD_SCORES(userId),
+      ];
+
+      // 第一次删除
+      for (const key of cacheKeysToDelete) {
+        cacheService.delete(key);
+      }
+
+      // 延迟双删（异步执行，不阻塞响应）
+      setTimeout(() => {
+        for (const key of cacheKeysToDelete) {
+          cacheService.delete(key);
+        }
+      }, 100);
 
       serviceLogger.info(
         {
@@ -746,8 +870,65 @@ class AMASService {
         });
     }
 
+    // ==================== A/B 测试指标记录 ====================
+    // 为用户参与的所有活跃实验记录指标
+    if (userExperiments.length > 0) {
+      // 计算实验奖励（综合准确率、响应速度、掌握度提升）
+      const experimentReward = this.calculateExperimentReward(event, result);
+
+      // 异步记录所有实验的指标
+      Promise.all(
+        userExperiments.map((exp) =>
+          experimentService
+            .recordMetric(exp.experimentId, exp.variantId, experimentReward)
+            .catch((err) => {
+              serviceLogger.warn(
+                { err, userId, experimentId: exp.experimentId, variantId: exp.variantId },
+                '[A/B Test] 记录实验指标失败',
+              );
+            }),
+        ),
+      ).then(() => {
+        serviceLogger.debug(
+          { userId, experimentsCount: userExperiments.length, reward: experimentReward.toFixed(3) },
+          '[A/B Test] 实验指标已记录',
+        );
+      });
+    }
+    // ==================== A/B 测试指标记录结束 ====================
+
+    // 个性化阈值学习：记录行为观察（用于贝叶斯阈值更新）
+    // 当有有效的视觉疲劳数据时，记录行为指标供阈值学习器使用
+    if (visualFatigueData && visualFatigueData.isValid) {
+      try {
+        // 计算行为指标
+        const behaviorMetrics = {
+          // 错误率：当前事件是否错误
+          errorRate: event.isCorrect ? 0 : 1,
+          // 响应时间增加率：与平均响应时间比较
+          responseTimeIncrease:
+            stats.recentAccuracy > 0
+              ? Math.max(0, (event.responseTime - 3000) / 3000) // 假设 3000ms 为基准
+              : 0,
+          // 行为疲劳评分
+          fatigueScore: result.state.F,
+        };
+
+        // 记录观察，触发阈值学习
+        defaultVisualFatigueProcessor.recordBehaviorObservation(userId, behaviorMetrics);
+
+        serviceLogger.debug(
+          { userId, behaviorMetrics, visualScore: visualFatigueData.score },
+          '阈值学习: 已记录行为观察',
+        );
+      } catch (error) {
+        // 阈值学习失败不影响主流程
+        serviceLogger.warn({ err: error, userId }, '阈值学习记录失败');
+      }
+    }
+
     // 计算单词掌握判定（仅用于掌握度学习模式,避免普通模式的性能损失）
-    let wordMasteryDecision: import('../amas/core/engine').WordMasteryDecision | undefined;
+    let wordMasteryDecision: import('../amas/engine/engine-types').WordMasteryDecision | undefined;
 
     if (sessionId) {
       // 仅在掌握模式下(有sessionId)才计算,避免不必要的数据库查询
@@ -779,7 +960,7 @@ class AMASService {
     isCorrect: boolean,
     responseTime: number,
     state: UserState,
-  ): Promise<import('../amas/core/engine').WordMasteryDecision> {
+  ): Promise<import('../amas/engine/engine-types').WordMasteryDecision> {
     try {
       // 1. 查询单词的历史学习数据
       const learningState = await prisma.wordLearningState.findUnique({
@@ -1451,7 +1632,7 @@ class AMASService {
     const reviewSuccessRate = reviewWords > 0 ? correctCount / records.length : 0.5;
 
     const userState = await this.getUserState(userId);
-    const memoryStability = userState?.C?.stability ?? 0.5;
+    const memoryStability = userState?.C.stability || 0.5;
 
     const expectedWPM = 3;
     const timeUtilization = Math.min(wordsPerMinute / expectedWPM, 1);
@@ -1484,87 +1665,154 @@ class AMASService {
   }
 
   /**
-   * 更新用户最近事件缓存
-   * 保留最近20个事件用于心流和情绪检测
-   *
-   * @param userId 用户ID
-   * @param event 新事件
-   * @returns 更新后的最近事件列表
+   * 构建视觉疲劳数据对象
+   * 将原始视觉数据转换为 ProcessedVisualFatigueData 格式
    */
-  private updateRecentEvents(userId: string, event: RawEvent): RawEvent[] {
-    let events = this.userRecentEvents.get(userId) || [];
+  private buildVisualFatigueData(
+    userId: string,
+    visualData: {
+      score: number;
+      confidence: number;
+      freshness: number;
+      isValid: boolean;
+      timestamp: number;
+      metrics?: {
+        perclos: number;
+        blinkRate: number;
+        yawnCount: number;
+        headPitch: number;
+        headYaw: number;
+        headRoll?: number;
+        eyeAspectRatio?: number;
+        avgBlinkDuration?: number;
+        gazeOffScreenRatio?: number;
+        expressionFatigueScore?: number;
+        squintIntensity?: number;
+        browDownIntensity?: number;
+        mouthOpenRatio?: number;
+        headStability?: number;
+      };
+    },
+  ): ProcessedVisualFatigueData {
+    const metrics = visualData.metrics;
 
-    // 添加新事件
-    events.push(event);
+    // 构建认知信号（从 metrics 中提取）
+    // 优先使用前端上报的真实数据，无数据时使用近似计算
+    const cognitiveSignals: VisualCognitiveSignals | undefined = metrics
+      ? {
+          attentionSignals: {
+            // 头部姿态稳定性：优先使用 headStability，否则基于角度偏移计算
+            headPoseStability:
+              metrics.headStability ??
+              Math.max(0, 1 - Math.abs(metrics.headPitch) - Math.abs(metrics.headYaw)),
+            // 眯眼强度：优先使用 squintIntensity，否则基于 PERCLOS 近似
+            eyeSquint:
+              metrics.squintIntensity ??
+              (metrics.perclos > 0.1 ? Math.min(metrics.perclos * 2, 1) : 0),
+            // 视线离屏比例：优先使用 gazeOffScreenRatio，否则基于头部偏转近似
+            gazeOffScreen: metrics.gazeOffScreenRatio ?? Math.min(Math.abs(metrics.headYaw) * 2, 1),
+          },
+          fatigueSignals: {
+            perclos: metrics.perclos,
+            // 眨眼疲劳：基于眨眼频率计算（正常 15-20 次/分钟）
+            blinkFatigue: metrics.blinkRate > 25 ? Math.min((metrics.blinkRate - 25) / 15, 1) : 0,
+            // 打哈欠评分
+            yawnScore: Math.min(metrics.yawnCount / 3, 1),
+          },
+          motivationSignals: {
+            // 皱眉强度：优先使用 browDownIntensity，否则基于疲劳评分近似
+            browDown:
+              metrics.browDownIntensity ??
+              (visualData.score > 0.6 ? (visualData.score - 0.6) * 2.5 : 0),
+            // 嘴角下垂：优先使用 mouthOpenRatio 推断，否则基于打哈欠近似
+            mouthCornerDown:
+              metrics.mouthOpenRatio !== undefined
+                ? Math.min(metrics.mouthOpenRatio * 0.5, 1)
+                : metrics.yawnCount > 0
+                  ? 0.3
+                  : 0,
+          },
+          confidence: visualData.confidence,
+          timestamp: visualData.timestamp,
+        }
+      : undefined;
 
-    // 保留最近20个事件
-    if (events.length > 20) {
-      events = events.slice(-20);
-    }
-
-    // 更新缓存
-    this.userRecentEvents.set(userId, events);
-
-    return events;
+    return {
+      score: visualData.score,
+      confidence: visualData.confidence,
+      freshness: visualData.freshness,
+      isValid: visualData.isValid,
+      trend: defaultVisualFatigueProcessor.getTrend(userId, 5), // 获取趋势
+      timestamp: visualData.timestamp,
+      cognitiveSignals, // 传递认知信号
+      metrics: metrics
+        ? {
+            // 使用前端上报的真实数据，无数据时使用近似或默认值
+            eyeAspectRatio: metrics.eyeAspectRatio ?? 0.3, // EAR 正常值约 0.25-0.35
+            blinkRate: metrics.blinkRate,
+            avgBlinkDuration: metrics.avgBlinkDuration ?? 150, // 正常眨眼持续约 100-400ms
+            perclos: metrics.perclos,
+            yawnCount: metrics.yawnCount,
+            headPose: {
+              pitch: metrics.headPitch,
+              yaw: metrics.headYaw,
+              roll: metrics.headRoll ?? 0,
+            },
+            gazeOffScreenRatio:
+              metrics.gazeOffScreenRatio ?? Math.min(Math.abs(metrics.headYaw) * 2, 1),
+            visualFatigueScore: visualData.score,
+            timestamp: visualData.timestamp,
+            confidence: visualData.confidence,
+            // 扩展指标：直接传递前端真实数据
+            expressionFatigueScore: metrics.expressionFatigueScore,
+            squintIntensity: metrics.squintIntensity,
+            browDownIntensity: metrics.browDownIntensity,
+            mouthOpenRatio: metrics.mouthOpenRatio,
+            headStability: metrics.headStability,
+          }
+        : undefined,
+    };
   }
 
   /**
-   * 构建行为信号（用于情绪检测）
+   * 计算 A/B 测试实验奖励
+   * 综合考虑准确率、响应速度和掌握度变化
    *
-   * @param recentEvents 最近的学习事件
-   * @param recentAccuracy 最近准确率
-   * @param currentEvent 当前事件
-   * @returns 行为信号
+   * 奖励公式：
+   * - 准确率权重 50%：答对得 1，答错得 0
+   * - 速度奖励权重 20%：10秒内响应可获得最高分
+   * - 掌握度权重 30%：基于认知状态（记忆、稳定性、速度）的综合提升
+   *
+   * @param event 学习事件
+   * @param result 处理结果
+   * @returns 归一化奖励值 [0, 1]
    */
-  private buildBehaviorSignals(
-    recentEvents: RawEvent[],
-    recentAccuracy: number,
-    currentEvent: {
-      isCorrect: boolean;
-      responseTime: number;
-      retryCount?: number;
-    },
-  ): BehaviorSignals {
-    // 计算连续错误次数
-    let consecutiveWrong = 0;
-    for (let i = recentEvents.length - 1; i >= 0; i--) {
-      if (recentEvents[i].isCorrect) {
-        break;
-      }
-      consecutiveWrong++;
-    }
+  private calculateExperimentReward(
+    event: { isCorrect: boolean; responseTime: number },
+    result: ProcessResult,
+  ): number {
+    // 1. 准确率得分（0 或 1）
+    const accuracy = event.isCorrect ? 1 : 0;
 
-    // 计算平均反应时间和方差
-    const responseTimes = recentEvents.map((e) => e.responseTime);
-    const avgResponseTime =
-      responseTimes.length > 0
-        ? responseTimes.reduce((sum, rt) => sum + rt, 0) / responseTimes.length
-        : currentEvent.responseTime;
+    // 2. 速度奖励（0-1），10秒内响应可获得最高分
+    // responseTime 单位是毫秒，10000ms = 10秒
+    const speedBonus = Math.max(0, 1 - event.responseTime / 10000);
 
-    const responseTimeVariance =
-      responseTimes.length > 0 ? this.calculateVariance(responseTimes) : 0;
+    // 3. 掌握度得分：基于认知状态的综合评估
+    // 使用 AMAS 状态中的认知指标
+    const mem = this.clamp01(result.state.C.mem);
+    const stability = this.clamp01(result.state.C.stability);
+    const speed = this.clamp01(result.state.C.speed);
 
-    // 计算跳过次数（通过retryCount推断）
-    const skipCount = recentEvents.filter((e) => e.retryCount > 0).length;
+    // 加权计算掌握度（与 mapToMasteryLevel 一致）
+    const masteryScore = 0.6 * mem + 0.3 * stability + 0.1 * speed;
 
-    // 计算停留时间比率
-    const dwellTimes = recentEvents.map((e) => e.dwellTime);
-    const avgDwellTime =
-      dwellTimes.length > 0 ? dwellTimes.reduce((sum, dt) => sum + dt, 0) / dwellTimes.length : 0;
-    const dwellTimeRatio = avgResponseTime > 0 ? avgDwellTime / avgResponseTime : 1.0;
+    // 4. 综合奖励计算
+    // 权重分配：准确率 50%，速度 20%，掌握度 30%
+    const reward = 0.5 * accuracy + 0.2 * speedBonus + 0.3 * masteryScore;
 
-    // 使用全局统计的基线反应时间，如果没有则使用当前响应时间
-    const baselineResponseTime =
-      responseTimes.length > 0 ? avgResponseTime : currentEvent.responseTime;
-
-    return {
-      consecutiveWrong,
-      avgResponseTime,
-      responseTimeVariance,
-      skipCount,
-      dwellTimeRatio,
-      baselineResponseTime,
-    };
+    // 确保返回值在 [0, 1] 范围内
+    return this.clamp01(reward);
   }
 
   /**

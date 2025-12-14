@@ -234,19 +234,10 @@ export interface ExportUserWordsParams {
 export function useExportUserWords() {
   return useMutation<Blob, Error, ExportUserWordsParams>({
     mutationFn: async ({ userId, format }) => {
-      // 注意：这个需要修改 ApiClient 来返回 Blob
-      // 目前假设已经实现
-      const response = await fetch(`/api/admin/users/${userId}/words/export?format=${format}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('导出失败');
-      }
-
-      return await response.blob();
+      // 直接使用 AdminClient 的导出能力（包含下载逻辑）
+      await adminClient.exportUserWords(userId, format);
+      // 为了兼容调用方期望的返回值，返回空 Blob 占位
+      return new Blob();
     },
   });
 }

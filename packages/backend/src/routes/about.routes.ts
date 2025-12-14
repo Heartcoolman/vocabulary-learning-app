@@ -21,17 +21,17 @@ import {
   isDecisionWriteEnabled,
 } from '../config/amas-feature-flags';
 import { getFeatureFlags as getAmasEngineFlags } from '../amas/config/feature-flags';
-import { getAllMetrics, getPrometheusMetrics } from '../monitoring/amas-metrics';
 import {
-  getLearningMetricsJson,
-  getLearningMetricsPrometheus,
-} from '../monitoring/learning-metrics';
+  getAllMetrics,
+  getPrometheusMetrics,
+  getAllModuleStatuses,
+} from '../monitoring/amas-metrics';
 import { logger } from '../logger';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import { AuthRequest } from '../types';
 import prisma from '../config/database';
-import { DecisionRecorderService } from '../services/decision-recorder.service';
+import { DecisionRecorderService } from '../amas/services/decision-recorder.service';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 import { decisionEventsService, DecisionEventData } from '../services/decision-events.service';
@@ -962,6 +962,114 @@ router.get('/system/memory-status', realDataProtection, async (_req: Request, re
   }
 });
 
+/**
+ * GET /api/about/stats/learning-mode-distribution
+ * 获取学习模式分布统计
+ */
+router.get(
+  '/stats/learning-mode-distribution',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      if (useRealDataSource()) {
+        const distribution = await getRealAboutService().getLearningModeDistribution();
+        res.json({
+          success: true,
+          data: distribution,
+          source: 'real',
+        });
+      } else {
+        // 虚拟数据
+        res.json({
+          success: true,
+          data: {
+            exam: 0.2,
+            daily: 0.5,
+            travel: 0.15,
+            custom: 0.15,
+          },
+          source: 'virtual',
+        });
+      }
+    } catch (error) {
+      handleError(res, error, '获取学习模式分布失败');
+    }
+  },
+);
+
+/**
+ * GET /api/about/stats/half-life-distribution
+ * 获取半衰期分布统计
+ */
+router.get(
+  '/stats/half-life-distribution',
+  realDataProtection,
+  async (_req: Request, res: Response) => {
+    try {
+      if (useRealDataSource()) {
+        const distribution = await getRealAboutService().getHalfLifeDistribution();
+        res.json({
+          success: true,
+          data: distribution,
+          source: 'real',
+        });
+      } else {
+        // 虚拟数据
+        res.json({
+          success: true,
+          data: {
+            distribution: [
+              { range: '0-1天', count: 120, percentage: 15 },
+              { range: '1-3天', count: 280, percentage: 35 },
+              { range: '3-7天', count: 200, percentage: 25 },
+              { range: '7-14天', count: 120, percentage: 15 },
+              { range: '14+天', count: 80, percentage: 10 },
+            ],
+            avgHalfLife: 4.2,
+            totalWords: 800,
+          },
+          source: 'virtual',
+        });
+      }
+    } catch (error) {
+      handleError(res, error, '获取半衰期分布失败');
+    }
+  },
+);
+
+/**
+ * GET /api/about/stats/algorithm-trend
+ * 获取各算法的调用趋势（最近10个时间点）
+ * 用于 MemberCard 趋势线展示
+ */
+router.get('/stats/algorithm-trend', realDataProtection, async (_req: Request, res: Response) => {
+  try {
+    if (useRealDataSource()) {
+      const trend = await getRealAboutService().getAlgorithmTrend();
+      res.json({
+        success: true,
+        data: trend,
+        source: 'real',
+      });
+    } else {
+      // 虚拟数据 - 基于默认分布的稳定趋势线
+      res.json({
+        success: true,
+        data: {
+          thompson: [50, 52, 48, 55, 50, 53, 47, 51, 49, 50],
+          linucb: [55, 57, 53, 60, 55, 58, 52, 56, 54, 55],
+          actr: [45, 47, 43, 50, 45, 48, 42, 46, 44, 45],
+          heuristic: [35, 37, 33, 40, 35, 38, 32, 36, 34, 35],
+          coldstart: [30, 32, 28, 35, 30, 33, 27, 31, 29, 30],
+        },
+        source: 'virtual',
+      });
+    }
+  } catch (error) {
+    handleError(res, error, '获取算法趋势失败');
+  }
+});
+
 // ==================== 监控与诊断 API ====================
 
 /**
@@ -970,14 +1078,10 @@ router.get('/system/memory-status', realDataProtection, async (_req: Request, re
  */
 router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
   try {
-    const amasMetrics = getAllMetrics();
-    const learningMetrics = getLearningMetricsJson();
+    const metrics = getAllMetrics();
     res.json({
       success: true,
-      data: {
-        amas: amasMetrics,
-        learning: learningMetrics,
-      },
+      data: metrics,
     });
   } catch (error) {
     handleError(res, error, '获取监控指标失败');
@@ -990,10 +1094,8 @@ router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
  */
 router.get('/metrics/prometheus', realDataProtection, (_req: Request, res: Response) => {
   try {
-    const amasMetrics = getPrometheusMetrics();
-    const learningMetrics = getLearningMetricsPrometheus();
-    const combinedMetrics = `${amasMetrics}\n\n# Learning Experience Metrics\n${learningMetrics}`;
-    res.type('text/plain').send(combinedMetrics);
+    const metrics = getPrometheusMetrics();
+    res.type('text/plain').send(metrics);
   } catch (error) {
     handleError(res, error, '获取 Prometheus 指标失败');
   }
@@ -1027,13 +1129,33 @@ router.get('/feature-flags', realDataProtection, (_req: Request, res: Response) 
     const db = metrics.db as { durationMs?: { avg?: number } } | undefined;
     const queue = metrics.queue as { currentSize?: number; backpressureTotal?: number } | undefined;
 
-    // 状态判定函数
+    // 获取模块运行时状态
+    const moduleStatuses = getAllModuleStatuses();
+
+    // 状态判定函数（结合配置开关和运行时状态）
     const getStatus = (
+      moduleName: string,
       enabled: boolean,
       latencyMs?: number,
       errorRate?: number,
     ): 'healthy' | 'warning' | 'error' | 'disabled' => {
-      if (!enabled) return 'disabled';
+      // 检查运行时状态（优先使用实际运行数据）
+      const runtimeStatus = moduleStatuses[moduleName];
+      if (runtimeStatus && runtimeStatus.totalCalls > 0) {
+        // 有运行数据，根据错误率判定
+        if (runtimeStatus.errorCalls > 0) {
+          const runtimeErrorRate = runtimeStatus.errorCalls / runtimeStatus.totalCalls;
+          if (runtimeErrorRate > 0.1) return 'error';
+          if (runtimeErrorRate > 0.05) return 'warning';
+        }
+        // 运行正常
+        if (runtimeStatus.successCalls > 0) return 'healthy';
+      }
+
+      // 无运行数据时，如果模块被禁用，显示error（故障）而非disabled
+      if (!enabled) return 'error';
+
+      // 基于延迟和错误率判定
       if (errorRate !== undefined && errorRate > 0.1) return 'error';
       if (latencyMs !== undefined && latencyMs > 2000) return 'error';
       if (errorRate !== undefined && errorRate > 0.05) return 'warning';
@@ -1070,70 +1192,80 @@ router.get('/feature-flags', realDataProtection, (_req: Request, res: Response) 
       // 学习算法
       ensemble: {
         enabled: engineFlags.enableEnsemble,
-        status: getStatus(engineFlags.enableEnsemble, inferenceLatency),
+        status: getStatus('ensemble', engineFlags.enableEnsemble, inferenceLatency),
         latencyMs: inferenceLatency > 0 ? Math.round(inferenceLatency) : undefined,
         callCount: inferenceCount > 0 ? inferenceCount : undefined,
       },
       thompsonSampling: {
         enabled: engineFlags.enableThompsonSampling,
-        status: getStatus(engineFlags.enableThompsonSampling),
+        status: getStatus('thompsonSampling', engineFlags.enableThompsonSampling),
         callCount: pipelineStages['LEARNING'] || undefined,
       },
       heuristicBaseline: {
         enabled: engineFlags.enableHeuristicBaseline,
-        status: getStatus(engineFlags.enableHeuristicBaseline),
+        status: getStatus('heuristicBaseline', engineFlags.enableHeuristicBaseline),
       },
       actrMemory: {
         enabled: engineFlags.enableACTRMemory,
-        status: getStatus(engineFlags.enableACTRMemory),
+        status: getStatus('actrMemory', engineFlags.enableACTRMemory),
       },
 
       // 决策管理
       coldStartManager: {
         enabled: engineFlags.enableColdStartManager,
-        status: getStatus(engineFlags.enableColdStartManager),
+        status: getStatus('coldStartManager', engineFlags.enableColdStartManager),
         callCount: pipelineStages['DECISION'] || undefined,
       },
       userParamsManager: {
         enabled: engineFlags.enableUserParamsManager,
-        status: getStatus(engineFlags.enableUserParamsManager),
+        status: getStatus('userParamsManager', engineFlags.enableUserParamsManager),
       },
       trendAnalyzer: {
         enabled: engineFlags.enableTrendAnalyzer,
-        status: getStatus(engineFlags.enableTrendAnalyzer),
+        status: getStatus('trendAnalyzer', engineFlags.enableTrendAnalyzer),
       },
 
       // 优化引擎
       bayesianOptimizer: {
         enabled: engineFlags.enableBayesianOptimizer,
-        status: getStatus(engineFlags.enableBayesianOptimizer),
+        status: getStatus('bayesianOptimizer', engineFlags.enableBayesianOptimizer),
       },
       causalInference: {
         enabled: engineFlags.enableCausalInference,
-        status: getStatus(engineFlags.enableCausalInference),
+        status: getStatus('causalInference', engineFlags.enableCausalInference),
       },
       delayedReward: {
         enabled: engineFlags.enableDelayedRewardAggregator,
-        status: getStatus(engineFlags.enableDelayedRewardAggregator, undefined, undefined),
+        status: getStatus(
+          'delayedReward',
+          engineFlags.enableDelayedRewardAggregator,
+          undefined,
+          undefined,
+        ),
         callCount: queue?.backpressureTotal || undefined,
       },
 
       // 数据流水线
       realDataWrite: {
         enabled: dataSourceFlags.writeEnabled,
-        status: getStatus(dataSourceFlags.writeEnabled, writeLatency, writeErrorRate),
+        status: getStatus(
+          'realDataWrite',
+          dataSourceFlags.writeEnabled,
+          writeLatency,
+          writeErrorRate,
+        ),
         latencyMs: writeLatency > 0 ? Math.round(writeLatency) : undefined,
         errorRate: writeErrorRate > 0 ? Math.round(writeErrorRate * 1000) / 1000 : undefined,
         callCount: writeTotal > 0 ? writeTotal : undefined,
       },
       realDataRead: {
         enabled: dataSourceFlags.readEnabled,
-        status: getStatus(dataSourceFlags.readEnabled, dbLatency),
+        status: getStatus('realDataRead', dataSourceFlags.readEnabled, dbLatency),
         latencyMs: dbLatency > 0 ? Math.round(dbLatency) : undefined,
       },
       visualization: {
         enabled: dataSourceFlags.visualizationEnabled,
-        status: getStatus(dataSourceFlags.visualizationEnabled),
+        status: getStatus('visualization', dataSourceFlags.visualizationEnabled),
       },
     };
 

@@ -116,6 +116,7 @@ export {
   WordBookApiSchema,
   WordBookListResponseSchema,
   StudyProgressSchema,
+  TodayWordsStrategySchema,
   TodayWordsResponseSchema,
   StudyConfigApiSchema,
   AnswerRecordApiSchema,

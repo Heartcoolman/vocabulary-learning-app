@@ -13,6 +13,12 @@ import type {
   BanditModel,
 } from '@danci/native';
 
+// 导入环境配置
+import { env } from '../../config/env';
+
+// 导入日志
+import { amasLogger } from '../../logger';
+
 // 导入 Prometheus 指标
 import {
   recordNativeCall,
@@ -27,7 +33,7 @@ let NativeModule: typeof import('@danci/native') | null = null;
 try {
   NativeModule = require('@danci/native');
 } catch (e) {
-  console.warn('[NativeWrapper] Native module not available, will use TypeScript fallback');
+  amasLogger.warn('[NativeWrapper] Native module not available, will use TypeScript fallback');
 }
 
 // 类型定义（与现有 TS 类型兼容）
@@ -75,9 +81,9 @@ export interface NativeWrapperStats {
  * 熔断器配置
  */
 const CIRCUIT_BREAKER_CONFIG = {
-  failureThreshold: 5,      // 失败次数阈值
-  recoveryTimeout: 60000,   // 恢复尝试间隔 (60秒)
-  halfOpenMaxCalls: 3,      // 半开状态最大尝试次数
+  failureThreshold: 5, // 失败次数阈值
+  recoveryTimeout: 60000, // 恢复尝试间隔 (60秒)
+  halfOpenMaxCalls: 3, // 半开状态最大尝试次数
 };
 
 /**
@@ -103,21 +109,17 @@ export class LinUCBNativeWrapper {
   private readonly lambda: number;
   private readonly useNativeEnabled: boolean;
 
-  constructor(
-    alpha: number = 0.3,
-    lambda: number = 1.0,
-    tsLinUCBFactory?: () => any
-  ) {
+  constructor(alpha: number = 0.3, lambda: number = 1.0, tsLinUCBFactory?: () => any) {
     this.alpha = alpha;
     this.lambda = lambda;
-    this.useNativeEnabled = process.env.AMAS_USE_NATIVE !== 'false';
+    this.useNativeEnabled = env.AMAS_USE_NATIVE;
 
     // 初始化 Native 实例
     if (this.useNativeEnabled && NativeModule) {
       try {
         this.nativeInstance = new NativeModule.LinUcbNative(alpha, lambda);
       } catch (e) {
-        console.error('[NativeWrapper] Failed to create native instance:', e);
+        amasLogger.error({ error: e }, '[NativeWrapper] Failed to create native instance');
         this.nativeInstance = null;
       }
     }
@@ -139,7 +141,10 @@ export class LinUCBNativeWrapper {
     // 熔断器打开，检查是否可以尝试恢复
     if (this.isCircuitOpen) {
       const now = Date.now();
-      if (this.lastFailureTime && (now - this.lastFailureTime) >= CIRCUIT_BREAKER_CONFIG.recoveryTimeout) {
+      if (
+        this.lastFailureTime &&
+        now - this.lastFailureTime >= CIRCUIT_BREAKER_CONFIG.recoveryTimeout
+      ) {
         // 进入半开状态，允许尝试
         this.halfOpenCallCount++;
         if (this.halfOpenCallCount <= CIRCUIT_BREAKER_CONFIG.halfOpenMaxCalls) {
@@ -165,7 +170,7 @@ export class LinUCBNativeWrapper {
       this.halfOpenCallCount = 0;
       // 更新熔断器状态指标: closed = 0
       updateCircuitBreakerState('closed');
-      console.log('[NativeWrapper] Circuit breaker closed, native recovered');
+      amasLogger.info('[NativeWrapper] Circuit breaker closed, native recovered');
     }
     this.totalNativeCalls++;
   }
@@ -182,10 +187,13 @@ export class LinUCBNativeWrapper {
       this.halfOpenCallCount = 0;
       // 更新熔断器状态指标: open = 1
       updateCircuitBreakerState('open');
-      console.warn(`[NativeWrapper] Circuit breaker opened after ${this.failureCount} failures`);
+      amasLogger.warn(
+        { failureCount: this.failureCount },
+        '[NativeWrapper] Circuit breaker opened',
+      );
     }
 
-    console.error('[NativeWrapper] Native call failed:', error.message);
+    amasLogger.error({ error: error.message }, '[NativeWrapper] Native call failed');
   }
 
   /**
@@ -228,6 +236,22 @@ export class LinUCBNativeWrapper {
    * 转换 Native ActionSelection 到标准格式
    */
   private fromNativeSelection(result: NativeActionSelection, actions: Action[]): ActionSelection {
+    // 边界检查：防止 Native 模块返回无效索引
+    if (result.selectedIndex < 0 || result.selectedIndex >= actions.length) {
+      amasLogger.error(
+        { selectedIndex: result.selectedIndex, actionsLength: actions.length },
+        '[NativeWrapper] selectedIndex out of bounds, falling back to first action',
+      );
+      return {
+        selectedIndex: 0,
+        selectedAction: actions[0],
+        exploitation: 0,
+        exploration: 0,
+        score: 0,
+        allScores: Array.from(result.allScores),
+      };
+    }
+
     return {
       selectedIndex: result.selectedIndex,
       selectedAction: actions[result.selectedIndex],
@@ -248,7 +272,7 @@ export class LinUCBNativeWrapper {
       const startTime = performance.now();
       try {
         const nativeState = this.toNativeState(state);
-        const nativeActions = actions.map(a => this.toNativeAction(a));
+        const nativeActions = actions.map((a) => this.toNativeAction(a));
         const nativeContext = this.toNativeContext(context);
 
         const result = this.nativeInstance.selectAction(nativeState, nativeActions, nativeContext);
@@ -276,7 +300,7 @@ export class LinUCBNativeWrapper {
     }
 
     // 如果没有 TS 实例，返回默认选择
-    console.warn('[NativeWrapper] No fallback available, returning first action');
+    amasLogger.warn('[NativeWrapper] No fallback available, returning first action');
     return {
       selectedIndex: 0,
       selectedAction: actions[0],
@@ -339,9 +363,40 @@ export class LinUCBNativeWrapper {
       }
     }
 
-    // 降级：逐个更新
+    // 降级：逐个更新（TS 实现）
     this.totalFallbackCalls++;
-    console.warn('[NativeWrapper] Batch update fallback not implemented');
+
+    // 验证输入长度一致性
+    if (featureVecs.length !== rewards.length) {
+      amasLogger.warn(
+        { featureVecsLength: featureVecs.length, rewardsLength: rewards.length },
+        '[NativeWrapper] Batch update: input lengths mismatch',
+      );
+      return 0;
+    }
+
+    // 如果有 TS 实例，逐个更新
+    if (this.tsInstance && typeof this.tsInstance.updateWithFeatureVector === 'function') {
+      let successCount = 0;
+      for (let i = 0; i < featureVecs.length; i++) {
+        try {
+          this.tsInstance.updateWithFeatureVector(featureVecs[i], rewards[i]);
+          successCount++;
+        } catch (e) {
+          amasLogger.warn(
+            { index: i, error: e instanceof Error ? e.message : String(e) },
+            '[NativeWrapper] Batch update fallback failed for item',
+          );
+        }
+      }
+      amasLogger.info(
+        { total: featureVecs.length, success: successCount },
+        '[NativeWrapper] Batch update fallback completed',
+      );
+      return successCount;
+    }
+
+    amasLogger.warn('[NativeWrapper] No TS instance available for batch update fallback');
     return 0;
   }
 
@@ -353,7 +408,7 @@ export class LinUCBNativeWrapper {
       try {
         return this.nativeInstance.diagnose();
       } catch (e) {
-        console.error('[NativeWrapper] Diagnose failed:', e);
+        amasLogger.error({ error: e }, '[NativeWrapper] Diagnose failed');
       }
     }
     return null;
@@ -381,7 +436,7 @@ export class LinUCBNativeWrapper {
       try {
         return this.nativeInstance.getModel();
       } catch (e) {
-        console.error('[NativeWrapper] getModel failed:', e);
+        amasLogger.error({ error: e }, '[NativeWrapper] getModel failed');
       }
     }
     return null;
@@ -396,7 +451,7 @@ export class LinUCBNativeWrapper {
         this.nativeInstance.setModel(model);
         return true;
       } catch (e) {
-        console.error('[NativeWrapper] setModel failed:', e);
+        amasLogger.error({ error: e }, '[NativeWrapper] setModel failed');
       }
     }
     return false;
@@ -410,7 +465,7 @@ export class LinUCBNativeWrapper {
       try {
         this.nativeInstance.reset();
       } catch (e) {
-        console.error('[NativeWrapper] reset failed:', e);
+        amasLogger.error({ error: e }, '[NativeWrapper] reset failed');
       }
     }
     if (this.tsInstance) {
@@ -450,10 +505,18 @@ export class LinUCBNativeWrapper {
   /**
    * 获取冷启动 alpha
    */
-  static getColdStartAlpha(interactionCount: number, recentAccuracy: number, fatigue: number): number {
+  static getColdStartAlpha(
+    interactionCount: number,
+    recentAccuracy: number,
+    fatigue: number,
+  ): number {
     if (NativeModule) {
       try {
-        return NativeModule.LinUcbNative.getColdStartAlpha(interactionCount, recentAccuracy, fatigue);
+        return NativeModule.LinUcbNative.getColdStartAlpha(
+          interactionCount,
+          recentAccuracy,
+          fatigue,
+        );
       } catch (e) {
         // 降级计算
       }
@@ -466,7 +529,7 @@ export class LinUCBNativeWrapper {
     else if (interactionCount < 50) interactionFactor = 1.5;
     else if (interactionCount < 200) interactionFactor = 1.2;
 
-    const accuracyFactor = (recentAccuracy < 0.3 || recentAccuracy > 0.9) ? 1.3 : 1.0;
+    const accuracyFactor = recentAccuracy < 0.3 || recentAccuracy > 0.9 ? 1.3 : 1.0;
     const fatigueFactor = 1.0 - fatigue * 0.3;
 
     return baseAlpha * interactionFactor * accuracyFactor * fatigueFactor;
@@ -495,7 +558,7 @@ export class LinUCBNativeWrapper {
     this.isCircuitOpen = false;
     this.lastFailureTime = null;
     this.halfOpenCallCount = 0;
-    console.log('[NativeWrapper] Circuit breaker manually reset');
+    amasLogger.info('[NativeWrapper] Circuit breaker manually reset');
   }
 }
 

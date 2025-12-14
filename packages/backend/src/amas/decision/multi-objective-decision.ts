@@ -7,34 +7,11 @@ import {
   LearningObjectives,
   MultiObjectiveMetrics,
   ObjectiveEvaluation,
+  SessionStats,
   StrategyParams,
   UserState,
 } from '../types';
 import { MultiObjectiveOptimizer } from '../optimization/multi-objective-optimizer';
-
-/**
- * 会话统计数据
- */
-interface SessionStats {
-  /** 会话准确率 */
-  accuracy: number;
-  /** 平均反应时间 (ms) */
-  avgResponseTime: number;
-  /** 保留率 */
-  retentionRate: number;
-  /** 复习成功率 */
-  reviewSuccessRate: number;
-  /** 记忆稳定性 [0,1] */
-  memoryStability: number;
-  /** 每分钟单词数 */
-  wordsPerMinute: number;
-  /** 时间利用率 [0,1] */
-  timeUtilization: number;
-  /** 认知负荷 [0,1] */
-  cognitiveLoad: number;
-  /** 当前会话时长 (ms) */
-  sessionDuration: number;
-}
 
 /**
  * 多目标决策引擎
@@ -45,24 +22,24 @@ export class MultiObjectiveDecisionEngine {
    */
   static computeMetrics(
     sessionStats: SessionStats,
-    userState: UserState
+    userState: UserState,
   ): Omit<MultiObjectiveMetrics, 'aggregatedScore' | 'ts'> {
     const shortTermScore = MultiObjectiveOptimizer.calculateShortTermScore(
       sessionStats.accuracy,
       sessionStats.avgResponseTime,
-      userState
+      userState,
     );
 
     const longTermScore = MultiObjectiveOptimizer.calculateLongTermScore(
       sessionStats.retentionRate,
       sessionStats.reviewSuccessRate,
-      sessionStats.memoryStability
+      sessionStats.memoryStability,
     );
 
     const efficiencyScore = MultiObjectiveOptimizer.calculateEfficiencyScore(
       sessionStats.wordsPerMinute,
       sessionStats.timeUtilization,
-      sessionStats.cognitiveLoad
+      sessionStats.cognitiveLoad,
     );
 
     return {
@@ -79,7 +56,7 @@ export class MultiObjectiveDecisionEngine {
     currentStrategy: StrategyParams,
     objectives: LearningObjectives,
     sessionStats: SessionStats,
-    userState: UserState
+    userState: UserState,
   ): {
     newStrategy: StrategyParams;
     evaluation: ObjectiveEvaluation;
@@ -90,12 +67,11 @@ export class MultiObjectiveDecisionEngine {
     const evaluation = MultiObjectiveOptimizer.evaluateStrategy(
       metrics,
       objectives,
-      sessionStats.sessionDuration
+      sessionStats.sessionDuration,
     );
 
     const shouldAdjust =
-      !evaluation.constraintsSatisfied ||
-      evaluation.metrics.aggregatedScore < 0.7;
+      !evaluation.constraintsSatisfied || evaluation.metrics.aggregatedScore < 0.7;
 
     let newStrategy = currentStrategy;
 
@@ -103,7 +79,7 @@ export class MultiObjectiveDecisionEngine {
       newStrategy = this.applyAdjustments(
         currentStrategy,
         evaluation.suggestedAdjustments,
-        objectives
+        objectives,
       );
     }
 
@@ -116,11 +92,12 @@ export class MultiObjectiveDecisionEngine {
 
   /**
    * 应用策略调整
+   * 根据学习目标权重进一步调整策略参数
    */
   private static applyAdjustments(
     currentStrategy: StrategyParams,
     adjustments: Partial<StrategyParams> | undefined,
-    _objectives: LearningObjectives
+    objectives: LearningObjectives,
   ): StrategyParams {
     if (!adjustments) {
       return currentStrategy;
@@ -139,7 +116,7 @@ export class MultiObjectiveDecisionEngine {
       baseStrategy.new_ratio = this.smoothAdjustment(
         currentStrategy.new_ratio,
         adjustments.new_ratio,
-        0.05
+        0.05,
       );
     }
 
@@ -147,12 +124,40 @@ export class MultiObjectiveDecisionEngine {
       baseStrategy.interval_scale = this.smoothAdjustment(
         currentStrategy.interval_scale,
         adjustments.interval_scale,
-        0.1
+        0.1,
       );
     }
 
     if (adjustments.batch_size !== undefined) {
       baseStrategy.batch_size = adjustments.batch_size;
+    }
+
+    // 根据学习目标权重微调策略
+    // 长期记忆权重高时，增加复习间隔以强化长期记忆
+    if (objectives.weightLongTerm > 0.5) {
+      const longTermFactor = 1 + (objectives.weightLongTerm - 0.5) * 0.4; // 0.5权重时为1.0，1.0权重时为1.2
+      baseStrategy.interval_scale = this.smoothAdjustment(
+        baseStrategy.interval_scale,
+        baseStrategy.interval_scale * longTermFactor,
+        0.15,
+      );
+    }
+
+    // 效率权重高时，增加批量大小以提升学习效率
+    if (objectives.weightEfficiency > 0.5) {
+      const efficiencyFactor = 1 + (objectives.weightEfficiency - 0.5) * 0.5; // 0.5权重时为1.0，1.0权重时为1.25
+      const suggestedBatchSize = Math.round(baseStrategy.batch_size * efficiencyFactor);
+      baseStrategy.batch_size = Math.min(suggestedBatchSize, 20); // 最大批量20
+    }
+
+    // 短期记忆权重高时，降低新词比例以强化当前词汇
+    if (objectives.weightShortTerm > 0.5) {
+      const shortTermFactor = 1 - (objectives.weightShortTerm - 0.5) * 0.3; // 0.5权重时为1.0，1.0权重时为0.85
+      baseStrategy.new_ratio = this.smoothAdjustment(
+        baseStrategy.new_ratio,
+        baseStrategy.new_ratio * shortTermFactor,
+        0.05,
+      );
     }
 
     return baseStrategy;
@@ -161,11 +166,7 @@ export class MultiObjectiveDecisionEngine {
   /**
    * 平滑调整（避免剧烈变化）
    */
-  private static smoothAdjustment(
-    current: number,
-    target: number,
-    maxDelta: number
-  ): number {
+  private static smoothAdjustment(current: number, target: number, maxDelta: number): number {
     const delta = target - current;
     const clampedDelta = Math.max(-maxDelta, Math.min(maxDelta, delta));
     return current + clampedDelta;
@@ -174,9 +175,7 @@ export class MultiObjectiveDecisionEngine {
   /**
    * 根据模式初始化策略
    */
-  static initializeStrategyForMode(
-    mode: LearningObjectives['mode']
-  ): StrategyParams {
+  static initializeStrategyForMode(mode: LearningObjectives['mode']): StrategyParams {
     switch (mode) {
       case 'exam':
         return {
@@ -220,10 +219,7 @@ export class MultiObjectiveDecisionEngine {
   /**
    * 计算决策置信度
    */
-  static calculateConfidence(
-    evaluation: ObjectiveEvaluation,
-    userState: UserState
-  ): number {
+  static calculateConfidence(evaluation: ObjectiveEvaluation, userState: UserState): number {
     let confidence = 0.5;
 
     if (evaluation.constraintsSatisfied) {
@@ -243,7 +239,7 @@ export class MultiObjectiveDecisionEngine {
   static shouldSwitchMode(
     currentMode: LearningObjectives['mode'],
     evaluation: ObjectiveEvaluation,
-    consecutiveViolations: number
+    consecutiveViolations: number,
   ): boolean {
     if (currentMode === 'custom') {
       return false;
@@ -261,7 +257,7 @@ export class MultiObjectiveDecisionEngine {
    */
   static suggestAlternativeMode(
     currentMode: LearningObjectives['mode'],
-    evaluation: ObjectiveEvaluation
+    evaluation: ObjectiveEvaluation,
   ): LearningObjectives['mode'] | null {
     if (currentMode === 'custom') {
       return null;

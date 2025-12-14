@@ -16,6 +16,8 @@ import {
   createMasterySession,
   endHabitSession,
 } from './mastery';
+import { useSubmitAnswer, extractAmasState } from './mutations';
+import { learningLogger } from '../utils/logger';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -38,17 +40,8 @@ export interface UseMasteryLearningReturn {
   allWords: WordItem[];
   error: string | null;
   latestAmasResult: AmasProcessResult | null;
+  isSubmitting: boolean; // 提交状态（来自 React Query mutation）
 }
-
-// 辅助函数：提取 AMAS 状态
-const extractAmasState = (result: AmasProcessResult | null) =>
-  result?.state
-    ? {
-        fatigue: result.state.fatigue,
-        attention: result.state.attention,
-        motivation: result.state.motivation,
-      }
-    : undefined;
 
 export function useMasteryLearning(
   options: UseMasteryLearningOptions = {},
@@ -110,40 +103,98 @@ export function useMasteryLearning(
   });
   syncRef.current = sync;
 
+  // 使用 React Query mutation hook 进行答案提交
+  // 提供乐观更新、自动重试和错误回滚
+  const submitAnswerMutation = useSubmitAnswer({
+    onOptimisticUpdate: (decision) => {
+      learningLogger.debug({ decision }, '[useMasteryLearning] Optimistic update');
+    },
+    onAmasResult: (result) => {
+      setLatestAmasResult(result);
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+    onSuccess: () => {
+      setError(null);
+    },
+    enableOptimisticUpdate: true,
+    retryCount: 3,
+    retryDelay: 1000,
+  });
+
   // 初始化会话
   const initSession = useCallback(
     async (isReset = false) => {
       setIsLoading(true);
       setError(null);
       try {
-        let restored = false;
+        // 尝试从缓存恢复进度信息（不恢复单词列表）
+        let cachedProgress: {
+          masteredWordIds: string[];
+          totalQuestions: number;
+          sessionId: string;
+          masteryThreshold: number;
+          maxTotalQuestions: number;
+        } | null = null;
+
         if (!isReset && syncRef.current) {
           const cache = syncRef.current.sessionCache.loadSessionFromCache(user?.id, sessionId);
-          if (cache?.queueState?.words?.length) {
-            wordQueueRef.current.restoreQueue(cache.queueState.words, cache.queueState, {
+          if (cache?.queueState?.masteredWordIds?.length || cache?.queueState?.totalQuestions) {
+            // 只提取进度信息，不使用缓存的单词列表
+            cachedProgress = {
+              masteredWordIds: cache.queueState.masteredWordIds || [],
+              totalQuestions: cache.queueState.totalQuestions || 0,
+              sessionId: cache.sessionId,
               masteryThreshold: cache.masteryThreshold,
               maxTotalQuestions: cache.maxTotalQuestions,
-            });
-            currentSessionIdRef.current = cache.sessionId;
-            setHasRestoredSession(true);
-            restored = true;
+            };
           }
         }
-        if (!restored) {
-          const words = await getMasteryStudyWords(initialTargetCount);
-          if (!isMountedRef.current) return;
+
+        // 总是从服务端获取最新单词列表（后端会自动排除已学习的单词）
+        const words = await getMasteryStudyWords(initialTargetCount);
+        if (!isMountedRef.current) return;
+
+        // 如果有缓存的进度，过滤掉已掌握的单词
+        let filteredWords = words.words;
+        if (cachedProgress && cachedProgress.masteredWordIds.length > 0) {
+          const masteredSet = new Set(cachedProgress.masteredWordIds);
+          filteredWords = words.words.filter((w) => !masteredSet.has(w.id));
+        }
+
+        // 创建或恢复会话
+        if (cachedProgress) {
+          currentSessionIdRef.current = cachedProgress.sessionId;
+          sessionStartTimeRef.current = Date.now();
+          // 初始化队列，然后恢复进度
+          wordQueueRef.current.initializeQueue(filteredWords, {
+            masteryThreshold: cachedProgress.masteryThreshold,
+            maxTotalQuestions: cachedProgress.maxTotalQuestions,
+            targetMasteryCount: words.meta.targetCount,
+          });
+          // 恢复已掌握的单词计数（通过标记）
+          if (cachedProgress.masteredWordIds.length > 0) {
+            wordQueueRef.current.restoreMasteredCount(
+              cachedProgress.masteredWordIds.length,
+              cachedProgress.totalQuestions,
+            );
+          }
+          setHasRestoredSession(true);
+        } else {
           const session = await createMasterySession(words.meta.targetCount);
           if (!isMountedRef.current) return;
           currentSessionIdRef.current = session?.sessionId ?? '';
           sessionStartTimeRef.current = Date.now();
-          // 使用服务端返回的 targetCount，确保客户端与服务端一致
           wordQueueRef.current.initializeQueue(words.words, {
             masteryThreshold: words.meta.masteryThreshold,
             maxTotalQuestions: words.meta.maxQuestions,
             targetMasteryCount: words.meta.targetCount,
           });
         }
-        if (isMountedRef.current) wordQueueRef.current.updateFromManager({ consume: !restored });
+
+        if (isMountedRef.current)
+          wordQueueRef.current.updateFromManager({ consume: !cachedProgress });
       } catch (err) {
         if (isMountedRef.current) setError(err instanceof Error ? err.message : '初始化失败');
       } finally {
@@ -210,7 +261,10 @@ export function useMasteryLearning(
     async (isCorrect: boolean, responseTime: number) => {
       const word = wordQueue.getCurrentWord();
       if (!wordQueue.queueManagerRef.current || !word) return;
+
       setError(null);
+
+      // 先执行本地乐观更新
       const amasState = extractAmasState(latestAmasResult);
       const localDecision = sync.submitAnswerOptimistic({
         wordId: word.id,
@@ -219,19 +273,43 @@ export function useMasteryLearning(
         latestAmasState: amasState,
       });
       saveCache();
+
+      // 检查自适应调整
       const adaptive = wordQueue.adaptiveManagerRef.current;
       if (adaptive) {
         const { should, reason } = adaptive.onAnswerSubmitted(isCorrect, responseTime, amasState);
-        if (should && reason) sync.triggerQueueAdjustment(reason, adaptive.getRecentPerformance());
+        if (should && reason) {
+          sync.triggerQueueAdjustment(
+            reason as 'fatigue' | 'struggling' | 'excelling' | 'periodic',
+            adaptive.getRecentPerformance(),
+          );
+        }
       }
+
+      // 获取暂停时间
       const pausedTimeMs = getDialogPausedTime?.() ?? 0;
       if (pausedTimeMs > 0) resetDialogPausedTime?.();
-      sync.syncAnswerToServer(
-        { wordId: word.id, isCorrect, responseTime, pausedTimeMs, latestAmasState: amasState },
-        localDecision,
-      );
+
+      // 使用 React Query mutation hook 提交到服务器
+      // 提供自动重试和错误回滚
+      submitAnswerMutation.mutate({
+        wordId: word.id,
+        isCorrect,
+        responseTime,
+        sessionId: currentSessionIdRef.current,
+        pausedTimeMs,
+        latestAmasState: amasState,
+      });
     },
-    [wordQueue, latestAmasResult, sync, saveCache, getDialogPausedTime, resetDialogPausedTime],
+    [
+      wordQueue,
+      latestAmasResult,
+      sync,
+      saveCache,
+      getDialogPausedTime,
+      resetDialogPausedTime,
+      submitAnswerMutation,
+    ],
   );
 
   const advanceToNext = useCallback(
@@ -273,5 +351,6 @@ export function useMasteryLearning(
     allWords: wordQueue.allWords,
     error,
     latestAmasResult,
+    isSubmitting: submitAnswerMutation.isPending, // 提交状态
   };
 }

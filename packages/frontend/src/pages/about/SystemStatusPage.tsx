@@ -32,6 +32,7 @@ import {
   getUserStateStatus,
   getMemoryStatus,
   getFeatureFlags,
+  getOverviewStatsWithSource,
   PipelineStatusResponse,
   AlgorithmStatusResponse,
   UserStateStatusResponse,
@@ -589,15 +590,21 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
         </h4>
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-lg bg-purple-50 p-3 text-center">
-            <div className="text-xl font-bold text-purple-600">20</div>
+            <div className="text-xl font-bold text-purple-600">
+              {data.actrConfig?.maxTraceRecords ?? 20}
+            </div>
             <div className="text-xs text-gray-500">最大追踪记录</div>
           </div>
           <div className="rounded-lg bg-indigo-50 p-3 text-center">
-            <div className="text-xl font-bold text-indigo-600">0.3</div>
+            <div className="text-xl font-bold text-indigo-600">
+              {data.actrConfig?.errorPenalty ?? 0.3}
+            </div>
             <div className="text-xs text-gray-500">错误惩罚因子</div>
           </div>
           <div className="rounded-lg bg-rose-50 p-3 text-center">
-            <div className="text-xl font-bold text-rose-600">0.5</div>
+            <div className="text-xl font-bold text-rose-600">
+              {data.actrConfig?.defaultDecay ?? 0.5}
+            </div>
             <div className="text-xs text-gray-500">默认衰减率</div>
           </div>
         </div>
@@ -827,15 +834,17 @@ export default function SystemStatusPage() {
   const [memoryData, setMemoryData] = useState<MemoryStatusResponse | null>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlagsStatus | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [dataSource, setDataSource] = useState<'real' | 'virtual' | 'mixed'>('virtual');
 
   const fetchData = useCallback(async () => {
     try {
-      const [pipeline, algo, userState, memory, flags] = await Promise.all([
+      const [pipeline, algo, userState, memory, flags, overviewResult] = await Promise.all([
         getPipelineLayerStatus(),
         getAlgorithmStatus(),
         getUserStateStatus(),
         getMemoryStatus(),
         getFeatureFlags(),
+        getOverviewStatsWithSource(),
       ]);
 
       setPipelineData(pipeline);
@@ -843,6 +852,7 @@ export default function SystemStatusPage() {
       setUserStateData(userState);
       setMemoryData(memory);
       setFeatureFlags(flags);
+      setDataSource(overviewResult.source);
       setLastUpdated(new Date());
     } catch (error) {
       amasLogger.error({ err: error }, '获取系统状态数据失败');
@@ -881,10 +891,20 @@ export default function SystemStatusPage() {
       }
     }, 30000); // 30秒
 
+    const featureFlagsTimer = setInterval(async () => {
+      try {
+        const data = await getFeatureFlags();
+        setFeatureFlags(data);
+      } catch (e) {
+        amasLogger.error({ err: e }, '功能开关状态刷新失败');
+      }
+    }, 3000); // 3秒，更快响应调试界面的变化
+
     return () => {
       clearInterval(pipelineTimer);
       clearInterval(algoTimer);
       clearInterval(userStateTimer);
+      clearInterval(featureFlagsTimer);
     };
   }, [fetchData]);
 
@@ -894,10 +914,28 @@ export default function SystemStatusPage() {
         {/* 页面标题 */}
         <header className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
-              <Activity className="text-blue-600" weight="duotone" />
-              AMAS 系统状态
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
+                <Activity className="text-blue-600" weight="duotone" />
+                AMAS 系统状态
+              </h1>
+              {/* 数据源标识 */}
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  dataSource === 'real'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : dataSource === 'mixed'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {dataSource === 'real'
+                  ? '真实数据'
+                  : dataSource === 'mixed'
+                    ? '混合数据'
+                    : '模拟数据'}
+              </span>
+            </div>
             <p className="mt-1 text-gray-500">实时监控系统运行状态和性能指标</p>
           </div>
           <div className="text-right text-sm text-gray-400">

@@ -51,7 +51,42 @@ import {
 
 import { amasLogger } from '../../logger';
 
+import { env } from '../../config/env';
+
 // ==================== 类型定义 ====================
+
+/**
+ * Native Action 序列化格式
+ * 用于将 TypeScript Action 转换为可传递给 Native 模块的简单对象
+ */
+export interface NativeSerializableAction {
+  /** 动作索引 (用于映射回原始 Action) */
+  index: number;
+  /** 间隔缩放因子 */
+  intervalScale: number;
+  /** 新词比例 */
+  newRatio: number;
+  /** 难度等级 (0=easy, 1=mid, 2=hard) */
+  difficulty: number;
+  /** 批量大小 */
+  batchSize: number;
+  /** 提示级别 */
+  hintLevel: number;
+}
+
+/** 难度等级到数值的映射 */
+const DIFFICULTY_TO_NUMBER: Record<string, number> = {
+  easy: 0,
+  mid: 1,
+  hard: 2,
+};
+
+/** 数值到难度等级的映射 */
+const NUMBER_TO_DIFFICULTY: Record<number, 'easy' | 'mid' | 'hard'> = {
+  0: 'easy',
+  1: 'mid',
+  2: 'hard',
+};
 
 /**
  * ACT-R Wrapper 配置选项
@@ -175,7 +210,7 @@ export class ACTRMemoryNativeWrapper {
       windowSize = DEFAULT_CIRCUIT_BREAKER_OPTIONS.windowSize,
       recoveryTimeout = DEFAULT_CIRCUIT_BREAKER_OPTIONS.openDurationMs,
       halfOpenProbe = DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenProbe,
-      useNative = process.env.AMAS_USE_NATIVE !== 'false',
+      useNative = env.AMAS_USE_NATIVE,
     } = config;
 
     this.nativeEnabled = useNative;
@@ -580,6 +615,49 @@ export class ACTRMemoryNativeWrapper {
     return this.fallback.computePersonalizedDecay(cogProfile);
   }
 
+  // ==================== Native Action 序列化 ====================
+
+  /**
+   * 将 Action 序列化为 Native 可用的格式
+   * @param action TypeScript Action 对象
+   * @param index 动作在数组中的索引
+   * @returns NativeSerializableAction
+   */
+  private serializeAction(action: Action, index: number): NativeSerializableAction {
+    return {
+      index,
+      intervalScale: action.interval_scale,
+      newRatio: action.new_ratio,
+      difficulty: DIFFICULTY_TO_NUMBER[action.difficulty] ?? 1,
+      batchSize: action.batch_size,
+      hintLevel: action.hint_level,
+    };
+  }
+
+  /**
+   * 批量序列化 Action 数组
+   * @param actions TypeScript Action 数组
+   * @returns NativeSerializableAction 数组
+   */
+  private serializeActions(actions: Action[]): NativeSerializableAction[] {
+    return actions.map((action, index) => this.serializeAction(action, index));
+  }
+
+  /**
+   * 从 Native 结果反序列化回 Action
+   * @param nativeAction Native 返回的动作数据
+   * @returns TypeScript Action 对象
+   */
+  private deserializeAction(nativeAction: NativeSerializableAction): Action {
+    return {
+      interval_scale: nativeAction.intervalScale,
+      new_ratio: nativeAction.newRatio,
+      difficulty: NUMBER_TO_DIFFICULTY[nativeAction.difficulty] ?? 'mid',
+      batch_size: nativeAction.batchSize,
+      hint_level: nativeAction.hintLevel,
+    };
+  }
+
   // ==================== BaseLearner 兼容方法 ====================
 
   /**
@@ -589,9 +667,11 @@ export class ACTRMemoryNativeWrapper {
    * - 动作数量 >= 20: 使用 Native
    * - 动作数量 < 20: 使用 TypeScript
    *
-   * 注意: 当前由于 Action 类型转换复杂，实际委托给 fallback 处理
+   * 实现了 Native Action 序列化，支持完整的 Native 路由
    */
   selectAction(state: UserState, actions: Action[], context: ACTRContext): ActionSelection<Action> {
+    const method: NativeMethod = 'selectAction';
+
     // 使用智能路由决策
     const decision = SmartRouter.decide('actr.selectAction', {
       dataSize: actions.length,
@@ -605,9 +685,81 @@ export class ACTRMemoryNativeWrapper {
       this.stats.routeDecisions.typescript++;
     }
 
-    // 当前由于 Action 类型转换复杂，统一使用 fallback
-    // TODO: 实现 Native Action 序列化后可启用完整的 Native 路由
+    // 使用 Native 实现（如果可用且决策为 Native）
+    // 注意：当前 Native 模块尚未实现 selectActionFromSerialized 方法
+    // 序列化逻辑已准备就绪，待 Native 模块支持后启用
+    if (decision === RouteDecision.USE_NATIVE && this.native) {
+      const start = performance.now();
+      try {
+        // 检查 Native 模块是否支持 selectActionFromSerialized 方法
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nativeWithExtension = this.native as any;
+        if (typeof nativeWithExtension.selectActionFromSerialized === 'function') {
+          // 序列化 Actions 为 Native 格式
+          const serializedActions = this.serializeActions(actions);
+
+          // 调用 Native selectAction
+          const result = nativeWithExtension.selectActionFromSerialized(
+            {
+              A: state.A,
+              F: state.F,
+              M: state.M,
+              conf: state.conf,
+              ts: state.ts,
+              mem: state.C.mem,
+              speed: state.C.speed,
+              stability: state.C.stability,
+            },
+            serializedActions,
+            {
+              currentTime: context.currentTime ?? Date.now(),
+              sessionDuration: context.sessionDuration ?? 0,
+              wordsReviewed: context.wordsReviewed ?? 0,
+            },
+          );
+
+          if (result && typeof result.selectedIndex === 'number') {
+            const elapsed = performance.now() - start;
+            this.circuitBreaker.recordSuccess();
+            this.stats.nativeCalls++;
+            recordNativeCall(method, 'success');
+            recordNativeDuration(method, elapsed);
+
+            const selectedAction = actions[result.selectedIndex];
+            return {
+              action: selectedAction,
+              score: result.score ?? 1.0,
+              confidence: result.confidence ?? 1.0,
+              meta: {
+                source: 'native',
+                computeTime: elapsed,
+                selectedIndex: result.selectedIndex,
+                ...(result.metadata ?? {}),
+              },
+            };
+          }
+        }
+
+        // Native 没有返回有效结果或方法不存在，降级到 fallback
+        amasLogger.debug(
+          '[ACTRMemoryNativeWrapper] Native selectAction not available or returned invalid result, falling back',
+        );
+      } catch (e) {
+        const elapsed = performance.now() - start;
+        this.circuitBreaker.recordFailure(e instanceof Error ? e.message : String(e));
+        this.stats.failures++;
+        recordNativeFailure();
+
+        amasLogger.warn(
+          { error: e instanceof Error ? e.message : String(e), elapsed },
+          '[ACTRMemoryNativeWrapper] Native selectAction failed, falling back to TypeScript',
+        );
+      }
+    }
+
+    // 使用 TypeScript fallback
     this.stats.fallbackCalls++;
+    recordNativeCall(method, 'fallback');
     return this.fallback.selectAction(state, actions, context);
   }
 

@@ -292,6 +292,19 @@ export class AmasClient extends BaseClient {
     }
   }
 
+  /**
+   * 获取所有算法配置预设
+   */
+  async getAllAlgorithmConfigs(): Promise<AlgorithmConfig[]> {
+    try {
+      const raw = await this.request<ApiAlgorithmConfig[]>('/api/algorithm-config/presets');
+      return raw.map((config) => this.normalizeAlgorithmConfig(config));
+    } catch (error) {
+      apiLogger.error({ err: error }, '获取算法配置预设失败');
+      throw error;
+    }
+  }
+
   // ==================== AMAS 核心 API ====================
 
   /**
@@ -390,6 +403,56 @@ export class AmasClient extends BaseClient {
       );
     } catch (error) {
       apiLogger.error({ err: error }, '批量处理事件失败');
+      throw error;
+    }
+  }
+
+  /**
+   * 获取延迟奖励列表
+   * @param params 查询参数
+   * @param params.status 奖励状态筛选 (PENDING|PROCESSING|DONE|FAILED)
+   * @param params.limit 返回数量限制 (默认50, 最大100)
+   */
+  async getDelayedRewards(params?: {
+    status?: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+    limit?: number;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      userId: string;
+      decisionId: string;
+      status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+      reward?: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    count: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.status) {
+        queryParams.append('status', params.status);
+      }
+      if (params?.limit !== undefined) {
+        queryParams.append('limit', String(params.limit));
+      }
+      const query = queryParams.toString();
+      const url = `/api/amas/delayed-rewards${query ? `?${query}` : ''}`;
+
+      return await this.request<{
+        items: Array<{
+          id: string;
+          userId: string;
+          decisionId: string;
+          status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+          reward?: number;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        count: number;
+      }>(url);
+    } catch (error) {
+      apiLogger.error({ err: error }, '获取延迟奖励列表失败');
       throw error;
     }
   }

@@ -424,43 +424,54 @@ class ExperimentService {
 
   /**
    * 记录实验指标（用于用户参与实验时更新指标）
+   * 使用事务和行级锁保证并发安全
    */
   async recordMetric(experimentId: string, variantId: string, reward: number): Promise<void> {
-    const metrics = await this.prisma.aBExperimentMetrics.findUnique({
-      where: {
-        experimentId_variantId: {
-          experimentId,
-          variantId,
+    // 使用事务 + FOR UPDATE 锁保证 Welford 算法的原子性
+    await this.prisma.$transaction(async (tx) => {
+      // 使用 $queryRaw 执行 SELECT ... FOR UPDATE 获取行级锁
+      const metrics = await tx.$queryRaw<
+        Array<{
+          sampleCount: number;
+          averageReward: number;
+          m2: number;
+        }>
+      >`
+        SELECT "sampleCount", "averageReward", "m2"
+        FROM "ABExperimentMetrics"
+        WHERE "experimentId" = ${experimentId} AND "variantId" = ${variantId}
+        FOR UPDATE
+      `;
+
+      if (!metrics || metrics.length === 0) {
+        throw new Error('指标记录不存在');
+      }
+
+      const current = metrics[0];
+
+      // Welford 算法更新均值和方差
+      const n = current.sampleCount + 1;
+      const delta = reward - current.averageReward;
+      const newMean = current.averageReward + delta / n;
+      const delta2 = reward - newMean;
+      const newM2 = current.m2 + delta * delta2;
+      const newStdDev = n > 1 ? Math.sqrt(newM2 / (n - 1)) : 0;
+
+      await tx.aBExperimentMetrics.update({
+        where: {
+          experimentId_variantId: {
+            experimentId,
+            variantId,
+          },
         },
-      },
-    });
-
-    if (!metrics) {
-      throw new Error('指标记录不存在');
-    }
-
-    // Welford 算法更新均值和方差
-    const n = metrics.sampleCount + 1;
-    const delta = reward - metrics.averageReward;
-    const newMean = metrics.averageReward + delta / n;
-    const delta2 = reward - newMean;
-    const newM2 = metrics.m2 + delta * delta2;
-    const newStdDev = n > 1 ? Math.sqrt(newM2 / (n - 1)) : 0;
-
-    await this.prisma.aBExperimentMetrics.update({
-      where: {
-        experimentId_variantId: {
-          experimentId,
-          variantId,
+        data: {
+          sampleCount: n,
+          averageReward: newMean,
+          m2: newM2,
+          stdDev: newStdDev,
+          primaryMetric: newMean, // 主要指标使用平均奖励
         },
-      },
-      data: {
-        sampleCount: n,
-        averageReward: newMean,
-        m2: newM2,
-        stdDev: newStdDev,
-        primaryMetric: newMean, // 主要指标使用平均奖励
-      },
+      });
     });
   }
 
@@ -730,6 +741,259 @@ class ExperimentService {
       reason: '需要更多样本数据',
       isActive: status === ABExperimentStatus.RUNNING,
     };
+  }
+
+  // ==================== 用户变体分配 ====================
+
+  /**
+   * 获取用户在指定实验中的变体分配
+   * @param userId 用户ID
+   * @param experimentId 实验ID
+   * @param requireRunning 是否要求实验必须在运行状态（默认 false）
+   */
+  async getUserVariant(
+    userId: string,
+    experimentId: string,
+    requireRunning: boolean = false,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  } | null> {
+    const assignment = await this.prisma.aBUserAssignment.findUnique({
+      where: {
+        userId_experimentId: {
+          userId,
+          experimentId,
+        },
+      },
+      include: {
+        variant: true,
+        experiment: requireRunning ? { select: { status: true } } : false,
+      },
+    });
+
+    if (!assignment) {
+      return null;
+    }
+
+    // 如果要求实验运行状态，检查实验是否在运行中
+    if (requireRunning && (assignment as any).experiment?.status !== 'RUNNING') {
+      return null;
+    }
+
+    return {
+      variantId: assignment.variant.id,
+      variantName: assignment.variant.name,
+      isControl: assignment.variant.isControl,
+      parameters: assignment.variant.parameters as Record<string, unknown>,
+    };
+  }
+
+  /**
+   * 分配用户到实验变体（粘性分配，基于权重随机）
+   * 使用 upsert 和异常处理保证并发安全和幂等性
+   */
+  async assignUserToVariant(
+    userId: string,
+    experimentId: string,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  }> {
+    // 检查是否已分配
+    const existingAssignment = await this.getUserVariant(userId, experimentId);
+    if (existingAssignment) {
+      return existingAssignment;
+    }
+
+    // 获取实验及其变体
+    const experiment = await this.prisma.aBExperiment.findUnique({
+      where: { id: experimentId },
+      include: { variants: true },
+    });
+
+    if (!experiment) {
+      throw new Error('实验不存在');
+    }
+
+    if (experiment.status !== ABExperimentStatus.RUNNING) {
+      throw new Error('实验未在运行中');
+    }
+
+    if (experiment.variants.length === 0) {
+      throw new Error('实验没有配置变体');
+    }
+
+    // 基于权重随机选择变体
+    const selectedVariant = this.selectVariantByWeight(experiment.variants);
+
+    try {
+      // 使用 upsert 保证幂等性，避免并发创建时的唯一约束冲突
+      const assignment = await this.prisma.aBUserAssignment.upsert({
+        where: {
+          userId_experimentId: {
+            userId,
+            experimentId,
+          },
+        },
+        create: {
+          userId,
+          experimentId,
+          variantId: selectedVariant.id,
+        },
+        update: {}, // 如果已存在，不做任何更新
+        include: {
+          variant: true,
+        },
+      });
+
+      logger.info(
+        { userId, experimentId, variantId: assignment.variantId },
+        '用户已分配到实验变体',
+      );
+
+      return {
+        variantId: assignment.variant.id,
+        variantName: assignment.variant.name,
+        isControl: assignment.variant.isControl,
+        parameters: assignment.variant.parameters as Record<string, unknown>,
+      };
+    } catch (error) {
+      // 处理极端并发情况：如果 upsert 仍然失败，重新查询已存在的分配
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const assignment = await this.getUserVariant(userId, experimentId);
+        if (assignment) {
+          logger.info({ userId, experimentId }, '并发分配冲突，返回已有分配');
+          return assignment;
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户或分配变体（如果未分配则自动分配）
+   */
+  async getOrAssignVariant(
+    userId: string,
+    experimentId: string,
+  ): Promise<{
+    variantId: string;
+    variantName: string;
+    isControl: boolean;
+    parameters: Record<string, unknown>;
+  } | null> {
+    // 检查实验是否存在且运行中
+    const experiment = await this.prisma.aBExperiment.findUnique({
+      where: { id: experimentId },
+    });
+
+    if (!experiment || experiment.status !== ABExperimentStatus.RUNNING) {
+      return null;
+    }
+
+    // 获取或分配
+    const existing = await this.getUserVariant(userId, experimentId);
+    if (existing) {
+      return existing;
+    }
+
+    return this.assignUserToVariant(userId, experimentId);
+  }
+
+  /**
+   * 获取所有运行中的实验
+   */
+  async getActiveExperiments(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      description: string | null;
+    }>
+  > {
+    const experiments = await this.prisma.aBExperiment.findMany({
+      where: { status: ABExperimentStatus.RUNNING },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+    });
+
+    return experiments;
+  }
+
+  /**
+   * 获取用户参与的所有活跃实验及其变体
+   * 按实验创建时间排序，确保多实验覆盖时的确定性
+   */
+  async getUserActiveExperiments(userId: string): Promise<
+    Array<{
+      experimentId: string;
+      experimentName: string;
+      variantId: string;
+      variantName: string;
+      isControl: boolean;
+      parameters: Record<string, unknown>;
+    }>
+  > {
+    // 获取用户的所有分配，按实验创建时间排序保证确定性
+    const assignments = await this.prisma.aBUserAssignment.findMany({
+      where: {
+        userId,
+        experiment: {
+          status: ABExperimentStatus.RUNNING,
+        },
+      },
+      include: {
+        experiment: true,
+        variant: true,
+      },
+      orderBy: {
+        experiment: {
+          createdAt: 'asc', // 按创建时间升序，早创建的实验优先级更低（后合并的覆盖先合并的）
+        },
+      },
+    });
+
+    return assignments.map((a) => ({
+      experimentId: a.experiment.id,
+      experimentName: a.experiment.name,
+      variantId: a.variant.id,
+      variantName: a.variant.name,
+      isControl: a.variant.isControl,
+      parameters: a.variant.parameters as Record<string, unknown>,
+    }));
+  }
+
+  /**
+   * 基于权重随机选择变体
+   */
+  private selectVariantByWeight(
+    variants: Array<{
+      id: string;
+      name: string;
+      weight: number;
+      isControl: boolean;
+      parameters: Prisma.JsonValue;
+    }>,
+  ): (typeof variants)[0] {
+    const totalWeight = variants.reduce((sum, v) => sum + v.weight, 0);
+    let random = Math.random() * totalWeight;
+
+    for (const variant of variants) {
+      random -= variant.weight;
+      if (random <= 0) {
+        return variant;
+      }
+    }
+
+    // 默认返回第一个（理论上不会执行到这里）
+    return variants[0];
   }
 }
 

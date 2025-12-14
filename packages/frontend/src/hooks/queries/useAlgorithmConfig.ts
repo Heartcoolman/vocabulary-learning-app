@@ -10,8 +10,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
 import apiClient from '../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../types/models';
+import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 
 /**
  * 获取当前激活的算法配置
@@ -27,10 +29,8 @@ export function useAlgorithmConfig() {
     queryFn: async () => {
       return await apiClient.getAlgorithmConfig();
     },
-    staleTime: 1000 * 60 * 5, // 5分钟
-    gcTime: 1000 * 60 * 60, // 1小时（长缓存）
-    refetchOnWindowFocus: false, // 配置不需要频繁重新获取
-    refetchOnReconnect: false,
+    // 使用 stable 预设 - 算法配置不经常变化
+    ...QUERY_PRESETS.stable,
   });
 }
 
@@ -46,8 +46,8 @@ export function useConfigHistory(limit?: number, enabled = true) {
     queryFn: async () => {
       return await apiClient.getConfigHistory(limit);
     },
-    staleTime: 1000 * 60 * 2, // 2分钟
-    gcTime: 1000 * 60 * 10, // 10分钟
+    staleTime: CACHE_TIME.MEDIUM_SHORT, // 2分钟
+    gcTime: GC_TIME.MEDIUM, // 10分钟
     enabled,
   });
 }
@@ -56,20 +56,86 @@ export function useConfigHistory(limit?: number, enabled = true) {
  * 获取算法配置预设列表
  *
  * 特点：
+ * - 优先从后端API获取预设
+ * - API失败时回退到本地默认预设
  * - 较长的缓存时间，因为预设列表很少变化
- *
- * 注意：此功能暂未实现，返回空数组
  */
 export function useAlgorithmConfigPresets() {
   return useQuery<AlgorithmConfig[]>({
     queryKey: queryKeys.algorithmConfig.presets(),
     queryFn: async () => {
-      // TODO: 等后端实现预设列表接口后再启用
-      // 暂时返回空数组
-      return [];
+      try {
+        // 优先从后端API获取预设
+        const presets = await apiClient.getAllAlgorithmConfigs();
+        if (presets && presets.length > 0) {
+          return presets;
+        }
+      } catch (error) {
+        console.warn('获取后端预设失败，使用本地默认配置:', error);
+      }
+
+      // 回退到本地默认配置
+      const defaults = new AlgorithmConfigService().getDefaultConfig();
+
+      const localPresets: AlgorithmConfig[] = [
+        defaults,
+        {
+          ...defaults,
+          id: 'balanced',
+          name: '均衡模式',
+          description: '更平衡的新词/复习权重，适合日常学习',
+          priorityWeights: {
+            ...defaults.priorityWeights,
+            newWord: 30,
+            errorRate: 30,
+            overdueTime: 25,
+            wordScore: 15,
+          },
+          scoreWeights: {
+            ...defaults.scoreWeights,
+            accuracy: 35,
+            speed: 30,
+            stability: 25,
+            proficiency: 10,
+          },
+        },
+        {
+          ...defaults,
+          id: 'speed-first',
+          name: '提速模式',
+          description: '提高新词比例并收紧速度阈值，适合冲刺记忆',
+          reviewIntervals: [1, 2, 4, 8, 15],
+          priorityWeights: {
+            ...defaults.priorityWeights,
+            newWord: 50,
+            errorRate: 20,
+            overdueTime: 20,
+            wordScore: 10,
+          },
+          speedThresholds: { excellent: 2500, good: 4000, average: 8000, slow: 12000 },
+        },
+        {
+          ...defaults,
+          id: 'stability-first',
+          name: '稳态复习',
+          description: '加大复习间隔并提高错误率权重，适合稳固长期记忆',
+          reviewIntervals: [1, 3, 7, 15, 30, 60],
+          priorityWeights: {
+            ...defaults.priorityWeights,
+            newWord: 20,
+            errorRate: 40,
+            overdueTime: 30,
+            wordScore: 10,
+          },
+          consecutiveCorrectThreshold: 6,
+          consecutiveWrongThreshold: 2,
+        },
+      ];
+
+      return localPresets;
     },
-    staleTime: 1000 * 60 * 10, // 10分钟
-    gcTime: 1000 * 60 * 60, // 1小时
+    staleTime: CACHE_TIME.LONG, // 10分钟
+    gcTime: GC_TIME.STATIC, // 1小时
     refetchOnWindowFocus: false,
   });
 }

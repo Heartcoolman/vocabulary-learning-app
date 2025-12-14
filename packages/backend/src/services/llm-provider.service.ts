@@ -66,15 +66,15 @@ class OpenAIProvider implements ILLMProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`
+        Authorization: `Bearer ${this.config.apiKey}`,
       },
       body: JSON.stringify({
         model: this.config.model,
         messages,
         temperature: options?.temperature ?? this.config.temperature,
-        max_tokens: options?.maxTokens ?? this.config.maxTokens
+        max_tokens: options?.maxTokens ?? this.config.maxTokens,
       }),
-      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout)
+      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout),
     });
 
     if (!response.ok) {
@@ -82,19 +82,21 @@ class OpenAIProvider implements ILLMProvider {
       throw new Error(`OpenAI API 错误 (${response.status}): ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
       usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       model: string;
     };
     return {
       content: data.choices[0].message.content,
-      usage: data.usage ? {
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens
-      } : undefined,
-      model: data.model
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          }
+        : undefined,
+      model: data.model,
     };
   }
 }
@@ -107,27 +109,27 @@ class AnthropicProvider implements ILLMProvider {
 
   async chat(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
     // 提取 system 消息
-    const systemMessage = messages.find(m => m.role === 'system');
-    const userMessages = messages.filter(m => m.role !== 'system');
+    const systemMessage = messages.find((m) => m.role === 'system');
+    const userMessages = messages.filter((m) => m.role !== 'system');
 
     const response = await fetch(`${this.config.baseUrl}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': this.config.apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: this.config.model,
         max_tokens: options?.maxTokens ?? this.config.maxTokens,
         system: systemMessage?.content,
-        messages: userMessages.map(m => ({
+        messages: userMessages.map((m) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content
+          content: m.content,
         })),
-        temperature: options?.temperature ?? this.config.temperature
+        temperature: options?.temperature ?? this.config.temperature,
       }),
-      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout)
+      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout),
     });
 
     if (!response.ok) {
@@ -135,19 +137,21 @@ class AnthropicProvider implements ILLMProvider {
       throw new Error(`Anthropic API 错误 (${response.status}): ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       content: Array<{ text: string }>;
       usage?: { input_tokens: number; output_tokens: number };
       model: string;
     };
     return {
       content: data.content[0].text,
-      usage: data.usage ? {
-        promptTokens: data.usage.input_tokens,
-        completionTokens: data.usage.output_tokens,
-        totalTokens: data.usage.input_tokens + data.usage.output_tokens
-      } : undefined,
-      model: data.model
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.input_tokens,
+            completionTokens: data.usage.output_tokens,
+            totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+          }
+        : undefined,
+      model: data.model,
     };
   }
 }
@@ -162,7 +166,7 @@ class OllamaProvider implements ILLMProvider {
     const response = await fetch(`${this.config.baseUrl}/chat`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: this.config.model,
@@ -170,10 +174,10 @@ class OllamaProvider implements ILLMProvider {
         stream: false,
         options: {
           temperature: options?.temperature ?? this.config.temperature,
-          num_predict: options?.maxTokens ?? this.config.maxTokens
-        }
+          num_predict: options?.maxTokens ?? this.config.maxTokens,
+        },
       }),
-      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout)
+      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout),
     });
 
     if (!response.ok) {
@@ -181,19 +185,21 @@ class OllamaProvider implements ILLMProvider {
       throw new Error(`Ollama API 错误 (${response.status}): ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       message: { content: string };
       eval_count?: number;
       prompt_eval_count?: number;
     };
     return {
       content: data.message.content,
-      usage: data.eval_count ? {
-        promptTokens: data.prompt_eval_count || 0,
-        completionTokens: data.eval_count,
-        totalTokens: (data.prompt_eval_count || 0) + data.eval_count
-      } : undefined,
-      model: this.config.model
+      usage: data.eval_count
+        ? {
+            promptTokens: data.prompt_eval_count || 0,
+            completionTokens: data.eval_count,
+            totalTokens: (data.prompt_eval_count || 0) + data.eval_count,
+          }
+        : undefined,
+      model: this.config.model,
     };
   }
 }
@@ -213,15 +219,15 @@ class CustomProvider implements ILLMProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(this.config.apiKey && { 'Authorization': `Bearer ${this.config.apiKey}` })
+        ...(this.config.apiKey && { Authorization: `Bearer ${this.config.apiKey}` }),
       },
       body: JSON.stringify({
         model: this.config.model,
         messages,
         temperature: options?.temperature ?? this.config.temperature,
-        max_tokens: options?.maxTokens ?? this.config.maxTokens
+        max_tokens: options?.maxTokens ?? this.config.maxTokens,
       }),
-      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout)
+      signal: AbortSignal.timeout(options?.timeout ?? this.config.timeout),
     });
 
     if (!response.ok) {
@@ -229,19 +235,21 @@ class CustomProvider implements ILLMProvider {
       throw new Error(`Custom API 错误 (${response.status}): ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
       usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       model?: string;
     };
     return {
       content: data.choices[0].message.content,
-      usage: data.usage ? {
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens
-      } : undefined,
-      model: data.model || this.config.model
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          }
+        : undefined,
+      model: data.model || this.config.model,
     };
   }
 }
@@ -256,10 +264,55 @@ class CustomProvider implements ILLMProvider {
 export class LLMProviderService {
   private provider: ILLMProvider;
   private config: LLMConfig;
+  private isConfigValid: boolean;
 
   constructor(config?: LLMConfig) {
     this.config = config ?? llmConfig;
+
+    // 验证配置完整性
+    this.isConfigValid = this.validateConfig();
+
+    if (!this.isConfigValid) {
+      amasLogger.warn(
+        {
+          enabled: this.config.enabled,
+          provider: this.config.provider,
+          apiKeySet: !!this.config.apiKey,
+        },
+        '[LLMProvider] 配置不完整，LLM 功能将不可用',
+      );
+    }
+
     this.provider = this.createProvider(this.config.provider);
+  }
+
+  /**
+   * 验证 LLM 配置是否完整
+   */
+  private validateConfig(): boolean {
+    // 如果未启用，不需要验证
+    if (!this.config.enabled) {
+      return false;
+    }
+
+    // Ollama 不需要 API Key
+    if (this.config.provider === 'ollama') {
+      return !!this.config.baseUrl;
+    }
+
+    // 其他提供者需要 API Key
+    if (!this.config.apiKey) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 检查服务是否可用
+   */
+  isAvailable(): boolean {
+    return this.config.enabled && this.isConfigValid;
   }
 
   /**
@@ -284,6 +337,15 @@ export class LLMProviderService {
    * 发送聊天请求（带重试）
    */
   async chat(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
+    // 前置检查：服务是否可用
+    if (!this.config.enabled) {
+      throw new Error('LLM 服务未启用');
+    }
+
+    if (!this.isConfigValid) {
+      throw new Error('LLM 配置不完整，请检查 API Key 或 Base URL 设置');
+    }
+
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
@@ -292,22 +354,28 @@ export class LLMProviderService {
         const response = await this.provider.chat(messages, options);
         const duration = Date.now() - startTime;
 
-        amasLogger.info({
-          provider: this.config.provider,
-          model: response.model,
-          duration,
-          usage: response.usage
-        }, '[LLMProvider] 调用成功');
+        amasLogger.info(
+          {
+            provider: this.config.provider,
+            model: response.model,
+            duration,
+            usage: response.usage,
+          },
+          '[LLMProvider] 调用成功',
+        );
 
         return response;
       } catch (error) {
         lastError = error as Error;
-        amasLogger.warn({
-          provider: this.config.provider,
-          attempt: attempt + 1,
-          maxRetries: this.config.maxRetries,
-          error: lastError.message
-        }, '[LLMProvider] 调用失败，准备重试');
+        amasLogger.warn(
+          {
+            provider: this.config.provider,
+            attempt: attempt + 1,
+            maxRetries: this.config.maxRetries,
+            error: lastError.message,
+          },
+          '[LLMProvider] 调用失败，准备重试',
+        );
 
         if (attempt < this.config.maxRetries) {
           // 指数退避
@@ -323,9 +391,7 @@ export class LLMProviderService {
    * 简化的单轮对话
    */
   async complete(prompt: string, options?: ChatOptions): Promise<string> {
-    const response = await this.chat([
-      { role: 'user', content: prompt }
-    ], options);
+    const response = await this.chat([{ role: 'user', content: prompt }], options);
     return response.content;
   }
 
@@ -335,12 +401,15 @@ export class LLMProviderService {
   async completeWithSystem(
     systemPrompt: string,
     userPrompt: string,
-    options?: ChatOptions
+    options?: ChatOptions,
   ): Promise<string> {
-    const response = await this.chat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ], options);
+    const response = await this.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      options,
+    );
     return response.content;
   }
 
@@ -354,7 +423,7 @@ export class LLMProviderService {
     } catch (error) {
       return {
         ok: false,
-        message: `LLM 服务异常: ${(error as Error).message}`
+        message: `LLM 服务异常: ${(error as Error).message}`,
       };
     }
   }
@@ -368,12 +437,12 @@ export class LLMProviderService {
       provider: this.config.provider,
       model: this.config.model,
       baseUrl: this.config.baseUrl,
-      apiKeySet: !!this.config.apiKey
+      apiKeySet: !!this.config.apiKey,
     };
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

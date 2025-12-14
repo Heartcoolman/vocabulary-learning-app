@@ -57,6 +57,9 @@ export default defineConfig({
     },
   ],
 
+  // 确保 WASM 和模型文件正确处理
+  assetsInclude: ['**/*.wasm', '**/*.task'],
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -82,6 +85,19 @@ export default defineConfig({
   // 优化依赖预构建
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', '@phosphor-icons/react'],
+    // 排除 MediaPipe（动态加载 WASM）
+    exclude: ['@mediapipe/tasks-vision'],
+  },
+
+  // Worker 配置
+  worker: {
+    format: 'es', // 使用 ES 模块格式，避免与 code-splitting 冲突
+    rollupOptions: {
+      output: {
+        // Worker 独立打包，不参与主 bundle 的代码分割
+        inlineDynamicImports: true,
+      },
+    },
   },
 
   // 构建优化配置（保守方案）

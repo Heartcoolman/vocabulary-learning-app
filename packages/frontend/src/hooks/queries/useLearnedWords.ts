@@ -42,9 +42,7 @@ export function useWord(id: string) {
   return useQuery({
     queryKey: queryKeys.words.detail(id),
     queryFn: async (): Promise<Word> => {
-      // 注意: ApiClient中没有直接的getWordById方法
-      // 需要从词书中获取单词，这里先抛出错误提示需要实现
-      throw new Error('获取单个单词详情需要实现getWordById方法');
+      return await apiClient.getWordById(id);
     },
     enabled: !!id,
     staleTime: 5 * 60 * 1000,

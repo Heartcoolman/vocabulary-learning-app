@@ -10,6 +10,7 @@
  */
 
 import { trackingLogger } from '../utils/logger';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 /**
  * 埋点事件类型
@@ -56,6 +57,8 @@ interface EventBatch {
   userId?: string;
   sessionId: string;
   timestamp: number;
+  /** 认证令牌（用于 sendBeacon，避免 URL 泄露） */
+  authToken?: string;
 }
 
 class TrackingService {
@@ -70,6 +73,11 @@ class TrackingService {
   private readonly API_ENDPOINT = '/api/tracking/events';
   private isPageVisible = true;
   private pauseStartTime: number | null = null;
+
+  // 事件监听器引用（用于清理）
+  private visibilityChangeHandler: (() => void) | null = null;
+  private beforeUnloadHandler: (() => void) | null = null;
+  private pageHideHandler: (() => void) | null = null;
 
   constructor() {
     this.sessionId = this.generateSessionId();
@@ -115,13 +123,14 @@ class TrackingService {
    */
   private setupVisibilityListener(): void {
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
+      this.visibilityChangeHandler = () => {
         if (document.hidden) {
           this.trackLearningPause('visibility_hidden');
         } else {
           this.trackLearningResume('visibility_visible');
         }
-      });
+      };
+      document.addEventListener('visibilitychange', this.visibilityChangeHandler);
     }
   }
 
@@ -130,15 +139,17 @@ class TrackingService {
    */
   private setupUnloadListener(): void {
     if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', () => {
+      this.beforeUnloadHandler = () => {
         this.trackSessionEnd();
         this.flushSync();
-      });
+      };
+      window.addEventListener('beforeunload', this.beforeUnloadHandler);
 
-      window.addEventListener('pagehide', () => {
+      this.pageHideHandler = () => {
         this.trackSessionEnd();
         this.flushSync();
-      });
+      };
+      window.addEventListener('pagehide', this.pageHideHandler);
     }
   }
 
@@ -368,7 +379,7 @@ class TrackingService {
     };
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       if (!token) {
         // 未登录，将事件放回队列
         this.events = [...eventsToSend, ...this.events];
@@ -406,26 +417,25 @@ class TrackingService {
       return;
     }
 
-    const batch: EventBatch = {
-      events: [...this.events],
-      sessionId: this.sessionId,
-      timestamp: Date.now(),
-    };
-
-    this.events = [];
-
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     if (!token) {
       return;
     }
 
+    // 将 token 放入 body 而非 URL，避免泄露到服务器日志
+    const batch: EventBatch = {
+      events: [...this.events],
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+      authToken: token,
+    };
+
+    this.events = [];
+
     // 使用 sendBeacon 确保数据在页面卸载时能发送
     if (navigator.sendBeacon) {
       const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
-      navigator.sendBeacon(
-        `${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}?token=${token}`,
-        blob,
-      );
+      navigator.sendBeacon(`${import.meta.env.VITE_API_URL || ''}${this.API_ENDPOINT}`, blob);
     }
   }
 
@@ -449,10 +459,26 @@ class TrackingService {
    * 清理资源
    */
   destroy(): void {
+    // 清理定时器
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
+
+    // 移除事件监听器
+    if (this.visibilityChangeHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
+    if (this.beforeUnloadHandler && typeof window !== 'undefined') {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
+    }
+    if (this.pageHideHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this.pageHideHandler);
+      this.pageHideHandler = null;
+    }
+
     this.trackSessionEnd();
     this.flushSync();
   }

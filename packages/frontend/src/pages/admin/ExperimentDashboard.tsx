@@ -16,6 +16,11 @@ import {
   Plus,
   ChartBar,
   Gear,
+  ArrowLeft,
+  Play,
+  Stop,
+  Trash,
+  Eye,
 } from '../../components/Icon';
 import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
@@ -42,6 +47,22 @@ interface ExperimentStatus {
   isActive: boolean;
 }
 
+interface ExperimentListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  status: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+  trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+  minSampleSize: number;
+  significanceLevel: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  variantCount: number;
+  totalSamples: number;
+}
+
 interface VariantData {
   id: string;
   name: string;
@@ -63,25 +84,49 @@ interface CreateExperimentForm {
 
 // --- Sub-Components ---
 
-const StatusBadge = ({ status }: { status: ExperimentStatus['status'] }) => {
-  const config = {
+const StatusBadge = ({
+  status,
+}: {
+  status: ExperimentStatus['status'] | ExperimentListItem['status'];
+}) => {
+  const config: Record<string, { color: string; icon: Icon; label: string }> = {
     running: {
       color: 'bg-amber-100 text-amber-700 border-amber-200',
       icon: Activity,
-      label: '运行中 (Running)',
+      label: '运行中',
+    },
+    RUNNING: {
+      color: 'bg-amber-100 text-amber-700 border-amber-200',
+      icon: Activity,
+      label: '运行中',
     },
     completed: {
       color: 'bg-blue-100 text-blue-700 border-blue-200',
       icon: CheckCircle,
-      label: '已完成 (Completed)',
+      label: '已完成',
+    },
+    COMPLETED: {
+      color: 'bg-blue-100 text-blue-700 border-blue-200',
+      icon: CheckCircle,
+      label: '已完成',
     },
     stopped: {
       color: 'bg-red-100 text-red-700 border-red-200',
       icon: XCircle,
-      label: '已停止 (Stopped)',
+      label: '已停止',
+    },
+    ABORTED: {
+      color: 'bg-red-100 text-red-700 border-red-200',
+      icon: XCircle,
+      label: '已中止',
+    },
+    DRAFT: {
+      color: 'bg-gray-100 text-gray-700 border-gray-200',
+      icon: Gear,
+      label: '草稿',
     },
   };
-  const { color, icon: Icon, label } = config[status];
+  const { color, icon: Icon, label } = config[status] || config.DRAFT;
 
   return (
     <span
@@ -410,19 +455,171 @@ const CreateExperimentModal = ({
   );
 };
 
-// --- Main Component ---
+// --- 实验列表组件 ---
+const ExperimentList = ({
+  experiments,
+  loading,
+  onRefresh,
+  onSelect,
+  onStart,
+  onStop,
+  onDelete,
+  onCreate,
+}: {
+  experiments: ExperimentListItem[];
+  loading: boolean;
+  onRefresh: () => void;
+  onSelect: (id: string) => void;
+  onStart: (id: string) => void;
+  onStop: (id: string) => void;
+  onDelete: (id: string) => void;
+  onCreate: () => void;
+}) => {
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <ArrowsClockwise className="animate-spin text-blue-500" size={32} weight="bold" />
+      </div>
+    );
+  }
 
-export default function ExperimentDashboard() {
+  return (
+    <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
+            <Flask className="text-indigo-600" weight="duotone" />
+            A/B 测试实验管理
+          </h1>
+          <p className="mt-1 text-gray-500">创建和管理算法对比实验</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            <Plus size={18} weight="bold" />
+            创建实验
+          </button>
+          <button
+            onClick={onRefresh}
+            className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+            title="刷新"
+          >
+            <ArrowsClockwise size={18} weight="bold" />
+          </button>
+        </div>
+      </div>
+
+      {/* 实验列表 */}
+      {!experiments || experiments.length === 0 ? (
+        <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-8">
+          <Flask size={64} className="mb-4 text-gray-300" weight="duotone" />
+          <h2 className="mb-2 text-xl font-bold text-gray-900">暂无实验</h2>
+          <p className="mb-6 text-gray-500">创建您的第一个 A/B 测试实验</p>
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            <Plus size={18} weight="bold" />
+            创建实验
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {experiments.map((exp) => (
+            <div
+              key={exp.id}
+              className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-bold text-gray-900">{exp.name}</h3>
+                    <StatusBadge status={exp.status} />
+                  </div>
+                  {exp.description && (
+                    <p className="mt-1 text-sm text-gray-500">{exp.description}</p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                    <span className="flex items-center gap-1">
+                      <UsersThree size={16} />
+                      {exp.totalSamples} 样本
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <ChartBar size={16} />
+                      {exp.variantCount} 变体
+                    </span>
+                    <span>显著性水平: {exp.significanceLevel}</span>
+                    <span>创建于: {new Date(exp.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {exp.status === 'DRAFT' && (
+                    <button
+                      onClick={() => onStart(exp.id)}
+                      className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
+                      title="启动实验"
+                    >
+                      <Play size={16} weight="bold" />
+                      启动
+                    </button>
+                  )}
+                  {exp.status === 'RUNNING' && (
+                    <button
+                      onClick={() => onStop(exp.id)}
+                      className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                      title="停止实验"
+                    >
+                      <Stop size={16} weight="bold" />
+                      停止
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onSelect(exp.id)}
+                    className="flex items-center gap-1 rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+                    title="查看详情"
+                  >
+                    <Eye size={16} weight="bold" />
+                    详情
+                  </button>
+                  {exp.status !== 'RUNNING' && (
+                    <button
+                      onClick={() => onDelete(exp.id)}
+                      className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                      title="删除实验"
+                    >
+                      <Trash size={16} weight="bold" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- 实验详情组件 ---
+const ExperimentDetail = ({
+  experimentId,
+  onBack,
+}: {
+  experimentId: string;
+  onBack: () => void;
+}) => {
   const [data, setData] = useState<ExperimentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiClient.getExperimentStatus('thompson-vs-linucb');
+      const result = await apiClient.getExperimentStatus(experimentId);
       setData(result);
     } catch (e) {
       const err = e as Error;
@@ -435,7 +632,7 @@ export default function ExperimentDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [experimentId]);
 
   if (loading) {
     return (
@@ -452,12 +649,20 @@ export default function ExperimentDashboard() {
           <WarningCircle size={64} className="mx-auto mb-4 text-red-500" weight="duotone" />
           <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
           <p className="mb-6 text-gray-600">{error || '无法加载实验数据'}</p>
-          <button
-            onClick={loadData}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
-          >
-            重试
-          </button>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={onBack}
+              className="rounded-lg border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              返回列表
+            </button>
+            <button
+              onClick={loadData}
+              className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            >
+              重试
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -465,42 +670,36 @@ export default function ExperimentDashboard() {
 
   const totalSamples = data.sampleSizes.reduce((acc, curr) => acc + curr.sampleCount, 0);
   const controlSamples =
-    data.sampleSizes.find((s) => s.variantId.includes('linucb'))?.sampleCount || 0;
+    data.sampleSizes.find((s) => s.variantId.includes('control') || s.variantId.includes('linucb'))
+      ?.sampleCount ||
+    data.sampleSizes[0]?.sampleCount ||
+    0;
   const treatmentSamples =
-    data.sampleSizes.find((s) => s.variantId.includes('thompson'))?.sampleCount || 0;
+    data.sampleSizes.find(
+      (s) => s.variantId.includes('treatment') || s.variantId.includes('thompson'),
+    )?.sampleCount ||
+    data.sampleSizes[1]?.sampleCount ||
+    0;
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
-      {/* 创建实验模态框 */}
-      {showCreateModal && (
-        <CreateExperimentModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            loadData();
-          }}
-        />
-      )}
-
       {/* Header Section */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
+          <button
+            onClick={onBack}
+            className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft size={16} />
+            返回列表
+          </button>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
             <Flask className="text-indigo-600" weight="duotone" />
-            A/B 测试仪表盘: Bandit 算法优化
+            实验详情
           </h1>
-          <p className="mt-1 text-gray-500">
-            对比 Control (LinUCB) 与 Treatment (Thompson Sampling) 的性能表现
-          </p>
+          <p className="mt-1 text-gray-500">ID: {experimentId}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
-          >
-            <Plus size={18} weight="bold" />
-            创建实验
-          </button>
           <StatusBadge status={data.status} />
           <button
             onClick={loadData}
@@ -518,18 +717,14 @@ export default function ExperimentDashboard() {
           label="P-Value (显著性)"
           value={data.pValue.toFixed(4)}
           icon={Scales}
-          subtext={
-            data.isSignificant
-              ? 'Result is statistically significant'
-              : 'Result is NOT significant yet'
-          }
+          subtext={data.isSignificant ? '结果具有统计显著性' : '结果尚未显著'}
           trend={data.isSignificant ? 'positive' : null}
         />
         <MetricCard
           label="Effect Size (提升幅度)"
           value={`${(data.effectSize * 100).toFixed(1)}%`}
           icon={TrendUp}
-          subtext="Relative improvement over baseline"
+          subtext="相对于基准的提升"
           trend={data.effectSize > 0 ? 'positive' : 'negative'}
         />
         <MetricCard
@@ -569,7 +764,7 @@ export default function ExperimentDashboard() {
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                       Control Group
                     </span>
-                    <h4 className="text-lg font-bold text-gray-900">LinUCB</h4>
+                    <h4 className="text-lg font-bold text-gray-900">对照组</h4>
                   </div>
                   <div className="text-right">
                     <div className="font-mono text-2xl font-semibold text-gray-700">
@@ -577,9 +772,6 @@ export default function ExperimentDashboard() {
                     </div>
                     <div className="text-xs text-gray-400">Samples</div>
                   </div>
-                </div>
-                <div className="mt-2 text-sm text-gray-500">
-                  Baseline algorithm utilizing Upper Confidence Bound logic.
                 </div>
               </div>
 
@@ -594,7 +786,7 @@ export default function ExperimentDashboard() {
                     <span className="text-xs font-bold uppercase tracking-wider text-green-600">
                       Treatment Group
                     </span>
-                    <h4 className="text-lg font-bold text-gray-900">Thompson Sampling</h4>
+                    <h4 className="text-lg font-bold text-gray-900">实验组</h4>
                   </div>
                   <div className="text-right">
                     <div className="font-mono text-2xl font-semibold text-gray-700">
@@ -603,13 +795,10 @@ export default function ExperimentDashboard() {
                     <div className="text-xs text-gray-400">Samples</div>
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
-                  Probabilistic algorithm using Bayesian posterior distributions.
-                </div>
                 {data.effectSize > 0 && (
                   <div className="mt-3 inline-flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
                     <TrendUp size={12} weight="bold" />
-                    Leading by {(data.effectSize * 100).toFixed(1)}%
+                    领先 {(data.effectSize * 100).toFixed(1)}%
                   </div>
                 )}
               </div>
@@ -675,10 +864,7 @@ export default function ExperimentDashboard() {
                     <Trophy size={24} weight="fill" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-green-900">
-                      Winner:{' '}
-                      {data.winner === 'treatment_thompson' ? 'Thompson Sampling' : 'LinUCB'}
-                    </h4>
+                    <h4 className="font-bold text-green-900">Winner: {data.winner}</h4>
                     <p className="mt-1 text-sm text-green-800">{data.reason}</p>
                   </div>
                 </div>
@@ -695,161 +881,120 @@ export default function ExperimentDashboard() {
               {data.status === 'completed' && (
                 <div className="mt-6 flex gap-3 border-t border-indigo-100/50 pt-4">
                   <button className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow">
-                    Adopt Winner
+                    采用获胜方案
                     <ArrowRight size={16} weight="bold" />
                   </button>
                   <button className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                    Archive Report
+                    归档报告
                   </button>
                 </div>
               )}
             </div>
           </section>
-
-          {/* 5. 数据收集状态与实时追踪 */}
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-800">
-              <ChartBar size={20} weight="bold" />
-              数据收集状态
-            </h3>
-
-            <div className="space-y-4">
-              {/* 总体进度 */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm text-gray-600">总样本收集进度</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {totalSamples} / {data.isSignificant ? totalSamples : totalSamples * 2} (目标)
-                  </span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
-                    style={{
-                      width: `${Math.min((totalSamples / (totalSamples * 2)) * 100, 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 各变体样本数 */}
-              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-2">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-700">Control (LinUCB)</span>
-                    <span className="text-sm text-gray-600">{controlSamples}</span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
-                    <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${(controlSamples / totalSamples) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-green-700">Treatment (Thompson)</span>
-                    <span className="text-sm text-gray-600">{treatmentSamples}</span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-green-100">
-                    <div
-                      className="h-full rounded-full bg-green-500"
-                      style={{ width: `${(treatmentSamples / totalSamples) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 实时指标 */}
-              <div className="border-t border-gray-100 pt-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="mb-1 text-xs text-gray-500">数据质量</div>
-                    <div className="text-lg font-bold text-green-600">
-                      {totalSamples > 100 ? '良好' : '收集中'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-xs text-gray-500">样本均衡度</div>
-                    <div className="text-lg font-bold text-blue-600">
-                      {Math.abs(controlSamples - treatmentSamples) < totalSamples * 0.1
-                        ? '均衡'
-                        : '偏斜'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-xs text-gray-500">实验状态</div>
-                    <div
-                      className={`text-lg font-bold ${data.isSignificant ? 'text-green-600' : 'text-amber-600'}`}
-                    >
-                      {data.isSignificant ? '已达标' : '进行中'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
-
-      {/* 6. 统计分析详情面板 */}
-      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-          <h3 className="flex items-center gap-2 font-semibold text-gray-800">
-            <Gear size={20} weight="bold" />
-            统计分析参数
-          </h3>
-          <span className="text-xs text-gray-500">基于贝叶斯统计与频率派方法</span>
-        </div>
-
-        <div className="p-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {/* P-Value 解释 */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">P-Value (显著性)</h4>
-              <div className="font-mono text-2xl font-bold text-indigo-600">
-                {data.pValue.toFixed(4)}
-              </div>
-              <p className="text-xs leading-relaxed text-gray-500">
-                P值 {data.pValue < 0.05 ? '<' : '≥'} 0.05，表示
-                {data.isSignificant ? '差异显著' : '差异不显著'}。
-                较小的P值表示观察到的差异不太可能是由随机误差引起的。
-              </p>
-            </div>
-
-            {/* Effect Size 解释 */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">Effect Size (效应量)</h4>
-              <div className="font-mono text-2xl font-bold text-green-600">
-                {data.effectSize > 0 ? '+' : ''}
-                {(data.effectSize * 100).toFixed(1)}%
-              </div>
-              <p className="text-xs leading-relaxed text-gray-500">
-                实验组相对于对照组的提升幅度。
-                {Math.abs(data.effectSize) < 0.02 && '效应较小，实际意义有限。'}
-                {Math.abs(data.effectSize) >= 0.02 &&
-                  Math.abs(data.effectSize) < 0.08 &&
-                  '效应中等，值得关注。'}
-                {Math.abs(data.effectSize) >= 0.08 && '效应较大，建议采用。'}
-              </p>
-            </div>
-
-            {/* Statistical Power 解释 */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">Statistical Power (统计功效)</h4>
-              <div className="font-mono text-2xl font-bold text-purple-600">
-                {(data.statisticalPower * 100).toFixed(0)}%
-              </div>
-              <p className="text-xs leading-relaxed text-gray-500">
-                检测到真实效应的概率。通常要求≥80%。 当前功效
-                {data.statisticalPower >= 0.8 ? '充足' : '不足'}，
-                {data.statisticalPower < 0.8 && '建议继续收集数据或增加样本量。'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
+  );
+};
+
+// --- Main Component ---
+
+export default function ExperimentDashboard() {
+  const [experiments, setExperiments] = useState<ExperimentListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedExperiment, setSelectedExperiment] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const loadExperiments = async () => {
+    setLoading(true);
+    try {
+      const result = await apiClient.getExperiments();
+      setExperiments(result?.experiments || []);
+    } catch (e) {
+      adminLogger.error({ err: e }, '加载实验列表失败');
+      setExperiments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExperiments();
+  }, []);
+
+  const handleStartExperiment = async (id: string) => {
+    try {
+      await apiClient.startExperiment(id);
+      await loadExperiments();
+    } catch (e) {
+      adminLogger.error({ err: e }, '启动实验失败');
+    }
+  };
+
+  const handleStopExperiment = async (id: string) => {
+    try {
+      await apiClient.stopExperiment(id);
+      await loadExperiments();
+    } catch (e) {
+      adminLogger.error({ err: e }, '停止实验失败');
+    }
+  };
+
+  const handleDeleteExperiment = async (id: string) => {
+    if (!confirm('确定要删除此实验吗？此操作不可撤销。')) {
+      return;
+    }
+    try {
+      await apiClient.deleteExperiment(id);
+      await loadExperiments();
+    } catch (e) {
+      adminLogger.error({ err: e }, '删除实验失败');
+    }
+  };
+
+  // 如果选中了实验，显示详情
+  if (selectedExperiment) {
+    return (
+      <>
+        {showCreateModal && (
+          <CreateExperimentModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              loadExperiments();
+            }}
+          />
+        )}
+        <ExperimentDetail
+          experimentId={selectedExperiment}
+          onBack={() => setSelectedExperiment(null)}
+        />
+      </>
+    );
+  }
+
+  // 否则显示列表
+  return (
+    <>
+      {showCreateModal && (
+        <CreateExperimentModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            loadExperiments();
+          }}
+        />
+      )}
+      <ExperimentList
+        experiments={experiments}
+        loading={loading}
+        onRefresh={loadExperiments}
+        onSelect={setSelectedExperiment}
+        onStart={handleStartExperiment}
+        onStop={handleStopExperiment}
+        onDelete={handleDeleteExperiment}
+        onCreate={() => setShowCreateModal(true)}
+      />
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import { CreateWordBookDto, UpdateWordBookDto } from '../types';
 import { WordBookType, Prisma, WordBook, Word } from '@prisma/client';
+import { redisCacheService, REDIS_CACHE_KEYS } from './redis-cache.service';
 
 /**
  * 扩展的 Prisma 客户端接口，用于处理可能存在的兼容性属性
@@ -165,38 +166,109 @@ export class WordBookService {
   /**
    * 获取用户的词书列表
    */
-  async getUserWordBooks(userId: string) {
-    return await prisma.wordBook.findMany({
+  async getUserWordBooks(userId: string): Promise<WordBook[]> {
+    const wordBooksWithCount = await prisma.wordBook.findMany({
       where: {
         type: WordBookType.USER,
         userId: userId,
       },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  /**
-   * 获取系统词书列表
-   */
-  async getSystemWordBooks() {
-    return await prisma.wordBook.findMany({
-      where: {
-        type: WordBookType.SYSTEM,
+      include: {
+        _count: {
+          select: { words: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // 转换为带正确 wordCount 的格式
+    return wordBooksWithCount.map((wb) => ({
+      id: wb.id,
+      name: wb.name,
+      description: wb.description,
+      type: wb.type,
+      userId: wb.userId,
+      isPublic: wb.isPublic,
+      wordCount: wb._count.words,
+      coverImage: wb.coverImage,
+      createdAt: wb.createdAt,
+      updatedAt: wb.updatedAt,
+    }));
+  }
+
+  /**
+   * 获取系统词书列表（带 Redis 缓存）
+   */
+  async getSystemWordBooks(): Promise<WordBook[]> {
+    const cacheKey = REDIS_CACHE_KEYS.SYSTEM_WORDBOOKS;
+
+    // 尝试从 Redis 缓存获取
+    const cached = await redisCacheService.get<WordBook[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // 查询数据库，包含实际单词数量
+    const wordBooksWithCount = await prisma.wordBook.findMany({
+      where: {
+        type: WordBookType.SYSTEM,
+      },
+      include: {
+        _count: {
+          select: { words: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 转换为带正确 wordCount 的格式
+    const wordBooks: WordBook[] = wordBooksWithCount.map((wb) => ({
+      id: wb.id,
+      name: wb.name,
+      description: wb.description,
+      type: wb.type,
+      userId: wb.userId,
+      isPublic: wb.isPublic,
+      wordCount: wb._count.words,
+      coverImage: wb.coverImage,
+      createdAt: wb.createdAt,
+      updatedAt: wb.updatedAt,
+    }));
+
+    // 存入缓存（30分钟）
+    await redisCacheService.set(cacheKey, wordBooks, 30 * 60);
+
+    return wordBooks;
   }
 
   /**
    * 获取所有可用词书（系统词书 + 用户自己的词书）
    */
-  async getAllAvailableWordBooks(userId: string) {
-    return await prisma.wordBook.findMany({
+  async getAllAvailableWordBooks(userId: string): Promise<WordBook[]> {
+    const wordBooksWithCount = await prisma.wordBook.findMany({
       where: {
         OR: [{ type: WordBookType.SYSTEM }, { type: WordBookType.USER, userId: userId }],
       },
+      include: {
+        _count: {
+          select: { words: true },
+        },
+      },
       orderBy: [{ type: 'asc' }, { createdAt: 'desc' }],
     });
+
+    // 转换为带正确 wordCount 的格式
+    return wordBooksWithCount.map((wb) => ({
+      id: wb.id,
+      name: wb.name,
+      description: wb.description,
+      type: wb.type,
+      userId: wb.userId,
+      isPublic: wb.isPublic,
+      wordCount: wb._count.words,
+      coverImage: wb.coverImage,
+      createdAt: wb.createdAt,
+      updatedAt: wb.updatedAt,
+    }));
   }
 
   /**

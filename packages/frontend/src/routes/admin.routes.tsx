@@ -20,6 +20,9 @@ const OptimizationDashboard = lazy(() => import('../pages/admin/OptimizationDash
 const CausalInferencePage = lazy(() => import('../pages/admin/CausalInferencePage'));
 const LLMAdvisorPage = lazy(() => import('../pages/admin/LLMAdvisorPage'));
 const AMASExplainabilityPage = lazy(() => import('../pages/admin/AMASExplainabilityPage'));
+const SystemDebugPage = lazy(() => import('../pages/admin/SystemDebugPage'));
+const WeeklyReportPage = lazy(() => import('../pages/admin/WeeklyReportPage'));
+const WordQualityPage = lazy(() => import('../pages/admin/WordQualityPage'));
 
 /**
  * 懒加载包装组件
@@ -166,6 +169,33 @@ const adminChildren: AppRoute[] = [
       </LazyWrapper>
     ),
     meta: { title: 'AMAS可解释性', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'system-debug',
+    element: (
+      <LazyWrapper>
+        <SystemDebugPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '系统调试', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'weekly-report',
+    element: (
+      <LazyWrapper>
+        <WeeklyReportPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '运营周报', requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: 'word-quality',
+    element: (
+      <LazyWrapper>
+        <WordQualityPage />
+      </LazyWrapper>
+    ),
+    meta: { title: '词库质量', requireAuth: true, requireAdmin: true },
   },
 ];
 

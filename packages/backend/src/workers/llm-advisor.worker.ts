@@ -8,6 +8,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { llmWeeklyAdvisor } from '../amas/services/llm-advisor';
 import { llmConfig, scheduleConfig } from '../config/llm.config';
+import { llmProviderService } from '../services/llm-provider.service';
 import { workerLogger } from '../logger';
 
 /** Worker 运行状态 */
@@ -20,8 +21,17 @@ let scheduledTask: ScheduledTask | null = null;
  * 执行 LLM 分析周期
  */
 async function runLLMAnalysisCycle(): Promise<void> {
+  // 检查是否启用
   if (!llmConfig.enabled) {
     workerLogger.debug('[LLMAdvisorWorker] LLM 顾问未启用，跳过');
+    return;
+  }
+
+  // 检查配置是否完整
+  if (!llmProviderService.isAvailable()) {
+    workerLogger.warn(
+      '[LLMAdvisorWorker] LLM 服务配置不完整（API Key 或 Base URL 缺失），跳过本次分析',
+    );
     return;
   }
 
@@ -143,6 +153,10 @@ export function stopLLMAdvisorWorker(): void {
 export async function triggerLLMAnalysis(): Promise<string> {
   if (!llmConfig.enabled) {
     throw new Error('LLM 顾问未启用');
+  }
+
+  if (!llmProviderService.isAvailable()) {
+    throw new Error('LLM 服务配置不完整，请检查 API Key 或 Base URL 设置');
   }
 
   if (isRunning) {

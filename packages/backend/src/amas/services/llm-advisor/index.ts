@@ -4,7 +4,14 @@
  */
 
 // 统计收集器
-export { StatsCollector, statsCollector, WeeklyStats } from './stats-collector';
+export {
+  StatsCollector,
+  statsCollector,
+  WeeklyStats,
+  ErrorPatterns,
+  TrendData,
+  PreviousSuggestionEffect,
+} from './stats-collector';
 
 // 提示词
 export { SYSTEM_PROMPT, buildWeeklyAnalysisPrompt, prompts } from './prompts';
@@ -30,3 +37,13 @@ export {
   AnalysisResult,
   ApprovalRequest,
 } from './llm-weekly-advisor';
+
+// 效果追踪服务
+export {
+  EffectTracker,
+  effectTracker,
+  EffectTrackingRecord,
+  MetricsSnapshot,
+  EffectEvaluation,
+  EffectHistorySummary,
+} from './effect-tracker';

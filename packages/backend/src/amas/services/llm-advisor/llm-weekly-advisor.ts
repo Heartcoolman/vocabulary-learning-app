@@ -18,6 +18,7 @@ import {
 import { SYSTEM_PROMPT, buildWeeklyAnalysisPrompt } from './prompts';
 import { amasLogger } from '../../../logger';
 import { amasConfigService } from '../../../services/amas-config.service';
+import { effectTracker, EffectTracker } from './effect-tracker';
 
 // ==================== 类型定义 ====================
 
@@ -75,6 +76,7 @@ export class LLMWeeklyAdvisor {
     private collector: StatsCollector = statsCollector,
     private llmProvider: LLMProviderService = llmProviderService,
     private parser: SuggestionParser = suggestionParser,
+    private tracker: EffectTracker = effectTracker,
   ) {}
 
   /**
@@ -479,6 +481,36 @@ export class LLMWeeklyAdvisor {
             },
             '[LLMWeeklyAdvisor] 未知的建议类型，跳过应用',
           );
+          return; // 不记录效果追踪
+      }
+
+      // 记录效果追踪（新增）
+      if (suggestionId) {
+        try {
+          await this.tracker.recordApplication(
+            suggestionId,
+            item.id,
+            item.target,
+            item.currentValue,
+            item.suggestedValue,
+          );
+          amasLogger.info(
+            {
+              suggestionId,
+              itemId: item.id,
+              target: item.target,
+            },
+            '[LLMWeeklyAdvisor] 已记录效果追踪',
+          );
+        } catch (trackError) {
+          // 效果追踪失败不影响建议应用
+          amasLogger.warn(
+            {
+              error: (trackError as Error).message,
+            },
+            '[LLMWeeklyAdvisor] 记录效果追踪失败',
+          );
+        }
       }
     } catch (error) {
       amasLogger.error(

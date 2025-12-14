@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS } from '../../lib/cacheConfig';
 import ApiClient from '../../services/client';
 import type {
   DecisionExplanation,
@@ -34,10 +35,8 @@ export function useAmasDecisionExplanation(
       return await ApiClient.getAmasDecisionExplanation(decisionId);
     },
     // 决策解释是历史数据，可以缓存较长时间
-    staleTime: 5 * 60 * 1000, // 5分钟
-    gcTime: 30 * 60 * 1000, // 30分钟
+    ...QUERY_PRESETS.standard,
     enabled: options?.enabled ?? true,
-    retry: 1,
   });
 }
 
@@ -59,9 +58,7 @@ export function useAmasLearningCurve(days: number = 30) {
     queryFn: async () => {
       return await ApiClient.getAmasLearningCurve(days);
     },
-    staleTime: 5 * 60 * 1000, // 5分钟
-    gcTime: 30 * 60 * 1000, // 30分钟
-    retry: 1,
+    ...QUERY_PRESETS.standard,
   });
 }
 
@@ -84,9 +81,7 @@ export function useDecisionTimeline(limit: number = 50, cursor?: string) {
     queryFn: async () => {
       return await ApiClient.getDecisionTimeline(limit, cursor);
     },
-    staleTime: 5 * 60 * 1000, // 5分钟
-    gcTime: 30 * 60 * 1000, // 30分钟
-    retry: 1,
+    ...QUERY_PRESETS.standard,
   });
 }
 

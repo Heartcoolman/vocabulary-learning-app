@@ -1,6 +1,6 @@
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
-import { learningStateService } from './learning-state.service';
+import { wordMasteryService } from './word-mastery.service';
 import { serviceLogger } from '../logger';
 
 /** 最大批量操作大小 */
@@ -52,6 +52,34 @@ export interface PaginatedResult<T> {
   };
 }
 
+/**
+ * 答题记录关联的单词信息
+ */
+export interface AnswerRecordWord {
+  spelling: string;
+  phonetic: string;
+  meanings: string[];
+}
+
+/**
+ * 答题记录（含关联单词）
+ */
+export interface AnswerRecordWithWord {
+  id: string;
+  userId: string;
+  wordId: string;
+  selectedAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  timestamp: Date;
+  dwellTime: number | null;
+  masteryLevelAfter: number | null;
+  masteryLevelBefore: number | null;
+  responseTime: number | null;
+  sessionId: string | null;
+  word: AnswerRecordWord;
+}
+
 export class RecordService {
   /**
    * 获取用户的学习记录（带分页）
@@ -61,7 +89,7 @@ export class RecordService {
   async getRecordsByUserId(
     userId: string,
     options?: PaginationOptions,
-  ): Promise<PaginatedResult<any>> {
+  ): Promise<PaginatedResult<AnswerRecordWithWord>> {
     const page = Math.max(1, options?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 50));
     const skip = (page - 1) * pageSize;
@@ -149,7 +177,7 @@ export class RecordService {
 
     // 同步记录到 WordReviewTrace 用于掌握度评估
     try {
-      await learningStateService.recordReview(userId, data.wordId, {
+      await wordMasteryService.recordReview(userId, data.wordId, {
         timestamp: data.timestamp ?? Date.now(),
         isCorrect: data.isCorrect,
         responseTime: data.responseTime ?? 0,
@@ -309,7 +337,7 @@ export class RecordService {
             responseTime: record.responseTime ?? 0,
           },
         }));
-        await learningStateService.batchRecordReview(userId, reviewEvents);
+        await wordMasteryService.batchRecordReview(userId, reviewEvents);
       } catch (error) {
         // 记录失败不阻断主流程，仅警告
         serviceLogger.warn({ userId, error }, '批量同步复习轨迹失败');

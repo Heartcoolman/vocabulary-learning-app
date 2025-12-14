@@ -1469,6 +1469,11 @@ export class RealAboutService {
     stableCount: number;
     avgHalfLifeDays: number;
     todayConsolidationRate: number;
+    actrConfig: {
+      maxTraceRecords: number;
+      errorPenalty: number;
+      defaultDecay: number;
+    };
   }> {
     try {
       const now = new Date();
@@ -1546,6 +1551,12 @@ export class RealAboutService {
         stableCount,
         avgHalfLifeDays: this.round(totalHalfLife / total, 1),
         todayConsolidationRate: this.round(consolidationRate * 100, 1),
+        // ACT-R 配置参数
+        actrConfig: {
+          maxTraceRecords: 20, // amas.service.ts 中查询历史记录的限制
+          errorPenalty: 0.3, // ERROR_PENALTY 常量
+          defaultDecay: 0.5, // DEFAULT_DECAY 常量
+        },
       };
     } catch (error) {
       serviceLogger.error({ err: error }, 'getMemoryStatus error');
@@ -1556,8 +1567,272 @@ export class RealAboutService {
         stableCount: 0,
         avgHalfLifeDays: 0,
         todayConsolidationRate: 0,
+        actrConfig: {
+          maxTraceRecords: 20,
+          errorPenalty: 0.3,
+          defaultDecay: 0.5,
+        },
       };
     }
+  }
+
+  /**
+   * 获取学习模式分布
+   * 统计所有用户的学习目标模式分布
+   */
+  async getLearningModeDistribution(): Promise<{
+    exam: number;
+    daily: number;
+    travel: number;
+    custom: number;
+  }> {
+    try {
+      // 统计各模式的用户数
+      const modeGroups = await this.prisma.userLearningObjectives.groupBy({
+        by: ['mode'],
+        _count: { mode: true },
+      });
+
+      const total = modeGroups.reduce((sum, g) => sum + g._count.mode, 0) || 1;
+
+      // 计算各模式百分比
+      const distribution = {
+        exam: 0,
+        daily: 0,
+        travel: 0,
+        custom: 0,
+      };
+
+      for (const group of modeGroups) {
+        const mode = group.mode as keyof typeof distribution;
+        if (mode in distribution) {
+          distribution[mode] = this.round(group._count.mode / total, 3);
+        }
+      }
+
+      // 如果没有数据，返回默认分布
+      if (total <= 1 && modeGroups.length === 0) {
+        return {
+          exam: 0.2,
+          daily: 0.5,
+          travel: 0.15,
+          custom: 0.15,
+        };
+      }
+
+      return distribution;
+    } catch (error) {
+      serviceLogger.error({ err: error }, 'getLearningModeDistribution error');
+      return {
+        exam: 0.2,
+        daily: 0.5,
+        travel: 0.15,
+        custom: 0.15,
+      };
+    }
+  }
+
+  /**
+   * 获取半衰期分布
+   * 统计所有单词的记忆半衰期分布
+   */
+  async getHalfLifeDistribution(): Promise<{
+    distribution: Array<{ range: string; count: number; percentage: number }>;
+    avgHalfLife: number;
+    totalWords: number;
+  }> {
+    try {
+      // 获取所有单词的半衰期数据
+      const wordStates = await this.prisma.wordLearningState.findMany({
+        select: { halfLife: true },
+        take: 10000,
+      });
+
+      if (wordStates.length === 0) {
+        return {
+          distribution: [
+            { range: '0-1天', count: 0, percentage: 0 },
+            { range: '1-3天', count: 0, percentage: 0 },
+            { range: '3-7天', count: 0, percentage: 0 },
+            { range: '7-14天', count: 0, percentage: 0 },
+            { range: '14+天', count: 0, percentage: 0 },
+          ],
+          avgHalfLife: 0,
+          totalWords: 0,
+        };
+      }
+
+      // 定义范围
+      const ranges = [
+        { range: '0-1天', min: 0, max: 1, count: 0 },
+        { range: '1-3天', min: 1, max: 3, count: 0 },
+        { range: '3-7天', min: 3, max: 7, count: 0 },
+        { range: '7-14天', min: 7, max: 14, count: 0 },
+        { range: '14+天', min: 14, max: Infinity, count: 0 },
+      ];
+
+      let totalHalfLife = 0;
+
+      for (const state of wordStates) {
+        const halfLife = state.halfLife ?? 1;
+        totalHalfLife += halfLife;
+
+        // 分类到对应范围
+        for (const range of ranges) {
+          if (halfLife >= range.min && halfLife < range.max) {
+            range.count++;
+            break;
+          }
+        }
+      }
+
+      const total = wordStates.length;
+      const avgHalfLife = this.round(totalHalfLife / total, 1);
+
+      return {
+        distribution: ranges.map((r) => ({
+          range: r.range,
+          count: r.count,
+          percentage: this.round((r.count / total) * 100, 1),
+        })),
+        avgHalfLife,
+        totalWords: total,
+      };
+    } catch (error) {
+      serviceLogger.error({ err: error }, 'getHalfLifeDistribution error');
+      return {
+        distribution: [
+          { range: '0-1天', count: 0, percentage: 0 },
+          { range: '1-3天', count: 0, percentage: 0 },
+          { range: '3-7天', count: 0, percentage: 0 },
+          { range: '7-14天', count: 0, percentage: 0 },
+          { range: '14+天', count: 0, percentage: 0 },
+        ],
+        avgHalfLife: 0,
+        totalWords: 0,
+      };
+    }
+  }
+
+  /**
+   * 获取各算法的调用趋势（最近10个时间点）
+   * 用于 StatsPage MemberCard 的趋势线展示
+   */
+  async getAlgorithmTrend(): Promise<{
+    thompson: number[];
+    linucb: number[];
+    actr: number[];
+    heuristic: number[];
+    coldstart: number[];
+  }> {
+    try {
+      const now = Date.now();
+      const last24h = new Date(now - 24 * 60 * 60 * 1000);
+
+      // 获取最近24小时的决策记录
+      const records = await this.prisma.decisionRecord.findMany({
+        where: {
+          timestamp: { gte: last24h },
+          ingestionStatus: 'SUCCESS',
+        },
+        select: {
+          timestamp: true,
+          decisionSource: true,
+          weightsSnapshot: true,
+        },
+        orderBy: { timestamp: 'asc' },
+        take: 2000, // 限制查询量
+      });
+
+      if (records.length < 10) {
+        // 数据量不足，返回默认趋势
+        return this.getDefaultAlgorithmTrend();
+      }
+
+      // 将记录按时间分成10个区间
+      const bucketSize = Math.ceil(records.length / 10);
+      const trendData = {
+        thompson: [] as number[],
+        linucb: [] as number[],
+        actr: [] as number[],
+        heuristic: [] as number[],
+        coldstart: [] as number[],
+      };
+
+      for (let i = 0; i < 10; i++) {
+        const start = i * bucketSize;
+        const end = Math.min(start + bucketSize, records.length);
+        const bucket = records.slice(start, end);
+
+        if (bucket.length === 0) {
+          // 空桶，使用上一个值或默认值
+          trendData.thompson.push(trendData.thompson[i - 1] ?? 50);
+          trendData.linucb.push(trendData.linucb[i - 1] ?? 50);
+          trendData.actr.push(trendData.actr[i - 1] ?? 50);
+          trendData.heuristic.push(trendData.heuristic[i - 1] ?? 50);
+          trendData.coldstart.push(trendData.coldstart[i - 1] ?? 50);
+          continue;
+        }
+
+        // 统计这个时间桶内各算法的权重
+        const bucketWeights = { thompson: 0, linucb: 0, actr: 0, heuristic: 0, coldstart: 0 };
+        let totalWeight = 0;
+
+        for (const r of bucket) {
+          if (r.decisionSource === 'coldstart') {
+            bucketWeights.coldstart += 1;
+            totalWeight += 1;
+          } else {
+            const weights = r.weightsSnapshot as Record<string, number> | null;
+            if (weights) {
+              bucketWeights.thompson += weights.thompson ?? 0;
+              bucketWeights.linucb += weights.linucb ?? 0;
+              bucketWeights.actr += weights.actr ?? 0;
+              bucketWeights.heuristic += weights.heuristic ?? 0;
+              totalWeight +=
+                (weights.thompson ?? 0) +
+                (weights.linucb ?? 0) +
+                (weights.actr ?? 0) +
+                (weights.heuristic ?? 0);
+            }
+          }
+        }
+
+        // 归一化到 0-100 的高度百分比
+        const normalize = (val: number) => {
+          if (totalWeight === 0) return 50;
+          return Math.round((val / totalWeight) * 100);
+        };
+
+        trendData.thompson.push(Math.max(20, Math.min(100, normalize(bucketWeights.thompson))));
+        trendData.linucb.push(Math.max(20, Math.min(100, normalize(bucketWeights.linucb))));
+        trendData.actr.push(Math.max(20, Math.min(100, normalize(bucketWeights.actr))));
+        trendData.heuristic.push(Math.max(20, Math.min(100, normalize(bucketWeights.heuristic))));
+        trendData.coldstart.push(Math.max(20, Math.min(100, normalize(bucketWeights.coldstart))));
+      }
+
+      return trendData;
+    } catch (error) {
+      serviceLogger.error({ err: error }, 'getAlgorithmTrend error');
+      return this.getDefaultAlgorithmTrend();
+    }
+  }
+
+  private getDefaultAlgorithmTrend(): {
+    thompson: number[];
+    linucb: number[];
+    actr: number[];
+    heuristic: number[];
+    coldstart: number[];
+  } {
+    // 返回基于默认分布的稳定趋势线
+    return {
+      thompson: [50, 52, 48, 55, 50, 53, 47, 51, 49, 50],
+      linucb: [55, 57, 53, 60, 55, 58, 52, 56, 54, 55],
+      actr: [45, 47, 43, 50, 45, 48, 42, 46, 44, 45],
+      heuristic: [35, 37, 33, 40, 35, 38, 32, 36, 34, 35],
+      coldstart: [30, 32, 28, 35, 30, 33, 27, 31, 29, 30],
+    };
   }
 
   // ==================== 默认值（降级） ====================

@@ -6,207 +6,220 @@
 /** Memory trace record */
 export interface MemoryTrace {
   /** Time since this review (seconds ago from current time) */
-  timestamp: number
+  timestamp: number;
   /** Whether the answer was correct */
-  isCorrect: boolean
+  isCorrect: boolean;
 }
 /** ACT-R model state */
 export interface ActrState {
   /** Decay rate d (default 0.5) */
-  decay: number
+  decay: number;
   /** Recall threshold τ */
-  threshold: number
+  threshold: number;
   /** Noise scale s */
-  noiseScale: number
+  noiseScale: number;
   /** Update count */
-  updateCount: number
+  updateCount: number;
 }
 /** Cognitive profile for personalized decay rate */
 export interface CognitiveProfile {
   /** Memory factor [0, 1], higher means better memory */
-  memoryFactor: number
+  memoryFactor: number;
   /** Speed factor [0, 1], higher means faster processing */
-  speedFactor: number
+  speedFactor: number;
   /** Stability factor [0, 1], higher means more stable memory */
-  stabilityFactor: number
+  stabilityFactor: number;
 }
 /** Activation computation result */
 export interface ActivationResult {
   /** Base activation (without noise) */
-  baseActivation: number
+  baseActivation: number;
   /** Activation with noise */
-  activation: number
+  activation: number;
   /** Recall probability */
-  recallProbability: number
+  recallProbability: number;
 }
 /** Recall prediction result */
 export interface RecallPrediction {
   /** Activation (typically -2 to 2) */
-  activation: number
+  activation: number;
   /** Recall probability [0, 1] */
-  recallProbability: number
+  recallProbability: number;
   /** Prediction confidence [0, 1] */
-  confidence: number
+  confidence: number;
 }
 /** Optimal interval prediction result */
 export interface IntervalPrediction {
   /** Optimal interval (seconds) */
-  optimalSeconds: number
+  optimalSeconds: number;
   /** Minimum suggested interval (seconds) */
-  minSeconds: number
+  minSeconds: number;
   /** Maximum suggested interval (seconds) */
-  maxSeconds: number
+  maxSeconds: number;
   /** Target recall probability */
-  targetRecall: number
+  targetRecall: number;
 }
 /** Batch computation input */
 export interface BatchComputeInput {
   /** Traces for this computation */
-  traces: Array<MemoryTrace>
+  traces: Array<MemoryTrace>;
   /** Current time for this computation */
-  currentTime: number
+  currentTime: number;
 }
 /** Batch computation result */
 export interface BatchComputeResult {
   /** Activation value */
-  activation: number
+  activation: number;
   /** Recall probability */
-  recallProbability: number
+  recallProbability: number;
 }
 /** Compute activation (standalone function) */
-export declare function computeActivation(traces: Array<MemoryTrace>, decay?: number | undefined | null): number
+export declare function computeActivation(
+  traces: Array<MemoryTrace>,
+  decay?: number | undefined | null,
+): number;
 /** Compute recall probability (standalone function) */
-export declare function computeRecallProbability(activation: number, threshold?: number | undefined | null, noiseScale?: number | undefined | null): number
+export declare function computeRecallProbability(
+  activation: number,
+  threshold?: number | undefined | null,
+  noiseScale?: number | undefined | null,
+): number;
 /** Compute optimal interval (standalone function) */
-export declare function computeOptimalInterval(traces: Array<MemoryTrace>, targetProbability: number, decay?: number | undefined | null, threshold?: number | undefined | null, noiseScale?: number | undefined | null): number
+export declare function computeOptimalInterval(
+  traces: Array<MemoryTrace>,
+  targetProbability: number,
+  decay?: number | undefined | null,
+  threshold?: number | undefined | null,
+  noiseScale?: number | undefined | null,
+): number;
 /** 因果观测数据 */
 export interface CausalObservation {
   /** 特征向量 */
-  features: Array<number>
+  features: Array<number>;
   /** 处理组标记 (0 或 1) */
-  treatment: number
+  treatment: number;
   /** 结果值 */
-  outcome: number
+  outcome: number;
   /** 时间戳（可选） */
-  timestamp?: number
+  timestamp?: number;
   /** 用户ID（可选） */
-  userId?: string
+  userId?: string;
 }
 /** 因果效应估计结果 */
 export interface CausalEstimate {
   /** 平均处理效应 */
-  ate: number
+  ate: number;
   /** 标准误 */
-  standardError: number
+  standardError: number;
   /** 95% 置信区间下限 */
-  confidenceIntervalLower: number
+  confidenceIntervalLower: number;
   /** 95% 置信区间上限 */
-  confidenceIntervalUpper: number
+  confidenceIntervalUpper: number;
   /** 样本量 */
-  sampleSize: number
+  sampleSize: number;
   /** 有效样本量（IPW加权后） */
-  effectiveSampleSize: number
+  effectiveSampleSize: number;
   /** p值 */
-  pValue: number
+  pValue: number;
   /** 是否显著（alpha=0.05） */
-  significant: boolean
+  significant: boolean;
 }
 /** 倾向得分诊断 */
 export interface PropensityDiagnostics {
   /** 均值 */
-  mean: number
+  mean: number;
   /** 标准差 */
-  std: number
+  std: number;
   /** 中位数 */
-  median: number
+  median: number;
   /** 处理组均值 */
-  treatmentMean: number
+  treatmentMean: number;
   /** 对照组均值 */
-  controlMean: number
+  controlMean: number;
   /** 重叠度量 */
-  overlap: number
+  overlap: number;
   /** AUC（区分度） */
-  auc: number
+  auc: number;
 }
 /** 因果推断配置 */
 export interface CausalInferenceConfig {
   /** 倾向得分截断下限 */
-  propensityMin?: number
+  propensityMin?: number;
   /** 倾向得分截断上限 */
-  propensityMax?: number
+  propensityMax?: number;
   /** 学习率 */
-  learningRate?: number
+  learningRate?: number;
   /** 正则化系数 */
-  regularization?: number
+  regularization?: number;
   /** 最大迭代次数 */
-  maxIterations?: number
+  maxIterations?: number;
   /** 收敛阈值 */
-  convergenceThreshold?: number
+  convergenceThreshold?: number;
 }
 /** Beta distribution parameters */
 export interface BetaParams {
   /** Success count (alpha >= 0) */
-  alpha: number
+  alpha: number;
   /** Failure count (beta >= 0) */
-  beta: number
+  beta: number;
 }
 /** Action selection result */
 export interface ActionSelection {
   /** Selected action key */
-  actionKey: string
+  actionKey: string;
   /** Selection score (sampled value) */
-  score: number
+  score: number;
   /** Confidence level [0, 1] */
-  confidence: number
+  confidence: number;
   /** Global sample value */
-  globalSample: number
+  globalSample: number;
   /** Contextual sample value */
-  contextualSample: number
+  contextualSample: number;
 }
 /** Thompson Sampling configuration options */
 export interface ThompsonSamplingOptions {
   /** Prior alpha (default: 1, uninformative prior) */
-  priorAlpha?: number
+  priorAlpha?: number;
   /** Prior beta (default: 1, uninformative prior) */
-  priorBeta?: number
+  priorBeta?: number;
   /** Minimum context weight */
-  minContextWeight?: number
+  minContextWeight?: number;
   /** Maximum context weight */
-  maxContextWeight?: number
+  maxContextWeight?: number;
   /** Enable soft update mode */
-  enableSoftUpdate?: boolean
+  enableSoftUpdate?: boolean;
   /** Random seed for reproducibility (optional) */
-  seed?: number
+  seed?: number;
 }
 /** Serializable state for persistence */
 export interface ThompsonSamplingState {
   /** Version number (for migration) */
-  version: string
+  version: string;
   /** Prior alpha */
-  priorAlpha: number
+  priorAlpha: number;
   /** Prior beta */
-  priorBeta: number
+  priorBeta: number;
   /** Total update count */
-  updateCount: number
+  updateCount: number;
   /** Global Beta parameters (JSON serialized) */
-  globalParamsJson: string
+  globalParamsJson: string;
   /** Contextual Beta parameters (JSON serialized) */
-  contextParamsJson: string
+  contextParamsJson: string;
 }
 /** Batch update item */
 export interface BatchUpdateItem {
-  actionKey: string
-  success: boolean
+  actionKey: string;
+  success: boolean;
 }
 /** BanditModel 结构体 (字段命名与 TS 对齐) */
 export interface BanditModel {
-  A: Array<number>
-  b: Array<number>
-  L: Array<number>
-  lambda: number
-  alpha: number
-  d: number
-  updateCount: number
+  A: Array<number>;
+  b: Array<number>;
+  L: Array<number>;
+  lambda: number;
+  alpha: number;
+  d: number;
+  updateCount: number;
 }
 /** Difficulty 枚举 */
 export const enum Difficulty {
@@ -214,71 +227,71 @@ export const enum Difficulty {
   Recall = 1,
   Spelling = 2,
   Listening = 3,
-  Usage = 4
+  Usage = 4,
 }
 /** Action 结构体 */
 export interface Action {
-  wordId: string
-  difficulty: string
-  scheduledAt?: number
+  wordId: string;
+  difficulty: string;
+  scheduledAt?: number;
 }
 /** Action 类型化版本 */
 export interface ActionTyped {
-  wordId: string
-  difficulty: Difficulty
-  scheduledAt?: number
+  wordId: string;
+  difficulty: Difficulty;
+  scheduledAt?: number;
 }
 /** UserState 结构体 */
 export interface UserState {
-  masteryLevel: number
-  recentAccuracy: number
-  studyStreak: number
-  totalInteractions: number
-  averageResponseTime: number
+  masteryLevel: number;
+  recentAccuracy: number;
+  studyStreak: number;
+  totalInteractions: number;
+  averageResponseTime: number;
 }
 /** LinUCBContext 结构体 */
 export interface LinUcbContext {
-  timeOfDay: number
-  dayOfWeek: number
-  sessionDuration: number
-  fatigueFactor?: number
+  timeOfDay: number;
+  dayOfWeek: number;
+  sessionDuration: number;
+  fatigueFactor?: number;
 }
 /** ActionSelection 结构体 - 动作选择结果 */
 export interface ActionSelection {
-  selectedIndex: number
-  selectedAction: Action
-  exploitation: number
-  exploration: number
-  score: number
-  allScores: Array<number>
+  selectedIndex: number;
+  selectedAction: Action;
+  exploitation: number;
+  exploration: number;
+  score: number;
+  allScores: Array<number>;
 }
 /** ActionSelectionTyped 结构体 - 类型化动作选择结果 */
 export interface ActionSelectionTyped {
-  selectedIndex: number
-  selectedAction: ActionTyped
-  exploitation: number
-  exploration: number
-  score: number
-  allScores: Array<number>
+  selectedIndex: number;
+  selectedAction: ActionTyped;
+  exploitation: number;
+  exploration: number;
+  score: number;
+  allScores: Array<number>;
 }
 /** UCBStats 结构体 - UCB 统计信息 */
 export interface UcbStats {
-  theta: Array<number>
-  exploitation: number
-  confidence: number
-  score: number
+  theta: Array<number>;
+  exploitation: number;
+  confidence: number;
+  score: number;
 }
 /** DiagnosticResult 结构体 - 诊断结果 */
 export interface DiagnosticResult {
-  isHealthy: boolean
-  hasNaN: boolean
-  hasInf: boolean
-  conditionNumber: number
-  minDiagonal: number
-  maxDiagonal: number
-  message: string
+  isHealthy: boolean;
+  hasNaN: boolean;
+  hasInf: boolean;
+  conditionNumber: number;
+  minDiagonal: number;
+  maxDiagonal: number;
+  message: string;
 }
-export type ACTRMemoryNative = ActrMemoryNative
+export type ACTRMemoryNative = ActrMemoryNative;
 /**
  * ACT-R Memory Model Native Implementation
  *
@@ -289,30 +302,42 @@ export type ACTRMemoryNative = ActrMemoryNative
  */
 export declare class ActrMemoryNative {
   /** Create a new ACT-R memory model instance */
-  constructor(decay?: number | undefined | null, threshold?: number | undefined | null, noiseScale?: number | undefined | null)
+  constructor(
+    decay?: number | undefined | null,
+    threshold?: number | undefined | null,
+    noiseScale?: number | undefined | null,
+  );
   /**
    * Compute activation: A = ln(Σ w_j · t_j^(-d))
    *
    * # Arguments
-   * * `traces` - Memory traces with timestamps and correctness
-   * * `current_time` - Current time in seconds (traces.timestamp represents "seconds ago")
+   * * `traces` - Memory traces where `timestamp` is the **absolute time** of each review
+   * * `current_time` - Current time in seconds (same unit as traces.timestamp)
+   *
+   * # Note
+   * For "seconds ago" format, use `compute_activation_from_seconds_ago` instead.
    *
    * # Returns
    * Activation value (can be -Infinity for empty traces)
    */
-  computeActivation(traces: Array<MemoryTrace>, currentTime: number): number
+  computeActivation(traces: Array<MemoryTrace>, currentTime: number): number;
   /** Compute activation with custom decay rate */
-  computeActivationWithDecay(traces: Array<MemoryTrace>, currentTime: number, decay: number): number
+  computeActivationWithDecay(
+    traces: Array<MemoryTrace>,
+    currentTime: number,
+    decay: number,
+  ): number;
   /**
    * Compute activation from "seconds ago" format traces (matching TypeScript API)
    *
    * # Arguments
-   * * `traces` - Memory traces where timestamp represents "seconds ago"
+   * * `traces` - Memory traces where `timestamp` represents **seconds ago from now**
+   *   (e.g., timestamp=60 means this review happened 60 seconds ago)
    *
    * # Returns
-   * Activation value
+   * Activation value (can be -Infinity for empty traces)
    */
-  computeActivationFromSecondsAgo(traces: Array<MemoryTrace>): number
+  computeActivationFromSecondsAgo(traces: Array<MemoryTrace>): number;
   /**
    * Compute recall probability: P = 1 / (1 + exp(-(A-τ)/s))
    *
@@ -322,9 +347,9 @@ export declare class ActrMemoryNative {
    * # Returns
    * Recall probability [0, 1]
    */
-  retrievalProbability(activation: number): number
+  retrievalProbability(activation: number): number;
   /** Compute recall probability with custom parameters */
-  retrievalProbabilityWithParams(activation: number, threshold: number, noiseScale: number): number
+  retrievalProbabilityWithParams(activation: number, threshold: number, noiseScale: number): number;
   /**
    * Compute personalized decay rate based on cognitive profile
    *
@@ -343,7 +368,11 @@ export declare class ActrMemoryNative {
    * # Returns
    * Personalized decay rate [0.3, 0.7]
    */
-  computePersonalizedDecay(memoryFactor: number, speedFactor: number, stabilityFactor: number): number
+  computePersonalizedDecay(
+    memoryFactor: number,
+    speedFactor: number,
+    stabilityFactor: number,
+  ): number;
   /**
    * Compute optimal review interval using binary search
    *
@@ -356,17 +385,24 @@ export declare class ActrMemoryNative {
    * # Returns
    * Optimal interval in seconds
    */
-  computeOptimalInterval(traces: Array<MemoryTrace>, targetProbability: number): number
+  computeOptimalInterval(traces: Array<MemoryTrace>, targetProbability: number): number;
   /** Compute optimal interval with custom decay rate */
-  computeOptimalIntervalWithDecay(traces: Array<MemoryTrace>, targetProbability: number, decay: number): number
+  computeOptimalIntervalWithDecay(
+    traces: Array<MemoryTrace>,
+    targetProbability: number,
+    decay: number,
+  ): number;
   /** Compute full activation result (base, with noise, and probability) */
-  computeFullActivation(traces: Array<MemoryTrace>): ActivationResult
+  computeFullActivation(traces: Array<MemoryTrace>): ActivationResult;
   /** Compute full activation with custom decay */
-  computeFullActivationWithDecay(traces: Array<MemoryTrace>, decay: number): ActivationResult
+  computeFullActivationWithDecay(traces: Array<MemoryTrace>, decay: number): ActivationResult;
   /** Compute recall prediction with confidence */
-  predictRecall(traces: Array<MemoryTrace>): RecallPrediction
+  predictRecall(traces: Array<MemoryTrace>): RecallPrediction;
   /** Predict optimal review interval with min/max suggestions */
-  predictOptimalInterval(traces: Array<MemoryTrace>, targetRecall?: number | undefined | null): IntervalPrediction
+  predictOptimalInterval(
+    traces: Array<MemoryTrace>,
+    targetRecall?: number | undefined | null,
+  ): IntervalPrediction;
   /**
    * Batch compute activations using parallel processing (Rayon)
    *
@@ -378,100 +414,120 @@ export declare class ActrMemoryNative {
    * # Returns
    * Vector of batch computation results
    */
-  batchComputeActivations(inputs: Array<BatchComputeInput>): Array<BatchComputeResult>
+  batchComputeActivations(inputs: Array<BatchComputeInput>): Array<BatchComputeResult>;
   /** Batch compute activations from "seconds ago" format using parallel processing */
-  batchComputeActivationsFromSecondsAgo(traceSets: Array<Array<MemoryTrace>>): Array<BatchComputeResult>
+  batchComputeActivationsFromSecondsAgo(
+    traceSets: Array<Array<MemoryTrace>>,
+  ): Array<BatchComputeResult>;
   /** Batch compute optimal intervals using parallel processing */
-  batchComputeOptimalIntervals(traceSets: Array<Array<MemoryTrace>>, targetProbability: number): Array<number>
+  batchComputeOptimalIntervals(
+    traceSets: Array<Array<MemoryTrace>>,
+    targetProbability: number,
+  ): Array<number>;
   /** Get current state */
-  getState(): ActrState
+  getState(): ActrState;
   /** Set state */
-  setState(state: ActrState): void
+  setState(state: ActrState): void;
   /** Update model (increment update count) */
-  update(): void
+  update(): void;
   /** Reset model */
-  reset(): void
+  reset(): void;
   /** Get decay rate */
-  getDecay(): number
+  getDecay(): number;
   /** Set decay rate */
-  setDecay(decay: number): void
+  setDecay(decay: number): void;
   /** Get threshold */
-  getThreshold(): number
+  getThreshold(): number;
   /** Set threshold */
-  setThreshold(threshold: number): void
+  setThreshold(threshold: number): void;
   /** Compute memory strength (normalized activation) */
-  computeMemoryStrength(traces: Array<MemoryTrace>): number
+  computeMemoryStrength(traces: Array<MemoryTrace>): number;
 }
 /** 因果推断 Native 实现 */
 export declare class CausalInferenceNative {
   /** 创建新的因果推断实例 */
-  constructor(featureDim: number, config?: CausalInferenceConfig | undefined | null)
+  constructor(featureDim: number, config?: CausalInferenceConfig | undefined | null);
   /** 训练倾向得分模型（逻辑回归 + 梯度下降 + L2正则化） */
-  fitPropensity(observations: Array<CausalObservation>): void
+  fitPropensity(observations: Array<CausalObservation>): void;
   /**
    * 训练结果模型（Ridge回归 + Cholesky分解）
    * 分别训练处理组和对照组模型
    */
-  fitOutcome(observations: Array<CausalObservation>): void
+  fitOutcome(observations: Array<CausalObservation>): void;
   /** 完整拟合（倾向得分 + 结果模型） */
-  fit(observations: Array<CausalObservation>): void
+  fit(observations: Array<CausalObservation>): void;
   /**
    * 计算 AIPW 双重稳健估计
    * 公式: tau = (1/n) * sum[ mu1(X) - mu0(X) + T(Y-mu1(X))/e(X) - (1-T)(Y-mu0(X))/(1-e(X)) ]
    */
-  estimateAte(observations: Array<CausalObservation>): CausalEstimate
+  estimateAte(observations: Array<CausalObservation>): CausalEstimate;
   /** Bootstrap 标准误估计（使用 Rayon 并行化） */
-  bootstrapSe(observations: Array<CausalObservation>, nBootstrap?: number | undefined | null): number
+  bootstrapSe(
+    observations: Array<CausalObservation>,
+    nBootstrap?: number | undefined | null,
+  ): number;
   /** 诊断倾向得分分布 */
-  diagnosePropensity(observations: Array<CausalObservation>): PropensityDiagnostics
+  diagnosePropensity(observations: Array<CausalObservation>): PropensityDiagnostics;
   /** 获取倾向得分（自动添加截距项） */
-  getPropensityScore(features: Float64Array): number
+  getPropensityScore(features: Float64Array): number;
   /** 预测结果（自动添加截距项） */
-  predictOutcome(features: Float64Array, treatment: number): number
+  predictOutcome(features: Float64Array, treatment: number): number;
   /** 检查是否已拟合 */
-  isFitted(): boolean
+  isFitted(): boolean;
   /** 获取特征维度 */
-  getFeatureDim(): number
+  getFeatureDim(): number;
   /** 重置模型 */
-  reset(): void
+  reset(): void;
 }
-export type LinUCBNative = LinUcbNative
+export type LinUCBNative = LinUcbNative;
 /** LinUCB 原生实现 */
 export declare class LinUcbNative {
   /** 创建新的 LinUCB 实例 */
-  constructor(alpha?: number | undefined | null, lambda?: number | undefined | null)
+  constructor(alpha?: number | undefined | null, lambda?: number | undefined | null);
   /** 选择动作（类型化版本，性能更优） */
-  selectActionTyped(state: UserState, actions: Array<ActionTyped>, context: LinUCBContext): ActionSelectionTyped
+  selectActionTyped(
+    state: UserState,
+    actions: Array<ActionTyped>,
+    context: LinUCBContext,
+  ): ActionSelectionTyped;
   /** 选择动作 */
-  selectAction(state: UserState, actions: Array<Action>, context: LinUCBContext): ActionSelection
+  selectAction(state: UserState, actions: Array<Action>, context: LinUCBContext): ActionSelection;
   /** 批量选择动作 */
-  selectActionBatch(states: Array<UserState>, actionsList: Array<Array<Action>>, contexts: Array<LinUCBContext>): Array<ActionSelection>
+  selectActionBatch(
+    states: Array<UserState>,
+    actionsList: Array<Array<Action>>,
+    contexts: Array<LinUCBContext>,
+  ): Array<ActionSelection>;
   /** 更新模型 */
-  update(state: UserState, action: Action, reward: number, context: LinUCBContext): void
+  update(state: UserState, action: Action, reward: number, context: LinUCBContext): void;
   /** 使用 Float64Array 更新（零拷贝） */
-  updateWithFloat64Array(featureVec: Float64Array, reward: number): void
+  updateWithFloat64Array(featureVec: Float64Array, reward: number): void;
   /** 使用特征向量更新 */
-  updateWithFeatureVector(featureVec: Array<number>, reward: number): void
+  updateWithFeatureVector(featureVec: Array<number>, reward: number): void;
   /** 批量更新 */
-  updateBatch(featureVecs: Array<Array<number>>, rewards: Array<number>): number
+  updateBatch(featureVecs: Array<Array<number>>, rewards: Array<number>): number;
   /** 健康诊断 */
-  diagnose(): DiagnosticResult
+  diagnose(): DiagnosticResult;
   /** 自检 */
-  selfTest(): boolean
+  selfTest(): boolean;
   /** 获取模型 */
-  getModel(): BanditModel
+  getModel(): BanditModel;
   /** 设置模型 */
-  setModel(model: BanditModel): void
+  setModel(model: BanditModel): void;
   /** 重置模型 */
-  reset(): void
+  reset(): void;
   /** 获取 alpha */
-  get alpha(): number
+  get alpha(): number;
   /** 设置 alpha */
-  set alpha(value: number)
+  set alpha(value: number);
   /** 获取更新计数 */
-  get updateCount(): number
+  get updateCount(): number;
   /** 计算冷启动 alpha */
-  static getColdStartAlpha(interactionCount: number, recentAccuracy: number, fatigue: number): number
+  static getColdStartAlpha(
+    interactionCount: number,
+    recentAccuracy: number,
+    fatigue: number,
+  ): number;
 }
 /**
  * Thompson Sampling Native Implementation
@@ -485,87 +541,87 @@ export declare class LinUcbNative {
  */
 export declare class ThompsonSamplingNative {
   /** Create a new Thompson Sampling instance with default options */
-  constructor()
+  constructor();
   /** Create a new instance with custom options */
-  static withOptions(options: ThompsonSamplingOptions): ThompsonSamplingNative
+  static withOptions(options: ThompsonSamplingOptions): ThompsonSamplingNative;
   /** Create a new instance with a specific seed (for testing) */
-  static withSeed(seed: number): ThompsonSamplingNative
+  static withSeed(seed: number): ThompsonSamplingNative;
   /**
    * Sample from a Beta distribution using Gamma distribution method
    *
    * Uses the property: Beta(alpha, beta) = Gamma(alpha) / (Gamma(alpha) + Gamma(beta))
    */
-  sampleBeta(alpha: number, beta: number): number
+  sampleBeta(alpha: number, beta: number): number;
   /**
    * Sample from a Gamma distribution using Marsaglia-Tsang method
    *
    * Reference: Marsaglia, G., & Tsang, W. W. (2000).
    * "A simple method for generating gamma variables."
    */
-  sampleGamma(shape: number, scale: number): number
+  sampleGamma(shape: number, scale: number): number;
   /**
    * Batch sample from multiple actions
    *
    * Returns sampled values for each action key
    */
-  batchSample(actionKeys: Array<string>): Array<number>
+  batchSample(actionKeys: Array<string>): Array<number>;
   /** Batch sample with context support */
-  batchSampleWithContext(contextKey: string, actionKeys: Array<string>): Array<number>
+  batchSampleWithContext(contextKey: string, actionKeys: Array<string>): Array<number>;
   /**
    * Select the best action from a list of action keys
    *
    * Samples from Beta distributions and returns the action with the highest sample value
    */
-  selectAction(actionKeys: Array<string>): ActionSelection
+  selectAction(actionKeys: Array<string>): ActionSelection;
   /**
    * Select the best action with context awareness
    *
    * Blends global and contextual samples based on data availability
    */
-  selectActionWithContext(contextKey: string, actionKeys: Array<string>): ActionSelection
+  selectActionWithContext(contextKey: string, actionKeys: Array<string>): ActionSelection;
   /**
    * Update parameters based on feedback
    *
    * - success: true -> alpha + 1, false -> beta + 1
    */
-  update(actionKey: string, success: boolean): void
+  update(actionKey: string, success: boolean): void;
   /**
    * Update parameters with a continuous reward value
    *
    * - Binary mode (default): reward >= 0 -> success, < 0 -> failure
    * - Soft update mode: alpha += (reward + 1) / 2, beta += (1 - reward) / 2
    */
-  updateWithReward(actionKey: string, reward: number): void
+  updateWithReward(actionKey: string, reward: number): void;
   /** Update with context */
-  updateWithContext(contextKey: string, actionKey: string, success: boolean): void
+  updateWithContext(contextKey: string, actionKey: string, success: boolean): void;
   /** Update with context and continuous reward */
-  updateWithContextAndReward(contextKey: string, actionKey: string, reward: number): void
+  updateWithContextAndReward(contextKey: string, actionKey: string, reward: number): void;
   /** Batch update multiple actions */
-  batchUpdate(updates: Array<BatchUpdateItem>): void
+  batchUpdate(updates: Array<BatchUpdateItem>): void;
   /** Get expected value for an action */
-  getExpectedValue(actionKey: string): number
+  getExpectedValue(actionKey: string): number;
   /** Get expected value with context */
-  getExpectedValueWithContext(contextKey: string, actionKey: string): number
+  getExpectedValueWithContext(contextKey: string, actionKey: string): number;
   /** Get sample count for an action (observations excluding prior) */
-  getSampleCount(actionKey: string): number
+  getSampleCount(actionKey: string): number;
   /** Get global parameters for an action */
-  getGlobalParams(actionKey: string): BetaParams | null
+  getGlobalParams(actionKey: string): BetaParams | null;
   /** Get contextual parameters */
-  getContextParams(actionKey: string, contextKey: string): BetaParams | null
+  getContextParams(actionKey: string, contextKey: string): BetaParams | null;
   /** Set global parameters directly */
-  setGlobalParams(actionKey: string, alpha: number, beta: number): void
+  setGlobalParams(actionKey: string, alpha: number, beta: number): void;
   /** Set contextual parameters directly */
-  setContextParams(actionKey: string, contextKey: string, alpha: number, beta: number): void
+  setContextParams(actionKey: string, contextKey: string, alpha: number, beta: number): void;
   /** Get all global stats */
-  getAllStats(): Record<string, BetaParams>
+  getAllStats(): Record<string, BetaParams>;
   /** Get update count */
-  getUpdateCount(): number
+  getUpdateCount(): number;
   /** Reset all parameters */
-  reset(): void
+  reset(): void;
   /** Get serializable state for persistence */
-  getState(): ThompsonSamplingState
+  getState(): ThompsonSamplingState;
   /** Restore state from serialized data */
-  setState(state: ThompsonSamplingState): void
+  setState(state: ThompsonSamplingState): void;
   /** Set random seed (for testing) */
-  setSeed(seed: number): void
+  setSeed(seed: number): void;
 }

@@ -1,3 +1,9 @@
+# ==============================================================================
+# WARNING: Default passwords below are for DEVELOPMENT ONLY!
+# For production deployment, use environment variables or secrets management.
+# Never commit production credentials to version control.
+# ==============================================================================
+
 services:
   # ============================================
   # PostgreSQL + TimescaleDB
@@ -11,12 +17,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-danci_secret_2024}
       POSTGRES_DB: ${POSTGRES_DB:-vocabulary_db}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-danci} -d ${POSTGRES_DB:-vocabulary_db}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-danci} -d ${POSTGRES_DB:-vocabulary_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,11 +38,11 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,16 +66,16 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      TRUST_PROXY: "1"
-      WORKER_LEADER: "true"
+      TRUST_PROXY: '1'
+      WORKER_LEADER: 'true'
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # AMAS 配置 - 启用真实数据源
       AMAS_ABOUT_DATA_SOURCE: real
-      AMAS_REAL_DATA_READ_ENABLED: "true"
-      AMAS_REAL_DATA_WRITE_ENABLED: "true"
-      AMAS_VISUALIZATION_ENABLED: "true"
+      AMAS_REAL_DATA_READ_ENABLED: 'true'
+      AMAS_REAL_DATA_WRITE_ENABLED: 'true'
+      AMAS_VISUALIZATION_ENABLED: 'true'
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - '${BACKEND_PORT:-3000}:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,7 +94,7 @@ services:
     container_name: danci-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - '${FRONTEND_PORT:-5173}:80'
     depends_on:
       - backend
     networks:

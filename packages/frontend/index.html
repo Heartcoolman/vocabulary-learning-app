@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>词汇学习应用</title>
+
+    <!-- 性能优化：DNS 预解析和预连接 -->
+    <!-- API 服务器预连接 - 减少首次 API 请求的连接时间 -->
+    <link rel="dns-prefetch" href="//localhost:3000" />
+    <link rel="preconnect" href="http://localhost:3000" crossorigin />
+
+    <!-- 生产环境 API 服务器（如有需要请修改域名） -->
+    <!-- <link rel="dns-prefetch" href="//api.yourdomain.com" /> -->
+    <!-- <link rel="preconnect" href="https://api.yourdomain.com" crossorigin /> -->
   </head>
   <body>
     <div id="root"></div>

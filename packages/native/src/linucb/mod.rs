@@ -240,6 +240,22 @@ impl LinUCBNative {
         actions: Vec<ActionTyped>,
         context: LinUCBContext,
     ) -> ActionSelectionTyped {
+        // 空列表保护：返回默认值避免 panic
+        if actions.is_empty() {
+            return ActionSelectionTyped {
+                selected_index: 0,
+                selected_action: ActionTyped {
+                    word_id: String::new(),
+                    difficulty: Difficulty::Recognition,
+                    scheduled_at: None,
+                },
+                exploitation: 0.0,
+                exploration: 0.0,
+                score: f64::NEG_INFINITY,
+                all_scores: vec![],
+            };
+        }
+
         let mut best_idx = 0;
         let mut best_score = f64::NEG_INFINITY;
         let mut all_scores = Vec::with_capacity(actions.len());
@@ -279,6 +295,22 @@ impl LinUCBNative {
         actions: Vec<Action>,
         context: LinUCBContext,
     ) -> ActionSelection {
+        // 空列表保护：返回默认值避免 panic
+        if actions.is_empty() {
+            return ActionSelection {
+                selected_index: 0,
+                selected_action: Action {
+                    word_id: String::new(),
+                    difficulty: String::new(),
+                    scheduled_at: None,
+                },
+                exploitation: 0.0,
+                exploration: 0.0,
+                score: f64::NEG_INFINITY,
+                all_scores: vec![],
+            };
+        }
+
         let mut best_idx = 0;
         let mut best_score = f64::NEG_INFINITY;
         let mut all_scores = Vec::with_capacity(actions.len());
@@ -501,5 +533,138 @@ impl LinUCBNative {
         let fatigue_factor = 1.0 - fatigue * 0.3;
 
         base_alpha * interaction_factor * accuracy_factor * fatigue_factor
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_state() -> UserState {
+        UserState {
+            mastery_level: 0.5,
+            recent_accuracy: 0.7,
+            study_streak: 5,
+            total_interactions: 100,
+            average_response_time: 2000.0,
+        }
+    }
+
+    fn create_test_context() -> LinUCBContext {
+        LinUCBContext {
+            time_of_day: 0.5,
+            day_of_week: 3,
+            session_duration: 1800.0,
+            fatigue_factor: Some(0.2),
+        }
+    }
+
+    fn create_test_action(word_id: &str, difficulty: &str) -> Action {
+        Action {
+            word_id: word_id.to_string(),
+            difficulty: difficulty.to_string(),
+            scheduled_at: None,
+        }
+    }
+
+    fn create_test_action_typed(word_id: &str, difficulty: Difficulty) -> ActionTyped {
+        ActionTyped {
+            word_id: word_id.to_string(),
+            difficulty,
+            scheduled_at: None,
+        }
+    }
+
+    // ==================== Bug Fix Tests ====================
+
+    /// 测试修复: select_action 空列表不应 panic
+    #[test]
+    fn test_select_action_empty_list_no_panic() {
+        let linucb = LinUCBNative::new(None, None);
+        let state = create_test_state();
+        let context = create_test_context();
+        let empty_actions: Vec<Action> = vec![];
+
+        // 这个调用在修复前会 panic，修复后应返回默认值
+        let result = linucb.select_action(state, empty_actions, context);
+
+        assert_eq!(result.selected_index, 0);
+        assert!(result.selected_action.word_id.is_empty());
+        assert!(result.selected_action.difficulty.is_empty());
+        assert_eq!(result.exploitation, 0.0);
+        assert_eq!(result.exploration, 0.0);
+        assert!(result.score.is_infinite() && result.score < 0.0); // NEG_INFINITY
+        assert!(result.all_scores.is_empty());
+    }
+
+    /// 测试修复: select_action_typed 空列表不应 panic
+    #[test]
+    fn test_select_action_typed_empty_list_no_panic() {
+        let linucb = LinUCBNative::new(None, None);
+        let state = create_test_state();
+        let context = create_test_context();
+        let empty_actions: Vec<ActionTyped> = vec![];
+
+        // 这个调用在修复前会 panic，修复后应返回默认值
+        let result = linucb.select_action_typed(state, empty_actions, context);
+
+        assert_eq!(result.selected_index, 0);
+        assert!(result.selected_action.word_id.is_empty());
+        assert_eq!(result.selected_action.difficulty, Difficulty::Recognition);
+        assert_eq!(result.exploitation, 0.0);
+        assert_eq!(result.exploration, 0.0);
+        assert!(result.score.is_infinite() && result.score < 0.0); // NEG_INFINITY
+        assert!(result.all_scores.is_empty());
+    }
+
+    /// 测试: select_action 正常情况仍然工作
+    #[test]
+    fn test_select_action_normal_case() {
+        let linucb = LinUCBNative::new(None, None);
+        let state = create_test_state();
+        let context = create_test_context();
+        let actions = vec![
+            create_test_action("word1", "recognition"),
+            create_test_action("word2", "recall"),
+        ];
+
+        let result = linucb.select_action(state, actions, context);
+
+        assert!(result.selected_index < 2);
+        assert!(!result.selected_action.word_id.is_empty());
+        assert_eq!(result.all_scores.len(), 2);
+    }
+
+    /// 测试: select_action_typed 正常情况仍然工作
+    #[test]
+    fn test_select_action_typed_normal_case() {
+        let linucb = LinUCBNative::new(None, None);
+        let state = create_test_state();
+        let context = create_test_context();
+        let actions = vec![
+            create_test_action_typed("word1", Difficulty::Recognition),
+            create_test_action_typed("word2", Difficulty::Recall),
+        ];
+
+        let result = linucb.select_action_typed(state, actions, context);
+
+        assert!(result.selected_index < 2);
+        assert!(!result.selected_action.word_id.is_empty());
+        assert_eq!(result.all_scores.len(), 2);
+    }
+
+    /// 测试: 单个 action 的边界情况
+    #[test]
+    fn test_select_action_single_action() {
+        let linucb = LinUCBNative::new(None, None);
+        let state = create_test_state();
+        let context = create_test_context();
+        let actions = vec![create_test_action("word1", "recognition")];
+
+        let result = linucb.select_action(state, actions, context);
+
+        assert_eq!(result.selected_index, 0);
+        assert_eq!(result.selected_action.word_id, "word1");
+        assert_eq!(result.all_scores.len(), 1);
     }
 }

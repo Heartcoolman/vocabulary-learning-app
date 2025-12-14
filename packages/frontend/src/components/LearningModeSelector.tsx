@@ -91,7 +91,7 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className={
           minimal
-            ? 'rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600'
+            ? 'rounded-lg p-2 text-gray-500 transition-all duration-200 hover:scale-105 hover:bg-blue-50 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95'
             : 'btn-ghost flex items-center gap-1.5 px-2 py-1.5 text-sm'
         }
         aria-label="选择学习模式"
@@ -127,11 +127,11 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
                   key={mode.id}
                   onClick={() => handleModeChange(mode.id)}
                   disabled={isLoading}
-                  className={`w-full rounded-lg p-3 text-left transition-all ${
+                  className={`w-full rounded-lg p-3 text-left transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                     currentMode === mode.id
                       ? 'border-2 border-blue-500 bg-blue-50 shadow-sm'
-                      : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
-                  } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                      : 'border-2 border-transparent bg-gray-50 hover:scale-[1.01] hover:bg-gray-100'
+                  } ${isLoading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-[0.99]'}`}
                 >
                   <div className="mb-1 flex items-center gap-2">
                     {MODE_ICONS[mode.id]}
@@ -156,10 +156,10 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => onLearningTypeChange('word-to-meaning')}
-                    className={`flex-1 rounded-lg p-2 text-center transition-all ${
+                    className={`flex-1 rounded-lg p-2 text-center transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
                       learningType === 'word-to-meaning'
                         ? 'border-2 border-blue-500 bg-blue-50'
-                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                        : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100'
                     }`}
                   >
                     <Translate size={20} className="mx-auto mb-1" />
@@ -167,10 +167,10 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
                   </button>
                   <button
                     onClick={() => onLearningTypeChange('meaning-to-word')}
-                    className={`flex-1 rounded-lg p-2 text-center transition-all ${
+                    className={`flex-1 rounded-lg p-2 text-center transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] ${
                       learningType === 'meaning-to-word'
                         ? 'border-2 border-blue-500 bg-blue-50'
-                        : 'border-2 border-transparent bg-gray-50 hover:bg-gray-100'
+                        : 'border-2 border-transparent bg-gray-50 hover:scale-[1.02] hover:bg-gray-100'
                     }`}
                   >
                     <ArrowsLeftRight size={20} className="mx-auto mb-1" />
@@ -186,7 +186,7 @@ const LearningModeSelectorComponent: React.FC<LearningModeSelectorProps> = ({
                   setIsOpen(false);
                   navigate('/flashcard');
                 }}
-                className="w-full cursor-pointer rounded-lg border-2 border-transparent bg-purple-50 p-3 text-left transition-all hover:border-purple-300 hover:bg-purple-100"
+                className="w-full cursor-pointer rounded-lg border-2 border-transparent bg-purple-50 p-3 text-left transition-all duration-200 hover:scale-[1.01] hover:border-purple-300 hover:bg-purple-100 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 active:scale-[0.99]"
               >
                 <div className="mb-1 flex items-center gap-2">
                   <Cards size={20} weight="fill" className="text-purple-600" />

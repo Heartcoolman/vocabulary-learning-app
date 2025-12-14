@@ -4,6 +4,7 @@ import { wordBookClient, learningClient } from '../services/client';
 import StorageService from '../services/StorageService';
 import { learningLogger } from '../utils/logger';
 import { Milestone } from '../components/progress/MilestoneCard';
+import { PAGINATION_CONFIG } from '../constants/pagination';
 
 import { StudyProgressData } from './useStudyProgress';
 
@@ -76,7 +77,9 @@ export const useExtendedProgress = (userId: string | undefined): UseExtendedProg
       weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 本周日
       weekStart.setHours(0, 0, 0, 0);
 
-      const records = await learningClient.getRecords({ pageSize: 1000 });
+      const records = await learningClient.getRecords({
+        pageSize: PAGINATION_CONFIG.EXTENDED_PROGRESS,
+      });
       const weeklyRecordsMap = new Map<string, boolean>();
 
       records.records.forEach((record) => {

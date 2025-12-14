@@ -13,6 +13,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import apiClient from '../../services/client';
 import type { Word, AnswerRecord } from '../../types/models';
+import { PAGINATION_CONFIG } from '../../constants/pagination';
+import { addExportHistory } from '../queries/useExportHistory';
 
 /**
  * 导出格式类型
@@ -118,10 +120,13 @@ async function exportWords(
   // 获取单词数据
   let words: Word[];
   if (params.wordBookId) {
-    const response = await apiClient.getWordBookById(params.wordBookId);
-    // 假设词书包含单词列表，如果没有需要单独调用API
-    words = await apiClient.getWords();
-    // TODO: 需要后端提供按词书过滤的API
+    try {
+      words = await apiClient.getWordBookWords(params.wordBookId);
+    } catch (error) {
+      // 如果按词书获取失败，回退到全量，避免导出中断
+      words = await apiClient.getWords();
+      console.warn('按词书导出失败，已回退到全量导出', error);
+    }
   } else {
     words = await apiClient.getWords();
   }
@@ -181,7 +186,7 @@ async function exportRecords(
   });
 
   // 获取学习记录（可能需要分页）
-  const { records } = await apiClient.getRecords({ page: 1, pageSize: 10000 });
+  const { records } = await apiClient.getRecords({ page: 1, pageSize: PAGINATION_CONFIG.EXPORT });
 
   onProgress?.({
     progress: 50,
@@ -422,7 +427,7 @@ export function useExportData(options?: {
 }) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<ExportDataResult, Error, ExportDataParams>({
     mutationFn: async (params: ExportDataParams) => {
       // 根据数据类型选择导出函数
       switch (params.dataType) {
@@ -438,16 +443,33 @@ export function useExportData(options?: {
           throw new Error(`不支持的导出类型: ${params.dataType}`);
       }
     },
-    onSuccess: (result) => {
-      // 可以记录导出历史到缓存
-      queryClient.setQueryData(
-        queryKeys.export.history(),
-        (old: ExportDataResult[] = []) => [result, ...old].slice(0, 10), // 只保留最近10条
-      );
+    onSuccess: (result, variables) => {
+      // 记录导出历史（本地持久化）并刷新缓存
+      addExportHistory({
+        ...result,
+        dataType: variables.dataType,
+        format: variables.format,
+        status: 'success',
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.export.history() });
 
       options?.onSuccess?.(result);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
+      if (variables) {
+        addExportHistory({
+          data: '',
+          filename: '',
+          count: 0,
+          size: 0,
+          timestamp: Date.now(),
+          dataType: variables.dataType,
+          format: variables.format,
+          status: 'failed',
+          error: error.message,
+        });
+        queryClient.invalidateQueries({ queryKey: queryKeys.export.history() });
+      }
       options?.onError?.(error);
     },
   });

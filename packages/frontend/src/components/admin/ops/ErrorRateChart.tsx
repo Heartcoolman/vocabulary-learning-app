@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { env } from '../../../config/env';
+import { chartColors } from '../../../utils/iconColors';
 
 // ============================================
 // 类型定义
@@ -29,110 +30,17 @@ interface ErrorRateChartProps {
 }
 
 // ============================================
-// 常量
+// 常量 - Canvas 绘制颜色
 // ============================================
 
 const CHART_COLORS = {
-  primary: '#1976d2',
-  error: '#f44336',
-  warning: '#ff9800',
-  success: '#4caf50',
-  grid: '#e0e0e0',
-  text: '#666',
+  primary: chartColors.primary,
+  error: chartColors.error,
+  warning: chartColors.warning,
+  success: chartColors.success,
+  grid: chartColors.grid,
+  text: chartColors.text,
   background: '#ffffff',
-};
-
-// ============================================
-// 组件样式
-// ============================================
-
-const styles = {
-  container: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '20px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  } as React.CSSProperties,
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px',
-  } as React.CSSProperties,
-  title: {
-    fontSize: '16px',
-    fontWeight: 600,
-    color: '#333',
-    margin: 0,
-  } as React.CSSProperties,
-  controls: {
-    display: 'flex',
-    gap: '8px',
-  } as React.CSSProperties,
-  button: {
-    padding: '4px 12px',
-    fontSize: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  } as React.CSSProperties,
-  buttonActive: {
-    backgroundColor: '#1976d2',
-    color: 'white',
-    borderColor: '#1976d2',
-  } as React.CSSProperties,
-  chartContainer: {
-    position: 'relative' as const,
-    width: '100%',
-  } as React.CSSProperties,
-  legend: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '24px',
-    marginTop: '16px',
-  } as React.CSSProperties,
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    color: '#666',
-  } as React.CSSProperties,
-  legendDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-  } as React.CSSProperties,
-  stats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '16px',
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #eee',
-  } as React.CSSProperties,
-  statItem: {
-    textAlign: 'center' as const,
-  } as React.CSSProperties,
-  statValue: {
-    fontSize: '20px',
-    fontWeight: 600,
-    color: '#333',
-  } as React.CSSProperties,
-  statLabel: {
-    fontSize: '12px',
-    color: '#999',
-    marginTop: '4px',
-  } as React.CSSProperties,
-  noData: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#999',
-    fontSize: '14px',
-  } as React.CSSProperties,
 };
 
 // ============================================
@@ -142,27 +50,6 @@ const styles = {
 /**
  * 生成模拟数据（用于演示）
  */
-function generateMockData(count: number): ErrorDataPoint[] {
-  const now = Date.now();
-  const data: ErrorDataPoint[] = [];
-
-  for (let i = count - 1; i >= 0; i--) {
-    const timestamp = now - i * 60000; // 每分钟一个点
-    const totalRequests = Math.floor(Math.random() * 500) + 100;
-    const errorRequests = Math.floor(Math.random() * 10);
-    const errorRate = (errorRequests / totalRequests) * 100;
-
-    data.push({
-      timestamp,
-      totalRequests,
-      errorRequests,
-      errorRate,
-    });
-  }
-
-  return data;
-}
-
 /**
  * 格式化时间
  */
@@ -183,6 +70,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
   const [data, setData] = useState<ErrorDataPoint[]>([]);
   const [selectedRange, setSelectedRange] = useState(timeRange);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /**
@@ -190,6 +78,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
    */
   const fetchData = useCallback(async () => {
     try {
+      setFetchError(null);
       const response = await fetch(
         `${env.apiUrl}/api/admin/metrics/error-rate?range=${selectedRange}`,
         { credentials: 'include' },
@@ -202,13 +91,12 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
           return;
         }
       }
-
-      // 如果获取失败，使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('无法获取错误率数据');
+      setData([]);
     } catch (e) {
       console.error('Failed to fetch error rate data:', e);
-      // 使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('请求错误率数据失败');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -407,17 +295,18 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
   }, [data]);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h3 style={styles.title}>错误率趋势</h3>
-        <div style={styles.controls}>
+    <div className="rounded-lg bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="m-0 text-base font-semibold text-gray-800">错误率趋势</h3>
+        <div className="flex gap-2">
           {[15, 30, 60, 120].map((range) => (
             <button
               key={range}
-              style={{
-                ...styles.button,
-                ...(selectedRange === range ? styles.buttonActive : {}),
-              }}
+              className={`rounded border px-3 py-1 text-xs transition-all ${
+                selectedRange === range
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
               onClick={() => setSelectedRange(range)}
             >
               {range}分钟
@@ -426,55 +315,74 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
         </div>
       </div>
 
-      <div style={{ ...styles.chartContainer, height }}>
+      <div className="relative w-full" style={{ height }}>
         {loading ? (
-          <div style={{ ...styles.noData, height }}>加载中...</div>
+          <div
+            className="flex items-center justify-center text-sm text-gray-400"
+            style={{ height }}
+          >
+            加载中...
+          </div>
+        ) : fetchError ? (
+          <div className="flex items-center justify-center text-sm text-red-500" style={{ height }}>
+            {fetchError}
+          </div>
         ) : data.length === 0 ? (
-          <div style={{ ...styles.noData, height }}>暂无数据</div>
+          <div
+            className="flex items-center justify-center text-sm text-gray-400"
+            style={{ height }}
+          >
+            暂无数据
+          </div>
         ) : (
-          <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
+          <canvas ref={canvasRef} className="h-full w-full" />
         )}
       </div>
 
-      <div style={styles.legend}>
-        <div style={styles.legendItem}>
-          <div style={{ ...styles.legendDot, backgroundColor: CHART_COLORS.error }} />
+      <div className="mt-4 flex justify-center gap-6">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: CHART_COLORS.error }}
+          />
           <span>错误率</span>
         </div>
-        <div style={styles.legendItem}>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
           <div
-            style={{
-              ...styles.legendDot,
-              backgroundColor: CHART_COLORS.warning,
-            }}
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: CHART_COLORS.warning }}
           />
           <span>告警阈值</span>
         </div>
       </div>
 
-      <div style={styles.stats}>
-        <div style={styles.statItem}>
-          <div style={styles.statValue}>{stats.avgErrorRate.toFixed(2)}%</div>
-          <div style={styles.statLabel}>平均错误率</div>
+      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-gray-100 pt-4">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-gray-800">
+            {stats.avgErrorRate.toFixed(2)}%
+          </div>
+          <div className="mt-1 text-xs text-gray-400">平均错误率</div>
         </div>
-        <div style={styles.statItem}>
+        <div className="text-center">
           <div
+            className="text-xl font-semibold"
             style={{
-              ...styles.statValue,
               color: stats.maxErrorRate > 2 ? CHART_COLORS.error : CHART_COLORS.success,
             }}
           >
             {stats.maxErrorRate.toFixed(2)}%
           </div>
-          <div style={styles.statLabel}>最高错误率</div>
+          <div className="mt-1 text-xs text-gray-400">最高错误率</div>
         </div>
-        <div style={styles.statItem}>
-          <div style={styles.statValue}>{stats.totalErrors}</div>
-          <div style={styles.statLabel}>错误总数</div>
+        <div className="text-center">
+          <div className="text-xl font-semibold text-gray-800">{stats.totalErrors}</div>
+          <div className="mt-1 text-xs text-gray-400">错误总数</div>
         </div>
-        <div style={styles.statItem}>
-          <div style={styles.statValue}>{stats.totalRequests.toLocaleString()}</div>
-          <div style={styles.statLabel}>请求总数</div>
+        <div className="text-center">
+          <div className="text-xl font-semibold text-gray-800">
+            {stats.totalRequests.toLocaleString()}
+          </div>
+          <div className="mt-1 text-xs text-gray-400">请求总数</div>
         </div>
       </div>
     </div>

@@ -21,11 +21,11 @@ import type {
 
 import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
-import { LinUCB, LinUCBContext as TSLinUCBContext } from '../algorithms/learners';
+import { LinUCB, LinUCBContext as TSLinUCBContext } from './linucb';
 
 import { Action as TSAction, UserState as TSUserState, BanditModel } from '../types';
 
-import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
+import { ActionSelection, LearnerCapabilities } from './base-learner';
 
 import {
   recordNativeCall,
@@ -36,6 +36,8 @@ import {
 } from '../../monitoring/amas-metrics';
 
 import { amasLogger } from '../../logger';
+
+import { env } from '../../config/env';
 
 // ==================== 类型定义 ====================
 
@@ -178,7 +180,7 @@ export class LinUCBNativeWrapper {
       windowSize = DEFAULT_CIRCUIT_BREAKER_OPTIONS.windowSize,
       recoveryTimeout = DEFAULT_CIRCUIT_BREAKER_OPTIONS.openDurationMs,
       halfOpenProbe = DEFAULT_CIRCUIT_BREAKER_OPTIONS.halfOpenProbe,
-      useNative = process.env.AMAS_USE_NATIVE !== 'false',
+      useNative = env.AMAS_USE_NATIVE,
     } = config;
 
     this.nativeEnabled = useNative;
@@ -687,8 +689,8 @@ export class LinUCBNativeWrapper {
     actions: NativeCompatAction[],
     context: NativeLinUCBContext,
   ): ActionSelection<NativeCompatAction> {
-    // 转换为 TS 类型
-    const tsState = this.toTSState(state);
+    // 转换为 TS 类型，传入 context 以保留疲劳度等信息
+    const tsState = this.toTSState(state, context);
     const tsActions = actions.map((a) => this.toTSAction(a));
     const tsContext = this.toTSContext(context);
 
@@ -717,7 +719,8 @@ export class LinUCBNativeWrapper {
     reward: number,
     context: NativeLinUCBContext,
   ): void {
-    const tsState = this.toTSState(state);
+    // 转换为 TS 类型，传入 context 以保留疲劳度等信息
+    const tsState = this.toTSState(state, context);
     const tsAction = this.toTSAction(action);
     const tsContext = this.toTSContext(context);
 
@@ -763,10 +766,38 @@ export class LinUCBNativeWrapper {
     result: NativeActionSelection,
     actions: NativeCompatAction[],
   ): ActionSelection<NativeCompatAction> {
+    // 边界检查：防止 Native 模块返回无效索引
+    if (result.selectedIndex < 0 || result.selectedIndex >= actions.length) {
+      amasLogger.error(
+        { selectedIndex: result.selectedIndex, actionsLength: actions.length },
+        '[LinUCBNativeWrapper] selectedIndex out of bounds, falling back to first action',
+      );
+      return {
+        action: actions[0],
+        score: 0,
+        confidence: 0,
+        meta: {
+          selectedIndex: 0,
+          exploitation: 0,
+          exploration: 0,
+          allScores: Array.from(result.allScores),
+          native: true,
+          boundaryError: true,
+        },
+      };
+    }
+
+    // 修正 confidence 计算：
+    // exploration = alpha * sqrt(x^T A^-1 x)，代表不确定性
+    // 将 exploration 归一化到 [0, 1] 范围作为 confidence 的近似
+    // 使用 tanh 函数将任意正数映射到 (0, 1)
+    const rawConfidence = result.exploration;
+    const confidence = Math.tanh(rawConfidence); // 归一化到 (0, 1)
+
     return {
       action: actions[result.selectedIndex],
       score: result.score,
-      confidence: result.exploration / (this.alpha || 0.3), // 近似 confidence
+      confidence,
       meta: {
         selectedIndex: result.selectedIndex,
         exploitation: result.exploitation,
@@ -777,17 +808,23 @@ export class LinUCBNativeWrapper {
     };
   }
 
-  private toTSState(state: NativeCompatUserState): TSUserState {
+  private toTSState(state: NativeCompatUserState, context?: NativeLinUCBContext): TSUserState {
+    // 从 context 中恢复疲劳度，避免降级时状态丢失
+    const fatigue = context?.fatigueFactor ?? 0;
+
+    // 基于 mastery 和 accuracy 估算动机（高掌握度+高正确率 → 高动机）
+    const motivation = (state.masteryLevel + state.recentAccuracy) / 2;
+
     return {
       A: state.recentAccuracy, // 用 accuracy 近似 attention
-      F: 0, // 默认疲劳度
+      F: fatigue, // 从 context 恢复疲劳度
       C: {
         mem: state.masteryLevel,
         speed: state.averageResponseTime > 0 ? 5000 / state.averageResponseTime : 1,
         stability: 1.0 - Math.abs(state.recentAccuracy - 0.5), // 根据准确率估算稳定性
       },
-      M: 0, // 默认动机
-      conf: 0.5, // 默认置信度
+      M: motivation, // 基于掌握度和正确率估算动机
+      conf: Math.min(state.totalInteractions / 100, 1.0), // 基于交互次数估算置信度
       ts: Date.now(), // 当前时间戳
     };
   }

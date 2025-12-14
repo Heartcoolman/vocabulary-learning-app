@@ -1,5 +1,6 @@
 import React from 'react';
 import { LearningCurvePoint } from '../../types/explainability';
+import { chartColors, iconColors } from '../../utils/iconColors';
 
 interface LearningCurveChartProps {
   data: LearningCurvePoint[];
@@ -58,8 +59,8 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
           <defs>
             <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#818cf8" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
+              <stop offset="0%" stopColor={chartColors.primary} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={chartColors.primary} stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -69,7 +70,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
             y1={height - padding}
             x2={width - padding}
             y2={height - padding}
-            stroke="#e5e7eb"
+            stroke={chartColors.axis}
             strokeWidth="1"
           />
           <line
@@ -77,7 +78,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
             y1={padding}
             x2={padding}
             y2={height - padding}
-            stroke="#e5e7eb"
+            stroke={chartColors.axis}
             strokeWidth="1"
           />
 
@@ -88,7 +89,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
           <path
             d={pathD}
             fill="none"
-            stroke="#6366f1"
+            stroke={chartColors.primary}
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -101,14 +102,21 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
                 cx={p.x}
                 cy={p.y}
                 r="4"
-                fill="#fff"
-                stroke="#6366f1"
+                fill={iconColors.white}
+                stroke={chartColors.primary}
                 strokeWidth="2"
                 className="origin-center transition-transform group-hover:scale-150"
               />
               {/* Tooltip */}
               <g className="opacity-0 transition-opacity group-hover:opacity-100">
-                <rect x={p.x - 30} y={p.y - 45} width="60" height="35" rx="4" fill="#1f2937" />
+                <rect
+                  x={p.x - 30}
+                  y={p.y - 45}
+                  width="60"
+                  height="35"
+                  rx="4"
+                  fill={chartColors.text}
+                />
                 <text
                   x={p.x}
                   y={p.y - 22}
@@ -119,7 +127,13 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
                 >
                   {Math.round(p.masteryVal)}%
                 </text>
-                <text x={p.x} y={p.y - 15} textAnchor="middle" fill="#9ca3af" fontSize="8">
+                <text
+                  x={p.x}
+                  y={p.y - 15}
+                  textAnchor="middle"
+                  fill={chartColors.label}
+                  fontSize="8"
+                >
                   记忆强度
                 </text>
               </g>
@@ -136,7 +150,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
                 y={height - 15}
                 textAnchor="middle"
                 fontSize="10"
-                fill="#6b7280"
+                fill={iconColors.gray[500]}
               >
                 {formatDate(p.date)}
               </text>

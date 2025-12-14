@@ -193,7 +193,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
                     setErrors([]);
                     setStep('upload');
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  className="text-sm text-blue-600 transition-colors duration-200 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   重新上传
                 </button>

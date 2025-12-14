@@ -91,6 +91,16 @@ export class WordClient extends BaseClient {
   }
 
   /**
+   * 批量删除单词
+   */
+  async batchDeleteWords(wordIds: string[]): Promise<{ deleted: number }> {
+    return this.request<{ deleted: number }>(`/api/words/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ wordIds }),
+    });
+  }
+
+  /**
    * 批量创建单词
    */
   async batchCreateWords(words: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Word[]> {
@@ -154,5 +164,14 @@ export class WordClient extends BaseClient {
       apiLogger.error({ err: error }, '批量导入单词失败');
       throw error;
     }
+  }
+
+  /**
+   * 根据ID获取单个单词
+   * @param wordId 单词ID
+   */
+  async getWordById(wordId: string): Promise<Word> {
+    const apiWord = await this.request<ApiWord>(`/api/words/${wordId}`);
+    return convertApiWord(apiWord);
   }
 }

@@ -164,8 +164,8 @@ export default function StatisticsPage() {
                 <div key={point.date} className="flex min-w-[40px] flex-col items-center gap-2">
                   <div
                     className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-300 hover:from-blue-600 hover:to-blue-500"
-                    style={{ height: `${Math.max(8, point.accuracy * 2)}px` }}
-                    title={`${point.date}: ${point.accuracy}%`}
+                    style={{ height: `${Math.max(8, point.accuracy * 200)}px` }}
+                    title={`${point.date}: ${(point.accuracy * 100).toFixed(1)}%`}
                   />
                   <span className="whitespace-nowrap text-xs text-gray-500">
                     {point.date.slice(5)}

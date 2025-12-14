@@ -15,7 +15,7 @@ import {
   delayedRewardsQuerySchema,
   ProcessEventDto,
   BatchProcessDto,
-  DelayedRewardsQueryDto
+  DelayedRewardsQueryDto,
 } from '../validators/amas.validator';
 import { AuthRequest } from '../types';
 import { RewardStatus } from '@prisma/client';
@@ -27,70 +27,81 @@ const router = Router();
  * POST /api/amas/process
  * 处理学习事件，返回策略建议
  */
-router.post('/process', authMiddleware, validateBody(processEventSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const userId = req.user!.id;
-    const validatedData = req.validatedBody as ProcessEventDto;
-    const {
-      wordId,
-      isCorrect,
-      responseTime,
-      sessionId,
-      dwellTime,
-      pauseCount,
-      switchCount,
-      retryCount,
-      focusLossDuration,
-      interactionDensity,
-      pausedTimeMs
-    } = validatedData;
-
-    // 解析sessionId: 优先使用前端传入的，否则后端生成
-    const resolvedSessionId =
-      typeof sessionId === 'string' && sessionId.trim().length > 0
-        ? sessionId.trim()
-        : randomUUID();
-
-    // 处理事件
-    const result = await amasService.processLearningEvent(
-      userId,
-      {
+router.post(
+  '/process',
+  authMiddleware,
+  validateBody(processEventSchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const userId = req.user!.id;
+      const validatedData = req.validatedBody as ProcessEventDto;
+      const {
         wordId,
         isCorrect,
         responseTime,
+        sessionId,
         dwellTime,
         pauseCount,
         switchCount,
         retryCount,
         focusLossDuration,
         interactionDensity,
-        pausedTimeMs
-      },
-      resolvedSessionId  // 传递sessionId
-    );
+        pausedTimeMs,
+      } = validatedData;
 
-    res.json({
-      success: true,
-      data: {
-        sessionId: resolvedSessionId,  // 返回sessionId供前端复用
-        strategy: result.strategy,
-        explanation: result.explanation,
-        suggestion: result.suggestion,
-        shouldBreak: result.shouldBreak,
-        state: toFrontendState(result.state),
-        // 多目标评估结果（当配置了学习目标时）
-        objectiveEvaluation: result.objectiveEvaluation ? {
-          metrics: result.objectiveEvaluation.metrics,
-          constraintsSatisfied: result.objectiveEvaluation.constraintsSatisfied,
-          constraintViolations: result.objectiveEvaluation.constraintViolations
-        } : undefined,
-        multiObjectiveAdjusted: result.multiObjectiveAdjusted
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      // 解析sessionId: 优先使用前端传入的，否则后端生成
+      const resolvedSessionId =
+        typeof sessionId === 'string' && sessionId.trim().length > 0
+          ? sessionId.trim()
+          : randomUUID();
+
+      // 处理事件
+      const result = await amasService.processLearningEvent(
+        userId,
+        {
+          wordId,
+          isCorrect,
+          responseTime,
+          dwellTime,
+          pauseCount,
+          switchCount,
+          retryCount,
+          focusLossDuration,
+          interactionDensity,
+          pausedTimeMs,
+        },
+        resolvedSessionId, // 传递sessionId
+      );
+
+      res.json({
+        success: true,
+        data: {
+          sessionId: resolvedSessionId, // 返回sessionId供前端复用
+          strategy: result.strategy,
+          explanation: result.explanation,
+          suggestion: result.suggestion,
+          shouldBreak: result.shouldBreak,
+          state: toFrontendState(result.state),
+          // 新增: 单词掌握判定（用于前端显示掌握状态）
+          wordMasteryDecision: result.wordMasteryDecision,
+          // 新增: 奖励值（用于前端验证和调试）
+          reward: result.reward,
+          // 多目标评估结果（当配置了学习目标时）
+          objectiveEvaluation: result.objectiveEvaluation
+            ? {
+                metrics: result.objectiveEvaluation.metrics,
+                constraintsSatisfied: result.objectiveEvaluation.constraintsSatisfied,
+                constraintViolations: result.objectiveEvaluation.constraintViolations,
+              }
+            : undefined,
+          multiObjectiveAdjusted: result.multiObjectiveAdjusted,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * GET /api/amas/state
@@ -104,13 +115,13 @@ router.get('/state', authMiddleware, async (req: AuthRequest, res, next) => {
     if (!state) {
       return res.status(404).json({
         success: false,
-        message: '用户AMAS状态未初始化'
+        message: '用户AMAS状态未初始化',
       });
     }
 
     res.json({
       success: true,
-      data: toFrontendState(state)
+      data: toFrontendState(state),
     });
   } catch (error) {
     next(error);
@@ -132,13 +143,13 @@ router.get('/strategy', authMiddleware, async (req: AuthRequest, res, next) => {
       new_ratio: 0.2,
       batch_size: 10,
       hint_level: 1,
-      difficulty: 'normal' as const
+      difficulty: 'mid' as const,
     };
 
     res.json({
       success: true,
       data: strategy || defaultStrategy,
-      initialized: !!strategy
+      initialized: !!strategy,
     });
   } catch (error) {
     next(error);
@@ -156,7 +167,7 @@ router.post('/reset', authMiddleware, async (req: AuthRequest, res, next) => {
 
     res.json({
       success: true,
-      message: 'AMAS状态已重置'
+      message: 'AMAS状态已重置',
     });
   } catch (error) {
     next(error);
@@ -176,8 +187,8 @@ router.get('/phase', authMiddleware, async (req: AuthRequest, res, next) => {
       success: true,
       data: {
         phase,
-        description: getPhaseDescription(phase)
-      }
+        description: getPhaseDescription(phase),
+      },
     });
   } catch (error) {
     next(error);
@@ -191,22 +202,27 @@ router.get('/phase', authMiddleware, async (req: AuthRequest, res, next) => {
  *
  * 前端API: ApiClient.batchProcessEvents()
  */
-router.post('/batch-process', authMiddleware, validateBody(batchProcessSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const userId = req.user!.id;
-    const validatedData = req.validatedBody as BatchProcessDto;
-    const { events } = validatedData;
+router.post(
+  '/batch-process',
+  authMiddleware,
+  validateBody(batchProcessSchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const userId = req.user!.id;
+      const validatedData = req.validatedBody as BatchProcessDto;
+      const { events } = validatedData;
 
-    const result = await amasService.batchProcessEvents(userId, events);
+      const result = await amasService.batchProcessEvents(userId, events);
 
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * GET /api/amas/delayed-rewards
@@ -215,30 +231,35 @@ router.post('/batch-process', authMiddleware, validateBody(batchProcessSchema), 
  * - status: 奖励状态 (PENDING|PROCESSING|DONE|FAILED)
  * - limit: 返回数量限制 (默认50,最大100)
  */
-router.get('/delayed-rewards', authMiddleware, validateQuery(delayedRewardsQuerySchema), async (req: AuthRequest, res, next) => {
-  try {
-    const userId = req.user!.id;
-    const validatedQuery = req.validatedQuery as DelayedRewardsQueryDto;
-    const { status, limit } = validatedQuery;
+router.get(
+  '/delayed-rewards',
+  authMiddleware,
+  validateQuery(delayedRewardsQuerySchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const userId = req.user!.id;
+      const validatedQuery = req.validatedQuery as DelayedRewardsQueryDto;
+      const { status, limit } = validatedQuery;
 
-    // 查询延迟奖励
-    const rewards = await delayedRewardService.findRewards({
-      userId,
-      status: status as RewardStatus | undefined,
-      limit
-    });
+      // 查询延迟奖励
+      const rewards = await delayedRewardService.findRewards({
+        userId,
+        status: status as RewardStatus | undefined,
+        limit,
+      });
 
-    res.json({
-      success: true,
-      data: {
-        items: rewards,
-        count: rewards.length
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      res.json({
+        success: true,
+        data: {
+          items: rewards,
+          count: rewards.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // ==================== 辅助函数 ====================
 

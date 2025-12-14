@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { chartColors } from '../utils/iconColors';
 
 export interface LineChartData {
   date: string;
@@ -96,8 +97,8 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
       >
         <defs>
           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
+            <stop offset="0%" stopColor={chartColors.primary} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={chartColors.primary} stopOpacity="0.05" />
           </linearGradient>
         </defs>
 
@@ -122,7 +123,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
                 y1={y}
                 x2={padding.left + chartWidth}
                 y2={y}
-                stroke="#e5e7eb"
+                stroke={chartColors.grid}
                 strokeWidth="1"
               />
               <text
@@ -145,7 +146,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
         <path
           d={pathD}
           fill="none"
-          stroke="#3b82f6"
+          stroke={chartColors.primary}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -157,7 +158,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
               cx={point.x}
               cy={point.y}
               r={hoveredPoint === index ? 6 : 4}
-              fill="#3b82f6"
+              fill={chartColors.primary}
               stroke="white"
               strokeWidth="2"
               className="cursor-pointer transition-all duration-200"
@@ -172,7 +173,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
                   width="80"
                   height="30"
                   rx="4"
-                  fill="#1f2937"
+                  fill={chartColors.text}
                   opacity="0.9"
                 />
                 <text

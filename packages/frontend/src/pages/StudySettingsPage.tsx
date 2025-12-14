@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/client';
 import { WordBook } from '../types/models';
-import { CircleNotch } from '../components/Icon';
+import { CircleNotch, Eye, EyeSlash, Camera, Warning } from '../components/Icon';
 import { useToast } from '../components/ui';
 import { uiLogger } from '../utils/logger';
 import { useStudyConfig } from '../hooks/queries';
 import { useUpdateStudyConfig } from '../hooks/mutations';
+import { useVisualFatigueStore } from '../stores/visualFatigueStore';
+import { CameraPermissionRequest } from '../components/visual-fatigue';
 
 export default function StudySettingsPage() {
   const navigate = useNavigate();
@@ -15,10 +17,19 @@ export default function StudySettingsPage() {
   const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
   const [dailyCount, setDailyCount] = useState(20);
   const [error, setError] = useState<string | null>(null);
+  const [showCameraPermission, setShowCameraPermission] = useState(false);
 
   // 使用 React Query hooks
   const { data: studyConfig, isLoading: configLoading } = useStudyConfig();
   const updateConfigMutation = useUpdateStudyConfig();
+
+  // 视觉疲劳检测状态
+  const {
+    enabled: visualFatigueEnabled,
+    setEnabled: setVisualFatigueEnabled,
+    cameraPermission,
+    setCameraPermission,
+  } = useVisualFatigueStore();
 
   // 加载词书列表
   useEffect(() => {
@@ -179,6 +190,64 @@ export default function StudySettingsPage() {
               </p>
             </div>
 
+            {/* 视觉疲劳检测 */}
+            <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Camera size={24} className="text-gray-600" />
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">视觉疲劳检测</h2>
+                    <p className="text-sm text-gray-600">使用摄像头检测眼睛疲劳，智能提醒休息</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!visualFatigueEnabled && cameraPermission !== 'granted') {
+                      setShowCameraPermission(true);
+                    } else {
+                      setVisualFatigueEnabled(!visualFatigueEnabled);
+                    }
+                  }}
+                  className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${
+                    visualFatigueEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                  aria-label={visualFatigueEnabled ? '关闭视觉疲劳检测' : '开启视觉疲劳检测'}
+                >
+                  <span
+                    className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      visualFatigueEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 状态指示 */}
+              <div className="mt-4 flex items-center gap-2 text-sm">
+                {visualFatigueEnabled ? (
+                  <>
+                    <Eye size={16} className="text-green-500" />
+                    <span className="text-green-600">检测已开启</span>
+                  </>
+                ) : (
+                  <>
+                    <EyeSlash size={16} className="text-gray-400" />
+                    <span className="text-gray-500">检测已关闭</span>
+                  </>
+                )}
+                {cameraPermission === 'denied' && (
+                  <span className="ml-2 flex items-center gap-1 text-amber-600">
+                    <Warning size={14} />
+                    摄像头权限被拒绝
+                  </span>
+                )}
+              </div>
+
+              {/* 隐私说明 */}
+              <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
+                <p>所有检测在本地完成，视频数据不会上传到服务器。</p>
+              </div>
+            </div>
+
             {/* 学习统计 */}
             {selectedBookIds.length > 0 && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
@@ -233,6 +302,31 @@ export default function StudySettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* 摄像头权限请求弹窗 */}
+      {showCameraPermission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="m-4 max-w-md">
+            <CameraPermissionRequest
+              permissionStatus={cameraPermission}
+              onRequestPermission={async () => {
+                try {
+                  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                  stream.getTracks().forEach((track) => track.stop());
+                  setCameraPermission('granted');
+                  setVisualFatigueEnabled(true);
+                  setShowCameraPermission(false);
+                  return 'granted';
+                } catch {
+                  setCameraPermission('denied');
+                  return 'denied';
+                }
+              }}
+              onSkip={() => setShowCameraPermission(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

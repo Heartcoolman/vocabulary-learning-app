@@ -67,3 +67,7 @@ export {
   useMetricsComparison,
   useRolloutDashboard,
 } from './useRolloutMonitoring';
+
+// ==================== 视觉疲劳检测 Hooks ====================
+export { useVisualFatigue } from './useVisualFatigue';
+export type { UseVisualFatigueOptions, UseVisualFatigueReturn } from './useVisualFatigue';

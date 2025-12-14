@@ -8,6 +8,7 @@ import {
   g3SpringBouncy,
   g3SpringGentle,
 } from '../utils/animations';
+import { IconColor, badgeCategoryColors, confettiColors } from '../utils/iconColors';
 
 interface BadgeCelebrationProps {
   /** 新获得的徽章 */
@@ -41,7 +42,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
         id: i,
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
-        color: ['#f59e0b', '#3b82f6', '#22c55e', '#a855f7', '#ef4444'][i % 5],
+        color: confettiColors[i % confettiColors.length],
         delay: Math.random() * 0.3,
       })),
     [],
@@ -71,42 +72,42 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
           bg: 'bg-amber-100',
           border: 'border-amber-400',
           text: 'text-amber-700',
-          icon: '#d97706',
+          icon: badgeCategoryColors.bronze.icon,
         };
       case 2:
         return {
           bg: 'bg-gray-100',
           border: 'border-gray-400',
           text: 'text-gray-700',
-          icon: '#6b7280',
+          icon: badgeCategoryColors.silver.icon,
         };
       case 3:
         return {
           bg: 'bg-yellow-100',
           border: 'border-yellow-400',
           text: 'text-yellow-700',
-          icon: '#ca8a04',
+          icon: badgeCategoryColors.gold.icon,
         };
       case 4:
         return {
           bg: 'bg-cyan-100',
           border: 'border-cyan-400',
           text: 'text-cyan-700',
-          icon: '#0891b2',
+          icon: badgeCategoryColors.platinum.icon,
         };
       case 5:
         return {
           bg: 'bg-purple-100',
           border: 'border-purple-400',
           text: 'text-purple-700',
-          icon: '#9333ea',
+          icon: badgeCategoryColors.diamond.icon,
         };
       default:
         return {
           bg: 'bg-blue-100',
           border: 'border-blue-400',
           text: 'text-blue-700',
-          icon: '#3b82f6',
+          icon: badgeCategoryColors.master.icon,
         };
     }
   };
@@ -178,7 +179,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
               className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
               aria-label="关闭"
             >
-              <X size={16} weight="bold" color="#6b7280" />
+              <X size={16} weight="bold" color={IconColor.secondary} />
             </button>
 
             {/* 庆祝图标 */}
@@ -188,13 +189,13 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
                 initial={{ scale: 0.9, rotate: -5, opacity: 0 }}
                 animate={{ scale: 1, rotate: 0, opacity: 1, transition: g3SpringBouncy }}
               >
-                <Confetti size={80} weight="duotone" color="#f59e0b" />
+                <Confetti size={80} weight="duotone" color={IconColor.warning} />
                 <motion.div
                   className="absolute -right-2 -top-2"
                   animate={{ scale: [1, 1.12, 1], rotate: [0, -6, 0] }}
                   transition={{ ...g3SpringBouncy, repeat: Infinity, repeatType: 'mirror' }}
                 >
-                  <Star size={32} weight="fill" color="#fbbf24" />
+                  <Star size={32} weight="fill" color={IconColor.star} />
                 </motion.div>
               </motion.div>
             </div>
@@ -216,7 +217,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
                   repeatDelay: 2,
                 }}
               >
-                <CategoryIcon size={40} weight="duotone" color={tierColor.icon} />
+                <CategoryIcon size={48} weight="duotone" color={tierColor.icon} />
               </motion.div>
 
               <h3 className={`text-xl font-bold ${tierColor.text} mb-2`}>{badge.name}</h3>
@@ -230,7 +231,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
                     key={i}
                     size={16}
                     weight={i < badge.tier ? 'fill' : 'regular'}
-                    color={i < badge.tier ? tierColor.icon : '#d1d5db'}
+                    color={i < badge.tier ? tierColor.icon : IconColor.starEmpty}
                   />
                 ))}
               </div>

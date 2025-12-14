@@ -12,11 +12,12 @@ const NULL_MARKER = '__NULL__'; // 空值标记
 
 // 缓存键前缀
 export const REDIS_CACHE_KEYS = {
-  USER_STATE: 'amas:state:',      // AMAS 用户状态
-  USER_MODEL: 'amas:model:',      // LinUCB 模型
-  WORD_STATE: 'word:state:',      // 单词学习状态
-  WORD_SCORE: 'word:score:',      // 单词得分
-  USER_CONFIG: 'user:config:',    // 用户配置
+  USER_STATE: 'amas:state:', // AMAS 用户状态
+  USER_MODEL: 'amas:model:', // LinUCB 模型
+  WORD_STATE: 'word:state:', // 单词学习状态
+  WORD_SCORE: 'word:score:', // 单词得分
+  USER_CONFIG: 'user:config:', // 用户配置
+  SYSTEM_WORDBOOKS: 'wordbooks:system', // 系统词书列表
 } as const;
 
 class RedisCacheService {
@@ -37,7 +38,10 @@ class RedisCacheService {
       const data = await redis.get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      cacheLogger.warn({ key, error: (error as Error).message }, 'Redis get 操作失败，降级为无缓存模式');
+      cacheLogger.warn(
+        { key, error: (error as Error).message },
+        'Redis get 操作失败，降级为无缓存模式',
+      );
       return null;
     }
   }
@@ -49,7 +53,10 @@ class RedisCacheService {
       await redis.setex(key, ttl, JSON.stringify(value));
       return true;
     } catch (error) {
-      cacheLogger.warn({ key, ttl, error: (error as Error).message }, 'Redis set 操作失败，降级为无缓存模式');
+      cacheLogger.warn(
+        { key, ttl, error: (error as Error).message },
+        'Redis set 操作失败，降级为无缓存模式',
+      );
       return false;
     }
   }
@@ -61,7 +68,10 @@ class RedisCacheService {
       await redis.del(key);
       return true;
     } catch (error) {
-      cacheLogger.warn({ key, error: (error as Error).message }, 'Redis del 操作失败，降级为无缓存模式');
+      cacheLogger.warn(
+        { key, error: (error as Error).message },
+        'Redis del 操作失败，降级为无缓存模式',
+      );
       return false;
     }
   }
@@ -85,7 +95,10 @@ class RedisCacheService {
 
       return deletedCount;
     } catch (error) {
-      cacheLogger.warn({ prefix, error: (error as Error).message }, 'Redis delByPrefix 操作失败，降级为无缓存模式');
+      cacheLogger.warn(
+        { prefix, error: (error as Error).message },
+        'Redis delByPrefix 操作失败，降级为无缓存模式',
+      );
       return 0;
     }
   }
@@ -99,7 +112,7 @@ class RedisCacheService {
   async getOrSet<T>(
     key: string,
     fetcher: () => Promise<T | null>,
-    ttl: number = DEFAULT_TTL
+    ttl: number = DEFAULT_TTL,
   ): Promise<T | null> {
     if (!this.enabled) {
       return fetcher();
@@ -132,7 +145,10 @@ class RedisCacheService {
       await this.set(key, value, ttl);
       return value;
     } catch (error) {
-      cacheLogger.warn({ key, error: (error as Error).message }, 'getOrSet 操作失败，直接执行 fetcher');
+      cacheLogger.warn(
+        { key, error: (error as Error).message },
+        'getOrSet 操作失败，直接执行 fetcher',
+      );
       return fetcher();
     }
   }
@@ -145,7 +161,7 @@ class RedisCacheService {
     key: string,
     fetcher: () => Promise<T>,
     ttl: number = DEFAULT_TTL,
-    lockTimeout: number = 5000
+    lockTimeout: number = 5000,
   ): Promise<T> {
     if (!this.enabled) {
       return fetcher();
@@ -186,7 +202,10 @@ class RedisCacheService {
         return this.getOrSetWithLock(key, fetcher, ttl, lockTimeout);
       }
     } catch (error) {
-      cacheLogger.warn({ key, error: (error as Error).message }, 'getOrSetWithLock 操作失败，直接执行 fetcher');
+      cacheLogger.warn(
+        { key, error: (error as Error).message },
+        'getOrSetWithLock 操作失败，直接执行 fetcher',
+      );
       return fetcher();
     }
   }
@@ -199,7 +218,7 @@ class RedisCacheService {
     key: string,
     value: unknown,
     baseTtl: number,
-    jitterPercent: number = 0.1
+    jitterPercent: number = 0.1,
   ): Promise<boolean> {
     // 计算抖动范围：baseTtl * jitterPercent * [-1, 1]
     const jitter = baseTtl * jitterPercent * (Math.random() * 2 - 1);
@@ -212,7 +231,7 @@ class RedisCacheService {
    * 辅助方法：睡眠指定毫秒
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // AMAS 用户状态

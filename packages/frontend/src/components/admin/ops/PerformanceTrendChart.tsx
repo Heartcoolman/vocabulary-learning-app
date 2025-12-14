@@ -146,31 +146,6 @@ const styles = {
 // ============================================
 
 /**
- * 生成模拟数据（用于演示）
- */
-function generateMockData(count: number): PerformanceDataPoint[] {
-  const now = Date.now();
-  const data: PerformanceDataPoint[] = [];
-
-  for (let i = count - 1; i >= 0; i--) {
-    const timestamp = now - i * 60000;
-    const base = 50 + Math.random() * 50;
-    const jitter = Math.random() * 30;
-
-    data.push({
-      timestamp,
-      avg: base + jitter,
-      p50: base + jitter * 0.5,
-      p95: base + jitter * 2,
-      p99: base + jitter * 3,
-      count: Math.floor(Math.random() * 200) + 50,
-    });
-  }
-
-  return data;
-}
-
-/**
  * 格式化时间
  */
 function formatTime(timestamp: number): string {
@@ -190,6 +165,7 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
   const [data, setData] = useState<PerformanceDataPoint[]>([]);
   const [selectedRange, setSelectedRange] = useState(timeRange);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [visibleLines, setVisibleLines] = useState({
     avg: true,
     p50: true,
@@ -213,6 +189,7 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
    */
   const fetchData = useCallback(async () => {
     try {
+      setFetchError(null);
       const response = await fetch(
         `${env.apiUrl}/api/admin/metrics/performance?range=${selectedRange}`,
         { credentials: 'include' },
@@ -226,12 +203,12 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
         }
       }
 
-      // 如果获取失败，使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('无法获取性能数据');
+      setData([]);
     } catch (e) {
       console.error('Failed to fetch performance data:', e);
-      // 使用模拟数据
-      setData(generateMockData(selectedRange));
+      setFetchError('请求性能数据失败');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -470,6 +447,8 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
       <div style={{ ...styles.chartContainer, height }}>
         {loading ? (
           <div style={{ ...styles.noData, height }}>加载中...</div>
+        ) : fetchError ? (
+          <div style={{ ...styles.noData, height, color: '#ef4444' }}>{fetchError}</div>
         ) : data.length === 0 ? (
           <div style={{ ...styles.noData, height }}>暂无数据</div>
         ) : (

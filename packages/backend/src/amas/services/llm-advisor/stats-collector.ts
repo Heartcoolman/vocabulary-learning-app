@@ -26,7 +26,55 @@ const ADJUSTMENT_THRESHOLDS = {
 // ==================== 类型定义 ====================
 
 /**
- * 周度统计数据
+ * 错误模式分析
+ */
+export interface ErrorPatterns {
+  /** 常错单词（前10个） */
+  topMistakeWords: Array<{
+    wordId: string;
+    spelling: string;
+    errorCount: number;
+    errorRate: number;
+  }>;
+  /** 错误时段分布（按小时） */
+  errorTimeDistribution: Record<string, number>;
+  /** 常见错误类型分析 */
+  commonPatterns: Array<{
+    pattern: string;
+    count: number;
+    description: string;
+  }>;
+}
+
+/**
+ * 趋势数据（7天）
+ */
+export interface TrendData {
+  /** 每日正确率 */
+  accuracyTrend: Array<{ date: string; value: number }>;
+  /** 每日活跃用户数 */
+  activeUsersTrend: Array<{ date: string; value: number }>;
+  /** 每日平均会话时长 */
+  sessionDurationTrend: Array<{ date: string; value: number }>;
+  /** 每日答题量 */
+  answerCountTrend: Array<{ date: string; value: number }>;
+}
+
+/**
+ * 历史建议效果
+ */
+export interface PreviousSuggestionEffect {
+  suggestionId: string;
+  targetParam: string;
+  oldValue: number;
+  newValue: number;
+  appliedAt: Date;
+  effectScore: number;
+  effectAnalysis: string;
+}
+
+/**
+ * 周度统计数据（增强版）
  */
 export interface WeeklyStats {
   /** 统计周期 */
@@ -118,6 +166,17 @@ export interface WeeklyStats {
     /** 本周流失率 */
     churnRate: number;
   };
+
+  // ========== 新增：增强数据 ==========
+
+  /** 错误模式分析 */
+  errorPatterns?: ErrorPatterns;
+
+  /** 趋势数据（7天） */
+  trends?: TrendData;
+
+  /** 历史建议效果（用于闭环反馈） */
+  previousSuggestionEffects?: PreviousSuggestionEffect[];
 }
 
 // ==================== 收集器类 ====================
@@ -127,16 +186,17 @@ export interface WeeklyStats {
  */
 export class StatsCollector {
   /**
-   * 收集一周的统计数据
+   * 收集一周的统计数据（增强版）
    *
    * @param endDate 统计结束日期，默认为当前时间
+   * @param includeEnhanced 是否包含增强数据（错误模式、趋势、历史效果）
    */
-  async collectWeeklyStats(endDate?: Date): Promise<WeeklyStats> {
+  async collectWeeklyStats(endDate?: Date, includeEnhanced: boolean = true): Promise<WeeklyStats> {
     const end = endDate ?? new Date();
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
     const prevWeekStart = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    amasLogger.info({ start, end }, '[StatsCollector] 开始收集周度统计');
+    amasLogger.info({ start, end, includeEnhanced }, '[StatsCollector] 开始收集周度统计');
 
     // 并行收集各类数据
     const [userStats, learningStats, stateDistribution, optimizationHistory, alertStats] =
@@ -158,16 +218,246 @@ export class StatsCollector {
       alerts: alertStats,
     };
 
+    // 收集增强数据（可选，避免影响基础功能）
+    if (includeEnhanced) {
+      try {
+        const [errorPatterns, trends, previousEffects] = await Promise.all([
+          this.collectErrorPatterns(start, end),
+          this.collectTrendData(start, end),
+          this.collectPreviousSuggestionEffects(),
+        ]);
+
+        stats.errorPatterns = errorPatterns;
+        stats.trends = trends;
+        stats.previousSuggestionEffects = previousEffects;
+      } catch (error) {
+        amasLogger.warn(
+          {
+            error: (error as Error).message,
+          },
+          '[StatsCollector] 收集增强数据失败，继续使用基础数据',
+        );
+      }
+    }
+
     amasLogger.info(
       {
         period: stats.period,
         activeUsers: stats.users.activeThisWeek,
         avgAccuracy: stats.learning.avgAccuracy,
+        hasEnhancedData: !!stats.errorPatterns,
       },
       '[StatsCollector] 周度统计收集完成',
     );
 
     return stats;
+  }
+
+  // ==================== 新增：增强数据收集方法 ====================
+
+  /**
+   * 收集错误模式分析
+   */
+  private async collectErrorPatterns(start: Date, end: Date): Promise<ErrorPatterns> {
+    // 1. 常错单词统计
+    const wrongAnswers = await prisma.answerRecord.groupBy({
+      by: ['wordId'],
+      where: {
+        timestamp: { gte: start, lte: end },
+        isCorrect: false,
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    });
+
+    // 获取这些单词的总答题次数和详情
+    const topMistakeWords: ErrorPatterns['topMistakeWords'] = [];
+    for (const wa of wrongAnswers.slice(0, 10)) {
+      const totalCount = await prisma.answerRecord.count({
+        where: {
+          wordId: wa.wordId,
+          timestamp: { gte: start, lte: end },
+        },
+      });
+
+      const word = await prisma.word.findUnique({
+        where: { id: wa.wordId },
+        select: { spelling: true },
+      });
+
+      if (word && totalCount > 0) {
+        topMistakeWords.push({
+          wordId: wa.wordId,
+          spelling: word.spelling,
+          errorCount: wa._count.id,
+          errorRate: wa._count.id / totalCount,
+        });
+      }
+    }
+
+    // 2. 错误时段分布
+    const allWrongAnswers = await prisma.answerRecord.findMany({
+      where: {
+        timestamp: { gte: start, lte: end },
+        isCorrect: false,
+      },
+      select: { timestamp: true },
+    });
+
+    const errorTimeDistribution: Record<string, number> = {};
+    for (let h = 0; h < 24; h++) {
+      errorTimeDistribution[h.toString().padStart(2, '0')] = 0;
+    }
+    for (const answer of allWrongAnswers) {
+      const hour = answer.timestamp.getHours().toString().padStart(2, '0');
+      errorTimeDistribution[hour] = (errorTimeDistribution[hour] || 0) + 1;
+    }
+
+    // 3. 常见错误模式分析（简化版：基于响应时间分析）
+    const commonPatterns: ErrorPatterns['commonPatterns'] = [];
+
+    // 快速错误（可能是猜测）
+    const quickWrongCount = await prisma.answerRecord.count({
+      where: {
+        timestamp: { gte: start, lte: end },
+        isCorrect: false,
+        responseTime: { lt: 2000 }, // 小于2秒
+      },
+    });
+
+    // 慢速错误（可能是不确定）
+    const slowWrongCount = await prisma.answerRecord.count({
+      where: {
+        timestamp: { gte: start, lte: end },
+        isCorrect: false,
+        responseTime: { gt: 10000 }, // 大于10秒
+      },
+    });
+
+    if (quickWrongCount > 0) {
+      commonPatterns.push({
+        pattern: 'quick_guess',
+        count: quickWrongCount,
+        description: '快速错误（<2秒），可能是随意猜测',
+      });
+    }
+
+    if (slowWrongCount > 0) {
+      commonPatterns.push({
+        pattern: 'slow_uncertain',
+        count: slowWrongCount,
+        description: '慢速错误（>10秒），可能是犹豫不决',
+      });
+    }
+
+    return {
+      topMistakeWords,
+      errorTimeDistribution,
+      commonPatterns,
+    };
+  }
+
+  /**
+   * 收集趋势数据（7天）
+   */
+  private async collectTrendData(start: Date, end: Date): Promise<TrendData> {
+    const trends: TrendData = {
+      accuracyTrend: [],
+      activeUsersTrend: [],
+      sessionDurationTrend: [],
+      answerCountTrend: [],
+    };
+
+    // 逐天收集数据
+    for (let i = 0; i < 7; i++) {
+      const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const dateStr = dayStart.toISOString().split('T')[0];
+
+      // 当天答题统计
+      const [totalAnswers, correctAnswers] = await Promise.all([
+        prisma.answerRecord.count({
+          where: { timestamp: { gte: dayStart, lt: dayEnd } },
+        }),
+        prisma.answerRecord.count({
+          where: { timestamp: { gte: dayStart, lt: dayEnd }, isCorrect: true },
+        }),
+      ]);
+
+      trends.answerCountTrend.push({ date: dateStr, value: totalAnswers });
+      trends.accuracyTrend.push({
+        date: dateStr,
+        value: totalAnswers > 0 ? correctAnswers / totalAnswers : 0,
+      });
+
+      // 当天活跃用户数
+      const activeUsers = await prisma.answerRecord.groupBy({
+        by: ['userId'],
+        where: { timestamp: { gte: dayStart, lt: dayEnd } },
+      });
+      trends.activeUsersTrend.push({ date: dateStr, value: activeUsers.length });
+
+      // 当天平均会话时长
+      const sessions = await prisma.learningSession.findMany({
+        where: {
+          startedAt: { gte: dayStart, lt: dayEnd },
+          endedAt: { not: null },
+        },
+        select: { startedAt: true, endedAt: true },
+      });
+
+      const avgDuration =
+        sessions.length > 0
+          ? sessions.reduce((sum, s) => {
+              const duration = (s.endedAt!.getTime() - s.startedAt.getTime()) / 60000;
+              return sum + Math.min(duration, 120);
+            }, 0) / sessions.length
+          : 0;
+      trends.sessionDurationTrend.push({ date: dateStr, value: avgDuration });
+    }
+
+    return trends;
+  }
+
+  /**
+   * 收集历史建议效果（用于闭环反馈）
+   */
+  private async collectPreviousSuggestionEffects(): Promise<PreviousSuggestionEffect[]> {
+    try {
+      const recentEffects = await prisma.suggestionEffectTracking.findMany({
+        where: {
+          effectEvaluated: true,
+          effectScore: { not: null },
+        },
+        orderBy: { evaluatedAt: 'desc' },
+        take: 5,
+        select: {
+          suggestionId: true,
+          targetParam: true,
+          oldValue: true,
+          newValue: true,
+          appliedAt: true,
+          effectScore: true,
+          effectAnalysis: true,
+        },
+      });
+
+      return recentEffects
+        .filter((e) => e.effectScore !== null && e.effectAnalysis !== null)
+        .map((e) => ({
+          suggestionId: e.suggestionId,
+          targetParam: e.targetParam,
+          oldValue: e.oldValue,
+          newValue: e.newValue,
+          appliedAt: e.appliedAt,
+          effectScore: e.effectScore!,
+          effectAnalysis: e.effectAnalysis!,
+        }));
+    } catch {
+      // 表可能不存在
+      return [];
+    }
   }
 
   /**

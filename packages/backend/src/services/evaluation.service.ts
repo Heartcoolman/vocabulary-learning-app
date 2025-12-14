@@ -24,13 +24,18 @@ export interface CausalObservationInput {
 
 /** 策略效果比较结果 */
 export interface StrategyComparisonResult {
-  strategyA: number;
-  strategyB: number;
-  effectDifference: number;
-  isSignificant: boolean;
+  // 标准字段（匹配前端和 AMAS 接口）
+  diff: number;
+  standardError: number;
   confidenceInterval: [number, number];
-  sampleSizeA: number;
-  sampleSizeB: number;
+  pValue: number;
+  significant: boolean;
+  sampleSize: number;
+  // 可选详细信息（向后兼容）
+  strategyA?: number;
+  strategyB?: number;
+  sampleSizeA?: number;
+  sampleSizeB?: number;
 }
 
 // ==================== 评估服务类 ====================
@@ -164,29 +169,63 @@ export class EvaluationService {
     const varB =
       groupB.reduce((s, o) => s + Math.pow(o.outcome - meanB, 2), 0) / (groupB.length - 1);
 
-    const effectDifference = meanB - meanA;
+    const diff = meanB - meanA;
     const pooledSE = Math.sqrt(varA / groupA.length + varB / groupB.length);
 
     // Z检验（双侧）
-    const zScore = pooledSE > 0 ? effectDifference / pooledSE : 0;
-    const isSignificant = Math.abs(zScore) > 1.96; // 95%置信水平
+    const zScore = pooledSE > 0 ? diff / pooledSE : 0;
 
-    // 置信区间
+    // 计算 p 值（标准正态分布，双侧检验）
+    const pValue = 2 * (1 - this.normalCDF(Math.abs(zScore)));
+
+    const significant = pValue < 0.05;
+
+    // 95% 置信区间
     const marginOfError = 1.96 * pooledSE;
-    const confidenceInterval: [number, number] = [
-      effectDifference - marginOfError,
-      effectDifference + marginOfError,
-    ];
+    const confidenceInterval: [number, number] = [diff - marginOfError, diff + marginOfError];
 
     return {
+      // 标准字段
+      diff,
+      standardError: pooledSE,
+      confidenceInterval,
+      pValue,
+      significant,
+      sampleSize: groupA.length + groupB.length,
+      // 可选详细信息
       strategyA,
       strategyB,
-      effectDifference,
-      isSignificant,
-      confidenceInterval,
       sampleSizeA: groupA.length,
       sampleSizeB: groupB.length,
     };
+  }
+
+  /**
+   * 标准正态分布累积分布函数（CDF）
+   * 使用 Abramowitz & Stegun 近似公式
+   * @param x 标准正态变量值
+   * @returns 累积概率 P(Z <= x)
+   */
+  private normalCDF(x: number): number {
+    // Abramowitz & Stegun 公式 7.1.26
+    // 误差 < 7.5e-8
+    const a1 = 0.254829592;
+    const a2 = -0.284496736;
+    const a3 = 1.421413741;
+    const a4 = -1.453152027;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
+
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+
+    const t = 1 / (1 + p * x);
+    const y =
+      1 -
+      (a1 * t + a2 * t * t + a3 * t * t * t + a4 * t * t * t * t + a5 * t * t * t * t * t) *
+        Math.exp((-x * x) / 2);
+
+    return 0.5 * (1 + sign * y);
   }
 
   /**

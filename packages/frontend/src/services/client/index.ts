@@ -43,6 +43,7 @@ export type {
   WordScoreHistory,
   UserLearningHeatmap,
   AnomalyFlag,
+  VisualFatigueStats,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================
@@ -62,6 +63,40 @@ export type {
   LLMAdvisorPendingCountResponse,
 } from './llm/LLMAdvisorClient';
 
+// ==================== Visual Fatigue 模块 ====================
+export { VisualFatigueClient, visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
+
+// ==================== Content Enhance 模块 ====================
+export { ContentEnhanceClient, contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
+export type {
+  CheckType,
+  IssueSeverity,
+  CheckStatus,
+  EnhanceType,
+  WordIssue,
+  QualityCheckResult,
+  QualityStats,
+  EnhanceResult,
+  ContentVariant,
+  BatchEnhanceResult,
+} from './content-enhance/ContentEnhanceClient';
+
+// ==================== Ops Enhance 模块 ====================
+export { OpsEnhanceClient, opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
+export type {
+  AlertSeverity,
+  AlertStatus,
+  UserSegment,
+  AlertInput,
+  AlertAnalysisResult,
+  AlertStats,
+  WeeklyReportSummary,
+  WeeklyReportDetail,
+  HealthTrendPoint,
+  UserBehaviorInsight,
+  UserSegmentInfo,
+} from './ops-enhance/OpsEnhanceClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -72,6 +107,9 @@ import { LearningClient } from './learning/LearningClient';
 import { AmasClient } from './amas/AmasClient';
 import { AdminClient } from './admin/AdminClient';
 import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
+import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
+import { contentEnhanceClient } from './content-enhance/ContentEnhanceClient';
+import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -110,6 +148,9 @@ export const apiClient = {
   amas: amasClient,
   admin: adminClient,
   llmAdvisor: llmAdvisorClient,
+  visualFatigue: visualFatigueClient,
+  contentEnhance: contentEnhanceClient,
+  opsEnhance: opsEnhanceClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -125,6 +166,7 @@ export const apiClient = {
   // ==================== 单词相关 ====================
   getWords: wordClient.getWords.bind(wordClient),
   getLearnedWords: wordClient.getLearnedWords.bind(wordClient),
+  getWordById: wordClient.getWordById.bind(wordClient),
   createWord: wordClient.createWord.bind(wordClient),
   updateWord: wordClient.updateWord.bind(wordClient),
   deleteWord: wordClient.deleteWord.bind(wordClient),
@@ -173,6 +215,7 @@ export const apiClient = {
   updateAlgorithmConfig: amasClient.updateAlgorithmConfig.bind(amasClient),
   resetAlgorithmConfig: amasClient.resetAlgorithmConfig.bind(amasClient),
   getConfigHistory: amasClient.getConfigHistory.bind(amasClient),
+  getAllAlgorithmConfigs: amasClient.getAllAlgorithmConfigs.bind(amasClient),
   processLearningEvent: amasClient.processLearningEvent.bind(amasClient),
   getAmasState: amasClient.getAmasState.bind(amasClient),
   getAmasStrategy: amasClient.getAmasStrategy.bind(amasClient),
@@ -264,6 +307,7 @@ export const apiClient = {
   startExperiment: adminClient.startExperiment.bind(adminClient),
   stopExperiment: adminClient.stopExperiment.bind(adminClient),
   deleteExperiment: adminClient.deleteExperiment.bind(adminClient),
+  getVisualFatigueStats: adminClient.getVisualFatigueStats.bind(adminClient),
 
   // ==================== LLM 顾问相关 ====================
   getLLMAdvisorConfig: llmAdvisorClient.getConfig.bind(llmAdvisorClient),
@@ -276,6 +320,14 @@ export const apiClient = {
   getLatestLLMAdvisorSuggestion: llmAdvisorClient.getLatestSuggestion.bind(llmAdvisorClient),
   getLLMAdvisorPendingCount: llmAdvisorClient.getPendingCount.bind(llmAdvisorClient),
 
+  // ==================== 视觉疲劳相关 ====================
+  submitVisualFatigueMetrics: visualFatigueClient.submitMetrics.bind(visualFatigueClient),
+  getVisualFatigueBaseline: visualFatigueClient.getBaseline.bind(visualFatigueClient),
+  updateVisualFatigueBaseline: visualFatigueClient.updateBaseline.bind(visualFatigueClient),
+  getVisualFatigueConfig: visualFatigueClient.getConfig.bind(visualFatigueClient),
+  getVisualFatigueFusion: visualFatigueClient.getFusion.bind(visualFatigueClient),
+  resetVisualFatigue: visualFatigueClient.reset.bind(visualFatigueClient),
+
   // ==================== 设置 ====================
   setOnUnauthorized(callback: (() => void) | null): void {
     authClient.setOnUnauthorized(callback);
@@ -285,6 +337,9 @@ export const apiClient = {
     amasClient.setOnUnauthorized(callback);
     adminClient.setOnUnauthorized(callback);
     llmAdvisorClient.setOnUnauthorized(callback);
+    visualFatigueClient.setOnUnauthorized(callback);
+    contentEnhanceClient.setOnUnauthorized(callback);
+    opsEnhanceClient.setOnUnauthorized(callback);
   },
 };
 

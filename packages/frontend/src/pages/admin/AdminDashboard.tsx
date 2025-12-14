@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdminStatistics, useSystemHealth } from '../../hooks/queries';
+import { useAdminStatistics, useSystemHealth, useVisualFatigueStats } from '../../hooks/queries';
+import { useLLMPendingCount } from '../../hooks/queries/useLLMAdvisor';
 import { amasClient } from '../../services/client';
 import {
   UsersThree,
@@ -18,6 +19,8 @@ import {
   Brain,
   ArrowClockwise,
   Lightning,
+  Eye,
+  Robot,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy } from '../../types/amas';
@@ -26,18 +29,43 @@ import { ConfirmModal, AlertModal } from '../../components/ui';
 /** 颜色类名映射 */
 type ColorKey = 'blue' | 'green' | 'purple' | 'indigo' | 'pink' | 'yellow' | 'red';
 
+/**
+ * 根据健康分数返回对应的 Tailwind 颜色类
+ */
+function getScoreColorClass(score: number): string {
+  if (score >= 90) return 'text-green-500';
+  if (score >= 75) return 'text-blue-500';
+  if (score >= 60) return 'text-yellow-500';
+  return 'text-red-500';
+}
+
+/**
+ * 根据健康分数返回进度条背景色类
+ */
+function getScoreBarColorClass(score: number): string {
+  if (score >= 90) return 'bg-green-500';
+  if (score >= 75) return 'bg-blue-500';
+  if (score >= 60) return 'bg-yellow-500';
+  return 'bg-red-500';
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
   // 使用新的 hooks
   const { data: stats, isLoading, error: statsError, refetch: refetchStats } = useAdminStatistics();
   const { data: health } = useSystemHealth();
+  const {
+    data: visualFatigueStats,
+    isLoading: isVfLoading,
+    error: vfError,
+  } = useVisualFatigueStats();
+  const { data: llmPendingCount } = useLLMPendingCount();
 
   const [amasStrategy, setAmasStrategy] = useState<LearningStrategy | null>(null);
   const [isAmasLoading, setIsAmasLoading] = useState(false);
   const [amasError, setAmasError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  const [, setIsBatchProcessing] = useState(false); // isBatchProcessing 目前未在UI中显示，但保留setter用于状态管理
 
   // 对话框状态
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -99,33 +127,6 @@ export default function AdminDashboard() {
       });
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const handleBatchProcessEvents = async () => {
-    // 由于批量处理需要具体的事件数据源，这里展示正确的状态管理流程
-    // 实际使用时需要根据业务需求提供事件数据
-    setIsBatchProcessing(true);
-    try {
-      // 示例：如果有待处理事件，可以调用 apiClient.batchProcessEvents(events)
-      // 目前显示提示信息，因为没有具体的事件来源
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 模拟处理延迟
-      setAlertModal({
-        isOpen: true,
-        title: '功能提示',
-        message: '批量处理事件功能需要在后端实现具体的事件来源逻辑。',
-        variant: 'info',
-      });
-    } catch (err) {
-      adminLogger.error({ err }, '批量处理事件失败');
-      setAlertModal({
-        isOpen: true,
-        title: '操作失败',
-        message: err instanceof Error ? err.message : '批量处理失败',
-        variant: 'error',
-      });
-    } finally {
-      setIsBatchProcessing(false);
     }
   };
 
@@ -217,6 +218,12 @@ export default function AdminDashboard() {
       value: stats.totalRecords,
       icon: ChartBar,
       color: 'red',
+    },
+    {
+      label: 'LLM待审核',
+      value: llmPendingCount ?? 0,
+      icon: Robot,
+      color: 'purple',
     },
   ];
 
@@ -314,19 +321,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div
-                      className="text-3xl font-bold"
-                      style={{
-                        color:
-                          systemHealth.score >= 90
-                            ? '#10b981'
-                            : systemHealth.score >= 75
-                              ? '#3b82f6'
-                              : systemHealth.score >= 60
-                                ? '#f59e0b'
-                                : '#ef4444',
-                      }}
-                    >
+                    <div className={`text-3xl font-bold ${getScoreColorClass(systemHealth.score)}`}>
                       {systemHealth.score}
                     </div>
                     <div className="text-xs text-gray-500">健康分</div>
@@ -337,18 +332,8 @@ export default function AdminDashboard() {
                 <div className="mb-4">
                   <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full transition-all duration-500"
-                      style={{
-                        width: `${systemHealth.score}%`,
-                        backgroundColor:
-                          systemHealth.score >= 90
-                            ? '#10b981'
-                            : systemHealth.score >= 75
-                              ? '#3b82f6'
-                              : systemHealth.score >= 60
-                                ? '#f59e0b'
-                                : '#ef4444',
-                      }}
+                      className={`h-full transition-all duration-500 ${getScoreBarColorClass(systemHealth.score)}`}
+                      style={{ width: `${systemHealth.score}%` }}
                     />
                   </div>
                 </div>
@@ -519,22 +504,147 @@ export default function AdminDashboard() {
                     </>
                   )}
                 </button>
-                <button
-                  onClick={handleBatchProcessEvents}
-                  disabled={true}
-                  className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-400 px-4 py-2 text-white transition-all duration-200"
-                  title="功能开发中"
-                >
-                  <Lightning size={18} weight="bold" />
-                  批量处理事件
-                  <span className="ml-1 rounded bg-yellow-500 px-1.5 py-0.5 text-xs text-white">
-                    开发中
-                  </span>
-                </button>
               </div>
             </div>
           ) : (
             <div className="py-8 text-center text-gray-500">暂无AMAS策略数据</div>
+          )}
+        </div>
+      </div>
+
+      {/* 视觉疲劳检测统计 */}
+      <div className="mb-8">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+          <Eye size={28} weight="duotone" className="text-cyan-500" />
+          视觉疲劳检测统计
+        </h2>
+        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          {isVfLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <CircleNotch className="animate-spin" size={32} weight="bold" color="#06b6d4" />
+            </div>
+          ) : vfError ? (
+            <div className="py-8 text-center text-red-500">
+              <Warning size={48} weight="duotone" className="mx-auto mb-4 text-red-400" />
+              <p>加载视觉疲劳数据失败</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {vfError instanceof Error ? vfError.message : '请检查后端服务是否正常'}
+              </p>
+            </div>
+          ) : visualFatigueStats ? (
+            <div>
+              {/* 主要���标卡片 */}
+              <div className="mb-6 grid gap-4 md:grid-cols-4">
+                <div className="rounded-lg bg-cyan-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ChartBar size={20} weight="duotone" className="text-cyan-600" />
+                    <span className="text-sm text-gray-600">数据量</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {visualFatigueStats.dataVolume.totalRecords.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    今日 +{visualFatigueStats.dataVolume.recordsToday}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-blue-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <UsersThree size={20} weight="duotone" className="text-blue-600" />
+                    <span className="text-sm text-gray-600">启用率</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Math.round(visualFatigueStats.usage.enableRate)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {visualFatigueStats.usage.enabledUsers}/{visualFatigueStats.usage.totalUsers}{' '}
+                    用户
+                  </p>
+                </div>
+                <div className="rounded-lg bg-amber-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Pulse size={20} weight="duotone" className="text-amber-600" />
+                    <span className="text-sm text-gray-600">平均疲劳度</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(visualFatigueStats.fatigue.avgVisualFatigue * 100).toFixed(0)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    融合后 {(visualFatigueStats.fatigue.avgFusedFatigue * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="rounded-lg bg-red-50 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Warning size={20} weight="duotone" className="text-red-600" />
+                    <span className="text-sm text-gray-600">高疲劳用户</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {visualFatigueStats.fatigue.highFatigueUsers}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">疲劳度 &gt;60%</p>
+                </div>
+              </div>
+
+              {/* 疲劳度分布 */}
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="mb-3 text-sm font-semibold text-gray-700">疲劳度分布</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">低 (0-30%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-green-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.low}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.low}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">中 (30-60%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-yellow-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.medium}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.medium}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-gray-600">高 (60-100%)</span>
+                    <div className="flex-1">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-red-500 transition-all duration-500"
+                          style={{
+                            width: `${visualFatigueStats.fatigue.fatigueDistribution.high}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                      {visualFatigueStats.fatigue.fatigueDistribution.high}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500">
+              <Eye size={48} weight="duotone" className="mx-auto mb-4 text-gray-300" />
+              <p>暂无视觉疲劳检测数据</p>
+              <p className="mt-1 text-sm">用户启用摄像头检测后，数据将在此显示</p>
+            </div>
           )}
         </div>
       </div>

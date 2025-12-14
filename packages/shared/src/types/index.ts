@@ -25,11 +25,8 @@ export * from './admin';
 // Express相关（Backend专用）
 export * from './express';
 
-// 实时事件相关
-export * from './realtime';
+// 视觉疲劳检测相关
+export * from './visual-fatigue';
 
-// 通知相关
-export * from './notification';
-
-// 用户偏好相关
-export * from './preference';
+// 智能疲劳系统相关
+export * from './intelligent-fatigue';

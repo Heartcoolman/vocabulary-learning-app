@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import type { ExportDataResult } from '../mutations/useExportData';
 import { storageLogger } from '../../utils/logger';
+import { env } from '../../config/env';
 
 /**
  * 导出历史项
@@ -33,7 +34,7 @@ export interface ExportHistoryItem extends ExportDataResult {
  * 导出统计信息
  */
 export interface ExportStatistics {
-  /** 总导出次�� */
+  /** 总导出次数 */
   totalExports: number;
   /** 成功次数 */
   successCount: number;
@@ -83,9 +84,40 @@ export function useExportHistory(options?: {
 }) {
   const { limit = 20, dataType, enabled = true } = options || {};
 
+  const loadFromServer = async (): Promise<ExportHistoryItem[]> => {
+    const search = new URLSearchParams();
+    search.append('limit', limit.toString());
+    if (dataType) search.append('dataType', dataType);
+
+    const response = await fetch(`${env.apiUrl}/api/admin/export/history?${search.toString()}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`远程导出历史获取失败: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (Array.isArray(result?.data)) {
+      return result.data as ExportHistoryItem[];
+    }
+
+    return [];
+  };
+
   return useQuery({
     queryKey: queryKeys.export.history({ limit, dataType }),
     queryFn: async (): Promise<ExportHistoryItem[]> => {
+      // 优先尝试后端导出历史，失败则回退本地
+      try {
+        const remote = await loadFromServer();
+        if (remote.length > 0) {
+          return remote.slice(0, limit);
+        }
+      } catch (error) {
+        storageLogger.warn({ err: error }, '后端导出历史获取失败，回退本地缓存');
+      }
+
       // 从本地缓存获取导出历史
       // 注意：这里使用前端缓存，因为导出历史通常不需要同步到后端
       const storageKey = 'export-history';

@@ -87,6 +87,8 @@ declare global {
        */
       DELAYED_REWARD_DELAY_MS?: string;
 
+      AMAS_DECISION_TIMEOUT_MS?: string;
+
       // ============================================
       // 速率限制配置
       // ============================================

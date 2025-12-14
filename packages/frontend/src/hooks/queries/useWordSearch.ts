@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/queryKeys';
+import { QUERY_PRESETS } from '../../lib/cacheConfig';
 import { wordService } from '../../services/word.service';
 
 import type { SearchWordResult } from '../../services/word.service';
@@ -95,13 +96,7 @@ export interface UseWordSearchResult {
  * ```
  */
 export function useWordSearch(options: UseWordSearchOptions): UseWordSearchResult {
-  const {
-    query,
-    debounceMs = 300,
-    limit = 20,
-    enabled = true,
-    minSearchLength = 1,
-  } = options;
+  const { query, debounceMs = 300, limit = 20, enabled = true, minSearchLength = 1 } = options;
 
   // 防抖处理
   const [debouncedQuery, setDebouncedQuery] = useState(query);
@@ -129,11 +124,7 @@ export function useWordSearch(options: UseWordSearchOptions): UseWordSearchResul
 
   // 判断是否应该执行查询
   const shouldFetch = useMemo(() => {
-    return (
-      enabled &&
-      debouncedQuery.trim().length >= minSearchLength &&
-      !isDebouncing
-    );
+    return enabled && debouncedQuery.trim().length >= minSearchLength && !isDebouncing;
   }, [enabled, debouncedQuery, minSearchLength, isDebouncing]);
 
   // 使用 React Query 执行搜索
@@ -148,10 +139,9 @@ export function useWordSearch(options: UseWordSearchOptions): UseWordSearchResul
       return response.data;
     },
     enabled: shouldFetch,
-    // 搜索结果缓存 5 分钟
-    staleTime: 5 * 60 * 1000,
-    // 缓存时间 10 分钟
-    gcTime: 10 * 60 * 1000,
+    // 搜索结果使用 standard 预设缓存策略
+    staleTime: QUERY_PRESETS.standard.staleTime,
+    gcTime: QUERY_PRESETS.standard.gcTime,
   });
 
   // 组合加载状态
