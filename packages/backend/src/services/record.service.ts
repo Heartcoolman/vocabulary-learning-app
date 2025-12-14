@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { CreateRecordDto } from '../types';
 import { wordMasteryService } from './word-mastery.service';
@@ -40,6 +41,10 @@ function validateTimestamp(timestamp: number): Date {
 export interface PaginationOptions {
   page?: number;
   pageSize?: number;
+}
+
+export interface RecordQueryOptions extends PaginationOptions {
+  sessionId?: string;
 }
 
 export interface PaginatedResult<T> {
@@ -88,15 +93,19 @@ export class RecordService {
    */
   async getRecordsByUserId(
     userId: string,
-    options?: PaginationOptions,
+    options?: RecordQueryOptions,
   ): Promise<PaginatedResult<AnswerRecordWithWord>> {
     const page = Math.max(1, options?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 50));
     const skip = (page - 1) * pageSize;
+    const whereClause = {
+      userId,
+      ...(options?.sessionId ? { sessionId: options.sessionId } : {}),
+    };
 
     const [data, total] = await Promise.all([
       prisma.answerRecord.findMany({
-        where: { userId },
+        where: whereClause,
         include: {
           word: {
             select: {
@@ -110,7 +119,7 @@ export class RecordService {
         skip,
         take: pageSize,
       }),
-      prisma.answerRecord.count({ where: { userId } }),
+      prisma.answerRecord.count({ where: whereClause }),
     ]);
 
     return {
@@ -433,8 +442,8 @@ export class RecordService {
       if (error instanceof Error && error.message.includes('belongs to different user')) {
         throw error;
       }
-      // 处理并发创建时的唯一约束冲突
-      if (error instanceof Error && error.message.includes('Unique constraint')) {
+      // 处理并发创建时的唯一约束冲突（Prisma P2002）
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         // 再次检查会话归属
         const session = await prisma.learningSession.findUnique({
           where: { id: sessionId },
