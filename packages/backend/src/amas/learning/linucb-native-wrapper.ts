@@ -25,7 +25,7 @@ import { LinUCB, LinUCBContext as TSLinUCBContext } from './linucb';
 
 import { Action as TSAction, UserState as TSUserState, BanditModel } from '../types';
 
-import { ActionSelection, LearnerCapabilities } from './base-learner';
+import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
 
 import {
   recordNativeCall,

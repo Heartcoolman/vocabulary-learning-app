@@ -30,3 +30,12 @@ export * from './visual-fatigue';
 
 // 智能疲劳系统相关
 export * from './intelligent-fatigue';
+
+// 通知相关
+export * from './notification';
+
+// 偏好设置相关
+export * from './preference';
+
+// 实时通信相关
+export * from './realtime';

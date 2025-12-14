@@ -11,7 +11,7 @@ import {
   StrategyParams,
   ColdStartPhase,
 } from '../amas';
-import { cachedStateRepository, cachedModelRepository } from '../amas/repositories';
+import { cachedStateRepository, cachedModelRepository } from '../repositories';
 import {
   getFeatureFlags,
   getFeatureFlagsSummary,
@@ -928,7 +928,7 @@ class AMASService {
     }
 
     // 计算单词掌握判定（仅用于掌握度学习模式,避免普通模式的性能损失）
-    let wordMasteryDecision: import('../amas/engine/engine-types').WordMasteryDecision | undefined;
+    let wordMasteryDecision: import('../amas/core/engine').WordMasteryDecision | undefined;
 
     if (sessionId) {
       // 仅在掌握模式下(有sessionId)才计算,避免不必要的数据库查询
@@ -960,7 +960,7 @@ class AMASService {
     isCorrect: boolean,
     responseTime: number,
     state: UserState,
-  ): Promise<import('../amas/engine/engine-types').WordMasteryDecision> {
+  ): Promise<import('../amas/core/engine').WordMasteryDecision> {
     try {
       // 1. 查询单词的历史学习数据
       const learningState = await prisma.wordLearningState.findUnique({

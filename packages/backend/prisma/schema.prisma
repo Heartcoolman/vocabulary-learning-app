@@ -864,6 +864,30 @@ model LLMAdvisorSuggestion {
   @@map("llm_advisor_suggestions")
 }
 
+/// 建议效果追踪
+model SuggestionEffectTracking {
+  id                 String    @id @default(uuid())
+  suggestionId       String
+  itemId             String
+  targetParam        String
+  oldValue           Float
+  newValue           Float
+  appliedAt          DateTime  @default(now())
+  metricsBeforeApply Json
+  metricsAfterApply  Json?
+  effectEvaluated    Boolean   @default(false)
+  effectScore        Float?
+  effectAnalysis     String?
+  evaluatedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([suggestionId])
+  @@index([appliedAt])
+  @@index([effectEvaluated])
+  @@map("suggestion_effect_tracking")
+}
+
 /// 用户学习目标配置
 model UserLearningObjectives {
   id               String             @id @default(uuid())

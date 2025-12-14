@@ -38,7 +38,7 @@ import { amasLogger } from '../../logger';
 // Native Wrapper 类型导入
 import type { LinUCBNativeWrapper } from '../learning/linucb-native-wrapper';
 import type { ThompsonSamplingNativeWrapper } from '../learning/thompson-sampling-native';
-import type { ACTRMemoryNativeWrapper } from '../modeling/actr-memory-native';
+import type { ACTRMemoryNativeWrapper } from '../models/actr-memory-native';
 
 // ==================== 类型定义 ====================
 

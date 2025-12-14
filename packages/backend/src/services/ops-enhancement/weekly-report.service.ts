@@ -8,7 +8,7 @@
 import prisma from '../../config/database';
 import { llmConfig } from '../../config/llm.config';
 import { LLMProviderService, llmProviderService } from '../llm-provider.service';
-import { StatsCollector, statsCollector, WeeklyStats } from '../../amas/optimization/llm-advisor';
+import { StatsCollector, statsCollector, WeeklyStats } from '../../amas/services/llm-advisor';
 import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
@@ -190,7 +190,10 @@ function formatTrends(trends: WeeklyStats['trends']): string {
   }
 
   if (trends.answerCountTrend.length > 0) {
-    const total = trends.answerCountTrend.reduce((sum, t) => sum + t.value, 0);
+    const total = trends.answerCountTrend.reduce(
+      (sum: number, t: { date: string; value: number }) => sum + t.value,
+      0,
+    );
     const avg = Math.round(total / trends.answerCountTrend.length);
     lines.push(`日均答题量: ${avg}`);
   }

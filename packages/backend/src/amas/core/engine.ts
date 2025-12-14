@@ -287,6 +287,10 @@ export interface ProcessOptions {
     sessionDuration: number;
   };
   wordReviewHistory?: WordReviewHistory[];
+  /** 视觉疲劳数据（用于融合到 AMAS 状态） */
+  visualFatigueData?: import('@danci/shared').ProcessedVisualFatigueData;
+  /** 学习时长（分钟，用于时间疲劳计算） */
+  studyDurationMinutes?: number;
 }
 
 /**

@@ -6,7 +6,6 @@ export { AttentionMonitor } from './attention-monitor';
 export { FatigueEstimator } from './fatigue-estimator';
 export { CognitiveProfiler } from './cognitive-profiler';
 export { MotivationTracker } from './motivation-tracker';
-export { HabitRecognizer, type HabitProfile } from './habit-recognizer';
 export { TrendAnalyzer, type TrendState } from './trend-analyzer';
 export {
   calculateForgettingFactor,
@@ -38,7 +37,7 @@ export {
   createACTRMemoryNativeWrapperFallback,
   type ACTRWrapperConfig,
   type ACTRWrapperStats,
-} from './actr-memory-native';
+} from '../models/actr-memory-native';
 
 // 视觉疲劳处理器
 export {

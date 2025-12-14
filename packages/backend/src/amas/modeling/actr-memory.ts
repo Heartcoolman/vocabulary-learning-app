@@ -29,7 +29,7 @@ import {
   BaseLearnerContext,
   ActionSelection,
   LearnerCapabilities,
-} from '../learning/base-learner';
+} from '../algorithms/learners';
 import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================

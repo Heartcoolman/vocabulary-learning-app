@@ -18,7 +18,7 @@ import {
   BaseLearner,
   BaseLearnerContext,
   LearnerCapabilities,
-} from './base-learner';
+} from '../algorithms/learners';
 import {
   choleskyRank1Update,
   addOuterProduct,

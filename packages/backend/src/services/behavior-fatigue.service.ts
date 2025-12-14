@@ -6,7 +6,7 @@
  */
 
 import prisma from '../config/database';
-import { cachedStateRepository } from '../amas/repositories';
+import { cachedStateRepository } from '../repositories';
 import { serviceLogger } from '../logger';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 
