@@ -11,7 +11,19 @@
 
 import prisma from '../config/database';
 import { LogLevel, LogSource, Prisma } from '@prisma/client';
-import { serviceLogger } from '../logger';
+
+// 避免循环依赖：不直接导入 serviceLogger，使用简单的控制台日志
+const simpleLogger = {
+  error: (obj: unknown, msg: string) => {
+    console.error(`[LogStorageService] ${msg}`, obj);
+  },
+  info: (obj: unknown, msg: string) => {
+    console.info(`[LogStorageService] ${msg}`, obj);
+  },
+  warn: (obj: unknown, msg: string) => {
+    console.warn(`[LogStorageService] ${msg}`, obj);
+  },
+};
 
 // ==================== 类型定义 ====================
 
@@ -124,14 +136,14 @@ class LogStorageService {
       // 缓冲区达到批量大小时立即刷新
       if (this.buffer.length >= this.BATCH_SIZE) {
         this.flush().catch((err) => {
-          serviceLogger.error({ err }, '立即刷新日志缓冲区失败');
+          simpleLogger.error({ err }, '立即刷新日志缓冲区失败');
         });
       } else {
         // 否则启动定时刷新
         this.startFlushTimer();
       }
     } catch (err) {
-      serviceLogger.error({ err, entry }, '写入日志到缓冲区失败');
+      simpleLogger.error({ err, entry }, '写入日志到缓冲区失败');
     }
   }
 
@@ -145,7 +157,7 @@ class LogStorageService {
 
     this.flushTimer = setTimeout(() => {
       this.flush().catch((err) => {
-        serviceLogger.error({ err }, '定时刷新日志缓冲区失败');
+        simpleLogger.error({ err }, '定时刷新日志缓冲区失败');
       });
     }, this.FLUSH_INTERVAL);
 
@@ -178,9 +190,10 @@ class LogStorageService {
         skipDuplicates: true,
       });
 
-      serviceLogger.debug({ count: logsToFlush.length }, '成功刷新日志到数据库');
+      // 使用简单日志避免循环
+      // simpleLogger.debug({ count: logsToFlush.length }, '成功刷新日志到数据库');
     } catch (err) {
-      serviceLogger.error({ err, count: logsToFlush.length }, '批量写入日志失败');
+      simpleLogger.error({ err, count: logsToFlush.length }, '批量写入日志失败');
 
       // 写入失败时，将日志放回缓冲区（仅在缓冲区不会溢出时）
       if (this.buffer.length + logsToFlush.length <= this.BATCH_SIZE * 10) {
@@ -257,7 +270,7 @@ class LogStorageService {
         },
       };
     } catch (err) {
-      serviceLogger.error({ err, query }, '查询日志失败');
+      simpleLogger.error({ err, query }, '查询日志失败');
       throw err;
     }
   }
@@ -365,7 +378,7 @@ class LogStorageService {
         total,
       };
     } catch (err) {
-      serviceLogger.error({ err, query }, '获取日志统计失败');
+      simpleLogger.error({ err, query }, '获取日志统计失败');
       throw err;
     }
   }
@@ -388,7 +401,7 @@ class LogStorageService {
         .map((item) => item.module)
         .filter((module): module is string => module !== null);
     } catch (err) {
-      serviceLogger.error({ err }, '获取模块列表失败');
+      simpleLogger.error({ err }, '获取模块列表失败');
       throw err;
     }
   }
@@ -409,11 +422,11 @@ class LogStorageService {
         },
       });
 
-      serviceLogger.info({ count: result.count, daysToKeep, cutoffDate }, '成功清理过期日志');
+      simpleLogger.info({ count: result.count, daysToKeep, cutoffDate }, '成功清理过期日志');
 
       return result.count;
     } catch (err) {
-      serviceLogger.error({ err, daysToKeep }, '清理过期日志失败');
+      simpleLogger.error({ err, daysToKeep }, '清理过期日志失败');
       throw err;
     }
   }

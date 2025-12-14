@@ -10,8 +10,8 @@ import {
   RewardSchedule,
   DelayedRewardEvent,
   computeImmediateReward,
-  getDefaultSchedule
-} from '../../../../src/amas/evaluation/delayed-reward-aggregator';
+  getDefaultSchedule,
+} from '../../../../src/amas/rewards/delayed-reward-aggregator';
 
 describe('DelayedRewardAggregator', () => {
   let aggregator: DelayedRewardAggregator;
@@ -39,7 +39,7 @@ describe('DelayedRewardAggregator', () => {
     it('should normalize weights if they do not sum to 1', () => {
       const customSchedule: RewardSchedule[] = [
         { delaySec: 0, weight: 0.5, label: 'immediate' },
-        { delaySec: 3600, weight: 0.3, label: '1h' }
+        { delaySec: 3600, weight: 0.3, label: '1h' },
       ];
 
       const customAggregator = new DelayedRewardAggregator(customSchedule);
@@ -52,7 +52,7 @@ describe('DelayedRewardAggregator', () => {
     it('should use default schedule when all weights are zero', () => {
       const zeroSchedule: RewardSchedule[] = [
         { delaySec: 0, weight: 0, label: 'zero1' },
-        { delaySec: 3600, weight: 0, label: 'zero2' }
+        { delaySec: 3600, weight: 0, label: 'zero2' },
       ];
 
       const customAggregator = new DelayedRewardAggregator(zeroSchedule);
@@ -96,7 +96,7 @@ describe('DelayedRewardAggregator', () => {
 
     it('should accept custom event ID', () => {
       const eventId = aggregator.addReward('user-1', 1.0, Date.now(), {
-        id: 'custom-id-123'
+        id: 'custom-id-123',
       });
 
       expect(eventId).toBe('custom-id-123');
@@ -106,7 +106,7 @@ describe('DelayedRewardAggregator', () => {
       const featureVector = new Float32Array([0.1, 0.2, 0.3]);
       aggregator.addReward('user-1', 1.0, Date.now(), {
         featureVector: { data: Array.from(featureVector), version: 1 },
-        actionIndex: 5
+        actionIndex: 5,
       });
 
       const events = aggregator.getPendingEvents('user-1');
@@ -124,7 +124,7 @@ describe('DelayedRewardAggregator', () => {
       const result = aggregator.aggregate();
 
       // Immediate weight is 0.30 by default
-      expect(result.totalIncrement).toBeCloseTo(0.30, 2);
+      expect(result.totalIncrement).toBeCloseTo(0.3, 2);
       expect(result.breakdown.length).toBe(1);
     });
 
@@ -133,7 +133,7 @@ describe('DelayedRewardAggregator', () => {
 
       // First aggregate: immediate only
       const result1 = aggregator.aggregate();
-      expect(result1.totalIncrement).toBeCloseTo(0.30, 2);
+      expect(result1.totalIncrement).toBeCloseTo(0.3, 2);
 
       // Advance time by 1 hour
       vi.advanceTimersByTime(3600 * 1000);
@@ -141,7 +141,7 @@ describe('DelayedRewardAggregator', () => {
       // Second aggregate: 1h reward should be delivered plus partial 6h and 24h
       const result2 = aggregator.aggregate();
       // At 1h: 1h portion (0.20) + partial 6h (1/6 * 0.15) + partial 24h (1/24 * 0.20) + partial 7d
-      expect(result2.totalIncrement).toBeGreaterThan(0.20);
+      expect(result2.totalIncrement).toBeGreaterThan(0.2);
     });
 
     it('should handle negative rewards correctly', () => {
@@ -189,7 +189,7 @@ describe('DelayedRewardAggregator', () => {
     it('should include feature vector and action index in breakdown', () => {
       aggregator.addReward('user-1', 1.0, Date.now(), {
         featureVector: { data: [0.1, 0.2], version: 1 },
-        actionIndex: 3
+        actionIndex: 3,
       });
 
       const result = aggregator.aggregate();
@@ -210,7 +210,7 @@ describe('DelayedRewardAggregator', () => {
       const events = aggregator.getPendingEvents('user-1');
 
       expect(events.length).toBe(2);
-      expect(events.every(e => e.userId === 'user-1')).toBe(true);
+      expect(events.every((e) => e.userId === 'user-1')).toBe(true);
     });
 
     it('should return pending count for all users', () => {
@@ -278,7 +278,7 @@ describe('DelayedRewardAggregator', () => {
     it('should restore events with correct properties', () => {
       aggregator.addReward('user-1', 0.8, Date.now(), {
         featureVector: { data: [0.1, 0.2], version: 1 },
-        actionIndex: 5
+        actionIndex: 5,
       });
 
       const state = aggregator.getState();
@@ -303,7 +303,7 @@ describe('DelayedRewardAggregator', () => {
 
       expect(stats.length).toBe(5);
       expect(stats[0].label).toBe('immediate');
-      expect(stats[0].totalDelivered).toBeCloseTo(0.30, 2);
+      expect(stats[0].totalDelivered).toBeCloseTo(0.3, 2);
     });
   });
 
@@ -359,7 +359,7 @@ describe('computeImmediateReward', () => {
   it('should compute immediate reward portion', () => {
     const immediate = computeImmediateReward(1.0);
 
-    expect(immediate).toBeCloseTo(0.30, 2);
+    expect(immediate).toBeCloseTo(0.3, 2);
   });
 
   it('should handle negative rewards', () => {
@@ -369,9 +369,7 @@ describe('computeImmediateReward', () => {
   });
 
   it('should accept custom schedule', () => {
-    const customSchedule: RewardSchedule[] = [
-      { delaySec: 0, weight: 0.5, label: 'immediate' }
-    ];
+    const customSchedule: RewardSchedule[] = [{ delaySec: 0, weight: 0.5, label: 'immediate' }];
 
     const immediate = computeImmediateReward(1.0, customSchedule);
 
@@ -392,7 +390,7 @@ describe('getDefaultSchedule', () => {
     const schedule = getDefaultSchedule();
 
     expect(schedule.length).toBe(5);
-    schedule.forEach(s => {
+    schedule.forEach((s) => {
       expect(s).toHaveProperty('delaySec');
       expect(s).toHaveProperty('weight');
       expect(s).toHaveProperty('label');

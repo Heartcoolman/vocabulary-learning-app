@@ -13,6 +13,48 @@ export default defineConfig({
       gzipSize: true,
       brotliSize: true,
     }),
+    // 动态注入 API 预连接
+    {
+      name: 'inject-api-preconnect',
+      transformIndexHtml: {
+        order: 'pre',
+        handler(html) {
+          // 从环境变量获取 API URL
+          const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
+
+          // 解析 URL 以提取 origin (协议 + 域名 + 端口)
+          let apiOrigin: string;
+          try {
+            const url = new URL(apiUrl);
+            // 生产环境自动升级到 HTTPS (排除 localhost)
+            if (
+              process.env.NODE_ENV === 'production' &&
+              url.protocol === 'http:' &&
+              !url.hostname.includes('localhost') &&
+              !url.hostname.includes('127.0.0.1')
+            ) {
+              url.protocol = 'https:';
+            }
+            apiOrigin = url.origin;
+          } catch (error) {
+            // 如果解析失败，使用默认值
+            apiOrigin =
+              process.env.NODE_ENV === 'production'
+                ? 'https://api.example.com'
+                : 'http://localhost:3000';
+          }
+
+          // 注入 preconnect 和 dns-prefetch 标签
+          const preconnectTags = `
+    <!-- API 资源预连接 (动态注入) -->
+    <link rel="preconnect" href="${apiOrigin}" crossorigin>
+    <link rel="dns-prefetch" href="${apiOrigin}">`;
+
+          // 在 </head> 标签之前插入
+          return html.replace('</head>', `${preconnectTags}\n  </head>`);
+        },
+      },
+    },
   ],
 
   resolve: {
@@ -42,7 +84,7 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom', '@phosphor-icons/react'],
   },
 
-  // 构建优化配置
+  // 构建优化配置（保守方案）
   build: {
     // 启用 CSS 代码分割
     cssCodeSplit: true,
@@ -52,6 +94,9 @@ export default defineConfig({
 
     // 生成 sourcemap 用于生产环境调试
     sourcemap: false,
+
+    // 提升到现代浏览器目标，提高性能和减小体积
+    target: 'es2020',
 
     rollupOptions: {
       output: {
@@ -101,10 +146,17 @@ export default defineConfig({
       },
     },
 
-    // 压缩选项
+    // 使用 esbuild 压缩（保守方案：保留console，不激进压缩）
     minify: 'esbuild',
 
-    // 提高 esbuild 的压缩性能
-    target: 'es2015',
+    // esbuild 压缩配置（保守配置）
+    esbuild: {
+      // 保留console语句，避免生产环境调试困难
+      drop: [],
+      // 保持合理的压缩级别
+      minifyIdentifiers: true,
+      minifySyntax: true,
+      minifyWhitespace: true,
+    },
   },
 });

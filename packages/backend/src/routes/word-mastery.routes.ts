@@ -15,7 +15,7 @@
 
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { wordMasteryService } from '../services/word-mastery.service';
+import { learningStateService } from '../services/learning-state.service';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { validateParams, validateBody, validateQuery } from '../middleware/validate.middleware';
 import { AuthRequest } from '../types';
@@ -37,30 +37,34 @@ const DEFAULT_TRACE_LIMIT = 50;
 
 /** wordId 参数验证 */
 const wordIdParamSchema = z.object({
-  wordId: z.string().min(1, 'wordId不能为空').transform(val => val.trim())
+  wordId: z
+    .string()
+    .min(1, 'wordId不能为空')
+    .transform((val) => val.trim()),
 });
 
 /** 单词评估查询参数验证 */
 const wordEvaluationQuerySchema = z.object({
-  userFatigue: z.coerce.number().min(0).max(1).optional()
+  userFatigue: z.coerce.number().min(0).max(1).optional(),
 });
 
 /** 批量评估请求体验证 */
 const batchEvaluationBodySchema = z.object({
-  wordIds: z.array(z.string().min(1, '单词ID不能为空'))
+  wordIds: z
+    .array(z.string().min(1, '单词ID不能为空'))
     .min(1, 'wordIds必须是非空数组')
     .max(MAX_BATCH_SIZE, `wordIds数组不能超过${MAX_BATCH_SIZE}个元素`),
-  userFatigue: z.coerce.number().min(0).max(1).optional()
+  userFatigue: z.coerce.number().min(0).max(1).optional(),
 });
 
 /** 轨迹查询参数验证 */
 const traceQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(DEFAULT_TRACE_LIMIT)
+  limit: z.coerce.number().int().min(1).max(100).default(DEFAULT_TRACE_LIMIT),
 });
 
 /** 复习间隔查询参数验证 */
 const intervalQuerySchema = z.object({
-  targetRecall: z.coerce.number().min(0.01).max(1).default(0.9)
+  targetRecall: z.coerce.number().min(0.01).max(1).default(0.9),
 });
 
 // ==================== 辅助函数 ====================
@@ -87,11 +91,11 @@ router.get('/stats', async (req: AuthRequest, res: Response, next: NextFunction)
     const userId = getUserIdOr401(req, res);
     if (!userId) return;
 
-    const stats = await wordMasteryService.getUserMasteryStats(userId);
+    const stats = await learningStateService.getUserMasteryStats(userId);
 
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
     next(error);
@@ -111,20 +115,26 @@ router.post(
       const userId = getUserIdOr401(req, res);
       if (!userId) return;
 
-      const { wordIds, userFatigue } = req.validatedBody as z.infer<typeof batchEvaluationBodySchema>;
+      const { wordIds, userFatigue } = req.validatedBody as z.infer<
+        typeof batchEvaluationBodySchema
+      >;
 
       // 去重并规范化
       const uniqueIds = Array.from(new Set(wordIds.map((id: string) => id.trim())));
-      const evaluations = await wordMasteryService.batchEvaluateWords(userId, uniqueIds, userFatigue);
+      const evaluations = await learningStateService.batchEvaluateWords(
+        userId,
+        uniqueIds,
+        userFatigue,
+      );
 
       res.json({
         success: true,
-        data: evaluations
+        data: evaluations,
       });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 // ==================== 参数路由 ====================
@@ -146,16 +156,16 @@ router.get(
       const { wordId } = req.validatedParams as z.infer<typeof wordIdParamSchema>;
       const { userFatigue } = req.validatedQuery as z.infer<typeof wordEvaluationQuerySchema>;
 
-      const evaluation = await wordMasteryService.evaluateWord(userId, wordId, userFatigue);
+      const evaluation = await learningStateService.evaluateWord(userId, wordId, userFatigue);
 
       res.json({
         success: true,
-        data: evaluation
+        data: evaluation,
       });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -175,20 +185,20 @@ router.get(
       const { wordId } = req.validatedParams as z.infer<typeof wordIdParamSchema>;
       const { limit } = req.validatedQuery as z.infer<typeof traceQuerySchema>;
 
-      const trace = await wordMasteryService.getMemoryTrace(userId, wordId, limit);
+      const trace = await learningStateService.getMemoryTrace(userId, wordId, limit);
 
       res.json({
         success: true,
         data: {
           wordId,
           trace,
-          count: trace.length
-        }
+          count: trace.length,
+        },
       });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -208,7 +218,7 @@ router.get(
       const { wordId } = req.validatedParams as z.infer<typeof wordIdParamSchema>;
       const { targetRecall } = req.validatedQuery as z.infer<typeof intervalQuerySchema>;
 
-      const interval = await wordMasteryService.predictInterval(userId, wordId, targetRecall);
+      const interval = await learningStateService.predictInterval(userId, wordId, targetRecall);
 
       res.json({
         success: true,
@@ -218,14 +228,14 @@ router.get(
           humanReadable: {
             optimal: formatInterval(interval.optimalSeconds),
             min: formatInterval(interval.minSeconds),
-            max: formatInterval(interval.maxSeconds)
-          }
-        }
+            max: formatInterval(interval.maxSeconds),
+          },
+        },
       });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 // ==================== 辅助函数 ====================

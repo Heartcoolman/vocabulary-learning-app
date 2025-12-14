@@ -5,7 +5,7 @@ interface WeightRadarChartProps {
   weights: AlgorithmWeights;
 }
 
-const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
+const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights }) => {
   // Config
   const size = 300;
   const center = size / 2;
@@ -129,6 +129,8 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = ({ weights }) => {
       </div>
     </div>
   );
-};
+});
+
+WeightRadarChart.displayName = 'WeightRadarChart';
 
 export default WeightRadarChart;

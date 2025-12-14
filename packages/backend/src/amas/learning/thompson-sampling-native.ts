@@ -32,10 +32,10 @@ import {
   ThompsonSamplingOptions,
   ThompsonSamplingState,
   ThompsonContext,
-} from './thompson-sampling';
+} from '../algorithms/learners';
 
 import { Action, UserState } from '../types';
-import { ActionSelection, LearnerCapabilities } from './base-learner';
+import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
 
 import {
   recordNativeCall,

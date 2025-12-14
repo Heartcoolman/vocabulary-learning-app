@@ -12,16 +12,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   DefaultPersistenceManager,
-  PersistenceManager
-} from '../../../../src/amas/engine/engine-persistence';
-import {
+  PersistenceManager,
   MemoryStateRepository,
   MemoryModelRepository,
   StateRepository,
   ModelRepository,
   Logger,
-  ColdStartStateData
-} from '../../../../src/amas/engine/engine-types';
+  ColdStartStateData,
+} from '../../../../src/amas/core/engine';
 import { LinUCB, LinUCBContext } from '../../../../src/amas/learning/linucb';
 import { EnsembleLearningFramework } from '../../../../src/amas/decision/ensemble';
 import { UserState, BanditModel, Action } from '../../../../src/amas/types';
@@ -31,7 +29,7 @@ import { mockLogger } from '../../../setup';
 const createTestContext = (): LinUCBContext => ({
   recentErrorRate: 0.2,
   recentResponseTime: 2000,
-  timeBucket: 14
+  timeBucket: 14,
 });
 
 // Helper to create test state
@@ -41,7 +39,7 @@ const createTestState = (): UserState => ({
   M: 0.6,
   C: { mem: 0.7, speed: 0.7, stability: 0.7 },
   conf: 0.8,
-  ts: Date.now()
+  ts: Date.now(),
 });
 
 // Helper to create test action
@@ -50,7 +48,7 @@ const createTestAction = (): Action => ({
   new_ratio: 0.2,
   difficulty: 'mid',
   batch_size: 8,
-  hint_level: 1
+  hint_level: 1,
 });
 
 // Mock dependencies
@@ -59,8 +57,8 @@ vi.mock('../../../../src/amas/common/telemetry', () => ({
     record: vi.fn(),
     increment: vi.fn(),
     histogram: vi.fn(),
-    gauge: vi.fn()
-  }
+    gauge: vi.fn(),
+  },
 }));
 
 vi.mock('../../../../src/amas/config/feature-flags', () => ({
@@ -71,17 +69,17 @@ vi.mock('../../../../src/amas/config/feature-flags', () => ({
     enableThompsonSampling: false,
     enableHeuristicBaseline: false,
     enableACTRMemory: false,
-    enableUserParamsManager: false
+    enableUserParamsManager: false,
   }),
-  isColdStartEnabled: vi.fn().mockReturnValue(false)
+  isColdStartEnabled: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../../../../src/config/database', () => ({
   default: {
     user: {
-      findUnique: vi.fn().mockResolvedValue(null)
-    }
-  }
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+  },
 }));
 
 vi.mock('../../../../src/logger', () => ({
@@ -89,8 +87,8 @@ vi.mock('../../../../src/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 describe('EnginePersistence', () => {
@@ -105,7 +103,7 @@ describe('EnginePersistence', () => {
     persistence = new DefaultPersistenceManager(
       stateRepo,
       modelRepo,
-      mockLogger as unknown as Logger
+      mockLogger as unknown as Logger,
     );
   });
 
@@ -121,10 +119,7 @@ describe('EnginePersistence', () => {
     });
 
     it('should work without logger', () => {
-      const persistenceWithoutLogger = new DefaultPersistenceManager(
-        stateRepo,
-        modelRepo
-      );
+      const persistenceWithoutLogger = new DefaultPersistenceManager(stateRepo, modelRepo);
       expect(persistenceWithoutLogger).toBeDefined();
     });
   });
@@ -145,7 +140,7 @@ describe('EnginePersistence', () => {
         M: 0.6,
         C: { mem: 0.75, speed: 0.7, stability: 0.8 },
         conf: 0.9,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await stateRepo.saveState(userId, existingState);
@@ -167,7 +162,7 @@ describe('EnginePersistence', () => {
         M: 0.8,
         C: { mem: 0.85, speed: 0.9, stability: 0.95 },
         conf: 0.95,
-        ts: Date.now() - 1000
+        ts: Date.now() - 1000,
       };
 
       await stateRepo.saveState(userId, completeState);
@@ -187,7 +182,7 @@ describe('EnginePersistence', () => {
         M: 0.7,
         C: { mem: 0.8, speed: 0.7, stability: 0.8 },
         conf: 0.8,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       const state2: UserState = {
@@ -196,7 +191,7 @@ describe('EnginePersistence', () => {
         M: 0.3,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await stateRepo.saveState(user1, state1);
@@ -221,7 +216,7 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.6, speed: 0.6, stability: 0.6 },
         conf: 0.7,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await persistence.saveState(userId, state);
@@ -239,7 +234,7 @@ describe('EnginePersistence', () => {
         M: 0.6,
         C: { mem: 0.7, speed: 0.7, stability: 0.7 },
         conf: 0.8,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       const coldStartState: ColdStartStateData = {
@@ -247,7 +242,7 @@ describe('EnginePersistence', () => {
         userType: 'stable',
         probeIndex: 5,
         updateCount: 10,
-        settledStrategy: null
+        settledStrategy: null,
       };
 
       await persistence.saveState(userId, state, coldStartState);
@@ -266,7 +261,7 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now() - 1000
+        ts: Date.now() - 1000,
       };
 
       const updatedState: UserState = {
@@ -275,7 +270,7 @@ describe('EnginePersistence', () => {
         M: 0.8,
         C: { mem: 0.9, speed: 0.9, stability: 0.9 },
         conf: 0.9,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await persistence.saveState(userId, initialState);
@@ -294,7 +289,7 @@ describe('EnginePersistence', () => {
         M: 0.55,
         C: { mem: 0.65, speed: 0.65, stability: 0.65 },
         conf: 0.75,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await persistence.saveState(userId, state);
@@ -484,7 +479,7 @@ describe('EnginePersistence', () => {
 
       ensemble.setState({
         ...ensembleState,
-        linucb: linucb.getModel()
+        linucb: linucb.getModel(),
       });
 
       await persistence.saveModel(userId, ensemble);
@@ -509,7 +504,7 @@ describe('EnginePersistence', () => {
 
       ensemble.setState({
         ...ensemble.getState(),
-        linucb: linucb.getModel()
+        linucb: linucb.getModel(),
       });
 
       await persistence.saveModel(userId, ensemble);
@@ -528,7 +523,7 @@ describe('EnginePersistence', () => {
       // Create a mock object that is neither LinUCB nor Ensemble
       const unsupportedModel = {
         select: vi.fn(),
-        update: vi.fn()
+        update: vi.fn(),
       } as any;
 
       // Should not throw
@@ -550,7 +545,7 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       await persistence.saveState('', state);
@@ -567,7 +562,7 @@ describe('EnginePersistence', () => {
         M: -1,
         C: { mem: 0, speed: 0, stability: 0 },
         conf: 0,
-        ts: 0
+        ts: 0,
       };
 
       await persistence.saveState(userId, state);
@@ -585,7 +580,7 @@ describe('EnginePersistence', () => {
         M: 1,
         C: { mem: 1, speed: 1, stability: 1 },
         conf: 1,
-        ts: Number.MAX_SAFE_INTEGER
+        ts: Number.MAX_SAFE_INTEGER,
       };
 
       await persistence.saveState(userId, state);
@@ -603,7 +598,7 @@ describe('EnginePersistence', () => {
         M: 0.6,
         C: { mem: 0.7, speed: 0.7, stability: 0.7 },
         conf: 0.8,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       const coldStartState: ColdStartStateData = {
@@ -616,8 +611,8 @@ describe('EnginePersistence', () => {
           new_ratio: 0.3,
           difficulty: 'hard',
           batch_size: 12,
-          hint_level: 0
-        }
+          hint_level: 0,
+        },
       };
 
       await persistence.saveState(userId, state, coldStartState);
@@ -639,13 +634,11 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now() + i
+        ts: Date.now() + i,
       }));
 
       // Save concurrently
-      await Promise.all(
-        states.map(state => persistence.saveState(userId, state))
-      );
+      await Promise.all(states.map((state) => persistence.saveState(userId, state)));
 
       // One of the states should be saved
       const savedState = await persistence.loadState(userId);
@@ -681,7 +674,7 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.6, speed: 0.6, stability: 0.6 },
         conf: 0.7,
-        ts: Date.now()
+        ts: Date.now(),
       };
       await persistence.saveState(userId, userState);
 
@@ -710,7 +703,7 @@ describe('EnginePersistence', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now()
+        ts: Date.now(),
       };
       await persistence.saveState(userId, initialState);
 
@@ -727,7 +720,7 @@ describe('EnginePersistence', () => {
         M: 0.8,
         C: { mem: 0.9, speed: 0.9, stability: 0.9 },
         conf: 0.9,
-        ts: Date.now()
+        ts: Date.now(),
       };
       await persistence.saveState(userId, updatedState);
 
@@ -751,15 +744,15 @@ describe('EnginePersistence', () => {
           M: 0.99,
           C: { mem: 0.99, speed: 0.99, stability: 0.99 },
           conf: 0.99,
-          ts: Date.now()
+          ts: Date.now(),
         }),
-        saveState: vi.fn().mockResolvedValue(undefined)
+        saveState: vi.fn().mockResolvedValue(undefined),
       };
 
       const customPersistence = new DefaultPersistenceManager(
         customStateRepo,
         modelRepo,
-        mockLogger as unknown as Logger
+        mockLogger as unknown as Logger,
       );
 
       const state = await customPersistence.loadState('any-user');
@@ -770,26 +763,32 @@ describe('EnginePersistence', () => {
 
     it('should work with custom model repository', async () => {
       const mockModel: BanditModel = {
-        A: [[1, 0], [0, 1]],
+        A: [
+          [1, 0],
+          [0, 1],
+        ],
         b: [0, 0],
-        L: [[1, 0], [0, 1]],
+        L: [
+          [1, 0],
+          [0, 1],
+        ],
         theta: [0, 0],
         d: 2,
         lambda: 1,
         alpha: 0.1,
         updateCount: 5,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
 
       const customModelRepo: ModelRepository = {
         loadModel: vi.fn().mockResolvedValue(mockModel),
-        saveModel: vi.fn().mockResolvedValue(undefined)
+        saveModel: vi.fn().mockResolvedValue(undefined),
       };
 
       const customPersistence = new DefaultPersistenceManager(
         stateRepo,
         customModelRepo,
-        mockLogger as unknown as Logger
+        mockLogger as unknown as Logger,
       );
 
       const bandit = new LinUCB({ dimension: 2 });

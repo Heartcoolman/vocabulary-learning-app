@@ -6,7 +6,7 @@ interface DecisionFactorsProps {
   factors: DecisionFactor[];
 }
 
-const DecisionFactors: React.FC<DecisionFactorsProps> = ({ factors }) => {
+const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors }) => {
   const getIcon = (iconName: string) => {
     switch (iconName) {
       case 'memory':
@@ -72,6 +72,8 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = ({ factors }) => {
       </div>
     </div>
   );
-};
+});
+
+DecisionFactors.displayName = 'DecisionFactors';
 
 export default DecisionFactors;

@@ -8,14 +8,14 @@ datasource db {
 }
 
 model User {
-  id               String              @id @default(uuid())
-  email            String              @unique
+  id               String               @id @default(uuid())
+  email            String               @unique
   passwordHash     String
   username         String
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  role             UserRole            @default(USER)
-  rewardProfile    String              @default("standard")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  role             UserRole             @default(USER)
+  rewardProfile    String               @default("standard")
   anomalyFlags     AnomalyFlag[]
   records          AnswerRecord[]
   habitProfile     HabitProfile?
@@ -30,6 +30,10 @@ model User {
   learningStates   WordLearningState[]
   reviewTraces     WordReviewTrace[]
   wordScores       WordScore[]
+  learningProfile  UserLearningProfile?
+  forgettingAlerts ForgettingAlert[]
+  notifications    Notification[]
+  preferences      UserPreference?
 
   @@index([rewardProfile])
   @@map("users")
@@ -55,22 +59,24 @@ model WordBook {
 }
 
 model Word {
-  id             String              @id @default(uuid())
-  spelling       String
-  phonetic       String
-  meanings       String[]
-  examples       String[]
-  audioUrl       String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  wordBookId     String
-  anomalyFlags   AnomalyFlag[]
-  records        AnswerRecord[]
-  word_frequency word_frequency?
-  learningStates WordLearningState[]
-  reviewTraces   WordReviewTrace[]
-  wordScores     WordScore[]
-  wordBook       WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
+  id               String              @id @default(uuid())
+  spelling         String
+  phonetic         String
+  meanings         String[]
+  examples         String[]
+  audioUrl         String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  wordBookId       String
+  anomalyFlags     AnomalyFlag[]
+  records          AnswerRecord[]
+  word_frequency   word_frequency?
+  learningStates   WordLearningState[]
+  reviewTraces     WordReviewTrace[]
+  wordScores       WordScore[]
+  wordBook         WordBook            @relation(fields: [wordBookId], references: [id], onDelete: Cascade)
+  wordContexts     WordContext[]
+  forgettingAlerts ForgettingAlert[]
 
   @@unique([wordBookId, spelling], name: "unique_spelling_per_book")
   @@index([wordBookId])
@@ -303,12 +309,17 @@ model LearningSession {
   actualMasteryCount Int?
   targetMasteryCount Int?
   totalQuestions     Int?
+  sessionType        SessionType     @default(NORMAL)
+  flowPeakScore      Float?
+  avgCognitiveLoad   Float?
+  contextShifts      Int             @default(0)
   answerRecords      AnswerRecord[]
   featureVectors     FeatureVector[]
   user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   rewardQueues       RewardQueue[]
 
   @@index([userId, startedAt])
+  @@index([sessionType])
   @@map("learning_sessions")
 }
 
@@ -569,6 +580,9 @@ model DecisionRecord {
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
   isSimulation    Boolean                 @default(false)
+  emotionLabel    String?
+  flowScore       Float?
+  actionRationale String?
 
   @@id([id, timestamp])
   @@unique([decisionId, timestamp])
@@ -727,6 +741,55 @@ enum LogSource {
   MIGRATION
 }
 
+/// 遗忘预警状态
+enum AlertStatus {
+  ACTIVE
+  DISMISSED
+  REVIEWED
+}
+
+/// 语境类型
+enum ContextType {
+  SENTENCE
+  CONVERSATION
+  ARTICLE
+  MEDIA
+}
+
+/// 学习会话类型
+enum SessionType {
+  NORMAL
+  SPACED_REPETITION
+  INTENSIVE
+  QUIZ
+}
+
+/// 通知类型
+enum NotificationType {
+  FORGETTING_ALERT
+  ACHIEVEMENT
+  REMINDER
+  SYSTEM
+  MILESTONE
+  STREAK
+}
+
+/// 通知状态
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+  DELETED
+}
+
+/// 通知优先级
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 /// 系统日志表
 model SystemLog {
   id        String    @id @default(uuid())
@@ -775,19 +838,19 @@ model LogAlertRule {
 
 /// LLM 顾问建议
 model LLMAdvisorSuggestion {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   weekStart        DateTime
   weekEnd          DateTime
   statsSnapshot    Json
   rawResponse      String
   parsedSuggestion Json
-  status           String   @default("pending")
+  status           String    @default("pending")
   reviewedBy       String?
   reviewedAt       DateTime?
   reviewNotes      String?
   appliedItems     Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -829,4 +892,116 @@ model ObjectiveHistory {
   @@index([objectiveId])
   @@index([timestamp])
   @@map("objective_history")
+}
+
+/// 用户学习档案（合并认知状态）
+model UserLearningProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  theta               Float    @default(0)
+  thetaVariance       Float    @default(1)
+  attention           Float    @default(0.7)
+  fatigue             Float    @default(0)
+  motivation          Float    @default(0.5)
+  emotionBaseline     String   @default("neutral")
+  lastReportedEmotion String?
+  flowScore           Float    @default(0)
+  flowBaseline        Float    @default(0.5)
+  activePolicyVersion String   @default("v1")
+  forgettingParams    Json     @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_learning_profiles")
+}
+
+/// 遗忘预警
+model ForgettingAlert {
+  id                String      @id @default(uuid())
+  userId            String
+  wordId            String
+  predictedForgetAt DateTime
+  recallProbability Float
+  status            AlertStatus @default(ACTIVE)
+  reviewedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word              Word        @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordId])
+  @@index([userId, status])
+  @@index([predictedForgetAt])
+  @@map("forgetting_alerts")
+}
+
+/// 语境强化
+model WordContext {
+  id          String      @id @default(uuid())
+  wordId      String
+  contextType ContextType
+  content     String
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  word        Word        @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([wordId])
+  @@index([contextType])
+  @@map("word_contexts")
+}
+
+/// 通知表
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String
+  status    NotificationStatus @default(UNREAD)
+  priority  NotificationPriority @default(NORMAL)
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([priority, status])
+  @@map("notifications")
+}
+
+/// 用户偏好设置表
+model UserPreference {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  // 学习偏好
+  preferredStudyTimeStart String?  @default("09:00")
+  preferredStudyTimeEnd   String?  @default("21:00")
+  preferredDifficulty     String?  @default("adaptive")
+  dailyGoalEnabled        Boolean  @default(true)
+  dailyGoalWords          Int      @default(20)
+  // 通知偏好
+  enableForgettingAlerts  Boolean  @default(true)
+  enableAchievements      Boolean  @default(true)
+  enableReminders         Boolean  @default(true)
+  enableSystemNotif       Boolean  @default(true)
+  reminderFrequency       String   @default("daily")
+  quietHoursStart         String?  @default("22:00")
+  quietHoursEnd           String?  @default("08:00")
+  // 界面偏好
+  theme                   String   @default("light")
+  language                String   @default("zh-CN")
+  soundEnabled            Boolean  @default(true)
+  animationEnabled        Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_preferences")
 }

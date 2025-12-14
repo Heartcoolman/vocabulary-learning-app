@@ -18,100 +18,109 @@ export {
   FeatureBuilder,
   EnhancedFeatureBuilder,
   WindowStatistics,
-  defaultFeatureBuilder
+  defaultFeatureBuilder,
 } from './perception/feature-builder';
 
 // ==================== 建模层 ====================
+// 从 models/cognitive.ts 统一导出
 export {
   AttentionMonitor,
   AttentionFeatures,
-  defaultAttentionMonitor
-} from './modeling/attention-monitor';
+  defaultAttentionMonitor,
+  CognitiveProfiler,
+  RecentStats,
+  defaultCognitiveProfiler,
+  MotivationTracker,
+  MotivationEvent,
+  defaultMotivationTracker,
+  TrendAnalyzer,
+  TrendState,
+  HabitRecognizer,
+  HabitProfile,
+  HabitRecognizerOptions,
+  ChronotypeDetector,
+  ChronotypeProfile,
+  ChronotypeCategory,
+  LearningStyleProfiler,
+  LearningStyleProfile,
+  LearningStyle,
+  InteractionPatterns,
+  FatigueRecoveryModel,
+  FatigueRecoveryState,
+} from './models/cognitive';
 
+// 权威实现 - 保持独立
 export {
   FatigueEstimator,
   FatigueFeatures,
-  defaultFatigueEstimator
-} from './modeling/fatigue-estimator';
+  defaultFatigueEstimator,
+} from './models/fatigue-estimator';
 
 export {
-  CognitiveProfiler,
-  RecentStats,
-  defaultCognitiveProfiler
-} from './modeling/cognitive-profiler';
+  calculateForgettingFactor,
+  updateHalfLife,
+  computeOptimalInterval,
+  estimateRetention,
+  batchCalculateForgettingFactors,
+  ForgettingCurveAdapter,
+  MemoryTrace,
+  HalfLifeUpdate,
+  CognitiveConfig as ForgettingCurveCognitiveConfig,
+} from './models/forgetting-curve';
 
-export {
-  MotivationTracker,
-  MotivationEvent,
-  defaultMotivationTracker
-} from './modeling/motivation-tracker';
-
-export { TrendAnalyzer, TrendState } from './modeling/trend-analyzer';
-
-export {
-  ACTRMemoryModel,
-  ACTRContext,
-  ACTRState
-} from './modeling/actr-memory';
+// ACT-R 记忆模型 (已迁移到 models/cognitive.ts)
+export { ACTRMemoryModel, ACTRContext, ACTRState } from './models/cognitive';
 
 export {
   ACTRMemoryNativeWrapper,
   createACTRMemoryNativeWrapper,
   createACTRMemoryNativeWrapperFallback,
   type ACTRWrapperConfig,
-  type ACTRWrapperStats
-} from './modeling/actr-memory-native';
+  type ACTRWrapperStats,
+} from './models/cognitive';
 
 // ==================== 学习层 ====================
+// 基础学习器接口 (从 algorithms/ 导出)
 export {
   BaseLearner,
   BaseLearnerContext,
-  ActionSelection,
-  LearnerCapabilities
-} from './learning/base-learner';
+  ActionSelection as BaseLearnerActionSelection,
+  LearnerCapabilities,
+} from './algorithms/learners';
 
-export {
-  LinUCB,
-  ContextBuildInput,
-  LinUCBOptions,
-  defaultLinUCB
-} from './learning/linucb';
-
-export {
-  LinUCBAsync,
-  LinUCBAsyncOptions,
-  createLinUCBAsync,
-  createLinUCBAsyncSync
-} from './learning/linucb-async';
-
-export {
-  ColdStartManager,
-  ColdStartState
-} from './learning/coldstart';
+// 核心学习算法 (从 algorithms/ 导出)
+export { LinUCB, ContextBuildInput, LinUCBOptions, defaultLinUCB } from './algorithms/learners';
 
 export {
   ThompsonSampling,
   ThompsonContext,
-  ThompsonSamplingState
-} from './learning/thompson-sampling';
+  ThompsonSamplingState,
+  defaultThompsonSampling,
+} from './algorithms/learners';
+
+// Native包装器 (保留在learning/，等待后续整理)
+export {
+  LinUCBAsync,
+  LinUCBAsyncOptions,
+  createLinUCBAsync,
+  createLinUCBAsyncSync,
+} from './learning/linucb-async';
+
+export { ColdStartManager, ColdStartState } from './learning/coldstart';
 
 export {
   ThompsonSamplingNativeWrapper,
   createThompsonSamplingNativeWrapper,
   createThompsonSamplingNativeWrapperFallback,
   type ThompsonSamplingWrapperConfig,
-  type ThompsonSamplingWrapperStats
+  type ThompsonSamplingWrapperStats,
 } from './learning/thompson-sampling-native';
 
-export {
-  HeuristicLearner,
-  HeuristicContext,
-  HeuristicState
-} from './learning/heuristic';
+export { HeuristicLearner, HeuristicContext, HeuristicState } from './learning/heuristic';
 
 export {
   ThompsonExploreHookImpl,
-  createThompsonExploreHook
+  createThompsonExploreHook,
 } from './learning/thompson-explore-hook';
 
 // ==================== 决策层 ====================
@@ -119,7 +128,7 @@ export {
   mapActionToStrategy,
   mapActionDirect,
   computeStrategyDelta,
-  hasSignificantChange
+  hasSignificantChange,
 } from './decision/mapper';
 
 export {
@@ -131,14 +140,14 @@ export {
   shouldSuggestBreak,
   shouldForceBreak,
   isInDangerZone,
-  getActiveProtections
+  getActiveProtections,
 } from './decision/guardrails';
 
 export {
   generateExplanation,
   generateDetailedExplanation,
   generateShortExplanation,
-  generateSuggestion
+  generateSuggestion,
 } from './decision/explain';
 
 export {
@@ -146,8 +155,18 @@ export {
   EnsembleContext,
   EnsembleState,
   EnsembleWeights,
-  EnsembleMember
+  EnsembleMember,
 } from './decision/ensemble';
+
+// ==================== 策略层 ====================
+export {
+  ISimpleDecisionPolicy,
+  PolicyFactory,
+  PolicyRegistry,
+  policyRegistry,
+  FatigueBasedPolicy,
+  createFatigueBasedPolicy,
+} from './policies';
 
 // ==================== 评估层 ====================
 export {
@@ -156,16 +175,16 @@ export {
   CausalObservation,
   CausalInferenceConfig,
   CausalInferenceState,
-  defaultCausalInference
-} from './evaluation/causal-inference';
+  defaultCausalInference,
+} from './rewards/evaluators';
 
 export {
   CausalInferenceNativeWrapper,
   createCausalInferenceNativeWrapper,
   createCausalInferenceNativeWrapperFallback,
   type CausalInferenceWrapperConfig,
-  type CausalInferenceWrapperStats
-} from './evaluation/causal-inference-native';
+  type CausalInferenceWrapperStats,
+} from './rewards/evaluators';
 
 export {
   DelayedRewardAggregator,
@@ -173,8 +192,8 @@ export {
   DelayedRewardEvent,
   AggregatedResult,
   DelayedRewardState,
-  defaultDelayedRewardAggregator
-} from './evaluation/delayed-reward-aggregator';
+  defaultDelayedRewardAggregator,
+} from './rewards/delayed-reward-aggregator';
 
 // ==================== 优化层 ====================
 export {
@@ -185,8 +204,8 @@ export {
   AcquisitionType,
   Observation,
   Posterior,
-  defaultBayesianOptimizer
-} from './optimization/bayesian-optimizer';
+  defaultBayesianOptimizer,
+} from './core/optimizer';
 
 // ==================== Worker 池 ====================
 export {
@@ -197,7 +216,7 @@ export {
   runLinUCBSelect,
   runLinUCBUpdate,
   ComputePoolConfig,
-  PoolStats
+  PoolStats,
 } from './workers/pool';
 
 // ==================== 引擎 ====================
@@ -208,7 +227,39 @@ export {
   Logger,
   EngineDependencies,
   ProcessOptions,
-  ProcessResult
+  ProcessResult,
+  // 引擎子模块
+  ResilienceManager,
+  IsolationManager,
+  ModelingManager,
+  LearningManager,
+  DecisionContext,
+  ActionSelection,
+  // 持久化
+  PersistenceManager,
+  DefaultPersistenceManager,
+  // 决策轨迹
+  DecisionTracer,
+  DefaultDecisionTracer,
+  NoopDecisionTracer,
+  createDecisionTracer,
+  DecisionTraceParams,
+  StageTiming,
+  // 特征向量
+  FeatureVectorBuilder,
+  DefaultFeatureVectorBuilder,
+  createFeatureVectorBuilder,
+  FEATURE_LABELS,
+  // 奖励缓存
+  RewardCacheManager,
+  DefaultRewardCacheManager,
+  createRewardCacheManager,
+  // 类型
+  DecisionModel,
+  UserModels,
+  ThompsonExploreHook,
+  ExploreContext,
+  clamp,
 } from './engine';
 
 // ==================== 通用工具 ====================
@@ -220,5 +271,5 @@ export {
   createDefaultCircuitBreaker,
   withCircuitBreaker,
   withCircuitBreakerAsync,
-  createCircuitBreakerWrapper
+  createCircuitBreakerWrapper,
 } from './common/circuit-breaker';

@@ -9,7 +9,7 @@
  */
 
 import prisma from '../../config/database';
-import { ReviewTrace } from '../modeling/actr-memory';
+import { ReviewTrace } from '../models/cognitive';
 
 // ==================== 类型定义 ====================
 
@@ -62,19 +62,15 @@ export class WordMemoryTracker {
    * @param wordId 单词ID
    * @param event 复习事件
    */
-  async recordReview(
-    userId: string,
-    wordId: string,
-    event: ReviewEvent
-  ): Promise<void> {
+  async recordReview(userId: string, wordId: string, event: ReviewEvent): Promise<void> {
     await prisma.wordReviewTrace.create({
       data: {
         userId,
         wordId,
         timestamp: new Date(event.timestamp),
         isCorrect: event.isCorrect,
-        responseTime: event.responseTime
-      }
+        responseTime: event.responseTime,
+      },
     });
   }
 
@@ -86,7 +82,7 @@ export class WordMemoryTracker {
    */
   async batchRecordReview(
     userId: string,
-    events: Array<{ wordId: string; event: ReviewEvent }>
+    events: Array<{ wordId: string; event: ReviewEvent }>,
   ): Promise<void> {
     await prisma.wordReviewTrace.createMany({
       data: events.map(({ wordId, event }) => ({
@@ -94,8 +90,8 @@ export class WordMemoryTracker {
         wordId,
         timestamp: new Date(event.timestamp),
         isCorrect: event.isCorrect,
-        responseTime: event.responseTime
-      }))
+        responseTime: event.responseTime,
+      })),
     });
   }
 
@@ -110,7 +106,7 @@ export class WordMemoryTracker {
   async getReviewTrace(
     userId: string,
     wordId: string,
-    limit: number = DEFAULT_TRACE_LIMIT
+    limit: number = DEFAULT_TRACE_LIMIT,
   ): Promise<ReviewTrace[]> {
     const safeLimit = Math.min(Math.max(1, limit), MAX_TRACE_LIMIT);
     const now = Date.now();
@@ -118,21 +114,21 @@ export class WordMemoryTracker {
     const records = await prisma.wordReviewTrace.findMany({
       where: {
         userId,
-        wordId
+        wordId,
       },
       orderBy: {
-        timestamp: 'desc'
+        timestamp: 'desc',
       },
       take: safeLimit,
       select: {
         timestamp: true,
-        isCorrect: true
-      }
+        isCorrect: true,
+      },
     });
 
-    return records.map(record => ({
+    return records.map((record) => ({
       secondsAgo: Math.floor((now - record.timestamp.getTime()) / 1000),
-      isCorrect: record.isCorrect
+      isCorrect: record.isCorrect,
     }));
   }
 
@@ -145,7 +141,7 @@ export class WordMemoryTracker {
    */
   async batchGetMemoryState(
     userId: string,
-    wordIds: string[]
+    wordIds: string[],
   ): Promise<Map<string, WordMemoryState>> {
     const result = new Map<string, WordMemoryState>();
     const now = Date.now();
@@ -158,16 +154,16 @@ export class WordMemoryTracker {
     const records = await prisma.wordReviewTrace.findMany({
       where: {
         userId,
-        wordId: { in: wordIds }
+        wordId: { in: wordIds },
       },
       orderBy: {
-        timestamp: 'desc'
+        timestamp: 'desc',
       },
       select: {
         wordId: true,
         timestamp: true,
-        isCorrect: true
-      }
+        isCorrect: true,
+      },
     });
 
     // 按wordId分组
@@ -181,24 +177,22 @@ export class WordMemoryTracker {
     // 转换为WordMemoryState
     for (const wordId of wordIds) {
       const wordRecords = groupedRecords.get(wordId) ?? [];
-      
+
       // 限制每个单词最多MAX_TRACE_LIMIT条记录
       const limitedRecords = wordRecords.slice(0, MAX_TRACE_LIMIT);
-      
-      const trace: ReviewTrace[] = limitedRecords.map(r => ({
+
+      const trace: ReviewTrace[] = limitedRecords.map((r) => ({
         secondsAgo: Math.floor((now - r.timestamp.getTime()) / 1000),
-        isCorrect: r.isCorrect
+        isCorrect: r.isCorrect,
       }));
 
-      const lastReviewTs = limitedRecords.length > 0
-        ? limitedRecords[0].timestamp.getTime()
-        : 0;
+      const lastReviewTs = limitedRecords.length > 0 ? limitedRecords[0].timestamp.getTime() : 0;
 
       result.set(wordId, {
         wordId,
         reviewCount: wordRecords.length,
         lastReviewTs,
-        trace
+        trace,
       });
     }
 
@@ -221,17 +215,17 @@ export class WordMemoryTracker {
     const stats = await prisma.wordReviewTrace.aggregate({
       where: { userId },
       _count: { id: true },
-      _avg: { responseTime: true }
+      _avg: { responseTime: true },
     });
 
     const correctCount = await prisma.wordReviewTrace.count({
-      where: { userId, isCorrect: true }
+      where: { userId, isCorrect: true },
     });
 
     const uniqueWords = await prisma.wordReviewTrace.groupBy({
       by: ['wordId'],
       where: { userId },
-      _count: true
+      _count: true,
     });
 
     return {
@@ -239,7 +233,7 @@ export class WordMemoryTracker {
       uniqueWords: uniqueWords.length,
       correctCount,
       incorrectCount: stats._count.id - correctCount,
-      averageResponseTime: stats._avg.responseTime ?? 0
+      averageResponseTime: stats._avg.responseTime ?? 0,
     };
   }
 
@@ -256,8 +250,8 @@ export class WordMemoryTracker {
     const result = await prisma.wordReviewTrace.deleteMany({
       where: {
         userId,
-        timestamp: { lt: cutoffDate }
-      }
+        timestamp: { lt: cutoffDate },
+      },
     });
 
     return result.count;
@@ -274,17 +268,17 @@ export class WordMemoryTracker {
   async trimWordRecords(
     userId: string,
     wordId: string,
-    maxRecords: number = MAX_TRACE_LIMIT
+    maxRecords: number = MAX_TRACE_LIMIT,
   ): Promise<number> {
     // 获取需要保留的记录ID
     const keepRecords = await prisma.wordReviewTrace.findMany({
       where: { userId, wordId },
       orderBy: { timestamp: 'desc' },
       take: maxRecords,
-      select: { id: true }
+      select: { id: true },
     });
 
-    const keepIds = keepRecords.map(r => r.id);
+    const keepIds = keepRecords.map((r) => r.id);
 
     if (keepIds.length === 0) {
       return 0;
@@ -295,8 +289,8 @@ export class WordMemoryTracker {
       where: {
         userId,
         wordId,
-        id: { notIn: keepIds }
-      }
+        id: { notIn: keepIds },
+      },
     });
 
     return result.count;

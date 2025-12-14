@@ -9,8 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ResilienceManager } from '../../../../src/amas/engine/engine-resilience';
-import { ProcessOptions, Logger } from '../../../../src/amas/engine/engine-types';
+import { ResilienceManager, ProcessOptions, Logger } from '../../../../src/amas/core/engine';
 import { UserState } from '../../../../src/amas/types';
 import { mockLogger, mockTelemetry, delay } from '../../../setup';
 
@@ -21,15 +20,15 @@ vi.mock('../../../../src/amas/common/circuit-breaker', () => ({
     recordSuccess: vi.fn(),
     recordFailure: vi.fn(),
     getState: vi.fn().mockReturnValue('CLOSED'),
-    reset: vi.fn()
+    reset: vi.fn(),
   })),
   createDefaultCircuitBreaker: vi.fn().mockImplementation(() => ({
     canExecute: vi.fn().mockReturnValue(true),
     recordSuccess: vi.fn(),
     recordFailure: vi.fn(),
     getState: vi.fn().mockReturnValue('CLOSED'),
-    reset: vi.fn()
-  }))
+    reset: vi.fn(),
+  })),
 }));
 
 vi.mock('../../../../src/amas/common/telemetry', () => ({
@@ -37,8 +36,8 @@ vi.mock('../../../../src/amas/common/telemetry', () => ({
     record: vi.fn(),
     increment: vi.fn(),
     histogram: vi.fn(),
-    gauge: vi.fn()
-  }
+    gauge: vi.fn(),
+  },
 }));
 
 vi.mock('../../../../src/amas/decision/fallback', () => ({
@@ -48,33 +47,37 @@ vi.mock('../../../../src/amas/decision/fallback', () => ({
       new_ratio: 0.2,
       difficulty: 'mid',
       batch_size: 8,
-      hint_level: 1
+      hint_level: 1,
     },
     action: {
       interval_scale: 1.0,
       new_ratio: 0.2,
       difficulty: 'mid',
       batch_size: 8,
-      hint_level: 1
+      hint_level: 1,
     },
     explanation: '系统使用安全默认策略,确保学习体验稳定。',
     degraded: true,
-    reason: 'circuit_open'
-  })
+    reason: 'circuit_open',
+  }),
 }));
 
-vi.mock('../../../../src/amas/config/action-space', () => ({
-  ACTION_SPACE: [
-    { interval_scale: 1.0, new_ratio: 0.2, difficulty: 'mid', batch_size: 8, hint_level: 1 }
-  ]
-}));
+vi.mock('../../../../src/amas/config/action-space', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    ACTION_SPACE: [
+      { interval_scale: 1.0, new_ratio: 0.2, difficulty: 'mid', batch_size: 8, hint_level: 1 },
+    ],
+  };
+});
 
 vi.mock('../../../../src/config/database', () => ({
   default: {
     user: {
-      findUnique: vi.fn().mockResolvedValue(null)
-    }
-  }
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+  },
 }));
 
 vi.mock('../../../../src/logger', () => ({
@@ -82,8 +85,8 @@ vi.mock('../../../../src/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 // Import mocked modules for assertions
@@ -135,7 +138,7 @@ describe('EngineResilience', () => {
         const mockCircuit = {
           canExecute: vi.fn().mockReturnValue(false),
           recordSuccess: vi.fn(),
-          recordFailure: vi.fn()
+          recordFailure: vi.fn(),
         };
 
         (createDefaultCircuitBreaker as any).mockReturnValueOnce(mockCircuit);
@@ -174,11 +177,7 @@ describe('EngineResilience', () => {
     it('should execute function successfully within timeout', async () => {
       const fn = vi.fn().mockResolvedValue('success');
 
-      const result = await resilience.executeWithTimeout(
-        fn,
-        1000,
-        'test-user'
-      );
+      const result = await resilience.executeWithTimeout(fn, 1000, 'test-user');
 
       expect(result).toBe('success');
       expect(fn).toHaveBeenCalled();
@@ -187,15 +186,11 @@ describe('EngineResilience', () => {
     it('should throw timeout error when function takes too long', async () => {
       vi.useFakeTimers();
 
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        100,
-        'test-user'
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 100, 'test-user');
 
       // Advance timers to trigger timeout
       vi.advanceTimersByTime(100);
@@ -208,18 +203,12 @@ describe('EngineResilience', () => {
     it('should call onTimeout callback when timeout occurs', async () => {
       vi.useFakeTimers();
 
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
       const onTimeout = vi.fn();
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        100,
-        'test-user',
-        undefined,
-        onTimeout
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 100, 'test-user', undefined, onTimeout);
 
       vi.advanceTimersByTime(100);
 
@@ -233,16 +222,11 @@ describe('EngineResilience', () => {
       vi.useFakeTimers();
 
       const abortController = new AbortController();
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        100,
-        'test-user',
-        abortController
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 100, 'test-user', abortController);
 
       vi.advanceTimersByTime(100);
 
@@ -255,15 +239,11 @@ describe('EngineResilience', () => {
     it('should record telemetry on timeout', async () => {
       vi.useFakeTimers();
 
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        100,
-        'test-user'
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 100, 'test-user');
 
       vi.advanceTimersByTime(100);
 
@@ -276,11 +256,7 @@ describe('EngineResilience', () => {
     it('should clear timeout on successful execution', async () => {
       const fn = vi.fn().mockResolvedValue('quick');
 
-      const result = await resilience.executeWithTimeout(
-        fn,
-        1000,
-        'test-user'
-      );
+      const result = await resilience.executeWithTimeout(fn, 1000, 'test-user');
 
       expect(result).toBe('quick');
       // No timeout error should be thrown
@@ -289,23 +265,19 @@ describe('EngineResilience', () => {
     it('should propagate non-timeout errors', async () => {
       const fn = vi.fn().mockRejectedValue(new Error('Function error'));
 
-      await expect(
-        resilience.executeWithTimeout(fn, 1000, 'test-user')
-      ).rejects.toThrow('Function error');
+      await expect(resilience.executeWithTimeout(fn, 1000, 'test-user')).rejects.toThrow(
+        'Function error',
+      );
     });
 
     it('should handle very short timeout', async () => {
       vi.useFakeTimers();
 
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        1,
-        'test-user'
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 1, 'test-user');
 
       vi.advanceTimersByTime(1);
 
@@ -318,23 +290,19 @@ describe('EngineResilience', () => {
     it('should log warning on timeout with logger', async () => {
       vi.useFakeTimers();
 
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
-      const promise = resilience.executeWithTimeout(
-        slowFn,
-        100,
-        'test-user'
-      );
+      const promise = resilience.executeWithTimeout(slowFn, 100, 'test-user');
 
       vi.advanceTimersByTime(100);
 
       await expect(promise).rejects.toThrow();
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Decision timeout',
-        { userId: 'test-user', timeoutMs: 100 }
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith('Decision timeout', {
+        userId: 'test-user',
+        timeoutMs: 100,
+      });
 
       vi.useRealTimers();
     });
@@ -349,7 +317,7 @@ describe('EngineResilience', () => {
       M: 0.6,
       C: { mem: 0.7, speed: 0.7, stability: 0.7 },
       conf: 0.8,
-      ts: Date.now()
+      ts: Date.now(),
     };
 
     it('should create fallback result with circuit_open reason', async () => {
@@ -361,7 +329,7 @@ describe('EngineResilience', () => {
         'circuit_open',
         {},
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(result).toBeDefined();
@@ -382,7 +350,7 @@ describe('EngineResilience', () => {
         'timeout',
         {},
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(result).toBeDefined();
@@ -398,7 +366,7 @@ describe('EngineResilience', () => {
         'exception',
         { interactionCount: 50 },
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(interactionCountGetter).toHaveBeenCalledWith('test-user', 50);
@@ -409,7 +377,7 @@ describe('EngineResilience', () => {
       const interactionCountGetter = vi.fn().mockReturnValue(40);
 
       const opts: ProcessOptions = {
-        recentAccuracy: 0.7
+        recentAccuracy: 0.7,
       };
 
       await resilience.createIntelligentFallbackResult(
@@ -417,7 +385,7 @@ describe('EngineResilience', () => {
         'degraded_state',
         opts,
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       // recentErrorRate should be 1 - 0.7 = 0.3 (accounting for floating point)
@@ -426,8 +394,8 @@ describe('EngineResilience', () => {
         'degraded_state',
         expect.objectContaining({
           interactionCount: 40,
-          hour: expect.any(Number)
-        })
+          hour: expect.any(Number),
+        }),
       );
 
       // Verify recentErrorRate is close to 0.3
@@ -448,15 +416,15 @@ describe('EngineResilience', () => {
         {},
         stateLoader,
         interactionCountGetter,
-        eventTimestamp
+        eventTimestamp,
       );
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'model_unavailable',
         expect.objectContaining({
-          hour: 14
-        })
+          hour: 14,
+        }),
       );
     });
 
@@ -469,15 +437,15 @@ describe('EngineResilience', () => {
         'missing_features',
         {},
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'missing_features',
         expect.objectContaining({
-          hour: expect.any(Number)
-        })
+          hour: expect.any(Number),
+        }),
       );
     });
 
@@ -490,15 +458,15 @@ describe('EngineResilience', () => {
         'exception',
         {}, // No recentAccuracy
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'exception',
         expect.objectContaining({
-          recentErrorRate: undefined
-        })
+          recentErrorRate: undefined,
+        }),
       );
     });
 
@@ -509,7 +477,7 @@ describe('EngineResilience', () => {
         'exception',
         'missing_features',
         'model_unavailable',
-        'degraded_state'
+        'degraded_state',
       ] as const;
 
       const stateLoader = vi.fn().mockResolvedValue(mockState);
@@ -521,7 +489,7 @@ describe('EngineResilience', () => {
           reason,
           {},
           stateLoader,
-          interactionCountGetter
+          interactionCountGetter,
         );
 
         expect(result).toBeDefined();
@@ -539,7 +507,7 @@ describe('EngineResilience', () => {
       M: 0.5,
       C: { mem: 0.6, speed: 0.6, stability: 0.6 },
       conf: 0.7,
-      ts: Date.now()
+      ts: Date.now(),
     };
 
     it('should create fallback result using degraded_state reason', async () => {
@@ -549,7 +517,7 @@ describe('EngineResilience', () => {
       const result = await resilience.createFallbackResult(
         'test-user',
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(result).toBeDefined();
@@ -562,16 +530,12 @@ describe('EngineResilience', () => {
       const stateLoader = vi.fn().mockResolvedValue(mockState);
       const interactionCountGetter = vi.fn().mockReturnValue(35);
 
-      await resilience.createFallbackResult(
-        'test-user',
-        stateLoader,
-        interactionCountGetter
-      );
+      await resilience.createFallbackResult('test-user', stateLoader, interactionCountGetter);
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'degraded_state',
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -582,50 +546,38 @@ describe('EngineResilience', () => {
     it('should record degradation metric with reason', () => {
       resilience.recordDegradation('circuit_open');
 
-      expect(telemetry.increment).toHaveBeenCalledWith(
-        'amas.degradation',
-        { reason: 'circuit_open' }
-      );
+      expect(telemetry.increment).toHaveBeenCalledWith('amas.degradation', {
+        reason: 'circuit_open',
+      });
     });
 
     it('should record degradation metric with additional meta', () => {
       resilience.recordDegradation('timeout', {
         userId: 'test-user',
-        latencyMs: 150
+        latencyMs: 150,
       });
 
-      expect(telemetry.increment).toHaveBeenCalledWith(
-        'amas.degradation',
-        {
-          reason: 'timeout',
-          userId: 'test-user',
-          latencyMs: 150
-        }
-      );
+      expect(telemetry.increment).toHaveBeenCalledWith('amas.degradation', {
+        reason: 'timeout',
+        userId: 'test-user',
+        latencyMs: 150,
+      });
     });
 
     it('should handle empty meta object', () => {
       resilience.recordDegradation('exception', {});
 
-      expect(telemetry.increment).toHaveBeenCalledWith(
-        'amas.degradation',
-        { reason: 'exception' }
-      );
+      expect(telemetry.increment).toHaveBeenCalledWith('amas.degradation', { reason: 'exception' });
     });
 
     it('should handle all degradation reasons', () => {
-      const reasons = [
-        'circuit_open',
-        'timeout',
-        'exception',
-        'model_unavailable'
-      ];
+      const reasons = ['circuit_open', 'timeout', 'exception', 'model_unavailable'];
 
       for (const reason of reasons) {
         resilience.recordDegradation(reason);
         expect(telemetry.increment).toHaveBeenCalledWith(
           'amas.degradation',
-          expect.objectContaining({ reason })
+          expect.objectContaining({ reason }),
         );
       }
     });
@@ -635,28 +587,19 @@ describe('EngineResilience', () => {
     it('should record latency histogram', () => {
       resilience.recordLatency(50);
 
-      expect(telemetry.histogram).toHaveBeenCalledWith(
-        'amas.decision.latency',
-        50
-      );
+      expect(telemetry.histogram).toHaveBeenCalledWith('amas.decision.latency', 50);
     });
 
     it('should handle zero latency', () => {
       resilience.recordLatency(0);
 
-      expect(telemetry.histogram).toHaveBeenCalledWith(
-        'amas.decision.latency',
-        0
-      );
+      expect(telemetry.histogram).toHaveBeenCalledWith('amas.decision.latency', 0);
     });
 
     it('should handle large latency values', () => {
       resilience.recordLatency(10000);
 
-      expect(telemetry.histogram).toHaveBeenCalledWith(
-        'amas.decision.latency',
-        10000
-      );
+      expect(telemetry.histogram).toHaveBeenCalledWith('amas.decision.latency', 10000);
     });
 
     it('should record multiple latency values', () => {
@@ -682,7 +625,7 @@ describe('EngineResilience', () => {
         'degraded_state',
         {},
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       // Should still return a valid result
@@ -697,7 +640,7 @@ describe('EngineResilience', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       const stateLoader = vi.fn().mockResolvedValue(mockState);
@@ -708,7 +651,7 @@ describe('EngineResilience', () => {
         'circuit_open',
         { interactionCount: 0 },
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(result).toBeDefined();
@@ -721,7 +664,7 @@ describe('EngineResilience', () => {
         M: 0.5,
         C: { mem: 0.5, speed: 0.5, stability: 0.5 },
         conf: 0.5,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       const stateLoader = vi.fn().mockResolvedValue(mockState);
@@ -733,15 +676,15 @@ describe('EngineResilience', () => {
         'exception',
         { recentAccuracy: 0 },
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'exception',
         expect.objectContaining({
-          recentErrorRate: 1
-        })
+          recentErrorRate: 1,
+        }),
       );
 
       // Test with accuracy = 1 (0% error rate)
@@ -750,15 +693,15 @@ describe('EngineResilience', () => {
         'exception',
         { recentAccuracy: 1 },
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(intelligentFallback).toHaveBeenCalledWith(
         mockState,
         'exception',
         expect.objectContaining({
-          recentErrorRate: 0
-        })
+          recentErrorRate: 0,
+        }),
       );
     });
 
@@ -772,20 +715,24 @@ describe('EngineResilience', () => {
           'exception',
           {},
           stateLoader,
-          interactionCountGetter
-        )
+          interactionCountGetter,
+        ),
       ).rejects.toThrow('State load error');
     });
 
     it('should handle concurrent timeout operations', async () => {
       vi.useFakeTimers();
 
-      const fn1 = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('result1'), 200))
-      );
-      const fn2 = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('result2'), 200))
-      );
+      const fn1 = vi
+        .fn()
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve('result1'), 200)),
+        );
+      const fn2 = vi
+        .fn()
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve('result2'), 200)),
+        );
 
       const promise1 = resilience.executeWithTimeout(fn1, 100, 'user1');
       const promise2 = resilience.executeWithTimeout(fn2, 100, 'user2');
@@ -809,7 +756,7 @@ describe('EngineResilience', () => {
         M: 0.6,
         C: { mem: 0.7, speed: 0.7, stability: 0.7 },
         conf: 0.8,
-        ts: Date.now()
+        ts: Date.now(),
       };
 
       // Simulate circuit breaker opening
@@ -829,7 +776,7 @@ describe('EngineResilience', () => {
         'circuit_open',
         { recentAccuracy: 0.6 },
         stateLoader,
-        interactionCountGetter
+        interactionCountGetter,
       );
 
       expect(result).toBeDefined();
@@ -845,9 +792,9 @@ describe('EngineResilience', () => {
       vi.useFakeTimers();
 
       // First call times out
-      const slowFn = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve('slow'), 200))
-      );
+      const slowFn = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('slow'), 200)));
 
       const promise1 = resilience.executeWithTimeout(slowFn, 100, 'user');
       vi.advanceTimersByTime(100);
@@ -872,7 +819,7 @@ describe('EngineResilience', () => {
           M: 0.8,
           C: { mem: 0.9, speed: 0.9, stability: 0.9 },
           conf: 0.9,
-          ts: Date.now()
+          ts: Date.now(),
         },
         'user-2': {
           A: 0.3,
@@ -880,8 +827,8 @@ describe('EngineResilience', () => {
           M: 0.2,
           C: { mem: 0.3, speed: 0.3, stability: 0.3 },
           conf: 0.3,
-          ts: Date.now()
-        }
+          ts: Date.now(),
+        },
       };
 
       for (const [userId, state] of Object.entries(states)) {
@@ -893,7 +840,7 @@ describe('EngineResilience', () => {
           'degraded_state',
           {},
           stateLoader,
-          interactionCountGetter
+          interactionCountGetter,
         );
 
         expect(result.state).toEqual(state);
@@ -909,7 +856,7 @@ describe('EngineResilience', () => {
       // were set up correctly by checking createDefaultCircuitBreaker was called
       expect(createDefaultCircuitBreaker).toHaveBeenCalledWith(
         expect.any(Function),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 

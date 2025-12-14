@@ -23,7 +23,8 @@ import {
   CausalInferenceNativeWrapper,
   createCausalInferenceNativeWrapper,
   createCausalInferenceNativeWrapperFallback,
-} from '../../src/amas/evaluation/causal-inference-native';
+  CausalObservation,
+} from '../../src/amas/rewards/evaluators';
 
 // Thompson Sampling Native Wrapper
 import {
@@ -34,7 +35,6 @@ import {
 
 // Types
 import { ReviewTrace } from '../../src/amas/modeling/actr-memory';
-import { CausalObservation } from '../../src/amas/evaluation/causal-inference';
 import { Action, UserState } from '../../src/amas/types';
 import { ThompsonContext } from '../../src/amas/learning/thompson-sampling';
 
@@ -57,9 +57,9 @@ describe('ACT-R Native Integration', () => {
   describe('activation computation', () => {
     it('should compute activation correctly', () => {
       const traces: ReviewTrace[] = [
-        { secondsAgo: 3600, isCorrect: true },      // 1 hour ago
-        { secondsAgo: 7200, isCorrect: true },      // 2 hours ago
-        { secondsAgo: 86400, isCorrect: false },    // 1 day ago
+        { secondsAgo: 3600, isCorrect: true }, // 1 hour ago
+        { secondsAgo: 7200, isCorrect: true }, // 2 hours ago
+        { secondsAgo: 86400, isCorrect: false }, // 1 day ago
       ];
 
       const activation = wrapper.computeActivation(traces);
@@ -71,9 +71,7 @@ describe('ACT-R Native Integration', () => {
     });
 
     it('should compute full activation with all fields', () => {
-      const traces: ReviewTrace[] = [
-        { secondsAgo: 3600, isCorrect: true },
-      ];
+      const traces: ReviewTrace[] = [{ secondsAgo: 3600, isCorrect: true }];
 
       const result = wrapper.computeFullActivation(traces);
 
@@ -106,7 +104,7 @@ describe('ACT-R Native Integration', () => {
     it('should compute optimal interval', () => {
       // Use a more recent trace to ensure recall probability is above target
       const traces: ReviewTrace[] = [
-        { secondsAgo: 60, isCorrect: true },   // 1 minute ago
+        { secondsAgo: 60, isCorrect: true }, // 1 minute ago
         { secondsAgo: 3600, isCorrect: true }, // 1 hour ago
       ];
 
@@ -137,9 +135,7 @@ describe('ACT-R Native Integration', () => {
         { secondsAgo: 259200, isCorrect: true },
       ];
 
-      const weakTrace: ReviewTrace[] = [
-        { secondsAgo: 259200, isCorrect: true },
-      ];
+      const weakTrace: ReviewTrace[] = [{ secondsAgo: 259200, isCorrect: true }];
 
       const strongInterval = wrapper.computeOptimalInterval(strongTrace, 0.9);
       const weakInterval = wrapper.computeOptimalInterval(weakTrace, 0.9);
@@ -150,9 +146,7 @@ describe('ACT-R Native Integration', () => {
 
   describe('recall probability', () => {
     it('should compute recall probability', () => {
-      const traces: ReviewTrace[] = [
-        { secondsAgo: 3600, isCorrect: true },
-      ];
+      const traces: ReviewTrace[] = [{ secondsAgo: 3600, isCorrect: true }];
 
       const prediction = wrapper.retrievalProbability(traces);
 
@@ -553,11 +547,7 @@ describe('Thompson Sampling Native Integration', () => {
 
   describe('action selection', () => {
     it('should select actions', () => {
-      const selection = wrapper.selectAction(
-        defaultUserState,
-        STANDARD_ACTIONS,
-        defaultContext
-      );
+      const selection = wrapper.selectAction(defaultUserState, STANDARD_ACTIONS, defaultContext);
 
       expect(selection).toHaveProperty('action');
       expect(selection).toHaveProperty('score');
@@ -577,11 +567,7 @@ describe('Thompson Sampling Native Integration', () => {
           timeBucket: ['morning', 'afternoon', 'evening'][i % 3] as ThompsonContext['timeBucket'],
         };
 
-        const selection = wrapper.selectAction(
-          defaultUserState,
-          STANDARD_ACTIONS,
-          context
-        );
+        const selection = wrapper.selectAction(defaultUserState, STANDARD_ACTIONS, context);
 
         selections.add(JSON.stringify(selection.action));
       }
@@ -677,7 +663,12 @@ describe('Thompson Sampling Native Integration', () => {
     it('should get and set state', () => {
       // Make some updates
       for (let i = 0; i < 10; i++) {
-        wrapper.update(defaultUserState, STANDARD_ACTIONS[i % 5], Math.random() > 0.5 ? 1 : 0, defaultContext);
+        wrapper.update(
+          defaultUserState,
+          STANDARD_ACTIONS[i % 5],
+          Math.random() > 0.5 ? 1 : 0,
+          defaultContext,
+        );
       }
 
       const state = wrapper.getState();
@@ -742,9 +733,7 @@ describe('Circuit Breaker Integration', () => {
 
       // Execute some operations
       for (let i = 0; i < 10; i++) {
-        wrapper.computeActivation(
-          [{ secondsAgo: 3600, isCorrect: true }]
-        );
+        wrapper.computeActivation([{ secondsAgo: 3600, isCorrect: true }]);
       }
 
       const stats = wrapper.getStats();

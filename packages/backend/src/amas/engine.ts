@@ -1,9 +1,9 @@
 /**
  * AMAS Engine - 兼容层
  *
- * 此文件保留为向后兼容，实际实现已拆分到 engine/ 目录
+ * 此文件保留为向后兼容，实际实现已合并到 core/engine.ts
  *
- * @deprecated 推荐直接从 './engine/index' 导入
+ * @deprecated 推荐直接从 './core/engine' 导入
  */
 
 // 重导出所有内容，保持向后兼容
@@ -27,7 +27,29 @@ export {
   LearningManager,
   DecisionContext,
   ActionSelection,
+  PersistenceManager,
+  DefaultPersistenceManager,
+  DecisionTracer,
+  DefaultDecisionTracer,
+  NoopDecisionTracer,
+  createDecisionTracer,
+  DecisionTraceParams,
+  StageTiming,
+  PipelineStage,
+  FeatureVectorBuilder,
+  DefaultFeatureVectorBuilder,
+  createFeatureVectorBuilder,
+  FeatureContext,
+  FeatureLabel,
+  FEATURE_LABELS,
+  RewardCacheManager,
+  DefaultRewardCacheManager,
+  NoopRewardCacheManager,
+  createRewardCacheManager,
+  RewardCacheConfig,
+  RewardCacheStats,
+  RewardProfileCacheItem,
   // Thompson 探索钩子
   ThompsonExploreHook,
-  ExploreContext
-} from './engine/index';
+  ExploreContext,
+} from './core/engine';

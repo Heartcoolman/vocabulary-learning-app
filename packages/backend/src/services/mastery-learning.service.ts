@@ -5,7 +5,7 @@
 
 import prisma from '../config/database';
 import studyConfigService from './study-config.service';
-import { calculateForgettingFactor } from '../amas/modeling/forgetting-curve';
+import { calculateForgettingFactor } from '../amas/models/forgetting-curve';
 import difficultyCacheService from './difficulty-cache.service';
 import { recordDifficultyComputationTime, recordQueueAdjustmentDuration } from './metrics.service';
 import { amasService } from './amas.service';

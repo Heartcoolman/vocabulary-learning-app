@@ -9,8 +9,8 @@ import {
   CausalInference,
   CausalObservation,
   createCausalInference,
-  computeIPWWeight
-} from '../../../../src/amas/evaluation/causal-inference';
+  computeIPWWeight,
+} from '../../../../src/amas/rewards/evaluators';
 
 describe('CausalInference', () => {
   let causal: CausalInference;
@@ -30,7 +30,7 @@ describe('CausalInference', () => {
       const customCausal = new CausalInference({
         propensityMin: 0.1,
         propensityMax: 0.9,
-        learningRate: 0.05
+        learningRate: 0.05,
       });
 
       expect(customCausal.getObservationCount()).toBe(0);
@@ -45,7 +45,7 @@ describe('CausalInference', () => {
         features: [0.5, 0.3, 0.8],
         treatment: 1,
         outcome: 0.6,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       causal.addObservation(obs);
@@ -59,7 +59,7 @@ describe('CausalInference', () => {
           features: [],
           treatment: 1,
           outcome: 0.5,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }).toThrow('特征向量不能为空');
     });
@@ -70,7 +70,7 @@ describe('CausalInference', () => {
           features: [0.5],
           treatment: 2, // Invalid: must be 0 or 1
           outcome: 0.5,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }).toThrow('treatment必须是0或1');
     });
@@ -80,7 +80,7 @@ describe('CausalInference', () => {
         features: [0.5, 0.3],
         treatment: 1,
         outcome: 0.5,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       expect(() => {
@@ -88,7 +88,7 @@ describe('CausalInference', () => {
           features: [0.5, 0.3, 0.8], // Different dimension
           treatment: 0,
           outcome: 0.4,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }).toThrow('特征维度不匹配');
     });
@@ -98,7 +98,7 @@ describe('CausalInference', () => {
         features: [0.5],
         treatment: 1,
         outcome: 2.0, // Should be clamped to 1
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // No error should be thrown
@@ -113,7 +113,7 @@ describe('CausalInference', () => {
       const observations: CausalObservation[] = [
         { features: [0.5], treatment: 1, outcome: 0.6, timestamp: Date.now() },
         { features: [0.3], treatment: 0, outcome: 0.4, timestamp: Date.now() },
-        { features: [0.8], treatment: 1, outcome: 0.7, timestamp: Date.now() }
+        { features: [0.8], treatment: 1, outcome: 0.7, timestamp: Date.now() },
       ];
 
       causal.addObservations(observations);
@@ -130,7 +130,7 @@ describe('CausalInference', () => {
         features: [0.5],
         treatment: 1,
         outcome: 0.6,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       expect(() => {
@@ -145,7 +145,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: 1,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
@@ -161,7 +161,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
@@ -181,7 +181,7 @@ describe('CausalInference', () => {
           features: [Math.random(), Math.random()],
           treatment,
           outcome: treatment === 1 ? 0.7 : 0.3, // Clear effect
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
     });
@@ -223,7 +223,7 @@ describe('CausalInference', () => {
           features: [Math.random(), Math.random()],
           treatment,
           outcome: treatment === 1 ? 0.7 : 0.3,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
     });
@@ -246,7 +246,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
       causal.fit();
@@ -276,7 +276,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
     });
@@ -310,7 +310,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: i % 2 === 1 ? 0.8 : 0.4,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
     });
@@ -335,7 +335,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
@@ -364,7 +364,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
@@ -379,7 +379,7 @@ describe('CausalInference', () => {
           features: [Math.random()],
           treatment: i % 2,
           outcome: Math.random(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
@@ -396,13 +396,13 @@ describe('CausalInference', () => {
       causal.recordObservation({
         treatment: 'strategyA',
         outcome: 0.8,
-        covariates: { accuracy: 0.7, fatigue: 0.3 }
+        covariates: { accuracy: 0.7, fatigue: 0.3 },
       });
 
       causal.recordObservation({
         treatment: 'strategyB',
         outcome: 0.5,
-        covariates: { accuracy: 0.5, fatigue: 0.5 }
+        covariates: { accuracy: 0.5, fatigue: 0.5 },
       });
 
       expect(causal.getObservationCount()).toBe(2);
@@ -413,7 +413,7 @@ describe('CausalInference', () => {
         causal.recordObservation({
           treatment: i % 2 === 0 ? 'strategyA' : 'strategyB',
           outcome: i % 2 === 0 ? 0.8 : 0.4,
-          covariates: { value: Math.random() }
+          covariates: { value: Math.random() },
         });
       }
 
@@ -430,7 +430,7 @@ describe('CausalInference', () => {
         causal.recordObservation({
           treatment: i % 2 === 0 ? 'strategyA' : 'strategyB',
           outcome: Math.random(),
-          covariates: { value: Math.random() }
+          covariates: { value: Math.random() },
         });
       }
 

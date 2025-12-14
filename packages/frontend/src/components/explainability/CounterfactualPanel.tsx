@@ -8,7 +8,7 @@ interface CounterfactualPanelProps {
   decisionId?: string;
 }
 
-const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId }) => {
+const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ decisionId }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CounterfactualResult | null>(null);
@@ -188,6 +188,8 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = ({ decisionId })
       )}
     </div>
   );
-};
+});
+
+CounterfactualPanel.displayName = 'CounterfactualPanel';
 
 export default CounterfactualPanel;

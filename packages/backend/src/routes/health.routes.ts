@@ -168,6 +168,43 @@ function formatBytes(bytes: number): string {
 // ============================================
 
 /**
+ * GET /health
+ *
+ * 兼容性健康检查端点（向后兼容旧实现）
+ *
+ * 返回：
+ * {
+ *   database: 'connected' | 'disconnected';
+ *   timestamp: string;
+ *   status: 'ok' | 'degraded';
+ * }
+ */
+router.get('/', async (req: Request, res: Response) => {
+  const checks: { database: string; timestamp: string; status: string } = {
+    database: 'unknown',
+    timestamp: new Date().toISOString(),
+    status: 'ok',
+  };
+
+  try {
+    const dbCheck = await checkDatabaseConnection(3000);
+    if (dbCheck.status === 'connected') {
+      checks.database = 'connected';
+    } else {
+      checks.database = 'disconnected';
+      checks.status = 'degraded';
+    }
+  } catch (error) {
+    checks.database = 'disconnected';
+    checks.status = 'degraded';
+    routeLogger.error({ err: error }, '健康检查：数据库连接失败');
+  }
+
+  const statusCode = checks.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(checks);
+});
+
+/**
  * GET /health/live
  *
  * 存活检查 (Liveness Probe)

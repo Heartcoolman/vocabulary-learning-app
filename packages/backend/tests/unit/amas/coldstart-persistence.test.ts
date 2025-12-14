@@ -7,8 +7,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ColdStartManager, ColdStartState } from '../../../src/amas/learning/coldstart';
-import { IsolationManager } from '../../../src/amas/engine/engine-isolation';
-import { ColdStartStateData } from '../../../src/amas/engine/engine-types';
+import { IsolationManager, ColdStartStateData } from '../../../src/amas/core/engine';
 import { Action, UserState } from '../../../src/amas/types';
 import { STANDARD_ACTIONS, DEFAULT_USER_STATE } from '../../fixtures/amas-fixtures';
 
@@ -21,9 +20,9 @@ vi.mock('../../../src/amas/config/feature-flags', () => ({
     enableHeuristicBaseline: false,
     enableACTRMemory: false,
     enableUserParamsManager: false,
-    enableTrendAnalyzer: false
+    enableTrendAnalyzer: false,
   }),
-  isColdStartEnabled: () => true
+  isColdStartEnabled: () => true,
 }));
 
 describe('ColdStart State Persistence', () => {
@@ -34,7 +33,7 @@ describe('ColdStart State Persistence', () => {
     M: 0.5,
     C: { mem: 0.7, speed: 0.6, stability: 0.5 },
     conf: 0.5,
-    ts: Date.now()
+    ts: Date.now(),
   };
 
   // ==================== ColdStartManager setState/getState Tests ====================
@@ -52,7 +51,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1500,
-          recentErrorRate: 0.1
+          recentErrorRate: 0.1,
         });
       }
 
@@ -74,7 +73,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1200,
-          recentErrorRate: 0.05
+          recentErrorRate: 0.05,
         });
       }
 
@@ -100,7 +99,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1500,
-          recentErrorRate: 0.1
+          recentErrorRate: 0.1,
         });
       }
 
@@ -134,7 +133,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1000,
-          recentErrorRate: 0.0
+          recentErrorRate: 0.0,
         });
       }
 
@@ -144,7 +143,7 @@ describe('ColdStart State Persistence', () => {
         userType: coldStart.getUserType(),
         probeIndex: coldStart.getState().probeIndex,
         updateCount: coldStart.getUpdateCount(),
-        settledStrategy: coldStart.getSettledStrategy()
+        settledStrategy: coldStart.getSettledStrategy(),
       };
 
       // 验证格式正确
@@ -167,8 +166,8 @@ describe('ColdStart State Persistence', () => {
           new_ratio: 0.35,
           difficulty: 'hard',
           batch_size: 12,
-          hint_level: 0
-        }
+          hint_level: 0,
+        },
       };
 
       // 恢复状态
@@ -179,7 +178,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: savedData.probeIndex,
         results: [], // 结果不持久化
         settledStrategy: savedData.settledStrategy,
-        updateCount: savedData.updateCount
+        updateCount: savedData.updateCount,
       });
 
       // 验证恢复正确
@@ -205,8 +204,8 @@ describe('ColdStart State Persistence', () => {
           new_ratio: 0.25,
           difficulty: 'mid',
           batch_size: 8,
-          hint_level: 1
-        }
+          hint_level: 1,
+        },
       };
 
       // 创建新的ColdStartManager并恢复状态
@@ -217,7 +216,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: savedColdStartState.probeIndex,
         results: [],
         settledStrategy: savedColdStartState.settledStrategy,
-        updateCount: savedColdStartState.updateCount
+        updateCount: savedColdStartState.updateCount,
       });
 
       // 验证冷启动状态被正确恢复
@@ -245,7 +244,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: 3,
         results: [],
         settledStrategy: null,
-        updateCount: 15
+        updateCount: 15,
       });
 
       // 用户B的ColdStartManager（新实例）
@@ -272,7 +271,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: 0,
         results: [],
         settledStrategy: null,
-        updateCount: 0
+        updateCount: 0,
       });
 
       // 应该回退到classify
@@ -288,7 +287,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: 3,
         results: [],
         settledStrategy: null,
-        updateCount: 5
+        updateCount: 5,
       });
 
       // 应该设为null
@@ -304,7 +303,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: 3,
         results: [],
         settledStrategy: null,
-        updateCount: -5
+        updateCount: -5,
       });
 
       // 应该修正为0
@@ -320,7 +319,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: 3,
         results: [],
         settledStrategy: { invalid: 'data' } as any,
-        updateCount: 5
+        updateCount: 5,
       });
 
       // 应该设为null或被验证修复
@@ -342,7 +341,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart1.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart1.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1500,
-          recentErrorRate: 0.1
+          recentErrorRate: 0.1,
         });
       }
 
@@ -352,7 +351,7 @@ describe('ColdStart State Persistence', () => {
         userType: coldStart1.getUserType(),
         probeIndex: coldStart1.getState().probeIndex,
         updateCount: coldStart1.getUpdateCount(),
-        settledStrategy: coldStart1.getSettledStrategy()
+        settledStrategy: coldStart1.getSettledStrategy(),
       };
 
       // 模拟服务重启 - 创建新的ColdStartManager实例
@@ -365,7 +364,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: persistedData.probeIndex,
         results: [],
         settledStrategy: persistedData.settledStrategy,
-        updateCount: persistedData.updateCount
+        updateCount: persistedData.updateCount,
       });
 
       // 验证状态正确恢复
@@ -391,7 +390,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1500,
-          recentErrorRate: 0.1
+          recentErrorRate: 0.1,
         });
       }
 
@@ -412,7 +411,7 @@ describe('ColdStart State Persistence', () => {
         const result = coldStart.selectAction(defaultState, STANDARD_ACTIONS, defaultContext);
         coldStart.update(defaultState, result.action, 1.0, {
           recentResponseTime: 1500,
-          recentErrorRate: 0.1
+          recentErrorRate: 0.1,
         });
       }
 
@@ -425,7 +424,7 @@ describe('ColdStart State Persistence', () => {
         userType: coldStart.getUserType(),
         probeIndex: stateAfter8.probeIndex,
         updateCount: coldStart.getUpdateCount(),
-        settledStrategy: coldStart.getSettledStrategy()
+        settledStrategy: coldStart.getSettledStrategy(),
       };
 
       // 创建新实例并恢复
@@ -436,7 +435,7 @@ describe('ColdStart State Persistence', () => {
         probeIndex: persistedData.probeIndex,
         results: [],
         settledStrategy: persistedData.settledStrategy,
-        updateCount: persistedData.updateCount
+        updateCount: persistedData.updateCount,
       });
 
       // 验证状态被正确恢复，没有重置

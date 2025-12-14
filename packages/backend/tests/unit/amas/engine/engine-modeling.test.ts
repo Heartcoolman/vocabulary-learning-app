@@ -9,9 +9,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ModelingManager } from '../../../../src/amas/engine/engine-modeling';
-import { UserModels } from '../../../../src/amas/engine/engine-types';
-import { AttentionMonitor, AttentionFeatures } from '../../../../src/amas/modeling/attention-monitor';
+import { ModelingManager, UserModels } from '../../../../src/amas/core/engine';
+import {
+  AttentionMonitor,
+  AttentionFeatures,
+} from '../../../../src/amas/modeling/attention-monitor';
 import { FatigueEstimator } from '../../../../src/amas/modeling/fatigue-estimator';
 import { CognitiveProfiler } from '../../../../src/amas/modeling/cognitive-profiler';
 import { MotivationTracker } from '../../../../src/amas/modeling/motivation-tracker';
@@ -22,7 +24,7 @@ import { mockLogger } from '../../../setup';
 
 // Mock dependencies
 vi.mock('../../../../src/amas/config/feature-flags', () => ({
-  isTrendAnalyzerEnabled: vi.fn().mockReturnValue(false)
+  isTrendAnalyzerEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // ==================== Test Helpers ====================
@@ -35,20 +37,20 @@ function createDefaultUserState(): UserState {
     C: { mem: 0.7, speed: 0.6, stability: 0.7 },
     T: 'flat',
     conf: 0.5,
-    ts: Date.now()
+    ts: Date.now(),
   };
 }
 
 function createFeatureVector(values: number[] = []): FeatureVector {
   const defaultValues = [
-    0.5,   // z_rt_mean
-    0.3,   // z_rt_cv
-    0.2,   // z_pace_cv
-    0.1,   // z_pause
-    0.1,   // z_switch
-    0.0,   // z_drift
-    0.5,   // interaction_density
-    0.2    // focus_loss_duration
+    0.5, // z_rt_mean
+    0.3, // z_rt_cv
+    0.2, // z_pace_cv
+    0.1, // z_pause
+    0.1, // z_switch
+    0.0, // z_drift
+    0.5, // interaction_density
+    0.2, // focus_loss_duration
   ];
 
   const finalValues = values.length > 0 ? values : defaultValues;
@@ -57,9 +59,15 @@ function createFeatureVector(values: number[] = []): FeatureVector {
     values: new Float32Array(finalValues),
     ts: Date.now(),
     labels: [
-      'z_rt_mean', 'z_rt_cv', 'z_pace_cv', 'z_pause',
-      'z_switch', 'z_drift', 'interaction_density', 'focus_loss_duration'
-    ]
+      'z_rt_mean',
+      'z_rt_cv',
+      'z_pace_cv',
+      'z_pause',
+      'z_switch',
+      'z_drift',
+      'interaction_density',
+      'focus_loss_duration',
+    ],
   };
 }
 
@@ -75,7 +83,7 @@ function createRawEvent(overrides: Partial<RawEvent> = {}): RawEvent {
     retryCount: 0,
     focusLossDuration: 0,
     interactionDensity: 0.5,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -91,7 +99,7 @@ function createUserModels(): UserModels {
     thompson: null,
     heuristic: null,
     actrMemory: null,
-    userParams: null
+    userParams: null,
   };
 }
 
@@ -121,7 +129,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(newState).toBeDefined();
@@ -142,7 +150,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(newState.A).toBeGreaterThanOrEqual(0);
@@ -155,7 +163,7 @@ describe('ModelingManager', () => {
       const event = createRawEvent({
         isCorrect: false,
         responseTime: 8000,
-        retryCount: 2
+        retryCount: 2,
       });
       const recentErrorRate = 0.5;
 
@@ -164,7 +172,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       // Fatigue should be affected by error and slow response
@@ -183,7 +191,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(newState.C).toBeDefined();
@@ -207,7 +215,7 @@ describe('ModelingManager', () => {
         featureVec,
         successEvent,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       // Failure case
@@ -217,7 +225,7 @@ describe('ModelingManager', () => {
         featureVec,
         failureEvent,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(successState.M).toBeDefined();
@@ -236,7 +244,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       // With trend analyzer disabled, T should preserve prevState.T value
@@ -255,7 +263,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(newState.ts).toBe(eventTimestamp);
@@ -273,7 +281,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       // Confidence should increase by 0.01 per update
@@ -292,7 +300,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       expect(newState.conf).toBe(1);
@@ -302,7 +310,7 @@ describe('ModelingManager', () => {
       const prevState = createDefaultUserState();
       const featureVec = createFeatureVector();
       const event = createRawEvent({
-        pausedTimeMs: 300000  // 5 minutes break
+        pausedTimeMs: 300000, // 5 minutes break
       });
       const recentErrorRate = 0.2;
 
@@ -311,7 +319,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        userModels
+        userModels,
       );
 
       // State should be updated without error
@@ -332,7 +340,7 @@ describe('ModelingManager', () => {
           featureVec,
           event,
           errorRate,
-          userModels
+          userModels,
         );
 
         // All states should be valid
@@ -345,7 +353,7 @@ describe('ModelingManager', () => {
       // Create models with trend analyzer
       const modelsWithTrend: UserModels = {
         ...userModels,
-        trendAnalyzer: new TrendAnalyzer()
+        trendAnalyzer: new TrendAnalyzer(),
       };
 
       // Re-mock to enable trend analyzer
@@ -362,7 +370,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         recentErrorRate,
-        modelsWithTrend
+        modelsWithTrend,
       );
 
       expect(newState.T).toBeDefined();
@@ -377,9 +385,7 @@ describe('ModelingManager', () => {
 
   describe('extractAttentionFeatures', () => {
     it('should extract all attention features from feature vector', () => {
-      const featureVec = createFeatureVector([
-        0.5, 0.3, 0.2, 0.1, 0.1, 0.0, 0.5, 0.2
-      ]);
+      const featureVec = createFeatureVector([0.5, 0.3, 0.2, 0.1, 0.1, 0.0, 0.5, 0.2]);
 
       const features = modelingManager.extractAttentionFeatures(featureVec);
 
@@ -398,7 +404,7 @@ describe('ModelingManager', () => {
       const shortFeatureVec: FeatureVector = {
         values: new Float32Array([0.5, 0.3]),
         ts: Date.now(),
-        labels: ['z_rt_mean', 'z_rt_cv']
+        labels: ['z_rt_mean', 'z_rt_cv'],
       };
 
       const features = modelingManager.extractAttentionFeatures(shortFeatureVec);
@@ -419,7 +425,7 @@ describe('ModelingManager', () => {
       const emptyFeatureVec: FeatureVector = {
         values: new Float32Array([]),
         ts: Date.now(),
-        labels: []
+        labels: [],
       };
 
       const features = modelingManager.extractAttentionFeatures(emptyFeatureVec);
@@ -439,7 +445,7 @@ describe('ModelingManager', () => {
       const nanFeatureVec: FeatureVector = {
         values: new Float32Array([NaN, 0.3, NaN, 0.1, NaN, 0.0, NaN, 0.2]),
         ts: Date.now(),
-        labels: []
+        labels: [],
       };
 
       const features = modelingManager.extractAttentionFeatures(nanFeatureVec);
@@ -455,7 +461,7 @@ describe('ModelingManager', () => {
       const infFeatureVec: FeatureVector = {
         values: new Float32Array([Infinity, 0.3, -Infinity, 0.1]),
         ts: Date.now(),
-        labels: []
+        labels: [],
       };
 
       const features = modelingManager.extractAttentionFeatures(infFeatureVec);
@@ -651,12 +657,12 @@ describe('ModelingManager', () => {
           Math.random(),
           Math.random(),
           Math.random(),
-          Math.random()
+          Math.random(),
         ]);
         const event = createRawEvent({
           isCorrect: Math.random() > 0.3,
           responseTime: 1000 + Math.random() * 5000,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
         const recentErrorRate = Math.random() * 0.5;
 
@@ -665,7 +671,7 @@ describe('ModelingManager', () => {
           featureVec,
           event,
           recentErrorRate,
-          userModels
+          userModels,
         );
 
         // All state values should remain valid
@@ -689,15 +695,15 @@ describe('ModelingManager', () => {
         const event = createRawEvent({
           isCorrect: true,
           responseTime: 1500,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
 
         state = modelingManager.updateUserState(
           state,
           featureVec,
           event,
-          0.0,  // No errors
-          userModels
+          0.0, // No errors
+          userModels,
         );
       }
 
@@ -715,15 +721,15 @@ describe('ModelingManager', () => {
           isCorrect: false,
           responseTime: 8000,
           retryCount: 2,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
 
         state = modelingManager.updateUserState(
           state,
           featureVec,
           event,
-          1.0,  // 100% error rate
-          userModels
+          1.0, // 100% error rate
+          userModels,
         );
       }
 
@@ -744,20 +750,20 @@ describe('ModelingManager', () => {
           0.1,
           0.0,
           0.5,
-          0.2
+          0.2,
         ]);
         const event = createRawEvent({
           isCorrect,
           responseTime: isCorrect ? 1500 : 5000,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
 
         state = modelingManager.updateUserState(
           state,
           featureVec,
           event,
-          0.5,  // 50% error rate
-          userModels
+          0.5, // 50% error rate
+          userModels,
         );
 
         // All values should remain valid
@@ -775,7 +781,7 @@ describe('ModelingManager', () => {
       const extremeFeatureVec: FeatureVector = {
         values: new Float32Array([10, 10, 10, 10, 10, 10, 10, 10]),
         ts: Date.now(),
-        labels: []
+        labels: [],
       };
       const event = createRawEvent();
 
@@ -784,7 +790,7 @@ describe('ModelingManager', () => {
         extremeFeatureVec,
         event,
         0.5,
-        userModels
+        userModels,
       );
 
       // State should still be valid
@@ -802,7 +808,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.2,
-        userModels
+        userModels,
       );
 
       expect(newState).toBeDefined();
@@ -812,14 +818,14 @@ describe('ModelingManager', () => {
     it('should handle very long response time', () => {
       const prevState = createDefaultState();
       const featureVec = createFeatureVector();
-      const event = createRawEvent({ responseTime: 300000 });  // 5 minutes
+      const event = createRawEvent({ responseTime: 300000 }); // 5 minutes
 
       const newState = modelingManager.updateUserState(
         prevState,
         featureVec,
         event,
         0.5,
-        userModels
+        userModels,
       );
 
       expect(newState).toBeDefined();
@@ -829,7 +835,7 @@ describe('ModelingManager', () => {
       const prevState = createDefaultState();
       const featureVec = createFeatureVector();
       const event = createRawEvent({
-        timestamp: Date.now() - 86400000  // 1 day ago
+        timestamp: Date.now() - 86400000, // 1 day ago
       });
 
       const newState = modelingManager.updateUserState(
@@ -837,7 +843,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.2,
-        userModels
+        userModels,
       );
 
       expect(newState.ts).toBe(event.timestamp);
@@ -847,7 +853,7 @@ describe('ModelingManager', () => {
       const prevState = createDefaultState();
       const featureVec = createFeatureVector();
       const event = createRawEvent({
-        timestamp: Date.now() + 86400000  // 1 day in future
+        timestamp: Date.now() + 86400000, // 1 day in future
       });
 
       const newState = modelingManager.updateUserState(
@@ -855,7 +861,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.2,
-        userModels
+        userModels,
       );
 
       expect(newState.ts).toBe(event.timestamp);
@@ -866,7 +872,7 @@ describe('ModelingManager', () => {
       const featureVec = createFeatureVector();
       const event = createRawEvent({
         isCorrect: true,
-        retryCount: 100
+        retryCount: 100,
       });
 
       const newState = modelingManager.updateUserState(
@@ -874,7 +880,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.8,
-        userModels
+        userModels,
       );
 
       expect(newState.F).toBeDefined();
@@ -884,7 +890,7 @@ describe('ModelingManager', () => {
       const prevState = createDefaultState();
       const featureVec = createFeatureVector();
       const event = createRawEvent({
-        pausedTimeMs: 3600000  // 1 hour
+        pausedTimeMs: 3600000, // 1 hour
       });
 
       const newState = modelingManager.updateUserState(
@@ -892,7 +898,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.2,
-        userModels
+        userModels,
       );
 
       expect(newState).toBeDefined();
@@ -903,13 +909,7 @@ describe('ModelingManager', () => {
       const featureVec = createFeatureVector();
       const event = createRawEvent({ isCorrect: true });
 
-      const newState = modelingManager.updateUserState(
-        prevState,
-        featureVec,
-        event,
-        0,
-        userModels
-      );
+      const newState = modelingManager.updateUserState(prevState, featureVec, event, 0, userModels);
 
       // Error variance should be 0 when error rate is 0
       expect(newState.C.stability).toBeDefined();
@@ -920,13 +920,7 @@ describe('ModelingManager', () => {
       const featureVec = createFeatureVector();
       const event = createRawEvent({ isCorrect: false });
 
-      const newState = modelingManager.updateUserState(
-        prevState,
-        featureVec,
-        event,
-        1,
-        userModels
-      );
+      const newState = modelingManager.updateUserState(prevState, featureVec, event, 1, userModels);
 
       // Error variance should be 0 when error rate is 1
       expect(newState.C.stability).toBeDefined();
@@ -937,7 +931,7 @@ describe('ModelingManager', () => {
       const negativeFeatureVec: FeatureVector = {
         values: new Float32Array([-1, -0.5, -0.3, -0.1, -0.2, -0.5, -0.8, -0.9]),
         ts: Date.now(),
-        labels: []
+        labels: [],
       };
       const event = createRawEvent();
 
@@ -946,7 +940,7 @@ describe('ModelingManager', () => {
         negativeFeatureVec,
         event,
         0.3,
-        userModels
+        userModels,
       );
 
       expect(newState.A).toBeGreaterThanOrEqual(0);
@@ -962,13 +956,7 @@ describe('ModelingManager', () => {
       const featureVec = createFeatureVector();
       const event = createRawEvent();
 
-      const newState = modelingManager.updateUserState(
-        state,
-        featureVec,
-        event,
-        0.2,
-        userModels
-      );
+      const newState = modelingManager.updateUserState(state, featureVec, event, 0.2, userModels);
 
       // All required fields should exist
       expect(newState).toHaveProperty('A');
@@ -992,15 +980,15 @@ describe('ModelingManager', () => {
           timePref: new Array(24).fill(1 / 24),
           rhythmPref: {
             sessionMedianMinutes: 15,
-            batchMedian: 10
+            batchMedian: 10,
           },
           preferredTimeSlots: [9, 14, 20],
           samples: {
             timeEvents: 100,
             sessions: 20,
-            batches: 50
-          }
-        }
+            batches: 50,
+          },
+        },
       };
       const featureVec = createFeatureVector();
       const event = createRawEvent();
@@ -1010,7 +998,7 @@ describe('ModelingManager', () => {
         featureVec,
         event,
         0.2,
-        userModels
+        userModels,
       );
 
       // H field should be preserved (spread from prevState)
@@ -1028,6 +1016,6 @@ function createDefaultState(): UserState {
     C: { mem: 0.5, speed: 0.5, stability: 0.5 },
     T: 'flat',
     conf: 0.5,
-    ts: Date.now()
+    ts: Date.now(),
   };
 }

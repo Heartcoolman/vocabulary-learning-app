@@ -11,8 +11,8 @@
  */
 
 import { Action, UserState } from '../types';
-import { ThompsonSampling } from './thompson-sampling';
-import { ThompsonExploreHook, ExploreContext } from '../engine/engine-types';
+import { ThompsonSampling } from '../algorithms/learners';
+import { ThompsonExploreHook, ExploreContext } from '../core/engine';
 
 /**
  * 探索概率配置
@@ -32,7 +32,7 @@ const DEFAULT_CONFIG: ExploreConfig = {
   baseExploreRate: 0.3,
   decayFactor: 0.02,
   minExploreRate: 0.05,
-  fatiguePenalty: 0.1
+  fatiguePenalty: 0.1,
 };
 
 /**
@@ -71,11 +71,7 @@ export class ThompsonExploreHookImpl implements ThompsonExploreHook {
    *
    * 使用 Thompson Sampling 的 Beta 采样策略
    */
-  selectExploreAction(
-    state: UserState,
-    actions: Action[],
-    context: ExploreContext
-  ): Action {
+  selectExploreAction(state: UserState, actions: Action[], context: ExploreContext): Action {
     if (actions.length === 0) {
       throw new Error('Action list cannot be empty');
     }
@@ -88,7 +84,7 @@ export class ThompsonExploreHookImpl implements ThompsonExploreHook {
     const selection = this.thompson.selectAction(state, actions, {
       recentErrorRate: context.recentErrorRate,
       recentResponseTime: context.recentResponseTime,
-      timeBucket: context.timeBucket
+      timeBucket: context.timeBucket,
     });
 
     return selection.action;
@@ -97,16 +93,11 @@ export class ThompsonExploreHookImpl implements ThompsonExploreHook {
   /**
    * 更新探索模型
    */
-  updateExplore(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: ExploreContext
-  ): void {
+  updateExplore(state: UserState, action: Action, reward: number, context: ExploreContext): void {
     this.thompson.update(state, action, reward, {
       recentErrorRate: context.recentErrorRate,
       recentResponseTime: context.recentResponseTime,
-      timeBucket: context.timeBucket
+      timeBucket: context.timeBucket,
     });
   }
 
@@ -128,8 +119,6 @@ export class ThompsonExploreHookImpl implements ThompsonExploreHook {
 /**
  * 创建默认的 Thompson 探索钩子
  */
-export function createThompsonExploreHook(
-  config?: Partial<ExploreConfig>
-): ThompsonExploreHook {
+export function createThompsonExploreHook(config?: Partial<ExploreConfig>): ThompsonExploreHook {
   return new ThompsonExploreHookImpl(config);
 }

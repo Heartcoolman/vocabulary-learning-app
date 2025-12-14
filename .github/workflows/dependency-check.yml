@@ -1,0 +1,240 @@
+name: Dependency Version Check
+
+on:
+  pull_request:
+    paths:
+      - '**/package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/dependency-check.yml'
+  push:
+    branches:
+      - main
+      - feat/**
+    paths:
+      - '**/package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  check-versions:
+    name: Check Dependency Versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Zod version consistency
+        id: check-zod
+        run: |
+          echo "::group::Zod Version Check"
+
+          # 获取所有 Zod 版本
+          ZOD_VERSIONS=$(pnpm list zod --depth=0 -r --json | \
+            node -e "
+              const readline = require('readline');
+              const rl = readline.createInterface({ input: process.stdin });
+              let data = '';
+              rl.on('line', (line) => { data += line; });
+              rl.on('close', () => {
+                const packages = JSON.parse(data);
+                const versions = new Set();
+                packages.forEach(pkg => {
+                  if (pkg.dependencies?.zod) {
+                    versions.add(pkg.dependencies.zod.version);
+                  }
+                });
+                console.log([...versions].join(','));
+              });
+            "
+          )
+
+          UNIQUE_COUNT=$(echo "$ZOD_VERSIONS" | tr ',' '\n' | sort -u | wc -l)
+
+          if [ "$UNIQUE_COUNT" -eq 1 ] && echo "$ZOD_VERSIONS" | grep -q "3.25.76"; then
+            echo "✅ Zod versions consistent: 3.25.76"
+            echo "::set-output name=status::success"
+          else
+            echo "❌ Zod version mismatch detected!"
+            echo "Found versions: $ZOD_VERSIONS"
+            pnpm list zod -r
+            echo "::set-output name=status::failure"
+            exit 1
+          fi
+
+          echo "::endgroup::"
+
+      - name: Check TypeScript version consistency
+        id: check-typescript
+        run: |
+          echo "::group::TypeScript Version Check"
+
+          TS_VERSIONS=$(pnpm list typescript --depth=0 -r --json 2>/dev/null | \
+            node -e "
+              const readline = require('readline');
+              const rl = readline.createInterface({ input: process.stdin });
+              let data = '';
+              rl.on('line', (line) => { data += line; });
+              rl.on('close', () => {
+                try {
+                  const packages = JSON.parse(data);
+                  const versions = new Set();
+                  packages.forEach(pkg => {
+                    if (pkg.devDependencies?.typescript) {
+                      versions.add(pkg.devDependencies.typescript.version);
+                    }
+                  });
+                  console.log([...versions].join(','));
+                } catch (e) {
+                  // Ignore parsing errors
+                }
+              });
+            "
+          )
+
+          if [ -z "$TS_VERSIONS" ]; then
+            echo "⚠️  No TypeScript versions found"
+            exit 0
+          fi
+
+          UNIQUE_COUNT=$(echo "$TS_VERSIONS" | tr ',' '\n' | sort -u | wc -l)
+
+          if [ "$UNIQUE_COUNT" -eq 1 ]; then
+            echo "✅ TypeScript versions consistent: $TS_VERSIONS"
+          else
+            echo "⚠️  Multiple TypeScript versions detected: $TS_VERSIONS"
+            # 警告但不失败，因为 workspace 继承是正常的
+          fi
+
+          echo "::endgroup::"
+
+      - name: Check pnpm overrides configuration
+        id: check-overrides
+        run: |
+          echo "::group::pnpm Overrides Check"
+
+          node -e "
+            const pkg = require('./package.json');
+            const overrides = pkg.pnpm?.overrides || {};
+
+            let failed = false;
+
+            // 检查 zod 覆盖
+            if (overrides.zod !== '3.25.76') {
+              console.error('❌ Missing or incorrect zod override in root package.json');
+              console.error('   Expected: \"zod\": \"3.25.76\"');
+              console.error('   Found:', overrides.zod || 'undefined');
+              failed = true;
+            } else {
+              console.log('✅ pnpm overrides configured correctly');
+            }
+
+            if (failed) {
+              process.exit(1);
+            }
+          "
+
+          echo "::endgroup::"
+
+      - name: Run full version check script
+        run: |
+          if [ -f "./scripts/check-dependency-versions.sh" ]; then
+            chmod +x ./scripts/check-dependency-versions.sh
+            ./scripts/check-dependency-versions.sh
+          else
+            echo "⚠️  Version check script not found, skipping"
+          fi
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const body = `## ❌ Dependency Version Check Failed
+
+            依赖版本检查发现问题，请检查以下内容：
+
+            1. **Zod 版本** 必须统一到 \`3.25.76\`
+            2. **pnpm overrides** 必须正确配置
+            3. 运行修复脚本: \`./scripts/fix-zod-versions.sh\`
+
+            详细信息请查看 CI 日志。
+
+            ---
+            📋 参考文档: [DEPENDENCY_VERSION_AUDIT_AND_STRATEGY.md](../blob/main/DEPENDENCY_VERSION_AUDIT_AND_STRATEGY.md)
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## 依赖版本检查摘要" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 检查项 | 状态 |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Zod 版本一致性 | ${{ steps.check-zod.outputs.status == 'success' && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript 版本 | ✅ 已检查 |" >> $GITHUB_STEP_SUMMARY
+          echo "| pnpm overrides | ${{ steps.check-overrides.outcome == 'success' && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**当前 Zod 版本:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          pnpm list zod --depth=0 -r >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run security audit
+        run: |
+          echo "::group::Security Audit"
+          pnpm audit --audit-level moderate || true
+          echo "::endgroup::"
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "::group::Outdated Dependencies"
+          pnpm outdated -r || true
+          echo "::endgroup::"

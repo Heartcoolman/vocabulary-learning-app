@@ -11,7 +11,7 @@ import {
   RewardSchedule,
   computeImmediateReward,
   getDefaultSchedule,
-} from '../../../../src/amas/evaluation/delayed-reward-aggregator';
+} from '../../../../src/amas/rewards/delayed-reward-aggregator';
 
 describe('DelayedRewardAggregator - Boundary Conditions', () => {
   let aggregator: DelayedRewardAggregator;

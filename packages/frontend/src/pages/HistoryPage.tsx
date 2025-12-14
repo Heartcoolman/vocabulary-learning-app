@@ -4,6 +4,7 @@ import StorageService from '../services/StorageService';
 import ApiClient from '../services/client';
 import { handleError } from '../utils/errorHandler';
 import { learningLogger } from '../utils/logger';
+import { getMasteryLevel } from '../utils/historyUtils';
 import {
   StateHistoryPoint,
   SignificantChange,
@@ -15,19 +16,18 @@ import {
   Target,
   CheckCircle,
   Warning,
-  Clock,
-  TrendUp,
-  TrendDown,
-  Hash,
-  BookOpen,
-  MagnifyingGlass,
   CircleNotch,
   ChartLine,
-  Brain,
-  ArrowUp,
-  ArrowDown,
+  BookOpen,
   Calendar,
 } from '../components/Icon';
+
+// 导入子组件
+import FilterControls from '../components/history/FilterControls';
+import WordStatsTable from '../components/history/WordStatsTable';
+import StateHistoryChart from '../components/history/StateHistoryChart';
+import CognitiveGrowthPanel from '../components/history/CognitiveGrowthPanel';
+import SignificantChanges from '../components/history/SignificantChanges';
 
 interface WordStats {
   wordId: string;
@@ -45,7 +45,7 @@ interface WordStatRecord {
 }
 
 /**
- * HistoryPage - 学习历史页面（增强版）
+ * HistoryPage - 学习历史页面（优化版）
  * 显示学习统计、状态历史折线图、认知成长对比、显著变化标记
  * Requirements: 5.1, 5.3, 5.4, 5.5
  */
@@ -159,192 +159,7 @@ export default function HistoryPage() {
     };
   }, [viewMode, dateRange]);
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return '刚刚';
-    if (diffMins < 60) return `${diffMins}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays < 7) return `${diffDays}天前`;
-
-    return date.toLocaleDateString('zh-CN');
-  };
-
-  const formatShortDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  };
-
-  const getCorrectRateColor = (rate: number) => {
-    if (rate >= 80) return 'text-green-600';
-    if (rate >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getMasteryLevel = (rate: number): FilterType => {
-    if (rate >= 80) return 'mastered';
-    if (rate >= 40) return 'reviewing';
-    return 'struggling';
-  };
-
-  const getMasteryLabel = (rate: number) => {
-    if (rate >= 80)
-      return {
-        label: '已掌握',
-        icon: CheckCircle,
-        color: 'text-green-600',
-        bg: 'bg-green-50',
-        border: 'border-green-300',
-      };
-    if (rate >= 40)
-      return {
-        label: '需复习',
-        icon: Warning,
-        color: 'text-yellow-600',
-        bg: 'bg-yellow-50',
-        border: 'border-yellow-300',
-      };
-    return {
-      label: '未掌握',
-      icon: Warning,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
-      border: 'border-red-300',
-    };
-  };
-
-  // 渲染状态历史折线图 - 当数据>=3天时显示迷你折线图
-  const renderStateChart = (
-    data: StateHistoryPoint[],
-    metric: keyof Omit<StateHistoryPoint, 'date' | 'trendState'>,
-    color: string,
-    label: string,
-  ) => {
-    if (!data || data.length === 0) return null;
-
-    const values = data.map((d) => d[metric] as number);
-    const currentValue = values[values.length - 1];
-    const previousValue = values.length > 1 ? values[0] : currentValue;
-    const change = currentValue - previousValue;
-
-    // 疲劳度特殊处理：下降是好事
-    const isPositiveMetric = metric !== 'fatigue';
-    const isPositiveChange = isPositiveMetric ? change >= 0 : change <= 0;
-    const hasChange = values.length > 1 && Math.abs(change) > 0.001;
-
-    // 转换为百分比显示
-    const displayValue = (currentValue * 100).toFixed(0);
-
-    // 生成迷你折线图路径（仅当数据>=3天时）
-    const showMiniChart = values.length >= 3;
-    let miniChartPath = '';
-    if (showMiniChart) {
-      const minVal = Math.min(...values);
-      const maxVal = Math.max(...values);
-      const range = maxVal - minVal || 0.01; // 避免除以0
-      const chartWidth = 100;
-      const chartHeight = 24;
-      const padding = 2;
-
-      const points = values.map((v, i) => {
-        const x = padding + (i / (values.length - 1)) * (chartWidth - padding * 2);
-        const y = chartHeight - padding - ((v - minVal) / range) * (chartHeight - padding * 2);
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`;
-      });
-      miniChartPath = points.join(' ');
-    }
-
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-5 transition-all hover:shadow-lg">
-        {/* 标题和趋势箭头 */}
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-500">{label}</span>
-          {hasChange && (
-            <span
-              className={`text-sm font-semibold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}
-            >
-              {change > 0 ? '↗' : '↘'}
-            </span>
-          )}
-        </div>
-
-        {/* 主数值 - 大号显示 */}
-        <div className="mb-3 text-center">
-          <span className="text-4xl font-bold" style={{ color }}>
-            {displayValue}
-          </span>
-          <span className="ml-1 text-lg text-gray-400">%</span>
-        </div>
-
-        {/* 迷你折线图（仅当数据>=3天时显示） */}
-        {showMiniChart && (
-          <div className="mb-3">
-            <svg
-              viewBox="-2 -2 104 28"
-              className="h-6 w-full overflow-visible"
-              preserveAspectRatio="none"
-            >
-              <path
-                d={miniChartPath}
-                fill="none"
-                stroke={color}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.8"
-              />
-              {/* 起点和终点圆点 */}
-              {values.length > 0 &&
-                (() => {
-                  const minVal = Math.min(...values);
-                  const maxVal = Math.max(...values);
-                  const range = maxVal - minVal || 0.01;
-                  const chartWidth = 100;
-                  const chartHeight = 24;
-                  const padding = 2;
-
-                  const startX = padding;
-                  const startY =
-                    chartHeight -
-                    padding -
-                    ((values[0] - minVal) / range) * (chartHeight - padding * 2);
-                  const endX = chartWidth - padding;
-                  const endY =
-                    chartHeight -
-                    padding -
-                    ((values[values.length - 1] - minVal) / range) * (chartHeight - padding * 2);
-
-                  return (
-                    <>
-                      <circle cx={startX} cy={startY} r="3" fill={color} opacity="0.5" />
-                      <circle cx={endX} cy={endY} r="3" fill={color} />
-                    </>
-                  );
-                })()}
-            </svg>
-          </div>
-        )}
-
-        {/* 简洁的进度条 */}
-        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-out"
-            style={{
-              width: `${Math.min(100, currentValue * 100)}%`,
-              backgroundColor: color,
-            }}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // 过滤和排序
+  // 过滤和排序 - 使用useMemo缓存
   const filteredAndSortedStats = useMemo(() => {
     let filtered = stats;
 
@@ -369,7 +184,7 @@ export default function HistoryPage() {
     return sorted;
   }, [stats, sortBy, filterBy]);
 
-  // 分页逻辑
+  // 分页逻辑 - 使用useMemo缓存
   const totalPages = Math.ceil(filteredAndSortedStats.length / itemsPerPage);
   const currentStats = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -381,7 +196,7 @@ export default function HistoryPage() {
     setCurrentPage(1);
   }, [filterBy, sortBy]);
 
-  // 统计数据
+  // 统计数据 - 使用useMemo缓存
   const statistics = useMemo(() => {
     if (stats.length === 0)
       return { total: 0, avgCorrectRate: 0, mastered: 0, reviewing: 0, struggling: 0 };
@@ -394,6 +209,12 @@ export default function HistoryPage() {
 
     return { total, avgCorrectRate, mastered, reviewing, struggling };
   }, [stats]);
+
+  const getCorrectRateColor = (rate: number) => {
+    if (rate >= 80) return 'text-green-600';
+    if (rate >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
 
   if (isLoading) {
     return (
@@ -510,186 +331,14 @@ export default function HistoryPage() {
             ) : (
               <>
                 {/* 认知成长对比卡片 */}
-                {cognitiveGrowth && (
-                  <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
-                      <Brain size={24} weight="duotone" color="#a855f7" />
-                      认知成长对比（{cognitiveGrowth.period} 天）
-                    </h2>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      {/* 记忆力 */}
-                      <div className="rounded-xl bg-purple-50 p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-purple-700">记忆力</span>
-                          <div
-                            className={`flex items-center gap-1 ${
-                              cognitiveGrowth.changes.memory.direction === 'up'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {cognitiveGrowth.changes.memory.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
-                            ) : (
-                              <ArrowDown size={16} weight="bold" />
-                            )}
-                            <span className="text-sm font-bold">
-                              {cognitiveGrowth.changes.memory.percent.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {(cognitiveGrowth.past.memory * 100).toFixed(0)}%
-                          </span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-bold text-purple-700">
-                            {(cognitiveGrowth.current.memory * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 速度 */}
-                      <div className="rounded-xl bg-blue-50 p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-blue-700">速度</span>
-                          <div
-                            className={`flex items-center gap-1 ${
-                              cognitiveGrowth.changes.speed.direction === 'up'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {cognitiveGrowth.changes.speed.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
-                            ) : (
-                              <ArrowDown size={16} weight="bold" />
-                            )}
-                            <span className="text-sm font-bold">
-                              {cognitiveGrowth.changes.speed.percent.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {(cognitiveGrowth.past.speed * 100).toFixed(0)}%
-                          </span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-bold text-blue-700">
-                            {(cognitiveGrowth.current.speed * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 稳定性 */}
-                      <div className="rounded-xl bg-green-50 p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-green-700">稳定性</span>
-                          <div
-                            className={`flex items-center gap-1 ${
-                              cognitiveGrowth.changes.stability.direction === 'up'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {cognitiveGrowth.changes.stability.direction === 'up' ? (
-                              <ArrowUp size={16} weight="bold" />
-                            ) : (
-                              <ArrowDown size={16} weight="bold" />
-                            )}
-                            <span className="text-sm font-bold">
-                              {cognitiveGrowth.changes.stability.percent.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {(cognitiveGrowth.past.stability * 100).toFixed(0)}%
-                          </span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-bold text-green-700">
-                            {(cognitiveGrowth.current.stability * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {cognitiveGrowth && <CognitiveGrowthPanel cognitiveGrowth={cognitiveGrowth} />}
 
                 {/* 状态历史折线图 */}
-                {stateHistory.length > 0 && (
-                  <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                    <div className="mb-5 flex items-center justify-between">
-                      <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                        <ChartLine size={24} weight="duotone" color="#3b82f6" />
-                        状态历史趋势
-                      </h2>
-                      <span className="text-sm text-gray-400">
-                        {formatShortDate(stateHistory[0].date)} -{' '}
-                        {formatShortDate(stateHistory[stateHistory.length - 1].date)}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                      {renderStateChart(stateHistory, 'attention', '#3b82f6', '注意力')}
-                      {renderStateChart(stateHistory, 'motivation', '#22c55e', '动机')}
-                      {renderStateChart(stateHistory, 'memory', '#a855f7', '记忆力')}
-                      {renderStateChart(stateHistory, 'speed', '#f59e0b', '速度')}
-                      {renderStateChart(stateHistory, 'stability', '#06b6d4', '稳定性')}
-                      {renderStateChart(stateHistory, 'fatigue', '#ef4444', '疲劳度')}
-                    </div>
-                  </div>
-                )}
+                {stateHistory.length > 0 && <StateHistoryChart stateHistory={stateHistory} />}
 
                 {/* 显著变化标记 */}
                 {significantChanges.length > 0 && (
-                  <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
-                      <Target size={24} weight="duotone" color="#f59e0b" />
-                      显著变化
-                    </h2>
-                    <div className="space-y-3">
-                      {significantChanges.map((change, index) => (
-                        <div
-                          key={index}
-                          className={`flex items-center gap-4 rounded-xl border-2 p-4 transition-all ${
-                            change.isPositive
-                              ? 'border-green-300 bg-green-50'
-                              : 'border-red-300 bg-red-50'
-                          } `}
-                        >
-                          <div
-                            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${change.isPositive ? 'bg-green-500' : 'bg-red-500'} `}
-                          >
-                            {change.direction === 'up' ? (
-                              <TrendUp size={20} weight="fill" color="#ffffff" />
-                            ) : (
-                              <TrendDown size={20} weight="fill" color="#ffffff" />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <p
-                              className={`font-medium ${change.isPositive ? 'text-green-700' : 'text-red-700'}`}
-                            >
-                              {change.metricLabel}
-                            </p>
-                            <p className="text-sm text-gray-600">{change.description}</p>
-                          </div>
-                          <div
-                            className={`text-right ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}
-                          >
-                            <p className="text-lg font-bold">
-                              {change.changePercent > 0 ? '+' : ''}
-                              {change.changePercent.toFixed(1)}%
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {formatShortDate(change.startDate)} -{' '}
-                              {formatShortDate(change.endDate)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <SignificantChanges significantChanges={significantChanges} />
                 )}
 
                 {stateHistory.length === 0 &&
@@ -780,224 +429,22 @@ export default function HistoryPage() {
                   </div>
                 </div>
 
-                {/* 筛选和排序 */}
-                <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-                  <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-                    <div>
-                      <h3 className="mb-3 text-sm font-medium text-gray-700">筛选</h3>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setFilterBy('all')}
-                          className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            filterBy === 'all'
-                              ? 'bg-blue-500 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          全部 ({stats.length})
-                        </button>
-                        <button
-                          onClick={() => setFilterBy('mastered')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            filterBy === 'mastered'
-                              ? 'bg-green-500 text-white shadow-md'
-                              : 'bg-green-100 text-green-700 hover:bg-green-200'
-                          }`}
-                        >
-                          <CheckCircle size={16} weight="bold" />
-                          已掌握 ({statistics.mastered})
-                        </button>
-                        <button
-                          onClick={() => setFilterBy('reviewing')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            filterBy === 'reviewing'
-                              ? 'bg-yellow-500 text-white shadow-md'
-                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          }`}
-                        >
-                          <Warning size={16} weight="bold" />
-                          需复习 ({statistics.reviewing})
-                        </button>
-                        <button
-                          onClick={() => setFilterBy('struggling')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            filterBy === 'struggling'
-                              ? 'bg-red-500 text-white shadow-md'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
-                        >
-                          <Warning size={16} weight="bold" />
-                          未掌握 ({statistics.struggling})
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="mb-3 text-sm font-medium text-gray-700">排序</h3>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setSortBy('time')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            sortBy === 'time'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          <Clock size={16} weight="bold" />
-                          最近学习
-                        </button>
-                        <button
-                          onClick={() => setSortBy('correctRate')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            sortBy === 'correctRate'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          <TrendUp size={16} weight="bold" />
-                          正确率
-                        </button>
-                        <button
-                          onClick={() => setSortBy('attempts')}
-                          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            sortBy === 'attempts'
-                              ? 'bg-gray-900 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          <Hash size={16} weight="bold" />
-                          学习次数
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* 筛选和排序控件 */}
+                <FilterControls
+                  sortBy={sortBy}
+                  filterBy={filterBy}
+                  statistics={statistics}
+                  onSortChange={setSortBy}
+                  onFilterChange={setFilterBy}
+                />
 
                 {/* 单词卡片网格 */}
-                {currentStats.length === 0 ? (
-                  <div className="animate-g3-fade-in py-12 text-center">
-                    <MagnifyingGlass
-                      className="mx-auto mb-4"
-                      size={80}
-                      weight="thin"
-                      color="#9ca3af"
-                    />
-                    <p className="text-lg text-gray-600">没有找到符合条件的单词</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                      {currentStats.map((stat, index) => {
-                        const mastery = getMasteryLabel(stat.correctRate);
-                        return (
-                          <div
-                            key={stat.wordId}
-                            className={`group relative animate-g3-fade-in rounded-xl border bg-white/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg ${mastery.border}`}
-                            style={{ animationDelay: `${index * 30}ms` }}
-                          >
-                            {/* 掌握程度标签 */}
-                            <div
-                              className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${mastery.bg} ${mastery.color}`}
-                            >
-                              <mastery.icon size={10} weight="bold" />
-                              {mastery.label}
-                            </div>
-
-                            {/* 单词名称 */}
-                            <div className="mb-4">
-                              <h3
-                                className="mb-0.5 truncate text-xl font-bold text-gray-900"
-                                title={stat.spelling}
-                              >
-                                {stat.spelling}
-                              </h3>
-                              <p className="text-xs text-gray-500">
-                                {formatDate(stat.lastStudied)}
-                              </p>
-                            </div>
-
-                            {/* 圆形进度条 - 缩小尺寸 */}
-                            <div className="mb-4 flex items-center justify-center">
-                              <div className="relative h-20 w-20">
-                                <svg className="h-20 w-20 -rotate-90 transform">
-                                  <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="36"
-                                    stroke="currentColor"
-                                    strokeWidth="6"
-                                    fill="none"
-                                    className="text-gray-200"
-                                  />
-                                  <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="36"
-                                    stroke="currentColor"
-                                    strokeWidth="6"
-                                    fill="none"
-                                    strokeDasharray={`${2 * Math.PI * 36}`}
-                                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
-                                    className={`transition-all duration-500 ${
-                                      stat.correctRate >= 80
-                                        ? 'text-green-500'
-                                        : stat.correctRate >= 40
-                                          ? 'text-yellow-500'
-                                          : 'text-red-500'
-                                    }`}
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span
-                                    className={`text-lg font-bold ${getCorrectRateColor(stat.correctRate)}`}
-                                  >
-                                    {stat.correctRate.toFixed(0)}%
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* 统计信息 - 紧凑布局 */}
-                            <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
-                              <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500">次数</p>
-                                <p className="text-sm font-bold text-gray-900">{stat.attempts}</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500">正确</p>
-                                <p className="text-sm font-bold text-green-600">{stat.correct}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* 分页控件 */}
-                    {totalPages > 1 && (
-                      <div className="mt-8 flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          className="rounded-lg border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          上一页
-                        </button>
-                        <span className="text-sm text-gray-600">
-                          {currentPage} / {totalPages}
-                        </span>
-                        <button
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                          className="rounded-lg border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          下一页
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
+                <WordStatsTable
+                  stats={currentStats}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </>
             )}
           </>

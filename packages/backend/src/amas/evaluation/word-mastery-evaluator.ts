@@ -14,11 +14,9 @@
  * - AMAS Engine: userState.fatigue
  */
 
-import { WordLearningState, WordScore } from '@prisma/client';
-import { ACTRMemoryModel, ReviewTrace } from '../modeling/actr-memory';
+import type { WordLearningState, WordScore } from '@prisma/client';
+import { ACTRMemoryModel, ReviewTrace } from '../models/cognitive';
 import { WordMemoryTracker, WordMemoryState } from '../tracking/word-memory-tracker';
-import { wordStateService } from '../../services/word-state.service';
-import { wordScoreService } from '../../services/word-score.service';
 import prisma from '../../config/database';
 
 // ==================== 类型定义 ====================
@@ -84,10 +82,10 @@ const DEFAULT_CONFIG: EvaluatorConfig = {
   weights: {
     srs: 0.3,
     actr: 0.5,
-    recent: 0.2
+    recent: 0.2,
   },
   threshold: 0.7,
-  fatigueImpact: 0.3
+  fatigueImpact: 0.3,
 };
 
 /** SRS最高掌握等级 */
@@ -108,7 +106,7 @@ export class WordMasteryEvaluator {
   constructor(
     config: Partial<EvaluatorConfig> = {},
     actrModel?: ACTRMemoryModel,
-    memoryTracker?: WordMemoryTracker
+    memoryTracker?: WordMemoryTracker,
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     if (config.weights) {
@@ -133,7 +131,7 @@ export class WordMasteryEvaluator {
         this.config.weights = {
           srs: srs / sum,
           actr: actr / sum,
-          recent: recent / sum
+          recent: recent / sum,
         };
       } else {
         // 所有权重为0时使用默认值
@@ -153,13 +151,16 @@ export class WordMasteryEvaluator {
   async evaluate(
     userId: string,
     wordId: string,
-    userFatigue: number = 0
+    userFatigue: number = 0,
   ): Promise<MasteryEvaluation> {
-    // 并行获取各数据源
     const [wordState, wordScore, trace] = await Promise.all([
-      wordStateService.getWordState(userId, wordId),
-      wordScoreService.getWordScore(userId, wordId),
-      this.memoryTracker.getReviewTrace(userId, wordId)
+      prisma.wordLearningState.findUnique({
+        where: { unique_user_word: { userId, wordId } },
+      }),
+      prisma.wordScore.findUnique({
+        where: { unique_user_word_score: { userId, wordId } },
+      }),
+      this.memoryTracker.getReviewTrace(userId, wordId),
     ]);
 
     return this.computeEvaluation(wordId, wordState, wordScore, trace, userFatigue);
@@ -176,21 +177,34 @@ export class WordMasteryEvaluator {
   async batchEvaluate(
     userId: string,
     wordIds: string[],
-    userFatigue: number = 0
+    userFatigue: number = 0,
   ): Promise<MasteryEvaluation[]> {
     if (wordIds.length === 0) {
       return [];
     }
 
-    // 并行获取所有数据
-    const [wordStates, wordScores, memoryStates] = await Promise.all([
-      wordStateService.batchGetWordStates(userId, wordIds),
-      wordScoreService.batchGetWordScores(userId, wordIds),
-      this.memoryTracker.batchGetMemoryState(userId, wordIds)
+    const [wordStateRows, wordScoreRows, memoryStates] = await Promise.all([
+      prisma.wordLearningState.findMany({
+        where: { userId, wordId: { in: wordIds } },
+      }),
+      prisma.wordScore.findMany({
+        where: { userId, wordId: { in: wordIds } },
+      }),
+      this.memoryTracker.batchGetMemoryState(userId, wordIds),
     ]);
 
+    const wordStates = new Map<string, WordLearningState>();
+    for (const row of wordStateRows) {
+      wordStates.set(row.wordId, row);
+    }
+
+    const wordScores = new Map<string, WordScore>();
+    for (const row of wordScoreRows) {
+      wordScores.set(row.wordId, row);
+    }
+
     // 计算每个单词的评估结果
-    return wordIds.map(wordId => {
+    return wordIds.map((wordId) => {
       const wordState = wordStates.get(wordId) ?? null;
       const wordScore = wordScores.get(wordId) ?? null;
       const memoryState = memoryStates.get(wordId);
@@ -241,7 +255,7 @@ export class WordMasteryEvaluator {
     wordState: WordLearningState | null,
     wordScore: WordScore | null,
     trace: ReviewTrace[],
-    userFatigue: number
+    userFatigue: number,
   ): MasteryEvaluation {
     // 提取各因子值
     const srsLevel = wordState?.masteryLevel ?? 0;
@@ -256,9 +270,7 @@ export class WordMasteryEvaluator {
     const normalizedSrs = srsLevel / MAX_MASTERY_LEVEL;
 
     const rawScore =
-      weights.srs * normalizedSrs +
-      weights.actr * actrRecall +
-      weights.recent * recentAccuracy;
+      weights.srs * normalizedSrs + weights.actr * actrRecall + weights.recent * recentAccuracy;
 
     // 确保评分在 [0, 1] 范围内
     const score = this.clamp(rawScore, 0, 1);
@@ -291,10 +303,10 @@ export class WordMasteryEvaluator {
         srsLevel,
         actrRecall,
         recentAccuracy,
-        userFatigue: safeFatigue
+        userFatigue: safeFatigue,
       },
       suggestion,
-      fatigueWarning
+      fatigueWarning,
     };
   }
 
@@ -304,7 +316,7 @@ export class WordMasteryEvaluator {
   private generateSuggestion(
     actrRecall: number,
     srsLevel: number,
-    isLearned: boolean
+    isLearned: boolean,
   ): string | undefined {
     if (isLearned) {
       return undefined;
@@ -313,11 +325,11 @@ export class WordMasteryEvaluator {
     if (actrRecall < 0.3) {
       return '这个单词快要忘记了，建议立即复习';
     }
-    
+
     if (actrRecall < 0.6) {
       return '记忆有所衰退，建议今天内复习';
     }
-    
+
     if (srsLevel < 2) {
       return '单词还不够熟练，需要更多练习';
     }

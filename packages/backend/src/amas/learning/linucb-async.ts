@@ -21,21 +21,9 @@ import {
   LinUCBUpdatePayload,
   LinUCBUpdateResult,
 } from '../workers/pool';
-import {
-  LinUCB,
-  LinUCBOptions,
-  LinUCBContext,
-  ContextBuildInput,
-} from './linucb';
-import {
-  Action,
-  UserState,
-  BanditModel,
-} from '../types';
-import {
-  ActionSelection,
-  LearnerCapabilities,
-} from './base-learner';
+import { LinUCB, LinUCBOptions, LinUCBContext, ContextBuildInput } from '../algorithms/learners';
+import { Action, UserState, BanditModel } from '../types';
+import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
 import { ACTION_SPACE } from '../config/action-space';
 import { amasLogger } from '../../logger';
 
@@ -93,6 +81,10 @@ export class LinUCBAsync {
   /** Worker 降级计数（用于监控） */
   private fallbackCount = 0;
 
+  private toFloat32Array(featureVector: Float32Array | number[]): Float32Array {
+    return featureVector instanceof Float32Array ? featureVector : new Float32Array(featureVector);
+  }
+
   constructor(options: LinUCBAsyncOptions = {}) {
     const {
       useWorker = true,
@@ -120,7 +112,7 @@ export class LinUCBAsync {
   async selectActionAsync(
     state: UserState,
     actions: Action[],
-    context: LinUCBContext
+    context: LinUCBContext,
   ): Promise<ActionSelection<Action>> {
     // 小维度或禁用 Worker 时直接同步计算
     if (!this.shouldUseWorker()) {
@@ -130,13 +122,15 @@ export class LinUCBAsync {
     try {
       // 构建所有候选动作的特征向量
       const featureVectors = actions.map((action) =>
-        Array.from(this.linucb.buildContextVector({
-          state,
-          action,
-          recentErrorRate: context.recentErrorRate,
-          recentResponseTime: context.recentResponseTime,
-          timeBucket: context.timeBucket,
-        }))
+        Array.from(
+          this.linucb.buildContextVector({
+            state,
+            action,
+            recentErrorRate: context.recentErrorRate,
+            recentResponseTime: context.recentResponseTime,
+            timeBucket: context.timeBucket,
+          }),
+        ),
       );
 
       const model = this.linucb.getModel();
@@ -153,10 +147,10 @@ export class LinUCBAsync {
       };
 
       const pool = getComputePool();
-      const result = await pool.run(
+      const result = (await pool.run(
         { type: 'linucb_select', payload },
-        { signal: AbortSignal.timeout(this.taskTimeout) }
-      ) as LinUCBSelectResult;
+        { signal: AbortSignal.timeout(this.taskTimeout) },
+      )) as LinUCBSelectResult;
 
       // 构建返回结果
       return {
@@ -188,7 +182,7 @@ export class LinUCBAsync {
     state: UserState,
     action: Action,
     reward: number,
-    context: LinUCBContext
+    context: LinUCBContext,
   ): Promise<void> {
     // 小维度或禁用 Worker 时直接同步计算
     if (!this.shouldUseWorker()) {
@@ -197,13 +191,15 @@ export class LinUCBAsync {
 
     try {
       // 构建特征向量
-      const featureVector = Array.from(this.linucb.buildContextVector({
-        state,
-        action,
-        recentErrorRate: context.recentErrorRate,
-        recentResponseTime: context.recentResponseTime,
-        timeBucket: context.timeBucket,
-      }));
+      const featureVector = Array.from(
+        this.linucb.buildContextVector({
+          state,
+          action,
+          recentErrorRate: context.recentErrorRate,
+          recentResponseTime: context.recentResponseTime,
+          timeBucket: context.timeBucket,
+        }),
+      );
 
       const model = this.linucb.getModel();
 
@@ -220,10 +216,10 @@ export class LinUCBAsync {
       };
 
       const pool = getComputePool();
-      const result = await pool.run(
+      const result = (await pool.run(
         { type: 'linucb_update', payload },
-        { signal: AbortSignal.timeout(this.taskTimeout) }
-      ) as LinUCBUpdateResult;
+        { signal: AbortSignal.timeout(this.taskTimeout) },
+      )) as LinUCBUpdateResult;
 
       if (result.success) {
         // 更新本地模型状态
@@ -255,15 +251,17 @@ export class LinUCBAsync {
    */
   async updateWithFeatureVectorAsync(
     featureVector: Float32Array | number[],
-    reward: number
+    reward: number,
   ): Promise<void> {
+    const floatVec = this.toFloat32Array(featureVector);
     if (!this.shouldUseWorker()) {
-      return this.linucb.updateWithFeatureVector(featureVector, reward);
+      this.linucb.updateWithFeatureVector(floatVec, reward);
+      return;
     }
 
     try {
       const model = this.linucb.getModel();
-      const fv = Array.from(featureVector);
+      const fv = Array.from(floatVec);
 
       const payload: LinUCBUpdatePayload = {
         model: {
@@ -278,10 +276,10 @@ export class LinUCBAsync {
       };
 
       const pool = getComputePool();
-      const result = await pool.run(
+      const result = (await pool.run(
         { type: 'linucb_update', payload },
-        { signal: AbortSignal.timeout(this.taskTimeout) }
-      ) as LinUCBUpdateResult;
+        { signal: AbortSignal.timeout(this.taskTimeout) },
+      )) as LinUCBUpdateResult;
 
       if (result.success) {
         const updatedModel: BanditModel = {
@@ -294,11 +292,11 @@ export class LinUCBAsync {
         this.linucb.setModel(updatedModel);
       } else {
         amasLogger.warn('[LinUCBAsync] Worker update failed, falling back to sync');
-        this.linucb.updateWithFeatureVector(featureVector, reward);
+        this.linucb.updateWithFeatureVector(floatVec, reward);
       }
     } catch (error) {
       this.handleWorkerFailure('updateWithFeatureVectorAsync', error);
-      this.linucb.updateWithFeatureVector(featureVector, reward);
+      this.linucb.updateWithFeatureVector(floatVec, reward);
     }
   }
 
@@ -310,7 +308,7 @@ export class LinUCBAsync {
   selectAction(
     state: UserState,
     actions: Action[],
-    context: LinUCBContext
+    context: LinUCBContext,
   ): ActionSelection<Action> {
     return this.linucb.selectAction(state, actions, context);
   }
@@ -318,12 +316,7 @@ export class LinUCBAsync {
   /**
    * 同步更新模型
    */
-  update(
-    state: UserState,
-    action: Action,
-    reward: number,
-    context: LinUCBContext
-  ): void {
+  update(state: UserState, action: Action, reward: number, context: LinUCBContext): void {
     return this.linucb.update(state, action, reward, context);
   }
 
@@ -337,10 +330,7 @@ export class LinUCBAsync {
   /**
    * 异步使用默认动作空间选择
    */
-  async selectFromActionSpaceAsync(
-    state: UserState,
-    context: LinUCBContext
-  ): Promise<Action> {
+  async selectFromActionSpaceAsync(state: UserState, context: LinUCBContext): Promise<Action> {
     const result = await this.selectActionAsync(state, ACTION_SPACE, context);
     return result.action;
   }
@@ -348,11 +338,8 @@ export class LinUCBAsync {
   /**
    * 使用特征向量更新模型（同步）
    */
-  updateWithFeatureVector(
-    featureVector: Float32Array | number[],
-    reward: number
-  ): void {
-    return this.linucb.updateWithFeatureVector(featureVector, reward);
+  updateWithFeatureVector(featureVector: Float32Array | number[], reward: number): void {
+    this.linucb.updateWithFeatureVector(this.toFloat32Array(featureVector), reward);
   }
 
   /**
@@ -459,11 +446,7 @@ export class LinUCBAsync {
   /**
    * 获取冷启动探索率
    */
-  getColdStartAlpha(
-    interactionCount: number,
-    recentAccuracy: number,
-    fatigue: number
-  ): number {
+  getColdStartAlpha(interactionCount: number, recentAccuracy: number, fatigue: number): number {
     return this.linucb.getColdStartAlpha(interactionCount, recentAccuracy, fatigue);
   }
 
@@ -549,7 +532,7 @@ export class LinUCBAsync {
         error: error instanceof Error ? error.message : String(error),
         fallbackCount: this.fallbackCount,
       },
-      '[LinUCBAsync] Worker failed, falling back to sync'
+      '[LinUCBAsync] Worker failed, falling back to sync',
     );
   }
 }
@@ -566,6 +549,8 @@ export function createLinUCBAsync(options?: LinUCBAsyncOptions): LinUCBAsync {
 /**
  * 创建禁用 Worker 的 LinUCBAsync（用于测试）
  */
-export function createLinUCBAsyncSync(options?: Omit<LinUCBAsyncOptions, 'useWorker'>): LinUCBAsync {
+export function createLinUCBAsyncSync(
+  options?: Omit<LinUCBAsyncOptions, 'useWorker'>,
+): LinUCBAsync {
   return new LinUCBAsync({ ...options, useWorker: false });
 }

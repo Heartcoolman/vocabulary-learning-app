@@ -13,27 +13,21 @@
  * 3. normal: 交由其他学习器接管
  */
 
-import {
-  Action,
-  StrategyParams,
-  UserState,
-  UserType,
-  ColdStartPhase
-} from '../types';
+import { Action, StrategyParams, UserState, UserType, ColdStartPhase } from '../types';
 import {
   ACTION_SPACE,
   CLASSIFY_PHASE_THRESHOLD,
   EXPLORE_PHASE_THRESHOLD,
   DEFAULT_STRATEGY,
   COLD_START_STRATEGY,
-  EARLY_STOP_CONFIG
+  EARLY_STOP_CONFIG,
 } from '../config/action-space';
 import {
   ActionSelection,
   BaseLearner,
   BaseLearnerContext,
-  LearnerCapabilities
-} from './base-learner';
+  LearnerCapabilities,
+} from '../algorithms/learners';
 import { globalStatsService } from '../cold-start/global-stats';
 import { amasLogger } from '../../logger';
 
@@ -110,7 +104,7 @@ const PROBE_ACTIONS: Action[] = [
     new_ratio: 0.2,
     difficulty: 'mid',
     batch_size: 8,
-    hint_level: 0
+    hint_level: 0,
   },
   // 2. 挑战测试：高难度+高新词比，测能力上限
   {
@@ -118,7 +112,7 @@ const PROBE_ACTIONS: Action[] = [
     new_ratio: 0.35,
     difficulty: 'hard',
     batch_size: 10,
-    hint_level: 0
+    hint_level: 0,
   },
   // 3. 支持测试：低难度+强提示，测提示依赖度和基础下限
   {
@@ -126,8 +120,8 @@ const PROBE_ACTIONS: Action[] = [
     new_ratio: 0.15,
     difficulty: 'easy',
     batch_size: 6,
-    hint_level: 2
-  }
+    hint_level: 2,
+  },
 ];
 
 /**
@@ -136,8 +130,8 @@ const PROBE_ACTIONS: Action[] = [
  */
 const DEFAULT_USER_TYPE_PRIORS: Record<UserType, number> = {
   fast: 0.25,
-  stable: 0.50,
-  cautious: 0.25
+  stable: 0.5,
+  cautious: 0.25,
 };
 
 /**
@@ -146,20 +140,20 @@ const DEFAULT_USER_TYPE_PRIORS: Record<UserType, number> = {
  */
 const PROBE_EXPECTATIONS: Record<UserType, Array<[number, number, number, number]>> = {
   fast: [
-    [0.85, 0.10, 1200, 400],
+    [0.85, 0.1, 1200, 400],
     [0.75, 0.12, 1500, 500],
-    [0.95, 0.05, 800, 300]
+    [0.95, 0.05, 800, 300],
   ],
   stable: [
-    [0.70, 0.12, 2000, 600],
+    [0.7, 0.12, 2000, 600],
     [0.55, 0.15, 2500, 700],
-    [0.90, 0.08, 1500, 500]
+    [0.9, 0.08, 1500, 500],
   ],
   cautious: [
-    [0.50, 0.15, 3000, 800],
+    [0.5, 0.15, 3000, 800],
     [0.35, 0.15, 3500, 900],
-    [0.80, 0.10, 2500, 700]
-  ]
+    [0.8, 0.1, 2500, 700],
+  ],
 };
 
 /** 默认分类阈值 */
@@ -169,7 +163,7 @@ const DEFAULT_THRESHOLDS: ClassificationThresholds = {
   fastErrorRate: 0.2,
   stableAccuracy: 0.6,
   stableResponseTime: 3000,
-  stableErrorRate: 0.35
+  stableErrorRate: 0.35,
 };
 
 /** 结果历史最大保留条数（防止内存无限增长） */
@@ -185,9 +179,12 @@ const MAX_RESULTS_HISTORY = 20;
  * - 用户长期未使用后回归
  * - 需要快速建立用户画像
  */
-export class ColdStartManager
-  implements BaseLearner<UserState, Action, BaseLearnerContext, ColdStartState>
-{
+export class ColdStartManager implements BaseLearner<
+  UserState,
+  Action,
+  BaseLearnerContext,
+  ColdStartState
+> {
   private static readonly NAME = 'ColdStartManager';
   private static readonly VERSION = '1.0.0';
 
@@ -216,10 +213,9 @@ export class ColdStartManager
     // 使用默认先验也能正常完成用户分类
     this.ready = true;
     // 异步加载全局统计先验（可选优化）
-    this.initPromise = this.initGlobalPriors()
-      .catch(err => {
-        amasLogger.warn({ err }, '[ColdStartManager] 无法加载全局统计先验，使用默认先验');
-      });
+    this.initPromise = this.initGlobalPriors().catch((err) => {
+      amasLogger.warn({ err }, '[ColdStartManager] 无法加载全局统计先验，使用默认先验');
+    });
   }
 
   /**
@@ -232,7 +228,7 @@ export class ColdStartManager
         this.userTypePriors = {
           fast: stats.userTypePriors.fast,
           stable: stats.userTypePriors.stable,
-          cautious: stats.userTypePriors.cautious
+          cautious: stats.userTypePriors.cautious,
         };
         this.globalStatsInitialized = true;
       }
@@ -250,7 +246,7 @@ export class ColdStartManager
       this.userTypePriors = {
         fast: priors.fast / total,
         stable: priors.stable / total,
-        cautious: priors.cautious / total
+        cautious: priors.cautious / total,
       };
       this.globalStatsInitialized = true;
     }
@@ -294,7 +290,7 @@ export class ColdStartManager
   selectAction(
     _state: UserState,
     actions: Action[],
-    context: BaseLearnerContext
+    context: BaseLearnerContext,
   ): ActionSelection<Action> {
     // 保持与其他学习器一致的 API 行为
     if (!actions || actions.length === 0) {
@@ -320,8 +316,8 @@ export class ColdStartManager
         probeIndex: this.state.probeIndex,
         probeTotal: PROBE_ACTIONS.length,
         settledStrategy: this.state.settledStrategy,
-        initializationComplete: this.ready
-      }
+        initializationComplete: this.ready,
+      },
     };
   }
 
@@ -334,12 +330,7 @@ export class ColdStartManager
    * 3. 执行用户分类
    * 4. 检查是否进入normal阶段
    */
-  update(
-    _state: UserState,
-    action: Action,
-    reward: number,
-    context: BaseLearnerContext
-  ): void {
+  update(_state: UserState, action: Action, reward: number, context: BaseLearnerContext): void {
     // 正确性判断：综合评估 errorRate 和 reward 两个指标
     // - recentErrorRate: 最近错误率（0-1），越低表示表现越好
     // - reward: 奖励值（0-1），越高表示表现越好
@@ -357,7 +348,7 @@ export class ColdStartManager
       isCorrect,
       responseTime: this.toNumber(context.recentResponseTime, 2000),
       errorRate: recentErrorRate,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // 记录结果（限制历史长度）
@@ -368,7 +359,7 @@ export class ColdStartManager
       const keepRecent = MAX_RESULTS_HISTORY - probeCount;
       this.state.results = [
         ...this.state.results.slice(0, probeCount),
-        ...this.state.results.slice(-keepRecent)
+        ...this.state.results.slice(-keepRecent),
       ];
     }
     this.state.updateCount += 1;
@@ -403,11 +394,9 @@ export class ColdStartManager
       phase: this.state.phase,
       userType: this.state.userType,
       probeIndex: this.state.probeIndex,
-      results: this.state.results.map(r => ({ ...r })),
-      settledStrategy: this.state.settledStrategy
-        ? { ...this.state.settledStrategy }
-        : null,
-      updateCount: this.state.updateCount
+      results: this.state.results.map((r) => ({ ...r })),
+      settledStrategy: this.state.settledStrategy ? { ...this.state.settledStrategy } : null,
+      updateCount: this.state.updateCount,
     };
   }
 
@@ -426,9 +415,7 @@ export class ColdStartManager
 
     // 校验并恢复userType
     const validUserTypes: (UserType | null)[] = ['fast', 'stable', 'cautious', null];
-    const userType = validUserTypes.includes(state.userType)
-      ? state.userType
-      : null;
+    const userType = validUserTypes.includes(state.userType) ? state.userType : null;
 
     // 校验数值字段
     const probeIndex = this.validatePositiveInt(state.probeIndex, 0);
@@ -446,7 +433,7 @@ export class ColdStartManager
       probeIndex: Math.min(probeIndex, PROBE_ACTIONS.length),
       results: validatedResults,
       settledStrategy,
-      updateCount
+      updateCount,
     };
   }
 
@@ -471,7 +458,7 @@ export class ColdStartManager
       supportsBatchUpdate: false,
       requiresPretraining: false,
       minSamplesForReliability: PROBE_ACTIONS.length,
-      primaryUseCase: '新用户冷启动探测与快速分类'
+      primaryUseCase: '新用户冷启动探测与快速分类',
     };
   }
 
@@ -516,7 +503,7 @@ export class ColdStartManager
     if (this.state.phase === 'classify') {
       // 防止除零：PROBE_ACTIONS.length 应该 > 0
       const probeCount = PROBE_ACTIONS.length || 1;
-      return this.state.probeIndex / probeCount * 0.5;
+      return (this.state.probeIndex / probeCount) * 0.5;
     }
     if (this.state.phase === 'explore') {
       // 防止除零和负数：确保分母 > 0
@@ -562,7 +549,7 @@ export class ColdStartManager
       probeIndex: 0,
       results: [],
       settledStrategy: null,
-      updateCount: 0
+      updateCount: 0,
     };
   }
 
@@ -571,10 +558,7 @@ export class ColdStartManager
    */
   private determineNextAction(): Action {
     // 分类阶段：按顺序执行探测动作
-    if (
-      this.state.phase === 'classify' &&
-      this.state.probeIndex < PROBE_ACTIONS.length
-    ) {
+    if (this.state.phase === 'classify' && this.state.probeIndex < PROBE_ACTIONS.length) {
       return PROBE_ACTIONS[this.state.probeIndex];
     }
 
@@ -634,7 +618,7 @@ export class ColdStartManager
     const logPosteriors: Record<UserType, number> = {
       fast: Math.log(this.userTypePriors.fast),
       stable: Math.log(this.userTypePriors.stable),
-      cautious: Math.log(this.userTypePriors.cautious)
+      cautious: Math.log(this.userTypePriors.cautious),
     };
 
     const probeResults = this.state.results.slice(0, this.state.probeIndex);
@@ -674,7 +658,7 @@ export class ColdStartManager
     const safeStd = Math.max(std, 1e-10);
     const variance = safeStd * safeStd;
     const diff = x - mean;
-    return -0.5 * (diff * diff) / variance;
+    return (-0.5 * (diff * diff)) / variance;
   }
 
   /**
@@ -755,19 +739,16 @@ export class ColdStartManager
     const probeResults = this.state.results.slice(0, PROBE_ACTIONS.length);
     const count = probeResults.length || 1;
 
-    const correctCount = probeResults.filter(r => r.isCorrect).length;
+    const correctCount = probeResults.filter((r) => r.isCorrect).length;
     const accuracy = correctCount / count;
 
     const totalRt = probeResults.reduce(
       (sum, r) => sum + this.clamp(r.responseTime, 100, 60000),
-      0
+      0,
     );
     const avgResponseTime = totalRt / count;
 
-    const totalError = probeResults.reduce(
-      (sum, r) => sum + this.clamp(r.errorRate, 0, 1),
-      0
-    );
+    const totalError = probeResults.reduce((sum, r) => sum + this.clamp(r.errorRate, 0, 1), 0);
     const avgErrorRate = totalError / count;
 
     return { accuracy, avgResponseTime, avgErrorRate };
@@ -783,7 +764,7 @@ export class ColdStartManager
       new_ratio: 0.35,
       difficulty: 'hard',
       batch_size: 12,
-      hint_level: 0
+      hint_level: 0,
     };
   }
 
@@ -797,7 +778,7 @@ export class ColdStartManager
       new_ratio: 0.25,
       difficulty: 'mid',
       batch_size: 8,
-      hint_level: 1
+      hint_level: 1,
     };
   }
 
@@ -811,7 +792,7 @@ export class ColdStartManager
       new_ratio: 0.15,
       difficulty: 'easy',
       batch_size: 5,
-      hint_level: 2
+      hint_level: 2,
     };
   }
 
@@ -821,12 +802,12 @@ export class ColdStartManager
   private findClosestAction(strategy: StrategyParams): Action {
     // 精确匹配
     const exact = ACTION_SPACE.find(
-      a =>
+      (a) =>
         a.interval_scale === strategy.interval_scale &&
         a.new_ratio === strategy.new_ratio &&
         a.difficulty === strategy.difficulty &&
         a.batch_size === strategy.batch_size &&
-        a.hint_level === strategy.hint_level
+        a.hint_level === strategy.hint_level,
     );
 
     if (exact) {
@@ -869,11 +850,7 @@ export class ColdStartManager
     if (this.state.phase === 'classify') {
       return 0.5 + this.state.probeIndex * 0.1;
     }
-    return this.state.userType === 'fast'
-      ? 0.9
-      : this.state.userType === 'stable'
-        ? 0.7
-        : 0.5;
+    return this.state.userType === 'fast' ? 0.9 : this.state.userType === 'stable' ? 0.7 : 0.5;
   }
 
   /**
@@ -881,27 +858,17 @@ export class ColdStartManager
    */
   private computeConfidence(context: BaseLearnerContext): number {
     // 基于进度和最近表现计算
-    const progressFactor = Math.min(
-      this.state.updateCount / EXPLORE_PHASE_THRESHOLD,
-      1
-    );
-    const performanceFactor =
-      1 - this.toNumber(context.recentErrorRate, 0.5);
+    const progressFactor = Math.min(this.state.updateCount / EXPLORE_PHASE_THRESHOLD, 1);
+    const performanceFactor = 1 - this.toNumber(context.recentErrorRate, 0.5);
 
-    return this.clamp(
-      0.2 + 0.6 * progressFactor + 0.2 * performanceFactor,
-      0,
-      1
-    );
+    return this.clamp(0.2 + 0.6 * progressFactor + 0.2 * performanceFactor, 0, 1);
   }
 
   /**
    * 安全转换为数字
    */
   private toNumber(value: unknown, fallback: number): number {
-    return typeof value === 'number' && Number.isFinite(value)
-      ? value
-      : fallback;
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   }
 
   /**
@@ -915,11 +882,7 @@ export class ColdStartManager
    * 校验非负整数
    */
   private validatePositiveInt(value: unknown, fallback: number): number {
-    if (
-      typeof value !== 'number' ||
-      !Number.isFinite(value) ||
-      value < 0
-    ) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
       return fallback;
     }
     return Math.floor(value);
@@ -934,14 +897,14 @@ export class ColdStartManager
     }
 
     return results
-      .filter(r => r && typeof r === 'object')
-      .map(r => ({
+      .filter((r) => r && typeof r === 'object')
+      .map((r) => ({
         action: r.action ?? PROBE_ACTIONS[0],
         reward: this.toNumber(r.reward, 0),
         isCorrect: Boolean(r.isCorrect),
         responseTime: this.clamp(this.toNumber(r.responseTime, 2000), 100, 60000),
         errorRate: this.clamp(this.toNumber(r.errorRate, 0.5), 0, 1),
-        timestamp: this.toNumber(r.timestamp, Date.now())
+        timestamp: this.toNumber(r.timestamp, Date.now()),
       }))
       .slice(0, MAX_RESULTS_HISTORY);
   }
@@ -981,7 +944,7 @@ export class ColdStartManager
       new_ratio: this.clamp(newRatio, 0.1, 0.4),
       difficulty,
       batch_size: Math.round(this.clamp(batchSize, 5, 16)),
-      hint_level: Math.round(this.clamp(hintLevel, 0, 2))
+      hint_level: Math.round(this.clamp(hintLevel, 0, 2)),
     };
   }
 }

@@ -7,7 +7,6 @@ import { env } from './config/env';
 import { httpLoggerMiddleware } from './logger/http';
 import { logger } from './logger';
 import { errorHandler } from './middleware/error.middleware';
-import prisma from './config/database';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import wordRoutes from './routes/word.routes';
@@ -40,6 +39,12 @@ import llmAdvisorRoutes from './routes/llm-advisor.routes';
 import experimentRoutes from './routes/experiment.routes';
 import trackingRoutes from './routes/tracking.routes';
 import healthRoutes from './routes/health.routes';
+import notificationRoutes from './routes/notification.routes';
+import preferenceRoutes from './routes/preference.routes';
+import learningSessionRoutes from './routes/learning-session.routes';
+import wordContextRoutes from './routes/word-context.routes';
+import v1Routes from './routes/v1';
+import { createDeprecationWarning } from './middleware/deprecation.middleware';
 
 const app = express();
 
@@ -160,37 +165,66 @@ if (env.NODE_ENV !== 'test') {
 }
 
 // 健康检查（包含数据库连接验证）
-app.get('/health', async (req, res) => {
-  const checks: { database: string; timestamp: string; status: string } = {
-    database: 'unknown',
-    timestamp: new Date().toISOString(),
-    status: 'ok',
-  };
+// 兼容性: 该端点由 healthRoutes 统一提供（GET /health）
 
-  try {
-    // 验证数据库连接和基本查询能力
-    await prisma.$queryRaw`SELECT 1`;
-    checks.database = 'connected';
-  } catch (error) {
-    checks.database = 'disconnected';
-    checks.status = 'degraded';
-    logger.error({ err: error }, '健康检查：数据库连接失败');
-  }
+// v1 版本化 API 路由（推荐使用）
+app.use('/api/v1', v1Routes);
 
-  const statusCode = checks.status === 'ok' ? 200 : 503;
-  res.status(statusCode).json(checks);
-});
+// 旧版 API 路由 - 添加废弃警告
+// 这些路由将在 v1 版本化 API 完全稳定后逐步废弃
+// 2026年6月30日为计划下线时间
 
-// API路由
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/words', wordRoutes);
+// 认证路由 - 已迁移到 /api/v1/auth
+app.use('/api/auth', createDeprecationWarning('/api/v1/auth', new Date('2026-06-30')), authRoutes);
+
+// 用户路由 - 已迁移到 /api/v1/users
+app.use(
+  '/api/users',
+  createDeprecationWarning('/api/v1/users', new Date('2026-06-30')),
+  userRoutes,
+);
+
+// 单词路由 - 已迁移到 /api/v1/words
+app.use(
+  '/api/words',
+  createDeprecationWarning('/api/v1/words', new Date('2026-06-30')),
+  wordRoutes,
+);
+
+// 学习路由 - 已迁移到 /api/v1/learning
+app.use(
+  '/api/learning',
+  createDeprecationWarning('/api/v1/learning', new Date('2026-06-30')),
+  learningRoutes,
+);
+
+// 答题记录路由 - 已迁移到 /api/v1/learning/records
+app.use(
+  '/api/records',
+  createDeprecationWarning('/api/v1/learning/records', new Date('2026-06-30')),
+  recordRoutes,
+);
+
+// 单词状态路由 - 已迁移到 /api/v1/learning（部分功能整合）
+app.use(
+  '/api/word-states',
+  createDeprecationWarning('/api/v1/learning', new Date('2026-06-30')),
+  wordStateRoutes,
+);
+
+// 单词分数路由 - 已迁移到 /api/v1/learning（部分功能整合）
+app.use(
+  '/api/word-scores',
+  createDeprecationWarning('/api/v1/learning', new Date('2026-06-30')),
+  wordScoreRoutes,
+);
+
+// 未迁移的路由（暂不添加废弃警告）
 app.use('/api/wordbooks', wordBookRoutes);
 app.use('/api/study-config', studyConfigRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/records', recordRoutes);
-app.use('/api/word-states', wordStateRoutes);
-app.use('/api/word-scores', wordScoreRoutes);
+
+// 其他未迁移的功能路由
 app.use('/api/algorithm-config', algorithmConfigRoutes);
 app.use('/api/amas', amasRoutes);
 app.use('/api/amas', timeRecommendRoutes);
@@ -203,7 +237,6 @@ app.use('/api/evaluation', evaluationRoutes);
 app.use('/api/optimization', optimizationRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/word-mastery', wordMasteryRoutes);
-app.use('/api/learning', learningRoutes);
 app.use('/api/amas', amasExplainRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/learning-objectives', learningObjectivesRoutes);
@@ -213,6 +246,10 @@ app.use('/api/llm-advisor', llmAdvisorRoutes);
 app.use('/api/users/profile', profileRoutes);
 app.use('/api/experiments', experimentRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/preferences', preferenceRoutes);
+app.use('/api/learning-sessions', learningSessionRoutes);
+app.use('/api/word-contexts', wordContextRoutes);
 
 // 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
 app.use('/health', healthRoutes);

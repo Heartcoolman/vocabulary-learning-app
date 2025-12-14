@@ -11,7 +11,7 @@ import {
   CausalObservation,
   createCausalInference,
   computeIPWWeight,
-} from '../../../../src/amas/evaluation/causal-inference';
+} from '../../../../src/amas/rewards/evaluators';
 
 describe('CausalInference - Boundary Conditions', () => {
   let causal: CausalInference;

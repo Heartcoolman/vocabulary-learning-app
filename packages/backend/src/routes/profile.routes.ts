@@ -1,11 +1,10 @@
 import { Router, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import {
-  getChronotypeProfile,
-  getLearningStyleProfile,
+  userProfileService,
   InsufficientDataError,
   AnalysisError,
-} from '../services/cognitive-profiling.service';
+} from '../services/user-profile.service';
 import { AuthRequest } from '@danci/shared/types';
 
 const router = Router();
@@ -31,8 +30,8 @@ router.get('/chronotype', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {
-    const profile = await getChronotypeProfile(userId);
-    res.json({ success: true, data: profile });
+    const cognitiveProfile = await userProfileService.getCognitiveProfile(userId);
+    res.json({ success: true, data: cognitiveProfile.chronotype });
   } catch (err: unknown) {
     handleError(res, err);
   }
@@ -42,8 +41,8 @@ router.get('/learning-style', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {
-    const profile = await getLearningStyleProfile(userId);
-    res.json({ success: true, data: profile });
+    const cognitiveProfile = await userProfileService.getCognitiveProfile(userId);
+    res.json({ success: true, data: cognitiveProfile.learningStyle });
   } catch (err: unknown) {
     handleError(res, err);
   }
@@ -54,13 +53,10 @@ router.get('/cognitive', authMiddleware, async (req, res) => {
   const userId = extractUserId(req);
   if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
   try {
-    const [chronotype, learningStyle] = await Promise.all([
-      getChronotypeProfile(userId),
-      getLearningStyleProfile(userId),
-    ]);
+    const cognitiveProfile = await userProfileService.getCognitiveProfile(userId);
     res.json({
       success: true,
-      data: { chronotype, learningStyle },
+      data: cognitiveProfile,
     });
   } catch (err: unknown) {
     handleError(res, err);

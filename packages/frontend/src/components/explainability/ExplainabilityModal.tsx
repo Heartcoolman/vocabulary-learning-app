@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, ChartPie, Sliders, TrendUp, Flask } from '@phosphor-icons/react';
 import { createPortal } from 'react-dom';
 import DecisionFactors from './DecisionFactors';
@@ -65,42 +65,29 @@ interface ExplainabilityModalProps {
 // Tab ID 类型定义
 type TabId = 'factors' | 'weights' | 'curve' | 'counterfactual';
 
-const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
-  isOpen,
-  onClose,
-  latestDecision,
-}) => {
-  const [activeTab, setActiveTab] = useState<TabId>('factors');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [explanationData, setExplanationData] = useState<DecisionExplanation | null>(null);
-  const [curveData, setCurveData] = useState<LearningCurvePoint[]>([]);
+const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
+  ({ isOpen, onClose, latestDecision }) => {
+    const [activeTab, setActiveTab] = useState<TabId>('factors');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [explanationData, setExplanationData] = useState<DecisionExplanation | null>(null);
+    const [curveData, setCurveData] = useState<LearningCurvePoint[]>([]);
 
-  // 使用 useMemo 记忆化 latestDecision 的关键字段，避免对象引用变化导致无限循环
-  const decisionKey = useMemo(() => {
-    if (!latestDecision) return null;
-    return {
-      sessionId: latestDecision.sessionId,
-      attention: latestDecision.state.attention,
-      fatigue: latestDecision.state.fatigue,
-      motivation: latestDecision.state.motivation,
-    };
-  }, [
-    latestDecision?.sessionId,
-    latestDecision?.state.attention,
-    latestDecision?.state.fatigue,
-    latestDecision?.state.motivation,
-  ]);
+    // 使用 useMemo 记忆化 latestDecision 的关键字段，避免对象引用变化导致无限循环
+    const decisionKey = useMemo(() => {
+      if (!latestDecision) return null;
+      return {
+        sessionId: latestDecision.sessionId,
+        attention: latestDecision.state.attention,
+        fatigue: latestDecision.state.fatigue,
+        motivation: latestDecision.state.motivation,
+      };
+    }, [latestDecision]);
 
-  // 加载真实数据 - 使用 decisionKey 的 sessionId 作为稳定依赖
-  useEffect(() => {
-    // 只依赖 decisionKey，不直接依赖 latestDecision 对象
-    if (!isOpen || !decisionKey || !latestDecision) return;
+    // 使用 useCallback 来记忆化数据加载函数
+    const loadData = useCallback(async () => {
+      if (!latestDecision) return;
 
-    // 捕获当前 latestDecision 的引用，避免闭包问题
-    const currentDecision = latestDecision;
-
-    const loadData = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -113,29 +100,29 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
 
         // 处理决策解释数据
         if (explanationRes) {
-          // 如果后端没有返回 factors，从 currentDecision.state 生成
-          const factors = explanationRes.factors || generateFactorsFromState(currentDecision.state);
+          // 如果后端没有返回 factors，从 latestDecision.state 生成
+          const factors = explanationRes.factors || generateFactorsFromState(latestDecision.state);
           setExplanationData({
             ...explanationRes,
             factors,
             reasoning:
               explanationRes.reasoning ||
-              currentDecision.explanation ||
+              latestDecision.explanation ||
               'AMAS 系统根据您当前的状态进行了最优决策。',
           });
         } else {
-          // API 调用失败，使用 currentDecision 数据构建
+          // API 调用失败，使用 latestDecision 数据构建
           setExplanationData({
-            decisionId: currentDecision.sessionId || `local-${Date.now()}`,
+            decisionId: latestDecision.sessionId || `local-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            reasoning: currentDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
+            reasoning: latestDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
             state: {
-              attention: currentDecision.state.attention,
-              fatigue: currentDecision.state.fatigue,
-              motivation: currentDecision.state.motivation,
+              attention: latestDecision.state.attention,
+              fatigue: latestDecision.state.fatigue,
+              motivation: latestDecision.state.motivation,
             },
             difficultyFactors: { length: 0, accuracy: 0, frequency: 0, forgetting: 0 },
-            factors: generateFactorsFromState(currentDecision.state),
+            factors: generateFactorsFromState(latestDecision.state),
             weights: { thompson: 0.5, linucb: 0.25, actr: 0.15, heuristic: 0.1 },
           });
         }
@@ -152,106 +139,120 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({
       } finally {
         setLoading(false);
       }
-    };
+    }, [latestDecision]);
 
-    loadData();
-    // 只依赖 isOpen 和 decisionKey (已包含稳定的标识符)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, decisionKey?.sessionId]);
+    // 使用 useMemo 记忆化 tabs 配置
+    const tabs = useMemo(
+      () => [
+        { id: 'factors' as const, label: '决策因素', icon: Sliders },
+        { id: 'weights' as const, label: '算法权重', icon: ChartPie },
+        { id: 'curve' as const, label: '学习曲线', icon: TrendUp },
+        { id: 'counterfactual' as const, label: '反事实分析', icon: Flask },
+      ],
+      [],
+    );
 
-  if (!isOpen) return null;
+    // 加载真实数据 - 使用 decisionKey 的 sessionId 作为稳定依赖
+    useEffect(() => {
+      // 只依赖 decisionKey，不直接依赖 latestDecision 对象
+      if (!isOpen || !decisionKey) return;
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      loadData();
+    }, [isOpen, decisionKey, loadData]);
 
-      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">AMAS 决策透视</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">为什么选择这个词？</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+    if (!isOpen) return null;
 
-        {/* Tabs */}
-        <div className="scrollbar-hide flex overflow-x-auto border-b border-gray-100 dark:border-gray-800">
-          {[
-            { id: 'factors', label: '决策因素', icon: Sliders },
-            { id: 'weights', label: '算法权重', icon: ChartPie },
-            { id: 'curve', label: '学习曲线', icon: TrendUp },
-            { id: 'counterfactual', label: '反事实分析', icon: Flask },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabId)}
-              className={`relative flex items-center gap-2 whitespace-nowrap px-6 py-4 text-sm font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
-              )}
-            </button>
-          ))}
-        </div>
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          onClick={onClose}
+        />
 
-        {/* Content */}
-        <div className="min-h-[400px] flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="flex h-full flex-col items-center justify-center text-gray-400">
-              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
-              <p>正在解析 AI 决策...</p>
+        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">AMAS 决策透视</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">为什么选择这个词？</p>
             </div>
-          ) : error ? (
-            <div className="py-10 text-center text-red-500">{error}</div>
-          ) : !explanationData ? (
-            <div className="py-10 text-center text-gray-500">暂无决策数据</div>
-          ) : (
-            <>
-              {activeTab === 'factors' && (
-                <div className="space-y-6">
-                  <div className="rounded-lg bg-indigo-50 p-4 text-sm leading-relaxed text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
-                    <strong>AI 思考：</strong> {explanationData.reasoning}
+            <button
+              onClick={onClose}
+              className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="scrollbar-hide flex overflow-x-auto border-b border-gray-100 dark:border-gray-800">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabId)}
+                className={`relative flex items-center gap-2 whitespace-nowrap px-6 py-4 text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'text-indigo-600 dark:text-indigo-400'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="min-h-[400px] flex-1 overflow-y-auto p-6">
+            {loading ? (
+              <div className="flex h-full flex-col items-center justify-center text-gray-400">
+                <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+                <p>正在解析 AI 决策...</p>
+              </div>
+            ) : error ? (
+              <div className="py-10 text-center text-red-500">{error}</div>
+            ) : !explanationData ? (
+              <div className="py-10 text-center text-gray-500">暂无决策数据</div>
+            ) : (
+              <>
+                {activeTab === 'factors' && (
+                  <div className="space-y-6">
+                    <div className="rounded-lg bg-indigo-50 p-4 text-sm leading-relaxed text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
+                      <strong>AI 思考：</strong> {explanationData.reasoning}
+                    </div>
+                    {explanationData.factors && (
+                      <DecisionFactors factors={explanationData.factors} />
+                    )}
                   </div>
-                  {explanationData.factors && <DecisionFactors factors={explanationData.factors} />}
-                </div>
-              )}
+                )}
 
-              {activeTab === 'weights' && explanationData.weights && (
-                <WeightRadarChart weights={explanationData.weights as AlgorithmWeights} />
-              )}
+                {activeTab === 'weights' && explanationData.weights && (
+                  <WeightRadarChart weights={explanationData.weights as AlgorithmWeights} />
+                )}
 
-              {activeTab === 'curve' && <LearningCurveChart data={curveData} />}
+                {activeTab === 'curve' && <LearningCurveChart data={curveData} />}
 
-              {activeTab === 'counterfactual' && (
-                <CounterfactualPanel decisionId={explanationData.decisionId} />
-              )}
-            </>
-          )}
+                {activeTab === 'counterfactual' && (
+                  <CounterfactualPanel decisionId={explanationData.decisionId} />
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800/50">
+            Powered by AMAS Adaptive Learning Engine v2.5
+          </div>
         </div>
+      </div>,
+      document.body,
+    );
+  },
+);
 
-        {/* Footer */}
-        <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-800/50">
-          Powered by AMAS Adaptive Learning Engine v2.5
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-};
+ExplainabilityModal.displayName = 'ExplainabilityModal';
 
 export default ExplainabilityModal;

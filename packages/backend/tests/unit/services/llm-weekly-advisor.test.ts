@@ -21,15 +21,15 @@ vi.mock('../../../src/config/database', () => ({
       findUnique: (...args: any[]) => mockLLMAdvisorSuggestionFindUnique(...args),
       findFirst: (...args: any[]) => mockLLMAdvisorSuggestionFindFirst(...args),
       update: (...args: any[]) => mockLLMAdvisorSuggestionUpdate(...args),
-      count: (...args: any[]) => mockLLMAdvisorSuggestionCount(...args)
-    }
-  }
+      count: (...args: any[]) => mockLLMAdvisorSuggestionCount(...args),
+    },
+  },
 }));
 
 vi.mock('../../../src/config/llm.config', () => ({
   llmConfig: {
-    enabled: true
-  }
+    enabled: true,
+  },
 }));
 
 vi.mock('../../../src/logger', () => ({
@@ -37,8 +37,8 @@ vi.mock('../../../src/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 // Mock collectors and services
@@ -52,38 +52,38 @@ const mockUpdateRewardWeight = vi.fn();
 const mockUpdateSafetyThreshold = vi.fn();
 const mockGetParamBounds = vi.fn();
 
-vi.mock('../../../src/amas/optimization/llm-advisor/stats-collector', () => ({
+vi.mock('../../../src/amas/services/llm-advisor/stats-collector', () => ({
   statsCollector: {
-    collectWeeklyStats: (...args: any[]) => mockCollectWeeklyStats(...args)
+    collectWeeklyStats: (...args: any[]) => mockCollectWeeklyStats(...args),
   },
   StatsCollector: class {
     collectWeeklyStats = mockCollectWeeklyStats;
-  }
+  },
 }));
 
 vi.mock('../../../src/services/llm-provider.service', () => ({
   llmProviderService: {
-    completeWithSystem: (...args: any[]) => mockCompleteWithSystem(...args)
+    completeWithSystem: (...args: any[]) => mockCompleteWithSystem(...args),
   },
   LLMProviderService: class {
     completeWithSystem = mockCompleteWithSystem;
-  }
+  },
 }));
 
-vi.mock('../../../src/amas/optimization/llm-advisor/suggestion-parser', () => ({
+vi.mock('../../../src/amas/services/llm-advisor/suggestion-parser', () => ({
   suggestionParser: {
     parse: (...args: any[]) => mockParse(...args),
-    validate: (...args: any[]) => mockValidate(...args)
+    validate: (...args: any[]) => mockValidate(...args),
   },
   SuggestionParser: class {
     parse = mockParse;
     validate = mockValidate;
-  }
+  },
 }));
 
-vi.mock('../../../src/amas/optimization/llm-advisor/prompts', () => ({
+vi.mock('../../../src/amas/services/llm-advisor/prompts', () => ({
   SYSTEM_PROMPT: 'You are an expert in adaptive learning systems.',
-  buildWeeklyAnalysisPrompt: vi.fn(() => 'Weekly analysis prompt')
+  buildWeeklyAnalysisPrompt: vi.fn(() => 'Weekly analysis prompt'),
 }));
 
 vi.mock('../../../src/services/amas-config.service', () => ({
@@ -92,8 +92,8 @@ vi.mock('../../../src/services/amas-config.service', () => ({
     updateThreshold: (...args: any[]) => mockUpdateThreshold(...args),
     updateRewardWeight: (...args: any[]) => mockUpdateRewardWeight(...args),
     updateSafetyThreshold: (...args: any[]) => mockUpdateSafetyThreshold(...args),
-    getParamBounds: (...args: any[]) => mockGetParamBounds(...args)
-  }
+    getParamBounds: (...args: any[]) => mockGetParamBounds(...args),
+  },
 }));
 
 describe('LLMWeeklyAdvisor', () => {
@@ -103,52 +103,52 @@ describe('LLMWeeklyAdvisor', () => {
   const mockWeeklyStats = {
     period: {
       start: new Date('2024-01-01'),
-      end: new Date('2024-01-07')
+      end: new Date('2024-01-07'),
     },
     users: {
       total: 1000,
       activeThisWeek: 500,
       newThisWeek: 50,
-      churned: 30
+      churned: 30,
     },
     learning: {
       avgAccuracy: 0.75,
       avgSessionDuration: 15,
       totalWordsLearned: 5000,
       totalAnswers: 20000,
-      avgResponseTime: 2500
+      avgResponseTime: 2500,
     },
     stateDistribution: {
       fatigue: { low: 0.6, mid: 0.3, high: 0.1 },
-      motivation: { low: 0.1, mid: 0.5, high: 0.4 }
+      motivation: { low: 0.1, mid: 0.5, high: 0.4 },
     },
     currentConfig: {
       userParamBounds: {
-        alpha: { min: 0.3, max: 2.0 }
+        alpha: { min: 0.3, max: 2.0 },
       },
       rewardWeights: { correct: 1.0 },
       adjustmentThresholds: {},
-      safetyThresholds: { highFatigue: 0.7 }
+      safetyThresholds: { highFatigue: 0.7 },
     },
     optimizationHistory: {
       recentObservations: [],
       bestParams: null,
       bestValue: null,
-      evaluationCount: 0
+      evaluationCount: 0,
     },
     alerts: {
       lowAccuracyUserRatio: 0.1,
       highFatigueUserRatio: 0.1,
       lowMotivationUserRatio: 0.1,
-      churnRate: 0.06
-    }
+      churnRate: 0.06,
+    },
   };
 
   const mockLLMSuggestion = {
     analysis: {
       summary: 'System performing well with room for improvement',
       keyFindings: ['High accuracy rate', 'Low churn'],
-      concerns: ['Some users show fatigue']
+      concerns: ['Some users show fatigue'],
     },
     suggestions: [
       {
@@ -160,12 +160,12 @@ describe('LLMWeeklyAdvisor', () => {
         reason: 'Improve learning outcomes',
         expectedImpact: '5% improvement in retention',
         risk: 'low',
-        priority: 2
-      }
+        priority: 2,
+      },
     ],
     confidence: 0.8,
     dataQuality: 'sufficient',
-    nextReviewFocus: 'Monitor fatigue levels'
+    nextReviewFocus: 'Monitor fatigue levels',
   };
 
   beforeEach(async () => {
@@ -179,10 +179,10 @@ describe('LLMWeeklyAdvisor', () => {
     mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
     mockGetParamBounds.mockResolvedValue({
       alpha: { min: 0.3, max: 2.0 },
-      fatigueK: { min: 0.02, max: 0.2 }
+      fatigueK: { min: 0.02, max: 0.2 },
     });
 
-    const module = await import('../../../src/amas/optimization/llm-advisor/llm-weekly-advisor');
+    const module = await import('../../../src/amas/services/llm-advisor/llm-weekly-advisor');
     LLMWeeklyAdvisor = module.LLMWeeklyAdvisor;
     llmWeeklyAdvisor = new LLMWeeklyAdvisor();
   });
@@ -211,7 +211,7 @@ describe('LLMWeeklyAdvisor', () => {
         reviewedAt: null,
         reviewNotes: null,
         appliedItems: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       const result = await llmWeeklyAdvisor.runWeeklyAnalysis();
@@ -229,7 +229,7 @@ describe('LLMWeeklyAdvisor', () => {
       mockValidate.mockReturnValue({
         valid: false,
         errors: ['Missing field'],
-        warnings: ['Low confidence']
+        warnings: ['Low confidence'],
       });
 
       mockLLMAdvisorSuggestionCreate.mockResolvedValue({
@@ -244,7 +244,7 @@ describe('LLMWeeklyAdvisor', () => {
         reviewedAt: null,
         reviewNotes: null,
         appliedItems: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       const result = await llmWeeklyAdvisor.runWeeklyAnalysis();
@@ -255,8 +255,7 @@ describe('LLMWeeklyAdvisor', () => {
     it('should throw error when LLM fails', async () => {
       mockCompleteWithSystem.mockRejectedValue(new Error('LLM API error'));
 
-      await expect(llmWeeklyAdvisor.runWeeklyAnalysis())
-        .rejects.toThrow('LLM API error');
+      await expect(llmWeeklyAdvisor.runWeeklyAnalysis()).rejects.toThrow('LLM API error');
     });
   });
 
@@ -275,8 +274,8 @@ describe('LLMWeeklyAdvisor', () => {
           reviewedAt: null,
           reviewNotes: null,
           appliedItems: null,
-          createdAt: new Date()
-        }
+          createdAt: new Date(),
+        },
       ];
 
       mockLLMAdvisorSuggestionFindMany.mockResolvedValue(mockStoredSuggestions);
@@ -289,8 +288,8 @@ describe('LLMWeeklyAdvisor', () => {
       expect(mockLLMAdvisorSuggestionFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 10,
-          skip: 0
-        })
+          skip: 0,
+        }),
       );
     });
 
@@ -302,8 +301,8 @@ describe('LLMWeeklyAdvisor', () => {
 
       expect(mockLLMAdvisorSuggestionFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'pending' }
-        })
+          where: { status: 'pending' },
+        }),
       );
     });
   });
@@ -322,7 +321,7 @@ describe('LLMWeeklyAdvisor', () => {
         reviewedAt: null,
         reviewNotes: null,
         appliedItems: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(mockStored);
@@ -331,7 +330,7 @@ describe('LLMWeeklyAdvisor', () => {
 
       expect(result.id).toBe('stored-1');
       expect(mockLLMAdvisorSuggestionFindUnique).toHaveBeenCalledWith({
-        where: { id: 'stored-1' }
+        where: { id: 'stored-1' },
       });
     });
 
@@ -357,7 +356,7 @@ describe('LLMWeeklyAdvisor', () => {
       reviewedAt: null,
       reviewNotes: null,
       appliedItems: null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     it('should approve suggestion and apply selected items', async () => {
@@ -368,14 +367,14 @@ describe('LLMWeeklyAdvisor', () => {
         status: 'approved',
         reviewedBy: 'admin',
         reviewedAt: new Date(),
-        appliedItems: ['suggestion-1']
+        appliedItems: ['suggestion-1'],
       });
 
       const result = await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
         selectedItems: ['suggestion-1'],
-        notes: 'Approved'
+        notes: 'Approved',
       });
 
       expect(result.status).toBe('approved');
@@ -384,7 +383,7 @@ describe('LLMWeeklyAdvisor', () => {
         0.88,
         'llm-advisor',
         'Improve learning outcomes',
-        'stored-1'
+        'stored-1',
       );
     });
 
@@ -394,13 +393,13 @@ describe('LLMWeeklyAdvisor', () => {
         ...mockStoredSuggestion,
         status: 'rejected',
         reviewedBy: 'admin',
-        appliedItems: []
+        appliedItems: [],
       });
 
       const result = await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: []
+        selectedItems: [],
       });
 
       expect(result.status).toBe('rejected');
@@ -413,9 +412,9 @@ describe('LLMWeeklyAdvisor', () => {
           ...mockLLMSuggestion,
           suggestions: [
             mockLLMSuggestion.suggestions[0],
-            { ...mockLLMSuggestion.suggestions[0], id: 'suggestion-2' }
-          ]
-        }
+            { ...mockLLMSuggestion.suggestions[0], id: 'suggestion-2' },
+          ],
+        },
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(multiSuggestion);
@@ -424,13 +423,13 @@ describe('LLMWeeklyAdvisor', () => {
         ...multiSuggestion,
         status: 'partial',
         reviewedBy: 'admin',
-        appliedItems: ['suggestion-1']
+        appliedItems: ['suggestion-1'],
       });
 
       const result = await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: ['suggestion-1']
+        selectedItems: ['suggestion-1'],
       });
 
       expect(result.status).toBe('partial');
@@ -439,34 +438,40 @@ describe('LLMWeeklyAdvisor', () => {
     it('should throw error for non-existent suggestion', async () => {
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(null);
 
-      await expect(llmWeeklyAdvisor.approveSuggestion({
-        suggestionId: 'non-existent',
-        approvedBy: 'admin',
-        selectedItems: []
-      })).rejects.toThrow('建议不存在');
+      await expect(
+        llmWeeklyAdvisor.approveSuggestion({
+          suggestionId: 'non-existent',
+          approvedBy: 'admin',
+          selectedItems: [],
+        }),
+      ).rejects.toThrow('建议不存在');
     });
 
     it('should throw error for already reviewed suggestion', async () => {
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue({
         ...mockStoredSuggestion,
-        status: 'approved'
+        status: 'approved',
       });
 
-      await expect(llmWeeklyAdvisor.approveSuggestion({
-        suggestionId: 'stored-1',
-        approvedBy: 'admin',
-        selectedItems: []
-      })).rejects.toThrow('建议状态不允许审批');
+      await expect(
+        llmWeeklyAdvisor.approveSuggestion({
+          suggestionId: 'stored-1',
+          approvedBy: 'admin',
+          selectedItems: [],
+        }),
+      ).rejects.toThrow('建议状态不允许审批');
     });
 
     it('should throw error for invalid item ids', async () => {
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(mockStoredSuggestion);
 
-      await expect(llmWeeklyAdvisor.approveSuggestion({
-        suggestionId: 'stored-1',
-        approvedBy: 'admin',
-        selectedItems: ['invalid-item']
-      })).rejects.toThrow('无效的建议项');
+      await expect(
+        llmWeeklyAdvisor.approveSuggestion({
+          suggestionId: 'stored-1',
+          approvedBy: 'admin',
+          selectedItems: ['invalid-item'],
+        }),
+      ).rejects.toThrow('无效的建议项');
     });
   });
 
@@ -483,7 +488,7 @@ describe('LLMWeeklyAdvisor', () => {
       reviewedAt: null,
       reviewNotes: null,
       appliedItems: null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     it('should reject pending suggestion', async () => {
@@ -494,14 +499,10 @@ describe('LLMWeeklyAdvisor', () => {
         reviewedBy: 'admin',
         reviewedAt: new Date(),
         reviewNotes: 'Not needed',
-        appliedItems: []
+        appliedItems: [],
       });
 
-      const result = await llmWeeklyAdvisor.rejectSuggestion(
-        'stored-1',
-        'admin',
-        'Not needed'
-      );
+      const result = await llmWeeklyAdvisor.rejectSuggestion('stored-1', 'admin', 'Not needed');
 
       expect(result.status).toBe('rejected');
       expect(mockLLMAdvisorSuggestionUpdate).toHaveBeenCalledWith({
@@ -510,26 +511,28 @@ describe('LLMWeeklyAdvisor', () => {
           status: 'rejected',
           reviewedBy: 'admin',
           reviewNotes: 'Not needed',
-          appliedItems: []
-        })
+          appliedItems: [],
+        }),
       });
     });
 
     it('should throw error for non-existent suggestion', async () => {
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(null);
 
-      await expect(llmWeeklyAdvisor.rejectSuggestion('non-existent', 'admin'))
-        .rejects.toThrow('建议不存在');
+      await expect(llmWeeklyAdvisor.rejectSuggestion('non-existent', 'admin')).rejects.toThrow(
+        '建议不存在',
+      );
     });
 
     it('should throw error for already reviewed suggestion', async () => {
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue({
         ...mockStoredSuggestion,
-        status: 'approved'
+        status: 'approved',
       });
 
-      await expect(llmWeeklyAdvisor.rejectSuggestion('stored-1', 'admin'))
-        .rejects.toThrow('建议状态不允许拒绝');
+      await expect(llmWeeklyAdvisor.rejectSuggestion('stored-1', 'admin')).rejects.toThrow(
+        '建议状态不允许拒绝',
+      );
     });
   });
 
@@ -541,7 +544,7 @@ describe('LLMWeeklyAdvisor', () => {
 
       expect(result).toBe(5);
       expect(mockLLMAdvisorSuggestionCount).toHaveBeenCalledWith({
-        where: { status: 'pending' }
+        where: { status: 'pending' },
       });
     });
   });
@@ -560,7 +563,7 @@ describe('LLMWeeklyAdvisor', () => {
         reviewedAt: null,
         reviewNotes: null,
         appliedItems: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       mockLLMAdvisorSuggestionFindFirst.mockResolvedValue(mockStored);
@@ -569,7 +572,7 @@ describe('LLMWeeklyAdvisor', () => {
 
       expect(result.id).toBe('latest-1');
       expect(mockLLMAdvisorSuggestionFindFirst).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
     });
 
@@ -595,7 +598,7 @@ describe('LLMWeeklyAdvisor', () => {
       reviewedAt: null,
       reviewNotes: null,
       appliedItems: null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     it('should apply param_bound suggestion with explicit bound type', async () => {
@@ -603,31 +606,33 @@ describe('LLMWeeklyAdvisor', () => {
         ...mockStoredSuggestion,
         parsedSuggestion: {
           ...mockLLMSuggestion,
-          suggestions: [{
-            id: 'param-1',
-            type: 'param_bound',
-            target: 'alpha.min',
-            currentValue: 0.3,
-            suggestedValue: 0.35,
-            reason: 'Improve stability',
-            expectedImpact: 'Better convergence',
-            risk: 'low',
-            priority: 2
-          }]
-        }
+          suggestions: [
+            {
+              id: 'param-1',
+              type: 'param_bound',
+              target: 'alpha.min',
+              currentValue: 0.3,
+              suggestedValue: 0.35,
+              reason: 'Improve stability',
+              expectedImpact: 'Better convergence',
+              risk: 'low',
+              priority: 2,
+            },
+          ],
+        },
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(paramBoundSuggestion);
       mockUpdateParamBound.mockResolvedValue(undefined);
       mockLLMAdvisorSuggestionUpdate.mockResolvedValue({
         ...paramBoundSuggestion,
-        status: 'approved'
+        status: 'approved',
       });
 
       await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: ['param-1']
+        selectedItems: ['param-1'],
       });
 
       expect(mockUpdateParamBound).toHaveBeenCalledWith(
@@ -636,7 +641,7 @@ describe('LLMWeeklyAdvisor', () => {
         0.35,
         'llm-advisor',
         'Improve stability',
-        'stored-1'
+        'stored-1',
       );
     });
 
@@ -645,31 +650,33 @@ describe('LLMWeeklyAdvisor', () => {
         ...mockStoredSuggestion,
         parsedSuggestion: {
           ...mockLLMSuggestion,
-          suggestions: [{
-            id: 'reward-1',
-            type: 'reward_weight',
-            target: 'correct',
-            currentValue: 1.0,
-            suggestedValue: 1.2,
-            reason: 'Increase positive feedback',
-            expectedImpact: 'Better motivation',
-            risk: 'low',
-            priority: 3
-          }]
-        }
+          suggestions: [
+            {
+              id: 'reward-1',
+              type: 'reward_weight',
+              target: 'correct',
+              currentValue: 1.0,
+              suggestedValue: 1.2,
+              reason: 'Increase positive feedback',
+              expectedImpact: 'Better motivation',
+              risk: 'low',
+              priority: 3,
+            },
+          ],
+        },
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(rewardWeightSuggestion);
       mockUpdateRewardWeight.mockResolvedValue(undefined);
       mockLLMAdvisorSuggestionUpdate.mockResolvedValue({
         ...rewardWeightSuggestion,
-        status: 'approved'
+        status: 'approved',
       });
 
       await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: ['reward-1']
+        selectedItems: ['reward-1'],
       });
 
       expect(mockUpdateRewardWeight).toHaveBeenCalledWith(
@@ -677,7 +684,7 @@ describe('LLMWeeklyAdvisor', () => {
         1.2,
         'llm-advisor',
         'Increase positive feedback',
-        'stored-1'
+        'stored-1',
       );
     });
 
@@ -686,31 +693,33 @@ describe('LLMWeeklyAdvisor', () => {
         ...mockStoredSuggestion,
         parsedSuggestion: {
           ...mockLLMSuggestion,
-          suggestions: [{
-            id: 'safety-1',
-            type: 'safety_threshold',
-            target: 'highFatigue',
-            currentValue: 0.7,
-            suggestedValue: 0.65,
-            reason: 'Earlier fatigue detection',
-            expectedImpact: 'Reduce burnout',
-            risk: 'medium',
-            priority: 1
-          }]
-        }
+          suggestions: [
+            {
+              id: 'safety-1',
+              type: 'safety_threshold',
+              target: 'highFatigue',
+              currentValue: 0.7,
+              suggestedValue: 0.65,
+              reason: 'Earlier fatigue detection',
+              expectedImpact: 'Reduce burnout',
+              risk: 'medium',
+              priority: 1,
+            },
+          ],
+        },
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(safetyThresholdSuggestion);
       mockUpdateSafetyThreshold.mockResolvedValue(undefined);
       mockLLMAdvisorSuggestionUpdate.mockResolvedValue({
         ...safetyThresholdSuggestion,
-        status: 'approved'
+        status: 'approved',
       });
 
       await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: ['safety-1']
+        selectedItems: ['safety-1'],
       });
 
       expect(mockUpdateSafetyThreshold).toHaveBeenCalledWith(
@@ -718,7 +727,7 @@ describe('LLMWeeklyAdvisor', () => {
         0.65,
         'llm-advisor',
         'Earlier fatigue detection',
-        'stored-1'
+        'stored-1',
       );
     });
   });
@@ -743,7 +752,7 @@ describe('LLMWeeklyAdvisor', () => {
               reason: 'Test 1',
               expectedImpact: 'Impact 1',
               risk: 'low',
-              priority: 2
+              priority: 2,
             },
             {
               id: 'threshold-2',
@@ -754,16 +763,16 @@ describe('LLMWeeklyAdvisor', () => {
               reason: 'Test 2',
               expectedImpact: 'Impact 2',
               risk: 'low',
-              priority: 3
-            }
-          ]
+              priority: 3,
+            },
+          ],
         },
         status: 'pending',
         reviewedBy: null,
         reviewedAt: null,
         reviewNotes: null,
         appliedItems: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       mockLLMAdvisorSuggestionFindUnique.mockResolvedValue(multiSuggestion);
@@ -773,13 +782,13 @@ describe('LLMWeeklyAdvisor', () => {
         .mockResolvedValueOnce(undefined);
       mockLLMAdvisorSuggestionUpdate.mockResolvedValue({
         ...multiSuggestion,
-        status: 'partial'
+        status: 'partial',
       });
 
       const result = await llmWeeklyAdvisor.approveSuggestion({
         suggestionId: 'stored-1',
         approvedBy: 'admin',
-        selectedItems: ['threshold-1', 'threshold-2']
+        selectedItems: ['threshold-1', 'threshold-2'],
       });
 
       // Should still complete, with partial status

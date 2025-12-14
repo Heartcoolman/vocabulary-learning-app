@@ -22,12 +22,16 @@ import {
 } from '../config/amas-feature-flags';
 import { getFeatureFlags as getAmasEngineFlags } from '../amas/config/feature-flags';
 import { getAllMetrics, getPrometheusMetrics } from '../monitoring/amas-metrics';
+import {
+  getLearningMetricsJson,
+  getLearningMetricsPrometheus,
+} from '../monitoring/learning-metrics';
 import { logger } from '../logger';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import { AuthRequest } from '../types';
 import prisma from '../config/database';
-import { DecisionRecorderService } from '../amas/services/decision-recorder.service';
+import { DecisionRecorderService } from '../services/decision-recorder.service';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 import { decisionEventsService, DecisionEventData } from '../services/decision-events.service';
@@ -966,10 +970,14 @@ router.get('/system/memory-status', realDataProtection, async (_req: Request, re
  */
 router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
   try {
-    const metrics = getAllMetrics();
+    const amasMetrics = getAllMetrics();
+    const learningMetrics = getLearningMetricsJson();
     res.json({
       success: true,
-      data: metrics,
+      data: {
+        amas: amasMetrics,
+        learning: learningMetrics,
+      },
     });
   } catch (error) {
     handleError(res, error, '获取监控指标失败');
@@ -982,8 +990,10 @@ router.get('/metrics', realDataProtection, (_req: Request, res: Response) => {
  */
 router.get('/metrics/prometheus', realDataProtection, (_req: Request, res: Response) => {
   try {
-    const metrics = getPrometheusMetrics();
-    res.type('text/plain').send(metrics);
+    const amasMetrics = getPrometheusMetrics();
+    const learningMetrics = getLearningMetricsPrometheus();
+    const combinedMetrics = `${amasMetrics}\n\n# Learning Experience Metrics\n${learningMetrics}`;
+    res.type('text/plain').send(combinedMetrics);
   } catch (error) {
     handleError(res, error, '获取 Prometheus 指标失败');
   }

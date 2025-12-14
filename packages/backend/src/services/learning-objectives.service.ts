@@ -5,7 +5,7 @@
 
 import prisma from '../config/database';
 import { LearningObjectives, LearningObjectiveMode } from '../amas/types';
-import { MultiObjectiveOptimizer } from '../amas/optimization/multi-objective-optimizer';
+import { MultiObjectiveOptimizer } from '../amas/core/multi-objective-optimizer';
 
 export class LearningObjectivesService {
   /**
@@ -36,9 +36,7 @@ export class LearningObjectivesService {
   /**
    * 创建或更新用户学习目标
    */
-  static async upsertUserObjectives(
-    objectives: LearningObjectives
-  ): Promise<LearningObjectives> {
+  static async upsertUserObjectives(objectives: LearningObjectives): Promise<LearningObjectives> {
     const normalized = MultiObjectiveOptimizer.normalizeWeights(objectives);
 
     const record = await prisma.userLearningObjectives.upsert({
@@ -86,7 +84,7 @@ export class LearningObjectivesService {
   static async switchMode(
     userId: string,
     mode: LearningObjectiveMode,
-    reason: 'manual' | 'auto_adjust' | 'experiment' = 'manual'
+    reason: 'manual' | 'auto_adjust' | 'experiment' = 'manual',
   ): Promise<LearningObjectives> {
     const currentObjectives = await this.getUserObjectives(userId);
 
@@ -120,7 +118,7 @@ export class LearningObjectivesService {
     userId: string,
     before: LearningObjectives,
     after: LearningObjectives,
-    reason: string
+    reason: string,
   ): Promise<void> {
     const existingObjective = await prisma.userLearningObjectives.findUnique({
       where: { userId },
@@ -226,7 +224,7 @@ export class LearningObjectivesService {
    */
   static async getObjectiveHistory(
     userId: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<
     Array<{
       timestamp: Date;

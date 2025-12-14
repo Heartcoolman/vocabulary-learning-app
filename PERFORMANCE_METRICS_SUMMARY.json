@@ -1,0 +1,241 @@
+{
+  "testDate": "2025-12-13",
+  "testDuration": "45min",
+  "environment": {
+    "os": "Linux WSL2",
+    "node": "v22.21.1",
+    "pnpm": "10.24.0",
+    "turbo": "2.6.3"
+  },
+  "buildMetrics": {
+    "status": "FAILED",
+    "errorMessage": "@danci/shared compilation errors",
+    "dependencyInstallTime": "21.013s",
+    "totalPackages": 1179,
+    "cacheHitRate": 99.4,
+    "buildAttemptTime": "12.141s"
+  },
+  "typeScriptErrors": {
+    "total": 1074,
+    "byPackage": {
+      "shared": 580,
+      "backend": 468,
+      "frontend": 26
+    },
+    "topErrorTypes": {
+      "TS1361_typeImportAsValue": 10,
+      "TS7006_implicitAny": 400,
+      "TS2304_browserAPINotFound": 50,
+      "TS2307_moduleNotFound": 20,
+      "TS2308_duplicateExport": 8,
+      "TS2305_prismaTypesMissing": 15,
+      "TS6305_outputFileNotBuilt": 50
+    }
+  },
+  "eslintMetrics": {
+    "errors": 0,
+    "warnings": 701,
+    "scanTime": "34.291s",
+    "byRule": {
+      "no-explicit-any": 150,
+      "no-unused-vars": 200,
+      "react-refresh/only-export-components": 100,
+      "no-unused-args": 150,
+      "unused-ts-expect-error": 10
+    }
+  },
+  "securityAudit": {
+    "totalVulnerabilities": 3,
+    "severity": {
+      "critical": 0,
+      "high": 0,
+      "moderate": 1,
+      "low": 2
+    },
+    "vulnerabilities": [
+      {
+        "id": "GHSA-67mh-4wv8-2f99",
+        "package": "esbuild",
+        "severity": "moderate",
+        "cvssScore": 5.3,
+        "currentVersion": "0.21.5",
+        "patchedVersion": ">=0.25.0",
+        "description": "CORS configuration allows arbitrary website access"
+      },
+      {
+        "id": "CVE-2025-54798",
+        "package": "tmp",
+        "severity": "low",
+        "currentVersion": "0.0.33, 0.1.0",
+        "description": "Symlink directory write vulnerability"
+      }
+    ]
+  },
+  "bundleMetrics": {
+    "frontend": {
+      "totalSize": "5.0MB",
+      "totalSizeBytes": 5242880,
+      "gzipTotalEstimate": "250KB",
+      "largestChunks": [
+        {
+          "name": "react-vendor",
+          "size": "538KB",
+          "gzip": "147KB",
+          "compressionRatio": 72.7,
+          "percentage": 35
+        },
+        {
+          "name": "index",
+          "size": "191KB",
+          "gzip": "50KB",
+          "compressionRatio": 73.8,
+          "percentage": 13
+        },
+        {
+          "name": "vendor",
+          "size": "106KB",
+          "gzip": "36KB",
+          "compressionRatio": 66.0,
+          "percentage": 7
+        },
+        {
+          "name": "CSS",
+          "size": "126KB",
+          "gzip": "19KB",
+          "compressionRatio": 84.9,
+          "percentage": 8
+        }
+      ],
+      "firstLoadJS": "233KB",
+      "performanceTarget": "200KB",
+      "exceedsTarget": true,
+      "exceedPercentage": 16.5
+    },
+    "backend": {
+      "totalSize": "9.3MB",
+      "fileCount": 308
+    }
+  },
+  "performanceGoals": {
+    "buildSuccess": {
+      "current": 0,
+      "target": 100,
+      "unit": "%"
+    },
+    "typeScriptErrors": {
+      "current": 1074,
+      "target": 0,
+      "unit": "count"
+    },
+    "eslintWarnings": {
+      "current": 701,
+      "target": 100,
+      "unit": "count"
+    },
+    "securityVulnerabilities": {
+      "current": 3,
+      "target": 0,
+      "unit": "count"
+    },
+    "firstLoadSize": {
+      "current": 233,
+      "target": 180,
+      "unit": "KB"
+    },
+    "buildTime": {
+      "current": null,
+      "target": 60,
+      "unit": "seconds"
+    }
+  },
+  "optimizationPotential": {
+    "reactVendor": {
+      "current": "147KB",
+      "target": "100KB",
+      "saving": "47KB",
+      "method": "Exclude dev tools, production build check"
+    },
+    "mainEntry": {
+      "current": "50KB",
+      "target": "30KB",
+      "saving": "20KB",
+      "method": "Route-level lazy loading, code splitting"
+    },
+    "assets": {
+      "current": "unknown",
+      "target": "optimized",
+      "saving": "30KB+",
+      "method": "WebP images, font subsetting, lazy loading"
+    },
+    "totalPotential": {
+      "current": "233KB",
+      "target": "133KB",
+      "improvement": 43,
+      "unit": "%"
+    }
+  },
+  "actionItems": {
+    "P0_critical": [
+      {
+        "task": "Fix 580 TypeScript errors in @danci/shared",
+        "effort": "8-16 hours",
+        "impact": "Unblocks build"
+      },
+      {
+        "task": "Fix 468 TypeScript errors in @danci/backend",
+        "effort": "16-24 hours",
+        "impact": "Unblocks build"
+      }
+    ],
+    "P1_high": [
+      {
+        "task": "Upgrade esbuild to fix CORS vulnerability",
+        "effort": "1 hour",
+        "impact": "Security fix"
+      },
+      {
+        "task": "Reduce explicit any usage (150 instances)",
+        "effort": "4-6 hours",
+        "impact": "Type safety"
+      }
+    ],
+    "P2_medium": [
+      {
+        "task": "Optimize Bundle size",
+        "effort": "8-12 hours",
+        "impact": "Performance improvement"
+      },
+      {
+        "task": "Clean up ESLint warnings",
+        "effort": "6-8 hours",
+        "impact": "Code quality"
+      }
+    ]
+  },
+  "timeline": {
+    "week1": {
+      "focus": "Critical build fixes",
+      "milestone": "Build success",
+      "tasks": ["Fix TS errors", "Verify build", "Fix esbuild vuln"]
+    },
+    "week2_3": {
+      "focus": "Quality improvements",
+      "milestone": "ESLint warnings < 100",
+      "tasks": ["Reduce any", "Clean unused", "Refactor React Refresh"]
+    },
+    "week4": {
+      "focus": "Performance optimization",
+      "milestone": "First load < 180KB",
+      "tasks": ["Bundle analysis", "Code splitting", "Performance testing"]
+    }
+  },
+  "overallScore": {
+    "buildStability": 0,
+    "typeSafety": 2,
+    "codeQuality": 6,
+    "security": 7,
+    "bundleSize": 7,
+    "total": 4.4,
+    "rating": "NEEDS_URGENT_FIXES"
+  }
+}

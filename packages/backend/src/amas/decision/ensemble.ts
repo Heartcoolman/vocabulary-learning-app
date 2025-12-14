@@ -27,15 +27,11 @@ import {
   BaseLearner,
   BaseLearnerContext,
   LearnerCapabilities,
-} from '../learning/base-learner';
+} from '../algorithms/learners';
 import { ColdStartManager, ColdStartState } from '../learning/coldstart';
-import { LinUCB, LinUCBContext } from '../learning/linucb';
-import {
-  ThompsonContext,
-  ThompsonSampling,
-  ThompsonSamplingState,
-} from '../learning/thompson-sampling';
-import { ACTRContext, ACTRMemoryModel, ACTRState } from '../modeling/actr-memory';
+import { LinUCB, LinUCBContext } from '../algorithms/learners';
+import { ThompsonContext, ThompsonSampling, ThompsonSamplingState } from '../algorithms/learners';
+import { ACTRContext, ACTRMemoryModel, ACTRState } from '../models/cognitive';
 import { HeuristicContext, HeuristicLearner, HeuristicState } from '../learning/heuristic';
 import { ACTION_SPACE, getActionIndex } from '../config/action-space';
 import { amasLogger } from '../../logger';
@@ -327,7 +323,7 @@ export class EnsembleLearningFramework implements BaseLearner<
   }
 
   /**
-   * 恢复状态（带数值校验）
+   * 恢复状态（带数值校验和完整字段校验）
    */
   setState(state: EnsembleState): void {
     if (!state) {
@@ -344,24 +340,73 @@ export class EnsembleLearningFramework implements BaseLearner<
     }
 
     // 恢复权重（带校验和归一化）
-    this.weights = this.normalizeWeights(state.weights);
+    if (state.weights && typeof state.weights === 'object') {
+      this.weights = this.normalizeWeights(state.weights);
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] 无效权重，使用默认值');
+      this.weights = { ...INITIAL_WEIGHTS };
+    }
+
     this.updateCount = Math.max(0, state.updateCount ?? 0);
 
-    // 恢复子学习器状态
-    if (state.coldStart) {
-      this.coldStart.setState(state.coldStart);
+    // 恢复子学习器状态（带完整字段校验）
+    if (state.coldStart && typeof state.coldStart === 'object') {
+      try {
+        this.coldStart.setState(state.coldStart);
+      } catch (err) {
+        amasLogger.warn({ err }, '[EnsembleLearningFramework] 恢复coldStart状态失败');
+      }
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] coldStart状态缺失或无效');
     }
-    if (state.linucb) {
-      this.linucb.setModel(state.linucb);
+
+    if (state.linucb && typeof state.linucb === 'object') {
+      try {
+        // 验证linucb必需字段
+        if (
+          typeof state.linucb.d === 'number' &&
+          state.linucb.A instanceof Float32Array &&
+          state.linucb.b instanceof Float32Array
+        ) {
+          this.linucb.setModel(state.linucb);
+        } else {
+          amasLogger.warn('[EnsembleLearningFramework] linucb状态字段不完整');
+        }
+      } catch (err) {
+        amasLogger.warn({ err }, '[EnsembleLearningFramework] 恢复linucb状态失败');
+      }
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] linucb状态缺失或无效');
     }
-    if (state.thompson) {
-      this.thompson.setState(state.thompson);
+
+    if (state.thompson && typeof state.thompson === 'object') {
+      try {
+        this.thompson.setState(state.thompson);
+      } catch (err) {
+        amasLogger.warn({ err }, '[EnsembleLearningFramework] 恢复thompson状态失败');
+      }
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] thompson状态缺失或无效');
     }
-    if (state.actr) {
-      this.actr.setState(state.actr);
+
+    if (state.actr && typeof state.actr === 'object') {
+      try {
+        this.actr.setState(state.actr);
+      } catch (err) {
+        amasLogger.warn({ err }, '[EnsembleLearningFramework] 恢复actr状态失败');
+      }
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] actr状态缺失或无效');
     }
-    if (state.heuristic) {
-      this.heuristic.setState(state.heuristic);
+
+    if (state.heuristic && typeof state.heuristic === 'object') {
+      try {
+        this.heuristic.setState(state.heuristic);
+      } catch (err) {
+        amasLogger.warn({ err }, '[EnsembleLearningFramework] 恢复heuristic状态失败');
+      }
+    } else {
+      amasLogger.warn('[EnsembleLearningFramework] heuristic状态缺失或无效');
     }
 
     // 恢复轨迹记录字段
@@ -369,9 +414,13 @@ export class EnsembleLearningFramework implements BaseLearner<
     this.lastConfidence = state.lastConfidence;
 
     // 恢复最近奖励历史（用于计算发散度）
-    this.recentRewards = Array.isArray(state.recentRewards)
-      ? state.recentRewards.slice(-this.REWARD_HISTORY_SIZE)
-      : [];
+    if (Array.isArray(state.recentRewards)) {
+      this.recentRewards = state.recentRewards
+        .filter((r): r is number => typeof r === 'number' && Number.isFinite(r))
+        .slice(-this.REWARD_HISTORY_SIZE);
+    } else {
+      this.recentRewards = [];
+    }
 
     // 清空临时状态
     this.lastDecisions = {};

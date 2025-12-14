@@ -1,0 +1,220 @@
+version: 2
+updates:
+  # ============================================
+  # 根项目依赖
+  # ============================================
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '02:00'
+    groups:
+      # 关键依赖分组 - 确保版本一致性
+      zod:
+        patterns:
+          - 'zod'
+        update-types:
+          - 'minor'
+          - 'patch'
+      typescript:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+      playwright:
+        patterns:
+          - '@playwright/*'
+          - 'playwright'
+      prettier:
+        patterns:
+          - 'prettier'
+          - 'prettier-plugin-*'
+      husky-lint:
+        patterns:
+          - 'husky'
+          - 'lint-staged'
+          - '@commitlint/*'
+    labels:
+      - 'dependencies'
+      - 'root'
+    open-pull-requests-limit: 5
+    pull-request-branch-name:
+      separator: '-'
+    commit-message:
+      prefix: 'chore(deps):'
+      prefix-development: 'chore(deps-dev):'
+    reviewers:
+      - 'Heartcoolman'
+
+  # ============================================
+  # Backend 包
+  # ============================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/backend'
+    schedule:
+      interval: 'weekly'
+      day: 'tuesday'
+      time: '02:00'
+    groups:
+      prisma:
+        patterns:
+          - '@prisma/client'
+          - 'prisma'
+        update-types:
+          - 'minor'
+          - 'patch'
+      express:
+        patterns:
+          - 'express'
+          - '@types/express'
+          - 'express-*'
+      sentry:
+        patterns:
+          - '@sentry/*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - 'supertest'
+          - '@types/supertest'
+      node-types:
+        patterns:
+          - '@types/node'
+    labels:
+      - 'dependencies'
+      - 'backend'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(backend-deps):'
+    reviewers:
+      - 'Heartcoolman'
+
+  # ============================================
+  # Frontend 包
+  # ============================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/frontend'
+    schedule:
+      interval: 'weekly'
+      day: 'wednesday'
+      time: '02:00'
+    groups:
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+        update-types:
+          - 'minor'
+          - 'patch'
+      tanstack:
+        patterns:
+          - '@tanstack/*'
+      vite:
+        patterns:
+          - 'vite'
+          - '@vitejs/*'
+          - 'rollup-plugin-*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - '@testing-library/*'
+          - 'msw'
+      storybook:
+        patterns:
+          - 'storybook'
+          - '@storybook/*'
+      ui:
+        patterns:
+          - 'framer-motion'
+          - '@phosphor-icons/*'
+      tailwind:
+        patterns:
+          - 'tailwindcss'
+          - '@tailwindcss/*'
+          - 'postcss'
+          - 'autoprefixer'
+      sentry:
+        patterns:
+          - '@sentry/*'
+    labels:
+      - 'dependencies'
+      - 'frontend'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(frontend-deps):'
+    reviewers:
+      - 'Heartcoolman'
+
+  # ============================================
+  # Shared 包
+  # ============================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/shared'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '03:00'
+    groups:
+      zod:
+        patterns:
+          - 'zod'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+    labels:
+      - 'dependencies'
+      - 'shared'
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 'chore(shared-deps):'
+    reviewers:
+      - 'Heartcoolman'
+
+  # ============================================
+  # Native 包
+  # ============================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/native'
+    schedule:
+      interval: 'weekly'
+      day: 'thursday'
+      time: '02:00'
+    groups:
+      napi:
+        patterns:
+          - '@napi-rs/*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+    labels:
+      - 'dependencies'
+      - 'native'
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 'chore(native-deps):'
+    reviewers:
+      - 'Heartcoolman'
+
+  # ============================================
+  # GitHub Actions
+  # ============================================
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    labels:
+      - 'github-actions'
+      - 'ci'
+    commit-message:
+      prefix: 'chore(ci):'
+    reviewers:
+      - 'Heartcoolman'

@@ -10,7 +10,7 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text-summary', 'json-summary'], // 移除 html/json 以减少内存占用
+      reporter: ['text', 'text-summary', 'json', 'json-summary', 'html', 'lcov'],
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts', 'src/index.ts'],
       reportsDirectory: './coverage',
@@ -21,6 +21,7 @@ export default defineConfig({
         functions: 80,
         branches: 80,
       },
+      all: true,
     },
     testTimeout: 30000,
     hookTimeout: 30000,

@@ -8,26 +8,26 @@ vi.mock('../../../src/config/database', () => ({
   default: {
     wordLearningState: {
       findMany: vi.fn(),
-      updateMany: vi.fn()
+      updateMany: vi.fn(),
     },
     word: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
     },
     wordScore: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
     },
-    wordFrequency: {
-      findMany: vi.fn()
+    word_frequency: {
+      findMany: vi.fn(),
     },
     learningSession: {
       create: vi.fn(),
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
-      updateMany: vi.fn()
+      updateMany: vi.fn(),
     },
-    $queryRaw: vi.fn().mockResolvedValue([])
-  }
+    $queryRaw: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 vi.mock('../../../src/services/study-config.service', () => ({
@@ -36,9 +36,9 @@ vi.mock('../../../src/services/study-config.service', () => ({
       selectedWordBookIds: ['wb-1'],
       dailyMasteryTarget: 20,
       dailyWordCount: 20,
-      studyMode: 'random'
-    })
-  }
+      studyMode: 'random',
+    }),
+  },
 }));
 
 vi.mock('../../../src/services/amas.service', () => ({
@@ -46,30 +46,30 @@ vi.mock('../../../src/services/amas.service', () => ({
     getCurrentStrategy: vi.fn().mockResolvedValue({
       new_ratio: 0.3,
       difficulty: 'mid',
-      interval_scale: 1.0
+      interval_scale: 1.0,
     }),
     getDefaultStrategy: vi.fn().mockReturnValue({
       new_ratio: 0.2,
       difficulty: 'mid',
-      interval_scale: 1.0
-    })
-  }
+      interval_scale: 1.0,
+    }),
+  },
 }));
 
 vi.mock('../../../src/services/difficulty-cache.service', () => ({
   default: {
     getCachedBatch: vi.fn().mockResolvedValue({}),
-    setCached: vi.fn().mockResolvedValue(undefined)
-  }
+    setCached: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 vi.mock('../../../src/services/metrics.service', () => ({
   recordDifficultyComputationTime: vi.fn(),
-  recordQueueAdjustmentDuration: vi.fn()
+  recordQueueAdjustmentDuration: vi.fn(),
 }));
 
 vi.mock('../../../src/amas/modeling/forgetting-curve', () => ({
-  calculateForgettingFactor: vi.fn().mockReturnValue(0.7)
+  calculateForgettingFactor: vi.fn().mockReturnValue(0.7),
 }));
 
 import prisma from '../../../src/config/database';
@@ -93,11 +93,25 @@ describe('MasteryLearningService', () => {
     beforeEach(() => {
       (prisma.wordLearningState.findMany as any).mockResolvedValue([]);
       (prisma.word.findMany as any).mockResolvedValue([
-        { id: 'w1', spelling: 'apple', phonetic: '/æpl/', meanings: ['苹果'], examples: [], audioUrl: null },
-        { id: 'w2', spelling: 'banana', phonetic: '/bəˈnænə/', meanings: ['香蕉'], examples: [], audioUrl: null }
+        {
+          id: 'w1',
+          spelling: 'apple',
+          phonetic: '/æpl/',
+          meanings: ['苹果'],
+          examples: [],
+          audioUrl: null,
+        },
+        {
+          id: 'w2',
+          spelling: 'banana',
+          phonetic: '/bəˈnænə/',
+          meanings: ['香蕉'],
+          examples: [],
+          audioUrl: null,
+        },
       ]);
       (prisma.wordScore.findMany as any).mockResolvedValue([]);
-      (prisma.wordFrequency.findMany as any).mockResolvedValue([]);
+      (prisma.word_frequency.findMany as any).mockResolvedValue([]);
     });
 
     it('should return initial batch of words', async () => {
@@ -134,17 +148,24 @@ describe('MasteryLearningService', () => {
     beforeEach(() => {
       (prisma.wordLearningState.findMany as any).mockResolvedValue([]);
       (prisma.word.findMany as any).mockResolvedValue([
-        { id: 'w3', spelling: 'cat', phonetic: '/kæt/', meanings: ['猫'], examples: [], audioUrl: null }
+        {
+          id: 'w3',
+          spelling: 'cat',
+          phonetic: '/kæt/',
+          meanings: ['猫'],
+          examples: [],
+          audioUrl: null,
+        },
       ]);
       (prisma.wordScore.findMany as any).mockResolvedValue([]);
-      (prisma.wordFrequency.findMany as any).mockResolvedValue([]);
+      (prisma.word_frequency.findMany as any).mockResolvedValue([]);
     });
 
     it('should fetch next batch of words', async () => {
       const result = await masteryLearningService.getNextWords('user-1', {
         currentWordIds: ['w1', 'w2'],
         masteredWordIds: ['w0'],
-        sessionId: 'session-1'
+        sessionId: 'session-1',
       });
 
       expect(result.words).toBeDefined();
@@ -157,7 +178,7 @@ describe('MasteryLearningService', () => {
         currentWordIds: ['w1'],
         masteredWordIds: ['w2'],
         sessionId: 'session-1',
-        count: 5
+        count: 5,
       });
 
       expect(prisma.word.findMany).toHaveBeenCalled();
@@ -170,7 +191,7 @@ describe('MasteryLearningService', () => {
       (prisma.learningSession.create as any).mockResolvedValue({
         id: 'session-new',
         userId: 'user-1',
-        targetMasteryCount: 20
+        targetMasteryCount: 20,
       });
 
       const sessionId = await masteryLearningService.ensureLearningSession('user-1', 20);
@@ -182,11 +203,15 @@ describe('MasteryLearningService', () => {
     it('should return existing session if matches user', async () => {
       (prisma.learningSession.findUnique as any).mockResolvedValue({
         id: 'session-existing',
-        userId: 'user-1'
+        userId: 'user-1',
       });
       (prisma.learningSession.update as any).mockResolvedValue({});
 
-      const sessionId = await masteryLearningService.ensureLearningSession('user-1', 20, 'session-existing');
+      const sessionId = await masteryLearningService.ensureLearningSession(
+        'user-1',
+        20,
+        'session-existing',
+      );
 
       expect(sessionId).toBe('session-existing');
     });
@@ -194,22 +219,22 @@ describe('MasteryLearningService', () => {
     it('should throw for session belonging to another user', async () => {
       (prisma.learningSession.findUnique as any).mockResolvedValue({
         id: 'session-other',
-        userId: 'other-user'
+        userId: 'other-user',
       });
 
       await expect(
-        masteryLearningService.ensureLearningSession('user-1', 20, 'session-other')
+        masteryLearningService.ensureLearningSession('user-1', 20, 'session-other'),
       ).rejects.toThrow('belongs to another user');
     });
 
     it('should reject invalid target count', async () => {
-      await expect(
-        masteryLearningService.ensureLearningSession('user-1', 0)
-      ).rejects.toThrow('Invalid targetMasteryCount');
+      await expect(masteryLearningService.ensureLearningSession('user-1', 0)).rejects.toThrow(
+        'Invalid targetMasteryCount',
+      );
 
-      await expect(
-        masteryLearningService.ensureLearningSession('user-1', 101)
-      ).rejects.toThrow('Invalid targetMasteryCount');
+      await expect(masteryLearningService.ensureLearningSession('user-1', 101)).rejects.toThrow(
+        'Invalid targetMasteryCount',
+      );
     });
   });
 
@@ -220,7 +245,7 @@ describe('MasteryLearningService', () => {
         actualMasteryCount: 10,
         totalQuestions: 25,
         startedAt: new Date(),
-        endedAt: null
+        endedAt: null,
       });
 
       const progress = await masteryLearningService.getSessionProgress('session-1', 'user-1');
@@ -234,7 +259,7 @@ describe('MasteryLearningService', () => {
       (prisma.learningSession.findFirst as any).mockResolvedValue(null);
 
       await expect(
-        masteryLearningService.getSessionProgress('session-404', 'user-1')
+        masteryLearningService.getSessionProgress('session-404', 'user-1'),
       ).rejects.toThrow('Session not found');
     });
   });
@@ -245,13 +270,13 @@ describe('MasteryLearningService', () => {
 
       await masteryLearningService.syncSessionProgress('session-1', 'user-1', {
         actualMasteryCount: 15,
-        totalQuestions: 30
+        totalQuestions: 30,
       });
 
       expect(prisma.learningSession.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'session-1', userId: 'user-1' }
-        })
+          where: { id: 'session-1', userId: 'user-1' },
+        }),
       );
     });
   });
@@ -260,11 +285,11 @@ describe('MasteryLearningService', () => {
     beforeEach(() => {
       (prisma.word.findMany as any).mockResolvedValue([]);
       (prisma.wordScore.findMany as any).mockResolvedValue([]);
-      (prisma.wordFrequency.findMany as any).mockResolvedValue([]);
+      (prisma.word_frequency.findMany as any).mockResolvedValue([]);
       (prisma.wordLearningState.findMany as any).mockResolvedValue([]);
       (studyConfigService.getUserStudyConfig as any).mockResolvedValue({
         selectedWordBookIds: ['wb-1'],
-        studyMode: 'random'
+        studyMode: 'random',
       });
     });
 
@@ -276,7 +301,7 @@ describe('MasteryLearningService', () => {
         masteredWordIds: [],
         userState: { fatigue: 0.8, attention: 0.5, motivation: 0.4 },
         recentPerformance: { accuracy: 0.6, avgResponseTime: 3000, consecutiveWrong: 1 },
-        adjustReason: 'fatigue'
+        adjustReason: 'fatigue',
       });
 
       expect(result.adjustments).toBeDefined();
@@ -292,7 +317,7 @@ describe('MasteryLearningService', () => {
         masteredWordIds: [],
         userState: { fatigue: 0.2, attention: 0.7, motivation: 0.5 },
         recentPerformance: { accuracy: 0.3, avgResponseTime: 5000, consecutiveWrong: 3 },
-        adjustReason: 'struggling'
+        adjustReason: 'struggling',
       });
 
       expect(result.targetDifficulty.max).toBeLessThanOrEqual(0.3);
@@ -307,7 +332,7 @@ describe('MasteryLearningService', () => {
         masteredWordIds: ['w0'],
         userState: { fatigue: 0.1, attention: 0.9, motivation: 0.8 },
         recentPerformance: { accuracy: 0.95, avgResponseTime: 1500, consecutiveWrong: 0 },
-        adjustReason: 'excelling'
+        adjustReason: 'excelling',
       });
 
       expect(result.targetDifficulty.min).toBeGreaterThanOrEqual(0.4);
@@ -321,7 +346,7 @@ describe('MasteryLearningService', () => {
         currentWordIds: [],
         masteredWordIds: [],
         recentPerformance: { accuracy: 0.3, avgResponseTime: 3000, consecutiveWrong: 2 },
-        adjustReason: 'periodic'
+        adjustReason: 'periodic',
       });
 
       expect(result.nextCheckIn).toBe(1);
@@ -330,11 +355,9 @@ describe('MasteryLearningService', () => {
 
   describe('batchComputeDifficulty', () => {
     beforeEach(() => {
-      (prisma.word.findMany as any).mockResolvedValue([
-        { id: 'w1', spelling: 'test' }
-      ]);
+      (prisma.word.findMany as any).mockResolvedValue([{ id: 'w1', spelling: 'test' }]);
       (prisma.wordScore.findMany as any).mockResolvedValue([]);
-      (prisma.wordFrequency.findMany as any).mockResolvedValue([]);
+      (prisma.word_frequency.findMany as any).mockResolvedValue([]);
       (prisma.wordLearningState.findMany as any).mockResolvedValue([]);
     });
 
@@ -353,9 +376,10 @@ describe('MasteryLearningService', () => {
     });
 
     it('should use cached values when available', async () => {
-      const { default: difficultyCacheService } = await import('../../../src/services/difficulty-cache.service');
+      const { default: difficultyCacheService } =
+        await import('../../../src/services/difficulty-cache.service');
       (difficultyCacheService.getCachedBatch as any).mockResolvedValue({
-        'w1': 0.5
+        w1: 0.5,
       });
 
       const result = await masteryLearningService.batchComputeDifficulty('user-1', ['w1']);

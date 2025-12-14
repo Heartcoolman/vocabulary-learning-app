@@ -22,8 +22,8 @@ import {
   ActionSelection,
   BaseLearner,
   BaseLearnerContext,
-  LearnerCapabilities
-} from './base-learner';
+  LearnerCapabilities,
+} from '../algorithms/learners';
 import { amasLogger } from '../../logger';
 
 // ==================== 类型定义 ====================
@@ -61,11 +61,11 @@ const EMA_ALPHA = 0.85;
 
 /** 打分权重配置 */
 const SCORE_WEIGHTS = {
-  support: 0.35,      // 支持度权重
-  difficulty: 0.25,   // 难度适配权重
-  motivation: 0.20,   // 动机匹配权重
-  pace: 0.15,         // 节奏适配权重
-  loadPenalty: 0.05   // 负载惩罚权重
+  support: 0.35, // 支持度权重
+  difficulty: 0.25, // 难度适配权重
+  motivation: 0.2, // 动机匹配权重
+  pace: 0.15, // 节奏适配权重
+  loadPenalty: 0.05, // 负载惩罚权重
 } as const;
 
 /** 响应时间归一化范围 */
@@ -81,9 +81,12 @@ const RESPONSE_TIME_RANGE = { min: 500, max: 10000 };
  * - 其他模型失效时的降级路径
  * - 快速获得合理策略
  */
-export class HeuristicLearner
-  implements BaseLearner<UserState, Action, HeuristicContext, HeuristicState>
-{
+export class HeuristicLearner implements BaseLearner<
+  UserState,
+  Action,
+  HeuristicContext,
+  HeuristicState
+> {
   private static readonly NAME = 'HeuristicLearner';
   private static readonly VERSION = '1.0.0';
 
@@ -100,7 +103,7 @@ export class HeuristicLearner
   selectAction(
     state: UserState,
     actions: Action[],
-    context: HeuristicContext
+    context: HeuristicContext,
   ): ActionSelection<Action> {
     if (!actions || actions.length === 0) {
       throw new Error('[HeuristicLearner] 动作列表不能为空');
@@ -124,17 +127,19 @@ export class HeuristicLearner
             fatigue: state.F,
             attention: state.A,
             motivation: state.M,
-            recentErrorRate: ctx.recentErrorRate
-          }
+            recentErrorRate: ctx.recentErrorRate,
+          },
         };
       }
     }
 
-    return bestSelection ?? {
-      action: actions[0],
-      score: 0,
-      confidence: 0
-    };
+    return (
+      bestSelection ?? {
+        action: actions[0],
+        score: 0,
+        confidence: 0,
+      }
+    );
   }
 
   /**
@@ -143,12 +148,7 @@ export class HeuristicLearner
    * 仅更新EMA统计量，不学习复杂参数
    * 当context缺失时，基于reward推导即时错误率
    */
-  update(
-    _state: UserState,
-    _action: Action,
-    reward: number,
-    context: HeuristicContext
-  ): void {
+  update(_state: UserState, _action: Action, reward: number, context: HeuristicContext): void {
     const boundedReward = this.clamp(reward, -1, 1);
 
     // 错误率推导：context有值则使用，否则基于reward推导
@@ -162,10 +162,8 @@ export class HeuristicLearner
     }
 
     // EMA更新
-    this.state.avgReward =
-      EMA_ALPHA * this.state.avgReward + (1 - EMA_ALPHA) * boundedReward;
-    this.state.avgErrorRate =
-      EMA_ALPHA * this.state.avgErrorRate + (1 - EMA_ALPHA) * errorRate;
+    this.state.avgReward = EMA_ALPHA * this.state.avgReward + (1 - EMA_ALPHA) * boundedReward;
+    this.state.avgErrorRate = EMA_ALPHA * this.state.avgErrorRate + (1 - EMA_ALPHA) * errorRate;
     this.state.updateCount += 1;
     this.state.lastUpdated = Date.now();
   }
@@ -179,7 +177,7 @@ export class HeuristicLearner
       updateCount: this.state.updateCount,
       avgReward: this.state.avgReward,
       avgErrorRate: this.state.avgErrorRate,
-      lastUpdated: this.state.lastUpdated
+      lastUpdated: this.state.lastUpdated,
     };
   }
 
@@ -194,23 +192,18 @@ export class HeuristicLearner
 
     // 版本检查
     if (state.version !== HeuristicLearner.VERSION) {
-      amasLogger.debug({ from: state.version, to: HeuristicLearner.VERSION }, '[HeuristicLearner] 版本迁移');
+      amasLogger.debug(
+        { from: state.version, to: HeuristicLearner.VERSION },
+        '[HeuristicLearner] 版本迁移',
+      );
     }
 
     this.state = {
       version: HeuristicLearner.VERSION,
       updateCount: this.validateNonNegativeInt(state.updateCount, 0),
-      avgReward: this.clamp(
-        this.validateNumber(state.avgReward, 0),
-        -1,
-        1
-      ),
-      avgErrorRate: this.clamp(
-        this.validateNumber(state.avgErrorRate, 0.5),
-        0,
-        1
-      ),
-      lastUpdated: this.validateNumber(state.lastUpdated, Date.now())
+      avgReward: this.clamp(this.validateNumber(state.avgReward, 0), -1, 1),
+      avgErrorRate: this.clamp(this.validateNumber(state.avgErrorRate, 0.5), 0, 1),
+      lastUpdated: this.validateNumber(state.lastUpdated, Date.now()),
     };
   }
 
@@ -235,7 +228,7 @@ export class HeuristicLearner
       supportsBatchUpdate: false,
       requiresPretraining: false,
       minSamplesForReliability: 1,
-      primaryUseCase: '低成本基准策略与降级路径'
+      primaryUseCase: '低成本基准策略与降级路径',
     };
   }
 
@@ -270,7 +263,7 @@ export class HeuristicLearner
       updateCount: 0,
       avgReward: 0,
       avgErrorRate: 0.5,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     };
   }
 
@@ -279,10 +272,7 @@ export class HeuristicLearner
    *
    * 对所有数值字段进行有限性检查，防止NaN/Infinity污染
    */
-  private normalizeContext(
-    state: UserState,
-    context?: HeuristicContext
-  ): NormalizedContext {
+  private normalizeContext(state: UserState, context?: HeuristicContext): NormalizedContext {
     const fatigueBias = this.clamp(context?.fatigueBias ?? 0, -0.3, 0.3);
     const motivationBias = this.clamp(context?.motivationBias ?? 0, -0.3, 0.3);
 
@@ -294,22 +284,18 @@ export class HeuristicLearner
     const safeSpeed = this.safeNumber(state.C?.speed, 0.5);
 
     return {
-      recentErrorRate: this.clamp(
-        context?.recentErrorRate ?? this.state.avgErrorRate,
-        0,
-        1
-      ),
+      recentErrorRate: this.clamp(context?.recentErrorRate ?? this.state.avgErrorRate, 0, 1),
       recentResponseTime: this.clamp(
         context?.recentResponseTime ?? 2000,
         RESPONSE_TIME_RANGE.min,
-        RESPONSE_TIME_RANGE.max
+        RESPONSE_TIME_RANGE.max,
       ),
       timeBucket: Math.round(this.clamp(context?.timeBucket ?? 12, 0, 23)),
       fatigue: this.clamp(safeFatigue + fatigueBias, 0, 1),
       attention: this.clamp(safeAttention, 0, 1),
       motivationNorm: this.clamp((safeMotivation + 1) / 2 + motivationBias, 0, 1),
       memoryCapacity: this.clamp(safeMemory, 0, 1),
-      speed: this.clamp(safeSpeed, 0, 1)
+      speed: this.clamp(safeSpeed, 0, 1),
     };
   }
 
@@ -321,22 +307,21 @@ export class HeuristicLearner
   private scoreAction(
     _state: UserState,
     action: Action,
-    ctx: NormalizedContext
+    ctx: NormalizedContext,
   ): { score: number; breakdown: ScoreBreakdown } {
     const breakdown: ScoreBreakdown = {
       support: 0,
       difficulty: 0,
       motivation: 0,
       pace: 0,
-      loadPenalty: 0
+      loadPenalty: 0,
     };
 
     // 1. 支持度得分：提示级别与疲劳的匹配
     // 疲劳高时，高提示级别得分高
     const hintLevel = action.hint_level / 2; // 归一化到[0,1]
     const fatigueDemand = ctx.fatigue;
-    breakdown.support = hintLevel * (0.5 + fatigueDemand * 0.5) +
-      (1 - ctx.recentErrorRate) * 0.3;
+    breakdown.support = hintLevel * (0.5 + fatigueDemand * 0.5) + (1 - ctx.recentErrorRate) * 0.3;
 
     // 2. 难度适配得分：难度与能力的匹配
     // 能力高且疲劳低时，高难度得分高
@@ -349,8 +334,8 @@ export class HeuristicLearner
     // 动机高时，新词多得分高
     // 添加边界保护：确保 newRatioNorm 在 [0, 1] 范围内
     const newRatioNorm = Math.min(1, Math.max(0, action.new_ratio / 0.4));
-    const motivationMatch = ctx.motivationNorm * newRatioNorm +
-      (1 - ctx.motivationNorm) * (1 - newRatioNorm);
+    const motivationMatch =
+      ctx.motivationNorm * newRatioNorm + (1 - ctx.motivationNorm) * (1 - newRatioNorm);
     breakdown.motivation = motivationMatch * ctx.attention;
 
     // 4. 节奏适配得分：间隔与速度的匹配
@@ -385,11 +370,7 @@ export class HeuristicLearner
     const fatigueHeadroom = 1 - ctx.fatigue;
     const rewardSignal = (this.state.avgReward + 1) / 2; // [-1,1] → [0,1]
 
-    return this.clamp(
-      0.4 * stability + 0.35 * fatigueHeadroom + 0.25 * rewardSignal,
-      0.1,
-      0.9
-    );
+    return this.clamp(0.4 * stability + 0.35 * fatigueHeadroom + 0.25 * rewardSignal, 0.1, 0.9);
   }
 
   /**
@@ -428,11 +409,7 @@ export class HeuristicLearner
    * 校验非负整数
    */
   private validateNonNegativeInt(value: unknown, fallback: number): number {
-    if (
-      typeof value !== 'number' ||
-      !Number.isFinite(value) ||
-      value < 0
-    ) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
       return fallback;
     }
     return Math.floor(value);

@@ -10,8 +10,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LearningManager, DecisionContext, ActionSelection } from '../../../../src/amas/engine/engine-learning';
-import { UserModels, WordReviewHistory } from '../../../../src/amas/engine/engine-types';
+import {
+  LearningManager,
+  DecisionContext,
+  ActionSelection,
+  UserModels,
+  WordReviewHistory,
+} from '../../../../src/amas/core/engine';
 import { LinUCB } from '../../../../src/amas/learning/linucb';
 import { AttentionMonitor } from '../../../../src/amas/modeling/attention-monitor';
 import { FatigueEstimator } from '../../../../src/amas/modeling/fatigue-estimator';
@@ -30,16 +35,16 @@ vi.mock('../../../../src/amas/config/feature-flags', () => ({
   getEnsembleLearnerFlags: vi.fn().mockReturnValue({
     heuristic: true,
     thompson: true,
-    actr: true
-  })
+    actr: true,
+  }),
 }));
 
 vi.mock('../../../../src/amas/monitoring/amas-metrics', () => ({
-  recordModelDrift: vi.fn()
+  recordModelDrift: vi.fn(),
 }));
 
 vi.mock('../../../../src/monitoring/amas-metrics', () => ({
-  recordModelDrift: vi.fn()
+  recordModelDrift: vi.fn(),
 }));
 
 // ==================== Test Helpers ====================
@@ -52,7 +57,7 @@ function createDefaultUserState(): UserState {
     C: { mem: 0.7, speed: 0.6, stability: 0.7 },
     T: 'flat',
     conf: 0.5,
-    ts: Date.now()
+    ts: Date.now(),
   };
 }
 
@@ -60,7 +65,7 @@ function createDecisionContext(): DecisionContext {
   return {
     recentErrorRate: 0.2,
     recentResponseTime: 2500,
-    timeBucket: 1
+    timeBucket: 1,
   };
 }
 
@@ -76,7 +81,7 @@ function createUserModels(): UserModels {
     thompson: null,
     heuristic: null,
     actrMemory: null,
-    userParams: null
+    userParams: null,
   };
 }
 
@@ -92,7 +97,7 @@ function createRawEvent(overrides: Partial<RawEvent> = {}): RawEvent {
     retryCount: 0,
     focusLossDuration: 0,
     interactionDensity: 0.5,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -115,14 +120,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'normal',
-        50,
-        0.8
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'normal', 50, 0.8);
 
       expect(result).toBeDefined();
       expect(result.action).toBeDefined();
@@ -137,22 +135,16 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'normal',
-        50,
-        0.8
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'normal', 50, 0.8);
 
       // Action should be one of the valid actions in ACTION_SPACE
       const matchingAction = ACTION_SPACE.find(
-        a => a.interval_scale === result.action.interval_scale &&
-             a.new_ratio === result.action.new_ratio &&
-             a.difficulty === result.action.difficulty &&
-             a.batch_size === result.action.batch_size &&
-             a.hint_level === result.action.hint_level
+        (a) =>
+          a.interval_scale === result.action.interval_scale &&
+          a.new_ratio === result.action.new_ratio &&
+          a.difficulty === result.action.difficulty &&
+          a.batch_size === result.action.batch_size &&
+          a.hint_level === result.action.hint_level,
       );
       expect(matchingAction).toBeDefined();
     });
@@ -161,14 +153,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'normal',
-        50,
-        0.8
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'normal', 50, 0.8);
 
       expect(result.contextVec).toBeDefined();
       expect(result.contextVec).toBeInstanceOf(Float32Array);
@@ -179,14 +164,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'normal',
-        50,
-        0.8
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'normal', 50, 0.8);
 
       // Confidence should be defined for LinUCB
       expect(result.confidence).toBeDefined();
@@ -200,7 +178,7 @@ describe('LearningManager', () => {
       // Replace bandit with a mock that is not LinUCB
       const modelsWithMockBandit: UserModels = {
         ...userModels,
-        bandit: {} as any
+        bandit: {} as any,
       };
 
       const result = learningManager.selectAction(
@@ -209,7 +187,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         50,
-        0.8
+        0.8,
       );
 
       expect(result.action).toBeDefined();
@@ -221,14 +199,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'classify',
-        5,
-        0.7
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'classify', 5, 0.7);
 
       expect(result).toBeDefined();
       expect(result.action).toBeDefined();
@@ -238,14 +209,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'explore',
-        15,
-        0.75
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'explore', 15, 0.75);
 
       expect(result).toBeDefined();
       expect(result.action).toBeDefined();
@@ -257,7 +221,7 @@ describe('LearningManager', () => {
       const wordReviewHistory: WordReviewHistory[] = [
         { secondsAgo: 60, isCorrect: true },
         { secondsAgo: 3600, isCorrect: true },
-        { secondsAgo: 86400, isCorrect: false }
+        { secondsAgo: 86400, isCorrect: false },
       ];
 
       const result = learningManager.selectAction(
@@ -267,7 +231,7 @@ describe('LearningManager', () => {
         'normal',
         50,
         0.8,
-        wordReviewHistory
+        wordReviewHistory,
       );
 
       expect(result).toBeDefined();
@@ -285,7 +249,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         5,
-        0.5
+        0.5,
       );
 
       // Experienced user with high interaction count
@@ -295,7 +259,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         200,
-        0.9
+        0.9,
       );
 
       // Both should return valid actions
@@ -312,12 +276,7 @@ describe('LearningManager', () => {
       const action = ACTION_SPACE[0];
       const context = createDecisionContext();
 
-      const result = learningManager.buildContextVector(
-        userModels,
-        state,
-        action,
-        context
-      );
+      const result = learningManager.buildContextVector(userModels, state, action, context);
 
       expect(result).toBeDefined();
       expect(result).toBeInstanceOf(Float32Array);
@@ -331,14 +290,14 @@ describe('LearningManager', () => {
 
       const modelsWithMockBandit: UserModels = {
         ...userModels,
-        bandit: {} as any
+        bandit: {} as any,
       };
 
       const result = learningManager.buildContextVector(
         modelsWithMockBandit,
         state,
         action,
-        context
+        context,
       );
 
       expect(result).toBeUndefined();
@@ -349,12 +308,7 @@ describe('LearningManager', () => {
       const action = ACTION_SPACE[0];
       const context = createDecisionContext();
 
-      const result = learningManager.buildContextVector(
-        userModels,
-        state,
-        action,
-        context
-      );
+      const result = learningManager.buildContextVector(userModels, state, action, context);
 
       expect(result).toBeDefined();
       // All values should be finite numbers
@@ -388,7 +342,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         'test-user-id',
-        true
+        true,
       );
 
       // Check that model was updated
@@ -412,7 +366,7 @@ describe('LearningManager', () => {
           context,
           'normal',
           'test-user-id',
-          true
+          true,
         );
       }).not.toThrow();
     });
@@ -433,7 +387,7 @@ describe('LearningManager', () => {
           context,
           'normal',
           'test-user-id',
-          false
+          false,
         );
       }).not.toThrow();
     });
@@ -445,7 +399,7 @@ describe('LearningManager', () => {
       const context = createDecisionContext();
       const wordReviewHistory: WordReviewHistory[] = [
         { secondsAgo: 120, isCorrect: true },
-        { secondsAgo: 7200, isCorrect: false }
+        { secondsAgo: 7200, isCorrect: false },
       ];
 
       expect(() => {
@@ -459,7 +413,7 @@ describe('LearningManager', () => {
           'normal',
           'test-user-id',
           true,
-          wordReviewHistory
+          wordReviewHistory,
         );
       }).not.toThrow();
     });
@@ -483,7 +437,7 @@ describe('LearningManager', () => {
             context,
             phase,
             'test-user-id',
-            true
+            true,
           );
         }).not.toThrow();
       }
@@ -497,7 +451,7 @@ describe('LearningManager', () => {
       const event = createRawEvent({
         isCorrect: true,
         responseTime: 2000,
-        retryCount: 0
+        retryCount: 0,
       });
       const state = createDefaultUserState();
 
@@ -510,7 +464,7 @@ describe('LearningManager', () => {
       const event = createRawEvent({
         isCorrect: false,
         responseTime: 8000,
-        retryCount: 2
+        retryCount: 2,
       });
       const state = createDefaultUserState();
 
@@ -524,7 +478,7 @@ describe('LearningManager', () => {
         { isCorrect: true, responseTime: 1000, retryCount: 0 },
         { isCorrect: false, responseTime: 10000, retryCount: 5 },
         { isCorrect: true, responseTime: 100, retryCount: 0 },
-        { isCorrect: false, responseTime: 50000, retryCount: 10 }
+        { isCorrect: false, responseTime: 50000, retryCount: 10 },
       ];
 
       for (const tc of testCases) {
@@ -540,16 +494,16 @@ describe('LearningManager', () => {
     it('should penalize fatigue', () => {
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 2000
+        responseTime: 2000,
       });
 
       const lowFatigueState: UserState = {
         ...createDefaultUserState(),
-        F: 0.1
+        F: 0.1,
       };
       const highFatigueState: UserState = {
         ...createDefaultUserState(),
-        F: 0.9
+        F: 0.9,
       };
 
       const rewardLowFatigue = learningManager.computeReward(event, lowFatigueState);
@@ -564,11 +518,11 @@ describe('LearningManager', () => {
 
       const fastEvent = createRawEvent({
         isCorrect: true,
-        responseTime: 1000
+        responseTime: 1000,
       });
       const slowEvent = createRawEvent({
         isCorrect: true,
-        responseTime: 10000
+        responseTime: 10000,
       });
 
       const rewardFast = learningManager.computeReward(fastEvent, state);
@@ -585,25 +539,25 @@ describe('LearningManager', () => {
       const noFrustrationEvent = createRawEvent({
         isCorrect: true,
         responseTime: 2000,
-        retryCount: 0  // No retries
+        retryCount: 0, // No retries
       });
 
       // Event with high retry count (frustration indicator)
       const highRetryEvent = createRawEvent({
         isCorrect: true,
         responseTime: 2000,
-        retryCount: 3  // Multiple retries indicate frustration
+        retryCount: 3, // Multiple retries indicate frustration
       });
 
       // State with negative motivation (frustration indicator)
       const frustratedState: UserState = {
         ...createDefaultUserState(),
-        M: -0.5
+        M: -0.5,
       };
       const frustratedEvent = createRawEvent({
         isCorrect: true,
         responseTime: 2000,
-        retryCount: 0
+        retryCount: 0,
       });
 
       const rewardNoFrustration = learningManager.computeReward(noFrustrationEvent, normalState);
@@ -618,12 +572,16 @@ describe('LearningManager', () => {
     it('should use standard profile by default', () => {
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 2000
+        responseTime: 2000,
       });
       const state = createDefaultUserState();
 
       const reward = learningManager.computeReward(event, state);
-      const rewardWithProfile = learningManager.computeReward(event, state, REWARD_PROFILES.standard);
+      const rewardWithProfile = learningManager.computeReward(
+        event,
+        state,
+        REWARD_PROFILES.standard,
+      );
 
       // Default should be same as standard profile
       expect(reward).toBe(rewardWithProfile);
@@ -632,7 +590,7 @@ describe('LearningManager', () => {
     it('should handle different reward profiles', () => {
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 2000
+        responseTime: 2000,
       });
       const state = createDefaultUserState();
 
@@ -659,14 +617,14 @@ describe('LearningManager', () => {
         isCorrect: true,
         responseTime: 2000,
         dwellTime: 3000,
-        interactionDensity: 0.8
+        interactionDensity: 0.8,
       });
 
       const poorDwellEvent = createRawEvent({
         isCorrect: true,
         responseTime: 2000,
-        dwellTime: 100,  // Too short
-        interactionDensity: 0.1
+        dwellTime: 100, // Too short
+        interactionDensity: 0.1,
       });
 
       const rewardOptimal = learningManager.computeReward(optimalDwellEvent, state);
@@ -679,7 +637,7 @@ describe('LearningManager', () => {
     it('should handle edge case with zero response time', () => {
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 0
+        responseTime: 0,
       });
       const state = createDefaultUserState();
 
@@ -693,7 +651,7 @@ describe('LearningManager', () => {
     it('should handle edge case with very long response time', () => {
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 120000  // 2 minutes
+        responseTime: 120000, // 2 minutes
       });
       const state = createDefaultUserState();
 
@@ -710,14 +668,7 @@ describe('LearningManager', () => {
   describe('applyUserParams', () => {
     it('should not throw when userParams is null', () => {
       expect(() => {
-        learningManager.applyUserParams(
-          userModels,
-          'test-user-id',
-          50,
-          0.8,
-          0.2,
-          false
-        );
+        learningManager.applyUserParams(userModels, 'test-user-id', 50, 0.8, 0.2, false);
       }).not.toThrow();
     });
 
@@ -728,10 +679,10 @@ describe('LearningManager', () => {
       learningManager.applyUserParams(
         userModels,
         'test-user-id',
-        5,  // Low interaction count
-        0.5,  // 50% accuracy
+        5, // Low interaction count
+        0.5, // 50% accuracy
         0.2,
-        false
+        false,
       );
 
       // Alpha should be adjusted based on interaction count and accuracy
@@ -748,7 +699,7 @@ describe('LearningManager', () => {
         5,
         0.5,
         0.2,
-        true  // In cold start phase
+        true, // In cold start phase
       );
 
       // Should not throw and alpha should remain valid
@@ -762,8 +713,8 @@ describe('LearningManager', () => {
           'test-user-id',
           50,
           0.8,
-          0.9,  // High fatigue
-          false
+          0.9, // High fatigue
+          false,
         );
       }).not.toThrow();
     });
@@ -773,14 +724,7 @@ describe('LearningManager', () => {
 
       for (const accuracy of accuracyLevels) {
         expect(() => {
-          learningManager.applyUserParams(
-            userModels,
-            'test-user-id',
-            50,
-            accuracy,
-            0.2,
-            false
-          );
+          learningManager.applyUserParams(userModels, 'test-user-id', 50, accuracy, 0.2, false);
         }).not.toThrow();
       }
     });
@@ -795,20 +739,13 @@ describe('LearningManager', () => {
       const context = createDecisionContext();
 
       // 1. Select action
-      const selection = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'normal',
-        50,
-        0.8
-      );
+      const selection = learningManager.selectAction(state, userModels, context, 'normal', 50, 0.8);
       expect(selection.action).toBeDefined();
 
       // 2. Compute reward
       const event = createRawEvent({
         isCorrect: true,
-        responseTime: 2000
+        responseTime: 2000,
       });
       const reward = learningManager.computeReward(event, state);
       expect(typeof reward).toBe('number');
@@ -823,7 +760,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         'test-user-id',
-        true
+        true,
       );
 
       // Should complete without error
@@ -845,13 +782,13 @@ describe('LearningManager', () => {
           context,
           'normal',
           50 + i,
-          0.7 + i * 0.01
+          0.7 + i * 0.01,
         );
 
         // Compute reward
         const event = createRawEvent({
           isCorrect,
-          responseTime: 1500 + Math.random() * 3000
+          responseTime: 1500 + Math.random() * 3000,
         });
         const reward = learningManager.computeReward(event, state);
 
@@ -865,14 +802,14 @@ describe('LearningManager', () => {
           context,
           'normal',
           'test-user-id',
-          isCorrect
+          isCorrect,
         );
 
         // Update state for next iteration
         state = {
           ...state,
           F: Math.min(1, state.F + (isCorrect ? -0.01 : 0.05)),
-          ts: Date.now()
+          ts: Date.now(),
         };
       }
 
@@ -893,7 +830,7 @@ describe('LearningManager', () => {
           context,
           phase,
           phase === 'classify' ? 3 : phase === 'explore' ? 10 : 50,
-          0.7
+          0.7,
         );
 
         expect(selection.action).toBeDefined();
@@ -915,7 +852,7 @@ describe('LearningManager', () => {
         'normal',
         50,
         0.8,
-        []
+        [],
       );
 
       expect(result.action).toBeDefined();
@@ -929,7 +866,7 @@ describe('LearningManager', () => {
         C: { mem: 0, speed: 0, stability: 0 },
         T: 'down',
         conf: 0,
-        ts: Date.now()
+        ts: Date.now(),
       };
       const context = createDecisionContext();
 
@@ -939,7 +876,7 @@ describe('LearningManager', () => {
         context,
         'normal',
         50,
-        0.1
+        0.1,
       );
 
       expect(result.action).toBeDefined();
@@ -950,7 +887,7 @@ describe('LearningManager', () => {
       const extremeContext: DecisionContext = {
         recentErrorRate: 1.0,
         recentResponseTime: 100000,
-        timeBucket: 2
+        timeBucket: 2,
       };
 
       const result = learningManager.selectAction(
@@ -959,7 +896,7 @@ describe('LearningManager', () => {
         extremeContext,
         'normal',
         50,
-        0.1
+        0.1,
       );
 
       expect(result.action).toBeDefined();
@@ -969,14 +906,7 @@ describe('LearningManager', () => {
       const state = createDefaultUserState();
       const context = createDecisionContext();
 
-      const result = learningManager.selectAction(
-        state,
-        userModels,
-        context,
-        'classify',
-        0,
-        0.5
-      );
+      const result = learningManager.selectAction(state, userModels, context, 'classify', 0, 0.5);
 
       expect(result.action).toBeDefined();
     });
@@ -986,13 +916,13 @@ describe('LearningManager', () => {
         wordId: 'test-word',
         isCorrect: true,
         responseTime: 2000,
-        dwellTime: 0,  // No dwell time
+        dwellTime: 0, // No dwell time
         timestamp: Date.now(),
         pauseCount: 0,
         switchCount: 0,
         retryCount: 0,
         focusLossDuration: 0,
-        interactionDensity: 0
+        interactionDensity: 0,
       };
       const state = createDefaultUserState();
 

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import { validateQuery, validateParams } from '../middleware/validate.middleware';
-import { llmWeeklyAdvisor } from '../amas/optimization/llm-advisor';
+import { llmWeeklyAdvisor } from '../amas/services/llm-advisor';
 import { triggerLLMAnalysis, getLLMAdvisorWorkerStatus } from '../workers/llm-advisor.worker';
 import { llmConfig, getConfigSummary } from '../config/llm.config';
 import { llmProviderService } from '../services/llm-provider.service';
@@ -56,9 +56,9 @@ router.get('/config', async (req: AuthRequest, res, next) => {
           autoAnalysisEnabled: workerStatus.autoAnalysisEnabled,
           isRunning: workerStatus.isRunning,
           schedule: workerStatus.schedule,
-          pendingCount: workerStatus.pendingCount
-        }
-      }
+          pendingCount: workerStatus.pendingCount,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -76,8 +76,8 @@ router.get('/health', async (req: AuthRequest, res, next) => {
         success: true,
         data: {
           status: 'disabled',
-          message: 'LLM 顾问未启用'
-        }
+          message: 'LLM 顾问未启用',
+        },
       });
     }
 
@@ -86,8 +86,8 @@ router.get('/health', async (req: AuthRequest, res, next) => {
       success: true,
       data: {
         status: health.ok ? 'healthy' : 'unhealthy',
-        message: health.message
-      }
+        message: health.message,
+      },
     });
   } catch (error) {
     next(error);
@@ -98,130 +98,155 @@ router.get('/health', async (req: AuthRequest, res, next) => {
  * GET /api/llm-advisor/suggestions
  * 获取建议列表
  */
-router.get('/suggestions', validateQuery(suggestionsQuerySchema), async (req: AuthRequest, res, next) => {
-  try {
-    const { status, limit, offset } = req.validatedQuery as {
-      status?: 'pending' | 'approved' | 'rejected' | 'partial';
-      limit?: number;
-      offset?: number;
-    };
+router.get(
+  '/suggestions',
+  validateQuery(suggestionsQuerySchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { status, limit, offset } = req.validatedQuery as {
+        status?: 'pending' | 'approved' | 'rejected' | 'partial';
+        limit?: number;
+        offset?: number;
+      };
 
-    const result = await llmWeeklyAdvisor.getSuggestions({
-      status,
-      limit,
-      offset
-    });
+      const result = await llmWeeklyAdvisor.getSuggestions({
+        status,
+        limit,
+        offset,
+      });
 
-    res.json({
-      success: true,
-      data: {
-        items: result.items,
-        total: result.total
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      res.json({
+        success: true,
+        data: {
+          items: result.items,
+          total: result.total,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * GET /api/llm-advisor/suggestions/:id
  * 获取单个建议详情
  */
-router.get('/suggestions/:id', validateParams(suggestionIdParamSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const { id } = req.validatedParams as { id: string };
+router.get(
+  '/suggestions/:id',
+  validateParams(suggestionIdParamSchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
 
-    const suggestion = await llmWeeklyAdvisor.getSuggestion(id);
-    if (!suggestion) {
-      return res.status(404).json({
-        success: false,
-        message: '建议不存在'
+      const suggestion = await llmWeeklyAdvisor.getSuggestion(id);
+      if (!suggestion) {
+        return res.status(404).json({
+          success: false,
+          message: '建议不存在',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: suggestion,
       });
+    } catch (error) {
+      next(error);
     }
-
-    res.json({
-      success: true,
-      data: suggestion
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 /**
  * POST /api/llm-advisor/suggestions/:id/approve
  * 审批通过建议
  */
-router.post('/suggestions/:id/approve', validateParams(suggestionIdParamSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const { id } = req.validatedParams as { id: string };
-    const { selectedItems, notes } = req.body;
-    const userId = req.user!.id;
+router.post(
+  '/suggestions/:id/approve',
+  validateParams(suggestionIdParamSchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      const { selectedItems, notes } = req.body;
+      const userId = req.user!.id;
 
-    // 调试日志
-    amasLogger.info({
-      body: req.body,
-      selectedItems,
-      selectedItemsType: typeof selectedItems,
-      isArray: Array.isArray(selectedItems)
-    }, '[LLMAdvisorRoutes] 审批请求体');
+      // 调试日志
+      amasLogger.info(
+        {
+          body: req.body,
+          selectedItems,
+          selectedItemsType: typeof selectedItems,
+          isArray: Array.isArray(selectedItems),
+        },
+        '[LLMAdvisorRoutes] 审批请求体',
+      );
 
-    if (!Array.isArray(selectedItems)) {
-      return res.status(400).json({
-        success: false,
-        message: 'selectedItems 必须是数组',
-        debug: { received: selectedItems, type: typeof selectedItems }
+      if (!Array.isArray(selectedItems)) {
+        return res.status(400).json({
+          success: false,
+          message: 'selectedItems 必须是数组',
+          debug: { received: selectedItems, type: typeof selectedItems },
+        });
+      }
+
+      const updated = await llmWeeklyAdvisor.approveSuggestion({
+        suggestionId: id,
+        approvedBy: userId,
+        selectedItems,
+        notes,
       });
+
+      amasLogger.info(
+        {
+          suggestionId: id,
+          approvedBy: userId,
+          selectedCount: selectedItems.length,
+        },
+        '[LLMAdvisorRoutes] 建议已审批',
+      );
+
+      res.json({
+        success: true,
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const updated = await llmWeeklyAdvisor.approveSuggestion({
-      suggestionId: id,
-      approvedBy: userId,
-      selectedItems,
-      notes
-    });
-
-    amasLogger.info({
-      suggestionId: id,
-      approvedBy: userId,
-      selectedCount: selectedItems.length
-    }, '[LLMAdvisorRoutes] 建议已审批');
-
-    res.json({
-      success: true,
-      data: updated
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 /**
  * POST /api/llm-advisor/suggestions/:id/reject
  * 拒绝建议
  */
-router.post('/suggestions/:id/reject', validateParams(suggestionIdParamSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const { id } = req.validatedParams as { id: string };
-    const { notes } = req.body;
-    const userId = req.user!.id;
+router.post(
+  '/suggestions/:id/reject',
+  validateParams(suggestionIdParamSchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      const { notes } = req.body;
+      const userId = req.user!.id;
 
-    const updated = await llmWeeklyAdvisor.rejectSuggestion(id, userId, notes);
+      const updated = await llmWeeklyAdvisor.rejectSuggestion(id, userId, notes);
 
-    amasLogger.info({
-      suggestionId: id,
-      rejectedBy: userId
-    }, '[LLMAdvisorRoutes] 建议已拒绝');
+      amasLogger.info(
+        {
+          suggestionId: id,
+          rejectedBy: userId,
+        },
+        '[LLMAdvisorRoutes] 建议已拒绝',
+      );
 
-    res.json({
-      success: true,
-      data: updated
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      res.json({
+        success: true,
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * POST /api/llm-advisor/trigger
@@ -232,7 +257,7 @@ router.post('/trigger', async (req: AuthRequest, res, next) => {
     if (!llmConfig.enabled) {
       return res.status(400).json({
         success: false,
-        message: 'LLM 顾问未启用，请设置 LLM_ADVISOR_ENABLED=true'
+        message: 'LLM 顾问未启用，请设置 LLM_ADVISOR_ENABLED=true',
       });
     }
 
@@ -245,8 +270,8 @@ router.post('/trigger', async (req: AuthRequest, res, next) => {
       success: true,
       data: {
         suggestionId,
-        message: '分析已完成'
-      }
+        message: '分析已完成',
+      },
     });
   } catch (error) {
     next(error);
@@ -263,7 +288,7 @@ router.get('/latest', async (req: AuthRequest, res, next) => {
 
     res.json({
       success: true,
-      data: suggestion
+      data: suggestion,
     });
   } catch (error) {
     next(error);
@@ -280,7 +305,7 @@ router.get('/pending-count', async (req: AuthRequest, res, next) => {
 
     res.json({
       success: true,
-      data: { count }
+      data: { count },
     });
   } catch (error) {
     next(error);

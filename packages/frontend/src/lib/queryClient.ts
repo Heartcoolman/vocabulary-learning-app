@@ -24,8 +24,8 @@ export const queryClient = new QueryClient({
       // 窗口重新获得焦点时不自动重新请求
       refetchOnWindowFocus: false,
 
-      // 重新连接时不自动重新请求
-      refetchOnReconnect: false,
+      // 重新连接时自动重新请求
+      refetchOnReconnect: true,
 
       // 挂载时不自动重新请求（除非数据过期）
       refetchOnMount: true,

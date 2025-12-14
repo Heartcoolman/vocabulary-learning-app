@@ -19,27 +19,13 @@ import type {
   BanditModel as NativeBanditModel,
 } from '@danci/native';
 
-import {
-  CircuitBreaker,
-  CircuitBreakerOptions,
-  CircuitState,
-} from '../common/circuit-breaker';
+import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
-import {
-  LinUCB,
-  LinUCBContext as TSLinUCBContext,
-} from './linucb';
+import { LinUCB, LinUCBContext as TSLinUCBContext } from '../algorithms/learners';
 
-import {
-  Action as TSAction,
-  UserState as TSUserState,
-  BanditModel,
-} from '../types';
+import { Action as TSAction, UserState as TSUserState, BanditModel } from '../types';
 
-import {
-  ActionSelection,
-  LearnerCapabilities,
-} from './base-learner';
+import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
 
 import {
   recordNativeCall,
@@ -132,16 +118,18 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   NativeModule = require('@danci/native');
 } catch (e) {
-  amasLogger.warn('[LinUCBNativeWrapper] Native module not available, will use TypeScript fallback');
+  amasLogger.warn(
+    '[LinUCBNativeWrapper] Native module not available, will use TypeScript fallback',
+  );
 }
 
 // ==================== 熔断器默认配置 ====================
 
 const DEFAULT_CIRCUIT_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
   failureThreshold: 0.5, // 50% 失败率触发熔断
-  windowSize: 20,        // 20 个样本的滑动窗口
+  windowSize: 20, // 20 个样本的滑动窗口
   openDurationMs: 60000, // 60 秒后尝试半开
-  halfOpenProbe: 3,      // 半开状态允许 3 个探测请求
+  halfOpenProbe: 3, // 半开状态允许 3 个探测请求
 };
 
 // ==================== LinUCBNativeWrapper 类 ====================
@@ -222,7 +210,7 @@ export class LinUCBNativeWrapper {
       } catch (e) {
         amasLogger.warn(
           { error: e instanceof Error ? e.message : String(e) },
-          '[LinUCBNativeWrapper] Failed to initialize native module'
+          '[LinUCBNativeWrapper] Failed to initialize native module',
         );
         this.native = null;
       }
@@ -244,7 +232,7 @@ export class LinUCBNativeWrapper {
   selectAction(
     state: NativeCompatUserState,
     actions: NativeCompatAction[],
-    context: NativeLinUCBContext
+    context: NativeLinUCBContext,
   ): ActionSelection<NativeCompatAction> {
     const method: NativeMethod = 'selectAction';
 
@@ -274,7 +262,7 @@ export class LinUCBNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[LinUCBNativeWrapper] Native selectAction failed, falling back'
+          '[LinUCBNativeWrapper] Native selectAction failed, falling back',
         );
       }
     }
@@ -293,7 +281,7 @@ export class LinUCBNativeWrapper {
     state: NativeCompatUserState,
     action: NativeCompatAction,
     reward: number,
-    context: NativeLinUCBContext
+    context: NativeLinUCBContext,
   ): void {
     const method: NativeMethod = 'update';
 
@@ -323,7 +311,7 @@ export class LinUCBNativeWrapper {
 
         amasLogger.warn(
           { error: error.message },
-          '[LinUCBNativeWrapper] Native update failed, falling back'
+          '[LinUCBNativeWrapper] Native update failed, falling back',
         );
       }
     }
@@ -553,14 +541,14 @@ export class LinUCBNativeWrapper {
   static getColdStartAlpha(
     interactionCount: number,
     recentAccuracy: number,
-    fatigue: number
+    fatigue: number,
   ): number {
     if (NativeModule) {
       try {
         return NativeModule.LinUcbNative.getColdStartAlpha(
           interactionCount,
           recentAccuracy,
-          fatigue
+          fatigue,
         );
       } catch {
         // 降级
@@ -574,8 +562,7 @@ export class LinUCBNativeWrapper {
     else if (interactionCount < 50) interactionFactor = 1.5;
     else if (interactionCount < 200) interactionFactor = 1.2;
 
-    const accuracyFactor =
-      recentAccuracy < 0.3 || recentAccuracy > 0.9 ? 1.3 : 1.0;
+    const accuracyFactor = recentAccuracy < 0.3 || recentAccuracy > 0.9 ? 1.3 : 1.0;
     const fatigueFactor = 1.0 - fatigue * 0.3;
 
     return baseAlpha * interactionFactor * accuracyFactor * fatigueFactor;
@@ -659,9 +646,7 @@ export class LinUCBNativeWrapper {
     const fallbackCaps = this.fallback.getCapabilities();
     return {
       ...fallbackCaps,
-      primaryUseCase:
-        fallbackCaps.primaryUseCase +
-        ' (Native 加速版本，支持熔断降级)',
+      primaryUseCase: fallbackCaps.primaryUseCase + ' (Native 加速版本，支持熔断降级)',
     };
   }
 
@@ -700,7 +685,7 @@ export class LinUCBNativeWrapper {
   private selectActionWithFallback(
     state: NativeCompatUserState,
     actions: NativeCompatAction[],
-    context: NativeLinUCBContext
+    context: NativeLinUCBContext,
   ): ActionSelection<NativeCompatAction> {
     // 转换为 TS 类型
     const tsState = this.toTSState(state);
@@ -730,7 +715,7 @@ export class LinUCBNativeWrapper {
     state: NativeCompatUserState,
     action: NativeCompatAction,
     reward: number,
-    context: NativeLinUCBContext
+    context: NativeLinUCBContext,
   ): void {
     const tsState = this.toTSState(state);
     const tsAction = this.toTSAction(action);
@@ -755,9 +740,7 @@ export class LinUCBNativeWrapper {
     let scheduledAt: number | undefined;
     if (action.scheduledAt) {
       scheduledAt =
-        action.scheduledAt instanceof Date
-          ? action.scheduledAt.getTime()
-          : action.scheduledAt;
+        action.scheduledAt instanceof Date ? action.scheduledAt.getTime() : action.scheduledAt;
     }
 
     return {
@@ -778,7 +761,7 @@ export class LinUCBNativeWrapper {
 
   private fromNativeSelection(
     result: NativeActionSelection,
-    actions: NativeCompatAction[]
+    actions: NativeCompatAction[],
   ): ActionSelection<NativeCompatAction> {
     return {
       action: actions[result.selectedIndex],
@@ -833,9 +816,7 @@ export class LinUCBNativeWrapper {
 /**
  * 创建 LinUCBNativeWrapper 实例
  */
-export function createLinUCBNativeWrapper(
-  config?: LinUCBWrapperConfig
-): LinUCBNativeWrapper {
+export function createLinUCBNativeWrapper(config?: LinUCBWrapperConfig): LinUCBNativeWrapper {
   return new LinUCBNativeWrapper(config);
 }
 
@@ -843,7 +824,7 @@ export function createLinUCBNativeWrapper(
  * 创建禁用 Native 的 LinUCBNativeWrapper (用于测试)
  */
 export function createLinUCBNativeWrapperFallback(
-  config?: Omit<LinUCBWrapperConfig, 'useNative'>
+  config?: Omit<LinUCBWrapperConfig, 'useNative'>,
 ): LinUCBNativeWrapper {
   return new LinUCBNativeWrapper({ ...config, useNative: false });
 }

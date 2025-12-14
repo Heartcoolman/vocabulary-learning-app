@@ -6,7 +6,7 @@
  */
 
 import cron, { ScheduledTask } from 'node-cron';
-import { llmWeeklyAdvisor } from '../amas/optimization/llm-advisor';
+import { llmWeeklyAdvisor } from '../amas/services/llm-advisor';
 import { llmConfig, scheduleConfig } from '../config/llm.config';
 import { workerLogger } from '../logger';
 
@@ -40,40 +40,51 @@ async function runLLMAnalysisCycle(): Promise<void> {
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-    workerLogger.info({
-      id: result.id,
-      duration,
-      suggestionsCount: result.suggestion.suggestions.length,
-      confidence: result.suggestion.confidence,
-      dataQuality: result.suggestion.dataQuality
-    }, '[LLMAdvisorWorker] 周度分析完成');
+    workerLogger.info(
+      {
+        id: result.id,
+        duration,
+        suggestionsCount: result.suggestion.suggestions.length,
+        confidence: result.suggestion.confidence,
+        dataQuality: result.suggestion.dataQuality,
+      },
+      '[LLMAdvisorWorker] 周度分析完成',
+    );
 
     // 输出分析摘要
-    workerLogger.info({
-      summary: result.suggestion.analysis.summary,
-      keyFindings: result.suggestion.analysis.keyFindings,
-      concerns: result.suggestion.analysis.concerns
-    }, '[LLMAdvisorWorker] 分析摘要');
+    workerLogger.info(
+      {
+        summary: result.suggestion.analysis.summary,
+        keyFindings: result.suggestion.analysis.keyFindings,
+        concerns: result.suggestion.analysis.concerns,
+      },
+      '[LLMAdvisorWorker] 分析摘要',
+    );
 
     // 如果有高优先级建议，记录警告
-    const highPrioritySuggestions = result.suggestion.suggestions.filter(s => s.priority <= 2);
+    const highPrioritySuggestions = result.suggestion.suggestions.filter((s) => s.priority <= 2);
     if (highPrioritySuggestions.length > 0) {
-      workerLogger.warn({
-        count: highPrioritySuggestions.length,
-        suggestions: highPrioritySuggestions.map(s => ({
-          target: s.target,
-          type: s.type,
-          reason: s.reason
-        }))
-      }, '[LLMAdvisorWorker] 有高优先级建议待审核');
+      workerLogger.warn(
+        {
+          count: highPrioritySuggestions.length,
+          suggestions: highPrioritySuggestions.map((s) => ({
+            target: s.target,
+            type: s.type,
+            reason: s.reason,
+          })),
+        },
+        '[LLMAdvisorWorker] 有高优先级建议待审核',
+      );
     }
-
   } catch (error) {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    workerLogger.error({
-      err: error,
-      duration
-    }, '[LLMAdvisorWorker] 周度分析失败');
+    workerLogger.error(
+      {
+        err: error,
+        duration,
+      },
+      '[LLMAdvisorWorker] 周度分析失败',
+    );
   } finally {
     isRunning = false;
   }
@@ -85,9 +96,7 @@ async function runLLMAnalysisCycle(): Promise<void> {
  * @param schedule cron 表达式，默认每周日凌晨 4 点
  * @returns cron 任务实例，如果未启用则返回 null
  */
-export function startLLMAdvisorWorker(
-  schedule?: string
-): ScheduledTask | null {
+export function startLLMAdvisorWorker(schedule?: string): ScheduledTask | null {
   if (!llmConfig.enabled) {
     workerLogger.info('[LLMAdvisorWorker] LLM 顾问未启用，跳过 Worker 启动');
     return null;
@@ -103,7 +112,7 @@ export function startLLMAdvisorWorker(
   workerLogger.info({ schedule: cronSchedule }, '[LLMAdvisorWorker] 启动 LLM 顾问 Worker');
 
   scheduledTask = cron.schedule(cronSchedule, () => {
-    runLLMAnalysisCycle().catch(err => {
+    runLLMAnalysisCycle().catch((err) => {
       workerLogger.error({ err }, '[LLMAdvisorWorker] 未捕获的错误');
     });
   });
@@ -165,6 +174,6 @@ export async function getLLMAdvisorWorkerStatus(): Promise<{
     autoAnalysisEnabled: scheduleConfig.autoAnalysisEnabled,
     isRunning,
     schedule: scheduleConfig.weeklyAnalysisCron,
-    pendingCount
+    pendingCount,
   };
 }

@@ -10,12 +10,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AMASEngine } from '../../../../src/amas/engine/engine-core';
+import { AMASEngine } from '../../../../src/amas/core/engine';
 import {
   MemoryStateRepository,
   MemoryModelRepository,
-  ProcessOptions
-} from '../../../../src/amas/engine/engine-types';
+  ProcessOptions,
+} from '../../../../src/amas/core/engine';
 import { LinUCB } from '../../../../src/amas/learning/linucb';
 import { RawEventFactory, ActionFactory, AMASStateFactory } from '../../../helpers/factories';
 import {
@@ -24,7 +24,7 @@ import {
   HIGH_PERFORMING_USER_STATE,
   STANDARD_ACTIONS,
   CORRECT_FAST_EVENT,
-  INCORRECT_EVENT
+  INCORRECT_EVENT,
 } from '../../../fixtures/amas-fixtures';
 import { mockLogger } from '../../../setup';
 
@@ -32,9 +32,9 @@ import { mockLogger } from '../../../setup';
 vi.mock('../../../../src/config/database', () => ({
   default: {
     user: {
-      findUnique: vi.fn().mockResolvedValue(null)
-    }
-  }
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+  },
 }));
 
 vi.mock('../../../../src/amas/config/feature-flags', () => ({
@@ -45,15 +45,15 @@ vi.mock('../../../../src/amas/config/feature-flags', () => ({
     enableThompsonSampling: false,
     enableHeuristicBaseline: false,
     enableACTRMemory: false,
-    enableUserParamsManager: false
+    enableUserParamsManager: false,
   }),
-  isColdStartEnabled: vi.fn().mockReturnValue(false)
+  isColdStartEnabled: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../../../../src/monitoring/amas-metrics', () => ({
   recordActionSelection: vi.fn(),
   recordDecisionConfidence: vi.fn(),
-  recordInferenceLatencyMs: vi.fn()
+  recordInferenceLatencyMs: vi.fn(),
 }));
 
 vi.mock('../../../../src/logger', () => ({
@@ -61,8 +61,8 @@ vi.mock('../../../../src/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 describe('EngineCore', () => {
@@ -79,7 +79,7 @@ describe('EngineCore', () => {
     engine = new AMASEngine({
       stateRepo,
       modelRepo,
-      logger: mockLogger as any
+      logger: mockLogger as any,
     });
   });
 
@@ -111,7 +111,7 @@ describe('EngineCore', () => {
       const testEngine = new AMASEngine({
         stateRepo,
         modelRepo,
-        logger: mockLogger as any
+        logger: mockLogger as any,
       });
 
       expect(testEngine).toBeDefined();
@@ -122,7 +122,7 @@ describe('EngineCore', () => {
       // 验证默认使用 LinUCB
       const testEngine = new AMASEngine({
         stateRepo,
-        modelRepo
+        modelRepo,
       });
       expect(testEngine).toBeDefined();
     });
@@ -132,7 +132,7 @@ describe('EngineCore', () => {
       const testEngine = new AMASEngine({
         stateRepo,
         modelRepo,
-        bandit: customBandit
+        bandit: customBandit,
       });
       expect(testEngine).toBeDefined();
     });
@@ -146,7 +146,7 @@ describe('EngineCore', () => {
       const rawEvent = RawEventFactory.build({
         isCorrect: true,
         responseTime: 2000,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       const result = await engine.processEvent(userId, rawEvent);
@@ -166,7 +166,7 @@ describe('EngineCore', () => {
         const event = RawEventFactory.build({
           isCorrect: true,
           responseTime: 1500 + i * 100,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
         await engine.processEvent(userId, event);
       }
@@ -181,7 +181,7 @@ describe('EngineCore', () => {
       const rawEvent = RawEventFactory.build({
         isCorrect: false,
         responseTime: 10000, // 很慢的响应
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       const result = await engine.processEvent(userId, rawEvent);
@@ -221,7 +221,7 @@ describe('EngineCore', () => {
       const userId = 'test-user-outcome';
       const rawEvent = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 2000
+        responseTime: 2000,
       });
 
       const result = await engine.processEvent(userId, rawEvent);
@@ -238,14 +238,14 @@ describe('EngineCore', () => {
       // 首次处理
       const event1 = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 1500
+        responseTime: 1500,
       });
       const result1 = await engine.processEvent(userId, event1);
 
       // 第二次处理
       const event2 = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 1800
+        responseTime: 1800,
       });
       const result2 = await engine.processEvent(userId, event2);
 
@@ -271,7 +271,7 @@ describe('EngineCore', () => {
       // 正确答案
       const correctEvent = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 1500
+        responseTime: 1500,
       });
       const correctResult = await engine.processEvent(userId, correctEvent);
       expect(typeof correctResult.reward).toBe('number');
@@ -279,7 +279,7 @@ describe('EngineCore', () => {
       // 错误答案
       const incorrectEvent = RawEventFactory.build({
         isCorrect: false,
-        responseTime: 8000
+        responseTime: 8000,
       });
       const incorrectResult = await engine.processEvent(userId, incorrectEvent);
       expect(typeof incorrectResult.reward).toBe('number');
@@ -319,7 +319,7 @@ describe('EngineCore', () => {
       // 获取初始状态
       const event1 = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 1500
+        responseTime: 1500,
       });
       const result1 = await engine.processEvent(userId, event1);
       const initialFatigue = result1.state.F;
@@ -329,7 +329,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 5; i++) {
         const event = RawEventFactory.build({
           isCorrect: false,
-          responseTime: 8000
+          responseTime: 8000,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -358,7 +358,7 @@ describe('EngineCore', () => {
         M: 0.7,
         C: { mem: 0.8, speed: 0.7, stability: 0.8 },
         conf: 0.8,
-        ts: Date.now() - 1000
+        ts: Date.now() - 1000,
       };
 
       await stateRepo.saveState(userId, existingState as any);
@@ -417,7 +417,7 @@ describe('EngineCore', () => {
         const event = RawEventFactory.build({
           isCorrect: true,
           responseTime: 2000,
-          timestamp: Date.now() + i * 1000
+          timestamp: Date.now() + i * 1000,
         });
         await engine.processEvent(userId, event);
       }
@@ -460,11 +460,7 @@ describe('EngineCore', () => {
       const featureVector = result.featureVector?.values;
 
       if (featureVector && featureVector.length > 0) {
-        const updateResult = await engine.applyDelayedRewardUpdate(
-          userId,
-          featureVector,
-          0.9
-        );
+        const updateResult = await engine.applyDelayedRewardUpdate(userId, featureVector, 0.9);
 
         // 结果取决于模型是否已保存到 modelRepo
         expect(typeof updateResult.success).toBe('boolean');
@@ -475,7 +471,7 @@ describe('EngineCore', () => {
       const result = await engine.applyDelayedRewardUpdate(
         'non-existent-user',
         [0.5, 0.5, 0.5],
-        0.8
+        0.8,
       );
 
       expect(result.success).toBe(false);
@@ -492,11 +488,7 @@ describe('EngineCore', () => {
       // 使用错误维度的特征向量
       const wrongDimensionVector = [0.5, 0.5, 0.5]; // 只有3维
 
-      const result = await engine.applyDelayedRewardUpdate(
-        userId,
-        wrongDimensionVector,
-        0.8
-      );
+      const result = await engine.applyDelayedRewardUpdate(userId, wrongDimensionVector, 0.8);
 
       // 代码现在会自动对齐特征向量维度（零填充或截断）
       // 所以不再返回 dimension_mismatch 错误
@@ -514,7 +506,7 @@ describe('EngineCore', () => {
       const anomalousEvent = RawEventFactory.build({
         isCorrect: true,
         responseTime: -1000, // 负响应时间
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // 引擎应该能够处理而不抛出异常
@@ -543,7 +535,7 @@ describe('EngineCore', () => {
         new_ratio: 0.3,
         difficulty: 'hard' as const,
         batch_size: 12,
-        hint_level: 0
+        hint_level: 0,
       };
 
       const event = RawEventFactory.build();
@@ -558,7 +550,7 @@ describe('EngineCore', () => {
       const userId = 'test-zero-response';
       const event = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 0
+        responseTime: 0,
       });
 
       const result = await engine.processEvent(userId, event);
@@ -578,7 +570,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 5; i++) {
         const event = RawEventFactory.build({
           isCorrect: true,
-          responseTime: 1500
+          responseTime: 1500,
         });
         lastResult1 = await engine.processEvent(user1, event);
       }
@@ -588,7 +580,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 5; i++) {
         const event = RawEventFactory.build({
           isCorrect: false,
-          responseTime: 8000
+          responseTime: 8000,
         });
         lastResult2 = await engine.processEvent(user2, event);
       }
@@ -608,17 +600,15 @@ describe('EngineCore', () => {
       const events = Array.from({ length: 5 }, () =>
         RawEventFactory.build({
           isCorrect: true,
-          responseTime: 2000
-        })
+          responseTime: 2000,
+        }),
       );
 
-      const results = await Promise.all(
-        events.map(event => engine.processEvent(userId, event))
-      );
+      const results = await Promise.all(events.map((event) => engine.processEvent(userId, event)));
 
       // 所有请求应该成功完成
       expect(results).toHaveLength(5);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toBeDefined();
         expect(result.strategy).toBeDefined();
       });
@@ -700,7 +690,7 @@ describe('EngineCore', () => {
       const userId = 'edge-fast-response';
       const event = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 100 // 非常快
+        responseTime: 100, // 非常快
       });
 
       const result = await engine.processEvent(userId, event);
@@ -712,7 +702,7 @@ describe('EngineCore', () => {
       const userId = 'edge-slow-response';
       const event = RawEventFactory.build({
         isCorrect: true,
-        responseTime: 60000 // 60秒
+        responseTime: 60000, // 60秒
       });
 
       const result = await engine.processEvent(userId, event);
@@ -729,7 +719,7 @@ describe('EngineCore', () => {
         const event = RawEventFactory.build({
           isCorrect: Math.random() > 0.3,
           responseTime: 1500 + Math.random() * 3000,
-          timestamp: Date.now() + i * 100
+          timestamp: Date.now() + i * 100,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -750,7 +740,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 10; i++) {
         const event = RawEventFactory.build({
           isCorrect: true,
-          responseTime: 1500
+          responseTime: 1500,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -769,7 +759,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 10; i++) {
         const event = RawEventFactory.build({
           isCorrect: false,
-          responseTime: 8000
+          responseTime: 8000,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -788,7 +778,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 20; i++) {
         const event = RawEventFactory.build({
           isCorrect: i % 2 === 0,
-          responseTime: 2000 + i * 100
+          responseTime: 2000 + i * 100,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -802,7 +792,7 @@ describe('EngineCore', () => {
       const event = RawEventFactory.build({
         isCorrect: true,
         responseTime: 2000,
-        timestamp: Date.now() - 86400000 // 一天前
+        timestamp: Date.now() - 86400000, // 一天前
       });
 
       const result = await engine.processEvent(userId, event);
@@ -814,7 +804,7 @@ describe('EngineCore', () => {
       const event = RawEventFactory.build({
         isCorrect: true,
         responseTime: 2000,
-        timestamp: Date.now() + 86400000 // 一天后
+        timestamp: Date.now() + 86400000, // 一天后
       });
 
       const result = await engine.processEvent(userId, event);
@@ -844,7 +834,7 @@ describe('EngineCore', () => {
       for (let i = 0; i < 20; i++) {
         const event = RawEventFactory.build({
           isCorrect: false,
-          responseTime: 10000 + i * 500
+          responseTime: 10000 + i * 500,
         });
         lastResult = await engine.processEvent(userId, event);
       }
@@ -908,8 +898,8 @@ describe('EngineCore', () => {
       }
 
       const dimensions = results
-        .map(r => r.featureVector?.values?.length)
-        .filter(d => d !== undefined);
+        .map((r) => r.featureVector?.values?.length)
+        .filter((d) => d !== undefined);
 
       if (dimensions.length > 1) {
         // 所有维度应该一致
@@ -947,7 +937,7 @@ describe('EngineCore', () => {
           minAccuracy: 0.9,
           weightShortTerm: 0.3,
           weightLongTerm: 0.5,
-          weightEfficiency: 0.2
+          weightEfficiency: 0.2,
         },
         sessionStats: {
           accuracy: 0.85,
@@ -958,8 +948,8 @@ describe('EngineCore', () => {
           wordsPerMinute: 5,
           timeUtilization: 0.9,
           cognitiveLoad: 0.5,
-          sessionDuration: 1800
-        }
+          sessionDuration: 1800,
+        },
       };
 
       const event = RawEventFactory.build();
@@ -981,8 +971,8 @@ describe('EngineCore', () => {
             primaryObjective: 'accuracy',
             weightShortTerm: 0.33,
             weightLongTerm: 0.33,
-            weightEfficiency: 0.34
-          }
+            weightEfficiency: 0.34,
+          },
         };
 
         const event = RawEventFactory.build();
@@ -1000,7 +990,7 @@ describe('EngineCore', () => {
       const userId = 'interaction-count-test';
 
       const opts: ProcessOptions = {
-        interactionCount: 50
+        interactionCount: 50,
       };
 
       const event = RawEventFactory.build();
@@ -1013,7 +1003,7 @@ describe('EngineCore', () => {
       const userId = 'recent-accuracy-test';
 
       const opts: ProcessOptions = {
-        recentAccuracy: 0.85
+        recentAccuracy: 0.85,
       };
 
       const event = RawEventFactory.build();
@@ -1036,7 +1026,7 @@ describe('EngineCore', () => {
         const event1 = RawEventFactory.build({
           isCorrect: true,
           responseTime: 2000,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
         const result1 = await engine.processEvent(userId, event1);
 
@@ -1044,7 +1034,7 @@ describe('EngineCore', () => {
         const event2 = RawEventFactory.build({
           isCorrect: true,
           responseTime: 2500,
-          timestamp: Date.now() + 1000
+          timestamp: Date.now() + 1000,
         });
         const result2 = await engine.processEvent(userId, event2);
 
@@ -1120,26 +1110,28 @@ describe('EngineCore', () => {
           record: vi.fn().mockRejectedValue(new Error('Database connection failed')),
           flush: vi.fn().mockResolvedValue(undefined),
           cleanup: vi.fn().mockResolvedValue(undefined),
-          getQueueStats: vi.fn().mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 })
+          getQueueStats: vi
+            .fn()
+            .mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 }),
         };
 
         const engineWithRecorder = new AMASEngine({
           stateRepo,
           modelRepo,
           logger: mockLogger as any,
-          recorder: mockRecorder as any
+          recorder: mockRecorder as any,
         });
 
         const userId = 'degradation-test-user';
         const event = RawEventFactory.build({
           isCorrect: true,
-          responseTime: 2000
+          responseTime: 2000,
         });
 
         // 提供 answerRecordId 以触发决策记录
         const opts: ProcessOptions = {
           answerRecordId: 'test-answer-record-id',
-          sessionId: 'test-session-id'
+          sessionId: 'test-session-id',
         };
 
         // 即使 recorder 失败，processEvent 也应该成功返回
@@ -1158,7 +1150,7 @@ describe('EngineCore', () => {
         const engineWithoutRecorder = new AMASEngine({
           stateRepo,
           modelRepo,
-          logger: mockLogger as any
+          logger: mockLogger as any,
           // 没有 recorder
         });
 
@@ -1166,7 +1158,7 @@ describe('EngineCore', () => {
         const event = RawEventFactory.build();
 
         const opts: ProcessOptions = {
-          answerRecordId: 'test-answer-id'
+          answerRecordId: 'test-answer-id',
         };
 
         const result = await engineWithoutRecorder.processEvent(userId, event, opts);
@@ -1180,24 +1172,28 @@ describe('EngineCore', () => {
       it('should not block main flow when recording is slow', async () => {
         // 模拟慢速的 recorder
         const slowRecorder = {
-          record: vi.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 500))),
+          record: vi
+            .fn()
+            .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 500))),
           flush: vi.fn().mockResolvedValue(undefined),
           cleanup: vi.fn().mockResolvedValue(undefined),
-          getQueueStats: vi.fn().mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 })
+          getQueueStats: vi
+            .fn()
+            .mockReturnValue({ queueLength: 0, isFlushing: false, backpressureWaiters: 0 }),
         };
 
         const engineWithSlowRecorder = new AMASEngine({
           stateRepo,
           modelRepo,
           logger: mockLogger as any,
-          recorder: slowRecorder as any
+          recorder: slowRecorder as any,
         });
 
         const userId = 'slow-recorder-test';
         const event = RawEventFactory.build();
 
         const opts: ProcessOptions = {
-          answerRecordId: 'test-answer-id'
+          answerRecordId: 'test-answer-id',
         };
 
         const startTime = Date.now();
@@ -1222,7 +1218,7 @@ describe('EngineCore', () => {
           responseTime: 2500,
           timestamp: Date.now(),
           difficulty: 'mid',
-          wordId: 'test-word-123'
+          wordId: 'test-word-123',
         });
 
         const opts: ProcessOptions = {
@@ -1231,10 +1227,10 @@ describe('EngineCore', () => {
             new_ratio: 0.2,
             difficulty: 'mid',
             batch_size: 10,
-            hint_level: 1
+            hint_level: 1,
           },
           recentAccuracy: 0.75,
-          interactionCount: 25
+          interactionCount: 25,
         };
 
         const result = await engine.processEvent(userId, rawEvent, opts);
@@ -1289,7 +1285,7 @@ describe('EngineCore', () => {
           RawEventFactory.build({ isCorrect: true, responseTime: 1500 }),
           RawEventFactory.build({ isCorrect: true, responseTime: 1800 }),
           RawEventFactory.build({ isCorrect: false, responseTime: 4000 }),
-          RawEventFactory.build({ isCorrect: true, responseTime: 2000 })
+          RawEventFactory.build({ isCorrect: true, responseTime: 2000 }),
         ];
 
         let prevState: any = null;
@@ -1320,13 +1316,13 @@ describe('EngineCore', () => {
           RawEventFactory.build({
             isCorrect: i % 2 === 0,
             responseTime: 1500 + i * 100,
-            timestamp: Date.now() + i
-          })
+            timestamp: Date.now() + i,
+          }),
         );
 
         // 并发执行
         const results = await Promise.all(
-          events.map(event => engine.processEvent(userId, event))
+          events.map((event) => engine.processEvent(userId, event)),
         );
 
         // 验证所有请求都成功完成
@@ -1349,7 +1345,7 @@ describe('EngineCore', () => {
         expect(lastResult.state.F).toBeLessThanOrEqual(1);
 
         // 额外验证：所有结果的状态都应该在有效范围内
-        results.forEach(result => {
+        results.forEach((result) => {
           expect(result.state.A).toBeGreaterThanOrEqual(0);
           expect(result.state.A).toBeLessThanOrEqual(1);
           expect(result.state.F).toBeGreaterThanOrEqual(0);
@@ -1369,7 +1365,7 @@ describe('EngineCore', () => {
           const event = RawEventFactory.build({
             isCorrect: Math.random() > 0.3,
             responseTime: 1000 + Math.random() * 4000,
-            timestamp: Date.now() + i * 10
+            timestamp: Date.now() + i * 10,
           });
 
           const result = await engine.processEvent(userId, event);
@@ -1378,7 +1374,7 @@ describe('EngineCore', () => {
 
         // 所有请求应该成功
         expect(results).toHaveLength(20);
-        results.forEach(result => {
+        results.forEach((result) => {
           expect(result).toBeDefined();
           expect(result.strategy).toBeDefined();
         });
@@ -1395,7 +1391,7 @@ describe('EngineCore', () => {
         for (let i = 0; i < 15; i++) {
           const event = RawEventFactory.build({
             isCorrect: false,
-            responseTime: 10000 + i * 500
+            responseTime: 10000 + i * 500,
           });
           await engine.processEvent(userId, event);
         }
@@ -1403,7 +1399,7 @@ describe('EngineCore', () => {
         // 最终请求
         const finalEvent = RawEventFactory.build({
           isCorrect: false,
-          responseTime: 15000
+          responseTime: 15000,
         });
         const result = await engine.processEvent(userId, finalEvent);
 
@@ -1423,16 +1419,16 @@ describe('EngineCore', () => {
         const userId = 'e2e-actr-user';
         const event = RawEventFactory.build({
           isCorrect: true,
-          responseTime: 2000
+          responseTime: 2000,
         });
 
         const opts: ProcessOptions = {
           wordReviewHistory: [
-            { secondsAgo: 60, isCorrect: true },      // 1分钟前正确
-            { secondsAgo: 3600, isCorrect: true },    // 1小时前正确
-            { secondsAgo: 86400, isCorrect: false },  // 1天前错误
-            { secondsAgo: 259200, isCorrect: true }   // 3天前正确
-          ]
+            { secondsAgo: 60, isCorrect: true }, // 1分钟前正确
+            { secondsAgo: 3600, isCorrect: true }, // 1小时前正确
+            { secondsAgo: 86400, isCorrect: false }, // 1天前错误
+            { secondsAgo: 259200, isCorrect: true }, // 3天前正确
+          ],
         };
 
         const result = await engine.processEvent(userId, event, opts);
@@ -1489,7 +1485,7 @@ describe('EngineCore', () => {
         const testEngine = new AMASEngine({
           stateRepo: new MemoryStateRepository(),
           modelRepo: new MemoryModelRepository(),
-          logger: mockLogger as any
+          logger: mockLogger as any,
         });
 
         const userId = 'destroy-test-user';

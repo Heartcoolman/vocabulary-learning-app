@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ApiClient from '../services/client';
 import { handleError } from '../utils/errorHandler';
@@ -24,6 +24,310 @@ import {
   Calendar,
 } from '../components/Icon';
 import LineChart from '../components/LineChart';
+
+// ==================== Helper Functions ====================
+
+const getTrendIcon = (state: TrendState) => {
+  switch (state) {
+    case 'up':
+      return TrendUp;
+    case 'down':
+      return TrendDown;
+    default:
+      return ChartLine;
+  }
+};
+
+const getTrendColor = (state: TrendState) => {
+  switch (state) {
+    case 'up':
+      return { bg: 'bg-green-100', text: 'text-green-700', icon: '#16a34a' };
+    case 'down':
+      return { bg: 'bg-red-100', text: 'text-red-700', icon: '#dc2626' };
+    case 'stuck':
+      return { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '#ca8a04' };
+    default:
+      return { bg: 'bg-gray-100', text: 'text-gray-700', icon: '#6b7280' };
+  }
+};
+
+const getTrendName = (state: TrendState) => {
+  switch (state) {
+    case 'up':
+      return '上升';
+    case 'down':
+      return '下降';
+    case 'stuck':
+      return '停滞';
+    default:
+      return '稳定';
+  }
+};
+
+const getInterventionColor = (type?: string) => {
+  switch (type) {
+    case 'warning':
+      return { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', icon: '#dc2626' };
+    case 'suggestion':
+      return {
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        text: 'text-blue-700',
+        icon: '#2563eb',
+      };
+    case 'encouragement':
+      return {
+        bg: 'bg-green-50',
+        border: 'border-green-200',
+        text: 'text-green-700',
+        icon: '#16a34a',
+      };
+    default:
+      return {
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        text: 'text-gray-700',
+        icon: '#6b7280',
+      };
+  }
+};
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// ==================== Sub Components ====================
+
+interface DaysSelectorProps {
+  selectedDays: 7 | 28 | 90;
+  onSelect: (days: 7 | 28 | 90) => void;
+}
+
+const DaysSelector = memo(({ selectedDays, onSelect }: DaysSelectorProps) => {
+  return (
+    <div className="mb-6 flex gap-2">
+      {([7, 28, 90] as const).map((days) => (
+        <button
+          key={days}
+          onClick={() => onSelect(days)}
+          className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
+            selectedDays === days
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {days === 7 ? '最近 7 天' : days === 28 ? '最近 28 天' : '最近 90 天'}
+        </button>
+      ))}
+    </div>
+  );
+});
+DaysSelector.displayName = 'DaysSelector';
+
+interface TrendCardProps {
+  trendInfo: TrendInfo & { stateDescription: string };
+}
+
+const TrendCard = memo(({ trendInfo }: TrendCardProps) => {
+  const colors = getTrendColor(trendInfo.state);
+  const TrendIcon = getTrendIcon(trendInfo.state);
+
+  return (
+    <div
+      className={`mb-8 rounded-2xl border-2 p-6 transition-all duration-300 ${colors.bg} border-${colors.text.replace('text-', '')} `}
+    >
+      <div className="flex items-center gap-4">
+        <div
+          className={`flex h-16 w-16 items-center justify-center rounded-full ${
+            trendInfo.state === 'up'
+              ? 'bg-green-500'
+              : trendInfo.state === 'down'
+                ? 'bg-red-500'
+                : trendInfo.state === 'stuck'
+                  ? 'bg-yellow-500'
+                  : 'bg-gray-400'
+          } `}
+        >
+          <TrendIcon size={32} weight="bold" color="#ffffff" />
+        </div>
+        <div className="flex-1">
+          <h2 className={`text-xl font-bold ${colors.text}`}>{getTrendName(trendInfo.state)}</h2>
+          <p className={colors.text}>{trendInfo.stateDescription}</p>
+          <p className="mt-1 text-sm text-gray-500">连续 {trendInfo.consecutiveDays} 天</p>
+        </div>
+      </div>
+    </div>
+  );
+});
+TrendCard.displayName = 'TrendCard';
+
+interface InterventionCardProps {
+  intervention: InterventionResult;
+}
+
+const InterventionCard = memo(({ intervention }: InterventionCardProps) => {
+  const colors = getInterventionColor(intervention.type);
+
+  return (
+    <div className={`mb-8 rounded-2xl border-2 p-6 ${colors.bg} ${colors.border} `}>
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white">
+          <Lightbulb size={24} weight="duotone" color={colors.icon} />
+        </div>
+        <div className="flex-1">
+          <h3 className={`mb-2 text-lg font-bold ${colors.text}`}>
+            {intervention.type === 'warning'
+              ? '需要注意'
+              : intervention.type === 'encouragement'
+                ? '表现出色！'
+                : '建议'}
+          </h3>
+          <p className={colors.text}>{intervention.message}</p>
+          {intervention.actions && intervention.actions.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {intervention.actions.map((action, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm">
+                  <ArrowRight size={16} color={colors.icon} />
+                  <span className={colors.text}>{action}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+InterventionCard.displayName = 'InterventionCard';
+
+interface TrendChartCardProps {
+  title: string;
+  icon: typeof Target;
+  iconColor: string;
+  direction: 'up' | 'down' | 'flat';
+  changePercent: number;
+  points: { date: string; value: number }[];
+  isResponseTime?: boolean;
+}
+
+const TrendChartCard = memo(
+  ({
+    title,
+    icon: Icon,
+    iconColor,
+    direction,
+    changePercent,
+    points,
+    isResponseTime,
+  }: TrendChartCardProps) => {
+    const chartData = useMemo(() => {
+      if (!points || points.length === 0) return [];
+      return points.slice(-14).map((p) => ({
+        date: formatDate(p.date),
+        value: p.value,
+      }));
+    }, [points]);
+
+    const shouldShowGreen = isResponseTime ? direction === 'down' : direction === 'up';
+    const shouldShowRed = isResponseTime ? direction === 'up' : direction === 'down';
+
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+            <Icon size={20} weight="duotone" color={iconColor} />
+            {title}
+          </h3>
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-medium ${
+              shouldShowGreen
+                ? 'bg-green-100 text-green-700'
+                : shouldShowRed
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-gray-100 text-gray-700'
+            } `}
+          >
+            {direction === 'up' ? '+' : direction === 'down' ? '' : ''}
+            {changePercent.toFixed(1)}%
+          </span>
+        </div>
+        {chartData.length === 0 ? (
+          <div className="py-8 text-center text-gray-500">暂无数据</div>
+        ) : (
+          <LineChart data={chartData} height={160} />
+        )}
+      </div>
+    );
+  },
+);
+TrendChartCard.displayName = 'TrendChartCard';
+
+interface HistoryTableRowProps {
+  item: TrendHistoryItem;
+}
+
+const HistoryTableRow = memo(({ item }: HistoryTableRowProps) => {
+  const colors = getTrendColor(item.state);
+  const TrendIcon = getTrendIcon(item.state);
+
+  return (
+    <tr className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+      <td className="px-4 py-3 text-sm text-gray-700">{formatDate(item.date)}</td>
+      <td className="px-4 py-3 text-center">
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${colors.bg} ${colors.text} `}
+        >
+          <TrendIcon size={12} weight="bold" />
+          {getTrendName(item.state)}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-right text-sm text-gray-700">
+        {(item.accuracy * 100).toFixed(1)}%
+      </td>
+      <td className="px-4 py-3 text-right text-sm text-gray-700">
+        {item.avgResponseTime.toFixed(0)}ms
+      </td>
+      <td className="px-4 py-3 text-right">
+        <span
+          className={`text-sm font-medium ${
+            item.motivation > 0
+              ? 'text-green-600'
+              : item.motivation < 0
+                ? 'text-red-600'
+                : 'text-gray-600'
+          }`}
+        >
+          {item.motivation > 0 ? '+' : ''}
+          {(item.motivation * 100).toFixed(0)}%
+        </span>
+      </td>
+    </tr>
+  );
+});
+HistoryTableRow.displayName = 'HistoryTableRow';
+
+interface RecommendationItemProps {
+  recommendation: string;
+  index: number;
+}
+
+const RecommendationItem = memo(({ recommendation, index }: RecommendationItemProps) => {
+  return (
+    <li className="flex items-start gap-3">
+      <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
+        <span className="text-xs font-bold text-blue-700">{index + 1}</span>
+      </div>
+      <span className="text-gray-700">{recommendation}</span>
+    </li>
+  );
+});
+RecommendationItem.displayName = 'RecommendationItem';
+
+// ==================== Main Component ====================
 
 /**
  * TrendReportPage - Trend Analysis Report Page
@@ -69,97 +373,8 @@ export default function TrendReportPage() {
     }
   };
 
-  const getTrendIcon = (state: TrendState) => {
-    switch (state) {
-      case 'up':
-        return TrendUp;
-      case 'down':
-        return TrendDown;
-      default:
-        return ChartLine;
-    }
-  };
-
-  const getTrendColor = (state: TrendState) => {
-    switch (state) {
-      case 'up':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: '#16a34a' };
-      case 'down':
-        return { bg: 'bg-red-100', text: 'text-red-700', icon: '#dc2626' };
-      case 'stuck':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '#ca8a04' };
-      default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', icon: '#6b7280' };
-    }
-  };
-
-  const getTrendName = (state: TrendState) => {
-    switch (state) {
-      case 'up':
-        return '上升';
-      case 'down':
-        return '下降';
-      case 'stuck':
-        return '停滞';
-      default:
-        return '稳定';
-    }
-  };
-
-  const getInterventionColor = (type?: string) => {
-    switch (type) {
-      case 'warning':
-        return { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', icon: '#dc2626' };
-      case 'suggestion':
-        return {
-          bg: 'bg-blue-50',
-          border: 'border-blue-200',
-          text: 'text-blue-700',
-          icon: '#2563eb',
-        };
-      case 'encouragement':
-        return {
-          bg: 'bg-green-50',
-          border: 'border-green-200',
-          text: 'text-green-700',
-          icon: '#16a34a',
-        };
-      default:
-        return {
-          bg: 'bg-gray-50',
-          border: 'border-gray-200',
-          text: 'text-gray-700',
-          icon: '#6b7280',
-        };
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const renderTrendChart = (
-    points: { date: string; value: number }[],
-    _direction: 'up' | 'down' | 'flat',
-    _color: string,
-    _label: string,
-    _unit: string = '%',
-  ) => {
-    if (!points || points.length === 0) {
-      return <div className="py-8 text-center text-gray-500">暂无数据</div>;
-    }
-
-    const chartData = points.slice(-14).map((p) => ({
-      date: formatDate(p.date),
-      value: p.value,
-    }));
-
-    return <LineChart data={chartData} height={160} />;
-  };
+  // Memoize history slice to avoid unnecessary recalculations
+  const displayedHistory = useMemo(() => trendHistory.slice(0, 10), [trendHistory]);
 
   if (isLoading) {
     return (
@@ -206,196 +421,41 @@ export default function TrendReportPage() {
           <p className="text-gray-600">追踪你的学习进度，发现改进机会</p>
         </header>
 
-        <div className="mb-6 flex gap-2">
-          {([7, 28, 90] as const).map((days) => (
-            <button
-              key={days}
-              onClick={() => setSelectedDays(days)}
-              className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
-                selectedDays === days
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {days === 7 ? '最近 7 天' : days === 28 ? '最近 28 天' : '最近 90 天'}
-            </button>
-          ))}
-        </div>
+        <DaysSelector selectedDays={selectedDays} onSelect={setSelectedDays} />
 
-        {trendInfo && (
-          <div
-            className={`mb-8 rounded-2xl border-2 p-6 transition-all duration-300 ${getTrendColor(trendInfo.state).bg} border-${getTrendColor(trendInfo.state).text.replace('text-', '')} `}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className={`flex h-16 w-16 items-center justify-center rounded-full ${
-                  trendInfo.state === 'up'
-                    ? 'bg-green-500'
-                    : trendInfo.state === 'down'
-                      ? 'bg-red-500'
-                      : trendInfo.state === 'stuck'
-                        ? 'bg-yellow-500'
-                        : 'bg-gray-400'
-                } `}
-              >
-                {(() => {
-                  const TrendIcon = getTrendIcon(trendInfo.state);
-                  return <TrendIcon size={32} weight="bold" color="#ffffff" />;
-                })()}
-              </div>
-              <div className="flex-1">
-                <h2 className={`text-xl font-bold ${getTrendColor(trendInfo.state).text}`}>
-                  {getTrendName(trendInfo.state)}
-                </h2>
-                <p className={getTrendColor(trendInfo.state).text}>{trendInfo.stateDescription}</p>
-                <p className="mt-1 text-sm text-gray-500">连续 {trendInfo.consecutiveDays} 天</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {trendInfo && <TrendCard trendInfo={trendInfo} />}
 
         {intervention && intervention.needsIntervention && (
-          <div
-            className={`mb-8 rounded-2xl border-2 p-6 ${getInterventionColor(intervention.type).bg} ${getInterventionColor(intervention.type).border} `}
-          >
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white">
-                <Lightbulb
-                  size={24}
-                  weight="duotone"
-                  color={getInterventionColor(intervention.type).icon}
-                />
-              </div>
-              <div className="flex-1">
-                <h3
-                  className={`mb-2 text-lg font-bold ${getInterventionColor(intervention.type).text}`}
-                >
-                  {intervention.type === 'warning'
-                    ? '需要注意'
-                    : intervention.type === 'encouragement'
-                      ? '表现出色！'
-                      : '建议'}
-                </h3>
-                <p className={getInterventionColor(intervention.type).text}>
-                  {intervention.message}
-                </p>
-                {intervention.actions && intervention.actions.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {intervention.actions.map((action, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <ArrowRight
-                          size={16}
-                          color={getInterventionColor(intervention.type).icon}
-                        />
-                        <span className={getInterventionColor(intervention.type).text}>
-                          {action}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <InterventionCard intervention={intervention} />
         )}
 
         {trendReport && (
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                  <Target size={20} weight="duotone" color="#16a34a" />
-                  准确率趋势
-                </h3>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium ${
-                    trendReport.accuracyTrend.direction === 'up'
-                      ? 'bg-green-100 text-green-700'
-                      : trendReport.accuracyTrend.direction === 'down'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-700'
-                  } `}
-                >
-                  {trendReport.accuracyTrend.direction === 'up'
-                    ? '+'
-                    : trendReport.accuracyTrend.direction === 'down'
-                      ? ''
-                      : ''}
-                  {trendReport.accuracyTrend.changePercent.toFixed(1)}%
-                </span>
-              </div>
-              {renderTrendChart(
-                trendReport.accuracyTrend.points,
-                trendReport.accuracyTrend.direction,
-                'bg-green-500',
-                'Accuracy',
-                '%',
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                  <Lightning size={20} weight="duotone" color="#f59e0b" />
-                  响应时间
-                </h3>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium ${
-                    trendReport.responseTimeTrend.direction === 'down'
-                      ? 'bg-green-100 text-green-700'
-                      : trendReport.responseTimeTrend.direction === 'up'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-700'
-                  } `}
-                >
-                  {trendReport.responseTimeTrend.direction === 'up'
-                    ? '+'
-                    : trendReport.responseTimeTrend.direction === 'down'
-                      ? ''
-                      : ''}
-                  {trendReport.responseTimeTrend.changePercent.toFixed(1)}%
-                </span>
-              </div>
-              {renderTrendChart(
-                trendReport.responseTimeTrend.points,
-                trendReport.responseTimeTrend.direction,
-                'bg-yellow-500',
-                'Response Time',
-                'ms',
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                  <Brain size={20} weight="duotone" color="#a855f7" />
-                  学习动力
-                </h3>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium ${
-                    trendReport.motivationTrend.direction === 'up'
-                      ? 'bg-green-100 text-green-700'
-                      : trendReport.motivationTrend.direction === 'down'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-700'
-                  } `}
-                >
-                  {trendReport.motivationTrend.direction === 'up'
-                    ? '+'
-                    : trendReport.motivationTrend.direction === 'down'
-                      ? ''
-                      : ''}
-                  {trendReport.motivationTrend.changePercent.toFixed(1)}%
-                </span>
-              </div>
-              {renderTrendChart(
-                trendReport.motivationTrend.points,
-                trendReport.motivationTrend.direction,
-                'bg-purple-500',
-                'Motivation',
-                '',
-              )}
-            </div>
+            <TrendChartCard
+              title="准确率趋势"
+              icon={Target}
+              iconColor="#16a34a"
+              direction={trendReport.accuracyTrend.direction}
+              changePercent={trendReport.accuracyTrend.changePercent}
+              points={trendReport.accuracyTrend.points}
+            />
+            <TrendChartCard
+              title="响应时间"
+              icon={Lightning}
+              iconColor="#f59e0b"
+              direction={trendReport.responseTimeTrend.direction}
+              changePercent={trendReport.responseTimeTrend.changePercent}
+              points={trendReport.responseTimeTrend.points}
+              isResponseTime
+            />
+            <TrendChartCard
+              title="学习动力"
+              icon={Brain}
+              iconColor="#a855f7"
+              direction={trendReport.motivationTrend.direction}
+              changePercent={trendReport.motivationTrend.changePercent}
+              points={trendReport.motivationTrend.points}
+            />
           </div>
         )}
 
@@ -419,12 +479,7 @@ export default function TrendReportPage() {
               {trendReport.recommendations && trendReport.recommendations.length > 0 ? (
                 <ul className="space-y-3">
                   {trendReport.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
-                        <span className="text-xs font-bold text-blue-700">{index + 1}</span>
-                      </div>
-                      <span className="text-gray-700">{rec}</span>
-                    </li>
+                    <RecommendationItem key={index} recommendation={rec} index={index} />
                   ))}
                 </ul>
               ) : (
@@ -460,44 +515,8 @@ export default function TrendReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {trendHistory.slice(0, 10).map((item, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-gray-100 transition-colors hover:bg-gray-50"
-                    >
-                      <td className="px-4 py-3 text-sm text-gray-700">{formatDate(item.date)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getTrendColor(item.state).bg} ${getTrendColor(item.state).text} `}
-                        >
-                          {(() => {
-                            const TrendIcon = getTrendIcon(item.state);
-                            return <TrendIcon size={12} weight="bold" />;
-                          })()}
-                          {getTrendName(item.state)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm text-gray-700">
-                        {(item.accuracy * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm text-gray-700">
-                        {item.avgResponseTime.toFixed(0)}ms
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span
-                          className={`text-sm font-medium ${
-                            item.motivation > 0
-                              ? 'text-green-600'
-                              : item.motivation < 0
-                                ? 'text-red-600'
-                                : 'text-gray-600'
-                          }`}
-                        >
-                          {item.motivation > 0 ? '+' : ''}
-                          {(item.motivation * 100).toFixed(0)}%
-                        </span>
-                      </td>
-                    </tr>
+                  {displayedHistory.map((item, index) => (
+                    <HistoryTableRow key={index} item={item} />
                   ))}
                 </tbody>
               </table>

@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run --dir tests/unit",
+    "test:unit": "vitest run tests/unit",
     "test:unit:services": "vitest run tests/unit/services",
     "test:unit:amas": "vitest run tests/unit/amas",
     "test:unit:middleware": "vitest run tests/unit/middleware",
@@ -26,7 +26,17 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "fix:next-review-date": "tsx scripts/fix-next-review-date.ts",
     "fix:next-review-date:execute": "tsx scripts/fix-next-review-date.ts --execute",
-    "fix:next-review-date:verify": "tsx scripts/fix-next-review-date.ts --verify"
+    "fix:next-review-date:verify": "tsx scripts/fix-next-review-date.ts --verify",
+    "migrate:user-learning-profile": "tsx src/scripts/migrate-user-learning-profile.ts",
+    "migrate:user-learning-profile:execute": "tsx src/scripts/migrate-user-learning-profile.ts --execute",
+    "migrate:user-learning-profile:verify": "tsx src/scripts/migrate-user-learning-profile.ts --verify",
+    "migrate:user-learning-profile:rollback": "tsx src/scripts/migrate-user-learning-profile.ts --rollback",
+    "migrate:user-profiles": "tsx src/scripts/migrate-user-profiles.ts",
+    "migrate:user-profiles:execute": "tsx src/scripts/migrate-user-profiles.ts --execute",
+    "migrate:user-profiles:verify": "tsx src/scripts/migrate-user-profiles.ts --verify",
+    "migrate:user-profiles:rollback": "tsx src/scripts/migrate-user-profiles.ts --rollback",
+    "verify:profile-consistency": "tsx src/scripts/verify-profile-consistency.ts",
+    "verify:profile-consistency:export": "tsx src/scripts/verify-profile-consistency.ts --export=consistency-report.json"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -61,6 +71,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
+    "@types/autocannon": "^7.12.7",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
@@ -71,6 +82,8 @@
     "@types/node-cron": "^3.0.11",
     "@types/seedrandom": "^3.0.8",
     "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^4.0.15",
+    "autocannon": "^8.0.0",
     "ioredis-mock": "^8.13.1",
     "pino-pretty": "^13.1.2",
     "prisma": "^5.7.0",

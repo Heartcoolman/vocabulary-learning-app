@@ -14,10 +14,10 @@ import {
   EnsembleContext,
   EnsembleLearningFramework,
   EnsembleMember,
-  EnsembleWeights
-} from '../amas/decision/ensemble';
+  EnsembleWeights,
+} from '../amas';
 import { Action, ColdStartPhase, UserState, CognitiveProfile } from '../amas/types';
-import { ActionSelection } from '../amas/learning/base-learner';
+import { BaseLearnerActionSelection as ActionSelection } from '../amas';
 
 // ==================== 类型定义 ====================
 
@@ -304,10 +304,7 @@ const saltManager = new DailySaltManager();
  */
 function anonymizeUserId(userId: string): string {
   const salt = saltManager.getSalt();
-  const hash = crypto
-    .createHash('sha256')
-    .update(`${userId}:${salt}`)
-    .digest('hex');
+  const hash = crypto.createHash('sha256').update(`${userId}:${salt}`).digest('hex');
   return hash.substring(0, 8);
 }
 
@@ -353,7 +350,7 @@ class AboutService {
     linucb: 0,
     actr: 0,
     heuristic: 0,
-    coldstart: 0
+    coldstart: 0,
   };
   private readonly userActivity = new Map<string, number>();
   private decisionCounter = 0;
@@ -385,7 +382,7 @@ class AboutService {
         status: 'idle',
         load: 0,
         processedCount: 0,
-        lastProcessedAt: 0
+        lastProcessedAt: 0,
       };
     }
   }
@@ -414,15 +411,16 @@ class AboutService {
         cognitive: {
           memory: 0.5 + Math.random() * 0.3,
           speed: 0.5 + Math.random() * 0.3,
-          stability: 0.5 + Math.random() * 0.3
-        }
+          stability: 0.5 + Math.random() * 0.3,
+        },
       };
 
       const userId = `demo-init-${i}`;
       const state = this.buildUserState(input);
       const context = this.buildContext(state);
       const decision = this.ensemble.selectAction(state, ACTION_SPACE, context);
-      const decisionSource = (decision.meta?.decisionSource as 'coldstart' | 'ensemble') ?? 'ensemble';
+      const decisionSource =
+        (decision.meta?.decisionSource as 'coldstart' | 'ensemble') ?? 'ensemble';
       const reward = this.estimateReward(state, decision.action);
       const votes = this.extractVotes(decision.meta);
 
@@ -441,7 +439,7 @@ class AboutService {
         phase: context.phase,
         weights,
         votes,
-        decisionSource
+        decisionSource,
       };
 
       this.recentDecisions.push(record);
@@ -458,7 +456,8 @@ class AboutService {
 
     // 执行决策
     const decision = this.ensemble.selectAction(state, ACTION_SPACE, context);
-    const decisionSource = (decision.meta?.decisionSource as 'coldstart' | 'ensemble') ?? 'ensemble';
+    const decisionSource =
+      (decision.meta?.decisionSource as 'coldstart' | 'ensemble') ?? 'ensemble';
     const reward = this.estimateReward(state, decision.action);
 
     // 更新模型（模拟学习）
@@ -476,7 +475,7 @@ class AboutService {
       state,
       phase: context.phase,
       votes,
-      decisionSource
+      decisionSource,
     });
 
     // 生成解释
@@ -488,16 +487,16 @@ class AboutService {
         phase: context.phase,
         votes,
         weights,
-        decisionSource
+        decisionSource,
       },
       outputStrategy: {
         interval_scale: decision.action.interval_scale,
         new_ratio: decision.action.new_ratio,
         difficulty: decision.action.difficulty,
         batch_size: decision.action.batch_size,
-        hint_level: decision.action.hint_level
+        hint_level: decision.action.hint_level,
       },
-      explanation
+      explanation,
     };
   }
 
@@ -516,9 +515,7 @@ class AboutService {
     const todayStart = startOfDay.getTime();
     const activeWindow = 24 * 60 * 60 * 1000;
 
-    const todayDecisions = this.recentDecisions.filter(
-      d => d.timestamp >= todayStart
-    ).length;
+    const todayDecisions = this.recentDecisions.filter((d) => d.timestamp >= todayStart).length;
 
     let activeUsers = 0;
     for (const ts of this.userActivity.values()) {
@@ -528,18 +525,17 @@ class AboutService {
     }
 
     // 计算平均效率提升（基于奖励值）
-    const recentRewards = this.recentDecisions
-      .slice(0, 20)
-      .map(d => d.reward);
-    const avgEfficiencyGain = recentRewards.length > 0
-      ? recentRewards.reduce((sum, r) => sum + r, 0) / recentRewards.length * 100
-      : 0;
+    const recentRewards = this.recentDecisions.slice(0, 20).map((d) => d.reward);
+    const avgEfficiencyGain =
+      recentRewards.length > 0
+        ? (recentRewards.reduce((sum, r) => sum + r, 0) / recentRewards.length) * 100
+        : 0;
 
     const stats: OverviewStats = {
       todayDecisions,
       activeUsers,
       avgEfficiencyGain: this.round(avgEfficiencyGain, 1),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.overviewCache = { data: stats, expiry: now + this.cacheTTL };
@@ -556,17 +552,14 @@ class AboutService {
       return this.algorithmCache.data;
     }
 
-    const total = Object.values(this.algorithmContribution).reduce(
-      (sum, v) => sum + v,
-      0
-    ) || 1;
+    const total = Object.values(this.algorithmContribution).reduce((sum, v) => sum + v, 0) || 1;
 
     const distribution: AlgorithmDistribution = {
       thompson: this.round(this.algorithmContribution.thompson / total, 3),
       linucb: this.round(this.algorithmContribution.linucb / total, 3),
       actr: this.round(this.algorithmContribution.actr / total, 3),
       heuristic: this.round(this.algorithmContribution.heuristic / total, 3),
-      coldstart: this.round(this.algorithmContribution.coldstart / total, 3)
+      coldstart: this.round(this.algorithmContribution.coldstart / total, 3),
     };
 
     this.algorithmCache = { data: distribution, expiry: now + this.cacheTTL };
@@ -612,18 +605,18 @@ class AboutService {
       attention: {
         low: this.round(attention.low / total, 3),
         medium: this.round(attention.medium / total, 3),
-        high: this.round(attention.high / total, 3)
+        high: this.round(attention.high / total, 3),
       },
       fatigue: {
         fresh: this.round(fatigue.fresh / total, 3),
         normal: this.round(fatigue.normal / total, 3),
-        tired: this.round(fatigue.tired / total, 3)
+        tired: this.round(fatigue.tired / total, 3),
       },
       motivation: {
         frustrated: this.round(motivation.frustrated / total, 3),
         neutral: this.round(motivation.neutral / total, 3),
-        motivated: this.round(motivation.motivated / total, 3)
-      }
+        motivated: this.round(motivation.motivated / total, 3),
+      },
     };
 
     this.stateDistCache = { data: response, expiry: now + this.cacheTTL };
@@ -634,16 +627,16 @@ class AboutService {
    * 获取近期决策（脱敏）
    */
   getRecentDecisions(): RecentDecision[] {
-    return this.recentDecisions.map(d => ({
+    return this.recentDecisions.map((d) => ({
       decisionId: d.id,
       pseudoId: d.pseudoId,
       timestamp: new Date(d.timestamp).toISOString(),
       decisionSource: d.decisionSource,
       strategy: {
         difficulty: d.action.difficulty,
-        batch_size: d.action.batch_size
+        batch_size: d.action.batch_size,
       },
-      dominantFactor: this.getDominantFactor(d.stateSnapshot)
+      dominantFactor: this.getDominantFactor(d.stateSnapshot),
     }));
   }
 
@@ -651,18 +644,20 @@ class AboutService {
    * 获取决策详情（模拟数据）
    */
   getDecisionDetail(decisionId: string): DecisionDetail | null {
-    const decision = this.recentDecisions.find(d => d.id === decisionId);
+    const decision = this.recentDecisions.find((d) => d.id === decisionId);
     if (!decision) return null;
 
     const timestamp = new Date(decision.timestamp).toISOString();
-    
+
     // 将 MemberVotes 对象转换为 MemberVoteDetail 数组
-    const memberVotes: MemberVoteDetail[] = Object.entries(decision.votes).map(([member, vote]) => ({
-      member,
-      action: vote.action,
-      contribution: vote.contribution,
-      confidence: vote.confidence
-    }));
+    const memberVotes: MemberVoteDetail[] = Object.entries(decision.votes).map(
+      ([member, vote]) => ({
+        member,
+        action: vote.action,
+        contribution: vote.contribution,
+        confidence: vote.confidence,
+      }),
+    );
 
     return {
       decisionId: decision.id,
@@ -678,7 +673,7 @@ class AboutService {
         new_ratio: decision.action.new_ratio,
         difficulty: decision.action.difficulty,
         batch_size: decision.action.batch_size,
-        hint_level: decision.action.hint_level
+        hint_level: decision.action.hint_level,
       },
       weights: { ...decision.weights } as Record<string, number>,
       memberVotes,
@@ -692,7 +687,7 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 12,
           inputSummary: { rawInput: decision.stateSnapshot },
-          outputSummary: { state: decision.stateSnapshot }
+          outputSummary: { state: decision.stateSnapshot },
         },
         {
           stage: 2,
@@ -703,7 +698,7 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 8,
           inputSummary: { state: decision.stateSnapshot },
-          outputSummary: { cognitiveModel: 'updated' }
+          outputSummary: { cognitiveModel: 'updated' },
         },
         {
           stage: 3,
@@ -714,7 +709,7 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 15,
           inputSummary: { weights: decision.weights },
-          outputSummary: { updatedWeights: decision.weights }
+          outputSummary: { updatedWeights: decision.weights },
         },
         {
           stage: 4,
@@ -725,7 +720,7 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 5,
           inputSummary: { state: decision.stateSnapshot },
-          outputSummary: { strategy: decision.action }
+          outputSummary: { strategy: decision.action },
         },
         {
           stage: 5,
@@ -736,7 +731,7 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 0,
           inputSummary: {},
-          outputSummary: { reason: '模拟数据无延迟奖励' }
+          outputSummary: { reason: '模拟数据无延迟奖励' },
         },
         {
           stage: 6,
@@ -747,9 +742,9 @@ class AboutService {
           endedAt: timestamp,
           durationMs: 0,
           inputSummary: {},
-          outputSummary: { reason: '模拟数据跳过优化' }
-        }
-      ]
+          outputSummary: { reason: '模拟数据跳过优化' },
+        },
+      ],
     };
   }
 
@@ -765,19 +760,18 @@ class AboutService {
     const windowMs = 5000; // 5秒窗口
 
     // 计算吞吐量（每秒处理数）
-    const recentPackets = this.pipelinePackets.filter(
-      p => now - p.createdAt < windowMs
-    );
+    const recentPackets = this.pipelinePackets.filter((p) => now - p.createdAt < windowMs);
     const throughput = this.round(recentPackets.length / (windowMs / 1000), 1);
 
     // 计算平均延迟
-    const completedPackets = this.pipelinePackets.filter(p => p.currentStage >= 4);
-    const avgLatency = completedPackets.length > 0
-      ? Math.round(
-          completedPackets.reduce((sum, p) => sum + (now - p.createdAt), 0) /
-            completedPackets.length
-        )
-      : 45;
+    const completedPackets = this.pipelinePackets.filter((p) => p.currentStage >= 4);
+    const avgLatency =
+      completedPackets.length > 0
+        ? Math.round(
+            completedPackets.reduce((sum, p) => sum + (now - p.createdAt), 0) /
+              completedPackets.length,
+          )
+        : 45;
 
     return {
       timestamp: now,
@@ -787,8 +781,8 @@ class AboutService {
         throughput,
         avgLatency,
         activePackets: this.pipelinePackets.length,
-        totalProcessed: this.totalProcessed
-      }
+        totalProcessed: this.totalProcessed,
+      },
     };
   }
 
@@ -797,10 +791,10 @@ class AboutService {
    */
   getPacketTrace(packetId: string): PacketTrace {
     // 尝试从当前流动的数据包中找
-    const activePacket = this.pipelinePackets.find(p => p.id === packetId);
+    const activePacket = this.pipelinePackets.find((p) => p.id === packetId);
 
     // 尝试从历史决策中找
-    const historyDecision = this.recentDecisions.find(d => d.id === packetId);
+    const historyDecision = this.recentDecisions.find((d) => d.id === packetId);
 
     const now = Date.now();
     const stages: StageTrace[] = [];
@@ -816,7 +810,7 @@ class AboutService {
           duration: 5,
           input: 'RawEvent',
           output: 'FeatureVector[8]',
-          timestamp: baseTime
+          timestamp: baseTime,
         },
         {
           stage: '2',
@@ -826,7 +820,7 @@ class AboutService {
           input: 'FeatureVector[8]',
           output: `AFCM(A=${historyDecision.stateSnapshot.A}, F=${historyDecision.stateSnapshot.F})`,
           details: '5个建模器并行处理',
-          timestamp: baseTime + 5
+          timestamp: baseTime + 5,
         },
         {
           stage: '3',
@@ -835,10 +829,11 @@ class AboutService {
           duration: 15,
           input: 'UserState',
           output: `Votes: ${Object.keys(historyDecision.votes).join(', ')}`,
-          details: historyDecision.decisionSource === 'coldstart'
-            ? '冷启动策略'
-            : `权重: T=${historyDecision.weights.thompson}, L=${historyDecision.weights.linucb}`,
-          timestamp: baseTime + 17
+          details:
+            historyDecision.decisionSource === 'coldstart'
+              ? '冷启动策略'
+              : `权重: T=${historyDecision.weights.thompson}, L=${historyDecision.weights.linucb}`,
+          timestamp: baseTime + 17,
         },
         {
           stage: '4',
@@ -848,7 +843,7 @@ class AboutService {
           input: 'Action',
           output: `难度=${historyDecision.action.difficulty}, 批量=${historyDecision.action.batch_size}`,
           details: '安全护栏检查通过',
-          timestamp: baseTime + 32
+          timestamp: baseTime + 32,
         },
         {
           stage: '5',
@@ -857,15 +852,15 @@ class AboutService {
           duration: 1,
           input: 'Strategy',
           output: `Reward: ${historyDecision.reward}`,
-          timestamp: baseTime + 35
-        }
+          timestamp: baseTime + 35,
+        },
       );
 
       return {
         packetId,
         status: 'completed',
         stages,
-        totalDuration: 36
+        totalDuration: 36,
       };
     }
 
@@ -882,7 +877,7 @@ class AboutService {
           duration: i < currentStage ? Math.floor(5 + Math.random() * 10) : 0,
           input: i === 1 ? 'RawEvent' : `Stage${i - 1}Output`,
           output: i < currentStage ? `Stage${i}Output` : '处理中...',
-          timestamp: activePacket.createdAt + i * 10
+          timestamp: activePacket.createdAt + i * 10,
         });
       }
 
@@ -890,7 +885,7 @@ class AboutService {
         packetId,
         status: activePacket.status === 'blocked' ? 'blocked' : 'in_progress',
         stages,
-        totalDuration: now - activePacket.createdAt
+        totalDuration: now - activePacket.createdAt,
       };
     }
 
@@ -906,7 +901,7 @@ class AboutService {
           duration: 5,
           input: 'RawEvent',
           output: 'FeatureVector[8]',
-          timestamp: now - 100
+          timestamp: now - 100,
         },
         {
           stage: '2',
@@ -915,7 +910,7 @@ class AboutService {
           duration: 12,
           input: 'FeatureVector[8]',
           output: 'AFCM_State',
-          timestamp: now - 95
+          timestamp: now - 95,
         },
         {
           stage: '3',
@@ -925,7 +920,7 @@ class AboutService {
           input: 'UserState',
           output: 'Votes',
           details: 'Thompson(0.4), LinUCB(0.3), ACT-R(0.2), Heuristic(0.1)',
-          timestamp: now - 83
+          timestamp: now - 83,
         },
         {
           stage: '4',
@@ -935,10 +930,10 @@ class AboutService {
           input: 'Action',
           output: 'FinalStrategy',
           details: '安全检查通过',
-          timestamp: now - 75
-        }
+          timestamp: now - 75,
+        },
       ],
-      totalDuration: 27
+      totalDuration: 27,
     };
   }
 
@@ -962,7 +957,7 @@ class AboutService {
           'fatigue',
           'ensemble',
           'guardrails',
-          'output'
+          'output',
         ];
         guardRailTriggers = ['FatigueProtection'];
         expectedOutcome = '策略调整: 降低难度, 减少批量, 增加休息提示';
@@ -975,18 +970,14 @@ class AboutService {
           'attention',
           'ensemble',
           'guardrails',
-          'output'
+          'output',
         ];
         guardRailTriggers = ['AttentionProtection'];
         expectedOutcome = '策略调整: 增加提示级别, 减小批量, 简化任务';
         break;
 
       case 'anomaly':
-        expectedPath = [
-          'raw_input',
-          'feature_builder',
-          'guardrails'
-        ];
+        expectedPath = ['raw_input', 'feature_builder', 'guardrails'];
         guardRailTriggers = ['AnomalyDetector', 'FallbackTrigger'];
         expectedOutcome = '数据包被拦截, 启用降级策略';
         break;
@@ -1001,7 +992,7 @@ class AboutService {
       status: 'fault_sim',
       faultType: request.faultType,
       data: this.generateFaultData(request.faultType, intensity),
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
 
     this.pipelinePackets.push(faultPacket);
@@ -1011,7 +1002,7 @@ class AboutService {
       faultType: request.faultType,
       expectedPath,
       guardRailTriggers,
-      expectedOutcome
+      expectedOutcome,
     };
   }
 
@@ -1020,7 +1011,7 @@ class AboutService {
    */
   private generateFaultData(
     faultType: FaultInjectionRequest['faultType'],
-    intensity: number
+    intensity: number,
   ): Record<string, number> {
     switch (faultType) {
       case 'high_fatigue':
@@ -1028,21 +1019,21 @@ class AboutService {
           fatigue: 0.5 + intensity * 0.5,
           attention: 0.3 + (1 - intensity) * 0.4,
           motivation: -0.2,
-          responseTime: 2000 + intensity * 3000
+          responseTime: 2000 + intensity * 3000,
         };
       case 'low_attention':
         return {
           fatigue: 0.4,
           attention: 0.1 + (1 - intensity) * 0.2,
           motivation: 0,
-          responseTime: 1500 + intensity * 2000
+          responseTime: 1500 + intensity * 2000,
         };
       case 'anomaly':
         return {
           fatigue: Math.random(),
           attention: Math.random() > 0.5 ? 0 : 1,
           motivation: Math.random() * 2 - 1,
-          responseTime: intensity > 0.5 ? 60000 : 50
+          responseTime: intensity > 0.5 ? 60000 : 50,
         };
       default:
         return {};
@@ -1059,7 +1050,7 @@ class AboutService {
       3: 'ensemble',
       4: 'guardrails',
       5: 'delayed_reward',
-      6: 'bayesian'
+      6: 'bayesian',
     };
     return stageNodes[stage] || 'unknown';
   }
@@ -1079,13 +1070,10 @@ class AboutService {
 
       if (packet.progress >= 100) {
         packet.progress = 0;
-        packet.currentStage = Math.min(
-          packet.currentStage + 1,
-          6
-        ) as DataPacket['currentStage'];
+        packet.currentStage = Math.min(packet.currentStage + 1, 6) as DataPacket['currentStage'];
 
         // 更新当前节点
-        const nodesInStage = PIPELINE_NODES.filter(n => n.stage === packet.currentStage);
+        const nodesInStage = PIPELINE_NODES.filter((n) => n.stage === packet.currentStage);
         if (nodesInStage.length > 0) {
           packet.currentNode = nodesInStage[0].id;
         }
@@ -1100,13 +1088,11 @@ class AboutService {
     }
 
     // 移除已完成的数据包（第6阶段完成后）
-    const completed = this.pipelinePackets.filter(
-      p => p.currentStage >= 6 && p.progress >= 100
-    );
+    const completed = this.pipelinePackets.filter((p) => p.currentStage >= 6 && p.progress >= 100);
     this.totalProcessed += completed.length;
 
     this.pipelinePackets = this.pipelinePackets.filter(
-      p => !(p.currentStage >= 6 && p.progress >= 100)
+      (p) => !(p.currentStage >= 6 && p.progress >= 100),
     );
 
     // 限制最大数据包数量
@@ -1126,9 +1112,9 @@ class AboutService {
           attention: 0.4 + Math.random() * 0.5,
           fatigue: Math.random() * 0.6,
           motivation: Math.random() * 2 - 1,
-          responseTime: 800 + Math.random() * 2000
+          responseTime: 800 + Math.random() * 2000,
         },
-        createdAt: now
+        createdAt: now,
       });
     }
 
@@ -1148,7 +1134,7 @@ class AboutService {
 
     // 根据数据包位置更新节点状态
     for (const packet of this.pipelinePackets) {
-      const nodesInStage = PIPELINE_NODES.filter(n => n.stage === packet.currentStage);
+      const nodesInStage = PIPELINE_NODES.filter((n) => n.stage === packet.currentStage);
 
       for (const node of nodesInStage) {
         if (this.nodeStates[node.id]) {
@@ -1161,10 +1147,7 @@ class AboutService {
             this.nodeStates[node.id].status = 'processing';
           }
 
-          this.nodeStates[node.id].load = Math.min(
-            1,
-            this.nodeStates[node.id].load + 0.3
-          );
+          this.nodeStates[node.id].load = Math.min(1, this.nodeStates[node.id].load + 0.3);
           this.nodeStates[node.id].lastProcessedAt = now;
         }
       }
@@ -1182,10 +1165,10 @@ class AboutService {
       C: {
         mem: this.clamp(input.cognitive.memory, 0, 1),
         speed: this.clamp(input.cognitive.speed, 0, 1),
-        stability: this.clamp(input.cognitive.stability, 0, 1)
+        stability: this.clamp(input.cognitive.stability, 0, 1),
       } as CognitiveProfile,
       conf: 0.7,
-      ts: Date.now()
+      ts: Date.now(),
     };
 
     // 场景预设覆盖
@@ -1214,7 +1197,7 @@ class AboutService {
     const base = {
       recentErrorRate: baseError,
       recentResponseTime: responseTime,
-      timeBucket: hour
+      timeBucket: hour,
     };
 
     return {
@@ -1226,8 +1209,8 @@ class AboutService {
       heuristic: {
         ...base,
         fatigueBias: state.F,
-        motivationBias: state.M
-      }
+        motivationBias: state.M,
+      },
     };
   }
 
@@ -1289,7 +1272,7 @@ class AboutService {
       weights,
       votes: params.votes,
       stateSnapshot: this.toStateSnapshot(params.state),
-      decisionSource: params.decisionSource
+      decisionSource: params.decisionSource,
     };
 
     this.recentDecisions.unshift(record);
@@ -1309,7 +1292,7 @@ class AboutService {
   private updateAlgorithmContribution(
     votes: MemberVotes,
     weights: EnsembleWeights,
-    decisionSource: 'coldstart' | 'ensemble'
+    decisionSource: 'coldstart' | 'ensemble',
   ): void {
     if (decisionSource === 'coldstart') {
       this.algorithmContribution.coldstart += 1;
@@ -1338,7 +1321,7 @@ class AboutService {
   private generateExplanation(
     state: UserState,
     action: Action,
-    votes: MemberVotes
+    votes: MemberVotes,
   ): SimulateResponse['explanation'] {
     const factors: SimulateResponse['explanation']['factors'] = [];
 
@@ -1348,7 +1331,7 @@ class AboutService {
         name: '疲劳度',
         value: this.round(state.F, 2),
         impact: 'negative',
-        percentage: Math.round(state.F * 30)
+        percentage: Math.round(state.F * 30),
       });
     }
 
@@ -1357,7 +1340,7 @@ class AboutService {
         name: '注意力',
         value: this.round(state.A, 2),
         impact: 'negative',
-        percentage: Math.round((1 - state.A) * 25)
+        percentage: Math.round((1 - state.A) * 25),
       });
     }
 
@@ -1366,14 +1349,14 @@ class AboutService {
         name: '动机',
         value: this.round(state.M, 2),
         impact: 'negative',
-        percentage: Math.round(Math.abs(state.M) * 20)
+        percentage: Math.round(Math.abs(state.M) * 20),
       });
     } else if (state.M > 0.3) {
       factors.push({
         name: '动机',
         value: this.round(state.M, 2),
         impact: 'positive',
-        percentage: Math.round(state.M * 20)
+        percentage: Math.round(state.M * 20),
       });
     }
 
@@ -1382,7 +1365,7 @@ class AboutService {
         name: '记忆力',
         value: this.round(state.C.mem, 2),
         impact: 'positive',
-        percentage: Math.round(state.C.mem * 25)
+        percentage: Math.round(state.C.mem * 25),
       });
     }
 
@@ -1408,7 +1391,7 @@ class AboutService {
 
     return {
       factors,
-      summary: summaryParts.join('；')
+      summary: summaryParts.join('；'),
     };
   }
 
@@ -1428,9 +1411,9 @@ class AboutService {
       C: {
         mem: this.round(state.C.mem, 2),
         speed: this.round(state.C.speed, 2),
-        stability: this.round(state.C.stability, 2)
+        stability: this.round(state.C.stability, 2),
       },
-      conf: this.round(state.conf, 2)
+      conf: this.round(state.conf, 2),
     };
   }
 

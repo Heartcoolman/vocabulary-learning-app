@@ -18,7 +18,6 @@ export {
 
 // Core Services
 export { default as authService } from './auth.service';
-export { default as userService } from './user.service';
 export { default as wordService } from './word.service';
 export { default as wordBookService } from './wordbook.service';
 export { default as recordService } from './record.service';
@@ -26,10 +25,19 @@ export { default as adminService } from './admin.service';
 export { default as studyConfigService } from './study-config.service';
 
 // Learning Services
-export { wordStateService } from './word-state.service';
-export { wordScoreService } from './word-score.service';
+// 新的统一学习状态服务
+export { learningStateService } from './learning-state.service';
+export type {
+  CompleteWordState,
+  UserStats,
+  UserMasteryStats,
+  WordStateUpdateData,
+  UserLearningStats,
+  ReviewEventInput,
+  ReviewTraceRecord,
+} from './learning-state.service';
+
 export { masteryLearningService } from './mastery-learning.service';
-export { wordMasteryService } from './word-mastery.service';
 export { stateHistoryService } from './state-history.service';
 
 // AMAS Related Services
@@ -44,10 +52,21 @@ export { trackingService } from './tracking.service';
 
 // Analysis Services
 export { trendAnalysisService } from './trend-analysis.service';
-export { habitProfileService } from './habit-profile.service';
-export { default as cognitiveProfilingService } from './cognitive-profiling.service';
 export { evaluationService } from './evaluation.service';
 export { badgeService } from './badge.service';
+
+// User Profile Service (统一的用户画像服务)
+export { userProfileService } from './user-profile.service';
+export type {
+  UserProfile,
+  UpdatePasswordDto,
+  UserStatistics,
+  UpdateHabitProfileParams,
+  UpdateLearningProfileParams,
+  ProfileUpdatedPayload,
+  InsufficientDataError,
+  AnalysisError,
+} from './user-profile.service';
 
 // Config Services
 export { algorithmConfigService } from './algorithm-config.service';
@@ -65,3 +84,31 @@ export { createRealAboutService, RealAboutService } from './real-about.service';
 
 // Experiment Service
 export { experimentService } from './experiment.service';
+
+// Notification Service
+export { notificationService } from './notification.service';
+
+// Preference Service
+export { preferenceService } from './preference.service';
+
+// Learning Session Service
+export { learningSessionService } from './learning-session.service';
+export type {
+  SessionConfig,
+  SessionProgress,
+  SessionStats,
+  SessionDetail,
+  FlowDetectionHook,
+  EmotionTrackingHook,
+} from './learning-session.service';
+
+// Word Context Service
+export { wordContextService } from './word-context.service';
+export type {
+  ContextMetadata,
+  WordContextData,
+  CreateContextRequest,
+  UpdateContextMetadataRequest,
+  GetContextsOptions,
+  ContextStats,
+} from './word-context.service';

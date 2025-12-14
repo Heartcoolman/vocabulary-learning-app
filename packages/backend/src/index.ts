@@ -5,9 +5,13 @@ import { connectRedis, disconnectRedis } from './config/redis';
 import { startDelayedRewardWorker, stopDelayedRewardWorker } from './workers/delayed-reward.worker';
 import { startOptimizationWorker } from './workers/optimization.worker';
 import { startLLMAdvisorWorker, stopLLMAdvisorWorker } from './workers/llm-advisor.worker';
-import { startGlobalMonitoring, stopGlobalMonitoring } from './amas/monitoring/monitoring-service';
+import {
+  startForgettingAlertWorker,
+  stopForgettingAlertWorker,
+} from './workers/forgetting-alert.worker';
 import { startAlertMonitoring, stopAlertMonitoring } from './monitoring/monitoring-service';
-import { getSharedDecisionRecorder } from './amas/services/decision-recorder.service';
+import { getSharedDecisionRecorder } from './services/decision-recorder.service';
+import { initializeNotificationService } from './services/notification.service';
 import { startupLogger } from './logger';
 import type { ScheduledTask } from 'node-cron';
 import {
@@ -24,6 +28,7 @@ const PORT = env.PORT;
 let delayedRewardWorkerTask: ScheduledTask | null = null;
 let optimizationWorkerTask: ScheduledTask | null = null;
 let llmAdvisorWorkerTask: ScheduledTask | null = null;
+let forgettingAlertWorkerTask: ScheduledTask | null = null;
 
 async function startServer() {
   try {
@@ -43,6 +48,15 @@ async function startServer() {
       startupLogger.info('Redis cache connected');
     } else {
       startupLogger.info('Redis cache unavailable, using database directly');
+    }
+
+    // 初始化通知服务（订阅EventBus事件）
+    try {
+      initializeNotificationService();
+      startupLogger.info('NotificationService initialized and subscribed to events');
+    } catch (error) {
+      startupLogger.error({ err: error }, 'Failed to initialize NotificationService');
+      // 通知服务初始化失败不应阻止服务器启动
     }
 
     // 仅在主节点或单实例模式下启动cron worker
@@ -65,6 +79,21 @@ async function startServer() {
       if (llmAdvisorWorkerTask) {
         startupLogger.info('LLM advisor worker started (leader mode)');
       }
+
+      // 启动遗忘预警Worker（每小时执行一次）
+      if (env.ENABLE_FORGETTING_ALERT_WORKER) {
+        forgettingAlertWorkerTask = startForgettingAlertWorker(env.FORGETTING_ALERT_SCHEDULE);
+        if (forgettingAlertWorkerTask) {
+          startupLogger.info(
+            { schedule: env.FORGETTING_ALERT_SCHEDULE },
+            'Forgetting alert worker started (leader mode)',
+          );
+        }
+      } else {
+        startupLogger.info(
+          'Forgetting alert worker disabled (set ENABLE_FORGETTING_ALERT_WORKER=true to enable)',
+        );
+      }
     } else {
       startupLogger.info('Workers skipped (not leader node, set WORKER_LEADER=true to enable)');
     }
@@ -78,15 +107,6 @@ async function startServer() {
 
       // Optimization #4: 仅在leader实例启动监控，避免多实例重复监控
       if (shouldRunWorkers) {
-        // Critical Fix #2: 启动AMAS全局监控和告警系统
-        try {
-          startGlobalMonitoring();
-          startupLogger.info('AMAS monitoring and alerting system started (leader mode)');
-        } catch (error) {
-          startupLogger.error({ err: error }, 'Failed to start monitoring system');
-          // 监控启动失败不应阻止服务器运行
-        }
-
         // Day 13: 启动Alert监控和Webhook通知系统
         try {
           startAlertMonitoring();
@@ -140,15 +160,13 @@ async function gracefulShutdown(signal: string) {
     startupLogger.info('LLM advisor worker stopped');
   }
 
-  // 停止监控服务
-  try {
-    stopGlobalMonitoring();
-    startupLogger.info('Monitoring service stopped');
-  } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to stop monitoring service');
+  // 停止遗忘预警Worker
+  if (forgettingAlertWorkerTask) {
+    stopForgettingAlertWorker();
+    startupLogger.info('Forgetting alert worker stopped');
   }
 
-  // Day 13: 停止Alert监控服务
+  // 停止Alert监控服务
   try {
     stopAlertMonitoring();
     startupLogger.info('Alert monitoring stopped');

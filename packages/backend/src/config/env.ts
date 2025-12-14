@@ -91,6 +91,14 @@ const envSchema = z.object({
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().min(60000, 'DELAYED_REWARD_DELAY_MS 最小值为 60000（60秒）')),
 
+  // 遗忘预警 Worker 配置
+  ENABLE_FORGETTING_ALERT_WORKER: z
+    .string()
+    .default('true')
+    .transform((val) => val === 'true'),
+
+  FORGETTING_ALERT_SCHEDULE: z.string().default('0 * * * *'),
+
   // ============================================
   // 速率限制配置
   // ============================================
@@ -161,6 +169,8 @@ function validateEnv(): Env {
       TRUST_PROXY: process.env.TRUST_PROXY,
       WORKER_LEADER: process.env.WORKER_LEADER,
       DELAYED_REWARD_DELAY_MS: process.env.DELAYED_REWARD_DELAY_MS,
+      ENABLE_FORGETTING_ALERT_WORKER: process.env.ENABLE_FORGETTING_ALERT_WORKER,
+      FORGETTING_ALERT_SCHEDULE: process.env.FORGETTING_ALERT_SCHEDULE,
       RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
       RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
       LOG_LEVEL: process.env.LOG_LEVEL,

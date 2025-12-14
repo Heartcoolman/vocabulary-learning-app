@@ -75,7 +75,16 @@ class ExperimentService {
    * 创建新实验
    */
   async createExperiment(input: CreateExperimentInput): Promise<{ id: string; name: string }> {
-    const { name, description, trafficAllocation, minSampleSize, significanceLevel, minimumDetectableEffect, autoDecision, variants } = input;
+    const {
+      name,
+      description,
+      trafficAllocation,
+      minSampleSize,
+      significanceLevel,
+      minimumDetectableEffect,
+      autoDecision,
+      variants,
+    } = input;
 
     // 验证变体权重
     if (variants.length < 2) {
@@ -87,16 +96,16 @@ class ExperimentService {
       throw new Error('变体权重总和必须为 1');
     }
 
-    const controlCount = variants.filter(v => v.isControl).length;
+    const controlCount = variants.filter((v) => v.isControl).length;
     if (controlCount !== 1) {
       throw new Error('必须有且仅有一个控制组');
     }
 
     // 映射流量分配类型
     const allocationMap: Record<string, ABTrafficAllocation> = {
-      'EVEN': ABTrafficAllocation.EVEN,
-      'WEIGHTED': ABTrafficAllocation.WEIGHTED,
-      'DYNAMIC': ABTrafficAllocation.DYNAMIC,
+      EVEN: ABTrafficAllocation.EVEN,
+      WEIGHTED: ABTrafficAllocation.WEIGHTED,
+      DYNAMIC: ABTrafficAllocation.DYNAMIC,
     };
 
     const experiment = await this.prisma.aBExperiment.create({
@@ -110,7 +119,7 @@ class ExperimentService {
         autoDecision,
         status: ABExperimentStatus.DRAFT,
         variants: {
-          create: variants.map(v => ({
+          create: variants.map((v) => ({
             id: v.id,
             name: v.name,
             weight: v.weight,
@@ -135,11 +144,13 @@ class ExperimentService {
   /**
    * 获取实验列表
    */
-  async listExperiments(params: {
-    status?: ABExperimentStatus;
-    page?: number;
-    pageSize?: number;
-  } = {}): Promise<{ experiments: ExperimentListItem[]; total: number }> {
+  async listExperiments(
+    params: {
+      status?: ABExperimentStatus;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ): Promise<{ experiments: ExperimentListItem[]; total: number }> {
     const { status, page = 1, pageSize = 20 } = params;
 
     const where = status ? { status } : {};
@@ -158,7 +169,7 @@ class ExperimentService {
       this.prisma.aBExperiment.count({ where }),
     ]);
 
-    const items: ExperimentListItem[] = experiments.map(exp => ({
+    const items: ExperimentListItem[] = experiments.map((exp) => ({
       id: exp.id,
       name: exp.name,
       description: exp.description,
@@ -213,7 +224,7 @@ class ExperimentService {
     }
 
     // 计算样本量
-    const sampleSizes = experiment.metrics.map(m => ({
+    const sampleSizes = experiment.metrics.map((m) => ({
       variantId: m.variantId,
       sampleCount: m.sampleCount,
     }));
@@ -221,18 +232,23 @@ class ExperimentService {
     const totalSamples = sampleSizes.reduce((sum, s) => sum + s.sampleCount, 0);
 
     // 获取控制组和实验组指标
-    const controlVariant = experiment.variants.find(v => v.isControl);
-    const treatmentVariant = experiment.variants.find(v => !v.isControl);
+    const controlVariant = experiment.variants.find((v) => v.isControl);
+    const treatmentVariant = experiment.variants.find((v) => !v.isControl);
 
     if (!controlVariant || !treatmentVariant) {
       return this.getDefaultStatus(experiment.status, sampleSizes);
     }
 
-    const controlMetrics = experiment.metrics.find(m => m.variantId === controlVariant.id);
-    const treatmentMetrics = experiment.metrics.find(m => m.variantId === treatmentVariant.id);
+    const controlMetrics = experiment.metrics.find((m) => m.variantId === controlVariant.id);
+    const treatmentMetrics = experiment.metrics.find((m) => m.variantId === treatmentVariant.id);
 
     // 如果没有数据，返回默认状态
-    if (!controlMetrics || !treatmentMetrics || controlMetrics.sampleCount === 0 || treatmentMetrics.sampleCount === 0) {
+    if (
+      !controlMetrics ||
+      !treatmentMetrics ||
+      controlMetrics.sampleCount === 0 ||
+      treatmentMetrics.sampleCount === 0
+    ) {
       return this.getDefaultStatus(experiment.status, sampleSizes);
     }
 
@@ -245,7 +261,7 @@ class ExperimentService {
     const { pValue, isSignificant, confidenceInterval } = this.calculateSignificance(
       controlMetrics,
       treatmentMetrics,
-      experiment.significanceLevel
+      experiment.significanceLevel,
     );
 
     // 计算统计功效
@@ -253,7 +269,7 @@ class ExperimentService {
       controlMetrics.sampleCount,
       treatmentMetrics.sampleCount,
       effectSize,
-      experiment.significanceLevel
+      experiment.significanceLevel,
     );
 
     // 确定获胜者和建议
@@ -331,7 +347,7 @@ class ExperimentService {
         },
       }),
       // 创建指标记录
-      ...experiment.variants.map(variant =>
+      ...experiment.variants.map((variant) =>
         this.prisma.aBExperimentMetrics.upsert({
           where: {
             experimentId_variantId: {
@@ -349,7 +365,7 @@ class ExperimentService {
             stdDev: 0,
             m2: 0,
           },
-        })
+        }),
       ),
     ]);
 
@@ -448,6 +464,117 @@ class ExperimentService {
     });
   }
 
+  /**
+   * 为用户分配实验变体
+   *
+   * @param userId - 用户ID
+   * @param experimentId - 实验ID
+   * @returns 分配的变体ID
+   */
+  async assignVariant(userId: string, experimentId: string): Promise<string> {
+    // 检查是否已有分配
+    const existingAssignment = await this.prisma.aBUserAssignment.findUnique({
+      where: {
+        userId_experimentId: {
+          userId,
+          experimentId,
+        },
+      },
+    });
+
+    if (existingAssignment) {
+      return existingAssignment.variantId;
+    }
+
+    // 获取实验和变体信息
+    const experiment = await this.prisma.aBExperiment.findUnique({
+      where: { id: experimentId },
+      include: { variants: true },
+    });
+
+    if (!experiment) {
+      throw new Error('实验不存在');
+    }
+
+    if (experiment.status !== ABExperimentStatus.RUNNING) {
+      throw new Error('实验未在运行中');
+    }
+
+    if (experiment.variants.length === 0) {
+      throw new Error('实验没有变体');
+    }
+
+    // 根据流量分配策略选择变体
+    const selectedVariant = this.selectVariant(experiment.variants, userId);
+
+    // 创建分配记录
+    await this.prisma.aBUserAssignment.create({
+      data: {
+        userId,
+        experimentId,
+        variantId: selectedVariant.id,
+      },
+    });
+
+    logger.info({ userId, experimentId, variantId: selectedVariant.id }, '用户已分配到实验变体');
+
+    return selectedVariant.id;
+  }
+
+  /**
+   * 根据分配策略选择变体
+   *
+   * @param variants - 变体列表
+   * @param userId - 用户ID（用于一致性哈希）
+   * @returns 选中的变体
+   */
+  private selectVariant(
+    variants: Array<{ id: string; weight: number }>,
+    userId: string,
+  ): { id: string; weight: number } {
+    // 使用一致性哈希确保同一用户始终分配到相同变体
+    const hash = this.hashUserId(userId);
+
+    // 计算累积权重
+    let cumulativeWeight = 0;
+    const weightedVariants = variants.map((v) => {
+      cumulativeWeight += v.weight;
+      return {
+        ...v,
+        cumulativeWeight,
+      };
+    });
+
+    // 使用哈希值映射到 [0, 1] 范围
+    const normalizedHash = hash / 0xffffffff;
+
+    // 在累积权重中查找对应的变体
+    for (const variant of weightedVariants) {
+      if (normalizedHash <= variant.cumulativeWeight) {
+        return variant;
+      }
+    }
+
+    // 默认返回最后一个变体（理论上不应该到这里）
+    return variants[variants.length - 1];
+  }
+
+  /**
+   * 用户ID哈希函数（MurmurHash3的简化版本）
+   *
+   * @param userId - 用户ID
+   * @returns 32位哈希值
+   */
+  private hashUserId(userId: string): number {
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      const char = userId.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & 0xffffffff; // 转换为32位整数
+    }
+    return Math.abs(hash);
+  }
+
   // ==================== 私有方法 ====================
 
   /**
@@ -456,8 +583,12 @@ class ExperimentService {
   private calculateSignificance(
     controlMetrics: { averageReward: number; stdDev: number; sampleCount: number },
     treatmentMetrics: { averageReward: number; stdDev: number; sampleCount: number },
-    significanceLevel: number
-  ): { pValue: number; isSignificant: boolean; confidenceInterval: { lower: number; upper: number } } {
+    significanceLevel: number,
+  ): {
+    pValue: number;
+    isSignificant: boolean;
+    confidenceInterval: { lower: number; upper: number };
+  } {
     const n1 = controlMetrics.sampleCount;
     const n2 = treatmentMetrics.sampleCount;
     const mean1 = controlMetrics.averageReward;
@@ -475,10 +606,11 @@ class ExperimentService {
     const t = se > 0 ? diff / se : 0;
 
     // 自由度（Welch-Satterthwaite）
-    const df = se > 0
-      ? Math.pow((std1 * std1) / n1 + (std2 * std2) / n2, 2) /
-        (Math.pow((std1 * std1) / n1, 2) / (n1 - 1) + Math.pow((std2 * std2) / n2, 2) / (n2 - 1))
-      : 1;
+    const df =
+      se > 0
+        ? Math.pow((std1 * std1) / n1 + (std2 * std2) / n2, 2) /
+          (Math.pow((std1 * std1) / n1, 2) / (n1 - 1) + Math.pow((std2 * std2) / n2, 2) / (n2 - 1))
+        : 1;
 
     // 简化的 p 值计算（使用正态近似）
     const pValue = 2 * (1 - this.normalCDF(Math.abs(t)));
@@ -502,12 +634,7 @@ class ExperimentService {
   /**
    * 计算统计功效
    */
-  private calculatePower(
-    n1: number,
-    n2: number,
-    effectSize: number,
-    alpha: number
-  ): number {
+  private calculatePower(n1: number, n2: number, effectSize: number, alpha: number): number {
     // 简化的功效计算
     const pooledN = 2 / (1 / n1 + 1 / n2);
     const nonCentrality = Math.abs(effectSize) * Math.sqrt(pooledN / 2);
@@ -521,8 +648,9 @@ class ExperimentService {
    */
   private normalCDF(x: number): number {
     const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989422804 * Math.exp(-x * x / 2);
-    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    const d = 0.3989422804 * Math.exp((-x * x) / 2);
+    const p =
+      d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
     return x > 0 ? 1 - p : p;
   }
 
@@ -535,34 +663,18 @@ class ExperimentService {
     if (p === 0.5) return 0;
 
     const a = [
-      -3.969683028665376e1,
-      2.209460984245205e2,
-      -2.759285104469687e2,
-      1.383577518672690e2,
-      -3.066479806614716e1,
-      2.506628277459239e0,
+      -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2,
+      -3.066479806614716e1, 2.506628277459239,
     ];
     const b = [
-      -5.447609879822406e1,
-      1.615858368580409e2,
-      -1.556989798598866e2,
-      6.680131188771972e1,
+      -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1,
       -1.328068155288572e1,
     ];
     const c = [
-      -7.784894002430293e-3,
-      -3.223964580411365e-1,
-      -2.400758277161838e0,
-      -2.549732539343734e0,
-      4.374664141464968e0,
-      2.938163982698783e0,
+      -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734,
+      4.374664141464968, 2.938163982698783,
     ];
-    const d = [
-      7.784695709041462e-3,
-      3.224671290700398e-1,
-      2.445134137142996e0,
-      3.754408661907416e0,
-    ];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
 
     const pLow = 0.02425;
     const pHigh = 1 - pLow;
@@ -571,17 +683,23 @@ class ExperimentService {
 
     if (p < pLow) {
       q = Math.sqrt(-2 * Math.log(p));
-      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      return (
+        (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     } else if (p <= pHigh) {
       q = p - 0.5;
       r = q * q;
-      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
-        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+      return (
+        ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+      );
     } else {
       q = Math.sqrt(-2 * Math.log(1 - p));
-      return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      return (
+        -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+      );
     }
   }
 
@@ -590,7 +708,7 @@ class ExperimentService {
    */
   private getDefaultStatus(
     status: ABExperimentStatus,
-    sampleSizes: Array<{ variantId: string; sampleCount: number }>
+    sampleSizes: Array<{ variantId: string; sampleCount: number }>,
   ): ExperimentStatus {
     const statusMap: Record<ABExperimentStatus, 'running' | 'completed' | 'stopped'> = {
       [ABExperimentStatus.DRAFT]: 'stopped',

@@ -25,7 +25,7 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
-const LearningCurveChart: React.FC<LearningCurveChartProps> = ({ data }) => {
+const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data }) => {
   const height = 250;
   const width = 500; // ViewBox width
   const padding = 40;
@@ -146,6 +146,8 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = ({ data }) => {
       <p className="mt-2 text-center text-sm text-gray-500">记忆强度变化趋势</p>
     </div>
   );
-};
+});
+
+LearningCurveChart.displayName = 'LearningCurveChart';
 
 export default LearningCurveChart;

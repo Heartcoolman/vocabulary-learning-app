@@ -3,10 +3,89 @@
  * 管理员查看用户 AMAS 决策记录的完整功能组件
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ApiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
 import { LearningStrategy, DifficultyLevel } from '@danci/shared';
+
+// ============================================
+// 辅助函数（纯函数，提取到组件外部）
+// ============================================
+
+/**
+ * 格式化时间戳为本地时间字符串
+ */
+const formatTimestamp = (timestamp: string): string => {
+  return new Date(timestamp).toLocaleString('zh-CN');
+};
+
+/**
+ * 格式化置信度为百分比字符串
+ */
+const formatConfidence = (confidence: number, decimals: number = 1): string => {
+  return `${(confidence * 100).toFixed(decimals)}%`;
+};
+
+/**
+ * 格式化奖励值
+ */
+const formatReward = (reward: number | null | undefined, decimals: number = 3): string => {
+  if (reward === null || reward === undefined) return '-';
+  return reward.toFixed(decimals);
+};
+
+/**
+ * 格式化时长
+ */
+const formatDuration = (durationMs: number | null | undefined): string => {
+  if (!durationMs) return '-';
+  return `${durationMs}ms`;
+};
+
+/**
+ * 格式化状态快照值
+ */
+const formatStateValue = (value: StateSnapshotValue): string => {
+  if (typeof value === 'number') {
+    return value.toFixed(2);
+  }
+  return JSON.stringify(value);
+};
+
+/**
+ * 获取流水线阶段图标
+ */
+const getStageIcon = (status: string): string => {
+  switch (status) {
+    case 'SUCCESS':
+      return '✓';
+    case 'FAILED':
+      return '✗';
+    case 'STARTED':
+      return '⏳';
+    default:
+      return '─';
+  }
+};
+
+/**
+ * 获取阶段状态颜色
+ */
+const getStageStatusColor = (status: string): string => {
+  return status === 'SUCCESS' ? '#22c55e' : '#ef4444';
+};
+
+/**
+ * 获取决策来源的badge样式
+ */
+const getBadgeStyle = (
+  decisionSource: string,
+  styles: Record<string, React.CSSProperties>,
+): React.CSSProperties => {
+  const baseStyle = styles.badge;
+  const sourceStyle = decisionSource === 'ensemble' ? styles.badgeEnsemble : styles.badgeColdstart;
+  return { ...baseStyle, ...sourceStyle };
+};
 
 // ============================================
 // 类型定义
@@ -128,7 +207,7 @@ interface Props {
   userId: string;
 }
 
-export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
+const AMASDecisionsTabComponent: React.FC<Props> = ({ userId }) => {
   const [decisions, setDecisions] = useState<DecisionListItem[]>([]);
   const [statistics, setStatistics] = useState<DecisionStatistics | null>(null);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 0 });
@@ -150,26 +229,20 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     sortOrder: 'desc' as 'asc' | 'desc',
   });
 
-  // 修复：将 filters 对象的各个属性作为独立依赖项，避免对象引用变化导致的不必要重新渲染
-  useEffect(() => {
-    // 空值保护：如果 userId 为空，不发起请求
-    if (!userId) {
-      setLoading(false);
-      setError('用户ID为空');
-      return;
-    }
-    loadDecisions();
-  }, [
-    userId,
-    pagination.page,
-    filters.startDate,
-    filters.endDate,
-    filters.decisionSource,
-    filters.sortBy,
-    filters.sortOrder,
-  ]);
+  // 使用useMemo缓存决策来源分布的渲染数据
+  const decisionSourceEntries = useMemo(() => {
+    if (!statistics?.decisionSourceDistribution) return [];
+    return Object.entries(statistics.decisionSourceDistribution);
+  }, [statistics?.decisionSourceDistribution]);
 
-  const loadDecisions = async () => {
+  // 使用useMemo缓存状态快照的渲染数据
+  const stateSnapshotEntries = useMemo(() => {
+    if (!decisionDetail?.insight?.stateSnapshot) return [];
+    return Object.entries(decisionDetail.insight.stateSnapshot);
+  }, [decisionDetail?.insight?.stateSnapshot]);
+
+  // 使用 useCallback 缓存 loadDecisions 函数，防止不必要的重新创建
+  const loadDecisions = useCallback(async () => {
     // 空值保护：确保 userId 有效
     if (!userId) {
       setError('用户ID为空');
@@ -214,7 +287,29 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    userId,
+    pagination.page,
+    pagination.pageSize,
+    pagination.total,
+    pagination.totalPages,
+    filters.startDate,
+    filters.endDate,
+    filters.decisionSource,
+    filters.sortBy,
+    filters.sortOrder,
+  ]);
+
+  // 修复：只依赖 loadDecisions，因为它已经包含了所有必要的依赖
+  useEffect(() => {
+    // 空值保护：如果 userId 为空，不发起请求
+    if (!userId) {
+      setLoading(false);
+      setError('用户ID为空');
+      return;
+    }
+    loadDecisions();
+  }, [userId, loadDecisions]);
 
   const loadDecisionDetail = async (decisionId: string) => {
     // 重置取消标志
@@ -279,16 +374,16 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
             </div>
             <div style={styles.statCard}>
               <div style={styles.statLabel}>平均置信度</div>
-              <div style={styles.statValue}>{(statistics.averageConfidence * 100).toFixed(1)}%</div>
+              <div style={styles.statValue}>{formatConfidence(statistics.averageConfidence)}</div>
             </div>
             <div style={styles.statCard}>
               <div style={styles.statLabel}>平均奖励</div>
-              <div style={styles.statValue}>{statistics.averageReward.toFixed(3)}</div>
+              <div style={styles.statValue}>{formatReward(statistics.averageReward)}</div>
             </div>
             <div style={styles.statCard}>
               <div style={styles.statLabel}>决策来源</div>
               <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                {Object.entries(statistics.decisionSourceDistribution).map(([source, count]) => (
+                {decisionSourceEntries.map(([source, count]) => (
                   <div key={source}>
                     {source}: {count}
                   </div>
@@ -346,18 +441,9 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           <tbody>
             {decisions.map((d) => (
               <tr key={d.decisionId} style={styles.tr}>
-                <td style={styles.td}>{new Date(d.timestamp).toLocaleString('zh-CN')}</td>
+                <td style={styles.td}>{formatTimestamp(d.timestamp)}</td>
                 <td style={styles.td}>
-                  <span
-                    style={{
-                      ...styles.badge,
-                      ...(d.decisionSource === 'ensemble'
-                        ? styles.badgeEnsemble
-                        : styles.badgeColdstart),
-                    }}
-                  >
-                    {d.decisionSource}
-                  </span>
+                  <span style={getBadgeStyle(d.decisionSource, styles)}>{d.decisionSource}</span>
                 </td>
                 <td style={styles.td}>
                   {d.strategy.difficulty}, {d.strategy.batch_size}词
@@ -366,12 +452,10 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                   <div style={styles.progressBarContainer}>
                     <div style={{ ...styles.progressBar, width: `${d.confidence * 100}%` }} />
                   </div>
-                  <span style={{ fontSize: '12px' }}>{(d.confidence * 100).toFixed(0)}%</span>
+                  <span style={{ fontSize: '12px' }}>{formatConfidence(d.confidence, 0)}</span>
                 </td>
-                <td style={styles.td}>
-                  {d.reward !== null && d.reward !== undefined ? d.reward.toFixed(3) : '-'}
-                </td>
-                <td style={styles.td}>{d.totalDurationMs ? `${d.totalDurationMs}ms` : '-'}</td>
+                <td style={styles.td}>{formatReward(d.reward)}</td>
+                <td style={styles.td}>{formatDuration(d.totalDurationMs)}</td>
                 <td style={styles.td}>
                   <button
                     onClick={() => handleViewDetail(d.decisionId)}
@@ -434,15 +518,14 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                       <strong>决策ID:</strong> {decisionDetail.decision.decisionId}
                     </div>
                     <div>
-                      <strong>时间:</strong>{' '}
-                      {new Date(decisionDetail.decision.timestamp).toLocaleString('zh-CN')}
+                      <strong>时间:</strong> {formatTimestamp(decisionDetail.decision.timestamp)}
                     </div>
                     <div>
                       <strong>来源:</strong> {decisionDetail.decision.decisionSource}
                     </div>
                     <div>
                       <strong>置信度:</strong>{' '}
-                      {(decisionDetail.decision.confidence * 100).toFixed(1)}%
+                      {formatConfidence(decisionDetail.decision.confidence)}
                     </div>
                     {decisionDetail.decision.coldstartPhase && (
                       <div>
@@ -452,7 +535,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                     {decisionDetail.decision.reward !== null &&
                       decisionDetail.decision.reward !== undefined && (
                         <div>
-                          <strong>奖励:</strong> {decisionDetail.decision.reward.toFixed(3)}
+                          <strong>奖励:</strong> {formatReward(decisionDetail.decision.reward)}
                         </div>
                       )}
                   </div>
@@ -463,16 +546,12 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                   <div style={styles.section}>
                     <h4 style={styles.sectionTitle}>用户状态快照</h4>
                     <div style={styles.stateGrid}>
-                      {Object.entries(decisionDetail.insight.stateSnapshot).map(
-                        ([key, value]: [string, StateSnapshotValue]) => (
-                          <div key={key} style={styles.stateItem}>
-                            <span style={styles.stateLabel}>{key}:</span>
-                            <span style={styles.stateValue}>
-                              {typeof value === 'number' ? value.toFixed(2) : JSON.stringify(value)}
-                            </span>
-                          </div>
-                        ),
-                      )}
+                      {stateSnapshotEntries.map(([key, value]: [string, StateSnapshotValue]) => (
+                        <div key={key} style={styles.stateItem}>
+                          <span style={styles.stateLabel}>{key}:</span>
+                          <span style={styles.stateValue}>{formatStateValue(value)}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -485,28 +564,18 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                       {decisionDetail.pipeline.map((stage: PipelineStage, index: number) => (
                         <div key={index} style={styles.pipelineStage}>
                           <div style={styles.stageHeader}>
-                            <span style={styles.stageIcon}>
-                              {stage.status === 'SUCCESS'
-                                ? '✓'
-                                : stage.status === 'FAILED'
-                                  ? '✗'
-                                  : stage.status === 'STARTED'
-                                    ? '⏳'
-                                    : '─'}
-                            </span>
+                            <span style={styles.stageIcon}>{getStageIcon(stage.status)}</span>
                             <span style={styles.stageName}>{stage.stageName || stage.stage}</span>
                             <span
                               style={{
                                 ...styles.stageStatus,
-                                color: stage.status === 'SUCCESS' ? '#22c55e' : '#ef4444',
+                                color: getStageStatusColor(stage.status),
                               }}
                             >
                               {stage.status}
                             </span>
                             <span style={styles.stageDuration}>
-                              {stage.durationMs !== null && stage.durationMs !== undefined
-                                ? `${stage.durationMs}ms`
-                                : '-'}
+                              {formatDuration(stage.durationMs)}
                             </span>
                           </div>
                           {stage.outputSummary && (
@@ -836,5 +905,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '4px',
   },
 };
+
+// 使用React.memo优化组件，防止不必要的重新渲染
+export const AMASDecisionsTab = React.memo(AMASDecisionsTabComponent);
 
 export default AMASDecisionsTab;
