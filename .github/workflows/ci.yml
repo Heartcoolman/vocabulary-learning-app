@@ -196,14 +196,14 @@ jobs:
         continue-on-error: true
 
       - name: Upload Backend Coverage Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-backend
           path: packages/backend/coverage/
           retention-days: 7
 
       - name: Upload Frontend Coverage Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-frontend
           path: packages/frontend/coverage/
@@ -331,14 +331,14 @@ jobs:
         run: pnpm build
 
       - name: Upload Frontend Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-build
           path: packages/frontend/dist/
           retention-days: 7
 
       - name: Upload Backend Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-build
           path: packages/backend/dist/
