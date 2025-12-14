@@ -23,7 +23,7 @@ export function WeightSlider({ label, value, onChange, colorClass = 'blue' }: We
     <div className="mb-6">
       <div className="mb-2 flex items-center justify-between">
         <label className="text-sm font-semibold text-gray-700">{label}</label>
-        <span className={`rounded-lg px-3 py-1 text-sm font-bold ${colors.bg} ${colors.text}`}>
+        <span className={`rounded-button px-3 py-1 text-sm font-bold ${colors.bg} ${colors.text}`}>
           {(value * 100).toFixed(0)}%
         </span>
       </div>
@@ -34,7 +34,7 @@ export function WeightSlider({ label, value, onChange, colorClass = 'blue' }: We
         step="0.05"
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className={`h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 transition-all hover:shadow-md ${colors.accent}`}
+        className={`h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 transition-all hover:shadow-elevated ${colors.accent}`}
       />
     </div>
   );

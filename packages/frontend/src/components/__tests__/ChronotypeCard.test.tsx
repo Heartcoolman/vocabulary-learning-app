@@ -278,13 +278,13 @@ describe('ChronotypeCard', () => {
 
     it('should have shadow', () => {
       render(<ChronotypeCard />);
-      const card = screen.getByText(/Intermediate/).closest('.shadow-sm');
+      const card = screen.getByText(/Intermediate/).closest('.shadow-soft');
       expect(card).toBeInTheDocument();
     });
 
     it('should have rounded corners', () => {
       render(<ChronotypeCard />);
-      const card = screen.getByText(/Intermediate/).closest('.rounded-xl');
+      const card = screen.getByText(/Intermediate/).closest('.rounded-card');
       expect(card).toBeInTheDocument();
     });
   });

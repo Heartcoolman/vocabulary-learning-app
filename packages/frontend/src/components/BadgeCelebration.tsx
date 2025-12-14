@@ -205,7 +205,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
             {/* 徽章展示 */}
             <div
-              className={`mt-6 rounded-2xl border-2 p-6 text-center ${tierColor.bg} ${tierColor.border} `}
+              className={`mt-6 rounded-card border-2 p-6 text-center ${tierColor.bg} ${tierColor.border} `}
             >
               <motion.div
                 className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${tierColor.bg} border-4 ${tierColor.border} `}
@@ -247,7 +247,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             {/* 确认按钮 */}
             <motion.button
               onClick={onClose}
-              className="mt-6 w-full rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg hover:bg-blue-600"
+              className="mt-6 w-full rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated hover:bg-blue-600"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               transition={g3SpringBouncy}

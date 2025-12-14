@@ -43,7 +43,7 @@ export const Elevated: Story = {
 export const Glass: Story = {
   render: () => (
     <div
-      className="rounded-xl p-8"
+      className="rounded-card p-8"
       style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}
@@ -77,7 +77,7 @@ export const Simple: Story = {
  */
 export const Clickable: Story = {
   render: () => (
-    <button className="card-elevated w-80 p-6 text-left transition-all duration-200 hover:scale-[1.02]">
+    <button className="card-elevated w-80 p-6 text-left transition-all duration-g3-fast hover:scale-[1.02]">
       <h3 className="mb-2 text-lg font-semibold text-gray-900">可点击卡片</h3>
       <p className="text-gray-600">点击此卡片可以触发相应操作。悬浮时有放大效果。</p>
       <span className="mt-4 inline-flex items-center text-sm font-medium text-blue-600">
@@ -151,7 +151,7 @@ export const CardList: Story = {
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
         <div key={i} className="card-elevated flex w-[480px] items-center gap-4 p-4">
-          <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600" />
+          <div className="h-16 w-16 flex-shrink-0 rounded-button bg-gradient-to-br from-blue-400 to-blue-600" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900">卡片标题 {i}</h4>
             <p className="text-sm text-gray-600">这是卡片的简要描述内容。</p>

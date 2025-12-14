@@ -84,7 +84,7 @@ const StateMetricCard = memo(function StateMetricCard({
   stateLabel: string;
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className="rounded-button bg-gray-50 p-3">
       <p className="mb-1 text-xs text-gray-600">{label}</p>
       <div className="flex items-center justify-between">
         <p className={`text-xl font-bold ${stateColor}`}>
@@ -109,14 +109,14 @@ const DifficultyFactorBar = memo(function DifficultyFactorBar({
   value: number;
 }) {
   return (
-    <div className="rounded-lg bg-purple-50 p-3">
+    <div className="rounded-button bg-purple-50 p-3">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs capitalize text-gray-600">{formatDifficultyFactorName(name)}</p>
         <p className="text-sm font-bold text-gray-900">{value.toFixed(2)}</p>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-full bg-purple-500 transition-all duration-300"
+          className="h-full bg-purple-500 transition-all duration-g3-normal"
           style={{ width: `${Math.min(100, value * 100)}%` }}
         />
       </div>
@@ -133,7 +133,7 @@ const DecisionFactorCard = memo(function DecisionFactorCard({
   factor: { name: string; weight: number; explanation: string; score: number };
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className="rounded-button bg-gray-50 p-3">
       <div className="mb-1 flex items-center justify-between">
         <span className="font-medium text-gray-800">{factor.name}</span>
         <span className="text-sm text-gray-600">权重: {(factor.weight * 100).toFixed(1)}%</span>
@@ -141,7 +141,7 @@ const DecisionFactorCard = memo(function DecisionFactorCard({
       <p className="mb-2 text-xs text-gray-500">{factor.explanation}</p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-full bg-green-500 transition-all duration-300"
+          className="h-full bg-green-500 transition-all duration-g3-normal"
           style={{ width: `${factor.score * 100}%` }}
         />
       </div>
@@ -157,7 +157,7 @@ const DecisionFactorCard = memo(function DecisionFactorCard({
  */
 function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMASOverviewProps) {
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
@@ -167,7 +167,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
           title="刷新"
         >
           <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
@@ -202,7 +202,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
 
           {/* 推理说明 */}
           {explanation.reasoning && (
-            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+            <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm text-blue-800">
                 <strong>推理说明：</strong> {explanation.reasoning}
               </p>
@@ -256,7 +256,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
                 {Object.entries(explanation.weights).map(([algo, weight]) => (
                   <div
                     key={algo}
-                    className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2"
+                    className="flex items-center gap-2 rounded-button bg-indigo-50 px-3 py-2"
                   >
                     <span className="text-sm font-medium capitalize text-indigo-700">{algo}</span>
                     <span className="text-sm font-bold text-indigo-900">

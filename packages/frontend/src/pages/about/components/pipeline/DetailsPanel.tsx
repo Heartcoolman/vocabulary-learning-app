@@ -63,7 +63,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ node, state, trace, 
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-lg p-1.5 transition-colors hover:bg-slate-800"
+                  className="rounded-button p-1.5 transition-colors hover:bg-slate-800"
                 >
                   <X size={18} className="text-slate-400" />
                 </button>
@@ -157,7 +157,7 @@ const StatusCard: React.FC<{ label: string; value: string; color: string }> = ({
   value,
   color,
 }) => (
-  <div className="rounded-lg bg-slate-800/50 p-2.5">
+  <div className="rounded-button bg-slate-800/50 p-2.5">
     <div className="mb-0.5 text-xs text-slate-500">{label}</div>
     <div className="text-sm font-medium" style={{ color }}>
       {value}

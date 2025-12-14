@@ -55,13 +55,13 @@ export default function StudyProgressPage() {
   if (error || !progress) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <div className="w-full max-w-md rounded-card border border-red-100 bg-white p-8 text-center shadow-soft">
           <WarningCircle className="mx-auto mb-4 h-12 w-12 text-red-500" weight="bold" />
           <h2 className="mb-2 text-xl font-bold text-gray-900">无法加载进度数据</h2>
           <p className="mb-6 text-gray-600">{error || '获取数据时发生错误'}</p>
           <button
             onClick={() => refresh()}
-            className="rounded-lg border border-gray-300 bg-white px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-button border border-gray-300 bg-white px-6 py-2 text-gray-700 transition-colors hover:bg-gray-50"
           >
             重试
           </button>
@@ -118,7 +118,7 @@ export default function StudyProgressPage() {
             />
 
             {/* 学习连胜统计 */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
               <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
                 <Activity className="h-6 w-6 text-amber-500" weight="bold" />
                 学习连胜
@@ -138,7 +138,7 @@ export default function StudyProgressPage() {
 
               <div className="mt-6 space-y-3">
                 {extendedProgress.learningStreak >= 7 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <div className="rounded-button border border-amber-200 bg-amber-50 p-4">
                     <p className="flex items-center gap-1 text-sm font-medium text-amber-800">
                       <Confetti size={16} weight="fill" className="text-amber-600" />{' '}
                       太棒了！你已经连续学习 {extendedProgress.learningStreak} 天了！
@@ -147,7 +147,7 @@ export default function StudyProgressPage() {
                 )}
 
                 {extendedProgress.learningStreak < 7 && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div className="rounded-button border border-blue-200 bg-blue-50 p-4">
                     <p className="flex items-center gap-1 text-sm font-medium text-blue-800">
                       <Lightning size={16} weight="fill" className="text-blue-600" /> 再坚持{' '}
                       {7 - extendedProgress.learningStreak} 天，达成一周学习目标！
@@ -164,7 +164,7 @@ export default function StudyProgressPage() {
 
                 <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
                   <div
-                    className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-500"
+                    className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-g3-slow"
                     style={{
                       width: `${Math.min(100, (extendedProgress.learningStreak / 7) * 100)}%`,
                     }}
@@ -184,7 +184,7 @@ export default function StudyProgressPage() {
 
         {/* 月度学习趋势 */}
         {isFullyLoaded && monthlyChartData.length > 0 && (
-          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
             <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
               <Calendar className="h-6 w-6 text-purple-500" weight="bold" />
               30天学习趋势
@@ -195,7 +195,7 @@ export default function StudyProgressPage() {
         )}
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800">
                 <TrendUp className="h-5 w-5 text-blue-500" weight="bold" />
@@ -207,7 +207,7 @@ export default function StudyProgressPage() {
               {weeklyTrend.map((value, idx) => (
                 <div key={idx} className="group relative flex flex-1 flex-col justify-end">
                   <div
-                    className={`relative w-full rounded-t-lg transition-all duration-500 ${
+                    className={`relative w-full rounded-t-lg transition-all duration-g3-slow ${
                       idx === 6 ? 'bg-blue-500' : 'bg-blue-100 group-hover:bg-blue-200'
                     }`}
                     style={{ height: `${(value / maxTrend) * 100}%` }}
@@ -224,7 +224,7 @@ export default function StudyProgressPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800">
                 <Activity className="h-5 w-5 text-emerald-500" weight="bold" />
@@ -233,7 +233,7 @@ export default function StudyProgressPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
+              <div className="rounded-card border border-emerald-100 bg-emerald-50 p-5">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-medium text-emerald-800">答题准确率</span>
                   <span className="text-2xl font-bold text-emerald-600">
@@ -242,7 +242,7 @@ export default function StudyProgressPage() {
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-emerald-200">
                   <div
-                    className="h-2.5 rounded-full bg-emerald-500 transition-all duration-1000"
+                    className="h-2.5 rounded-full bg-emerald-500 transition-all duration-g3-slower"
                     style={{ width: `${progress.correctRate}%` }}
                   ></div>
                 </div>
@@ -257,7 +257,7 @@ export default function StudyProgressPage() {
                 )}
               </div>
 
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
+              <div className="rounded-card border border-blue-100 bg-blue-50 p-5">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-medium text-blue-800">今日完成度</span>
                   <span className="text-2xl font-bold text-blue-600">
@@ -272,7 +272,7 @@ export default function StudyProgressPage() {
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-blue-200">
                   <div
-                    className="h-2.5 rounded-full bg-blue-500 transition-all duration-1000"
+                    className="h-2.5 rounded-full bg-blue-500 transition-all duration-g3-slower"
                     style={{
                       width: `${
                         progress.todayTarget > 0

@@ -118,7 +118,7 @@ const LearningProfilePage: React.FC = () => {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+        <div className="w-full max-w-md rounded-button bg-white p-8 shadow-elevated">
           <div className="mb-4 flex items-center gap-3">
             <WarningCircle className="h-6 w-6 text-red-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">加载失败</h2>
@@ -126,7 +126,7 @@ const LearningProfilePage: React.FC = () => {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={handleRetry}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
             <ArrowClockwise className="h-4 w-4" weight="bold" />
             重新加载
@@ -147,7 +147,7 @@ const LearningProfilePage: React.FC = () => {
 
         {/* 生物钟分析卡片 */}
         {chronotype && (
-          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <div className="mb-6 rounded-button bg-white p-6 shadow-elevated">
             <div className="mb-4 flex items-center gap-3">
               <Clock className="h-6 w-6 text-amber-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">生物钟分析</h2>
@@ -198,7 +198,7 @@ const LearningProfilePage: React.FC = () => {
               </div>
 
               {/* 建议 */}
-              <div className="rounded-lg bg-amber-50 p-4">
+              <div className="rounded-button bg-amber-50 p-4">
                 <p className="mb-2 text-sm font-semibold text-amber-900">学习建议</p>
                 <p className="text-sm text-amber-800">{getChronotypeAdvice(chronotype.category)}</p>
               </div>
@@ -236,7 +236,7 @@ const LearningProfilePage: React.FC = () => {
 
         {/* 学习风格分析卡片 */}
         {learningStyle && (
-          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <div className="mb-6 rounded-button bg-white p-6 shadow-elevated">
             <div className="mb-4 flex items-center gap-3">
               <Brain className="h-6 w-6 text-blue-500" weight="bold" />
               <h2 className="text-xl font-semibold text-gray-800">学习风格分析</h2>
@@ -320,7 +320,7 @@ const LearningProfilePage: React.FC = () => {
               </div>
 
               {/* 建议 */}
-              <div className="rounded-lg bg-blue-50 p-4">
+              <div className="rounded-button bg-blue-50 p-4">
                 <p className="mb-2 text-sm font-semibold text-blue-900">学习建议</p>
                 <p className="text-sm text-blue-800">
                   {getLearningStyleAdvice(learningStyle.style)}
@@ -331,7 +331,7 @@ const LearningProfilePage: React.FC = () => {
         )}
 
         {/* 认知能力提示卡片 */}
-        <div className="rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-6 shadow-md">
+        <div className="rounded-button bg-gradient-to-r from-purple-50 to-pink-50 p-6 shadow-elevated">
           <div className="mb-3 flex items-center gap-3">
             <Lightning className="h-6 w-6 text-purple-500" weight="bold" />
             <h2 className="text-lg font-semibold text-gray-800">个性化学习建议</h2>

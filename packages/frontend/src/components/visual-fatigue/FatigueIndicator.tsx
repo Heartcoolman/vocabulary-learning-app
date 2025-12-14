@@ -153,7 +153,7 @@ function FatigueIndicatorComponent({
 
   // 详细版本
   return (
-    <div className={`rounded-lg border border-gray-200 bg-white p-4 ${className}`}>
+    <div className={`rounded-button border border-gray-200 bg-white p-4 ${className}`}>
       {/* 标题 */}
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-medium text-gray-700">疲劳状态</h3>
@@ -182,7 +182,7 @@ function FatigueIndicatorComponent({
       <div className="mb-4">
         <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
           <div
-            className={`h-full transition-all duration-300 ${
+            className={`h-full transition-all duration-g3-normal ${
               fusedFatigue < 0.25
                 ? 'bg-green-500'
                 : fusedFatigue < 0.5

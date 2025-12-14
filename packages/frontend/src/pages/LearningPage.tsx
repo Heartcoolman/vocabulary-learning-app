@@ -243,7 +243,7 @@ export default function LearningPage() {
           <p className="mb-4 text-gray-600">{error}</p>
           <button
             onClick={handleRestart}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:bg-blue-600"
           >
             重试
           </button>
@@ -265,13 +265,13 @@ export default function LearningPage() {
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
               onClick={() => navigate('/vocabulary')}
-              className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:bg-blue-600"
+              className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:bg-blue-600"
             >
               选择词书
             </button>
             <button
               onClick={() => navigate('/profile')}
-              className="rounded-lg bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-200 hover:bg-gray-200"
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:bg-gray-200"
             >
               添加单词
             </button>
@@ -308,13 +308,13 @@ export default function LearningPage() {
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
               onClick={handleRestart}
-              className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               重新开始
             </button>
             <button
               onClick={() => navigate('/statistics')}
-              className="rounded-lg bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95"
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95"
             >
               查看统计
             </button>
@@ -333,7 +333,7 @@ export default function LearningPage() {
           <p className="mb-6 text-gray-600">请先配置学习计划或添加词书</p>
           <button
             onClick={() => navigate('/study-settings')}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white hover:bg-blue-600"
           >
             前往设置
           </button>
@@ -360,7 +360,7 @@ export default function LearningPage() {
                 />
                 <button
                   onClick={() => setIsStatusOpen(true)}
-                  className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
                   title="状态监控"
                 >
                   <ChartPie size={20} />
@@ -368,7 +368,7 @@ export default function LearningPage() {
                 <button
                   onClick={() => setIsSuggestionOpen(true)}
                   disabled={!latestAmasResult}
-                  className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-500 disabled:opacity-30"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-500 disabled:opacity-30"
                   title={!latestAmasResult ? '暂无建议' : 'AI 建议'}
                 >
                   <Lightbulb size={20} weight={latestAmasResult ? 'fill' : 'regular'} />
@@ -376,7 +376,7 @@ export default function LearningPage() {
                 <button
                   onClick={() => setIsExplainabilityOpen(true)}
                   disabled={!latestAmasResult}
-                  className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30"
                   title="决策透视"
                 >
                   <Brain size={20} />
@@ -414,11 +414,11 @@ export default function LearningPage() {
 
       {/* AMAS决策解释 - 固定在底部，不影响布局 */}
       <div
-        className={`fixed bottom-4 left-1/2 w-full max-w-4xl -translate-x-1/2 px-3 transition-all duration-500 ease-out ${
+        className={`fixed bottom-4 left-1/2 w-full max-w-4xl -translate-x-1/2 px-3 transition-all duration-g3-slow ease-g3 ${
           showResult ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
         }`}
       >
-        <div className="rounded-lg border border-blue-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+        <div className="rounded-button border border-blue-200 bg-white/95 p-3 shadow-elevated backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">当前学习策略</span>
             <p className="text-sm text-gray-600">{latestAmasResult?.explanation || '分析中...'}</p>

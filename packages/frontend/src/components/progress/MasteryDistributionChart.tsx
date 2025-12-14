@@ -26,7 +26,7 @@ export const MasteryDistributionChart = ({ distribution }: MasteryDistributionCh
   const maxCount = Math.max(...distribution.map((d) => d.count), 1);
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
       <h3 className="mb-6 text-xl font-bold text-gray-900">单词掌握度分布</h3>
 
       {/* 图表区域 */}
@@ -46,7 +46,7 @@ export const MasteryDistributionChart = ({ distribution }: MasteryDistributionCh
               <div className="relative flex w-full flex-col items-center">
                 {/* 悬浮提示 */}
                 {isHovered && (
-                  <div className="absolute -top-16 z-10 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg">
+                  <div className="absolute -top-16 z-10 whitespace-nowrap rounded-button bg-gray-900 px-3 py-2 text-xs text-white shadow-elevated">
                     <div className="font-semibold">{levelLabels[item.level]}</div>
                     <div className="text-gray-300">{item.count} 个单词</div>
                     <div className="text-gray-300">{item.percentage.toFixed(1)}%</div>
@@ -56,8 +56,8 @@ export const MasteryDistributionChart = ({ distribution }: MasteryDistributionCh
 
                 {/* 条形 */}
                 <div
-                  className={`w-full rounded-t-lg transition-all duration-300 ${colors.bar} ${
-                    isHovered ? 'opacity-100 shadow-lg' : 'opacity-80'
+                  className={`w-full rounded-t-lg transition-all duration-g3-normal ${colors.bar} ${
+                    isHovered ? 'opacity-100 shadow-elevated' : 'opacity-80'
                   }`}
                   style={{
                     height: `${Math.max(4, heightPercent)}%`,
@@ -88,7 +88,7 @@ export const MasteryDistributionChart = ({ distribution }: MasteryDistributionCh
             return (
               <div
                 key={item.level}
-                className={`${colors.bg} flex items-center gap-2 rounded-lg p-3 transition-shadow hover:shadow-sm`}
+                className={`${colors.bg} flex items-center gap-2 rounded-button p-3 transition-shadow hover:shadow-soft`}
               >
                 <div className={`h-3 w-3 ${colors.bar} rounded`} />
                 <div className="min-w-0 flex-1">

@@ -64,7 +64,7 @@ function ReportCard({ report, onClick }: { report: WeeklyReportDetail; onClick: 
 
   return (
     <div
-      className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md"
+      className="cursor-pointer rounded-button border border-gray-200 bg-white p-4 transition-shadow hover:shadow-elevated"
       onClick={onClick}
     >
       <div className="mb-3 flex items-center justify-between">
@@ -123,7 +123,7 @@ function ReportDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-button bg-white">
         {/* 头部 */}
         <div className="border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
@@ -135,7 +135,7 @@ function ReportDetailModal({
             </div>
             <div className="flex items-center gap-4">
               <div
-                className={`rounded-lg px-4 py-2 text-lg font-bold ${getHealthBg(report.healthScore)} ${getHealthColor(report.healthScore)}`}
+                className={`rounded-button px-4 py-2 text-lg font-bold ${getHealthBg(report.healthScore)} ${getHealthColor(report.healthScore)}`}
               >
                 健康度 {report.healthScore.toFixed(0)}
               </div>
@@ -151,7 +151,7 @@ function ReportDetailModal({
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`rounded-lg px-4 py-2 text-sm transition-colors ${
+                className={`rounded-button px-4 py-2 text-sm transition-colors ${
                   activeTab === tab
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-600 hover:bg-gray-100'
@@ -184,7 +184,7 @@ function ReportDetailModal({
                   </h3>
                   <div className="space-y-3">
                     {report.highlights.map((item, idx) => (
-                      <div key={idx} className="rounded-lg bg-green-50 p-4">
+                      <div key={idx} className="rounded-button bg-green-50 p-4">
                         <h4 className="font-medium text-green-800">{item.title}</h4>
                         <p className="mt-1 text-sm text-green-700">{item.description}</p>
                         {item.change !== undefined && (
@@ -217,7 +217,7 @@ function ReportDetailModal({
                     {report.concerns.map((item, idx) => (
                       <div
                         key={idx}
-                        className={`rounded-lg p-4 ${
+                        className={`rounded-button p-4 ${
                           item.severity === 'high'
                             ? 'bg-red-50'
                             : item.severity === 'medium'
@@ -267,37 +267,37 @@ function ReportDetailModal({
 
           {activeTab === 'metrics' && (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="rounded-lg bg-blue-50 p-4">
+              <div className="rounded-button bg-blue-50 p-4">
                 <div className="text-2xl font-bold text-blue-700">
                   {report.keyMetrics?.totalUsers?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-blue-600">总用户</div>
               </div>
-              <div className="rounded-lg bg-green-50 p-4">
+              <div className="rounded-button bg-green-50 p-4">
                 <div className="text-2xl font-bold text-green-700">
                   {report.keyMetrics?.activeUsers?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-green-600">活跃用户</div>
               </div>
-              <div className="rounded-lg bg-purple-50 p-4">
+              <div className="rounded-button bg-purple-50 p-4">
                 <div className="text-2xl font-bold text-purple-700">
                   {report.keyMetrics?.newUsers?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-purple-600">新用户</div>
               </div>
-              <div className="rounded-lg bg-yellow-50 p-4">
+              <div className="rounded-button bg-yellow-50 p-4">
                 <div className="text-2xl font-bold text-yellow-700">
                   {report.keyMetrics?.learningRecords?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-yellow-600">学习记录</div>
               </div>
-              <div className="rounded-lg bg-pink-50 p-4">
+              <div className="rounded-button bg-pink-50 p-4">
                 <div className="text-2xl font-bold text-pink-700">
                   {report.keyMetrics?.wordsLearned?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-pink-600">学习单词数</div>
               </div>
-              <div className="rounded-lg bg-indigo-50 p-4">
+              <div className="rounded-button bg-indigo-50 p-4">
                 <div className="text-2xl font-bold text-indigo-700">
                   {report.keyMetrics?.avgAccuracy
                     ? `${(report.keyMetrics.avgAccuracy * 100).toFixed(1)}%`
@@ -305,7 +305,7 @@ function ReportDetailModal({
                 </div>
                 <div className="text-sm text-indigo-600">平均正确率</div>
               </div>
-              <div className="rounded-lg bg-teal-50 p-4">
+              <div className="rounded-button bg-teal-50 p-4">
                 <div className="text-2xl font-bold text-teal-700">
                   {report.keyMetrics?.avgSessionDuration
                     ? `${Math.round(report.keyMetrics.avgSessionDuration / 60)}分钟`
@@ -320,7 +320,7 @@ function ReportDetailModal({
             <div className="space-y-4">
               {report.recommendations && report.recommendations.length > 0 ? (
                 report.recommendations.map((item, idx) => (
-                  <div key={idx} className="rounded-lg border border-gray-200 bg-white p-4">
+                  <div key={idx} className="rounded-button border border-gray-200 bg-white p-4">
                     <div className="mb-2 flex items-center gap-2">
                       <Lightning
                         className={`h-5 w-5 ${
@@ -367,7 +367,7 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-button border border-gray-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Brain className="h-5 w-5 text-purple-500" />
@@ -514,7 +514,7 @@ export default function WeeklyReportPage() {
       </div>
 
       {/* 最新周报摘要 */}
-      <div className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+      <div className="rounded-card bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
         {loadingLatest ? (
           <div className="flex items-center gap-2">
             <CircleNotch className="h-5 w-5 animate-spin" />
@@ -547,7 +547,7 @@ export default function WeeklyReportPage() {
       </div>
 
       {/* 健康度趋势 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <ChartLine className="h-5 w-5 text-blue-500" />
           <h2 className="text-lg font-medium text-gray-900">健康度趋势</h2>
@@ -587,7 +587,7 @@ export default function WeeklyReportPage() {
       </div>
 
       {/* 周报历史 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-blue-500" />
           <h2 className="text-lg font-medium text-gray-900">历史周报</h2>
@@ -597,7 +597,7 @@ export default function WeeklyReportPage() {
         {loadingReports ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 rounded-lg" />
+              <Skeleton key={i} className="h-32 rounded-button" />
             ))}
           </div>
         ) : reportsData?.items && reportsData.items.length > 0 ? (
@@ -616,7 +616,7 @@ export default function WeeklyReportPage() {
       </div>
 
       {/* 用户行为洞察 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-purple-500" />
@@ -626,7 +626,7 @@ export default function WeeklyReportPage() {
             <select
               value={selectedSegment || ''}
               onChange={(e) => setSelectedSegment((e.target.value as UserSegment) || undefined)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm"
             >
               <option value="">全部分群</option>
               {segments?.map((seg) => (
@@ -654,7 +654,7 @@ export default function WeeklyReportPage() {
         {loadingInsights ? (
           <div className="space-y-4">
             {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-20 rounded-lg" />
+              <Skeleton key={i} className="h-20 rounded-button" />
             ))}
           </div>
         ) : insightsData?.items && insightsData.items.length > 0 ? (

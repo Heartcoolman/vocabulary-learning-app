@@ -39,7 +39,7 @@ export function MiniPipelineFlow({ stages }: MiniPipelineFlowProps) {
         流水线执行轨迹
       </h3>
 
-      <div className="rounded-lg border border-slate-200 bg-white/60 p-4 backdrop-blur-sm">
+      <div className="rounded-button border border-slate-200 bg-white/60 p-4 backdrop-blur-sm">
         <div className="flex items-center justify-between">
           {orderedStages.map((stageType, index) => {
             const stage = stageMap.get(stageType);

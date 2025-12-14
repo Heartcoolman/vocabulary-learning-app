@@ -171,13 +171,13 @@ describe('RhythmCard', () => {
       const { container } = render(<RhythmCard type="fast" avgDuration={20} preferredPace={5} />);
 
       expect(container.querySelector('.bg-white')).toBeInTheDocument();
-      expect(container.querySelector('.rounded-2xl')).toBeInTheDocument();
+      expect(container.querySelector('.rounded-card')).toBeInTheDocument();
     });
 
     it('should have hover shadow effect class', () => {
       const { container } = render(<RhythmCard type="fast" avgDuration={20} preferredPace={5} />);
 
-      expect(container.querySelector('.hover\\:shadow-md')).toBeInTheDocument();
+      expect(container.querySelector('.hover\\:shadow-elevated')).toBeInTheDocument();
     });
 
     it('should apply blue color for fast type pace', () => {

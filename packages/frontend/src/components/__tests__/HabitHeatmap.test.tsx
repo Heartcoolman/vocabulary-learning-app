@@ -395,7 +395,7 @@ describe('HabitHeatmap', () => {
       const { container } = render(<HabitHeatmap timePref={createTimePref()} />);
 
       expect(container.querySelector('.hover\\:scale-105')).toBeInTheDocument();
-      expect(container.querySelector('.hover\\:shadow-md')).toBeInTheDocument();
+      expect(container.querySelector('.hover\\:shadow-elevated')).toBeInTheDocument();
     });
 
     it('should have transition classes for animations', () => {

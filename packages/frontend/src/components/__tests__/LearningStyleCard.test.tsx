@@ -338,14 +338,14 @@ describe('LearningStyleCard', () => {
     it('should have shadow', () => {
       render(<LearningStyleCard />);
 
-      const card = screen.getByText('视觉型 (Visual)').closest('.shadow-sm');
+      const card = screen.getByText('视觉型 (Visual)').closest('.shadow-soft');
       expect(card).toBeInTheDocument();
     });
 
     it('should have rounded corners', () => {
       render(<LearningStyleCard />);
 
-      const card = screen.getByText('视觉型 (Visual)').closest('.rounded-xl');
+      const card = screen.getByText('视觉型 (Visual)').closest('.rounded-card');
       expect(card).toBeInTheDocument();
     });
   });

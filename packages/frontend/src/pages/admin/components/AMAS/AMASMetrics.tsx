@@ -72,7 +72,7 @@ const StatSummaryCard = memo(function StatSummaryCard({
   colorClass: string;
 }) {
   return (
-    <div className={`rounded-lg ${colorClass} p-4`}>
+    <div className={`rounded-button ${colorClass} p-4`}>
       <p className="mb-1 text-sm text-gray-600">{label}</p>
       <p
         className={`text-3xl font-bold ${colorClass.includes('blue') ? 'text-blue-600' : colorClass.includes('green') ? 'text-green-600' : 'text-purple-600'}`}
@@ -88,7 +88,7 @@ const StatSummaryCard = memo(function StatSummaryCard({
  */
 const TrendCard = memo(function TrendCard({ trend }: { trend: string }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-purple-50 p-4">
+    <div className="flex items-center justify-between rounded-button bg-purple-50 p-4">
       <div>
         <p className="mb-1 text-sm text-gray-600">趋势</p>
         <p className="text-lg font-bold text-purple-600">{getTrendLabel(trend)}</p>
@@ -118,7 +118,7 @@ const MasteryProgressBar = memo(function MasteryProgressBar({
       </span>
       <div className="relative h-6 flex-1 overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300"
+          className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-g3-normal"
           style={{ width: `${mastery * 100}%` }}
         />
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-700">
@@ -142,13 +142,13 @@ const MiniTrendChart = memo(function MiniTrendChart({
   colorClass: string;
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className="rounded-button bg-gray-50 p-3">
       <p className="mb-2 text-xs text-gray-600">{label}</p>
       <div className="flex h-16 items-end gap-1">
         {data.map((value, idx) => (
           <div
             key={idx}
-            className={`flex-1 rounded-t ${colorClass} transition-all duration-300`}
+            className={`flex-1 rounded-t ${colorClass} transition-all duration-g3-normal`}
             style={{ height: `${value * 100}%` }}
             title={`${(value * 100).toFixed(0)}%`}
           />
@@ -172,7 +172,7 @@ const DaysSelector = memo(function DaysSelector({
     <select
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="rounded-lg border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="rounded-button border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <option value={7}>最近 7 天</option>
       <option value={14}>最近 14 天</option>
@@ -197,7 +197,7 @@ function AMASMetricsComponent({
   onDaysChange,
 }: AMASMetricsProps) {
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
@@ -209,7 +209,7 @@ function AMASMetricsComponent({
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
             title="刷新"
           >
             <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />

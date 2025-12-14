@@ -54,7 +54,7 @@ function AMASControlsComponent({ className }: AMASControlsProps) {
   ];
 
   return (
-    <div className={`rounded-xl border border-purple-200 bg-purple-50 p-6 ${className || ''}`}>
+    <div className={`rounded-card border border-purple-200 bg-purple-50 p-6 ${className || ''}`}>
       <h3 className="mb-3 text-lg font-semibold text-purple-900">AMAS 可解释性说明</h3>
       <ul className="space-y-2 text-sm text-purple-800">
         {infoItems.map((item, index) => (

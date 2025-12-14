@@ -247,14 +247,14 @@ describe('MilestoneCard', () => {
 
       const card = container.firstChild as HTMLElement;
       expect(card.classList.contains('border')).toBe(true);
-      expect(card.classList.contains('rounded-xl')).toBe(true);
+      expect(card.classList.contains('rounded-card')).toBe(true);
     });
 
     it('should have hover effect', () => {
       const { container } = render(<MilestoneCard milestone={defaultMilestone} />);
 
       const card = container.firstChild as HTMLElement;
-      expect(card.classList.contains('hover:shadow-md')).toBe(true);
+      expect(card.classList.contains('hover:shadow-elevated')).toBe(true);
     });
 
     it('should have transition effect', () => {
@@ -269,7 +269,7 @@ describe('MilestoneCard', () => {
 
       const iconContainer = container.querySelector('.w-10.h-10');
       expect(iconContainer).toBeInTheDocument();
-      expect(iconContainer?.classList.contains('rounded-lg')).toBe(true);
+      expect(iconContainer?.classList.contains('rounded-button')).toBe(true);
     });
 
     it('should have progress bar with correct styling', () => {

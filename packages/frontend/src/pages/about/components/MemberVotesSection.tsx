@@ -39,7 +39,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
           return (
             <div
               key={member}
-              className="rounded-lg border border-slate-200 bg-white/60 p-3 backdrop-blur-sm"
+              className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm"
             >
               <div className="mb-3 flex items-center gap-2">
                 <div
@@ -74,7 +74,7 @@ export function MemberVotesSection({ votes, weights }: MemberVotesSectionProps) 
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    className="h-full rounded-full transition-all duration-g3-slow ease-g3"
                     style={{
                       backgroundColor: config.color,
                       width: `${(vote?.contribution || 0) * 100}%`,

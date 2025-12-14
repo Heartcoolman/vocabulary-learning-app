@@ -18,7 +18,7 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
   const strokeDashoffset = circumference - (percentComplete / 100) * circumference;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-card border border-gray-100 bg-white shadow-soft">
       <div className="grid grid-cols-1 items-center gap-8 p-6 sm:p-8 md:grid-cols-3">
         <div className="relative col-span-1 flex flex-col items-center justify-center">
           <div className="relative h-40 w-40">
@@ -41,7 +41,7 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
-                className="transition-all duration-1000 ease-out"
+                className="transition-all duration-g3-slower ease-g3"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -61,9 +61,9 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
         </div>
 
         <div className="col-span-1 grid grid-cols-2 gap-4 md:col-span-2">
-          <div className="group flex h-32 flex-col justify-between rounded-xl border border-indigo-100 bg-indigo-50 p-6 transition-shadow hover:shadow-md">
+          <div className="group flex h-32 flex-col justify-between rounded-card border border-indigo-100 bg-indigo-50 p-6 transition-shadow hover:shadow-elevated">
             <div className="flex items-start justify-between">
-              <div className="rounded-lg bg-white p-2 shadow-sm">
+              <div className="rounded-button bg-white p-2 shadow-soft">
                 <BookOpen className="h-5 w-5 text-indigo-600" weight="bold" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
@@ -78,9 +78,9 @@ const ProgressOverviewCardComponent = ({ data }: ProgressOverviewCardProps) => {
             </div>
           </div>
 
-          <div className="group flex h-32 flex-col justify-between rounded-xl border border-amber-100 bg-amber-50 p-6 transition-shadow hover:shadow-md">
+          <div className="group flex h-32 flex-col justify-between rounded-card border border-amber-100 bg-amber-50 p-6 transition-shadow hover:shadow-elevated">
             <div className="flex items-start justify-between">
-              <div className="rounded-lg bg-white p-2 shadow-sm">
+              <div className="rounded-button bg-white p-2 shadow-soft">
                 <Trophy className="h-5 w-5 text-amber-600" weight="bold" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-amber-400">

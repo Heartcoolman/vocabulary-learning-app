@@ -280,7 +280,7 @@ describe('GoalTracker', () => {
 
       const card = container.firstChild as HTMLElement;
       expect(card.classList.contains('bg-white')).toBe(true);
-      expect(card.classList.contains('rounded-2xl')).toBe(true);
+      expect(card.classList.contains('rounded-card')).toBe(true);
     });
 
     it('should have gradient background for estimation section', () => {

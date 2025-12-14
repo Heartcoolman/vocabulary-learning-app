@@ -94,7 +94,7 @@ export const Avatar = memo(
             'relative inline-flex flex-shrink-0 items-center justify-center',
             'overflow-hidden',
             container,
-            shape === 'circle' ? 'rounded-full' : 'rounded-lg',
+            shape === 'circle' ? 'rounded-full' : 'rounded-button',
             !showImage && (name ? getColorFromName(name) : 'bg-gray-200'),
             className,
           )}

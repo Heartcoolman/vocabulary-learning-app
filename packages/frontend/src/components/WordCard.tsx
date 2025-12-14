@@ -65,7 +65,7 @@ function WordCard({
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-2xl border border-gray-200/60 bg-white/80 px-10 py-10 shadow-sm backdrop-blur-sm md:px-16 md:py-14"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm md:px-16 md:py-14"
       role="article"
       aria-label={`单词卡片: ${word.spelling}`}
       data-testid="word-card"
@@ -84,7 +84,7 @@ function WordCard({
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         transition={g3SpringSnappy}
-        className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-lg hover:bg-blue-600 hover:shadow-xl ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
+        className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 shadow-elevated hover:bg-blue-600 hover:shadow-floating ${isPronouncing ? 'animate-pulse' : ''} focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed`}
         aria-label={isPronouncing ? '正在播放发音' : `播放 ${word.spelling} 的发音，或按空格键`}
         aria-pressed={isPronouncing}
         title="播放发音 (空格键)"
@@ -126,7 +126,7 @@ function WordCard({
       {(masteryLevel !== undefined || wordScore !== undefined || nextReviewDate) && (
         <motion.div
           variants={fadeInVariants}
-          className="mt-8 rounded-2xl border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm"
+          className="mt-8 rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm"
         >
           <div className="flex flex-wrap items-center justify-center gap-6">
             {/* 掌握程度 - 用星星表示 */}

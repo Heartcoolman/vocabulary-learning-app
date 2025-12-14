@@ -43,7 +43,7 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
   const isDefault = JSON.stringify(intervals) === JSON.stringify(defaultIntervals);
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">遗忘曲线参数</h2>
@@ -54,7 +54,7 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
         </div>
         <button
           onClick={addInterval}
-          className="flex items-center gap-1 rounded-lg bg-blue-50 px-4 py-2 text-blue-600 transition-all hover:bg-blue-100"
+          className="flex items-center gap-1 rounded-button bg-blue-50 px-4 py-2 text-blue-600 transition-all hover:bg-blue-100"
         >
           <Plus size={16} weight="bold" />
           添加间隔
@@ -70,13 +70,13 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
               value={interval}
               onChange={(e) => updateInterval(index, parseInt(e.target.value) || 0)}
               min="1"
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             />
             <span className="w-12 text-sm text-gray-600">天后</span>
             {intervals.length > 1 && (
               <button
                 onClick={() => removeInterval(index)}
-                className="rounded-lg p-2 text-red-500 transition-all hover:bg-red-50"
+                className="rounded-button p-2 text-red-500 transition-all hover:bg-red-50"
               >
                 <Trash size={18} weight="bold" />
               </button>
@@ -85,7 +85,7 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
         ))}
       </div>
 
-      <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      <div className="mt-4 rounded-button bg-gray-50 p-3">
         <p className="text-sm text-gray-600">
           <strong>默认值：</strong>
           {defaultIntervals.join(', ')} 天

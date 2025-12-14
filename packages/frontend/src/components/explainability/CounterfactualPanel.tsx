@@ -88,7 +88,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
         max="100"
         value={value * 100}
         onChange={(e) => setOverrides((prev) => ({ ...prev, [key]: Number(e.target.value) / 100 }))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-indigo-500"
+        className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-indigo-500"
       />
       <p className="text-xs text-gray-500">{description}</p>
     </div>
@@ -96,7 +96,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-purple-50 to-indigo-50 p-5 dark:border-indigo-800 dark:from-purple-900/20 dark:to-indigo-900/20">
+      <div className="rounded-card border border-indigo-100 bg-gradient-to-br from-purple-50 to-indigo-50 p-5 dark:border-indigo-800 dark:from-purple-900/20 dark:to-indigo-900/20">
         <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
           <Flask className="h-6 w-6 text-purple-500" />
           如果我的状态不同会怎样？
@@ -120,7 +120,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
         <button
           onClick={handleSimulate}
           disabled={isSimulating}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-400"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-button bg-indigo-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-400"
         >
           {isSimulating ? (
             <>
@@ -134,7 +134,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-button border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -167,7 +167,7 @@ const CounterfactualPanel: React.FC<CounterfactualPanelProps> = React.memo(({ de
           </div>
 
           {result.prediction.suggestedDifficulty && (
-            <div className="mb-4 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+            <div className="mb-4 rounded-button bg-blue-50 p-3 dark:bg-blue-900/20">
               <span className="text-sm text-blue-700 dark:text-blue-300">
                 建议难度调整:{' '}
                 <strong>

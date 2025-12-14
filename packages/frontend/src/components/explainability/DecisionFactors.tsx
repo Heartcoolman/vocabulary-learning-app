@@ -35,10 +35,10 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
         {factors.map((factor, index) => (
           <div
             key={index}
-            className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+            className="rounded-card border border-gray-100 bg-white p-4 shadow-soft transition-shadow hover:shadow-elevated dark:border-gray-700 dark:bg-gray-800"
           >
             <div className="flex items-start gap-4">
-              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              <div className="rounded-button bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                 {getIcon(factor.icon)}
               </div>
 
@@ -53,7 +53,7 @@ const DecisionFactors: React.FC<DecisionFactorsProps> = React.memo(({ factors })
                 <div className="mb-2 flex items-center gap-3">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-g3-slow"
                       style={{ width: `${factor.score * 100}%` }}
                     />
                   </div>

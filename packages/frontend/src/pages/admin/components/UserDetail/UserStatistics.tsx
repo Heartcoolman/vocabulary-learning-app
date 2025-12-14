@@ -33,13 +33,13 @@ const getMasteryLevelColor = (level: number): string => {
  */
 const UserStatisticsComponent: React.FC<UserStatisticsProps> = ({ masteryDistribution }) => {
   return (
-    <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
       <h2 className="mb-6 text-xl font-bold text-gray-900">掌握程度分布</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {Object.entries(masteryDistribution).map(([level, count]) => {
           const levelNum = parseInt(level.replace('level', ''));
           return (
-            <div key={level} className="rounded-lg bg-gray-50 p-4 text-center">
+            <div key={level} className="rounded-button bg-gray-50 p-4 text-center">
               <div className={`mb-1 text-2xl font-bold ${getMasteryLevelColor(levelNum)}`}>
                 {count}
               </div>

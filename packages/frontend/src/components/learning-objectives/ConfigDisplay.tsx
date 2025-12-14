@@ -19,7 +19,7 @@ function WeightBar({ name, weight, colorClass }: WeightBarProps) {
       <span className="w-20 text-sm font-medium text-gray-700">{name}</span>
       <div className="h-2 flex-1 rounded-full bg-gray-200">
         <div
-          className={`h-2 rounded-full transition-all duration-500 ${colorClass}`}
+          className={`h-2 rounded-full transition-all duration-g3-slow ${colorClass}`}
           style={{ width: `${weight * 100}%` }}
         />
       </div>
@@ -41,19 +41,19 @@ export function ConfigDisplay({ objectives, modeLabel }: ConfigDisplayProps) {
   ];
 
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <section className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
       <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-gray-900">
         <Gear size={24} weight="duotone" className="text-blue-500" />
         当前配置
       </h2>
 
       <div className="space-y-4">
-        <div className="rounded-lg bg-gray-50 p-4">
+        <div className="rounded-button bg-gray-50 p-4">
           <p className="text-sm text-gray-600">学习模式</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">{modeLabel}</p>
         </div>
 
-        <div className="rounded-lg bg-gray-50 p-4">
+        <div className="rounded-button bg-gray-50 p-4">
           <p className="text-sm text-gray-600">主要目标</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">
             {objectives.primaryObjective === 'accuracy' && '准确率'}
@@ -62,7 +62,7 @@ export function ConfigDisplay({ objectives, modeLabel }: ConfigDisplayProps) {
           </p>
         </div>
 
-        <div className="rounded-lg bg-gray-50 p-4">
+        <div className="rounded-button bg-gray-50 p-4">
           <p className="mb-3 text-sm text-gray-600">权重分布</p>
           <div className="space-y-3">
             {weights.map((item) => (

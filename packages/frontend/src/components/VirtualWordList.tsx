@@ -58,7 +58,7 @@ const WordItem = memo<{
         paddingBottom: ITEM_GAP,
       }}
     >
-      <div className="h-full rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-[1.01] hover:shadow-md">
+      <div className="h-full rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-[1.01] hover:shadow-elevated">
         <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* 单词信息 */}
           <div className="flex-1">
@@ -106,7 +106,7 @@ const WordItem = memo<{
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => onAdjustWord(word, 'mastered')}
-                className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 transition-all duration-200 hover:scale-105 hover:bg-green-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 transition-all duration-g3-fast hover:scale-105 hover:bg-green-200 active:scale-95"
                 title="标记为已掌握"
               >
                 <CheckCircle size={14} weight="bold" />
@@ -114,7 +114,7 @@ const WordItem = memo<{
               </button>
               <button
                 onClick={() => onAdjustWord(word, 'needsPractice')}
-                className="flex items-center gap-1 rounded-lg bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-all duration-200 hover:scale-105 hover:bg-yellow-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-all duration-g3-fast hover:scale-105 hover:bg-yellow-200 active:scale-95"
                 title="标记为需要重点学习"
               >
                 <Warning size={14} weight="bold" />
@@ -122,7 +122,7 @@ const WordItem = memo<{
               </button>
               <button
                 onClick={() => onAdjustWord(word, 'reset')}
-                className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95"
+                className="flex items-center gap-1 rounded-button bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95"
                 title="重置学习进度"
               >
                 <ArrowClockwise size={14} weight="bold" />

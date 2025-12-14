@@ -11,7 +11,7 @@ interface DecisionDetailPanelProps {
 export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
   if (!decision) {
     return (
-      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="flex h-full items-center justify-center rounded-card border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center text-slate-400">
           <GitBranch size={48} className="mx-auto mb-4 opacity-50" />
           <p className="text-sm font-medium">请从左侧选择一条决策记录</p>
@@ -36,7 +36,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
     <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header Section */}
-        <header className="rounded-xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-md">
+        <header className="rounded-card border border-slate-200 bg-white/80 p-5 shadow-soft backdrop-blur-md">
           <div className="mb-4 flex items-start justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
@@ -57,7 +57,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
 
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
+              <div className="rounded-button bg-indigo-50 p-2 text-indigo-600">
                 <IdentificationBadge size={18} weight="fill" />
               </div>
               <div>
@@ -66,7 +66,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
+              <div className="rounded-button bg-emerald-50 p-2 text-emerald-600">
                 <Hash size={18} weight="fill" />
               </div>
               <div>

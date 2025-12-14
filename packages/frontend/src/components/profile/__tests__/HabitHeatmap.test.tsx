@@ -87,7 +87,7 @@ describe('HabitHeatmap', () => {
       const { container } = render(<HabitHeatmap data={mockData} />);
 
       // Each hour has a cell
-      const cells = container.querySelectorAll('.aspect-square.rounded-lg');
+      const cells = container.querySelectorAll('.aspect-square.rounded-button');
       expect(cells.length).toBe(24);
     });
 
@@ -95,7 +95,7 @@ describe('HabitHeatmap', () => {
       const { container } = render(<HabitHeatmap data={mockData} />);
 
       // 6 time periods: 凌晨, 上午, 中午, 下午, 晚上, 深夜
-      const periodCards = container.querySelectorAll('.p-3.rounded-lg.text-center');
+      const periodCards = container.querySelectorAll('.p-3.rounded-button.text-center');
       expect(periodCards.length).toBe(6);
     });
   });
@@ -105,7 +105,7 @@ describe('HabitHeatmap', () => {
       const { container } = render(<HabitHeatmap data={mockData} />);
 
       // Check that various color classes exist
-      const cells = container.querySelectorAll('.aspect-square.rounded-lg');
+      const cells = container.querySelectorAll('.aspect-square.rounded-button');
       const hasColoredCells = Array.from(cells).some(
         (cell) =>
           cell.classList.contains('bg-blue-100') ||
@@ -132,7 +132,7 @@ describe('HabitHeatmap', () => {
       const { container } = render(<HabitHeatmap data={mockData} />);
 
       expect(container.querySelector('.bg-white')).toBeInTheDocument();
-      expect(container.querySelector('.rounded-2xl')).toBeInTheDocument();
+      expect(container.querySelector('.rounded-card')).toBeInTheDocument();
     });
   });
 });

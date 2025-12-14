@@ -147,9 +147,9 @@ interface MetricCardProps {
 }
 
 const MetricCard = ({ label, value, subtext, icon: Icon, trend }: MetricCardProps) => (
-  <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur">
+  <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur">
     <div className="mb-2 flex items-start justify-between">
-      <div className="rounded-lg bg-gray-50 p-2 text-gray-500">
+      <div className="rounded-button bg-gray-50 p-2 text-gray-500">
         <Icon size={20} weight="duotone" />
       </div>
       {trend && (
@@ -227,12 +227,12 @@ const ConfidenceIntervalChart = ({
 
       {/* Effect Size Dot */}
       <div
-        className="group absolute top-1/2 z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform cursor-help rounded-full border-2 border-white bg-blue-600 shadow-md transition-transform duration-500"
+        className="group absolute top-1/2 z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform cursor-help rounded-full border-2 border-white bg-blue-600 shadow-elevated transition-transform duration-g3-slow"
         style={{ left: `${effectPos}%` }}
       >
         {/* Tooltip */}
         <div className="absolute bottom-full left-1/2 mb-2 hidden w-max -translate-x-1/2 group-hover:block">
-          <div className="rounded bg-gray-900 px-2 py-1 text-xs text-white shadow-lg">
+          <div className="rounded bg-gray-900 px-2 py-1 text-xs text-white shadow-elevated">
             Effect: +{(effectSize * 100).toFixed(1)}%
           </div>
         </div>
@@ -346,7 +346,7 @@ const CreateExperimentModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl animate-g3-scale-in overflow-y-auto rounded-xl bg-white shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-2xl animate-g3-scale-in overflow-y-auto rounded-card bg-white shadow-2xl">
         <div className="border-b border-gray-200 p-6">
           <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
             <Plus className="text-blue-600" weight="bold" />
@@ -362,7 +362,7 @@ const CreateExperimentModal = ({
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               placeholder="例如: Thompson vs LinUCB 优化测试"
               required
             />
@@ -373,7 +373,7 @@ const CreateExperimentModal = ({
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               rows={3}
               placeholder="描述实验目的和预期结果..."
             />
@@ -387,7 +387,7 @@ const CreateExperimentModal = ({
                 type="number"
                 value={form.minSampleSize}
                 onChange={(e) => setForm({ ...form, minSampleSize: parseInt(e.target.value) })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 min="10"
               />
             </div>
@@ -401,7 +401,7 @@ const CreateExperimentModal = ({
                 onChange={(e) =>
                   setForm({ ...form, significanceLevel: parseFloat(e.target.value) })
                 }
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 min="0.01"
                 max="0.1"
               />
@@ -414,7 +414,7 @@ const CreateExperimentModal = ({
             <select
               value={form.trafficAllocation}
               onChange={(e) => setForm({ ...form, trafficAllocation: e.target.value as any })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="EVEN">均匀分配</option>
               <option value="WEIGHTED">权重分配</option>
@@ -424,7 +424,7 @@ const CreateExperimentModal = ({
 
           {/* 错误提示 */}
           {errorMessage && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="rounded-button border border-red-200 bg-red-50 p-4">
               <div className="flex items-center gap-2 text-red-700">
                 <WarningCircle size={20} weight="bold" />
                 <span className="font-medium">{errorMessage}</span>
@@ -437,14 +437,14 @@ const CreateExperimentModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              className="flex-1 rounded-button border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               取消
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? '创建中...' : '创建实验'}
             </button>
@@ -497,14 +497,14 @@ const ExperimentList = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onCreate}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+            className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
           >
             <Plus size={18} weight="bold" />
             创建实验
           </button>
           <button
             onClick={onRefresh}
-            className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
             title="刷新"
           >
             <ArrowsClockwise size={18} weight="bold" />
@@ -514,13 +514,13 @@ const ExperimentList = ({
 
       {/* 实验列表 */}
       {!experiments || experiments.length === 0 ? (
-        <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-8">
+        <div className="flex min-h-[400px] animate-g3-fade-in flex-col items-center justify-center rounded-card border border-gray-200 bg-white p-8">
           <Flask size={64} className="mb-4 text-gray-300" weight="duotone" />
           <h2 className="mb-2 text-xl font-bold text-gray-900">暂无实验</h2>
           <p className="mb-6 text-gray-500">创建您的第一个 A/B 测试实验</p>
           <button
             onClick={onCreate}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+            className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
           >
             <Plus size={18} weight="bold" />
             创建实验
@@ -531,7 +531,7 @@ const ExperimentList = ({
           {experiments.map((exp) => (
             <div
               key={exp.id}
-              className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              className="animate-g3-fade-in rounded-card border border-gray-200 bg-white p-6 shadow-soft transition-shadow hover:shadow-elevated"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -559,7 +559,7 @@ const ExperimentList = ({
                   {exp.status === 'DRAFT' && (
                     <button
                       onClick={() => onStart(exp.id)}
-                      className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
+                      className="flex items-center gap-1 rounded-button bg-green-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
                       title="启动实验"
                     >
                       <Play size={16} weight="bold" />
@@ -569,7 +569,7 @@ const ExperimentList = ({
                   {exp.status === 'RUNNING' && (
                     <button
                       onClick={() => onStop(exp.id)}
-                      className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                      className="flex items-center gap-1 rounded-button bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
                       title="停止实验"
                     >
                       <Stop size={16} weight="bold" />
@@ -578,7 +578,7 @@ const ExperimentList = ({
                   )}
                   <button
                     onClick={() => onSelect(exp.id)}
-                    className="flex items-center gap-1 rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+                    className="flex items-center gap-1 rounded-button bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
                     title="查看详情"
                   >
                     <Eye size={16} weight="bold" />
@@ -587,7 +587,7 @@ const ExperimentList = ({
                   {exp.status !== 'RUNNING' && (
                     <button
                       onClick={() => onDelete(exp.id)}
-                      className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                      className="flex items-center gap-1 rounded-button bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
                       title="删除实验"
                     >
                       <Trash size={16} weight="bold" />
@@ -652,13 +652,13 @@ const ExperimentDetail = ({
           <div className="flex justify-center gap-3">
             <button
               onClick={onBack}
-              className="rounded-lg border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              className="rounded-button border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               返回列表
             </button>
             <button
               onClick={loadData}
-              className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               重试
             </button>
@@ -703,7 +703,7 @@ const ExperimentDetail = ({
           <StatusBadge status={data.status} />
           <button
             onClick={loadData}
-            className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+            className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
             title="刷新数据"
           >
             <ArrowsClockwise size={18} weight="bold" />
@@ -752,7 +752,7 @@ const ExperimentDetail = ({
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* 2. Variant Comparison (Left Column - 1/3 width) */}
         <div className="space-y-6 lg:col-span-1">
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-card border border-gray-200 bg-white shadow-soft">
             <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
               <h3 className="font-semibold text-gray-800">变体对比 (Variants)</h3>
             </div>
@@ -809,7 +809,7 @@ const ExperimentDetail = ({
         {/* 3. Statistical Analysis & Decision (Right Column - 2/3 width) */}
         <div className="space-y-6 lg:col-span-2">
           {/* Analysis Chart */}
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="font-semibold text-gray-800">
                 置信区间分析 (95% Confidence Interval)
@@ -825,7 +825,7 @@ const ExperimentDetail = ({
               )}
             </div>
 
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-8 pb-12">
+            <div className="rounded-button border border-gray-100 bg-gray-50 p-8 pb-12">
               <ConfidenceIntervalChart ci={data.confidenceInterval} effectSize={data.effectSize} />
             </div>
 
@@ -841,7 +841,7 @@ const ExperimentDetail = ({
 
           {/* 4. Recommendation / Decision Engine */}
           <section
-            className={`relative animate-g3-fade-in overflow-hidden rounded-xl border-2 p-6 shadow-sm ${
+            className={`relative animate-g3-fade-in overflow-hidden rounded-card border-2 p-6 shadow-soft ${
               data.status === 'completed'
                 ? 'border-indigo-100 bg-gradient-to-br from-indigo-50 to-white'
                 : 'border-gray-200 bg-white'
@@ -859,7 +859,7 @@ const ExperimentDetail = ({
 
             <div className="relative z-10 space-y-4">
               {data.winner && (
-                <div className="flex items-start gap-4 rounded-lg border border-green-100 bg-green-50 p-4">
+                <div className="flex items-start gap-4 rounded-button border border-green-100 bg-green-50 p-4">
                   <div className="shrink-0 rounded-full bg-green-100 p-2 text-green-600">
                     <Trophy size={24} weight="fill" />
                   </div>
@@ -870,7 +870,7 @@ const ExperimentDetail = ({
                 </div>
               )}
 
-              <div className="rounded-lg border border-gray-100 bg-white/60 p-4 backdrop-blur">
+              <div className="rounded-button border border-gray-100 bg-white/60 p-4 backdrop-blur">
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-400">
                   Recommendation
                 </span>
@@ -880,11 +880,11 @@ const ExperimentDetail = ({
               {/* Action Buttons (Only if completed) */}
               {data.status === 'completed' && (
                 <div className="mt-6 flex gap-3 border-t border-indigo-100/50 pt-4">
-                  <button className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow">
+                  <button className="flex items-center gap-2 rounded-button bg-indigo-600 px-4 py-2 font-medium text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow">
                     采用获胜方案
                     <ArrowRight size={16} weight="bold" />
                   </button>
-                  <button className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                  <button className="rounded-button border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50">
                     归档报告
                   </button>
                 </div>

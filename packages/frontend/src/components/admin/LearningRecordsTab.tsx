@@ -22,12 +22,12 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
+      <div className="rounded-card border border-red-100 bg-red-50 p-8 text-center">
         <div className="mb-2 text-xl font-bold text-red-500">加载失败</div>
         <p className="mb-4 text-red-600">{error}</p>
         <button
           onClick={refresh}
-          className="rounded-lg border border-red-200 bg-white px-4 py-2 text-red-600 transition-colors hover:bg-red-50"
+          className="rounded-button border border-red-200 bg-white px-4 py-2 text-red-600 transition-colors hover:bg-red-50"
         >
           重试
         </button>
@@ -40,7 +40,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
   return (
     <div className="animate-g3-fade-in space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div>
             <p className="text-sm font-medium text-gray-500">总学习记录</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalRecords}</p>
@@ -50,7 +50,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div>
             <p className="text-sm font-medium text-gray-500">平均正确率</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">
@@ -70,7 +70,7 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div>
             <p className="text-sm font-medium text-gray-500">学习单词总数</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalWordsLearned}</p>
@@ -81,14 +81,14 @@ export default function LearningRecordsTab({ userId }: LearningRecordsTabProps) 
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-card border border-gray-200 bg-white shadow-soft">
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
           <h3 className="font-bold text-gray-900">
             最近学习记录（最新 {DISPLAY_CONFIG.LEARNING_RECORDS_LIMIT} 条）
           </h3>
           <button
             onClick={refresh}
-            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+            className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
             title="刷新列表"
           >
             <ArrowClockwise size={18} weight="bold" />

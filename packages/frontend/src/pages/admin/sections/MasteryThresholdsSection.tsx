@@ -44,7 +44,7 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">掌握程度阈值</h2>
         <p className="mt-1 text-sm text-gray-600">
@@ -87,7 +87,7 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                         parseInt(e.target.value) || 1,
                       )
                     }
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-600">次</span>
                 </td>
@@ -105,7 +105,7 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                         parseFloat(e.target.value) || 0,
                       )
                     }
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-600">
                     ({(threshold.minAccuracy * 100).toFixed(0)}%)
@@ -120,7 +120,7 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                     onChange={(e) =>
                       updateThreshold(threshold.level, 'minScore', parseInt(e.target.value) || 0)
                     }
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-600">分</span>
                 </td>
@@ -130,7 +130,7 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
         </table>
       </div>
 
-      <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      <div className="mt-4 rounded-button bg-gray-50 p-3">
         <p className="text-sm text-gray-600">
           <strong>说明：</strong>单词需要同时满足所有条件才能晋升到对应级别
         </p>

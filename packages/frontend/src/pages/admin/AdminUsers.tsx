@@ -126,12 +126,12 @@ export default function AdminUsers() {
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="搜索用户名或邮箱..."
-          className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+          className="w-full max-w-md rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
+        <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
           {error instanceof Error ? error.message : '加载失败'}
         </div>
       )}
@@ -150,7 +150,7 @@ export default function AdminUsers() {
         <div className="py-8 text-center text-gray-500">没有找到用户</div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 backdrop-blur-sm">
+          <div className="overflow-hidden rounded-card border border-gray-200/60 bg-white/80 backdrop-blur-sm">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -171,8 +171,7 @@ export default function AdminUsers() {
                     className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
                     onClick={() => handleSort('totalWordsLearned')}
                   >
-                    学习单词数{' '}
-                    {sortBy === 'totalWordsLearned' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    学习单词数 {sortBy === 'totalWordsLearned' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                   <th
                     className="cursor-pointer px-6 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
@@ -252,14 +251,14 @@ export default function AdminUsers() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-lg border border-gray-300 px-4 py-2 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   上一页
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page === pagination.totalPages}
-                  className="rounded-lg border border-gray-300 px-4 py-2 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   下一页
                 </button>

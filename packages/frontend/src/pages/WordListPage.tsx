@@ -281,7 +281,7 @@ export default function WordListPage() {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={() => navigate('/learning')}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             返回学习
           </button>
@@ -298,7 +298,7 @@ export default function WordListPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-200 hover:scale-105 hover:bg-gray-50 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 active:scale-95"
               aria-label="返回"
             >
               <ArrowLeft size={20} weight="bold" />
@@ -311,7 +311,7 @@ export default function WordListPage() {
         </div>
 
         {/* 筛选和搜索 */}
-        <div className="mb-6 rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="mb-6 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* 搜索框 */}
             <div className="relative">
@@ -325,7 +325,7 @@ export default function WordListPage() {
                 placeholder="搜索单词..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 py-2 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function WordListPage() {
               onChange={(e) =>
                 setFilterMasteryLevel(e.target.value === 'all' ? null : Number(e.target.value))
               }
-              className="rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">所有掌握程度</option>
               {[0, 1, 2, 3, 4, 5].map((level) => (
@@ -349,7 +349,7 @@ export default function WordListPage() {
             <select
               value={filterScoreRange}
               onChange={(e) => setFilterScoreRange(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">所有得分</option>
               <option value="low">低分 (0-40)</option>
@@ -365,7 +365,7 @@ export default function WordListPage() {
                 setSortField(field);
                 setSortOrder(order);
               }}
-              className="rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="score-desc">得分 (高到低)</option>
               <option value="score-asc">得分 (低到高)</option>
@@ -398,7 +398,7 @@ export default function WordListPage() {
         {/* 确认对话框 */}
         {showConfirmDialog && selectedWord && (
           <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black bg-opacity-50 p-6">
-            <div className="w-full max-w-md animate-g3-slide-up rounded-2xl bg-white p-8 shadow-xl">
+            <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating">
               <h3 className="mb-4 text-2xl font-bold text-gray-900">确认操作</h3>
               <p className="mb-6 text-gray-600">
                 确定要对单词{' '}
@@ -410,14 +410,14 @@ export default function WordListPage() {
                 <button
                   onClick={cancelAdjustment}
                   disabled={isAdjusting}
-                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   onClick={confirmAdjustment}
                   disabled={isAdjusting}
-                  className="flex-1 rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isAdjusting ? '处理中...' : '确认'}
                 </button>

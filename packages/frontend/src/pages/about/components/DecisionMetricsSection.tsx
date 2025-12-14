@@ -33,7 +33,7 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, icon }: MetricCardProps) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white/60 p-3 backdrop-blur-sm">
+    <div className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm">
       <div className="mb-2 flex items-center gap-2 text-slate-500">
         {icon && <span className="text-slate-400">{icon}</span>}
         <span className="text-xs font-medium">{label}</span>

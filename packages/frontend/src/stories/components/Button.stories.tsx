@@ -172,7 +172,7 @@ export const WithIcon: Story = {
  */
 export const ButtonGroup: Story = {
   render: () => (
-    <div className="flex gap-2 rounded-lg border border-gray-200 p-4">
+    <div className="flex gap-2 rounded-button border border-gray-200 p-4">
       <button className="btn-primary">确认</button>
       <button className="btn-secondary">取消</button>
     </div>

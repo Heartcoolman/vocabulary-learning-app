@@ -12,14 +12,14 @@ interface CognitiveGrowthPanelProps {
 const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
   ({ cognitiveGrowth }) => {
     return (
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
           <Brain size={24} weight="duotone" color="#a855f7" />
           认知成长对比（{cognitiveGrowth.period} 天）
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* 记忆力 */}
-          <div className="rounded-xl bg-purple-50 p-4">
+          <div className="rounded-card bg-purple-50 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-purple-700">记忆力</span>
               <div
@@ -51,7 +51,7 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
           </div>
 
           {/* 速度 */}
-          <div className="rounded-xl bg-blue-50 p-4">
+          <div className="rounded-card bg-blue-50 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-blue-700">速度</span>
               <div
@@ -83,7 +83,7 @@ const CognitiveGrowthPanel: React.FC<CognitiveGrowthPanelProps> = React.memo(
           </div>
 
           {/* 稳定性 */}
-          <div className="rounded-xl bg-green-50 p-4">
+          <div className="rounded-card bg-green-50 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-green-700">稳定性</span>
               <div

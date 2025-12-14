@@ -116,7 +116,7 @@ function CameraPermissionRequestComponent({
   if (permissionStatus === 'granted') {
     return (
       <div
-        className={`rounded-lg border border-green-200 bg-green-50 p-4 text-center ${className}`}
+        className={`rounded-button border border-green-200 bg-green-50 p-4 text-center ${className}`}
       >
         <PermissionIcon status="granted" />
         <p className="mt-2 font-medium text-green-700">摄像头权限已授予</p>
@@ -128,7 +128,7 @@ function CameraPermissionRequestComponent({
   // 已拒绝
   if (permissionStatus === 'denied') {
     return (
-      <div className={`rounded-lg border border-red-200 bg-red-50 p-4 ${className}`}>
+      <div className={`rounded-button border border-red-200 bg-red-50 p-4 ${className}`}>
         <div className="flex flex-col items-center text-center">
           <PermissionIcon status="denied" />
           <p className="mt-2 font-medium text-red-700">摄像头权限被拒绝</p>
@@ -160,7 +160,7 @@ function CameraPermissionRequestComponent({
   // 不可用
   if (permissionStatus === 'unavailable') {
     return (
-      <div className={`rounded-lg border border-gray-200 bg-gray-50 p-4 ${className}`}>
+      <div className={`rounded-button border border-gray-200 bg-gray-50 p-4 ${className}`}>
         <div className="flex flex-col items-center text-center">
           <PermissionIcon status="unavailable" />
           <p className="mt-2 font-medium text-gray-700">摄像头不可用</p>
@@ -180,7 +180,7 @@ function CameraPermissionRequestComponent({
 
   // 未请求（默认状态）
   return (
-    <div className={`rounded-lg border border-blue-200 bg-blue-50 p-4 ${className}`}>
+    <div className={`rounded-button border border-blue-200 bg-blue-50 p-4 ${className}`}>
       <div className="flex flex-col items-center text-center">
         <PermissionIcon status="not_requested" />
         <h3 className="mt-2 font-medium text-blue-800">启用视觉疲劳检测</h3>

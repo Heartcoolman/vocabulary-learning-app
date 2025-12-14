@@ -66,9 +66,9 @@ function DecisionCard({ decision, isSelected, onClick, source }: DecisionCardPro
   };
 
   const baseClasses =
-    'p-3 mb-3 rounded-lg cursor-pointer border transition-all duration-200 group hover:shadow-md hover:scale-[1.01]';
+    'p-3 mb-3 rounded-button cursor-pointer border transition-all duration-g3-fast group hover:shadow-elevated hover:scale-[1.01]';
   const selectedClasses = isSelected
-    ? 'bg-indigo-50/80 border-indigo-500 shadow-sm ring-1 ring-indigo-200'
+    ? 'bg-indigo-50/80 border-indigo-500 shadow-soft ring-1 ring-indigo-200'
     : 'bg-white border-slate-200 hover:border-indigo-200';
 
   return (
@@ -310,7 +310,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Left Sidebar */}
-      <aside className="z-10 flex w-[300px] flex-shrink-0 flex-col border-r border-slate-200 bg-white/90 shadow-xl backdrop-blur-lg">
+      <aside className="z-10 flex w-[300px] flex-shrink-0 flex-col border-r border-slate-200 bg-white/90 shadow-floating backdrop-blur-lg">
         {/* Sidebar Header */}
         <div className="border-b border-slate-200 bg-white/50 p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -323,12 +323,12 @@ export default function DashboardPage() {
             )}
           </div>
           {/* Tab Filter */}
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="flex gap-1 rounded-button bg-slate-100 p-1">
             <button
               onClick={() => setActiveTab('all')}
               className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'all'
-                  ? 'bg-white text-slate-700 shadow-sm'
+                  ? 'bg-white text-slate-700 shadow-soft'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -338,7 +338,7 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('real')}
               className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'real'
-                  ? 'bg-emerald-50 text-emerald-700 shadow-sm'
+                  ? 'bg-emerald-50 text-emerald-700 shadow-soft'
                   : 'text-slate-500 hover:text-emerald-600'
               }`}
             >
@@ -349,7 +349,7 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('virtual')}
               className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-all ${
                 activeTab === 'virtual'
-                  ? 'bg-purple-50 text-purple-700 shadow-sm'
+                  ? 'bg-purple-50 text-purple-700 shadow-soft'
                   : 'text-slate-500 hover:text-purple-600'
               }`}
             >
@@ -410,14 +410,14 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       <main className="relative flex h-full flex-1 flex-col overflow-hidden">
         {isLoadingDetail && (
-          <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-sm backdrop-blur">
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-soft backdrop-blur">
             <CircleNotch size={14} weight="bold" className="animate-spin text-indigo-500" />
             Loading details...
           </div>
         )}
 
         {detailError && (
-          <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 shadow-sm">
+          <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 shadow-soft">
             <WarningCircle size={16} weight="fill" />
             {detailError}
           </div>

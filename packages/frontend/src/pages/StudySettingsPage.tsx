@@ -117,7 +117,7 @@ export default function StudySettingsPage() {
         <h1 className="mb-8 text-3xl font-bold text-gray-900">学习设置</h1>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-600">
+          <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
             {error}
           </div>
         )}
@@ -125,7 +125,7 @@ export default function StudySettingsPage() {
         {/* 左右分栏布局 */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* 左侧 - 词书选择 */}
-          <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <h2 className="mb-4 text-xl font-bold text-gray-900">选择学习词书</h2>
             <p className="mb-4 text-sm text-gray-600">选中的词书将用于每日学习，支持多选</p>
 
@@ -136,7 +136,7 @@ export default function StudySettingsPage() {
                 {wordBooks.map((book) => (
                   <label
                     key={book.id}
-                    className={`flex cursor-pointer items-center rounded-lg border p-4 transition-all duration-200 ${
+                    className={`flex cursor-pointer items-center rounded-button border p-4 transition-all duration-g3-fast ${
                       selectedBookIds.includes(book.id)
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
@@ -171,7 +171,7 @@ export default function StudySettingsPage() {
           {/* 右侧 - 设置选项 */}
           <div className="space-y-6">
             {/* 每日学习量 */}
-            <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h2 className="mb-4 text-xl font-bold text-gray-900">每日学习量</h2>
               <div className="flex items-center gap-4">
                 <input
@@ -181,7 +181,7 @@ export default function StudySettingsPage() {
                   step="5"
                   value={dailyCount}
                   onChange={(e) => setDailyCount(Number(e.target.value))}
-                  className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-blue-500"
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500"
                 />
                 <div className="w-20 text-right text-2xl font-bold text-blue-500">{dailyCount}</div>
               </div>
@@ -191,7 +191,7 @@ export default function StudySettingsPage() {
             </div>
 
             {/* 视觉疲劳检测 */}
-            <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Camera size={24} className="text-gray-600" />
@@ -208,13 +208,13 @@ export default function StudySettingsPage() {
                       setVisualFatigueEnabled(!visualFatigueEnabled);
                     }
                   }}
-                  className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${
+                  className={`relative h-7 w-12 rounded-full transition-colors duration-g3-fast ${
                     visualFatigueEnabled ? 'bg-blue-500' : 'bg-gray-300'
                   }`}
                   aria-label={visualFatigueEnabled ? '关闭视觉疲劳检测' : '开启视觉疲劳检测'}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow-soft transition-transform duration-g3-fast ${
                       visualFatigueEnabled ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -243,14 +243,14 @@ export default function StudySettingsPage() {
               </div>
 
               {/* 隐私说明 */}
-              <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
+              <div className="mt-3 rounded-button bg-gray-50 p-3 text-xs text-gray-500">
                 <p>所有检测在本地完成，视频数据不会上传到服务器。</p>
               </div>
             </div>
 
             {/* 学习统计 */}
             {selectedBookIds.length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+              <div className="rounded-card border border-blue-200 bg-blue-50 p-6 shadow-soft">
                 <h3 className="mb-4 text-lg font-bold text-gray-900">当前选择</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -287,14 +287,14 @@ export default function StudySettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={isSaving || selectedBookIds.length === 0}
-                className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300"
+                className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {isSaving ? '保存中...' : '保存设置'}
               </button>
 
               <button
                 onClick={() => navigate(-1)}
-                className="w-full rounded-lg bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+                className="w-full rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
               >
                 取消
               </button>

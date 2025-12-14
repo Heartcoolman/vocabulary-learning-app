@@ -140,7 +140,7 @@ export const Disabled: Story = {
 export const WithInstructions: Story = {
   render: (args) => (
     <div className="w-[500px] space-y-4">
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="rounded-button border border-blue-200 bg-blue-50 p-4">
         <h4 className="mb-2 font-medium text-blue-900">上传说明</h4>
         <ul className="list-inside list-disc space-y-1 text-sm text-blue-700">
           <li>支持 CSV 和 JSON 格式的词库文件</li>
@@ -176,7 +176,7 @@ export const MultipleTypes: Story = {
  */
 export const InForm: Story = {
   render: (args) => (
-    <div className="w-[500px] space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="w-[500px] space-y-6 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
       <h3 className="text-lg font-semibold text-gray-900">导入词库</h3>
 
       <div className="space-y-2">

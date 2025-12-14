@@ -273,7 +273,7 @@ export default function UserDetailPage() {
           </p>
           <button
             onClick={() => navigate('/admin/users')}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
           >
             返回用户列表
           </button>
