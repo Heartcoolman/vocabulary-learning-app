@@ -6,8 +6,7 @@
  */
 
 import { useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
-import { authClient, learningClient } from '../../services/client';
-import ApiClient from '../../services/client';
+import { apiClient, authClient, learningClient } from '../../services/client';
 import StorageService from '../../services/StorageService';
 import { queryKeys } from '../../lib/queryKeys';
 import { useAuth } from '../../contexts/AuthContext';
@@ -172,7 +171,7 @@ export function useFullUserStats(options?: UseUserStatsOptions) {
       // 获取真实的学习统计数据
       const studyStats = await StorageService.getStudyStatistics();
 
-      const recordsResult = await ApiClient.getRecords({ pageSize: 100 });
+      const recordsResult = await apiClient.getRecords({ pageSize: 100 });
 
       // 计算学习天数和连续学习天数
       const normalizeToDateString = (date: Date): string => {
@@ -281,7 +280,7 @@ export function useDailyStats(date: string, options?: UseUserStatsOptions) {
     queryKey: userStatsKeys.daily(date),
     queryFn: async (): Promise<DailyStats> => {
       // 获取所有学习记录
-      const recordsResult = await ApiClient.getRecords({ pageSize: 1000 });
+      const recordsResult = await apiClient.getRecords({ pageSize: 1000 });
 
       // 过滤指定日期的记录
       const targetDate = new Date(date);
@@ -333,7 +332,7 @@ export function useDailyStatsRange(
     queryKey: userStatsKeys.dailyRange(startDate, endDate),
     queryFn: async (): Promise<DailyStats[]> => {
       // 获取所有学习记录
-      const recordsResult = await ApiClient.getRecords({ pageSize: 1000 });
+      const recordsResult = await apiClient.getRecords({ pageSize: 1000 });
 
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -425,7 +424,7 @@ export async function prefetchDailyStats(
   await queryClient.prefetchQuery({
     queryKey: userStatsKeys.daily(date),
     queryFn: async () => {
-      const recordsResult = await ApiClient.getRecords({ pageSize: 1000 });
+      const recordsResult = await apiClient.getRecords({ pageSize: 1000 });
       const targetDate = new Date(date);
       const dateRecords = recordsResult.records.filter((r) => {
         const recordDate = new Date(r.timestamp);

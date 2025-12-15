@@ -27,13 +27,17 @@ vi.mock('../../../utils/animations', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  Eye: () => <span data-testid="eye-icon">Eye</span>,
-  Brain: () => <span data-testid="brain-icon">Brain</span>,
-  Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
-  Target: () => <span data-testid="target-icon">Target</span>,
-  CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    Eye: () => <span data-testid="eye-icon">Eye</span>,
+    Brain: () => <span data-testid="brain-icon">Brain</span>,
+    Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
+    Target: () => <span data-testid="target-icon">Target</span>,
+    CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
+  };
+});
 
 import AboutHomePage from '../AboutHomePage';
 

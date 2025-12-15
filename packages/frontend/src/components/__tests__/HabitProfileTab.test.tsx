@@ -10,58 +10,67 @@ import HabitProfileTab from '../HabitProfileTab';
 import type { HabitProfile } from '../../types/habit-profile';
 
 // Mock Icon component
-vi.mock('../Icon', () => ({
-  Clock: ({ className, size, weight }: any) => (
-    <span data-testid="clock-icon" className={className} data-size={size} data-weight={weight}>
-      🕐
-    </span>
-  ),
-  TrendUp: ({ className, size, weight }: any) => (
-    <span data-testid="trend-up-icon" className={className} data-size={size} data-weight={weight}>
-      📈
-    </span>
-  ),
-  Calendar: ({ className, size, weight }: any) => (
-    <span data-testid="calendar-icon" className={className} data-size={size} data-weight={weight}>
-      📅
-    </span>
-  ),
-  ArrowClockwise: ({ className, size, weight }: any) => (
-    <span
-      data-testid="arrow-clockwise-icon"
-      className={className}
-      data-size={size}
-      data-weight={weight}
-    >
-      🔄
-    </span>
-  ),
-  FloppyDisk: ({ className, size, weight }: any) => (
-    <span
-      data-testid="floppy-disk-icon"
-      className={className}
-      data-size={size}
-      data-weight={weight}
-    >
-      💾
-    </span>
-  ),
-  ArrowCounterClockwise: ({ className, size, weight }: any) => (
-    <span
-      data-testid="arrow-counter-clockwise-icon"
-      className={className}
-      data-size={size}
-      data-weight={weight}
-    >
-      ↺
-    </span>
-  ),
-  Lightbulb: ({ className, size, weight }: any) => (
-    <span data-testid="lightbulb-icon" className={className} data-size={size} data-weight={weight}>
-      💡
-    </span>
-  ),
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Clock: ({ className, size, weight }: any) => (
+      <span data-testid="clock-icon" className={className} data-size={size} data-weight={weight}>
+        🕐
+      </span>
+    ),
+    TrendUp: ({ className, size, weight }: any) => (
+      <span data-testid="trend-up-icon" className={className} data-size={size} data-weight={weight}>
+        📈
+      </span>
+    ),
+    Calendar: ({ className, size, weight }: any) => (
+      <span data-testid="calendar-icon" className={className} data-size={size} data-weight={weight}>
+        📅
+      </span>
+    ),
+    ArrowClockwise: ({ className, size, weight }: any) => (
+      <span
+        data-testid="arrow-clockwise-icon"
+        className={className}
+        data-size={size}
+        data-weight={weight}
+      >
+        🔄
+      </span>
+    ),
+    FloppyDisk: ({ className, size, weight }: any) => (
+      <span
+        data-testid="floppy-disk-icon"
+        className={className}
+        data-size={size}
+        data-weight={weight}
+      >
+        💾
+      </span>
+    ),
+    ArrowCounterClockwise: ({ className, size, weight }: any) => (
+      <span
+        data-testid="arrow-counter-clockwise-icon"
+        className={className}
+        data-size={size}
+        data-weight={weight}
+      >
+        ↺
+      </span>
+    ),
+    Lightbulb: ({ className, size, weight }: any) => (
+      <span
+        data-testid="lightbulb-icon"
+        className={className}
+        data-size={size}
+        data-weight={weight}
+      >
+        💡
+      </span>
+    ),
+  };
+});
 
 // Mock child components
 vi.mock('../HabitHeatmap', () => ({

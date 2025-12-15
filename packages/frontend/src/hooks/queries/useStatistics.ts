@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { CACHE_TIME, GC_TIME, REFETCH_INTERVALS, DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import StorageService from '../../services/StorageService';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -62,7 +62,7 @@ export function useStatistics() {
       // 获取真实的学习统计数据
       const studyStats = await StorageService.getStudyStatistics();
 
-      const recordsResult = await ApiClient.getRecords({ pageSize: 100 });
+      const recordsResult = await apiClient.getRecords({ pageSize: 100 });
 
       // 计算学习天数和连续学习天数
       const normalizeToDateString = (date: Date): string => {
@@ -144,10 +144,10 @@ export function useStatistics() {
         weekdayHeat: heat,
       };
     },
-    enabled: !!user,
+    enabled: user !== undefined,
     staleTime: CACHE_TIME.SHORT, // 1分钟后标记为过期
-    refetchInterval: REFETCH_INTERVALS.FREQUENT, // 每分钟自动刷新
-    refetchOnWindowFocus: true, // 窗口聚焦时刷新
+    refetchInterval: user ? REFETCH_INTERVALS.FREQUENT : REFETCH_INTERVALS.DISABLED, // 每分钟自动刷新
+    refetchOnWindowFocus: Boolean(user), // 窗口聚焦时刷新
   });
 }
 
@@ -156,9 +156,9 @@ export function useStatistics() {
  */
 export function useStudyProgress() {
   return useQuery({
-    queryKey: queryKeys.statistics.overview(),
+    queryKey: queryKeys.studyProgress.current(),
     queryFn: async () => {
-      return await ApiClient.getStudyProgress();
+      return await apiClient.getStudyProgress();
     },
     staleTime: CACHE_TIME.SHORT, // 1分钟
     refetchInterval: REFETCH_INTERVALS.FREQUENT, // 每分钟自动刷新
@@ -172,7 +172,7 @@ export function useUserStatistics() {
   return useQuery({
     queryKey: queryKeys.user.statistics(),
     queryFn: async () => {
-      return await ApiClient.getUserStatistics();
+      return await apiClient.getUserStatistics();
     },
     ...DATA_CACHE_CONFIG.userStatistics,
   });
@@ -185,7 +185,7 @@ export function useLearningRecords(options?: { page?: number; pageSize?: number 
   return useQuery({
     queryKey: queryKeys.learningRecords.list(options || {}),
     queryFn: async () => {
-      return await ApiClient.getRecords(options);
+      return await apiClient.getRecords(options);
     },
     staleTime: CACHE_TIME.MEDIUM_SHORT, // 2分钟
   });
@@ -198,8 +198,8 @@ export function useCreateRecord() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (recordData: Parameters<typeof ApiClient.createRecord>[0]) => {
-      return await ApiClient.createRecord(recordData);
+    mutationFn: async (recordData: Parameters<(typeof apiClient)['createRecord']>[0]) => {
+      return await apiClient.createRecord(recordData);
     },
     onSuccess: () => {
       // 创建成功后，使相关查询失效
@@ -217,8 +217,8 @@ export function useBatchCreateRecords() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (records: Parameters<typeof ApiClient.batchCreateRecords>[0]) => {
-      return await ApiClient.batchCreateRecords(records);
+    mutationFn: async (records: Parameters<(typeof apiClient)['batchCreateRecords']>[0]) => {
+      return await apiClient.batchCreateRecords(records);
     },
     onSuccess: () => {
       // 批量创建成功后，使相关查询失效

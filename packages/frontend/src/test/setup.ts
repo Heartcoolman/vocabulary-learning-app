@@ -475,6 +475,64 @@ vi.mock('../services/client', () => {
     getLLMAdvisorPendingCount: vi.fn(() => Promise.resolve({ count: 0 })),
   };
 
+  // Visual Fatigue Client mock
+  const mockVisualFatigueClient = {
+    setOnUnauthorized: vi.fn(),
+    submitMetrics: vi.fn(() =>
+      Promise.resolve({
+        processed: { score: 0, confidence: 0, isValid: false },
+        fusion: {
+          fusedFatigue: 0,
+          visualFatigue: 0,
+          behaviorFatigue: 0,
+          fatigueLevel: 'mild',
+          recommendations: [],
+        },
+      }),
+    ),
+    getBaseline: vi.fn(() =>
+      Promise.resolve({
+        hasBaseline: false,
+        baseline: null,
+        baselineType: 'none',
+        recordCount: 0,
+      }),
+    ),
+    updateBaseline: vi.fn(() => Promise.resolve()),
+    getConfig: vi.fn(() =>
+      Promise.resolve({
+        enabled: false,
+        detectionFps: 10,
+        uploadIntervalMs: 1000,
+        vlmAnalysisEnabled: false,
+      }),
+    ),
+    updateConfig: vi.fn(() => Promise.resolve()),
+    getFusion: vi.fn(() =>
+      Promise.resolve({ hasData: false, fusion: null, visual: null, trend: 0 }),
+    ),
+    reset: vi.fn(() => Promise.resolve()),
+  };
+
+  // Content Enhance Client mock
+  const mockContentEnhanceClient = {
+    setOnUnauthorized: vi.fn(),
+    checkQuality: vi.fn(() => Promise.resolve({ issues: [], qualityScore: 1 })),
+    enhanceContent: vi.fn(() => Promise.resolve({ success: true, variants: [] })),
+    batchEnhanceContent: vi.fn(() => Promise.resolve({ success: true, results: [] })),
+    getQualityStats: vi.fn(() => Promise.resolve({ total: 0, bySeverity: {}, byType: {} })),
+  };
+
+  // Ops Enhance Client mock
+  const mockOpsEnhanceClient = {
+    setOnUnauthorized: vi.fn(),
+    getAlerts: vi.fn(() => Promise.resolve({ alerts: [], total: 0 })),
+    createAlert: vi.fn(() => Promise.resolve({ id: 'alert-1' })),
+    updateAlert: vi.fn(() => Promise.resolve({ id: 'alert-1' })),
+    deleteAlert: vi.fn(() => Promise.resolve()),
+    getWeeklyReport: vi.fn(() => Promise.resolve({ summary: {}, detail: {} })),
+  };
+
   // ApiClient unified object
   const MockApiClient = {
     auth: mockAuthClient,
@@ -484,6 +542,9 @@ vi.mock('../services/client', () => {
     amas: mockAmasClient,
     admin: mockAdminClient,
     llmAdvisor: mockLlmAdvisorClient,
+    visualFatigue: mockVisualFatigueClient,
+    contentEnhance: mockContentEnhanceClient,
+    opsEnhance: mockOpsEnhanceClient,
     setOnUnauthorized: vi.fn(),
   };
 
@@ -508,8 +569,12 @@ vi.mock('../services/client', () => {
     amasClient: mockAmasClient,
     adminClient: mockAdminClient,
     llmAdvisorClient: mockLlmAdvisorClient,
+    visualFatigueClient: mockVisualFatigueClient,
+    contentEnhanceClient: mockContentEnhanceClient,
+    opsEnhanceClient: mockOpsEnhanceClient,
 
     // Unified ApiClient object
+    apiClient: MockApiClient,
     ApiClient: MockApiClient,
     default: MockApiClient,
   };

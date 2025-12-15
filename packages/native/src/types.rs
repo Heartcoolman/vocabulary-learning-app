@@ -1,5 +1,6 @@
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 // 常量定义 (与 TS 对齐)
 pub const FEATURE_DIMENSION: usize = 22;
@@ -8,6 +9,7 @@ pub const MIN_RANK1_DIAG: f64 = 1e-6;
 pub const MAX_COVARIANCE: f64 = 1e9;
 pub const MAX_FEATURE_ABS: f64 = 50.0;
 pub const EPSILON: f64 = 1e-10;
+pub const CHOLESKY_RECOMPUTE_INTERVAL: u32 = 200;
 
 /// BanditModel 结构体 (字段命名与 TS 对齐)
 #[napi(object)]
@@ -37,7 +39,7 @@ pub enum Difficulty {
 }
 
 impl Difficulty {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "recognition" => Some(Difficulty::Recognition),
             "recall" => Some(Difficulty::Recall),
@@ -56,6 +58,14 @@ impl Difficulty {
             Difficulty::Listening => 3,
             Difficulty::Usage => 4,
         }
+    }
+}
+
+impl FromStr for Difficulty {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Difficulty::try_from_str(s).ok_or(())
     }
 }
 
@@ -207,57 +217,57 @@ impl Default for BanditModel {
 mod tests {
     use super::*;
 
-    // ============ Difficulty::from_str() 测试 ============
+    // ============ Difficulty::try_from_str() 测试 ============
 
     #[test]
     fn test_difficulty_from_str_valid_lowercase() {
-        assert_eq!(Difficulty::from_str("recognition"), Some(Difficulty::Recognition));
-        assert_eq!(Difficulty::from_str("recall"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::from_str("spelling"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::from_str("listening"), Some(Difficulty::Listening));
-        assert_eq!(Difficulty::from_str("usage"), Some(Difficulty::Usage));
+        assert_eq!(Difficulty::try_from_str("recognition"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::try_from_str("recall"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::try_from_str("spelling"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::try_from_str("listening"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::try_from_str("usage"), Some(Difficulty::Usage));
     }
 
     #[test]
     fn test_difficulty_from_str_valid_uppercase() {
-        assert_eq!(Difficulty::from_str("RECOGNITION"), Some(Difficulty::Recognition));
-        assert_eq!(Difficulty::from_str("RECALL"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::from_str("SPELLING"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::from_str("LISTENING"), Some(Difficulty::Listening));
-        assert_eq!(Difficulty::from_str("USAGE"), Some(Difficulty::Usage));
+        assert_eq!(Difficulty::try_from_str("RECOGNITION"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::try_from_str("RECALL"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::try_from_str("SPELLING"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::try_from_str("LISTENING"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::try_from_str("USAGE"), Some(Difficulty::Usage));
     }
 
     #[test]
     fn test_difficulty_from_str_valid_mixed_case() {
-        assert_eq!(Difficulty::from_str("Recognition"), Some(Difficulty::Recognition));
-        assert_eq!(Difficulty::from_str("ReCaLl"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::from_str("SpElLiNg"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::from_str("Listening"), Some(Difficulty::Listening));
-        assert_eq!(Difficulty::from_str("UsAgE"), Some(Difficulty::Usage));
+        assert_eq!(Difficulty::try_from_str("Recognition"), Some(Difficulty::Recognition));
+        assert_eq!(Difficulty::try_from_str("ReCaLl"), Some(Difficulty::Recall));
+        assert_eq!(Difficulty::try_from_str("SpElLiNg"), Some(Difficulty::Spelling));
+        assert_eq!(Difficulty::try_from_str("Listening"), Some(Difficulty::Listening));
+        assert_eq!(Difficulty::try_from_str("UsAgE"), Some(Difficulty::Usage));
     }
 
     #[test]
     fn test_difficulty_from_str_invalid() {
-        assert_eq!(Difficulty::from_str(""), None);
-        assert_eq!(Difficulty::from_str("invalid"), None);
-        assert_eq!(Difficulty::from_str("recognitionn"), None);
-        assert_eq!(Difficulty::from_str("recal"), None);
-        assert_eq!(Difficulty::from_str(" recall"), None);
-        assert_eq!(Difficulty::from_str("recall "), None);
-        assert_eq!(Difficulty::from_str("re call"), None);
-        assert_eq!(Difficulty::from_str("123"), None);
-        assert_eq!(Difficulty::from_str("recognition1"), None);
+        assert_eq!(Difficulty::try_from_str(""), None);
+        assert_eq!(Difficulty::try_from_str("invalid"), None);
+        assert_eq!(Difficulty::try_from_str("recognitionn"), None);
+        assert_eq!(Difficulty::try_from_str("recal"), None);
+        assert_eq!(Difficulty::try_from_str(" recall"), None);
+        assert_eq!(Difficulty::try_from_str("recall "), None);
+        assert_eq!(Difficulty::try_from_str("re call"), None);
+        assert_eq!(Difficulty::try_from_str("123"), None);
+        assert_eq!(Difficulty::try_from_str("recognition1"), None);
     }
 
     #[test]
     fn test_difficulty_from_str_edge_cases() {
         // 特殊字符
-        assert_eq!(Difficulty::from_str("recognition\n"), None);
-        assert_eq!(Difficulty::from_str("\trecall"), None);
-        assert_eq!(Difficulty::from_str("spelling\0"), None);
+        assert_eq!(Difficulty::try_from_str("recognition\n"), None);
+        assert_eq!(Difficulty::try_from_str("\trecall"), None);
+        assert_eq!(Difficulty::try_from_str("spelling\0"), None);
         // Unicode 字符
-        assert_eq!(Difficulty::from_str("認識"), None);
-        assert_eq!(Difficulty::from_str("记忆"), None);
+        assert_eq!(Difficulty::try_from_str("認識"), None);
+        assert_eq!(Difficulty::try_from_str("记忆"), None);
     }
 
     // ============ Difficulty::to_index() 测试 ============
@@ -283,7 +293,8 @@ mod tests {
         ];
 
         for (name, expected_index) in difficulties {
-            let difficulty = Difficulty::from_str(name).expect(&format!("{} should be valid", name));
+            let difficulty =
+                Difficulty::try_from_str(name).expect(&format!("{} should be valid", name));
             assert_eq!(difficulty.to_index(), expected_index);
         }
     }

@@ -10,6 +10,9 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 
 import { learningLogger } from '../utils/logger';
 
+const EMPTY_STRING_ARRAY: string[] = [];
+const DEFAULT_FALLBACK_DISTRACTORS = ['未知释义', '其他含义', '暂无解释'] as const;
+
 export interface TestOption {
   id: string;
   text: string;
@@ -105,9 +108,12 @@ function randomShuffle<T>(array: T[]): T[] {
  * ```
  */
 export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsReturn {
-  const { correctAnswer, distractors = [], numberOfOptions = 4, shuffleOptions = true } = config;
+  const correctAnswer = config.correctAnswer;
+  const distractors = config.distractors ?? EMPTY_STRING_ARRAY;
+  const numberOfOptions = config.numberOfOptions ?? 4;
+  const shuffleOptions = config.shuffleOptions ?? true;
 
-  const [selectedOption, setSelectedOption] = useState<TestOption | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [optionsSeed, setOptionsSeed] = useState(() => Date.now());
 
   const options = useMemo(() => {
@@ -139,29 +145,34 @@ export function useTestOptions(config: UseTestOptionsConfig): UseTestOptionsRetu
    */
   const regenerateOptions = useCallback(() => {
     setOptionsSeed(Date.now());
-    setSelectedOption(null);
+    setSelectedOptionId(null);
   }, []);
 
   /**
    * 选择一个选项
    */
   const selectOption = useCallback((option: TestOption) => {
-    setSelectedOption(option);
+    setSelectedOptionId(option.id);
   }, []);
 
   /**
    * 重置选择状态
    */
   const resetSelection = useCallback(() => {
-    setSelectedOption(null);
+    setSelectedOptionId(null);
   }, []);
+
+  const selectedOption = useMemo(() => {
+    if (!selectedOptionId) return null;
+    return options.find((o) => o.id === selectedOptionId) ?? null;
+  }, [options, selectedOptionId]);
 
   return {
     options,
     regenerateOptions,
     selectedOption,
     selectOption,
-    isAnswered: selectedOption !== null,
+    isAnswered: selectedOptionId !== null,
     resetSelection,
   };
 }
@@ -197,12 +208,14 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
     count: number,
   ) => { options: string[]; correctAnswer: string },
 ): TestOptionsGeneratorReturn {
-  const {
-    currentWord,
-    allWords,
-    numberOfOptions = 4,
-    fallbackDistractors = ['未知释义', '其他含义', '暂无解释'],
-  } = config;
+  const currentWord = config.currentWord;
+  const allWords = config.allWords;
+  const numberOfOptions = config.numberOfOptions ?? 4;
+  const fallbackDistractors = config.fallbackDistractors ?? DEFAULT_FALLBACK_DISTRACTORS;
+  const fallbackDistractorsKey = useMemo(
+    () => fallbackDistractors.join('\u0000'),
+    [fallbackDistractors],
+  );
 
   const [testOptions, setTestOptions] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -227,7 +240,14 @@ export function useTestOptionsGenerator<T extends { id: string; meanings: string
         Math.random() > 0.5 ? [correctAnswer, randomDistractor] : [randomDistractor, correctAnswer];
       setTestOptions(fallbackOptions);
     }
-  }, [currentWord, allWords, numberOfOptions, questionIndex, generateOptions, fallbackDistractors]);
+  }, [
+    currentWord,
+    allWords,
+    numberOfOptions,
+    questionIndex,
+    generateOptions,
+    fallbackDistractorsKey,
+  ]);
 
   /**
    * 重新生成选项（递增 questionIndex 强制触发重新生成）

@@ -309,7 +309,7 @@ export function useBatchDelete(options?: {
 
   return useMutation({
     mutationFn: async (params: BatchDeleteParams): Promise<BatchDeleteResult> => {
-      const { wordIds } = params;
+      const { wordIds, batchSize = 50 } = params;
 
       options?.onProgress?.({
         progress: 10,
@@ -321,22 +321,66 @@ export function useBatchDelete(options?: {
         errors: [],
       });
 
-      await wordClient.batchDeleteWords(wordIds);
+      if (wordIds.length === 0) {
+        options?.onProgress?.({
+          progress: 100,
+          stage: '完成',
+          processed: 0,
+          total: 0,
+          succeeded: 0,
+          failed: 0,
+          errors: [],
+        });
+        return { deleted: 0, failed: 0, errors: [] };
+      }
+
+      const errors: Array<{ wordId: string; message: string }> = [];
+      let deleted = 0;
+
+      for (let i = 0; i < wordIds.length; i += batchSize) {
+        const batch = wordIds.slice(i, Math.min(i + batchSize, wordIds.length));
+
+        const results = await Promise.allSettled(
+          batch.map((wordId) => wordClient.deleteWord(wordId)),
+        );
+
+        results.forEach((res, idx) => {
+          const wordId = batch[idx];
+          if (res.status === 'fulfilled') {
+            deleted += 1;
+            return;
+          }
+          errors.push({
+            wordId,
+            message: res.reason instanceof Error ? res.reason.message : '未知错误',
+          });
+        });
+
+        options?.onProgress?.({
+          progress: Math.round(((i + batch.length) / wordIds.length) * 100),
+          stage: `删除中 ${Math.min(i + batch.length, wordIds.length)}/${wordIds.length}`,
+          processed: Math.min(i + batch.length, wordIds.length),
+          total: wordIds.length,
+          succeeded: deleted,
+          failed: errors.length,
+          errors: errors.map((e, idx) => ({ index: idx, message: e.message })),
+        });
+      }
 
       options?.onProgress?.({
         progress: 100,
         stage: '完成',
         processed: wordIds.length,
         total: wordIds.length,
-        succeeded: wordIds.length,
-        failed: 0,
-        errors: [],
+        succeeded: deleted,
+        failed: errors.length,
+        errors: errors.map((e, idx) => ({ index: idx, message: e.message })),
       });
 
       return {
-        deleted: wordIds.length,
-        failed: 0,
-        errors: [],
+        deleted,
+        failed: errors.length,
+        errors,
       };
     },
     onSuccess: (result) => {

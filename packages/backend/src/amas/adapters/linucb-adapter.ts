@@ -4,7 +4,7 @@
  * 将现有的 LinUCB 学习器适配到新的决策接口
  */
 
-import { LinUCB, LinUCBContext } from '../algorithms/learners';
+import { LinUCB, type LinUCBContext } from '../algorithms/learners';
 import { Action, UserState } from '../types';
 import { IDecisionPolicy, DecisionContext, DecisionResult, IFeatureBuilder } from '../interfaces';
 import { amasLogger } from '../../logger';

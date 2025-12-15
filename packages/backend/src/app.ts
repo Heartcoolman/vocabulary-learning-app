@@ -131,8 +131,8 @@ app.use(
 // 速率限制（测试环境禁用）
 if (env.NODE_ENV !== 'test') {
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15分钟
-    max: 500, // 限制500个请求（从100放宽到500）
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -273,7 +273,7 @@ app.use('/api/admin/content', contentEnhanceRoutes);
 app.use('/api/admin/ops', opsEnhanceRoutes);
 
 // 健康检查路由（独立于 /api 路径，便于负载均衡器访问）
-app.use('/health', healthRoutes);
+app.use(env.HEALTHCHECK_ENDPOINT, healthRoutes);
 
 // 404处理
 app.use((req, res) => {

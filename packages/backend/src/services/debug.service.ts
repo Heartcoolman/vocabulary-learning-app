@@ -107,6 +107,14 @@ class DebugService {
       redisConnected = false;
     }
 
+    let dbConnected = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbConnected = true;
+    } catch {
+      dbConnected = false;
+    }
+
     return {
       debugEnabled: config.enabled,
       simulationActive: getSimulationRemainingMs() !== null,
@@ -117,7 +125,7 @@ class DebugService {
           connected: redisConnected,
         },
         database: {
-          connected: true, // Prisma handles connection pooling
+          connected: dbConnected,
           simulateSlowQuery: config.infrastructure.database.simulateSlowQuery,
         },
         llm: {

@@ -16,13 +16,17 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Eye: () => <span data-testid="eye-icon">Eye</span>,
-  Headphones: () => <span data-testid="headphones-icon">Headphones</span>,
-  Hand: () => <span data-testid="hand-icon">Hand</span>,
-  Brain: () => <span data-testid="brain-icon">Brain</span>,
-  Sparkle: () => <span data-testid="sparkle-icon">Sparkle</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Eye: () => <span data-testid="eye-icon">Eye</span>,
+    Headphones: () => <span data-testid="headphones-icon">Headphones</span>,
+    Hand: () => <span data-testid="hand-icon">Hand</span>,
+    Brain: () => <span data-testid="brain-icon">Brain</span>,
+    Sparkle: () => <span data-testid="sparkle-icon">Sparkle</span>,
+  };
+});
 
 describe('LearningStyleCard', () => {
   // ==================== Default State Tests ====================

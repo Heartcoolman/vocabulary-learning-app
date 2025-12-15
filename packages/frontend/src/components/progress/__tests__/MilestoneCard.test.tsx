@@ -7,28 +7,32 @@ import { render, screen } from '@testing-library/react';
 import { MilestoneCard, Milestone } from '../MilestoneCard';
 
 // Mock Icon components
-vi.mock('../../Icon', () => ({
-  Trophy: ({ className }: any) => (
-    <span data-testid="icon-trophy" className={className}>
-      Trophy
-    </span>
-  ),
-  Star: ({ className }: any) => (
-    <span data-testid="icon-star" className={className}>
-      Star
-    </span>
-  ),
-  Target: ({ className }: any) => (
-    <span data-testid="icon-target" className={className}>
-      Target
-    </span>
-  ),
-  Lightning: ({ className }: any) => (
-    <span data-testid="icon-zap" className={className}>
-      Zap
-    </span>
-  ),
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    Trophy: ({ className }: any) => (
+      <span data-testid="icon-trophy" className={className}>
+        Trophy
+      </span>
+    ),
+    Star: ({ className }: any) => (
+      <span data-testid="icon-star" className={className}>
+        Star
+      </span>
+    ),
+    Target: ({ className }: any) => (
+      <span data-testid="icon-target" className={className}>
+        Target
+      </span>
+    ),
+    Lightning: ({ className }: any) => (
+      <span data-testid="icon-zap" className={className}>
+        Zap
+      </span>
+    ),
+  };
+});
 
 describe('MilestoneCard', () => {
   const defaultMilestone: Milestone = {

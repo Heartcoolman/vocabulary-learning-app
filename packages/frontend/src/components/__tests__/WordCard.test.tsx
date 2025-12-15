@@ -18,16 +18,20 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Star: ({ weight, color }: any) => (
-    <span data-testid="star" data-weight={weight} data-color={color}>
-      ★
-    </span>
-  ),
-  Clock: () => <span data-testid="clock">🕐</span>,
-  Target: () => <span data-testid="target">🎯</span>,
-  SpeakerHigh: () => <span data-testid="speaker">🔊</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Star: ({ weight, color }: any) => (
+      <span data-testid="star" data-weight={weight} data-color={color}>
+        ★
+      </span>
+    ),
+    Clock: () => <span data-testid="clock">🕐</span>,
+    Target: () => <span data-testid="target">🎯</span>,
+    SpeakerHigh: () => <span data-testid="speaker">🔊</span>,
+  };
+});
 
 // Mock TrackingService
 vi.mock('../../services/TrackingService', () => ({

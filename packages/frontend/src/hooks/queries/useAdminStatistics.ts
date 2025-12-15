@@ -13,7 +13,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { QUERY_PRESETS } from '../../lib/cacheConfig';
-import apiClient, { AdminStatistics } from '../../services/client';
+import { apiClient, type AdminStatistics } from '../../services/client';
 import {
   HEALTH_THRESHOLDS,
   HEALTH_PENALTIES,

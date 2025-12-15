@@ -18,83 +18,87 @@ vi.mock('@/components/ui', () => ({
 }));
 
 // Mock Icon components
-vi.mock('@/components/Icon', () => ({
-  Robot: ({ className, size, weight }: any) => (
-    <span data-testid="robot-icon" className={className}>
-      Robot
-    </span>
-  ),
-  Lightning: ({ className, size, weight }: any) => (
-    <span data-testid="lightning-icon" className={className}>
-      Lightning
-    </span>
-  ),
-  CheckCircle: ({ className, size }: any) => (
-    <span data-testid="check-circle-icon" className={className}>
-      CheckCircle
-    </span>
-  ),
-  XCircle: ({ className, size }: any) => (
-    <span data-testid="x-circle-icon" className={className}>
-      XCircle
-    </span>
-  ),
-  Warning: ({ className, size }: any) => (
-    <span data-testid="warning-icon" className={className}>
-      Warning
-    </span>
-  ),
-  ArrowsClockwise: ({ className, size }: any) => (
-    <span data-testid="arrows-clockwise-icon" className={className}>
-      ArrowsClockwise
-    </span>
-  ),
-  Eye: ({ className, size }: any) => (
-    <span data-testid="eye-icon" className={className}>
-      Eye
-    </span>
-  ),
-  CaretDown: ({ className, size }: any) => (
-    <span data-testid="caret-down-icon" className={className}>
-      CaretDown
-    </span>
-  ),
-  CaretUp: ({ className, size }: any) => (
-    <span data-testid="caret-up-icon" className={className}>
-      CaretUp
-    </span>
-  ),
-  Lightbulb: ({ className, size }: any) => (
-    <span data-testid="lightbulb-icon" className={className}>
-      Lightbulb
-    </span>
-  ),
-  Gear: ({ className, size }: any) => (
-    <span data-testid="gear-icon" className={className}>
-      Gear
-    </span>
-  ),
-  ChartLine: ({ className, size }: any) => (
-    <span data-testid="chart-line-icon" className={className}>
-      ChartLine
-    </span>
-  ),
-  Brain: ({ className, size }: any) => (
-    <span data-testid="brain-icon" className={className}>
-      Brain
-    </span>
-  ),
-  Shield: ({ className, size }: any) => (
-    <span data-testid="shield-icon" className={className}>
-      Shield
-    </span>
-  ),
-  CircleNotch: ({ className, size, weight }: any) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-}));
+vi.mock('@/components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Icon')>();
+  return {
+    ...actual,
+    Robot: ({ className, size, weight }: any) => (
+      <span data-testid="robot-icon" className={className}>
+        Robot
+      </span>
+    ),
+    Lightning: ({ className, size, weight }: any) => (
+      <span data-testid="lightning-icon" className={className}>
+        Lightning
+      </span>
+    ),
+    CheckCircle: ({ className, size }: any) => (
+      <span data-testid="check-circle-icon" className={className}>
+        CheckCircle
+      </span>
+    ),
+    XCircle: ({ className, size }: any) => (
+      <span data-testid="x-circle-icon" className={className}>
+        XCircle
+      </span>
+    ),
+    Warning: ({ className, size }: any) => (
+      <span data-testid="warning-icon" className={className}>
+        Warning
+      </span>
+    ),
+    ArrowsClockwise: ({ className, size }: any) => (
+      <span data-testid="arrows-clockwise-icon" className={className}>
+        ArrowsClockwise
+      </span>
+    ),
+    Eye: ({ className, size }: any) => (
+      <span data-testid="eye-icon" className={className}>
+        Eye
+      </span>
+    ),
+    CaretDown: ({ className, size }: any) => (
+      <span data-testid="caret-down-icon" className={className}>
+        CaretDown
+      </span>
+    ),
+    CaretUp: ({ className, size }: any) => (
+      <span data-testid="caret-up-icon" className={className}>
+        CaretUp
+      </span>
+    ),
+    Lightbulb: ({ className, size }: any) => (
+      <span data-testid="lightbulb-icon" className={className}>
+        Lightbulb
+      </span>
+    ),
+    Gear: ({ className, size }: any) => (
+      <span data-testid="gear-icon" className={className}>
+        Gear
+      </span>
+    ),
+    ChartLine: ({ className, size }: any) => (
+      <span data-testid="chart-line-icon" className={className}>
+        ChartLine
+      </span>
+    ),
+    Brain: ({ className, size }: any) => (
+      <span data-testid="brain-icon" className={className}>
+        Brain
+      </span>
+    ),
+    Shield: ({ className, size }: any) => (
+      <span data-testid="shield-icon" className={className}>
+        Shield
+      </span>
+    ),
+    CircleNotch: ({ className, size, weight }: any) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+  };
+});
 
 // Mock logger
 vi.mock('@/utils/logger', () => ({

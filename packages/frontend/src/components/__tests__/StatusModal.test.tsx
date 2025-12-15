@@ -14,10 +14,14 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  X: () => <span data-testid="x-icon">X</span>,
-  ChartPie: () => <span data-testid="chart-icon">Chart</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    X: () => <span data-testid="x-icon">X</span>,
+    ChartPie: () => <span data-testid="chart-icon">Chart</span>,
+  };
+});
 
 // Mock animations
 vi.mock('../../utils/animations', () => ({

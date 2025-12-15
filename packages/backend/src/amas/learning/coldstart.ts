@@ -303,7 +303,7 @@ export class ColdStartManager implements BaseLearner<
       amasLogger.debug('[ColdStartManager] selectAction 在初始化完成前被调用，使用默认先验');
     }
 
-    const action = this.determineNextAction();
+    const action = this.determineNextAction(actions);
     const confidence = this.computeConfidence(context);
 
     return {
@@ -556,25 +556,25 @@ export class ColdStartManager implements BaseLearner<
   /**
    * 确定下一个动作
    */
-  private determineNextAction(): Action {
+  private determineNextAction(actions: Action[]): Action {
     // 分类阶段：按顺序执行探测动作
     if (this.state.phase === 'classify' && this.state.probeIndex < PROBE_ACTIONS.length) {
-      return PROBE_ACTIONS[this.state.probeIndex];
+      return this.findClosestActionIn(actions, PROBE_ACTIONS[this.state.probeIndex]);
     }
 
     // 有收敛策略时使用
     if (this.state.settledStrategy) {
-      return this.findClosestAction(this.state.settledStrategy);
+      return this.findClosestActionIn(actions, this.state.settledStrategy);
     }
 
     // 超过分类阈值但未分类：使用安全默认策略
     if (this.state.updateCount >= CLASSIFY_PHASE_THRESHOLD) {
-      return this.findClosestAction(DEFAULT_STRATEGY);
+      return this.findClosestActionIn(actions, DEFAULT_STRATEGY);
     }
 
     // 继续循环探测（理论上不应进入此分支）
     const idx = this.state.probeIndex % PROBE_ACTIONS.length;
-    return PROBE_ACTIONS[idx];
+    return this.findClosestActionIn(actions, PROBE_ACTIONS[idx]);
   }
 
   /**
@@ -586,6 +586,8 @@ export class ColdStartManager implements BaseLearner<
     // 检查贝叶斯早停条件
     if (this.shouldEarlyStop()) {
       this.classifyUserBayesian();
+      // 早停视为完成探针阶段，避免后续 explore -> normal 被 probeIndex 卡死
+      this.state.probeIndex = Math.max(this.state.probeIndex, PROBE_ACTIONS.length);
       this.state.phase = 'explore';
       return;
     }
@@ -799,9 +801,13 @@ export class ColdStartManager implements BaseLearner<
   /**
    * 在动作空间中查找最接近的动作
    */
-  private findClosestAction(strategy: StrategyParams): Action {
+  private findClosestActionIn(actions: Action[], strategy: StrategyParams): Action {
+    if (!actions || actions.length === 0) {
+      return ACTION_SPACE[0];
+    }
+
     // 精确匹配
-    const exact = ACTION_SPACE.find(
+    const exact = actions.find(
       (a) =>
         a.interval_scale === strategy.interval_scale &&
         a.new_ratio === strategy.new_ratio &&
@@ -815,10 +821,10 @@ export class ColdStartManager implements BaseLearner<
     }
 
     // 近似匹配：找距离最小的
-    let best = ACTION_SPACE[0];
+    let best = actions[0];
     let minDist = Infinity;
 
-    for (const action of ACTION_SPACE) {
+    for (const action of actions) {
       const dist = this.computeActionDistance(action, strategy);
       if (dist < minDist) {
         minDist = dist;

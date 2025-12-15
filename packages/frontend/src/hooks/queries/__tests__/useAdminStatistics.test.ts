@@ -7,14 +7,18 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAdminStatistics, calculateSystemHealth } from '../useAdminStatistics';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 
 // Mock API Client
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     adminGetStatistics: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 // 创建测试用的 QueryClient
 function createTestQueryClient() {

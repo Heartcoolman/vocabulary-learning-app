@@ -10,7 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type {
   HabitProfileResponse,
@@ -42,7 +42,7 @@ export function useHabitProfile() {
   return useQuery<HabitProfileResponse>({
     queryKey: habitProfileKeys.profile(),
     queryFn: async () => {
-      return await ApiClient.getHabitProfile();
+      return await apiClient.getHabitProfile();
     },
     enabled: isAuthenticated,
     staleTime: CACHE_TIME.MEDIUM,
@@ -63,7 +63,7 @@ export function useInitializeHabitProfile() {
 
   return useMutation<InitializeProfileResponse, Error, void>({
     mutationFn: async () => {
-      return await ApiClient.initializeHabitProfile();
+      return await apiClient.initializeHabitProfile();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitProfileKeys.profile() });
@@ -81,7 +81,7 @@ export function useEndHabitSession() {
 
   return useMutation<EndSessionResponse, Error, string>({
     mutationFn: async (sessionId: string) => {
-      return await ApiClient.endHabitSession(sessionId);
+      return await apiClient.endHabitSession(sessionId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitProfileKeys.profile() });
@@ -99,7 +99,7 @@ export function usePersistHabitProfile() {
 
   return useMutation<PersistProfileResponse, Error, void>({
     mutationFn: async () => {
-      return await ApiClient.persistHabitProfile();
+      return await apiClient.persistHabitProfile();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitProfileKeys.profile() });

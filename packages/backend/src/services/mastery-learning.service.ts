@@ -11,6 +11,7 @@ import { recordDifficultyComputationTime, recordQueueAdjustmentDuration } from '
 import { amasService } from './amas.service';
 import { StrategyParams } from '../amas';
 import { logger } from '../logger';
+import { AppError } from '../middleware/error.middleware';
 
 // ========== 队列调整相关类型 ==========
 
@@ -495,7 +496,7 @@ class MasteryLearningService {
     );
 
     try {
-      await prisma.learningSession.updateMany({
+      const result = await prisma.learningSession.updateMany({
         where: {
           id: sessionId,
           userId,
@@ -505,6 +506,10 @@ class MasteryLearningService {
           totalQuestions: progress.totalQuestions,
         },
       });
+
+      if (result.count === 0) {
+        throw AppError.notFound('学习会话不存在');
+      }
 
       logger.debug(`[MasteryLearning] 会话进度同步成功: sessionId=${sessionId}`);
     } catch (error) {
@@ -598,7 +603,7 @@ class MasteryLearningService {
     });
 
     if (!session) {
-      throw new Error(`Session not found or access denied: ${sessionId}`);
+      throw AppError.notFound('学习会话不存在');
     }
 
     return {

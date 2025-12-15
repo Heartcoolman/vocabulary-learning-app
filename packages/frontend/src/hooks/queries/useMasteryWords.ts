@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { Word } from '../../types/models';
 import type { UserMasteryStats, MasteryEvaluation } from '../../types/word-mastery';
 

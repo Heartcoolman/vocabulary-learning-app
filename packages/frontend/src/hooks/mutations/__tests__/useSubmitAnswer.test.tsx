@@ -113,7 +113,16 @@ describe('useSubmitAnswer', () => {
           sessionId: 'session-123',
         }),
       );
-      expect(onSuccess).toHaveBeenCalledWith(mockAmasResult, expect.any(Object), undefined);
+      expect(onSuccess).toHaveBeenCalledWith(
+        mockAmasResult,
+        expect.objectContaining({
+          wordId: 'word-123',
+          isCorrect: true,
+          responseTime: 2500,
+          sessionId: 'session-123',
+        }),
+        expect.any(Object),
+      );
       expect(onAmasResult).toHaveBeenCalledWith(mockAmasResult);
       expect(result.current.data).toEqual(mockAmasResult);
     });
@@ -232,16 +241,17 @@ describe('useSubmitAnswer', () => {
         });
       });
 
-      // 验证乐观更新立即被调用
-      expect(onOptimisticUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          wordId: 'word-123',
-          shouldContinue: false,
-          isMastered: true,
-          correctCount: 1,
-          incorrectCount: 0,
-        }),
-      );
+      await waitFor(() => {
+        expect(onOptimisticUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            wordId: 'word-123',
+            shouldContinue: false,
+            isMastered: true,
+            correctCount: 1,
+            incorrectCount: 0,
+          }),
+        );
+      });
 
       // 等待 mutation 完成
       await waitFor(

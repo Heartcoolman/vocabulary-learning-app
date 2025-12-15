@@ -13,6 +13,7 @@ import {
   XCircle,
 } from '../../components/Icon';
 import { adminLogger } from '../../utils/logger';
+import { adminClient } from '../../services/client';
 
 // 日志级别类型
 type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
@@ -98,22 +99,8 @@ export default function LogViewerPage() {
       setIsLoadingStats(true);
       setError(null);
 
-      const response = await fetch('/api/admin/logs/stats', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`加载统计失败: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.data);
-      } else {
-        throw new Error(data.error || '加载统计失败');
-      }
+      const data = await adminClient.requestAdmin<LogStats>('/api/admin/logs/stats');
+      setStats(data);
     } catch (err) {
       adminLogger.error({ err }, '加载日志统计失败');
       setError(err instanceof Error ? err.message : '加载统计失败');
@@ -151,29 +138,18 @@ export default function LogViewerPage() {
         queryParams.append('search', filters.search);
       }
 
-      const response = await fetch(`/api/admin/logs?${queryParams.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
+      const data = await adminClient.requestAdmin<{ logs: LogEntry[]; pagination: Pagination }>(
+        `/api/admin/logs?${queryParams.toString()}`,
+      );
 
-      if (!response.ok) {
-        throw new Error(`加载日志失败: ${response.status}`);
-      }
+      setLogs(data.logs);
+      setPagination(data.pagination);
 
-      const data = await response.json();
-      if (data.success) {
-        setLogs(data.data.logs);
-        setPagination(data.data.pagination);
-
-        // 提取所有唯一的模块名
-        const modules = Array.from(
-          new Set(data.data.logs.map((log: LogEntry) => log.module).filter(Boolean)),
-        ) as string[];
-        setAvailableModules(modules);
-      } else {
-        throw new Error(data.error || '加载日志失败');
-      }
+      // 提取所有唯一的模块名
+      const modules = Array.from(
+        new Set(data.logs.map((log: LogEntry) => log.module).filter(Boolean)),
+      ) as string[];
+      setAvailableModules(modules);
     } catch (err) {
       adminLogger.error({ err, filters }, '加载日志列表失败');
       setError(err instanceof Error ? err.message : '加载日志失败');

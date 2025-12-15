@@ -52,6 +52,10 @@ export interface PaginatedResult<T> {
   };
 }
 
+type AnswerRecordWhere = NonNullable<
+  NonNullable<Parameters<typeof prisma.answerRecord.findMany>[0]>['where']
+>;
+
 /**
  * 答题记录关联的单词信息
  */
@@ -81,13 +85,8 @@ export interface AnswerRecordWithWord {
 }
 
 export class RecordService {
-  /**
-   * 获取用户的学习记录（带分页）
-   * @param userId 用户ID
-   * @param options 分页选项，默认第1页，每页50条，最大100条
-   */
-  async getRecordsByUserId(
-    userId: string,
+  private async getPaginatedAnswerRecords(
+    where: AnswerRecordWhere,
     options?: PaginationOptions,
   ): Promise<PaginatedResult<AnswerRecordWithWord>> {
     const page = Math.max(1, options?.page ?? 1);
@@ -96,7 +95,7 @@ export class RecordService {
 
     const [data, total] = await Promise.all([
       prisma.answerRecord.findMany({
-        where: { userId },
+        where,
         include: {
           word: {
             select: {
@@ -110,7 +109,7 @@ export class RecordService {
         skip,
         take: pageSize,
       }),
-      prisma.answerRecord.count({ where: { userId } }),
+      prisma.answerRecord.count({ where }),
     ]);
 
     return {
@@ -122,6 +121,32 @@ export class RecordService {
         totalPages: Math.ceil(total / pageSize),
       },
     };
+  }
+
+  /**
+   * 获取用户的学习记录（带分页）
+   * @param userId 用户ID
+   * @param options 分页选项，默认第1页，每页50条，最大100条
+   */
+  async getRecordsByUserId(
+    userId: string,
+    options?: PaginationOptions,
+  ): Promise<PaginatedResult<AnswerRecordWithWord>> {
+    return this.getPaginatedAnswerRecords({ userId }, options);
+  }
+
+  /**
+   * 获取指定会话的学习记录（带分页）
+   * @param userId 用户ID（用于权限隔离）
+   * @param sessionId 会话ID
+   * @param options 分页选项，默认第1页，每页50条，最大100条
+   */
+  async getRecordsBySessionId(
+    userId: string,
+    sessionId: string,
+    options?: PaginationOptions,
+  ): Promise<PaginatedResult<AnswerRecordWithWord>> {
+    return this.getPaginatedAnswerRecords({ userId, sessionId }, options);
   }
 
   async createRecord(userId: string, data: CreateRecordDto) {

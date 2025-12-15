@@ -155,6 +155,7 @@ export class CausalInferenceNativeWrapper {
   private readonly fallback: CausalInference;
   private readonly circuitBreaker: CircuitBreaker;
   private readonly nativeEnabled: boolean;
+  private readonly nativeConfig: NativeCausalInferenceConfig;
   /** 特征维度，用于初始化 Native 模块 */
   private featureDim: number = 10;
   /** 缓存的观测数据，用于 Native 调用 */
@@ -186,6 +187,14 @@ export class CausalInferenceNativeWrapper {
     } = config;
 
     this.nativeEnabled = useNative;
+    this.nativeConfig = {
+      propensityMin,
+      propensityMax,
+      learningRate,
+      regularization,
+      maxIterations,
+      convergenceThreshold,
+    };
 
     // 初始化熔断器
     this.circuitBreaker = new CircuitBreaker({
@@ -242,15 +251,7 @@ export class CausalInferenceNativeWrapper {
     this.featureDim = featureDim;
 
     try {
-      const nativeConfig: NativeCausalInferenceConfig = {
-        propensityMin: 0.05,
-        propensityMax: 0.95,
-        learningRate: 0.1,
-        regularization: 0.01,
-        maxIterations: 1000,
-        convergenceThreshold: 1e-6,
-      };
-      this.native = new NativeModule.CausalInferenceNative(featureDim, nativeConfig);
+      this.native = new NativeModule.CausalInferenceNative(featureDim, this.nativeConfig);
       amasLogger.info({ featureDim }, '[CausalInferenceNativeWrapper] Native module initialized');
     } catch (e) {
       amasLogger.warn(

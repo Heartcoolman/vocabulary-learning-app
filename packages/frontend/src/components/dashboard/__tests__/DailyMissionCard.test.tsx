@@ -7,33 +7,37 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DailyMissionCard } from '../DailyMissionCard';
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  Target: ({ className, weight }: any) => (
-    <span data-testid="icon-target" className={className}>
-      Target
-    </span>
-  ),
-  Clock: ({ className, weight }: any) => (
-    <span data-testid="icon-clock" className={className}>
-      Clock
-    </span>
-  ),
-  Lightning: ({ className, weight }: any) => (
-    <span data-testid="icon-lightning" className={className}>
-      Lightning
-    </span>
-  ),
-  Play: ({ className, weight }: any) => (
-    <span data-testid="icon-play" className={className}>
-      Play
-    </span>
-  ),
-  CheckCircle: ({ className, weight }: any) => (
-    <span data-testid="icon-check" className={className}>
-      Check
-    </span>
-  ),
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    Target: ({ className }: any) => (
+      <span data-testid="icon-target" className={className}>
+        Target
+      </span>
+    ),
+    Clock: ({ className }: any) => (
+      <span data-testid="icon-clock" className={className}>
+        Clock
+      </span>
+    ),
+    Lightning: ({ className }: any) => (
+      <span data-testid="icon-lightning" className={className}>
+        Lightning
+      </span>
+    ),
+    Play: ({ className }: any) => (
+      <span data-testid="icon-play" className={className}>
+        Play
+      </span>
+    ),
+    CheckCircle: ({ className }: any) => (
+      <span data-testid="icon-check" className={className}>
+        Check
+      </span>
+    ),
+  };
+});
 
 describe('DailyMissionCard', () => {
   const defaultProps = {

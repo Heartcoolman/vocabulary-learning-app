@@ -15,6 +15,18 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+BACKEND_URL="${E2E_BACKEND_URL:-http://localhost:3000}"
+FRONTEND_URL="${E2E_FRONTEND_URL:-http://localhost:5173}"
+HEALTHCHECK_ENDPOINT="${HEALTHCHECK_ENDPOINT:-/health}"
+
+# 规范化 URL/路径，避免重复斜杠
+BACKEND_URL="${BACKEND_URL%/}"
+FRONTEND_URL="${FRONTEND_URL%/}"
+HEALTHCHECK_ENDPOINT="/${HEALTHCHECK_ENDPOINT#/}"
+HEALTHCHECK_ENDPOINT="${HEALTHCHECK_ENDPOINT%/}"
+
+BACKEND_READY_URL="${BACKEND_URL}${HEALTHCHECK_ENDPOINT}/ready"
+
 # 检查依赖
 check_dependencies() {
     echo -e "${YELLOW}检查测试依赖...${NC}"
@@ -37,18 +49,18 @@ check_dependencies() {
 check_services() {
     echo -e "${YELLOW}检查服务状态...${NC}"
 
-    # 检查后端 (端口 3000)
-    if ! curl -s http://localhost:3000/api/about/health > /dev/null 2>&1; then
-        echo -e "${RED}警告: 后端服务未运行 (端口 3000)${NC}"
+    # 检查后端
+    if ! curl -sf "$BACKEND_READY_URL" > /dev/null 2>&1; then
+        echo -e "${RED}警告: 后端服务未运行 (${BACKEND_READY_URL})${NC}"
         echo "请在另一个终端运行: pnpm --filter @danci/backend dev"
         read -p "按回车键继续，或 Ctrl+C 取消..."
     else
         echo -e "${GREEN}✓ 后端服务运行中${NC}"
     fi
 
-    # 检查前端 (端口 5173)
-    if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
-        echo -e "${RED}警告: 前端服务未运行 (端口 5173)${NC}"
+    # 检查前端
+    if ! curl -sf "$FRONTEND_URL" > /dev/null 2>&1; then
+        echo -e "${RED}警告: 前端服务未运行 (${FRONTEND_URL})${NC}"
         echo "请在另一个终端运行: pnpm --filter @danci/frontend dev"
         read -p "按回车键继续，或 Ctrl+C 取消..."
     else

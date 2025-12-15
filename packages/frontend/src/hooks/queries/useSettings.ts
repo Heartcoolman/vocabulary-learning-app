@@ -13,7 +13,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { QUERY_PRESETS } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
@@ -89,7 +89,7 @@ export function useLearningObjectives() {
   return useQuery<LearningObjectives>({
     queryKey: [...queryKeys.user.settings(), 'objectives'],
     queryFn: async () => {
-      return await ApiClient.getLearningObjectives();
+      return await apiClient.getLearningObjectives();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.stable,
@@ -104,7 +104,7 @@ export function useUpdateLearningObjectives() {
 
   return useMutation<void, Error, Omit<LearningObjectives, 'userId'>>({
     mutationFn: async (objectives) => {
-      await ApiClient.updateLearningObjectives(objectives);
+      await apiClient.updateLearningObjectives(objectives);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -122,7 +122,7 @@ export function useSwitchLearningMode() {
 
   return useMutation<void, Error, { mode: LearningObjectives['mode']; reason?: string }>({
     mutationFn: async ({ mode, reason }) => {
-      await ApiClient.switchLearningMode(mode, reason);
+      await apiClient.switchLearningMode(mode, reason);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -141,7 +141,7 @@ export function useLearningModeSuggestions() {
   return useQuery({
     queryKey: [...queryKeys.user.settings(), 'modeSuggestions'],
     queryFn: async () => {
-      return await ApiClient.getLearningObjectiveSuggestions();
+      return await apiClient.getLearningObjectiveSuggestions();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.standard,
@@ -159,7 +159,7 @@ export function useRewardProfile() {
   return useQuery<RewardProfile>({
     queryKey: [...queryKeys.user.settings(), 'reward'],
     queryFn: async () => {
-      return await ApiClient.getUserRewardProfile();
+      return await apiClient.getUserRewardProfile();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.stable,
@@ -174,7 +174,7 @@ export function useUpdateRewardProfile() {
 
   return useMutation<{ currentProfile: string; message: string }, Error, string>({
     mutationFn: async (profileId) => {
-      return await ApiClient.updateUserRewardProfile(profileId);
+      return await apiClient.updateUserRewardProfile(profileId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -195,7 +195,7 @@ export function useChronotypeProfile() {
   return useQuery<ChronotypeProfile>({
     queryKey: [...queryKeys.user.settings(), 'chronotype'],
     queryFn: async () => {
-      return await ApiClient.getChronotypeProfile();
+      return await apiClient.getChronotypeProfile();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.stable,
@@ -211,7 +211,7 @@ export function useLearningStyleProfile() {
   return useQuery<LearningStyleProfile>({
     queryKey: [...queryKeys.user.settings(), 'learningStyle'],
     queryFn: async () => {
-      return await ApiClient.getLearningStyleProfile();
+      return await apiClient.getLearningStyleProfile();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.stable,
@@ -227,7 +227,7 @@ export function useCognitiveProfile() {
   return useQuery<CognitiveProfile>({
     queryKey: [...queryKeys.user.settings(), 'cognitive'],
     queryFn: async () => {
-      return await ApiClient.getCognitiveProfile();
+      return await apiClient.getCognitiveProfile();
     },
     enabled: isAuthenticated,
     ...QUERY_PRESETS.stable,

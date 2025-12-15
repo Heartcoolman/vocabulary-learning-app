@@ -302,14 +302,9 @@ describe('EnsembleAdapter', () => {
       // 2. 更新模型
       adapter.updateModel(decision.action, 0.7, features, mockContext);
 
-      // 3. 验证更新计数增加（注意：只有在normal阶段才会增加）
+      // 3. 验证更新计数增加（updateCount 在所有阶段都会递增）
       const updatedCount = adapter.getUpdateCount();
-      if (adapter.getPhase() === 'normal') {
-        expect(updatedCount).toBe(initialUpdateCount + 1);
-      } else {
-        // 在冷启动阶段，updateCount不会增加
-        expect(updatedCount).toBe(initialUpdateCount);
-      }
+      expect(updatedCount).toBe(initialUpdateCount + 1);
 
       // 4. 再次选择动作（模型已更新）
       const decision2 = adapter.selectAction(mockUserState, mockActions, features, mockContext);

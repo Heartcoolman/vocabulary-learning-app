@@ -18,14 +18,25 @@ import { useStudyProgress } from '../useStudyProgress';
 import { useTodayWords } from '../useTodayWords';
 import { useSubmitAnswer } from '../../mutations/useSubmitAnswer';
 import { useWordSearch } from '../useWordSearch';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 import { wordService } from '../../../services/word.service';
 import * as masteryModule from '../../mastery';
 import { queryKeys } from '../../../lib/queryKeys';
 import type { DifficultyLevel } from '../../../types/amas';
 
 // Mock dependencies
-vi.mock('../../../services/client');
+const { apiClientMock } = vi.hoisted(() => ({
+  apiClientMock: {
+    getStudyProgress: vi.fn(),
+    getTodayWords: vi.fn(),
+    searchWords: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/client', () => ({
+  apiClient: apiClientMock,
+  default: apiClientMock,
+}));
 vi.mock('../../../services/word.service');
 vi.mock('../../mastery');
 

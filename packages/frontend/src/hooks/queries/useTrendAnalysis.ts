@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type {
   TrendInfo,
   TrendHistoryItem,
@@ -27,7 +27,7 @@ export function useCurrentTrend() {
   return useQuery({
     queryKey: trendQueryKeys.current(),
     queryFn: async (): Promise<TrendInfo & { stateDescription: string }> => {
-      return await ApiClient.getCurrentTrend();
+      return await apiClient.getCurrentTrend();
     },
     staleTime: 60 * 1000, // 1分钟
     refetchInterval: 60 * 1000, // 每分钟自动刷新
@@ -43,7 +43,7 @@ export function useTrendHistory(days: number = 28) {
   return useQuery({
     queryKey: trendQueryKeys.history(days),
     queryFn: async () => {
-      return await ApiClient.getTrendHistory(days);
+      return await apiClient.getTrendHistory(days);
     },
     staleTime: 5 * 60 * 1000, // 5分钟
     refetchInterval: 5 * 60 * 1000, // 每5分钟自动刷新
@@ -58,7 +58,7 @@ export function useTrendReport() {
   return useQuery({
     queryKey: trendQueryKeys.report(),
     queryFn: async (): Promise<TrendReport> => {
-      return await ApiClient.getTrendReport();
+      return await apiClient.getTrendReport();
     },
     staleTime: 10 * 60 * 1000, // 10分钟
     refetchOnWindowFocus: true,
@@ -73,7 +73,7 @@ export function useIntervention() {
   return useQuery({
     queryKey: trendQueryKeys.intervention(),
     queryFn: async (): Promise<InterventionResult> => {
-      return await ApiClient.getIntervention();
+      return await apiClient.getIntervention();
     },
     staleTime: 2 * 60 * 1000, // 2分��
     refetchInterval: 5 * 60 * 1000, // 每5分钟检查一次
@@ -87,7 +87,7 @@ export function useGoldenTime() {
   return useQuery({
     queryKey: [...trendQueryKeys.all, 'goldenTime'],
     queryFn: async () => {
-      return await ApiClient.getGoldenTime();
+      return await apiClient.getGoldenTime();
     },
     staleTime: 30 * 60 * 1000, // 30分钟
   });
@@ -100,7 +100,7 @@ export function useTimePreferences() {
   return useQuery({
     queryKey: [...trendQueryKeys.all, 'timePreferences'],
     queryFn: async () => {
-      return await ApiClient.getTimePreferences();
+      return await apiClient.getTimePreferences();
     },
     staleTime: 60 * 60 * 1000, // 1小时
   });
@@ -114,7 +114,7 @@ export function useStateHistory(range: 7 | 14 | 30 | 90 = 30) {
   return useQuery({
     queryKey: [...trendQueryKeys.all, 'stateHistory', range],
     queryFn: async () => {
-      return await ApiClient.getStateHistory(range);
+      return await apiClient.getStateHistory(range);
     },
     staleTime: 5 * 60 * 1000, // 5分钟
   });
@@ -128,7 +128,7 @@ export function useCognitiveGrowth(range: 7 | 14 | 30 | 90 = 30) {
   return useQuery({
     queryKey: [...trendQueryKeys.all, 'cognitiveGrowth', range],
     queryFn: async () => {
-      return await ApiClient.getCognitiveGrowth(range);
+      return await apiClient.getCognitiveGrowth(range);
     },
     staleTime: 10 * 60 * 1000, // 10分钟
   });
@@ -142,7 +142,7 @@ export function useSignificantChanges(range: 7 | 14 | 30 | 90 = 30) {
   return useQuery({
     queryKey: [...trendQueryKeys.all, 'significantChanges', range],
     queryFn: async () => {
-      return await ApiClient.getSignificantChanges(range);
+      return await apiClient.getSignificantChanges(range);
     },
     staleTime: 10 * 60 * 1000, // 10分钟
   });
@@ -167,7 +167,7 @@ export function useGenerateTrendReport() {
 
   return useMutation({
     mutationFn: async () => {
-      return await ApiClient.getTrendReport();
+      return await apiClient.getTrendReport();
     },
     onSuccess: () => {
       // 刷新趋势相关数据

@@ -67,20 +67,24 @@ vi.mock('@/components/dashboard/ProgressOverviewCard', () => ({
   ),
 }));
 
-vi.mock('@/components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  TrendUp: () => <span data-testid="trend-up">📈</span>,
-  Activity: () => <span data-testid="activity">📊</span>,
-  WarningCircle: () => <span data-testid="warning-circle">⚠️</span>,
-  Calendar: () => <span data-testid="calendar">📅</span>,
-  Fire: () => <span data-testid="fire">🔥</span>,
-  Confetti: () => <span data-testid="confetti">🎉</span>,
-  Lightning: () => <span data-testid="lightning">⚡</span>,
-}));
+vi.mock('@/components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Icon')>();
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    TrendUp: () => <span data-testid="trend-up">📈</span>,
+    Activity: () => <span data-testid="activity">📊</span>,
+    WarningCircle: () => <span data-testid="warning-circle">⚠️</span>,
+    Calendar: () => <span data-testid="calendar">📅</span>,
+    Fire: () => <span data-testid="fire">🔥</span>,
+    Confetti: () => <span data-testid="confetti">🎉</span>,
+    Lightning: () => <span data-testid="lightning">⚡</span>,
+  };
+});
 
 // Mock other components that might be used
 vi.mock('@/components/progress/MilestoneCard', () => ({

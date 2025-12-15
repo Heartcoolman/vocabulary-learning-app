@@ -31,6 +31,7 @@ const CSRF_EXEMPT_PATHS = [
   '/auth/login',
   '/auth/register',
   '/auth/refresh',
+  env.HEALTHCHECK_ENDPOINT,
   '/health',
   '/metrics',
 ];

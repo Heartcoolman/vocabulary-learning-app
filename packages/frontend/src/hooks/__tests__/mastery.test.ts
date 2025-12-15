@@ -66,6 +66,14 @@ const { MockWordQueueManager } = vi.hoisted(() => {
     skipWord = vi.fn();
     getCurrentWordIds = vi.fn().mockReturnValue(['word-1', 'word-2']);
     getMasteredWordIds = vi.fn().mockReturnValue([]);
+    getState = vi.fn().mockReturnValue({
+      activeWords: [],
+      masteredWordIds: [],
+      pendingWordIds: [],
+      recentlyShown: [],
+      totalQuestions: 0,
+      words: [],
+    });
   }
   return { MockWordQueueManager };
 });

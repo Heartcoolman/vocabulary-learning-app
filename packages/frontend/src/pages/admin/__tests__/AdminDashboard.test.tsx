@@ -16,8 +16,41 @@ const createTestQueryClient = () =>
     },
   });
 
+const { mockUseAdminStatistics, mockUseSystemHealth, mockUseVisualFatigueStats } = vi.hoisted(
+  () => ({
+    mockUseAdminStatistics: vi.fn(),
+    mockUseSystemHealth: vi.fn(),
+    mockUseVisualFatigueStats: vi.fn(),
+  }),
+);
+
+vi.mock('../../../hooks/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/queries')>();
+  return {
+    ...actual,
+    useAdminStatistics: mockUseAdminStatistics,
+    useSystemHealth: mockUseSystemHealth,
+    useVisualFatigueStats: mockUseVisualFatigueStats,
+  };
+});
+
+vi.mock('../../../hooks/queries/useLLMAdvisor', () => ({
+  useLLMPendingCount: () => ({ data: 0 }),
+}));
+
+const { mockAmasClient } = vi.hoisted(() => ({
+  mockAmasClient: {
+    getAmasStrategy: vi.fn(),
+    resetAmasState: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/client', () => ({
+  amasClient: mockAmasClient,
+}));
+
 // Mock useToast hook
-vi.mock('@/components/ui', () => ({
+vi.mock('../../../components/ui', () => ({
   useToast: () => ({
     success: vi.fn(),
     error: vi.fn(),
@@ -52,22 +85,10 @@ const mockStats = {
   totalRecords: 5000,
 };
 
-vi.mock('@/services/client', () => ({
-  default: {
-    adminGetStatistics: vi.fn().mockResolvedValue({
-      totalUsers: 100,
-      activeUsers: 50,
-      totalWordBooks: 10,
-      systemWordBooks: 5,
-      userWordBooks: 5,
-      totalWords: 1000,
-      totalRecords: 5000,
-    }),
-  },
-}));
-
-vi.mock('@/components/Icon', async () => {
-  const actual = await vi.importActual('@/components/Icon');
+vi.mock('../../../components/Icon', async () => {
+  const actual = await vi.importActual<typeof import('../../../components/Icon')>(
+    '../../../components/Icon',
+  );
   return {
     ...actual,
     UsersThree: () => <span data-testid="icon-users">👥</span>,
@@ -102,10 +123,25 @@ const renderWithRouter = () => {
 describe('AdminDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAmasClient.getAmasStrategy.mockResolvedValue({
+      interval_scale: 1.0,
+      new_ratio: 0.3,
+      difficulty: 'mid',
+      batch_size: 10,
+      hint_level: 1,
+    });
+    mockUseSystemHealth.mockReturnValue({ data: undefined });
+    mockUseVisualFatigueStats.mockReturnValue({ data: undefined, isLoading: false, error: null });
   });
 
   describe('loading state', () => {
     it('should show loading indicator initially', () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
@@ -115,6 +151,12 @@ describe('AdminDashboard', () => {
 
   describe('data display', () => {
     it('should render page title after loading', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -123,6 +165,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should display statistics cards', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -135,6 +183,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should display active users count', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -146,6 +200,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should display wordbook statistics', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -155,6 +215,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should display word count', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -164,6 +230,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should calculate active rate correctly', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -172,6 +244,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should calculate average words per wordbook', async () => {
+      mockUseAdminStatistics.mockReturnValue({
+        data: mockStats,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
       renderWithRouter();
 
       await waitFor(() => {
@@ -185,8 +263,12 @@ describe('AdminDashboard', () => {
 
   describe('error state', () => {
     it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('网络错误'));
+      mockUseAdminStatistics.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('网络错误'),
+        refetch: vi.fn(),
+      });
 
       renderWithRouter();
 
@@ -197,8 +279,12 @@ describe('AdminDashboard', () => {
     });
 
     it('should show retry button on error', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.adminGetStatistics).mockRejectedValue(new Error('Error'));
+      mockUseAdminStatistics.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('Error'),
+        refetch: vi.fn(),
+      });
 
       renderWithRouter();
 
@@ -208,10 +294,13 @@ describe('AdminDashboard', () => {
     });
 
     it('should reload data when retry clicked', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.adminGetStatistics)
-        .mockRejectedValueOnce(new Error('Error'))
-        .mockResolvedValueOnce(mockStats);
+      const refetch = vi.fn();
+      mockUseAdminStatistics.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('Error'),
+        refetch,
+      });
 
       renderWithRouter();
 
@@ -221,19 +310,17 @@ describe('AdminDashboard', () => {
 
       fireEvent.click(screen.getByText('重试'));
 
-      await waitFor(() => {
-        expect(screen.getByText('系统概览')).toBeInTheDocument();
-      });
+      expect(refetch).toHaveBeenCalled();
     });
   });
 
   describe('edge cases', () => {
     it('should handle zero total users', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
-        ...mockStats,
-        totalUsers: 0,
-        activeUsers: 0,
+      mockUseAdminStatistics.mockReturnValue({
+        data: { ...mockStats, totalUsers: 0, activeUsers: 0 },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
       });
 
       renderWithRouter();
@@ -244,10 +331,11 @@ describe('AdminDashboard', () => {
     });
 
     it('should handle zero wordbooks', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.adminGetStatistics).mockResolvedValue({
-        ...mockStats,
-        totalWordBooks: 0,
+      mockUseAdminStatistics.mockReturnValue({
+        data: { ...mockStats, totalWordBooks: 0 },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
       });
 
       renderWithRouter();

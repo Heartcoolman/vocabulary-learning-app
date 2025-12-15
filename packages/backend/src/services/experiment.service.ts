@@ -438,7 +438,7 @@ class ExperimentService {
         }>
       >`
         SELECT "sampleCount", "averageReward", "m2"
-        FROM "ABExperimentMetrics"
+        FROM "ab_experiment_metrics"
         WHERE "experimentId" = ${experimentId} AND "variantId" = ${variantId}
         FOR UPDATE
       `;
@@ -583,7 +583,8 @@ class ExperimentService {
       hash = (hash << 5) - hash + char;
       hash = hash & 0xffffffff; // 转换为32位整数
     }
-    return Math.abs(hash);
+    // 转换为 32 位无符号整数（避免归一化时落入 [0, 0.5] 导致分配偏斜）
+    return hash >>> 0;
   }
 
   // ==================== 私有方法 ====================

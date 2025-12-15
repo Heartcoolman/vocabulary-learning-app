@@ -92,6 +92,13 @@ export class DynamicWeightCalculator {
   }
 
   /**
+   * 更新配置（运行时可调参）
+   */
+  updateConfig(config: Partial<DynamicWeightConfig>): void {
+    this.config = { ...this.config, ...config };
+  }
+
+  /**
    * 计算动态权重
    *
    * @param visualData 视觉疲劳数据
@@ -225,11 +232,12 @@ export class DynamicWeightCalculator {
    * 获取历史可靠性因子
    */
   private getHistoryReliability(userId?: string): number {
-    if (!userId) return 0.5; // 无用户ID时使用默认值
+    // 无历史数据时不应惩罚视觉信号，使用中性默认值
+    if (!userId) return 1.0;
 
     const history = this.userHistories.get(userId);
     if (!history || history.sampleCount < 5) {
-      return 0.5; // 样本不足时使用默认值
+      return 1.0;
     }
 
     // 相关性越高，可靠性越高

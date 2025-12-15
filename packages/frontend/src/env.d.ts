@@ -8,9 +8,11 @@
 interface ImportMetaEnv {
   /**
    * 后端 API 地址
+   * - 留空/不设置：使用同源（通过 Nginx/Vite proxy 转发 /api）
+   * - 设置为完整 URL：跨域直连后端
    * @example "http://localhost:3000"
    */
-  readonly VITE_API_URL: string;
+  readonly VITE_API_URL?: string;
 
   /**
    * Sentry DSN（可选）

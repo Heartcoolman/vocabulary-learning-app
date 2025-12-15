@@ -19,14 +19,7 @@
  * - 通过事件总线解耦服务间通信
  */
 
-import {
-  WordLearningState,
-  WordScore,
-  WordState,
-  Prisma,
-  WordBookType,
-  AnswerRecord,
-} from '@prisma/client';
+import { WordLearningState, WordScore, WordState, Prisma, WordBookType } from '@prisma/client';
 import { cacheService, CacheKeys, CacheTTL } from './cache.service';
 import prisma from '../config/database';
 import { getEventBus } from '../core/event-bus';
@@ -576,24 +569,68 @@ export class LearningStateService {
   private async calculateScore(
     userId: string,
     wordId: string,
-  ): Promise<{ userId: string; wordId: string; score: number }> {
+  ): Promise<{
+    userId: string;
+    wordId: string;
+    totalScore: number;
+    accuracyScore: number;
+    speedScore: number;
+    totalAttempts: number;
+    correctAttempts: number;
+    averageResponseTime: number;
+    recentAccuracy: number;
+  }> {
     const records = await prisma.answerRecord.findMany({
       where: { userId, wordId },
+      select: { isCorrect: true, responseTime: true },
     });
 
     if (records.length === 0) {
-      return { userId, wordId, score: 0 };
+      return {
+        userId,
+        wordId,
+        totalScore: 0,
+        accuracyScore: 0,
+        speedScore: 0,
+        totalAttempts: 0,
+        correctAttempts: 0,
+        averageResponseTime: 0,
+        recentAccuracy: 0,
+      };
     }
 
-    const correct = records.filter((r: AnswerRecord) => r.isCorrect).length;
-    const accuracy = correct / records.length;
-    const avgTime =
-      records.reduce((sum: number, r: AnswerRecord) => sum + (r.responseTime ?? 0), 0) /
-      Math.max(records.length, 1);
-    const timeScore = Math.max(0, Math.min(1, 1 - avgTime / 5000));
-    const score = Math.max(0, Math.min(1, 0.7 * accuracy + 0.3 * timeScore));
+    const totalAttempts = records.length;
+    const correctAttempts = records.filter((r) => r.isCorrect).length;
+    const accuracy = totalAttempts > 0 ? correctAttempts / totalAttempts : 0;
 
-    return { userId, wordId, score };
+    const responseTimes = records
+      .map((r) => r.responseTime)
+      .filter((t): t is number => typeof t === 'number' && Number.isFinite(t) && t > 0);
+    const averageResponseTime =
+      responseTimes.length > 0
+        ? responseTimes.reduce((sum, t) => sum + t, 0) / responseTimes.length
+        : 5000;
+
+    // 简化版速度得分：<= 0ms 视作最快，>= 5000ms 视作最慢
+    const timeScore01 = Math.max(0, Math.min(1, 1 - averageResponseTime / 5000));
+
+    const accuracyScore = Math.round(accuracy * 100);
+    const speedScore = Math.round(timeScore01 * 100);
+    const totalScore = Math.round(
+      Math.max(0, Math.min(1, 0.7 * accuracy + 0.3 * timeScore01)) * 100,
+    );
+
+    return {
+      userId,
+      wordId,
+      totalScore,
+      accuracyScore,
+      speedScore,
+      totalAttempts,
+      correctAttempts,
+      averageResponseTime,
+      recentAccuracy: accuracyScore,
+    };
   }
 
   /**
@@ -690,17 +727,33 @@ export class LearningStateService {
     wordId: string,
     result: { isCorrect: boolean; responseTime?: number },
   ): Promise<WordScore> {
-    const { score } = await this.calculateScore(userId, wordId);
+    void result;
+
+    const computed = await this.calculateScore(userId, wordId);
     const payload: Prisma.WordScoreCreateInput = {
       user: { connect: { id: userId } },
       word: { connect: { id: wordId } },
-      totalScore: score,
+      totalScore: computed.totalScore,
+      accuracyScore: computed.accuracyScore,
+      speedScore: computed.speedScore,
+      totalAttempts: computed.totalAttempts,
+      correctAttempts: computed.correctAttempts,
+      averageResponseTime: computed.averageResponseTime,
+      recentAccuracy: computed.recentAccuracy,
     };
 
     const wordScore = await prisma.wordScore.upsert({
       where: { unique_user_word_score: { userId, wordId } },
       create: payload,
-      update: { totalScore: score },
+      update: {
+        totalScore: computed.totalScore,
+        accuracyScore: computed.accuracyScore,
+        speedScore: computed.speedScore,
+        totalAttempts: computed.totalAttempts,
+        correctAttempts: computed.correctAttempts,
+        averageResponseTime: computed.averageResponseTime,
+        recentAccuracy: computed.recentAccuracy,
+      },
     });
 
     // 清除缓存

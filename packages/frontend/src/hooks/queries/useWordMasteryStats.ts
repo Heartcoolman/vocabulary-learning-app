@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type {
   UserMasteryStats,
   MasteryEvaluation,
@@ -27,7 +27,7 @@ export function useWordMasteryStats() {
   return useQuery({
     queryKey: masteryQueryKeys.stats(),
     queryFn: async (): Promise<UserMasteryStats> => {
-      return await ApiClient.getWordMasteryStats();
+      return await apiClient.getWordMasteryStats();
     },
     staleTime: 60 * 1000, // 1分钟
     refetchInterval: 60 * 1000, // 每分钟自动刷新
@@ -47,9 +47,9 @@ export function useBatchWordMastery(wordIds: string[], userFatigue?: number) {
       if (!wordIds || wordIds.length === 0) {
         return [];
       }
-      return await ApiClient.batchProcessWordMastery(wordIds, userFatigue);
+      return await apiClient.batchProcessWordMastery(wordIds, userFatigue);
     },
-    enabled: wordIds.length > 0,
+    enabled: true,
     staleTime: 2 * 60 * 1000, // 2分钟
   });
 }
@@ -63,7 +63,7 @@ export function useWordMasteryDetail(wordId: string, userFatigue?: number) {
   return useQuery({
     queryKey: masteryQueryKeys.evaluation(wordId),
     queryFn: async (): Promise<MasteryEvaluation> => {
-      return await ApiClient.getWordMasteryDetail(wordId, userFatigue);
+      return await apiClient.getWordMasteryDetail(wordId, userFatigue);
     },
     enabled: !!wordId,
     staleTime: 2 * 60 * 1000, // 2分钟
@@ -79,7 +79,7 @@ export function useWordMasteryTrace(wordId: string, limit?: number) {
   return useQuery({
     queryKey: masteryQueryKeys.trace(wordId),
     queryFn: async (): Promise<WordMasteryTrace> => {
-      return await ApiClient.getWordMasteryTrace(wordId, limit);
+      return await apiClient.getWordMasteryTrace(wordId, limit);
     },
     enabled: !!wordId,
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -95,7 +95,7 @@ export function useWordMasteryInterval(wordId: string, targetRecall?: number) {
   return useQuery({
     queryKey: masteryQueryKeys.interval(wordId),
     queryFn: async () => {
-      return await ApiClient.getWordMasteryInterval(wordId, targetRecall);
+      return await apiClient.getWordMasteryInterval(wordId, targetRecall);
     },
     enabled: !!wordId,
     staleTime: 5 * 60 * 1000, // 5分钟
@@ -110,7 +110,7 @@ export function useLearnedWords() {
   return useQuery({
     queryKey: [...queryKeys.words.all, 'learned'],
     queryFn: async () => {
-      return await ApiClient.getLearnedWords();
+      return await apiClient.getLearnedWords();
     },
     staleTime: 2 * 60 * 1000, // 2分钟
   });
@@ -129,11 +129,11 @@ export function usePrefetchWordMastery() {
       await Promise.all([
         queryClient.prefetchQuery({
           queryKey: masteryQueryKeys.evaluation(wordId),
-          queryFn: () => ApiClient.getWordMasteryDetail(wordId, userFatigue),
+          queryFn: () => apiClient.getWordMasteryDetail(wordId, userFatigue),
         }),
         queryClient.prefetchQuery({
           queryKey: masteryQueryKeys.trace(wordId),
-          queryFn: () => ApiClient.getWordMasteryTrace(wordId),
+          queryFn: () => apiClient.getWordMasteryTrace(wordId),
         }),
       ]);
     },
