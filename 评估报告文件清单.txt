@@ -8,7 +8,7 @@
 --------------------------
 
 1. FINAL_COMPREHENSIVE_EVALUATION.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: 97页完整评估报告,包含7大评估任务的5轮深度分析
    - 目标达成度评估
    - 投入产出比分析
@@ -19,7 +19,7 @@
    - 最终决策建议
 
 2. EXECUTIVE_SUMMARY.md
-   位置: /home/liji/danci/danci/
+   位置: ./
    内容: 执行摘要,快速浏览版(10分钟阅读)
    - 一分钟速览
    - 关键数字
@@ -29,7 +29,7 @@
    - 决策建议
 
 3. DECISION_DASHBOARD.md
-   位置: /home/liji/danci/danci/
+   位置: ./
    内容: 可视化决策仪表板(ASCII图表)
    - 总体评估仪表盘
    - 六维雷达评估
@@ -40,7 +40,7 @@
    - 上线就绪度检查表
 
 4. 最终评估报告-中文简版.md
-   位置: /home/liji/danci/danci/
+   位置: ./
    内容: 中文简化版评估报告(20分钟阅读)
    - 核心结论
    - 项目成果总览
@@ -53,7 +53,7 @@
 --------------------------
 
 5. VITE_BUILD_OPTIMIZATION_REPORT.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: Vite构建配置优化报告
    - 优化措施详解
    - Bundle大小对比
@@ -61,7 +61,7 @@
    - 后续建议
 
 6. HISTORYPAGE_OPTIMIZATION_REPORT.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: HistoryPage组件重构报告
    - 代码规模对比 (1009行→455行)
    - 创建的新文件
@@ -69,7 +69,7 @@
    - 子组件清单
 
 7. BUNDLE_ANALYSIS_REPORT.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: Bundle分析详细报告
    - 整体构建统计
    - 核心Bundle分析
@@ -78,7 +78,7 @@
    - 优化建议
 
 8. FUNCTIONAL_TEST_REPORT.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: 功能测试验证报告
    - 组件功能验证
    - API调用验证
@@ -89,7 +89,7 @@
    - 破坏性变更检查
 
 9. PRECONNECT_IMPLEMENTATION_REPORT.md
-   位置: /home/liji/danci/danci/packages/frontend/
+   位置: packages/frontend/
    内容: 资源预加载实施报告
    - 技术方案
    - 代码修改
@@ -97,7 +97,7 @@
    - 性能优势
 
 10. TEST_SUMMARY.md
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: 功能测试验证摘要
     - 测试统计
     - 核心组件验证
@@ -105,7 +105,7 @@
     - 推荐行动
 
 11. REACT_QUERY_SETUP.md
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: React Query配置指南
     - 安装和配置
     - 缓存策略
@@ -113,21 +113,21 @@
     - 实际应用
 
 12. REACT_QUERY_QUICK_REFERENCE.md
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: React Query快速参考
     - API速查
     - 常见模式
     - 最佳实践
 
 13. MIGRATION_REPORT.md
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: 迁移报告
     - 迁移路径
     - 变更记录
     - 兼容性说明
 
 14. ADMIN_API_MIGRATION.md
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: 管理API迁移文档
     - API变更清单
     - 迁移步骤
@@ -137,7 +137,7 @@
 --------------------------
 
 15. performance-baseline.json
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: 性能基准数据
     - Bundle大小统计
     - 性能指标基准
@@ -145,7 +145,7 @@
     - 已知问题清单
 
 16. performance-estimation.json
-    位置: /home/liji/danci/danci/packages/frontend/
+    位置: packages/frontend/
     内容: 性能估算数据
     - Bundle指标
     - 网络性能估算

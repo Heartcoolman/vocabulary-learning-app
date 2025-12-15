@@ -38,6 +38,10 @@ interface StrategyComparison {
   sampleSize: number;
 }
 
+function formatFixed(value: unknown, digits: number = 4): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
+}
+
 export default function CausalInferencePage() {
   const toast = useToast();
 
@@ -351,12 +355,12 @@ export default function CausalInferencePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-button bg-blue-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">平均处理效应</p>
-                    <p className="text-3xl font-bold text-gray-900">{ate.ate.toFixed(4)}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatFixed(ate.ate, 4)}</p>
                   </div>
                   <div className="rounded-button bg-green-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">标准误</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {ate.standardError.toFixed(4)}
+                      {formatFixed(ate.standardError, 4)}
                     </p>
                   </div>
                 </div>
@@ -390,7 +394,8 @@ export default function CausalInferencePage() {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-gray-600">
-                    [{ate.confidenceInterval[0].toFixed(4)}, {ate.confidenceInterval[1].toFixed(4)}]
+                    [{formatFixed(ate.confidenceInterval?.[0], 4)},{' '}
+                    {formatFixed(ate.confidenceInterval?.[1], 4)}]
                   </p>
                 </div>
 
@@ -405,7 +410,7 @@ export default function CausalInferencePage() {
                   </div>
                   <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">P 值</p>
-                    <p className="text-xl font-bold text-gray-900">{ate.pValue.toFixed(4)}</p>
+                    <p className="text-xl font-bold text-gray-900">{formatFixed(ate.pValue, 4)}</p>
                   </div>
                 </div>
 
@@ -485,13 +490,13 @@ export default function CausalInferencePage() {
                       <div>
                         <span className="text-xs text-gray-500">对照组(0):</span>
                         <span className="ml-1 font-bold">
-                          {diagnostics.treatmentDistribution[0] ?? 0}
+                          {diagnostics.treatmentDistribution?.[0] ?? 0}
                         </span>
                       </div>
                       <div>
                         <span className="text-xs text-gray-500">处理组(1):</span>
                         <span className="ml-1 font-bold">
-                          {diagnostics.treatmentDistribution[1] ?? 0}
+                          {diagnostics.treatmentDistribution?.[1] ?? 0}
                         </span>
                       </div>
                     </div>
@@ -506,7 +511,7 @@ export default function CausalInferencePage() {
                       <div>
                         <span className="text-gray-600">ATE:</span>
                         <span className="ml-1 font-bold">
-                          {diagnostics.latestEstimate.ate.toFixed(4)}
+                          {formatFixed(diagnostics.latestEstimate?.ate, 4)}
                         </span>
                       </div>
                       <div>
@@ -553,12 +558,14 @@ export default function CausalInferencePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-button bg-indigo-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">效应差异</p>
-                    <p className="text-3xl font-bold text-gray-900">{comparison.diff.toFixed(4)}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatFixed(comparison.diff, 4)}
+                    </p>
                   </div>
                   <div className="rounded-button bg-indigo-50 p-4">
                     <p className="mb-1 text-sm text-gray-600">标准误</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {comparison.standardError.toFixed(4)}
+                      {formatFixed(comparison.standardError, 4)}
                     </p>
                   </div>
                 </div>
@@ -566,8 +573,8 @@ export default function CausalInferencePage() {
                 <div className="rounded-button bg-pink-50 p-4">
                   <p className="mb-2 text-sm text-gray-600">95% 置信区间</p>
                   <p className="text-sm text-gray-700">
-                    [{comparison.confidenceInterval[0].toFixed(4)},{' '}
-                    {comparison.confidenceInterval[1].toFixed(4)}]
+                    [{formatFixed(comparison.confidenceInterval?.[0], 4)},{' '}
+                    {formatFixed(comparison.confidenceInterval?.[1], 4)}]
                   </p>
                 </div>
 
@@ -575,7 +582,7 @@ export default function CausalInferencePage() {
                   <div className="rounded-button bg-gray-50 p-3">
                     <p className="mb-1 text-xs text-gray-600">P 值</p>
                     <p className="text-xl font-bold text-gray-900">
-                      {comparison.pValue.toFixed(4)}
+                      {formatFixed(comparison.pValue, 4)}
                     </p>
                   </div>
                   <div className="rounded-button bg-gray-50 p-3">

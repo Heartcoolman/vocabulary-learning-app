@@ -67,11 +67,14 @@ const mockMasteryRadar = {
 };
 
 vi.mock('../../../services/aboutApi', () => ({
-  getOverviewStats: vi.fn(),
+  getOverviewStatsWithSource: vi.fn(),
   getAlgorithmDistribution: vi.fn(),
+  getAlgorithmTrend: vi.fn(),
   getPerformanceMetrics: vi.fn(),
   getOptimizationEvents: vi.fn(),
   getMasteryRadar: vi.fn(),
+  getLearningModeDistribution: vi.fn(),
+  getHalfLifeDistribution: vi.fn(),
 }));
 
 // Mock logger
@@ -90,21 +93,51 @@ vi.mock('../../../utils/animations', () => ({
 }));
 
 import {
-  getOverviewStats,
+  getOverviewStatsWithSource,
   getAlgorithmDistribution,
+  getAlgorithmTrend,
   getPerformanceMetrics,
   getOptimizationEvents,
   getMasteryRadar,
+  getLearningModeDistribution,
+  getHalfLifeDistribution,
 } from '../../../services/aboutApi';
 
 describe('StatsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getOverviewStats as any).mockResolvedValue(mockOverviewStats);
+    (getOverviewStatsWithSource as any).mockResolvedValue({
+      data: mockOverviewStats,
+      source: 'virtual',
+    });
     (getAlgorithmDistribution as any).mockResolvedValue(mockAlgorithmDistribution);
+    (getAlgorithmTrend as any).mockResolvedValue({
+      thompson: [45, 48, 50, 52, 55, 53, 56, 58, 60, 62],
+      linucb: [40, 42, 43, 45, 46, 48, 50, 49, 51, 53],
+      actr: [35, 36, 38, 40, 41, 43, 44, 46, 47, 48],
+      heuristic: [30, 31, 32, 33, 35, 36, 37, 38, 39, 40],
+      coldstart: [20, 22, 24, 23, 25, 26, 27, 28, 29, 30],
+    });
     (getPerformanceMetrics as any).mockResolvedValue(mockPerformanceMetrics);
     (getOptimizationEvents as any).mockResolvedValue(mockOptimizationEvents);
     (getMasteryRadar as any).mockResolvedValue(mockMasteryRadar);
+    (getLearningModeDistribution as any).mockResolvedValue({
+      exam: 0.1,
+      daily: 0.7,
+      travel: 0.1,
+      custom: 0.1,
+    });
+    (getHalfLifeDistribution as any).mockResolvedValue({
+      avgHalfLife: 4.5,
+      totalWords: 150000,
+      distribution: [
+        { range: '0-1天', count: 15000, percentage: 10 },
+        { range: '1-3天', count: 30000, percentage: 20 },
+        { range: '3-7天', count: 45000, percentage: 30 },
+        { range: '7-14天', count: 37500, percentage: 25 },
+        { range: '14天+', count: 22500, percentage: 15 },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -274,9 +307,10 @@ describe('StatsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('标准模式')).toBeInTheDocument();
-        expect(screen.getByText('突击模式')).toBeInTheDocument();
-        expect(screen.getByText('轻松模式')).toBeInTheDocument();
+        expect(screen.getByText('考试模式')).toBeInTheDocument();
+        expect(screen.getByText('日常模式')).toBeInTheDocument();
+        expect(screen.getByText('旅行模式')).toBeInTheDocument();
+        expect(screen.getByText('自定义模式')).toBeInTheDocument();
       });
     });
   });
@@ -341,11 +375,14 @@ describe('StatsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(getOverviewStats).toHaveBeenCalled();
+        expect(getOverviewStatsWithSource).toHaveBeenCalled();
         expect(getAlgorithmDistribution).toHaveBeenCalled();
+        expect(getAlgorithmTrend).toHaveBeenCalled();
         expect(getPerformanceMetrics).toHaveBeenCalled();
         expect(getOptimizationEvents).toHaveBeenCalled();
         expect(getMasteryRadar).toHaveBeenCalled();
+        expect(getLearningModeDistribution).toHaveBeenCalled();
+        expect(getHalfLifeDistribution).toHaveBeenCalled();
       });
     });
 
@@ -356,14 +393,14 @@ describe('StatsPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(getOverviewStats).toHaveBeenCalledTimes(1);
+        expect(getOverviewStatsWithSource).toHaveBeenCalledTimes(1);
       });
 
       // Advance timers by 60 seconds
       vi.advanceTimersByTime(60000);
 
       await waitFor(() => {
-        expect(getOverviewStats).toHaveBeenCalledTimes(2);
+        expect(getOverviewStatsWithSource).toHaveBeenCalledTimes(2);
       });
 
       vi.useRealTimers();
@@ -384,7 +421,7 @@ describe('StatsPage', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      (getOverviewStats as any).mockRejectedValue(new Error('API Error'));
+      (getOverviewStatsWithSource as any).mockRejectedValue(new Error('API Error'));
 
       renderComponent();
 

@@ -38,9 +38,9 @@ export interface BlinkDetectorConfig {
  * 默认眨眼检测配置
  */
 export const DEFAULT_BLINK_CONFIG: BlinkDetectorConfig = {
-  earThreshold: 0.25, // 提高阈值，更容易触发
-  minBlinkDuration: 30, // 降低最小时长，捕捉快速眨眼
-  maxBlinkDuration: 800, // 增加最大时长
+  earThreshold: 0.2,
+  minBlinkDuration: 50,
+  maxBlinkDuration: 500,
   windowSizeSeconds: 60,
 };
 
@@ -90,6 +90,7 @@ export class BlinkDetector {
     const ts = timestamp ?? Date.now();
     const threshold = this.config.earThreshold;
     let blinkEvent: BlinkEvent | null = null;
+    const closedThreshold = threshold * 0.8;
 
     // 简化的状态机逻辑
     switch (this.state) {
@@ -98,24 +99,23 @@ export class BlinkDetector {
         if (ear < threshold) {
           this.state = 'CLOSING';
           this.closeStartTime = ts;
-          console.log('[BlinkDetector] Started closing at', ts);
         }
         break;
 
       case 'CLOSING':
         // 正在闭眼，检测是否完全闭合或恢复
-        if (ear < threshold * 0.85) {
+        if (ear < closedThreshold) {
           // 眼睛闭合程度足够
           this.state = 'CLOSED';
-        } else if (ear >= threshold * 1.1) {
-          // 恢复睁开，可能是假眨眼
+        } else if (ear >= threshold) {
+          // 恢复睁开，可能是误触发
           this.state = 'OPEN';
         }
         break;
 
       case 'CLOSED':
         // 眼睛闭合状态，检测是否开始睁眼
-        if (ear >= threshold * 0.85) {
+        if (ear >= closedThreshold) {
           this.state = 'OPENING';
         }
         break;
@@ -125,31 +125,19 @@ export class BlinkDetector {
         if (ear >= threshold) {
           // 完成一次眨眼
           const duration = ts - this.closeStartTime;
-
-          console.log(
-            '[BlinkDetector] Blink completed, duration:',
-            duration,
-            'ms, range:',
-            this.config.minBlinkDuration,
-            '-',
-            this.config.maxBlinkDuration,
-          );
-
-          // 验证眨眼时长（放宽限制）
-          if (duration >= this.config.minBlinkDuration) {
-            // 移除最大时长限制，因为慢眨眼也应该被检测
+          if (
+            duration >= this.config.minBlinkDuration &&
+            duration <= this.config.maxBlinkDuration
+          ) {
             blinkEvent = {
               timestamp: ts,
-              duration: Math.min(duration, this.config.maxBlinkDuration), // 限制记录的时长
+              duration,
             };
             this.addBlinkEvent(blinkEvent);
-            console.log('[BlinkDetector] ✓ Blink recorded!', blinkEvent);
-          } else {
-            console.log('[BlinkDetector] ✗ Blink too short, ignored');
           }
 
           this.state = 'OPEN';
-        } else if (ear < threshold * 0.7) {
+        } else if (ear < closedThreshold) {
           // 又闭眼了
           this.state = 'CLOSED';
         }

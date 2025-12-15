@@ -28,18 +28,22 @@ vi.mock('react-window', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Star: ({ weight, color }: any) => (
-    <span data-testid="star" data-weight={weight} data-color={color}>
-      ★
-    </span>
-  ),
-  Target: () => <span data-testid="target">🎯</span>,
-  Clock: () => <span data-testid="clock">🕐</span>,
-  CheckCircle: () => <span data-testid="check-circle">✓</span>,
-  Warning: () => <span data-testid="warning">⚠</span>,
-  ArrowClockwise: () => <span data-testid="arrow-clockwise">↻</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Star: ({ weight, color }: any) => (
+      <span data-testid="star" data-weight={weight} data-color={color}>
+        ★
+      </span>
+    ),
+    Target: () => <span data-testid="target">🎯</span>,
+    Clock: () => <span data-testid="clock">🕐</span>,
+    CheckCircle: () => <span data-testid="check-circle">✓</span>,
+    Warning: () => <span data-testid="warning">⚠</span>,
+    ArrowClockwise: () => <span data-testid="arrow-clockwise">↻</span>,
+  };
+});
 
 describe('VirtualWordList', () => {
   const createMockWords = (count: number): WordWithState[] => {

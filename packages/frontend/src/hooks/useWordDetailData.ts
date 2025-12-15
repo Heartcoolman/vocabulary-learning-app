@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import apiClient from '../services/client';
+import { apiClient } from '../services/client';
+import { ApiError } from '../services/client';
 import { wordService } from '../services/word.service';
 import { learningLogger } from '../utils/logger';
 import type {
@@ -29,22 +30,26 @@ export const useWordDetailData = (wordId: string, isOpen: boolean) => {
       setLoading(true);
       setError(null);
 
+      const wordDataPromise = (async () => {
+        const learnedWords = await apiClient.getLearnedWords().catch(() => []);
+        const found = learnedWords.find((word) => word.id === wordId);
+        if (found) return found;
+
+        try {
+          const { data } = await wordService.getWordById(wordId);
+          return data;
+        } catch (err) {
+          if (err instanceof ApiError && err.isNotFound) {
+            return undefined;
+          }
+          throw err;
+        }
+      })();
+
       // 并发加载所有数据
       const [wordData, masteryData, traceData, intervalData] = await Promise.all([
         // 优先从已学习列表获取，失败则回退到单词详情查询
-        apiClient
-          .getLearnedWords()
-          .then((words) => words.find((w) => w.id === wordId))
-          .catch(() => undefined)
-          .then(async (found) => {
-            if (found) return found;
-            try {
-              const { data } = await wordService.getWordById(wordId);
-              return data;
-            } catch {
-              return undefined;
-            }
-          }),
+        wordDataPromise,
         // 获取掌握度评估
         apiClient.getWordMasteryDetail(wordId).catch(() => null),
         // 获取学习轨迹

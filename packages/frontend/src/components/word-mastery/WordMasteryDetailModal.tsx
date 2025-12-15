@@ -40,6 +40,8 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
 }) => {
   const { loading, error, data, reload } = useWordDetailData(wordId, isOpen);
 
+  const normalizePhonetic = (phonetic: string) => phonetic.replace(/^\/+|\/+$/g, '').trim();
+
   const getMasteryLevel = (mastery: MasteryEvaluation | null) => {
     if (!mastery) {
       return {
@@ -113,6 +115,7 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
     }
 
     const level = getMasteryLevel(data.mastery);
+    const phonetic = normalizePhonetic(data.phonetic);
 
     return (
       <motion.div
@@ -127,12 +130,18 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
             <h2 className="text-6xl font-bold tracking-tight text-gray-900 md:text-8xl">
               {data.spelling}
             </h2>
-            <button className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-floating transition-all hover:scale-110 hover:bg-blue-600 hover:shadow-2xl active:scale-95">
+            <button
+              type="button"
+              aria-label="播放发音"
+              className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-floating transition-all hover:scale-110 hover:bg-blue-600 hover:shadow-2xl active:scale-95"
+            >
               <SpeakerHigh size={32} weight="fill" />
             </button>
           </div>
 
-          <p className="mb-8 font-sans text-3xl font-normal text-gray-400">/{data.phonetic}/</p>
+          {phonetic ? (
+            <p className="mb-8 font-sans text-3xl font-normal text-gray-400">/{phonetic}/</p>
+          ) : null}
 
           {/* Meanings */}
           <div className="mx-auto flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 px-6">
@@ -294,11 +303,16 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
             initial="hidden"
             animate="visible"
             exit="exit"
+            role="dialog"
+            aria-modal="true"
+            aria-label="单词掌握度详情"
             className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           >
             {/* Close Button */}
             <button
+              type="button"
               onClick={onClose}
+              aria-label="关闭"
               className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
             >
               <X size={24} weight="bold" />

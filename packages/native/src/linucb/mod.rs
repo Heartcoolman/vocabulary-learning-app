@@ -88,7 +88,7 @@ impl LinUCBNative {
 
         // 动作特征 - one-hot (5维)
         let difficulty =
-            Difficulty::from_str(&action.difficulty).unwrap_or(Difficulty::Recognition);
+            Difficulty::try_from_str(&action.difficulty).unwrap_or(Difficulty::Recognition);
         let diff_idx = difficulty.to_index();
         for i in 0..5 {
             x[idx + i] = if i == diff_idx { 1.0 } else { 0.0 };
@@ -523,7 +523,7 @@ impl LinUCBNative {
         };
 
         // 准确率不稳定时增加探索
-        let accuracy_factor = if recent_accuracy < 0.3 || recent_accuracy > 0.9 {
+        let accuracy_factor = if !(0.3..=0.9).contains(&recent_accuracy) {
             1.3
         } else {
             1.0

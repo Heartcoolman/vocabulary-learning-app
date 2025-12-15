@@ -319,9 +319,10 @@ describe('useWordMutations', () => {
       });
     });
 
-    // 应该立即进入加载状态
-    expect(result.current.isCreating).toBe(true);
-    expect(result.current.isAnyPending).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isCreating).toBe(true);
+      expect(result.current.isAnyPending).toBe(true);
+    });
 
     await waitFor(() => {
       expect(result.current.isCreating).toBe(false);

@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { LearningModeSelector } from '../LearningModeSelector';
 
 // Mock framer-motion
@@ -20,6 +21,9 @@ vi.mock('@phosphor-icons/react', () => ({
   GraduationCap: () => <span data-testid="graduation-icon">GraduationCap</span>,
   Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
   Coffee: () => <span data-testid="coffee-icon">Coffee</span>,
+  Cards: () => <span data-testid="cards-icon">Cards</span>,
+  Translate: () => <span data-testid="translate-icon">Translate</span>,
+  ArrowsLeftRight: () => <span data-testid="arrows-icon">ArrowsLeftRight</span>,
 }));
 
 // Mock ApiClient - 需要与组件中导入的路径一致
@@ -61,6 +65,8 @@ const mockModes = [
 ];
 
 describe('LearningModeSelector', () => {
+  const renderWithRouter = (ui: any) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(mockApiClient.getUserRewardProfile).mockResolvedValue({
@@ -77,7 +83,7 @@ describe('LearningModeSelector', () => {
 
   describe('rendering', () => {
     it('should render selector button', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -85,7 +91,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should display current mode icon', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByTestId('graduation-icon')).toBeInTheDocument();
@@ -93,7 +99,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should display mode name when not minimal', async () => {
-      render(<LearningModeSelector minimal={false} />);
+      renderWithRouter(<LearningModeSelector minimal={false} />);
 
       await waitFor(() => {
         expect(screen.getByText('标准模式')).toBeInTheDocument();
@@ -101,7 +107,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should hide mode name when minimal', async () => {
-      render(<LearningModeSelector minimal={true} />);
+      renderWithRouter(<LearningModeSelector minimal={true} />);
 
       await waitFor(() => {
         expect(screen.queryByText('模式')).not.toBeInTheDocument();
@@ -113,7 +119,7 @@ describe('LearningModeSelector', () => {
 
   describe('dropdown', () => {
     it('should show dropdown on button click', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -128,7 +134,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should display all available modes when dropdown is open', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       // Wait for component to load
       await waitFor(() => {
@@ -148,7 +154,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should display mode descriptions', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -165,7 +171,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should highlight current mode', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -180,7 +186,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should render dropdown container when opened', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -200,7 +206,7 @@ describe('LearningModeSelector', () => {
 
   describe('mode selection', () => {
     it('should handle clicking on current mode', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -232,7 +238,7 @@ describe('LearningModeSelector', () => {
         message: 'Profile updated successfully',
       });
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -262,7 +268,7 @@ describe('LearningModeSelector', () => {
         new Error('Update failed'),
       );
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -293,7 +299,7 @@ describe('LearningModeSelector', () => {
         message: 'Profile updated successfully',
       });
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -329,7 +335,7 @@ describe('LearningModeSelector', () => {
           }),
       );
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       // Wait for component to load
       await waitFor(() => {
@@ -367,7 +373,7 @@ describe('LearningModeSelector', () => {
 
   describe('icons', () => {
     it('should show graduation icon for standard mode', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByTestId('graduation-icon')).toBeInTheDocument();
@@ -380,7 +386,7 @@ describe('LearningModeSelector', () => {
         availableProfiles: mockModes,
       });
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByTestId('lightning-icon')).toBeInTheDocument();
@@ -393,7 +399,7 @@ describe('LearningModeSelector', () => {
         availableProfiles: mockModes,
       });
 
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByTestId('coffee-icon')).toBeInTheDocument();
@@ -405,7 +411,7 @@ describe('LearningModeSelector', () => {
 
   describe('accessibility', () => {
     it('should have aria-label on button', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();
@@ -413,7 +419,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should have title attribute', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         const button = screen.getByLabelText('选择学习模式');
@@ -422,7 +428,7 @@ describe('LearningModeSelector', () => {
     });
 
     it('should have aria-hidden on backdrop', async () => {
-      render(<LearningModeSelector />);
+      renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         const button = screen.getByLabelText('选择学习模式');
@@ -440,7 +446,7 @@ describe('LearningModeSelector', () => {
 
   describe('cleanup', () => {
     it('should cleanup on unmount', async () => {
-      const { unmount } = render(<LearningModeSelector />);
+      const { unmount } = renderWithRouter(<LearningModeSelector />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('选择学习模式')).toBeInTheDocument();

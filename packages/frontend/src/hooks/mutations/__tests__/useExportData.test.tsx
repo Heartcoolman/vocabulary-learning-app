@@ -6,18 +6,23 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExportData, ExportDataParams } from '../useExportData';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 
 // Mock API Client
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getWords: vi.fn(),
     getRecords: vi.fn(),
     getStudyConfig: vi.fn(),
     getStatistics: vi.fn(),
     getWordBookById: vi.fn(),
-  },
-}));
+    getWordBookWords: vi.fn(),
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 describe('useExportData', () => {
   let queryClient: QueryClient;

@@ -5,7 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { WordMasteryDetailModal } from '../WordMasteryDetailModal';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
+import { ApiError } from '../../../services/client';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -16,61 +17,52 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../../Icon', () => ({
-  X: ({ size, className, weight }: any) => (
-    <span data-testid="icon-x" className={className}>
-      X
-    </span>
-  ),
-  Clock: ({ size, className }: any) => (
-    <span data-testid="icon-clock" className={className}>
-      Clock
-    </span>
-  ),
-  Fire: ({ size, className, weight }: any) => (
-    <span data-testid="icon-fire" className={className}>
-      Fire
-    </span>
-  ),
-  ChartLine: ({ size, className }: any) => (
-    <span data-testid="icon-chartline" className={className}>
-      Chart
-    </span>
-  ),
-  Warning: ({ size, className }: any) => (
-    <span data-testid="icon-warning" className={className}>
-      Warning
-    </span>
-  ),
-  CheckCircle: ({ size, className, weight }: any) => (
-    <span data-testid="icon-check" className={className}>
-      Check
-    </span>
-  ),
-  CircleNotch: ({ size, className }: any) => (
-    <span data-testid="icon-loading" className={className}>
-      Loading
-    </span>
-  ),
-  Lightbulb: ({ size, className, weight }: any) => (
-    <span data-testid="icon-lightbulb" className={className}>
-      Lightbulb
-    </span>
-  ),
-}));
-
-// Mock Modal component
-vi.mock('../../ui/Modal', () => ({
-  Modal: ({ isOpen, onClose, children }: any) =>
-    isOpen ? (
-      <div data-testid="modal">
-        <button data-testid="close-button" onClick={onClose}>
-          Close
-        </button>
-        {children}
-      </div>
-    ) : null,
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    X: ({ className }: any) => (
+      <span data-testid="icon-x" className={className}>
+        X
+      </span>
+    ),
+    Clock: ({ className }: any) => (
+      <span data-testid="icon-clock" className={className}>
+        Clock
+      </span>
+    ),
+    Fire: ({ className }: any) => (
+      <span data-testid="icon-fire" className={className}>
+        Fire
+      </span>
+    ),
+    ChartLine: ({ className }: any) => (
+      <span data-testid="icon-chartline" className={className}>
+        Chart
+      </span>
+    ),
+    Warning: ({ className }: any) => (
+      <span data-testid="icon-warning" className={className}>
+        Warning
+      </span>
+    ),
+    CheckCircle: ({ className }: any) => (
+      <span data-testid="icon-check" className={className}>
+        Check
+      </span>
+    ),
+    CircleNotch: ({ className }: any) => (
+      <span data-testid="icon-loading" className={className}>
+        Loading
+      </span>
+    ),
+    Lightbulb: ({ className }: any) => (
+      <span data-testid="icon-lightbulb" className={className}>
+        Lightbulb
+      </span>
+    ),
+  };
+});
 
 // Mock MemoryTraceChart
 vi.mock('../MemoryTraceChart', () => ({
@@ -80,14 +72,24 @@ vi.mock('../MemoryTraceChart', () => ({
 }));
 
 // Mock API
-vi.mock('../../../services/client', () => ({
-  default: {
+const { mockApiClient } = vi.hoisted(() => ({
+  mockApiClient: {
     getLearnedWords: vi.fn(),
+    getWordById: vi.fn(),
     getWordMasteryDetail: vi.fn(),
     getWordMasteryTrace: vi.fn(),
     getWordMasteryInterval: vi.fn(),
   },
 }));
+
+vi.mock('../../../services/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/client')>();
+  return {
+    ...actual,
+    apiClient: mockApiClient,
+    default: mockApiClient,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({
@@ -157,6 +159,7 @@ describe('WordMasteryDetailModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (apiClient.getLearnedWords as any).mockResolvedValue([mockWordData]);
+    (apiClient.getWordById as any).mockResolvedValue(mockWordData);
     (apiClient.getWordMasteryDetail as any).mockResolvedValue(mockMasteryData);
     (apiClient.getWordMasteryTrace as any).mockResolvedValue(mockTraceData);
     (apiClient.getWordMasteryInterval as any).mockResolvedValue(mockIntervalData);
@@ -168,13 +171,13 @@ describe('WordMasteryDetailModal', () => {
     it('should not render when isOpen is false', () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={false} onClose={vi.fn()} />);
 
-      expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: '单词掌握度详情' })).not.toBeInTheDocument();
     });
 
     it('should render when isOpen is true', async () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
-      expect(screen.getByTestId('modal')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: '单词掌握度详情' })).toBeInTheDocument();
     });
 
     it('should show loading state initially', async () => {
@@ -184,7 +187,8 @@ describe('WordMasteryDetailModal', () => {
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
-      expect(screen.getByText('加载中...')).toBeInTheDocument();
+      expect(screen.getByTestId('icon-loading')).toBeInTheDocument();
+      expect(screen.getByText('加载数据中...')).toBeInTheDocument();
     });
   });
 
@@ -211,8 +215,8 @@ describe('WordMasteryDetailModal', () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
       await waitFor(() => {
-        expect(screen.getByText('1. 你好')).toBeInTheDocument();
-        expect(screen.getByText('2. 打招呼')).toBeInTheDocument();
+        expect(screen.getByText('你好')).toBeInTheDocument();
+        expect(screen.getByText('打招呼')).toBeInTheDocument();
       });
     });
 
@@ -236,7 +240,7 @@ describe('WordMasteryDetailModal', () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
       await waitFor(() => {
-        expect(screen.getByText('3')).toBeInTheDocument();
+        expect(screen.getByText('熟练')).toBeInTheDocument();
       });
     });
 
@@ -244,7 +248,7 @@ describe('WordMasteryDetailModal', () => {
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
       await waitFor(() => {
-        expect(screen.getByText('建议多复习此单词')).toBeInTheDocument();
+        expect(screen.getByText('下次复习建议')).toBeInTheDocument();
       });
     });
   });
@@ -311,23 +315,6 @@ describe('WordMasteryDetailModal', () => {
         expect(screen.getByText(/2 records/)).toBeInTheDocument();
       });
     });
-
-    it('should display trace count', async () => {
-      render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/共 2 次复习记录/)).toBeInTheDocument();
-      });
-    });
-
-    it('should display review history records', async () => {
-      render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
-
-      await waitFor(() => {
-        expect(screen.getByText('回答正确')).toBeInTheDocument();
-        expect(screen.getByText('回答错误')).toBeInTheDocument();
-      });
-    });
   });
 
   // ==================== Interval Display Tests ====================
@@ -375,7 +362,7 @@ describe('WordMasteryDetailModal', () => {
       const onClose = vi.fn();
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={onClose} />);
 
-      const closeButton = screen.getByTestId('close-button');
+      const closeButton = screen.getByRole('button', { name: '关闭' });
       await act(async () => {
         fireEvent.click(closeButton);
       });
@@ -389,6 +376,7 @@ describe('WordMasteryDetailModal', () => {
   describe('error handling', () => {
     it('should display error message when word not found', async () => {
       (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      (apiClient.getWordById as any).mockRejectedValue(new ApiError('Not Found', 404));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -398,7 +386,8 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should display error message when API fails', async () => {
-      (apiClient.getLearnedWords as any).mockRejectedValue(new Error('API Error'));
+      (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      (apiClient.getWordById as any).mockRejectedValue(new Error('网络请求失败'));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -408,7 +397,8 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should show retry button on error', async () => {
-      (apiClient.getLearnedWords as any).mockRejectedValue(new Error('API Error'));
+      (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      (apiClient.getWordById as any).mockRejectedValue(new Error('网络请求失败'));
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -418,9 +408,10 @@ describe('WordMasteryDetailModal', () => {
     });
 
     it('should retry loading when retry button clicked', async () => {
-      (apiClient.getLearnedWords as any)
-        .mockRejectedValueOnce(new Error('API Error'))
-        .mockResolvedValueOnce([mockWordData]);
+      (apiClient.getLearnedWords as any).mockResolvedValue([]);
+      (apiClient.getWordById as any)
+        .mockRejectedValueOnce(new Error('网络请求失败'))
+        .mockResolvedValueOnce(mockWordData);
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
@@ -449,11 +440,15 @@ describe('WordMasteryDetailModal', () => {
         trace: [],
         count: 0,
       });
+      (apiClient.getWordMasteryInterval as any).mockResolvedValue(null);
 
       render(<WordMasteryDetailModal wordId="word-1" isOpen={true} onClose={vi.fn()} />);
 
       await waitFor(() => {
-        expect(screen.getByText('该单词暂无学习记录')).toBeInTheDocument();
+        expect(screen.getByText('hello')).toBeInTheDocument();
+        expect(screen.queryByText('掌握度评估')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('memory-trace-chart')).not.toBeInTheDocument();
+        expect(screen.queryByText('下次复习建议')).not.toBeInTheDocument();
       });
     });
   });

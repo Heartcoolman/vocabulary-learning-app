@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { QUERY_PRESETS } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type {
   DecisionExplanation,
   CounterfactualInput,
@@ -32,7 +32,7 @@ export function useAmasDecisionExplanation(
   return useQuery({
     queryKey: queryKeys.amas.explanation(decisionId),
     queryFn: async () => {
-      return await ApiClient.getAmasDecisionExplanation(decisionId);
+      return await apiClient.getAmasDecisionExplanation(decisionId);
     },
     // 决策解释是历史数据，可以缓存较长时间
     ...QUERY_PRESETS.standard,
@@ -56,7 +56,7 @@ export function useAmasLearningCurve(days: number = 30) {
   return useQuery({
     queryKey: queryKeys.amas.learningCurve(days),
     queryFn: async () => {
-      return await ApiClient.getAmasLearningCurve(days);
+      return await apiClient.getAmasLearningCurve(days);
     },
     ...QUERY_PRESETS.standard,
   });
@@ -79,7 +79,7 @@ export function useDecisionTimeline(limit: number = 50, cursor?: string) {
   return useQuery({
     queryKey: queryKeys.amas.decisionTimeline(limit, cursor),
     queryFn: async () => {
-      return await ApiClient.getDecisionTimeline(limit, cursor);
+      return await apiClient.getDecisionTimeline(limit, cursor);
     },
     ...QUERY_PRESETS.standard,
   });
@@ -106,7 +106,7 @@ export function useDecisionTimeline(limit: number = 50, cursor?: string) {
 export function useCounterfactualAnalysis() {
   return useMutation({
     mutationFn: async (input: CounterfactualInput) => {
-      return await ApiClient.runCounterfactualAnalysis(input);
+      return await apiClient.runCounterfactualAnalysis(input);
     },
   });
 }

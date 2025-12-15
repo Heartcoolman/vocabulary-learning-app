@@ -139,7 +139,13 @@ export class FatigueFusionEngine {
     // 从配置初始化卡尔曼参数
     this.Q = this.config.kalmanQ ?? DEFAULT_KALMAN_Q;
     this.R = this.config.kalmanR ?? DEFAULT_KALMAN_R;
-    this.dynamicWeightCalculator = new DynamicWeightCalculator(weightConfig);
+    // 动态权重以融合配置的 weights 作为默认基线（可被 weightConfig 覆盖）
+    this.dynamicWeightCalculator = new DynamicWeightCalculator({
+      baseVisualWeight: this.config.weights.visual,
+      baseBehaviorWeight: this.config.weights.behavior,
+      baseTemporalWeight: this.config.weights.temporal,
+      ...weightConfig,
+    });
   }
 
   /**
@@ -334,6 +340,14 @@ export class FatigueFusionEngine {
         ...config.weights,
       },
     };
+
+    // 同步更新动态权重基线，确保 updateConfig 的 weights 生效
+    this.dynamicWeightCalculator.updateConfig({
+      baseVisualWeight: this.config.weights.visual,
+      baseBehaviorWeight: this.config.weights.behavior,
+      baseTemporalWeight: this.config.weights.temporal,
+    });
+
     // 更新卡尔曼参数
     if (config.kalmanQ !== undefined) {
       this.Q = config.kalmanQ;
@@ -447,6 +461,13 @@ export class FatigueFusionEngine {
    * 应用卡尔曼滤波
    */
   private applyKalmanFilter(state: UserFusionState, measurement: number): number {
+    // 首次测量时用观测值初始化，避免被默认初值(如 0.1)拉偏，导致等级判定不稳定
+    if (state.lastResult === null) {
+      state.kalman.x = measurement;
+      state.kalman.p = 1;
+      return measurement;
+    }
+
     // 预测步骤
     const xPrior = state.kalman.x;
     const pPrior = state.kalman.p + this.Q;

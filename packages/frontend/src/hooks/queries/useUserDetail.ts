@@ -1,6 +1,6 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { UserWordDetail } from '../../services/client';
+import { apiClient, adminClient, type UserWordDetail } from '../../services/client';
 
 /**
  * 用户单词列表查询参数
@@ -76,15 +76,10 @@ export function useUserWordDetail(userId: string, wordId: string) {
     queryFn: async () => {
       // 尝试直接获取指定单词详情，失败后回退到分页查找
       try {
-        const response = await fetch(`/api/admin/users/${userId}/words/${wordId}`, {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const result = await response.json();
-          if (result?.data) {
-            return result.data as UserWordDetail;
-          }
-        }
+        const result = await adminClient.requestAdmin<UserWordDetail>(
+          `/api/admin/users/${userId}/words/${wordId}`,
+        );
+        return result;
       } catch {
         // ignore and fallback
       }

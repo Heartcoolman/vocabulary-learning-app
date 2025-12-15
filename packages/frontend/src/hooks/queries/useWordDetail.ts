@@ -101,9 +101,6 @@ export function useWordDetail(options: UseWordDetailOptions): UseWordDetailResul
     staleTime,
     // GC 时间设置为缓存时间的 2 倍
     gcTime: staleTime * 2,
-    // 失败重试配置
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   return {
@@ -149,8 +146,6 @@ export function useWordDetails(ids: string[]) {
       enabled: Boolean(id),
       staleTime,
       gcTime: staleTime * 2,
-      retry: 2,
-      retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
     })),
   });
 

@@ -25,36 +25,38 @@ interface EnvConfig {
   isDev: boolean;
 }
 
-/**
- * 验证必需的环境变量
- */
-function validateEnv(): void {
-  const missingVars: string[] = [];
+function resolveApiUrl(): string {
+  const raw = (import.meta.env.VITE_API_URL ?? '').trim();
+  if (!raw) return '';
 
-  // 验证必需的环境变量
-  if (!import.meta.env.VITE_API_URL) {
-    missingVars.push('VITE_API_URL');
-  }
-
-  if (missingVars.length > 0) {
-    const errorMsg = `缺少必需的环境变量: ${missingVars.join(', ')}`;
-    console.error('[env]', errorMsg);
-    throw new Error(errorMsg);
-  }
-
-  // 验证 API URL 格式
   try {
-    new URL(import.meta.env.VITE_API_URL);
+    const url = new URL(raw);
+
+    // 仅保留 origin，避免误把路径拼进 baseUrl 导致 /api/api 重复
+    if (url.pathname !== '/' || url.search || url.hash) {
+      console.warn('[env] VITE_API_URL 建议仅包含 origin，将忽略路径/参数部分');
+    }
+
+    return url.origin;
   } catch {
     const errorMsg = `VITE_API_URL 格式无效: ${import.meta.env.VITE_API_URL}`;
     console.error('[env]', errorMsg);
     throw new Error(errorMsg);
   }
+}
+
+/**
+ * 验证必需的环境变量
+ */
+function validateEnv(): void {
+  const apiUrl = resolveApiUrl();
 
   // 开发环境警告
   if (import.meta.env.DEV) {
     console.info('[env] 运行在开发模式');
-    if (import.meta.env.VITE_API_URL.includes('localhost')) {
+    if (!apiUrl) {
+      console.info('[env] 使用同源 API（通过 Vite proxy 代理 /api）');
+    } else if (apiUrl.includes('localhost')) {
       console.debug('[env] 使用本地 API 服务器');
     }
   }
@@ -74,7 +76,7 @@ function validateEnv(): void {
     }
 
     // 生产环境不应该使用 localhost
-    if (import.meta.env.VITE_API_URL.includes('localhost')) {
+    if (apiUrl && apiUrl.includes('localhost')) {
       console.warn('[env] ⚠️ 生产环境使用了 localhost API 地址，这可能是配置错误');
     }
   }
@@ -85,7 +87,7 @@ function validateEnv(): void {
  */
 function createEnvConfig(): EnvConfig {
   return {
-    apiUrl: import.meta.env.VITE_API_URL,
+    apiUrl: resolveApiUrl(),
     sentryDsn: import.meta.env.VITE_SENTRY_DSN,
     appVersion: import.meta.env.VITE_APP_VERSION,
     mode: import.meta.env.MODE,

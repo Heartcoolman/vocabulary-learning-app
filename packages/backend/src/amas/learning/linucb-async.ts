@@ -21,7 +21,12 @@ import {
   LinUCBUpdatePayload,
   LinUCBUpdateResult,
 } from '../workers/pool';
-import { LinUCB, LinUCBOptions, LinUCBContext, ContextBuildInput } from '../algorithms/learners';
+import {
+  LinUCB,
+  type LinUCBOptions,
+  type LinUCBContext,
+  type ContextBuildInput,
+} from '../algorithms/learners';
 import { Action, UserState, BanditModel } from '../types';
 import { ActionSelection, LearnerCapabilities } from '../algorithms/learners';
 import { ACTION_SPACE } from '../config/action-space';

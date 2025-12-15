@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock the mastery module functions that useMasteryLearning imports
 vi.mock('../mastery', async (importOriginal) => {
@@ -86,6 +87,18 @@ vi.mock('../../services/learning/AdaptiveQueueManager', () => {
 
 import { useMasteryLearning } from '../useMasteryLearning';
 
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+};
+
 describe('useMasteryLearning', () => {
   const mockWords = [
     { id: 'word-1', spelling: 'hello', phonetic: '/həˈloʊ/', meanings: ['你好'] },
@@ -128,13 +141,13 @@ describe('useMasteryLearning', () => {
 
   describe('initialization', () => {
     it('should start with loading state', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       expect(result.current.isLoading).toBe(true);
     });
 
     it('should fetch study words on mount', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(mockMasteryModule.getMasteryStudyWords).toHaveBeenCalled();
@@ -142,7 +155,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should update loading state after fetch', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -150,7 +163,9 @@ describe('useMasteryLearning', () => {
     });
 
     it('should accept target mastery count option', async () => {
-      const { result } = renderHook(() => useMasteryLearning({ targetMasteryCount: 30 }));
+      const { result } = renderHook(() => useMasteryLearning({ targetMasteryCount: 30 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.progress.targetCount).toBe(30);
@@ -158,7 +173,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should check localStorage for saved session', async () => {
-      renderHook(() => useMasteryLearning());
+      renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(mockLocalStorage.getItem).toHaveBeenCalledWith(expect.stringContaining('mastery'));
@@ -170,7 +185,7 @@ describe('useMasteryLearning', () => {
 
   describe('answer submission', () => {
     it('should call API when submitting correct answer', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -192,7 +207,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should call API when submitting incorrect answer', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -214,7 +229,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should update AMAS result after answer', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -232,7 +247,7 @@ describe('useMasteryLearning', () => {
 
   describe('queue management', () => {
     it('should advance to next word', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -247,7 +262,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should handle skip word', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -273,7 +288,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should expose all words', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -308,7 +323,7 @@ describe('useMasteryLearning', () => {
 
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(savedSession));
 
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -330,7 +345,7 @@ describe('useMasteryLearning', () => {
 
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(expiredSession));
 
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.hasRestoredSession).toBe(false);
@@ -338,7 +353,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should reset session', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -356,7 +371,7 @@ describe('useMasteryLearning', () => {
 
   describe('progress tracking', () => {
     it('should track progress state', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -369,7 +384,7 @@ describe('useMasteryLearning', () => {
     });
 
     it('should detect completion', async () => {
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -386,7 +401,7 @@ describe('useMasteryLearning', () => {
     it('should handle API error gracefully', async () => {
       mockMasteryModule.getMasteryStudyWords.mockRejectedValueOnce(new Error('Network error'));
 
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.error).not.toBeNull();
@@ -396,7 +411,7 @@ describe('useMasteryLearning', () => {
     it('should handle answer submission error', async () => {
       mockMasteryModule.processLearningEvent.mockRejectedValueOnce(new Error('Server error'));
 
-      const { result } = renderHook(() => useMasteryLearning());
+      const { result } = renderHook(() => useMasteryLearning(), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

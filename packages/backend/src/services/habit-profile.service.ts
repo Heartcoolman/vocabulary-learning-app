@@ -107,11 +107,27 @@ class HabitProfileService {
     try {
       const profile = this.getHabitProfile(userId);
 
-      // 更新用户的习惯画像到数据库
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          habitProfile: profile as unknown as Record<string, unknown>,
+      // 只有当样本数足够时才持久化（与 userProfileService 保持一致）
+      if (profile.samples.timeEvents < 10) {
+        serviceLogger.debug(
+          { userId, timeEvents: profile.samples.timeEvents },
+          '习惯画像样本不足，跳过持久化',
+        );
+        return;
+      }
+
+      // 保存到 habit_profiles 表
+      await prisma.habitProfile.upsert({
+        where: { userId },
+        update: {
+          timePref: profile.timePref,
+          rhythmPref: profile.rhythmPref,
+          updatedAt: new Date(),
+        },
+        create: {
+          userId,
+          timePref: profile.timePref,
+          rhythmPref: profile.rhythmPref,
         },
       });
 
@@ -129,17 +145,37 @@ class HabitProfileService {
    */
   async loadHabitProfile(userId: string): Promise<HabitProfile | null> {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { habitProfile: true },
+      const record = await prisma.habitProfile.findUnique({
+        where: { userId },
+        select: { timePref: true, rhythmPref: true, updatedAt: true },
       });
 
-      if (user?.habitProfile && typeof user.habitProfile === 'object') {
-        const profile = user.habitProfile as unknown as HabitProfile;
-        return profile;
+      if (!record) {
+        return null;
       }
 
-      return null;
+      const timePref = record.timePref;
+      const rhythmPref = record.rhythmPref;
+
+      if (!Array.isArray(timePref) || timePref.length !== 24) {
+        return null;
+      }
+
+      const preferredTimeSlots = timePref
+        .map((v, hour) => ({ hour, v: typeof v === 'number' ? v : 0 }))
+        .sort((a, b) => b.v - a.v)
+        .slice(0, 3)
+        .map((x) => x.hour);
+
+      return {
+        timePref: timePref as number[],
+        rhythmPref: (rhythmPref as HabitProfile['rhythmPref']) ?? {
+          sessionMedianMinutes: 15,
+          batchMedian: 8,
+        },
+        preferredTimeSlots,
+        samples: { timeEvents: 10, sessions: 0, batches: 0 },
+      };
     } catch (error) {
       serviceLogger.warn({ err: error, userId }, '加载习惯画像失败');
       return null;

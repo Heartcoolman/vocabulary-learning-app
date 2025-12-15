@@ -10,8 +10,9 @@ import {
   EngineDependencies,
   MemoryStateRepository,
   MemoryModelRepository,
-} from '../../../src/amas/core/engine';
-import { RawEvent, BanditModel } from '../../../src/amas/types';
+} from '../../../../src/amas/core/engine';
+import { RawEvent, BanditModel } from '../../../../src/amas/types';
+import { DEFAULT_DIMENSION } from '../../../../src/amas/config/action-space';
 
 // 辅助函数
 function createTestEngine(): {
@@ -37,14 +38,18 @@ function createValidEvent(overrides: Partial<RawEvent> = {}): RawEvent {
     wordId: 'test-word-123',
     isCorrect: true,
     responseTime: 2500,
+    dwellTime: 1200,
     timestamp: Date.now(),
+    pauseCount: 0,
+    switchCount: 0,
     retryCount: 0,
-    hintUsed: false,
+    focusLossDuration: 0,
+    interactionDensity: 1,
     ...overrides,
   };
 }
 
-function createRandomFeatureVector(dimension: number = 15): number[] {
+function createRandomFeatureVector(dimension: number = DEFAULT_DIMENSION): number[] {
   return Array(dimension)
     .fill(0)
     .map(() => Math.random());
@@ -109,10 +114,14 @@ describe('AMAS Engine - Concurrency Safety Tests', () => {
         engine.applyDelayedRewardUpdate(userId, createRandomFeatureVector(), 0.9),
       ];
 
-      const results = await Promise.all(operations);
+      const [decision1, delayed1, decision2, delayed2, delayed3] = await Promise.all(operations);
 
-      // 验证1：所有操作都成功
-      expect(results.every((r) => r.success)).toBe(true);
+      // 验证1：实时决策不应抛错，延迟更新应返回 success=true
+      expect(decision1).toBeDefined();
+      expect(decision2).toBeDefined();
+      expect(delayed1.success).toBe(true);
+      expect(delayed2.success).toBe(true);
+      expect(delayed3.success).toBe(true);
 
       // 验证2：模型被正确更新（至少5次）
       const finalModel = await modelRepo.loadModel(userId);
@@ -120,38 +129,41 @@ describe('AMAS Engine - Concurrency Safety Tests', () => {
       expect(finalModel!.updateCount).toBeGreaterThanOrEqual(5);
 
       // 验证3：模型数据完整性
-      expect(finalModel!.d).toBe(15); // 默认维度
-      expect(finalModel!.A.length).toBe(15 * 15);
-      expect(finalModel!.b.length).toBe(15);
+      expect(finalModel!.d).toBe(DEFAULT_DIMENSION);
+      expect(finalModel!.A.length).toBe(DEFAULT_DIMENSION * DEFAULT_DIMENSION);
+      expect(finalModel!.b.length).toBe(DEFAULT_DIMENSION);
     });
 
     it('应该串行处理同一用户的操作（验证锁机制）', async () => {
-      const { engine, modelRepo } = createTestEngine();
+      const saveTimes: number[] = [];
       const userId = 'serial-test-user';
-      const testEvent = createValidEvent();
+      const delay = 50; // saveModel 内部延迟 50ms
 
-      // 初始化
-      await engine.processEvent(userId, testEvent, {});
+      class DelayedMemoryModelRepository extends MemoryModelRepository {
+        async saveModel(userId: string, model: BanditModel): Promise<void> {
+          saveTimes.push(Date.now());
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return super.saveModel(userId, model);
+        }
+      }
 
-      const executionOrder: number[] = [];
-      const delay = 50; // 每个操作延迟 50ms
+      const stateRepo = new MemoryStateRepository();
+      const modelRepo = new DelayedMemoryModelRepository();
+      const engine = new AMASEngine({ stateRepo, modelRepo, logger: console });
 
-      // 创建5个延迟操作，每个都记录执行时间
-      const operations = Array.from({ length: 5 }, (_, i) =>
-        (async () => {
-          const start = Date.now();
-          await engine.applyDelayedRewardUpdate(userId, createRandomFeatureVector(), Math.random());
-          executionOrder.push(start);
-          // 模拟耗时操作
-          await sleep(delay);
-          return start;
-        })(),
+      // 初始化（会触发一次 saveModel）
+      await engine.processEvent(userId, createValidEvent(), {});
+      saveTimes.length = 0;
+
+      // 并发发起 5 个更新；若用户锁生效，saveModel 调用时间应近似串行
+      await Promise.all(
+        Array.from({ length: 5 }, () =>
+          engine.applyDelayedRewardUpdate(userId, createRandomFeatureVector(), Math.random()),
+        ),
       );
 
-      await Promise.all(operations);
-
       // 验证：执行时间应该大致串行（每个至少间隔 delay ms）
-      const sortedOrder = [...executionOrder].sort((a, b) => a - b);
+      const sortedOrder = [...saveTimes].sort((a, b) => a - b);
       for (let i = 1; i < sortedOrder.length; i++) {
         const timeDiff = sortedOrder[i] - sortedOrder[i - 1];
         // 由于锁的存在，执行应该串行，时间差应该接近 delay
@@ -178,7 +190,7 @@ describe('AMAS Engine - Concurrency Safety Tests', () => {
       const userId = 'dimension-test-user';
       const testEvent = createValidEvent();
 
-      // 初始化（默认15维）
+      // 初始化（默认维度）
       await engine.processEvent(userId, testEvent, {});
 
       // 使用20维特征向量（不匹配）

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Bell, Plus, Trash, Warning, CircleNotch, Pencil, X } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+import { adminClient } from '../../services/client';
 
 /**
  * 日志级别枚举
@@ -81,18 +82,8 @@ export default function LogAlertsPage() {
   const loadRules = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/logs/log-alerts', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('加载告警规则失败');
-      }
-
-      const data = await response.json();
-      setRules(Array.isArray(data.data) ? data.data : []);
+      const data = await adminClient.requestAdmin<LogAlertRule[]>('/api/admin/logs/log-alerts');
+      setRules(Array.isArray(data) ? data : []);
     } catch (error) {
       adminLogger.error({ err: error }, '加载告警规则失败');
       toast.error('加载告警规则失败: ' + (error instanceof Error ? error.message : '未知错误'));
@@ -111,22 +102,11 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch('/api/admin/logs/log-alerts', {
+      const newRule = await adminClient.requestAdmin<LogAlertRule>('/api/admin/logs/log-alerts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) {
-        throw new Error('创建告警规则失败');
-      }
-
-      const result = await response.json();
-      const newRule = result.data;
-      setRules([...rules, newRule]);
+      setRules((prev) => [...prev, newRule]);
       setShowCreateModal(false);
       resetForm();
       toast.success('告警规则创建成功');
@@ -148,22 +128,14 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/admin/logs/log-alerts/${editingRule.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const updatedRule = await adminClient.requestAdmin<LogAlertRule>(
+        `/api/admin/logs/log-alerts/${editingRule.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(formData),
         },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('更新告警规则失败');
-      }
-
-      const result = await response.json();
-      const updatedRule = result.data;
-      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
+      );
+      setRules((prev) => prev.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       setShowEditModal(false);
       setEditingRule(null);
       resetForm();
@@ -186,18 +158,10 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/admin/logs/log-alerts/${deletingRuleId}`, {
+      await adminClient.requestAdmin<void>(`/api/admin/logs/log-alerts/${deletingRuleId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
       });
-
-      if (!response.ok) {
-        throw new Error('删除告警规则失败');
-      }
-
-      setRules(rules.filter((r) => r.id !== deletingRuleId));
+      setRules((prev) => prev.filter((r) => r.id !== deletingRuleId));
       setShowDeleteConfirm(false);
       setDeletingRuleId(null);
       toast.success('告警规则已删除');
@@ -214,25 +178,17 @@ export default function LogAlertsPage() {
    */
   const toggleRuleEnabled = async (rule: LogAlertRule) => {
     try {
-      const response = await fetch(`/api/admin/logs/log-alerts/${rule.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const updatedRule = await adminClient.requestAdmin<LogAlertRule>(
+        `/api/admin/logs/log-alerts/${rule.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...rule,
+            enabled: !rule.enabled,
+          }),
         },
-        body: JSON.stringify({
-          ...rule,
-          enabled: !rule.enabled,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('更新规则状态失败');
-      }
-
-      const result = await response.json();
-      const updatedRule = result.data;
-      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
+      );
+      setRules((prev) => prev.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       toast.success(updatedRule.enabled ? '规则已启用' : '规则已禁用');
     } catch (error) {
       adminLogger.error({ err: error, ruleId: rule.id }, '切换规则状态失败');

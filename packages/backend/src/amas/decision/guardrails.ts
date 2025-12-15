@@ -196,7 +196,7 @@ export function applyAttentionProtection(state: UserState, params: StrategyParam
  * 趋势保护 (扩展版功能)
  *
  * 基于长期学习趋势调整策略参数:
- * - 'up': 表现上升 - 可以适当增加挑战
+ * - 'up': 表现上升 - 保持当前策略（避免过度激进）
  * - 'flat': 表现稳定 - 保持当前策略
  * - 'stuck': 停滞 - 减少新词，保持复习
  * - 'down': 表现下降 - 保护模式，降低难度
@@ -212,19 +212,9 @@ export function applyTrendProtection(state: UserState, params: StrategyParams): 
     return result;
   }
 
-  // 上升趋势 - 可以适当增加挑战以加速学习
-  if (state.T === 'up') {
-    // 仅在注意力和动机良好时增加挑战
-    if (state.A > 0.6 && state.M > 0) {
-      // 可以稍微增加新词比例
-      result.new_ratio = Math.min(result.new_ratio * 1.1, 0.4);
-      // 可以稍微增加批量大小
-      result.batch_size = Math.min(result.batch_size + 2, 16);
-      // 如果稳定性高，可以考虑增加难度
-      if (state.C.stability > 0.7 && result.difficulty === 'easy') {
-        result.difficulty = 'mid';
-      }
-    }
+  // 上升/稳定趋势 - 不修改策略（仅用于监测与可解释性）
+  if (state.T === 'up' || state.T === 'flat') {
+    return result;
   }
 
   // 下降趋势 - 保护模式
@@ -242,8 +232,6 @@ export function applyTrendProtection(state: UserState, params: StrategyParams): 
   // 停滞趋势 - 稳定策略，减少新词专注复习
   if (state.T === 'stuck') {
     result.new_ratio = Math.min(result.new_ratio, 0.15);
-    // 停滞时稍微缩短间隔，增加复习频率
-    result.interval_scale = Math.min(result.interval_scale, 0.9);
   }
 
   return result;

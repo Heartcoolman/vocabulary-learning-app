@@ -89,6 +89,12 @@ vi.mock('../../../../src/logger', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+  startupLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 describe('EnginePersistence', () => {

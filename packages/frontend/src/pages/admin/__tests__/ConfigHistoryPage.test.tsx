@@ -10,6 +10,7 @@ import ConfigHistoryPage from '../ConfigHistoryPage';
 const mockHistory = [
   {
     id: 'h1',
+    configId: 'config-1',
     timestamp: Date.now() - 1000,
     changedBy: 'admin',
     changeReason: '调整复习间隔',
@@ -18,6 +19,7 @@ const mockHistory = [
   },
   {
     id: 'h2',
+    configId: 'config-1',
     timestamp: Date.now() - 86400000,
     changedBy: 'system',
     changeReason: '自动调整',
@@ -26,27 +28,46 @@ const mockHistory = [
   },
 ];
 
-vi.mock('@/services/algorithms/AlgorithmConfigService', () => {
+const mockUseConfigHistory = vi.fn();
+
+vi.mock('../../../hooks/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/queries')>();
   return {
-    AlgorithmConfigService: class MockAlgorithmConfigService {
-      getConfigHistory = vi.fn().mockResolvedValue(mockHistory);
-    },
+    ...actual,
+    useConfigHistory: (...args: any[]) => mockUseConfigHistory(...args),
   };
 });
 
-vi.mock('@/components/Icon', () => ({
-  Clock: ({ size }: { size?: number }) => <span data-testid="icon-clock">🕐</span>,
-  MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
-  ArrowCounterClockwise: () => <span data-testid="icon-reset">↺</span>,
-}));
+vi.mock('@/components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Icon')>();
+  return {
+    ...actual,
+    Clock: () => <span data-testid="icon-clock">🕐</span>,
+    MagnifyingGlass: () => <span data-testid="icon-search">🔍</span>,
+    ArrowCounterClockwise: () => <span data-testid="icon-reset">↺</span>,
+  };
+});
 
 describe('ConfigHistoryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseConfigHistory.mockReturnValue({
+      data: mockHistory,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
   });
 
   describe('loading state', () => {
     it('should show loading indicator initially', () => {
+      mockUseConfigHistory.mockReturnValue({
+        data: [],
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
+
       render(<ConfigHistoryPage />);
 
       expect(screen.getByText('加载配置历史中...')).toBeInTheDocument();

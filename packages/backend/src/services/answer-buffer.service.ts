@@ -52,7 +52,7 @@ export class AnswerBufferService {
       // 检查是否需要立即刷新
       const length = await redis.llen(this.BUFFER_KEY);
       if (length >= this.FLUSH_THRESHOLD) {
-        this.flush().catch(err => logger.error({ err }, 'Flush failed'));
+        this.flush().catch((err) => logger.error({ err }, 'Flush failed'));
       }
 
       logger.debug({ answerId: answer.id, bufferLength: length }, 'Answer buffered');
@@ -73,9 +73,9 @@ export class AnswerBufferService {
     if (this.isProcessing) return 0;
     this.isProcessing = true;
 
+    const items: string[] = [];
     try {
       const redis = getRedisClient();
-      const items: string[] = [];
 
       // 批量获取并删除
       while (true) {
@@ -87,11 +87,23 @@ export class AnswerBufferService {
 
       if (items.length === 0) return 0;
 
-      const answers = items.map(item => JSON.parse(item) as BufferedAnswer);
+      const answers: BufferedAnswer[] = [];
+      for (const raw of items) {
+        try {
+          answers.push(JSON.parse(raw) as BufferedAnswer);
+        } catch (parseError) {
+          logger.warn(
+            { err: parseError, rawLength: raw.length },
+            'Invalid buffered answer JSON, dropping item',
+          );
+        }
+      }
+
+      if (answers.length === 0) return 0;
 
       // 批量写入数据库
       await this.prisma.answerRecord.createMany({
-        data: answers.map(a => ({
+        data: answers.map((a) => ({
           id: a.id,
           userId: a.userId,
           wordId: a.wordId,
@@ -111,6 +123,21 @@ export class AnswerBufferService {
       logger.info({ count: answers.length }, 'Flushed answers to database');
       return answers.length;
     } catch (error) {
+      // 关键修复：写入失败时把已弹出的 items 回灌到 Redis，避免缓冲数据丢失
+      try {
+        if (items.length > 0) {
+          const redis = getRedisClient();
+          // items 是按 LPOP 顺序取出的（头->尾），用 LPUSH + reverse 恢复原顺序
+          await redis.lpush(this.BUFFER_KEY, ...items.slice().reverse());
+          logger.warn({ count: items.length }, 'Flush failed, re-queued buffered answers');
+        }
+      } catch (requeueError) {
+        logger.error(
+          { err: requeueError },
+          'Failed to re-queue buffered answers after flush error',
+        );
+      }
+
       logger.error({ error }, 'Flush error');
       throw error;
     } finally {
@@ -125,7 +152,7 @@ export class AnswerBufferService {
     if (this.flushTimer) return;
 
     this.flushTimer = setInterval(() => {
-      this.flush().catch(err => logger.error({ err }, 'Periodic flush failed'));
+      this.flush().catch((err) => logger.error({ err }, 'Periodic flush failed'));
     }, this.FLUSH_INTERVAL);
 
     // 使用 unref() 防止定时器阻止进程退出
@@ -193,7 +220,7 @@ export class AnswerBufferService {
         dwellTime: answer.dwellTime,
         masteryLevelBefore: answer.masteryLevelBefore,
         masteryLevelAfter: answer.masteryLevelAfter,
-      }
+      },
     });
   }
 }

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { recordHttpDrop, recordHttpRequest, HttpRequestMetric } from '../monitoring/amas-metrics';
+import { env } from '../config/env';
 
 const metricQueue: HttpRequestMetric[] = [];
 const MAX_QUEUE_DEPTH = 10000;
@@ -7,13 +8,21 @@ const FLUSH_BATCH_SIZE = 500;
 const FLUSH_INTERVAL_MS = 500;
 const ERROR_4XX_SAMPLE_RATE = 0.1;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const HEALTHCHECK_SAMPLE_PATTERN = new RegExp(
+  `^(${escapeRegExp(env.HEALTHCHECK_ENDPOINT)}|\\/health)$`,
+);
+
 const SAMPLE_RULES: Array<{ pattern: RegExp; rate: number }> = [
   { pattern: /^\/api\/auth/, rate: 1.0 },
   { pattern: /^\/api\/learning/, rate: 1.0 },
   { pattern: /^\/api\/records?/, rate: 1.0 },
   { pattern: /^\/api\/about/, rate: 0.15 },
-  { pattern: /^\/health$/, rate: 0.02 },
-  { pattern: /^\/api\/words\/list/, rate: 0.02 }
+  { pattern: HEALTHCHECK_SAMPLE_PATTERN, rate: 0.02 },
+  { pattern: /^\/api\/words\/list/, rate: 0.02 },
 ];
 
 let flushTimer: NodeJS.Timeout | null = null;
@@ -48,9 +57,7 @@ function resolveSampleRate(path: string): number {
 function normalizeRoute(req: Request): string {
   if (req.route?.path) {
     const base = req.baseUrl || '';
-    const path = Array.isArray(req.route.path)
-      ? req.route.path[0]
-      : String(req.route.path);
+    const path = Array.isArray(req.route.path) ? req.route.path[0] : String(req.route.path);
     const route = `${base}${path}`.replace(/\/+/g, '/');
     return route.length > 64 ? route.substring(0, 64) : route;
   }
@@ -92,7 +99,7 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
       route,
       method: req.method,
       status,
-      durationSeconds
+      durationSeconds,
     };
 
     setImmediate(() => enqueue(metric));

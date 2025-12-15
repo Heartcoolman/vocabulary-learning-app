@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 
 /**
  * 获取所有徽章（包含解锁状态）的 Query Hook
@@ -11,7 +11,7 @@ export function useAchievements() {
   return useQuery({
     queryKey: queryKeys.badges.allWithStatus(),
     queryFn: async () => {
-      const response = await ApiClient.getAllBadgesWithStatus();
+      const response = await apiClient.getAllBadgesWithStatus();
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5分钟缓存
@@ -27,7 +27,7 @@ export function useCheckNewBadges() {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await ApiClient.checkAndAwardBadges();
+      const response = await apiClient.checkAndAwardBadges();
       return response;
     },
     onSuccess: () => {
@@ -47,7 +47,7 @@ export function useAchievementProgress(badgeId: string | null) {
     queryKey: queryKeys.badges.progress(badgeId || ''),
     queryFn: async () => {
       if (!badgeId) return null;
-      const response = await ApiClient.getBadgeProgress(badgeId);
+      const response = await apiClient.getBadgeProgress(badgeId);
       return response;
     },
     enabled: !!badgeId,

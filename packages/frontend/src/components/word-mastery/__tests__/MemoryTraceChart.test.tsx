@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryTraceChart } from '../MemoryTraceChart';
 import type { ReviewTraceRecord } from '../../../types/word-mastery';
+import { chartColors } from '../../../utils/iconColors';
 
 const mockTrace: ReviewTraceRecord[] = [
   {
@@ -121,7 +122,7 @@ describe('MemoryTraceChart', () => {
       render(<MemoryTraceChart trace={correctOnlyTrace} />);
 
       const circle = document.querySelector('circle');
-      expect(circle?.getAttribute('fill')).toBe('#10b981'); // green-500
+      expect(circle?.getAttribute('fill')).toBe(chartColors.success);
     });
 
     it('should render incorrect answers with red color', () => {
@@ -137,7 +138,7 @@ describe('MemoryTraceChart', () => {
       render(<MemoryTraceChart trace={incorrectOnlyTrace} />);
 
       const circle = document.querySelector('circle');
-      expect(circle?.getAttribute('fill')).toBe('#ef4444'); // red-500
+      expect(circle?.getAttribute('fill')).toBe(chartColors.error);
     });
   });
 
@@ -216,7 +217,7 @@ describe('MemoryTraceChart', () => {
       render(<MemoryTraceChart trace={mockTrace} />);
 
       const path = document.querySelector('path');
-      expect(path?.getAttribute('stroke')).toBe('#8b5cf6'); // purple-500
+      expect(path?.getAttribute('stroke')).toBe(chartColors.secondary);
     });
 
     it('should render path with no fill', () => {

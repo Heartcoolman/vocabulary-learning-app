@@ -129,9 +129,9 @@ describe('LearningObjectivesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('权重配置')).toBeInTheDocument();
-        expect(screen.getAllByText(/短期记忆:/).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText(/长期记忆:/).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText(/学习效率:/).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/短期记忆/).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/长期记忆/).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/学习效率/).length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -171,11 +171,9 @@ describe('LearningObjectivesPage', () => {
       render(<LearningObjectivesPage />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByRole('button', { name: '保存配置' }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/权重总和必须为 1.0/)).toBeInTheDocument();
+        expect(screen.getByText(/权重总和: 1.50/)).toBeInTheDocument();
+        expect(screen.getByText(/需要等于 1.0/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '保存配置' })).toBeDisabled();
       });
     });
 
@@ -225,7 +223,7 @@ describe('LearningObjectivesPage', () => {
       render(<LearningObjectivesPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('学习模式')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '学习模式' })).toBeInTheDocument();
       });
     });
   });

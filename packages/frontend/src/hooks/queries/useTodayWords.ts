@@ -1,7 +1,7 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { CACHE_TIME } from '../../lib/cacheConfig';
-import apiClient, { TodayWordsResponse } from '../../services/client';
+import { apiClient, type TodayWordsResponse } from '../../services/client';
 
 /**
  * 获取今日学习单词的 Query Hook

@@ -67,7 +67,12 @@ packages/backend/prisma/*.db
 # Large test result files
 **/simulation-test-results*.txt
 **/integration-test-results*.txt
+packages/backend/vitest-results*.json
+packages/backend/vitest-unit-report.json
+packages/frontend/failed-test-files*.list
+packages/frontend/failed-tests.list
 
 *storybook.log
 storybook-static
 packages/tauri-app/src-tauri/gen/android/app/build/
+packages/tauri-app/src-tauri/gen/android/local.properties

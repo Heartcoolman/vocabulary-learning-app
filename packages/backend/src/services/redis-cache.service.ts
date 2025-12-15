@@ -5,6 +5,7 @@
 
 import { getRedisClient } from '../config/redis';
 import { cacheLogger } from '../logger';
+import crypto from 'crypto';
 
 const DEFAULT_TTL = 300; // 5分钟默认过期
 const NULL_CACHE_TTL = 60; // 空值缓存 60 秒
@@ -167,43 +168,69 @@ class RedisCacheService {
       return fetcher();
     }
 
+    const lockKey = `lock:${key}`;
+    const redis = getRedisClient();
+    const lockValue = crypto.randomUUID?.() ?? crypto.randomBytes(16).toString('hex');
+    const start = Date.now();
+    const maxWaitMs = Math.max(1, lockTimeout);
+
+    // 使用 token 校验释放锁，避免锁过期后误删他人新锁
+    const RELEASE_LOCK_LUA = `
+      if redis.call("GET", KEYS[1]) == ARGV[1] then
+        return redis.call("DEL", KEYS[1])
+      end
+      return 0
+    `;
+
     try {
+      // 先检查缓存
       const cached = await this.get<T>(key);
-      if (cached !== null) {
-        return cached;
-      }
+      if (cached !== null) return cached;
 
-      const lockKey = `lock:${key}`;
-      const redis = getRedisClient();
+      let delayMs = 50;
+      while (Date.now() - start <= maxWaitMs) {
+        // 尝试获取锁 (SET key value PX timeout NX)
+        const acquired = await redis.set(lockKey, lockValue, 'PX', lockTimeout, 'NX');
+        if (acquired) {
+          try {
+            // 双重检查：获取锁后再次检查缓存（可能其他进程已经填充）
+            const doubleCheck = await this.get<T>(key);
+            if (doubleCheck !== null) return doubleCheck;
 
-      // 尝试获取锁 (SET key value PX timeout NX)
-      const acquired = await redis.set(lockKey, '1', 'PX', lockTimeout, 'NX');
-
-      if (acquired) {
-        try {
-          // 双重检查：获取锁后再次检查缓存（可能其他进程已经填充）
-          const doubleCheck = await this.get<T>(key);
-          if (doubleCheck !== null) {
-            return doubleCheck;
+            const value = await fetcher();
+            await this.set(key, value, ttl);
+            cacheLogger.debug({ key }, '获取锁成功，更新缓存');
+            return value;
+          } finally {
+            try {
+              await redis.eval(RELEASE_LOCK_LUA, 1, lockKey, lockValue);
+            } catch (releaseError) {
+              cacheLogger.warn(
+                { key, err: releaseError instanceof Error ? releaseError.message : releaseError },
+                '释放缓存锁失败',
+              );
+            }
           }
-
-          // 获取锁成功，执行查询
-          const value = await fetcher();
-          await this.set(key, value, ttl);
-          cacheLogger.debug({ key }, '获取锁成功，更新缓存');
-          return value;
-        } finally {
-          await redis.del(lockKey);
         }
-      } else {
-        // 获取锁失败，等待后重试
-        cacheLogger.debug({ key }, '获取锁失败，等待重试');
-        await this.sleep(100);
-        return this.getOrSetWithLock(key, fetcher, ttl, lockTimeout);
+
+        // 获取锁失败：等待前再检查一次缓存（可能已经被其他实例填充）
+        const afterWaitCheck = await this.get<T>(key);
+        if (afterWaitCheck !== null) return afterWaitCheck;
+
+        // 带抖动的退避等待，避免自旋/热点抖动
+        const jitter = Math.floor(Math.random() * 25);
+        await this.sleep(delayMs + jitter);
+        delayMs = Math.min(500, Math.floor(delayMs * 1.5));
       }
+
+      // 超时兜底：避免请求无限等待
+      cacheLogger.warn({ key, lockTimeout, maxWaitMs }, '缓存锁等待超时，直接执行 fetcher');
+      const value = await fetcher();
+      void this.set(key, value, ttl);
+      return value;
     } catch (error) {
       cacheLogger.warn(
-        { key, error: (error as Error).message },
+        { key, error: error instanceof Error ? error.message : error },
         'getOrSetWithLock 操作失败，直接执行 fetcher',
       );
       return fetcher();

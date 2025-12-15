@@ -22,12 +22,16 @@ const mockApiClient = ApiClient as unknown as {
 };
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  MagnifyingGlass: () => <span data-testid="search-icon">Search</span>,
-  Compass: () => <span data-testid="compass-icon">Compass</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  Question: () => <span data-testid="question-icon">Question</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    MagnifyingGlass: () => <span data-testid="search-icon">Search</span>,
+    Compass: () => <span data-testid="compass-icon">Compass</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    Question: () => <span data-testid="question-icon">Question</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../utils/logger', () => ({

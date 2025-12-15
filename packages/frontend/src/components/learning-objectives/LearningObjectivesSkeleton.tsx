@@ -6,6 +6,9 @@ import React from 'react';
 export function LearningObjectivesSkeleton() {
   return (
     <div className="mx-auto max-w-4xl animate-pulse px-4 py-8">
+      <span className="sr-only" role="status" aria-live="polite">
+        加载中...
+      </span>
       {/* 标题骨架 */}
       <div className="mb-8 h-8 w-48 rounded bg-gray-200" />
 

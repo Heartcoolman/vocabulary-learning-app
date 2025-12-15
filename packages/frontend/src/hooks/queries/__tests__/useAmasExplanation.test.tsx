@@ -9,7 +9,7 @@ import {
   useCounterfactualAnalysis,
   useFullExplanation,
 } from '../useAmasExplanation';
-import ApiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 import type {
   DecisionExplanation,
   LearningCurveData,
@@ -18,16 +18,20 @@ import type {
 } from '../../../types/explainability';
 
 // Mock ApiClient
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getAmasDecisionExplanation: vi.fn(),
     getAmasLearningCurve: vi.fn(),
     getDecisionTimeline: vi.fn(),
     runCounterfactualAnalysis: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
-const mockApiClient = ApiClient as unknown as {
+const mockApiClient = apiClient as unknown as {
   getAmasDecisionExplanation: ReturnType<typeof vi.fn>;
   getAmasLearningCurve: ReturnType<typeof vi.fn>;
   getDecisionTimeline: ReturnType<typeof vi.fn>;

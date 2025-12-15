@@ -14,17 +14,21 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  X: () => <span data-testid="x-icon">X</span>,
-  Warning: () => <span data-testid="warning-icon">Warning</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-icon" className={className}>
-      Loading
-    </span>
-  ),
-  FileText: () => <span data-testid="file-icon">File</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    X: () => <span data-testid="x-icon">X</span>,
+    Warning: () => <span data-testid="warning-icon">Warning</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-icon" className={className}>
+        Loading
+      </span>
+    ),
+    FileText: () => <span data-testid="file-icon">File</span>,
+  };
+});
 
 // Mock animations
 vi.mock('../../utils/animations', () => ({

@@ -49,8 +49,8 @@ const mockPagination = {
   totalPages: 1,
 };
 
-vi.mock('@/services/client', () => ({
-  default: {
+vi.mock('@/services/client', () => {
+  const mockClient = {
     adminGetUsers: vi.fn().mockResolvedValue({
       users: [
         {
@@ -76,8 +76,13 @@ vi.mock('@/services/client', () => ({
     }),
     adminDeleteUser: vi.fn().mockResolvedValue(undefined),
     adminUpdateUserRole: vi.fn().mockResolvedValue(undefined),
-  },
-}));
+  };
+
+  return {
+    apiClient: mockClient,
+    default: mockClient,
+  };
+});
 
 // Mock useToast hook and ConfirmModal
 vi.mock('@/components/ui', () => ({

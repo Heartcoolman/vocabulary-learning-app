@@ -56,39 +56,6 @@ import { env } from '../../config/env';
 // ==================== 类型定义 ====================
 
 /**
- * Native Action 序列化格式
- * 用于将 TypeScript Action 转换为可传递给 Native 模块的简单对象
- */
-export interface NativeSerializableAction {
-  /** 动作索引 (用于映射回原始 Action) */
-  index: number;
-  /** 间隔缩放因子 */
-  intervalScale: number;
-  /** 新词比例 */
-  newRatio: number;
-  /** 难度等级 (0=easy, 1=mid, 2=hard) */
-  difficulty: number;
-  /** 批量大小 */
-  batchSize: number;
-  /** 提示级别 */
-  hintLevel: number;
-}
-
-/** 难度等级到数值的映射 */
-const DIFFICULTY_TO_NUMBER: Record<string, number> = {
-  easy: 0,
-  mid: 1,
-  hard: 2,
-};
-
-/** 数值到难度等级的映射 */
-const NUMBER_TO_DIFFICULTY: Record<number, 'easy' | 'mid' | 'hard'> = {
-  0: 'easy',
-  1: 'mid',
-  2: 'hard',
-};
-
-/**
  * ACT-R Wrapper 配置选项
  */
 export interface ACTRWrapperConfig {
@@ -618,44 +585,42 @@ export class ACTRMemoryNativeWrapper {
   // ==================== Native Action 序列化 ====================
 
   /**
-   * 将 Action 序列化为 Native 可用的格式
-   * @param action TypeScript Action 对象
-   * @param index 动作在数组中的索引
-   * @returns NativeSerializableAction
+   * 序列化动作列表为 JSON（与 Native `selectActionFromSerialized` 契约一致）
+   *
+   * Native 侧预期字段为 snake_case：
+   * - interval_scale/new_ratio/difficulty/batch_size/hint_level
    */
-  private serializeAction(action: Action, index: number): NativeSerializableAction {
-    return {
-      index,
-      intervalScale: action.interval_scale,
-      newRatio: action.new_ratio,
-      difficulty: DIFFICULTY_TO_NUMBER[action.difficulty] ?? 1,
-      batchSize: action.batch_size,
-      hintLevel: action.hint_level,
-    };
+  private buildActionsJson(actions: Action[]): string {
+    const payload = actions.map((a) => ({
+      interval_scale: a.interval_scale,
+      new_ratio: a.new_ratio,
+      difficulty: a.difficulty,
+      batch_size: a.batch_size,
+      hint_level: a.hint_level,
+    }));
+    return JSON.stringify(payload);
   }
 
   /**
-   * 批量序列化 Action 数组
-   * @param actions TypeScript Action 数组
-   * @returns NativeSerializableAction 数组
+   * 解析 Native metadata（通常为 JSON 字符串）
    */
-  private serializeActions(actions: Action[]): NativeSerializableAction[] {
-    return actions.map((action, index) => this.serializeAction(action, index));
-  }
-
-  /**
-   * 从 Native 结果反序列化回 Action
-   * @param nativeAction Native 返回的动作数据
-   * @returns TypeScript Action 对象
-   */
-  private deserializeAction(nativeAction: NativeSerializableAction): Action {
-    return {
-      interval_scale: nativeAction.intervalScale,
-      new_ratio: nativeAction.newRatio,
-      difficulty: NUMBER_TO_DIFFICULTY[nativeAction.difficulty] ?? 'mid',
-      batch_size: nativeAction.batchSize,
-      hint_level: nativeAction.hintLevel,
-    };
+  private parseNativeMetadata(metadata: unknown): Record<string, unknown> | undefined {
+    if (!metadata) return undefined;
+    if (typeof metadata === 'string') {
+      try {
+        const parsed = JSON.parse(metadata) as unknown;
+        if (parsed && typeof parsed === 'object') {
+          return parsed as Record<string, unknown>;
+        }
+        return { value: parsed };
+      } catch {
+        return { raw: metadata };
+      }
+    }
+    if (typeof metadata === 'object') {
+      return metadata as Record<string, unknown>;
+    }
+    return { value: metadata };
   }
 
   // ==================== BaseLearner 兼容方法 ====================
@@ -686,8 +651,6 @@ export class ACTRMemoryNativeWrapper {
     }
 
     // 使用 Native 实现（如果可用且决策为 Native）
-    // 注意：当前 Native 模块尚未实现 selectActionFromSerialized 方法
-    // 序列化逻辑已准备就绪，待 Native 模块支持后启用
     if (decision === RouteDecision.USE_NATIVE && this.native) {
       const start = performance.now();
       try {
@@ -695,8 +658,7 @@ export class ACTRMemoryNativeWrapper {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const nativeWithExtension = this.native as any;
         if (typeof nativeWithExtension.selectActionFromSerialized === 'function') {
-          // 序列化 Actions 为 Native 格式
-          const serializedActions = this.serializeActions(actions);
+          const actionsJson = this.buildActionsJson(actions);
 
           // 调用 Native selectAction
           const result = nativeWithExtension.selectActionFromSerialized(
@@ -710,7 +672,7 @@ export class ACTRMemoryNativeWrapper {
               speed: state.C.speed,
               stability: state.C.stability,
             },
-            serializedActions,
+            actionsJson,
             {
               currentTime: context.currentTime ?? Date.now(),
               sessionDuration: context.sessionDuration ?? 0,
@@ -725,7 +687,12 @@ export class ACTRMemoryNativeWrapper {
             recordNativeCall(method, 'success');
             recordNativeDuration(method, elapsed);
 
-            const selectedAction = actions[result.selectedIndex];
+            const selectedIndex =
+              result.selectedIndex >= 0 && result.selectedIndex < actions.length
+                ? result.selectedIndex
+                : 0;
+            const selectedAction = actions[selectedIndex] ?? actions[0];
+            const parsedMetadata = this.parseNativeMetadata(result.metadata);
             return {
               action: selectedAction,
               score: result.score ?? 1.0,
@@ -733,8 +700,8 @@ export class ACTRMemoryNativeWrapper {
               meta: {
                 source: 'native',
                 computeTime: elapsed,
-                selectedIndex: result.selectedIndex,
-                ...(result.metadata ?? {}),
+                selectedIndex,
+                metadata: parsedMetadata,
               },
             };
           }

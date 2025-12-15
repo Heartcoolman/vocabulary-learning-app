@@ -11,7 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
-import apiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../types/models';
 import { AlgorithmConfigService } from '../../services/algorithms/AlgorithmConfigService';
 

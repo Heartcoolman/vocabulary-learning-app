@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import LearningCurveChart from '../LearningCurveChart';
 import type { LearningCurvePoint } from '../../../types/explainability';
+import { chartColors, iconColors } from '../../../utils/iconColors';
 
 const mockData: LearningCurvePoint[] = [
   { date: '2024-01-01', mastery: 30 },
@@ -192,7 +193,9 @@ describe('LearningCurveChart', () => {
       render(<LearningCurveChart data={mockData} />);
 
       const paths = document.querySelectorAll('path');
-      const linePath = Array.from(paths).find((p) => p.getAttribute('stroke') === '#6366f1');
+      const linePath = Array.from(paths).find(
+        (p) => p.getAttribute('stroke') === chartColors.primary,
+      );
       expect(linePath).toBeInTheDocument();
     });
 
@@ -201,8 +204,8 @@ describe('LearningCurveChart', () => {
 
       const circles = document.querySelectorAll('circle');
       circles.forEach((circle) => {
-        expect(circle.getAttribute('fill')).toBe('#fff');
-        expect(circle.getAttribute('stroke')).toBe('#6366f1');
+        expect(circle.getAttribute('fill')).toBe(iconColors.white);
+        expect(circle.getAttribute('stroke')).toBe(chartColors.primary);
       });
     });
   });

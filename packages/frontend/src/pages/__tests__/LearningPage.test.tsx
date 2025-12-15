@@ -33,24 +33,28 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components - 使用相对路径 (LearningPage 使用 ../components/Icon)
-vi.mock('../../components/Icon', () => ({
-  Confetti: () => <span data-testid="confetti-icon">confetti</span>,
-  Books: () => <span data-testid="books-icon">books</span>,
-  CircleNotch: ({ className }: any) => (
-    <span data-testid="loading-icon" className={className}>
-      loading
-    </span>
-  ),
-  Clock: () => <span data-testid="clock-icon">clock</span>,
-  WarningCircle: () => <span data-testid="warning-icon">warning</span>,
-  Brain: () => <span data-testid="brain-icon">brain</span>,
-  ChartPie: () => <span data-testid="chart-icon">chart</span>,
-  Lightbulb: ({ weight }: any) => (
-    <span data-testid="lightbulb-icon" data-weight={weight}>
-      lightbulb
-    </span>
-  ),
-}));
+vi.mock('../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/Icon')>();
+  return {
+    ...actual,
+    Confetti: () => <span data-testid="confetti-icon">confetti</span>,
+    Books: () => <span data-testid="books-icon">books</span>,
+    CircleNotch: ({ className }: any) => (
+      <span data-testid="loading-icon" className={className}>
+        loading
+      </span>
+    ),
+    Clock: () => <span data-testid="clock-icon">clock</span>,
+    WarningCircle: () => <span data-testid="warning-icon">warning</span>,
+    Brain: () => <span data-testid="brain-icon">brain</span>,
+    ChartPie: () => <span data-testid="chart-icon">chart</span>,
+    Lightbulb: ({ weight }: any) => (
+      <span data-testid="lightbulb-icon" data-weight={weight}>
+        lightbulb
+      </span>
+    ),
+  };
+});
 
 // Mock services - 使用相对路径
 vi.mock('../../services/AudioService', () => ({

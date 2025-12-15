@@ -35,7 +35,7 @@ router.get('/search', async (req: AuthRequest, res: Response, next) => {
     const query = req.query.q as string;
     const limit = parseInt(req.query.limit as string) || 20;
 
-    const words = await wordService.searchWords(query, limit);
+    const words = await wordService.searchWords(query, limit, req.user!.id);
 
     res.json({
       success: true,

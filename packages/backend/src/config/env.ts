@@ -115,13 +115,13 @@ const envSchema = z.object({
   // ============================================
   RATE_LIMIT_MAX: z
     .string()
-    .default('100')
+    .default('500')
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().positive()),
 
   RATE_LIMIT_WINDOW_MS: z
     .string()
-    .default('60000')
+    .default('900000')
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().positive()),
 

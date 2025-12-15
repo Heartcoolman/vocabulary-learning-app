@@ -451,7 +451,7 @@ impl CausalInferenceNative {
         let mut sorted = arr.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mid = sorted.len() / 2;
-        if sorted.len() % 2 != 0 {
+        if !sorted.len().is_multiple_of(2) {
             sorted[mid]
         } else {
             (sorted[mid - 1] + sorted[mid]) / 2.0

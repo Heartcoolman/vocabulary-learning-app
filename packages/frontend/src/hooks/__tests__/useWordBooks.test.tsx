@@ -52,8 +52,8 @@ const mockWords: Word[] = [
   },
 ];
 
-vi.mock('../../services/client', () => ({
-  default: {
+const { mockApiClient } = vi.hoisted(() => ({
+  mockApiClient: {
     getSystemWordBooks: vi.fn(),
     getUserWordBooks: vi.fn(),
     getAllAvailableWordBooks: vi.fn(),
@@ -63,7 +63,12 @@ vi.mock('../../services/client', () => ({
   },
 }));
 
-import apiClient from '../../services/client';
+vi.mock('../../services/client', () => ({
+  apiClient: mockApiClient,
+  default: mockApiClient,
+}));
+
+import { apiClient } from '../../services/client';
 
 describe('useWordBooks', () => {
   let queryClient: QueryClient;

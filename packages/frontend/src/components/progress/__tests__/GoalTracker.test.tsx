@@ -7,25 +7,29 @@ import { render, screen } from '@testing-library/react';
 import { GoalTracker } from '../GoalTracker';
 
 // Mock Icon components
-vi.mock('../../Icon', () => ({
-  Calendar: ({ className, weight }: any) => (
-    <span data-testid="icon-calendar" className={className}>
-      Calendar
-    </span>
-  ),
-  Target: ({ className, weight }: any) => (
-    <span data-testid="icon-target" className={className}>
-      Target
-    </span>
-  ),
-  TrendUp: ({ className, weight }: any) => (
-    <span data-testid="icon-trendup" className={className}>
-      TrendUp
-    </span>
-  ),
-  Confetti: ({ size, weight }: any) => <span data-testid="icon-confetti">Confetti</span>,
-  Lightning: ({ size, weight }: any) => <span data-testid="icon-lightning">Lightning</span>,
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    Calendar: ({ className }: any) => (
+      <span data-testid="icon-calendar" className={className}>
+        Calendar
+      </span>
+    ),
+    Target: ({ className }: any) => (
+      <span data-testid="icon-target" className={className}>
+        Target
+      </span>
+    ),
+    TrendUp: ({ className }: any) => (
+      <span data-testid="icon-trendup" className={className}>
+        TrendUp
+      </span>
+    ),
+    Confetti: () => <span data-testid="icon-confetti">Confetti</span>,
+    Lightning: () => <span data-testid="icon-lightning">Lightning</span>,
+  };
+});
 
 describe('GoalTracker', () => {
   const defaultProps = {

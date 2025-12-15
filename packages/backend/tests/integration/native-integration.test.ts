@@ -16,7 +16,7 @@ import {
   ACTRMemoryNativeWrapper,
   createACTRMemoryNativeWrapper,
   createACTRMemoryNativeWrapperFallback,
-} from '../../src/amas/modeling/actr-memory-native';
+} from '../../src/amas/modeling';
 
 // Causal Inference Native Wrapper
 import {

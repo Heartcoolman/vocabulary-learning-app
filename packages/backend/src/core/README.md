@@ -42,7 +42,7 @@
 
 ### Payload 接口
 
-详细的 Payload 接口定义见 `/home/liji/danci/danci/packages/backend/src/core/event-bus.ts`。
+详细的 Payload 接口定义见 `packages/backend/src/core/event-bus.ts`。
 
 ## 快速开始
 
@@ -258,7 +258,7 @@ process.on('SIGTERM', async () => {
 
 ## 示例代码
 
-完整的使用示例见：`/home/liji/danci/danci/packages/backend/src/core/event-bus.example.ts`
+完整的使用示例见：`packages/backend/src/core/event-bus.example.ts`
 
 ## 未来扩展
 
@@ -282,6 +282,6 @@ process.on('SIGTERM', async () => {
 
 ## 相关文档
 
-- [DecisionEventsService](/home/liji/danci/danci/packages/backend/src/services/decision-events.service.ts)
-- [AMAS Types](/home/liji/danci/danci/packages/backend/src/amas/types.ts)
-- [Redis Config](/home/liji/danci/danci/packages/backend/src/config/redis.ts)
+- [DecisionEventsService](../services/decision-events.service.ts)
+- [AMAS Types](../amas/types.ts)
+- [Redis Config](../config/redis.ts)

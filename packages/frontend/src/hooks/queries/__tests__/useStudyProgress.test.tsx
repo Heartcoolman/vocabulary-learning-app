@@ -6,15 +6,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useStudyProgress, useStudyProgressWithRefresh } from '../useStudyProgress';
-import apiClient, { StudyProgress } from '../../../services/client';
+import { apiClient, type StudyProgress } from '../../../services/client';
 import React from 'react';
 
 // Mock ApiClient
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getStudyProgress: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 const mockApiClient = apiClient as unknown as {
   getStudyProgress: ReturnType<typeof vi.fn>;
@@ -34,6 +38,7 @@ const createTestQueryClient = () =>
     defaultOptions: {
       queries: {
         retry: false,
+        retryDelay: () => 0,
         gcTime: 0,
       },
     },
@@ -86,7 +91,7 @@ describe('useStudyProgress', () => {
 
     it('should handle API errors', async () => {
       const mockError = new Error('Network error');
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(mockError);
+      mockApiClient.getStudyProgress.mockRejectedValue(mockError);
       const queryClient = createTestQueryClient();
 
       const { result } = renderHook(() => useStudyProgress(), {
@@ -207,7 +212,7 @@ describe('useStudyProgressWithRefresh', () => {
 
     it('should return error message string', async () => {
       const mockError = new Error('Network error');
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(mockError);
+      mockApiClient.getStudyProgress.mockRejectedValue(mockError);
       const queryClient = createTestQueryClient();
 
       const { result } = renderHook(() => useStudyProgressWithRefresh(), {

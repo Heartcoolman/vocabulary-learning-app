@@ -338,6 +338,9 @@ export class ThompsonSamplingNativeWrapper {
     // 简单操作，直接用 fallback
     this.stats.fallbackCalls++;
     this.fallback.update(state, action, reward, context);
+
+    // 为了保证 Native selectAction 的正确性，同步更新 Native 状态（即使主路径使用 fallback）
+    this.trySyncNativeUpdate(state, action, reward, context);
   }
 
   // ==================== Native 专用方法 ====================
@@ -420,8 +423,10 @@ export class ThompsonSamplingNativeWrapper {
     this.stats.fallbackCalls++;
     recordNativeCall(method, 'fallback');
 
-    // Fallback: 通过 fallback 实例更新（需要完整的 state/action/context）
-    amasLogger.debug('[ThompsonSamplingNativeWrapper] updateParams fallback not fully supported');
+    // Fallback: 通过 fallback 实例更新（需要完整的 state/action/context），在此 API 下无法安全推导
+    amasLogger.debug(
+      '[ThompsonSamplingNativeWrapper] updateParams fallback not supported (missing state/action/context)',
+    );
   }
 
   // ==================== 便捷方法 ====================
@@ -457,7 +462,8 @@ export class ThompsonSamplingNativeWrapper {
     // 如果有 Native 实例，也同步状态
     if (this.native) {
       try {
-        this.native.setState(state as unknown as NativeThompsonSamplingState);
+        const nativeState = this.toNativeState(state);
+        this.native.setState(nativeState);
       } catch (e) {
         amasLogger.warn({ error: e }, '[ThompsonSamplingNativeWrapper] setState to native failed');
       }
@@ -618,6 +624,57 @@ export class ThompsonSamplingNativeWrapper {
     const motBucket = this.bucket(motNorm, 0.1, 0, 1).toFixed(1);
 
     return `err=${errBucket}|rt=${rtBucket}|time=${timeBucket}|att=${attBucket}|fat=${fatBucket}|mot=${motBucket}`;
+  }
+
+  /**
+   * 将 TS 持久化状态转换为 Native 可接受的结构
+   *
+   * 注意：Native 侧使用 JSON 字符串存储参数，以减少 NAPI 结构体开销并便于序列化。
+   */
+  private toNativeState(state: ThompsonSamplingState): NativeThompsonSamplingState {
+    const globalParamsJson = JSON.stringify(state.global ?? {});
+    const contextParamsJson = JSON.stringify(state.contextual ?? {});
+
+    return {
+      version: state.version,
+      priorAlpha: state.priorAlpha,
+      priorBeta: state.priorBeta,
+      updateCount: state.updateCount,
+      globalParamsJson,
+      contextParamsJson,
+    };
+  }
+
+  /**
+   * 同步更新 Native 参数（保持与 fallback 一致）
+   *
+   * 说明：本 wrapper 可能在 selectAction 走 Native、update 走 fallback 的情况下运行；
+   * 若不同步 Native，会导致 Native 决策长期停留在先验分布，产生严重行为漂移。
+   */
+  private trySyncNativeUpdate(
+    state: UserState,
+    action: Action,
+    reward: number,
+    context: ThompsonContext,
+  ): void {
+    if (!this.shouldUseNative() || !this.native) return;
+
+    const actionKey = this.buildActionKey(action);
+    const contextKey = this.buildContextKey(state, context);
+
+    try {
+      this.native.updateWithContextAndReward(contextKey, actionKey, reward);
+    } catch (e) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      recordNativeFailure();
+      this.circuitBreaker.recordFailure(error.message);
+      this.stats.failures++;
+
+      amasLogger.warn(
+        { error: error.message },
+        '[ThompsonSamplingNativeWrapper] Native update sync failed (fallback remains authoritative)',
+      );
+    }
   }
 
   /**

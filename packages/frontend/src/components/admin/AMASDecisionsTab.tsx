@@ -132,7 +132,12 @@ interface Props {
 export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   const [decisions, setDecisions] = useState<DecisionListItem[]>([]);
   const [statistics, setStatistics] = useState<DecisionStatistics | null>(null);
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<{
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  }>({
     page: 1,
     pageSize: PAGINATION_CONFIG.ADMIN_LIST,
     total: 0,

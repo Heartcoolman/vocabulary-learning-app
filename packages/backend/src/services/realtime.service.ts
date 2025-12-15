@@ -324,6 +324,9 @@ class RealtimeService extends EventEmitter {
       this.cleanupExpiredSubscriptions();
     }, this.CLEANUP_INTERVAL);
 
+    // 避免定时器阻止进程退出（测试/脚本场景）
+    this.cleanupTimer.unref();
+
     // 确保进程退出时清理定时器
     process.on('beforeExit', () => {
       if (this.cleanupTimer) {

@@ -10,71 +10,75 @@ import BadgeDetailModal from '../BadgeDetailModal';
 import type { Badge, BadgeCategory } from '../../../types/amas-enhanced';
 
 // Mock Icon component
-vi.mock('../../Icon', () => ({
-  Trophy: ({ size, weight, color, className }: any) => (
-    <span
-      data-testid="trophy-icon"
-      data-size={size}
-      data-weight={weight}
-      data-color={color}
-      className={className}
-    >
-      🏆
-    </span>
-  ),
-  Star: ({ size, weight, color }: any) => (
-    <span data-testid="star-icon" data-size={size} data-weight={weight} data-color={color}>
-      ⭐
-    </span>
-  ),
-  Fire: ({ size, weight, color }: any) => (
-    <span data-testid="fire-icon" data-size={size} data-weight={weight} data-color={color}>
-      🔥
-    </span>
-  ),
-  Brain: ({ size, weight, color }: any) => (
-    <span data-testid="brain-icon" data-size={size} data-weight={weight} data-color={color}>
-      🧠
-    </span>
-  ),
-  Target: ({ size, weight, color }: any) => (
-    <span data-testid="target-icon" data-size={size} data-weight={weight} data-color={color}>
-      🎯
-    </span>
-  ),
-  CheckCircle: ({ size, weight, color, className }: any) => (
-    <span
-      data-testid="check-circle-icon"
-      data-size={size}
-      data-weight={weight}
-      data-color={color}
-      className={className}
-    >
-      ✅
-    </span>
-  ),
-  X: ({ size, weight, color }: any) => (
-    <span data-testid="x-icon" data-size={size} data-weight={weight} data-color={color}>
-      ❌
-    </span>
-  ),
-  Info: ({ size, weight, color }: any) => (
-    <span data-testid="info-icon" data-size={size} data-weight={weight} data-color={color}>
-      ℹ️
-    </span>
-  ),
-  CircleNotch: ({ size, weight, color, className }: any) => (
-    <span
-      data-testid="circle-notch-icon"
-      data-size={size}
-      data-weight={weight}
-      data-color={color}
-      className={className}
-    >
-      ⏳
-    </span>
-  ),
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    Trophy: ({ size, weight, color, className }: any) => (
+      <span
+        data-testid="trophy-icon"
+        data-size={size}
+        data-weight={weight}
+        data-color={color}
+        className={className}
+      >
+        🏆
+      </span>
+    ),
+    Star: ({ size, weight, color }: any) => (
+      <span data-testid="star-icon" data-size={size} data-weight={weight} data-color={color}>
+        ⭐
+      </span>
+    ),
+    Fire: ({ size, weight, color }: any) => (
+      <span data-testid="fire-icon" data-size={size} data-weight={weight} data-color={color}>
+        🔥
+      </span>
+    ),
+    Brain: ({ size, weight, color }: any) => (
+      <span data-testid="brain-icon" data-size={size} data-weight={weight} data-color={color}>
+        🧠
+      </span>
+    ),
+    Target: ({ size, weight, color }: any) => (
+      <span data-testid="target-icon" data-size={size} data-weight={weight} data-color={color}>
+        🎯
+      </span>
+    ),
+    CheckCircle: ({ size, weight, color, className }: any) => (
+      <span
+        data-testid="check-circle-icon"
+        data-size={size}
+        data-weight={weight}
+        data-color={color}
+        className={className}
+      >
+        ✅
+      </span>
+    ),
+    X: ({ size, weight, color }: any) => (
+      <span data-testid="x-icon" data-size={size} data-weight={weight} data-color={color}>
+        ❌
+      </span>
+    ),
+    Info: ({ size, weight, color }: any) => (
+      <span data-testid="info-icon" data-size={size} data-weight={weight} data-color={color}>
+        ℹ️
+      </span>
+    ),
+    CircleNotch: ({ size, weight, color, className }: any) => (
+      <span
+        data-testid="circle-notch-icon"
+        data-size={size}
+        data-weight={weight}
+        data-color={color}
+        className={className}
+      >
+        ⏳
+      </span>
+    ),
+  };
+});
 
 // Mock amasClient
 vi.mock('../../../services/client', () => ({

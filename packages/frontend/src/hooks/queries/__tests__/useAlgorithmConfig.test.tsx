@@ -6,17 +6,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAlgorithmConfig, useConfigHistory } from '../useAlgorithmConfig';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 import type { AlgorithmConfig, ConfigHistory } from '../../../types/models';
 
 // Mock apiClient
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getAlgorithmConfig: vi.fn(),
     getConfigHistory: vi.fn(),
     request: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 const mockApiClient = apiClient as unknown as {
   getAlgorithmConfig: ReturnType<typeof vi.fn>;
@@ -30,6 +34,7 @@ function createTestQueryClient() {
     defaultOptions: {
       queries: {
         retry: false, // 禁用重试以加快测试速度
+        retryDelay: () => 0,
         gcTime: 0, // 禁用缓存以便测试
       },
     },
@@ -129,7 +134,7 @@ describe('useAlgorithmConfig', () => {
 
     it('应该正确处理加载错误', async () => {
       const error = new Error('加载配置失败');
-      mockApiClient.getAlgorithmConfig.mockRejectedValueOnce(error);
+      mockApiClient.getAlgorithmConfig.mockRejectedValue(error);
 
       const { result } = renderHook(() => useAlgorithmConfig(), {
         wrapper: createWrapper(),

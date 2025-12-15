@@ -9,6 +9,7 @@ import { Router, Response } from 'express';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { AuthRequest } from '../../types';
 import { masteryLearningService } from '../../services/mastery-learning.service';
+import learningSessionService from '../../services/learning-session.service';
 import recordService from '../../services/record.service';
 import { logger } from '../../logger';
 
@@ -217,7 +218,7 @@ router.get('/:sessionId/records', async (req: AuthRequest, res: Response, next) 
       Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? undefined : parsedPageSize;
 
     // 获取该会话的所有记录
-    const result = await recordService.getRecordsByUserId(userId, { page, pageSize });
+    const result = await recordService.getRecordsBySessionId(userId, sessionId, { page, pageSize });
 
     res.json({
       success: true,
@@ -249,22 +250,44 @@ router.get('/', async (req: AuthRequest, res: Response, next) => {
 
     const page = Math.max(1, parsedPage);
     const pageSize = Math.min(100, Math.max(1, parsedPageSize));
+    const offset = (page - 1) * pageSize;
 
-    // 这里需要实现获取用户所有会话的逻辑
-    // 由于当前 masteryLearningService 没有提供该方法，我们返回一个占位响应
-    // TODO: 实现 getUserSessions 方法
-    logger.warn({ userId, activeOnly }, '[Session] 获取用户会话列表功能待实现');
+    if (activeOnly) {
+      const activeSession = await learningSessionService.getActiveSession(userId);
+      const data = activeSession ? [activeSession] : [];
+      const pagedData = data.slice(offset, offset + pageSize);
+      const total = data.length;
+
+      return res.json({
+        success: true,
+        data: pagedData,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+        },
+      });
+    }
+
+    const [sessions, total] = await Promise.all([
+      learningSessionService.getUserSessions(userId, {
+        limit: pageSize,
+        offset,
+        includeActive: true,
+      }),
+      learningSessionService.getUserSessionCount(userId, true),
+    ]);
 
     res.json({
       success: true,
-      data: [],
+      data: sessions,
       pagination: {
         page,
         pageSize,
-        total: 0,
-        totalPages: 0,
+        total,
+        totalPages: Math.ceil(total / pageSize),
       },
-      message: '此功能待实现',
     });
   } catch (error) {
     next(error);

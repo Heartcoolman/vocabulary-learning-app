@@ -11,6 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { loginAsUser, waitForPageReady } from './utils/test-helpers';
+import { buildBackendUrl } from './utils/urls';
 
 test.describe('v1 API Endpoints', () => {
   test.describe('Realtime API', () => {
@@ -21,7 +22,7 @@ test.describe('v1 API Endpoints', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 测试 v1 API 端点
-      const response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
           'Cookie': cookieHeader,
         },
@@ -65,7 +66,7 @@ test.describe('v1 API Endpoints', () => {
         const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
         // 发送测试事件
-        const response = await request.post('http://localhost:3000/api/v1/realtime/test', {
+        const response = await request.post(buildBackendUrl('/api/v1/realtime/test'), {
           headers: {
             'Cookie': cookieHeader,
             'Content-Type': 'application/json',
@@ -90,7 +91,7 @@ test.describe('v1 API Endpoints', () => {
   test.describe('API Versioning', () => {
     test('should handle v1 API prefix correctly', async ({ request }) => {
       // 测试 v1 API 路径
-      const response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
           'Authorization': 'Bearer invalid-token', // 应该返回认证错误
         },
@@ -106,7 +107,7 @@ test.describe('v1 API Endpoints', () => {
       const cookies = await page.context().cookies();
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-      const response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -124,7 +125,7 @@ test.describe('v1 API Endpoints', () => {
       const cookies = await page.context().cookies();
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-      const response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -139,7 +140,7 @@ test.describe('v1 API Endpoints', () => {
 
   test.describe('Error Handling', () => {
     test('should return structured error for invalid v1 API requests', async ({ request }) => {
-      const response = await request.get('http://localhost:3000/api/v1/realtime/nonexistent');
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/nonexistent'));
 
       // 应该返回 404 或 401/403
       expect(response.status()).toBeGreaterThanOrEqual(400);
@@ -158,7 +159,7 @@ test.describe('v1 API Endpoints', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 发送格式错误的请求
-      const response = await request.post('http://localhost:3000/api/v1/realtime/test', {
+      const response = await request.post(buildBackendUrl('/api/v1/realtime/test'), {
         headers: {
           'Cookie': cookieHeader,
           'Content-Type': 'application/json',
@@ -370,7 +371,7 @@ test.describe('API Deprecation Warnings', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 测试可能被废弃的旧 API 端点
-      const response = await request.get('http://localhost:3000/api/statistics/overview', {
+      const response = await request.get(buildBackendUrl('/api/statistics/overview'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -415,7 +416,7 @@ test.describe('API Deprecation Warnings', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 请求可能被废弃的端点
-      const response = await request.get('http://localhost:3000/api/statistics/overview', {
+      const response = await request.get(buildBackendUrl('/api/statistics/overview'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -451,7 +452,7 @@ test.describe('API Deprecation Warnings', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 测试 v1 API
-      const v1Response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const v1Response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -459,7 +460,7 @@ test.describe('API Deprecation Warnings', () => {
       expect(v1Response.ok()).toBeTruthy();
 
       // 测试未版本化的 API（可能作为默认版本）
-      const defaultResponse = await request.get('http://localhost:3000/api/users/profile', {
+      const defaultResponse = await request.get(buildBackendUrl('/api/users/profile'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -469,7 +470,7 @@ test.describe('API Deprecation Warnings', () => {
 
     test('should route to correct version based on URL prefix', async ({ request }) => {
       // v1 路径应该路由到 v1 处理器
-      const v1Response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const v1Response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
           'Authorization': 'Bearer invalid',
         },
@@ -479,7 +480,7 @@ test.describe('API Deprecation Warnings', () => {
       expect([401, 403]).toContain(v1Response.status());
 
       // 无效路径应该返回 404
-      const invalidResponse = await request.get('http://localhost:3000/api/v99/invalid');
+      const invalidResponse = await request.get(buildBackendUrl('/api/v99/invalid'));
       expect(invalidResponse.status()).toBe(404);
     });
   });

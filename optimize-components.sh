@@ -21,8 +21,11 @@ COMPONENTS=(
 
 echo "开始为组件添加 React.memo 优化..."
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${SCRIPT_DIR}"
+
 for component in "${COMPONENTS[@]}"; do
-  file="/home/liji/danci/danci/$component"
+  file="${REPO_ROOT}/${component}"
 
   if [ ! -f "$file" ]; then
     echo "警告: 文件不存在 $file"

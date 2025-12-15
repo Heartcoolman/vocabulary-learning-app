@@ -8,18 +8,22 @@ import SyncIndicator from '../SyncIndicator';
 import StorageService, { SyncStatus } from '../../services/StorageService';
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Check: ({ className }: { className?: string }) => (
-    <span data-testid="check-icon" className={className}>
-      Check
-    </span>
-  ),
-  X: ({ className }: { className?: string }) => (
-    <span data-testid="x-icon" className={className}>
-      X
-    </span>
-  ),
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Check: ({ className }: { className?: string }) => (
+      <span data-testid="check-icon" className={className}>
+        Check
+      </span>
+    ),
+    X: ({ className }: { className?: string }) => (
+      <span data-testid="x-icon" className={className}>
+        X
+      </span>
+    ),
+  };
+});
 
 // Mock logger
 vi.mock('../../utils/logger', () => ({

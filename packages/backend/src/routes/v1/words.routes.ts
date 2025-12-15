@@ -70,7 +70,7 @@ router.get('/search', async (req: AuthRequest, res: Response, next) => {
       });
     }
 
-    const words = await wordService.searchWords(query, limit);
+    const words = await wordService.searchWords(query, limit, req.user!.id);
 
     res.json({
       success: true,

@@ -82,7 +82,7 @@ export const DEFAULT_FEATURE_FLAGS: AMASFeatureFlags = {
   enableUserParamsManager: true,
 
   // 评估层
-  enableDelayedRewardAggregator: false,
+  enableDelayedRewardAggregator: true,
   enableCausalInference: true,
 
   // 优化层
@@ -212,20 +212,8 @@ function notifyChange(): void {
   }
 }
 
-/**
- * 更新功能开关（运行时动态调整）
- * 同时清除相关的 Redis 缓存，确保配置变更立即生效
- */
-export async function updateFeatureFlags(
-  updates: Partial<AMASFeatureFlags>,
-): Promise<AMASFeatureFlags> {
-  currentFlags = {
-    ...currentFlags,
-    ...updates,
-  };
-
-  // 清除 Redis 中的用户状态和模型缓存
-  // 确保配置变更后不会使用过期的缓存数据
+async function clearFeatureFlagRedisCache(updates: Partial<AMASFeatureFlags>): Promise<void> {
+  // 清除 Redis 中的用户状态和模型缓存，确保配置变更后不会使用过期数据
   try {
     const deletedStateCount = await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_STATE);
     const deletedModelCount = await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_MODEL);
@@ -246,6 +234,19 @@ export async function updateFeatureFlags(
       '[FeatureFlags] 清除 Redis 缓存失败，配置变更可能延迟生效',
     );
   }
+}
+
+/**
+ * 更新功能开关（运行时动态调整）
+ * 同时清除相关的 Redis 缓存，确保配置变更立即生效
+ */
+export function updateFeatureFlags(updates: Partial<AMASFeatureFlags>): AMASFeatureFlags {
+  currentFlags = {
+    ...currentFlags,
+    ...updates,
+  };
+
+  void clearFeatureFlagRedisCache(updates);
 
   notifyChange();
   return currentFlags;
@@ -255,22 +256,10 @@ export async function updateFeatureFlags(
  * 重置为默认配置
  * 同时清除相关的 Redis 缓存
  */
-export async function resetFeatureFlags(): Promise<AMASFeatureFlags> {
+export function resetFeatureFlags(): AMASFeatureFlags {
   currentFlags = { ...DEFAULT_FEATURE_FLAGS };
 
-  // 清除 Redis 缓存
-  try {
-    await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_STATE);
-    await redisCacheService.delByPrefix(REDIS_CACHE_KEYS.USER_MODEL);
-    amasLogger.info('[FeatureFlags] 功能开关已重置，Redis 缓存已清除');
-  } catch (error) {
-    amasLogger.warn(
-      {
-        error: (error as Error).message,
-      },
-      '[FeatureFlags] 重置时清除 Redis 缓存失败',
-    );
-  }
+  void clearFeatureFlagRedisCache({});
 
   notifyChange();
   return currentFlags;

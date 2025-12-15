@@ -94,13 +94,13 @@ declare global {
       // ============================================
       /**
        * 每个窗口期内的最大请求数
-       * @default "100"
+       * @default "500"
        */
       RATE_LIMIT_MAX?: string;
 
       /**
        * 速率限制窗口期时长（毫秒）
-       * @default "60000"
+       * @default "900000"
        */
       RATE_LIMIT_WINDOW_MS?: string;
 

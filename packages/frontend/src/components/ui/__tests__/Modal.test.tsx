@@ -15,9 +15,13 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon component
-vi.mock('../../Icon', () => ({
-  X: ({ size, weight }: any) => <span data-testid="icon-x">X</span>,
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    X: () => <span data-testid="icon-x">X</span>,
+  };
+});
 
 describe('Modal', () => {
   // ==================== Rendering Tests ====================

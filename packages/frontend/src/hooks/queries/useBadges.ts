@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { Badge, BadgeProgress } from '../../types/amas-enhanced';
 
 /**
@@ -11,7 +11,7 @@ export function useUserBadges() {
   return useQuery({
     queryKey: queryKeys.badges.userBadges(),
     queryFn: async () => {
-      const response = await ApiClient.getUserBadges();
+      const response = await apiClient.getUserBadges();
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5分钟缓存
@@ -26,7 +26,7 @@ export function useAllBadgesWithStatus() {
   return useQuery({
     queryKey: queryKeys.badges.allWithStatus(),
     queryFn: async () => {
-      const response = await ApiClient.getAllBadgesWithStatus();
+      const response = await apiClient.getAllBadgesWithStatus();
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5分钟缓存
@@ -41,7 +41,7 @@ export function useBadgeDetails(badgeId: string) {
   return useQuery({
     queryKey: queryKeys.badges.detail(badgeId),
     queryFn: async () => {
-      const response = await ApiClient.getBadgeDetails(badgeId);
+      const response = await apiClient.getBadgeDetails(badgeId);
       return response;
     },
     enabled: !!badgeId,
@@ -57,7 +57,7 @@ export function useBadgeProgress(badgeId: string) {
   return useQuery({
     queryKey: queryKeys.badges.progress(badgeId),
     queryFn: async () => {
-      const response = await ApiClient.getBadgeProgress(badgeId);
+      const response = await apiClient.getBadgeProgress(badgeId);
       return response;
     },
     enabled: !!badgeId,
@@ -74,7 +74,7 @@ export function useCheckAndAwardBadges() {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await ApiClient.checkAndAwardBadges();
+      const response = await apiClient.checkAndAwardBadges();
       return response;
     },
     onSuccess: () => {
