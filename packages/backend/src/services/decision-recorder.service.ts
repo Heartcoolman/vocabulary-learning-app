@@ -13,7 +13,8 @@
  */
 
 import { createHash } from 'crypto';
-import { PrismaClient, PipelineStageType, PipelineStageStatus, Prisma } from '@prisma/client';
+import { PipelineStageType, PipelineStageStatus, Prisma } from '@prisma/client';
+import { DatabaseClient } from '../config/database';
 import { createId } from '@paralleldrive/cuid2';
 import {
   recordWriteSuccess,
@@ -87,7 +88,7 @@ export class DecisionRecorderService {
   private flushTimer: NodeJS.Timeout | null = null;
   private backpressureWaiters: Map<symbol, () => void> = new Map();
 
-  constructor(private prisma: PrismaClient) {
+  constructor(private prisma: DatabaseClient) {
     this.startPeriodicFlush();
   }
 
@@ -488,11 +489,11 @@ export class DecisionRecorderService {
 
 let sharedInstance: DecisionRecorderService | null = null;
 
-export function createDecisionRecorder(prisma: PrismaClient): DecisionRecorderService {
+export function createDecisionRecorder(prisma: DatabaseClient): DecisionRecorderService {
   return new DecisionRecorderService(prisma);
 }
 
-export function getSharedDecisionRecorder(prisma: PrismaClient): DecisionRecorderService {
+export function getSharedDecisionRecorder(prisma: DatabaseClient): DecisionRecorderService {
   if (!sharedInstance) {
     sharedInstance = new DecisionRecorderService(prisma);
   }

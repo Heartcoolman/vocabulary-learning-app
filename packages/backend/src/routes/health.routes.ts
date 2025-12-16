@@ -10,7 +10,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import prisma from '../config/database';
+import prisma, { getDatabaseProxy, isHotStandbyEnabled } from '../config/database';
 import { routeLogger } from '../logger';
 import { amasMetrics } from '../monitoring/amas-metrics';
 import { alertMonitoringService } from '../monitoring/monitoring-service';
@@ -118,30 +118,91 @@ function checkMemoryHealth(threshold = 0.9): boolean {
  */
 async function checkDatabaseConnection(
   timeoutMs = 5000,
-): Promise<{ status: 'connected' | 'disconnected' | 'timeout'; latency?: number }> {
+): Promise<{ status: 'connected' | 'disconnected' | 'timeout'; latency?: number; mode?: string }> {
   const startTime = Date.now();
 
   try {
-    // 使用 Promise.race 实现超时
-    const result = await Promise.race([
-      prisma.$queryRaw`SELECT 1` as Promise<unknown>,
-      new Promise<'timeout'>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), timeoutMs),
-      ),
-    ]);
+    // 热备模式下使用 DatabaseProxy 检查
+    if (isHotStandbyEnabled()) {
+      const proxy = getDatabaseProxy();
+      if (proxy) {
+        const state = proxy.getState();
+        // 在 DEGRADED 模式下，SQLite 仍然可用
+        if (state === 'DEGRADED') {
+          // 尝试查询 SQLite
+          try {
+            await proxy.$queryRawUnsafe('SELECT 1');
+            return {
+              status: 'connected',
+              latency: Date.now() - startTime,
+              mode: 'degraded-sqlite',
+            };
+          } catch {
+            return { status: 'disconnected', mode: 'degraded-sqlite' };
+          }
+        }
+        // NORMAL 或 SYNCING 模式，使用 proxy 查询（会路由到 PostgreSQL）
+        let timeoutId: NodeJS.Timeout;
+        const timeoutPromise = new Promise<'timeout'>((resolve) => {
+          timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);
+        });
 
-    if (result === 'timeout') {
-      return { status: 'timeout' };
+        try {
+          const result = await Promise.race([
+            proxy
+              .$queryRawUnsafe('SELECT 1')
+              .then(() => 'connected' as const)
+              .catch(() => 'disconnected' as const),
+            timeoutPromise,
+          ]);
+          clearTimeout(timeoutId!);
+
+          if (result === 'timeout') {
+            return { status: 'timeout', mode: state.toLowerCase() };
+          }
+          if (result === 'disconnected') {
+            return { status: 'disconnected', mode: state.toLowerCase() };
+          }
+          return {
+            status: 'connected',
+            latency: Date.now() - startTime,
+            mode: state.toLowerCase(),
+          };
+        } finally {
+          clearTimeout(timeoutId!);
+        }
+      }
     }
 
-    return {
-      status: 'connected',
-      latency: Date.now() - startTime,
-    };
+    // 非热备模式，直接使用 Prisma
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<'timeout'>((resolve) => {
+      timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);
+    });
+
+    try {
+      const result = await Promise.race([
+        prisma.$queryRaw`SELECT 1`
+          .then(() => 'connected' as const)
+          .catch(() => 'disconnected' as const),
+        timeoutPromise,
+      ]);
+      clearTimeout(timeoutId!);
+
+      if (result === 'timeout') {
+        return { status: 'timeout' };
+      }
+      if (result === 'disconnected') {
+        return { status: 'disconnected' };
+      }
+      return {
+        status: 'connected',
+        latency: Date.now() - startTime,
+      };
+    } finally {
+      clearTimeout(timeoutId!);
+    }
   } catch (error) {
-    if (error instanceof Error && error.message === 'timeout') {
-      return { status: 'timeout' };
-    }
     routeLogger.error({ err: error }, 'Database health check failed');
     return { status: 'disconnected' };
   }
@@ -451,6 +512,74 @@ router.get('/metrics/prometheus', async (req: Request, res: Response) => {
   } catch (error) {
     routeLogger.error({ err: error }, 'Prometheus metrics endpoint failed');
     res.status(500).send('# Error collecting metrics\n');
+  }
+});
+
+/**
+ * GET /health/database
+ *
+ * 数据库代理状态端点
+ * 返回 PostgreSQL + SQLite 热备状态
+ */
+router.get('/database', async (req: Request, res: Response) => {
+  try {
+    const proxy = getDatabaseProxy();
+
+    if (!proxy) {
+      // 热备未启用，返回简化状态
+      const dbCheck = await checkDatabaseConnection(3000);
+      res.json({
+        mode: 'standalone',
+        state: 'NORMAL',
+        primary: {
+          type: 'postgresql',
+          healthy: dbCheck.status === 'connected',
+          latency: dbCheck.latency,
+        },
+        fallback: null,
+        hotStandbyEnabled: false,
+      });
+      return;
+    }
+
+    // 热备已启用，返回详细状态
+    const healthStatus = proxy.getHealthStatus();
+    const metrics = proxy.getMetrics();
+
+    res.json({
+      mode: 'hot_standby',
+      state: healthStatus.state,
+      primary: {
+        type: 'postgresql',
+        healthy: healthStatus.primary.healthy,
+        latency: healthStatus.primary.latency,
+        consecutiveFailures: healthStatus.primary.consecutiveFailures,
+      },
+      fallback: {
+        type: 'sqlite',
+        healthy: healthStatus.fallback.healthy,
+        latency: healthStatus.fallback.latency,
+        syncStatus: healthStatus.fallback.syncStatus,
+      },
+      metrics: {
+        totalQueries: metrics.totalQueries,
+        failedQueries: metrics.failedQueries,
+        averageLatency: metrics.averageLatency,
+        stateChanges: metrics.stateChanges,
+        pendingSyncChanges: metrics.pendingSyncChanges,
+      },
+      lastStateChange: healthStatus.lastStateChange
+        ? new Date(healthStatus.lastStateChange).toISOString()
+        : null,
+      uptime: healthStatus.uptime,
+      hotStandbyEnabled: true,
+    });
+  } catch (error) {
+    routeLogger.error({ err: error }, 'Database status endpoint failed');
+    res.status(500).json({
+      error: 'Failed to get database status',
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

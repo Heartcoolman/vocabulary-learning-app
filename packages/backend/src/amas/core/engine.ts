@@ -14,8 +14,8 @@
  * - 奖励配置缓存
  */
 
-import { PrismaClient } from '@prisma/client';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
+import { DatabaseClient } from '../../config/database';
 
 // ==================== 外部依赖 ====================
 import { FeatureBuilder } from '../perception/feature-builder';
@@ -250,7 +250,7 @@ export interface EngineDependencies {
   userParamsManager?: UserParamsManager;
   recorder?: DecisionRecorderService;
   decisionTracer?: DecisionTracer;
-  prisma?: PrismaClient;
+  prisma?: DatabaseClient;
   memoryConfig?: MemoryManagementConfig;
   persistence?: PersistenceManager;
   rewardCacheManager?: RewardCacheManager;

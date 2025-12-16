@@ -7,7 +7,18 @@
 
 import { config } from 'dotenv';
 import { z } from 'zod';
+import * as path from 'path';
 import { startupLogger } from '../logger';
+
+/**
+ * 获取项目根目录的绝对路径
+ * 用于将相对路径转换为绝对路径
+ */
+function getProjectRoot(): string {
+  // __dirname 指向 dist/config 或 src/config
+  // 向上两级获取 backend 目录
+  return path.resolve(__dirname, '..', '..');
+}
 
 // 加载 .env 文件
 config();
@@ -205,6 +216,113 @@ const envSchema = z.object({
     .transform((val) => val === 'true'),
 
   // ============================================
+  // SQLite 热备配置
+  // ============================================
+  SQLITE_FALLBACK_PATH: z
+    .string()
+    .default('./data/fallback.db')
+    .transform((val) => {
+      // 将相对路径转换为绝对路径
+      if (path.isAbsolute(val)) {
+        return val;
+      }
+      return path.resolve(getProjectRoot(), val);
+    }),
+
+  SQLITE_FALLBACK_ENABLED: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  SQLITE_SYNC_ON_STARTUP: z
+    .string()
+    .default('true')
+    .transform((val) => val === 'true'),
+
+  SQLITE_JOURNAL_MODE: z
+    .enum(['WAL', 'DELETE', 'TRUNCATE', 'PERSIST', 'MEMORY', 'OFF'])
+    .default('WAL'),
+
+  SQLITE_SYNCHRONOUS: z.enum(['OFF', 'NORMAL', 'FULL', 'EXTRA']).default('FULL'),
+
+  // ============================================
+  // 故障切换配置
+  // ============================================
+  DB_HEALTH_CHECK_INTERVAL_MS: z
+    .string()
+    .default('5000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1000)),
+
+  DB_HEALTH_CHECK_TIMEOUT_MS: z
+    .string()
+    .default('3000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(500)),
+
+  DB_FAILURE_THRESHOLD: z
+    .string()
+    .default('3')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1)),
+
+  DB_RECOVERY_THRESHOLD: z
+    .string()
+    .default('5')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1)),
+
+  DB_MIN_RECOVERY_INTERVAL_MS: z
+    .string()
+    .default('30000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(5000)),
+
+  // ============================================
+  // Fencing 机制配置
+  // ============================================
+  DB_FENCING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  DB_FENCING_LOCK_KEY: z.string().default('danci:db:write_lock'),
+
+  DB_FENCING_LOCK_TTL_MS: z
+    .string()
+    .default('30000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(5000)),
+
+  DB_FENCING_RENEW_INTERVAL_MS: z
+    .string()
+    .default('10000')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1000)),
+
+  DB_FENCING_FAIL_ON_REDIS_UNAVAILABLE: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  // ============================================
+  // 同步配置
+  // ============================================
+  DB_SYNC_BATCH_SIZE: z
+    .string()
+    .default('100')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(10)),
+
+  DB_SYNC_RETRY_COUNT: z
+    .string()
+    .default('3')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1).max(10)),
+
+  DB_CONFLICT_STRATEGY: z.enum(['sqlite_wins', 'postgres_wins', 'manual']).default('sqlite_wins'),
+
+  // ============================================
   // LLM 顾问配置
   // ============================================
   LLM_PROVIDER: z.enum(['openai', 'anthropic', 'ollama', 'custom']).default('openai'),
@@ -300,6 +418,28 @@ function validateEnv(): Env {
       LLM_TEMPERATURE: process.env.LLM_TEMPERATURE,
       LLM_MAX_TOKENS: process.env.LLM_MAX_TOKENS,
       LLM_ADVISOR_ENABLED: process.env.LLM_ADVISOR_ENABLED,
+      // SQLite 热备配置
+      SQLITE_FALLBACK_PATH: process.env.SQLITE_FALLBACK_PATH,
+      SQLITE_FALLBACK_ENABLED: process.env.SQLITE_FALLBACK_ENABLED,
+      SQLITE_SYNC_ON_STARTUP: process.env.SQLITE_SYNC_ON_STARTUP,
+      SQLITE_JOURNAL_MODE: process.env.SQLITE_JOURNAL_MODE,
+      SQLITE_SYNCHRONOUS: process.env.SQLITE_SYNCHRONOUS,
+      // 故障切换配置
+      DB_HEALTH_CHECK_INTERVAL_MS: process.env.DB_HEALTH_CHECK_INTERVAL_MS,
+      DB_HEALTH_CHECK_TIMEOUT_MS: process.env.DB_HEALTH_CHECK_TIMEOUT_MS,
+      DB_FAILURE_THRESHOLD: process.env.DB_FAILURE_THRESHOLD,
+      DB_RECOVERY_THRESHOLD: process.env.DB_RECOVERY_THRESHOLD,
+      DB_MIN_RECOVERY_INTERVAL_MS: process.env.DB_MIN_RECOVERY_INTERVAL_MS,
+      // Fencing 配置
+      DB_FENCING_ENABLED: process.env.DB_FENCING_ENABLED,
+      DB_FENCING_LOCK_KEY: process.env.DB_FENCING_LOCK_KEY,
+      DB_FENCING_LOCK_TTL_MS: process.env.DB_FENCING_LOCK_TTL_MS,
+      DB_FENCING_RENEW_INTERVAL_MS: process.env.DB_FENCING_RENEW_INTERVAL_MS,
+      DB_FENCING_FAIL_ON_REDIS_UNAVAILABLE: process.env.DB_FENCING_FAIL_ON_REDIS_UNAVAILABLE,
+      // 同步配置
+      DB_SYNC_BATCH_SIZE: process.env.DB_SYNC_BATCH_SIZE,
+      DB_SYNC_RETRY_COUNT: process.env.DB_SYNC_RETRY_COUNT,
+      DB_CONFLICT_STRATEGY: process.env.DB_CONFLICT_STRATEGY,
     });
 
     // 开发环境警告
