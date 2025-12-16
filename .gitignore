@@ -38,11 +38,32 @@ dist-ssr
 
 # AI Assistant files
 .claude/
+.cursor/
 .shrimp/
 .agent/
 .serena/
 .kiro/
 .windsurf/
+.gemini/
+
+# Temporary analysis files
+analyze-*.ts
+analyze-*.mjs
+*-analysis*.json
+*-report*.json
+*SUMMARY*.txt
+*SUMMARY*.json
+dependency-*.json
+
+# Log files (besides npm logs)
+*.log
+!packages/backend/logs/.gitkeep
+
+# Temporary/backup files
+*.bak
+*.tmp
+*.part*.txt
+*.fixed
 
 # OS files
 Thumbs.db
