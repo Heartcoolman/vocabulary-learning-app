@@ -10,8 +10,7 @@
  * - Mixed: 混合型
  */
 
-import { PrismaClient } from '@prisma/client';
-import prisma from '../../config/database';
+import db, { DatabaseClient, getPrismaClient } from '../../config/database';
 import { amasLogger } from '../../logger';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'mixed';
@@ -54,14 +53,14 @@ export interface LearningStyleProfile {
 export class LearningStyleProfiler {
   private readonly minSampleSize = 50; // 最小数据量
   private readonly recentRecordLimit = 200; // 分析最近N条记录
-  private readonly prismaClient: PrismaClient;
+  private readonly dbClient: DatabaseClient;
 
   /**
    * 构造函数
-   * @param prismaClient Prisma客户端实例（依赖注入）
+   * @param dbClient 数据库客户端实例（依赖注入）
    */
-  constructor(prismaClient: PrismaClient = prisma) {
-    this.prismaClient = prismaClient;
+  constructor(dbClient: DatabaseClient = db) {
+    this.dbClient = dbClient;
   }
 
   /**
@@ -165,7 +164,7 @@ export class LearningStyleProfiler {
     };
 
     try {
-      const records = await this.prismaClient.answerRecord.findMany({
+      const records = await this.dbClient.answerRecord.findMany({
         where: { userId },
         select: {
           dwellTime: true,

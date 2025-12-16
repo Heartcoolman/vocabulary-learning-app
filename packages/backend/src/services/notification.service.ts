@@ -10,7 +10,6 @@
  */
 
 import {
-  PrismaClient,
   NotificationType as PrismaNotificationType,
   NotificationStatus as PrismaNotificationStatus,
   NotificationPriority as PrismaNotificationPriority,
@@ -26,7 +25,7 @@ import type {
   NotificationPriority,
 } from '@danci/shared/types';
 import { NotificationType as SharedNotificationType } from '@danci/shared/types';
-import prisma from '../config/database';
+import prisma, { DatabaseClient } from '../config/database';
 import { serviceLogger } from '../logger';
 import { getEventBus } from '../core/event-bus';
 import { decisionEventsService } from './decision-events.service';
@@ -41,7 +40,7 @@ const logger = serviceLogger.child({ module: 'notification-service' });
 class NotificationService {
   private initialized = false;
 
-  constructor(private prisma: PrismaClient) {
+  constructor(private prisma: DatabaseClient) {
     logger.info('NotificationService initialized');
   }
 

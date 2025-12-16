@@ -10,7 +10,7 @@
  */
 
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import { DatabaseClient } from '../config/database';
 import { serviceLogger } from '../logger';
 import {
   OverviewStats,
@@ -75,7 +75,7 @@ export class RealAboutService {
   // 缓存清理定时器
   private cleanupTimer: NodeJS.Timeout | null = null;
 
-  constructor(private prisma: PrismaClient) {
+  constructor(private prisma: DatabaseClient) {
     this.startCacheCleanup();
   }
 
@@ -1897,11 +1897,11 @@ export class RealAboutService {
 
 let sharedInstance: RealAboutService | null = null;
 
-export function createRealAboutService(prisma: PrismaClient): RealAboutService {
+export function createRealAboutService(prisma: DatabaseClient): RealAboutService {
   return new RealAboutService(prisma);
 }
 
-export function getSharedRealAboutService(prisma: PrismaClient): RealAboutService {
+export function getSharedRealAboutService(prisma: DatabaseClient): RealAboutService {
   if (!sharedInstance) {
     sharedInstance = new RealAboutService(prisma);
   }

@@ -174,22 +174,63 @@ export class StudyConfigService {
     }
 
     // 获取用户所有已有学习状态的单词ID（用于排除）
-    const allLearnedStates = await prisma.wordLearningState.findMany({
-      where: {
-        userId,
-        word: { wordBookId: { in: accessibleIds } },
+    // 注意：避免依赖 include/关系过滤，确保 SQLite 降级模式可用
+    const learnedStates = await prisma.wordLearningState.findMany({
+      where: { userId },
+      select: {
+        wordId: true,
+        state: true,
+        reviewCount: true,
+        nextReviewDate: true,
       },
-      include: { word: true },
     });
+
+    const learnedStateWordIds = learnedStates.map((s) => s.wordId);
+    const learnedWords =
+      learnedStateWordIds.length > 0
+        ? await prisma.word.findMany({
+            where: {
+              id: { in: learnedStateWordIds },
+              wordBookId: { in: accessibleIds },
+            },
+            select: {
+              id: true,
+              spelling: true,
+              phonetic: true,
+              meanings: true,
+              examples: true,
+              audioUrl: true,
+              wordBookId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : [];
+
+    type LearnedState = (typeof learnedStates)[number];
+    type LearnedWord = (typeof learnedWords)[number];
+    type LearnedStateWithWord = LearnedState & { word: LearnedWord };
+
+    const wordById = new Map(learnedWords.map((w) => [w.id, w]));
+    const allLearnedStates: LearnedStateWithWord[] = [];
+    for (const state of learnedStates) {
+      const word = wordById.get(state.wordId);
+      if (!word) continue;
+      allLearnedStates.push({ ...state, word });
+    }
+
     const learnedWordIds = allLearnedStates.map((s) => s.wordId);
 
     // 获取所有单词的得分信息
-    const wordScores = await prisma.wordScore.findMany({
-      where: {
-        userId,
-        wordId: { in: learnedWordIds },
-      },
-    });
+    const wordScores =
+      learnedWordIds.length > 0
+        ? await prisma.wordScore.findMany({
+            where: {
+              userId,
+              wordId: { in: learnedWordIds },
+            },
+          })
+        : [];
     const scoreMap = new Map(wordScores.map((s) => [s.wordId, s]));
 
     // 1. 获取到期需要复习的单词（带优先级和难度计算）
@@ -273,20 +314,27 @@ export class StudyConfigService {
       }> = [];
 
       if (config.studyMode === 'random') {
-        // 随机模式：使用 PostgreSQL 原生随机排序
-        candidateNewWords = await prisma.$queryRaw<typeof candidateNewWords>`
-                    SELECT * FROM "words"
-                    WHERE "wordBookId" = ANY(${accessibleIds})
-                      AND id NOT IN (SELECT unnest(${learnedWordIds}::text[]))
-                    ORDER BY RANDOM()
-                    LIMIT ${candidateCount}
-                `;
+        // 随机模式：应用层随机（兼容 SQLite 降级）
+        const candidates = await prisma.word.findMany({
+          where: {
+            wordBookId: { in: accessibleIds },
+            ...(learnedWordIds.length > 0 ? { id: { notIn: learnedWordIds } } : {}),
+          },
+          take: candidateCount * 5,
+        });
+
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        candidateNewWords = candidates.slice(0, candidateCount) as typeof candidateNewWords;
       } else {
         // 顺序模式：按创建时间排序
         candidateNewWords = await prisma.word.findMany({
           where: {
             wordBookId: { in: accessibleIds },
-            id: { notIn: learnedWordIds },
+            ...(learnedWordIds.length > 0 ? { id: { notIn: learnedWordIds } } : {}),
           },
           orderBy: { createdAt: 'asc' },
           take: candidateCount,
@@ -489,35 +537,54 @@ export class StudyConfigService {
       return [0, 0, 0, 0, 0, 0, 0];
     }
 
-    // 单次查询获取7天数据
-    // 注意：PostgreSQL DATE() 返回的类型可能是 Date 或 string，需兼容处理
-    const dailyCounts = await prisma.$queryRaw<Array<{ day: Date | string; count: bigint }>>`
-            SELECT DATE("timestamp") as day, COUNT(DISTINCT "wordId") as count
-            FROM "answer_records"
-            WHERE "userId" = ${userId}
-              AND "timestamp" >= ${weekStart}
-              AND "wordId" IN (
-                  SELECT id FROM "words" WHERE "wordBookId" = ANY(${accessibleIds})
-              )
-            GROUP BY DATE("timestamp")
-            ORDER BY day ASC
-        `;
+    // 统一使用 ORM + 应用层统计，避免依赖 PG 专用 SQL（ANY/DATE/unnest），保证 SQLite 降级可用
+    const records = await prisma.answerRecord.findMany({
+      where: {
+        userId,
+        timestamp: { gte: weekStart },
+      },
+      select: {
+        wordId: true,
+        timestamp: true,
+      },
+    });
 
-    // 填充7天数据（无数据的天补0）
+    const uniqueWordIds = Array.from(new Set(records.map((r) => r.wordId)));
+    if (uniqueWordIds.length === 0) {
+      return [0, 0, 0, 0, 0, 0, 0];
+    }
+
+    const allowedWordIds = await prisma.word.findMany({
+      where: {
+        id: { in: uniqueWordIds },
+        wordBookId: { in: accessibleIds },
+      },
+      select: { id: true },
+    });
+    if (allowedWordIds.length === 0) {
+      return [0, 0, 0, 0, 0, 0, 0];
+    }
+    const allowedWordIdSet = new Set(allowedWordIds.map((w) => w.id));
+
+    const dayToWordIds = new Map<string, Set<string>>();
+    for (const record of records) {
+      if (!allowedWordIdSet.has(record.wordId)) {
+        continue;
+      }
+      const day = record.timestamp.toISOString().split('T')[0];
+      const set = dayToWordIds.get(day) ?? new Set<string>();
+      set.add(record.wordId);
+      dayToWordIds.set(day, set);
+    }
+
     const trend: number[] = [];
     for (let i = 6; i >= 0; i--) {
       const targetDate = new Date(now);
       targetDate.setDate(now.getDate() - i);
       const dateStr = targetDate.toISOString().split('T')[0];
-
-      const found = dailyCounts.find((r) => {
-        // 兼容 Date 或 string 类型
-        const dayStr =
-          r.day instanceof Date ? r.day.toISOString().split('T')[0] : String(r.day).split('T')[0];
-        return dayStr === dateStr;
-      });
-      trend.push(found ? Number(found.count) : 0);
+      trend.push(dayToWordIds.get(dateStr)?.size ?? 0);
     }
+
     return trend;
   }
 }

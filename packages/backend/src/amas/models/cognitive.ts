@@ -27,8 +27,7 @@ import {
 } from '../config/action-space';
 
 import { CognitiveProfile } from '../types';
-import prisma from '../../config/database';
-import { PrismaClient } from '@prisma/client';
+import { getActiveDbClient, DatabaseClient } from '../../config/database';
 
 // ==================== 注意力监测 ====================
 
@@ -932,6 +931,28 @@ export interface ChronotypeProfile {
 export class ChronotypeDetector {
   private readonly minSampleSize = 20;
   private readonly recentRecordLimit = 500;
+  private readonly dbClient: DatabaseClient | null;
+
+  /**
+   * 构造函数
+   * @param dbClient 可选的数据库客户端，用于依赖注入。如果不传入，将动态获取活跃客户端。
+   */
+  constructor(dbClient?: DatabaseClient) {
+    this.dbClient = dbClient || null;
+  }
+
+  /**
+   * 获取数据库客户端
+   * 支持依赖注入和动态热备切换
+   */
+  private getDbClient(): DatabaseClient {
+    // 如果通过依赖注入传入了客户端，直接使用
+    if (this.dbClient) {
+      return this.dbClient;
+    }
+    // 否则动态获取当前活跃的数据库客户端
+    return getActiveDbClient();
+  }
 
   async analyzeChronotype(userId: string): Promise<ChronotypeProfile> {
     const hourlyPerformance = await this.getHourlyPerformance(userId);
@@ -996,7 +1017,8 @@ export class ChronotypeDetector {
       sampleCount: number;
     }>
   > {
-    const records = await prisma.answerRecord.findMany({
+    const db = this.getDbClient();
+    const records: Array<{ timestamp: Date; isCorrect: boolean }> = await db.answerRecord.findMany({
       where: { userId },
       select: {
         timestamp: true,
@@ -1120,10 +1142,27 @@ export interface LearningStyleProfile {
 export class LearningStyleProfiler {
   private readonly minSampleSize = 50;
   private readonly recentRecordLimit = 200;
-  private readonly prismaClient: PrismaClient;
+  private readonly dbClient: DatabaseClient | null;
 
-  constructor(prismaClient: PrismaClient = prisma) {
-    this.prismaClient = prismaClient;
+  /**
+   * 构造函数
+   * @param dbClient 可选的数据库客户端，用于依赖注入。如果不传入，将动态获取活跃客户端。
+   */
+  constructor(dbClient?: DatabaseClient) {
+    this.dbClient = dbClient || null;
+  }
+
+  /**
+   * 获取数据库客户端
+   * 支持依赖注入和动态热备切换
+   */
+  private getDbClient(): DatabaseClient {
+    // 如果通过依赖注入传入了客户端，直接使用
+    if (this.dbClient) {
+      return this.dbClient;
+    }
+    // 否则动态获取当前活跃的数据库客户端
+    return getActiveDbClient();
   }
 
   async detectLearningStyle(userId: string): Promise<LearningStyleProfile> {
@@ -1211,7 +1250,12 @@ export class LearningStyleProfiler {
     };
 
     try {
-      const records = await this.prismaClient.answerRecord.findMany({
+      const db = this.getDbClient();
+      const records: Array<{
+        dwellTime: number | null;
+        responseTime: number | null;
+        timestamp: Date;
+      }> = await db.answerRecord.findMany({
         where: { userId },
         select: {
           dwellTime: true,

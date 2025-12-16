@@ -8,7 +8,6 @@
  * - 自动创建默认偏好设置
  */
 
-import { PrismaClient } from '@prisma/client';
 import type {
   UserPreference,
   LearningPreferences,
@@ -17,7 +16,7 @@ import type {
   UpdatePreferencesDto,
   PreferencesResponse,
 } from '@danci/shared/types';
-import prisma from '../config/database';
+import prisma, { DatabaseClient } from '../config/database';
 import { serviceLogger } from '../logger';
 
 const logger = serviceLogger.child({ module: 'preference-service' });
@@ -51,7 +50,7 @@ const DEFAULT_PREFERENCES = {
  * 用户偏好服务类
  */
 class PreferenceService {
-  constructor(private prisma: PrismaClient) {
+  constructor(private prisma: DatabaseClient) {
     logger.info('PreferenceService initialized');
   }
 
