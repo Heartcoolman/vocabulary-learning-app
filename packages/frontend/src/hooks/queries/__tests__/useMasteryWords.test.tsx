@@ -11,19 +11,23 @@ import {
   useBatchMasteryEvaluation,
   useMasteryWords,
 } from '../useMasteryWords';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 import type { Word } from '../../../types/models';
 import type { UserMasteryStats, MasteryEvaluation } from '../../../types/word-mastery';
 import React from 'react';
 
 // Mock ApiClient
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getLearnedWords: vi.fn(),
     getWordMasteryStats: vi.fn(),
     batchProcessWordMastery: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 const mockApiClient = apiClient as unknown as {
   getLearnedWords: ReturnType<typeof vi.fn>;

@@ -80,33 +80,37 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  Activity: () => <span data-testid="activity-icon">Activity</span>,
-  ArrowsClockwise: ({ className }: { className?: string }) => (
-    <span data-testid="refresh-icon" className={className}>
-      Refresh
-    </span>
-  ),
-  Gear: () => <span data-testid="gear-icon">Gear</span>,
-  TrendUp: () => <span data-testid="trend-up-icon">TrendUp</span>,
-  WarningCircle: () => <span data-testid="warning-icon">Warning</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  ChartBar: () => <span data-testid="chart-icon">Chart</span>,
-  Target: () => <span data-testid="target-icon">Target</span>,
-  Play: () => <span data-testid="play-icon">Play</span>,
-  ArrowCounterClockwise: () => <span data-testid="reset-icon">Reset</span>,
-  Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
-  Clock: () => <span data-testid="clock-icon">Clock</span>,
-  Database: () => <span data-testid="database-icon">Database</span>,
-  Info: () => <span data-testid="info-icon">Info</span>,
-  ArrowUp: () => <span data-testid="arrow-up-icon">ArrowUp</span>,
-  ArrowDown: () => <span data-testid="arrow-down-icon">ArrowDown</span>,
-  Minus: () => <span data-testid="minus-icon">Minus</span>,
-  CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
-  CaretUp: () => <span data-testid="caret-up-icon">CaretUp</span>,
-  Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
-  Trophy: () => <span data-testid="trophy-icon">Trophy</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    Activity: () => <span data-testid="activity-icon">Activity</span>,
+    ArrowsClockwise: ({ className }: { className?: string }) => (
+      <span data-testid="refresh-icon" className={className}>
+        Refresh
+      </span>
+    ),
+    Gear: () => <span data-testid="gear-icon">Gear</span>,
+    TrendUp: () => <span data-testid="trend-up-icon">TrendUp</span>,
+    WarningCircle: () => <span data-testid="warning-icon">Warning</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    ChartBar: () => <span data-testid="chart-icon">Chart</span>,
+    Target: () => <span data-testid="target-icon">Target</span>,
+    Play: () => <span data-testid="play-icon">Play</span>,
+    ArrowCounterClockwise: () => <span data-testid="reset-icon">Reset</span>,
+    Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
+    Clock: () => <span data-testid="clock-icon">Clock</span>,
+    Database: () => <span data-testid="database-icon">Database</span>,
+    Info: () => <span data-testid="info-icon">Info</span>,
+    ArrowUp: () => <span data-testid="arrow-up-icon">ArrowUp</span>,
+    ArrowDown: () => <span data-testid="arrow-down-icon">ArrowDown</span>,
+    Minus: () => <span data-testid="minus-icon">Minus</span>,
+    CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
+    CaretUp: () => <span data-testid="caret-up-icon">CaretUp</span>,
+    Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
+    Trophy: () => <span data-testid="trophy-icon">Trophy</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({

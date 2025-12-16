@@ -6,16 +6,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTodayWords, useTodayWordsCompat } from '../useTodayWords';
-import apiClient, { TodayWordsResponse, StudyProgress } from '../../../services/client';
+import { apiClient, type TodayWordsResponse, type StudyProgress } from '../../../services/client';
 import type { Word } from '../../../types/models';
 import React from 'react';
 
 // Mock services/client
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getTodayWords: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 const mockApiClient = apiClient as unknown as {
   getTodayWords: ReturnType<typeof vi.fn>;

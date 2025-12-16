@@ -10,7 +10,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { QUERY_PRESETS, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LearningPlan, PlanOptions, PlanProgress } from '../../types/amas-enhanced';
 
@@ -38,7 +38,7 @@ export function useLearningPlan() {
   return useQuery<LearningPlan | null>({
     queryKey: planQueryKeys.plan(),
     queryFn: async () => {
-      return await ApiClient.getLearningPlan();
+      return await apiClient.getLearningPlan();
     },
     enabled: isAuthenticated,
     staleTime: CACHE_TIME.LONG,
@@ -61,7 +61,7 @@ export function usePlanProgress() {
   return useQuery<PlanProgress & { status: string }>({
     queryKey: planQueryKeys.progress(),
     queryFn: async () => {
-      return await ApiClient.getPlanProgress();
+      return await apiClient.getPlanProgress();
     },
     enabled: isAuthenticated,
     staleTime: CACHE_TIME.MEDIUM_SHORT,
@@ -81,7 +81,7 @@ export function useGenerateLearningPlan() {
 
   return useMutation<LearningPlan, Error, PlanOptions | undefined>({
     mutationFn: async (options) => {
-      return await ApiClient.generateLearningPlan(options);
+      return await apiClient.generateLearningPlan(options);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planQueryKeys.plan() });
@@ -100,7 +100,7 @@ export function useAdjustLearningPlan() {
 
   return useMutation<LearningPlan, Error, string | undefined>({
     mutationFn: async (reason) => {
-      return await ApiClient.adjustLearningPlan(reason);
+      return await apiClient.adjustLearningPlan(reason);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planQueryKeys.plan() });

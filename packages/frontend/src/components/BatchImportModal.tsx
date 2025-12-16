@@ -143,7 +143,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-scale-in flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-scale-in flex-col overflow-hidden rounded-card bg-white shadow-floating">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-xl font-bold text-gray-900">批量导入单词</h2>
           <button
@@ -159,7 +159,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {step === 'upload' && (
             <div className="space-y-6">
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
                 <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-900">
                   <FileText size={16} />
                   文件格式要求
@@ -193,14 +193,14 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
                     setErrors([]);
                     setStep('upload');
                   }}
-                  className="text-sm text-blue-600 transition-colors duration-200 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="text-sm text-blue-600 transition-colors duration-g3-fast hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   重新上传
                 </button>
               </div>
 
               {errors.length > 0 ? (
-                <div className="rounded-lg border border-red-100 bg-red-50 p-4">
+                <div className="rounded-button border border-red-100 bg-red-50 p-4">
                   <div className="mb-2 flex items-center gap-2 font-medium text-red-800">
                     <Warning size={18} weight="bold" />
                     发现 {errors.length} 个错误
@@ -213,7 +213,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
                   <p className="mt-3 text-sm text-red-700">请修改文件后重新上传。</p>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200">
+                <div className="overflow-hidden rounded-button border border-gray-200">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="border-b border-gray-200 bg-gray-50 font-medium text-gray-600">
@@ -298,7 +298,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
               </div>
 
               {!importError && errors.length > 0 && (
-                <div className="max-h-40 w-full overflow-y-auto rounded-lg border border-amber-100 bg-amber-50 p-4 text-left">
+                <div className="max-h-40 w-full overflow-y-auto rounded-button border border-amber-100 bg-amber-50 p-4 text-left">
                   <p className="mb-2 text-sm font-semibold text-amber-800">失败详情:</p>
                   <ul className="list-inside list-disc space-y-1 text-xs text-amber-700">
                     {errors.map((err, idx) => (
@@ -316,14 +316,14 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
             <>
               <button
                 onClick={handleClose}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-200"
+                className="rounded-button border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-200"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmImport}
                 disabled={errors.length > 0 || parsedData.length === 0}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-button bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 确认导入
               </button>
@@ -331,7 +331,7 @@ const BatchImportModalComponent: React.FC<BatchImportModalProps> = ({
           ) : step === 'result' ? (
             <button
               onClick={handleClose}
-              className="rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+              className="rounded-button bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
             >
               完成
             </button>

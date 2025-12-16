@@ -1,15 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Clock, Fire, ChartLine, Warning, CheckCircle, CircleNotch, Lightbulb } from '../Icon';
-import { Modal } from '../ui/Modal';
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  X,
+  SpeakerHigh,
+  Clock,
+  Fire,
+  ChartLine,
+  Warning,
+  CheckCircle,
+  CircleNotch,
+  Lightbulb,
+  TrendUp,
+  Target,
+} from '../Icon';
 import { MemoryTraceChart } from './MemoryTraceChart';
-import apiClient from '../../services/client';
-import { wordService } from '../../services/word.service';
-import { learningLogger } from '../../utils/logger';
-import type {
-  MasteryEvaluation,
-  ReviewTraceRecord,
-  WordMasteryIntervalResponse,
-} from '../../types/word-mastery';
+import { useWordDetailData } from '../../hooks/useWordDetailData';
+import type { MasteryEvaluation } from '../../types/word-mastery';
+import {
+  scaleInVariants,
+  backdropVariants,
+  staggerContainerVariants,
+  staggerItemVariants,
+} from '../../utils/animations';
 
 interface WordMasteryDetailModalProps {
   wordId: string;
@@ -17,154 +29,84 @@ interface WordMasteryDetailModalProps {
   onClose: () => void;
 }
 
-interface WordDetailData {
-  spelling: string;
-  phonetic: string;
-  meanings: string[];
-  mastery: MasteryEvaluation | null;
-  trace: ReviewTraceRecord[];
-  interval: WordMasteryIntervalResponse | null;
-}
-
 /**
- * 单词掌握度详情模态框
- * 显示单词的详细学习轨迹、掌握度评估和复习建议
+ * 单词掌握度详情模态框 (Redesigned)
+ * 采用极简主义设计，同时保留丰富的数据展示
  */
 export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
   wordId,
   isOpen,
   onClose,
 }) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<WordDetailData | null>(null);
+  const { loading, error, data, reload } = useWordDetailData(wordId, isOpen);
 
-  const loadDetailData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const normalizePhonetic = (phonetic: string) => phonetic.replace(/^\/+|\/+$/g, '').trim();
 
-      // 并发加载所有数据
-      const [wordData, masteryData, traceData, intervalData] = await Promise.all([
-        // 优先从已学习列表获取，失败则回退到单词详情查询
-        apiClient
-          .getLearnedWords()
-          .then((words) => words.find((w) => w.id === wordId))
-          .catch(() => undefined)
-          .then(async (found) => {
-            if (found) return found;
-            try {
-              const { data } = await wordService.getWordById(wordId);
-              return data;
-            } catch {
-              return undefined;
-            }
-          }),
-        // 获取掌握度评估
-        apiClient.getWordMasteryDetail(wordId).catch(() => null),
-        // 获取学习轨迹
-        apiClient.getWordMasteryTrace(wordId).catch(() => ({ wordId, trace: [], count: 0 })),
-        // 获取复习间隔预测
-        apiClient.getWordMasteryInterval(wordId).catch(() => null),
-      ]);
-
-      if (!wordData) {
-        setError('未找到该单词信息');
-        return;
-      }
-
-      setData({
-        spelling: wordData.spelling,
-        phonetic: wordData.phonetic ?? '',
-        meanings: wordData.meanings,
-        mastery: masteryData,
-        trace: traceData.trace,
-        interval: intervalData,
-      });
-    } catch (err) {
-      setError('加载数据失败，请稍后重试');
-      learningLogger.error({ err, wordId }, '加载单词详情失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [wordId]);
-
-  useEffect(() => {
-    if (isOpen && wordId) {
-      loadDetailData();
-    }
-  }, [isOpen, wordId, loadDetailData]);
-
-  const getMasteryLevel = (
-    mastery: MasteryEvaluation | null,
-  ): {
-    label: string;
-    color: string;
-    bgColor: string;
-    icon: React.ReactNode;
-  } => {
+  const getMasteryLevel = (mastery: MasteryEvaluation | null) => {
     if (!mastery) {
       return {
         label: '未学习',
         color: 'text-gray-500',
-        bgColor: 'bg-gray-100',
-        icon: <Warning size={20} className="text-gray-500" />,
+        borderColor: 'border-gray-200',
+        bgGradient: 'from-gray-50 to-gray-100',
+        icon: <Warning size={20} weight="bold" />,
       };
     }
-
     if (mastery.isLearned) {
       return {
         label: '已掌握',
-        color: 'text-green-600',
-        bgColor: 'bg-green-100',
-        icon: <CheckCircle size={20} className="text-green-600" weight="fill" />,
+        color: 'text-emerald-600',
+        borderColor: 'border-emerald-200',
+        bgGradient: 'from-emerald-50 to-emerald-100',
+        icon: <CheckCircle size={20} weight="fill" />,
       };
     }
-
     if (mastery.score >= 0.7) {
       return {
         label: '熟练',
         color: 'text-blue-600',
-        bgColor: 'bg-blue-100',
-        icon: <Fire size={20} className="text-blue-600" weight="fill" />,
+        borderColor: 'border-blue-200',
+        bgGradient: 'from-blue-50 to-blue-100',
+        icon: <Fire size={20} weight="fill" />,
       };
     }
-
     if (mastery.score >= 0.4) {
       return {
         label: '学习中',
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-100',
-        icon: <ChartLine size={20} className="text-yellow-600" />,
+        color: 'text-amber-600',
+        borderColor: 'border-amber-200',
+        bgGradient: 'from-amber-50 to-amber-100',
+        icon: <ChartLine size={20} weight="bold" />,
       };
     }
-
     return {
       label: '需复习',
       color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
-      icon: <Clock size={20} className="text-orange-600" />,
+      borderColor: 'border-orange-200',
+      bgGradient: 'from-orange-50 to-orange-100',
+      icon: <Clock size={20} weight="bold" />,
     };
   };
 
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="flex flex-col items-center justify-center py-16">
-          <CircleNotch size={48} className="mb-4 animate-spin text-purple-500" />
-          <p className="text-gray-500">加载中...</p>
+        <div className="flex flex-col items-center justify-center py-32">
+          <CircleNotch size={48} className="animate-spin text-blue-500" weight="bold" />
+          <p className="mt-4 font-medium text-gray-400">加载数据中...</p>
         </div>
       );
     }
 
     if (error || !data) {
       return (
-        <div className="flex flex-col items-center justify-center py-16">
-          <Warning size={48} className="mb-4 text-red-400" />
-          <p className="mb-4 text-gray-600">{error || '加载失败'}</p>
+        <div className="flex flex-col items-center justify-center py-24">
+          <Warning size={64} className="mb-6 text-red-400" weight="thin" />
+          <p className="mb-2 text-xl font-medium text-gray-800">无法加载单词信息</p>
+          <p className="mb-8 text-gray-500">{error || '请检查网络连接后重试'}</p>
           <button
-            onClick={loadDetailData}
-            className="rounded-lg bg-purple-500 px-4 py-2 text-white transition-colors hover:bg-purple-600"
+            onClick={reload}
+            className="rounded-card bg-gray-900 px-8 py-3 font-medium text-white shadow-elevated transition-all hover:scale-105 active:scale-95"
           >
             重试
           </button>
@@ -173,230 +115,214 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
     }
 
     const level = getMasteryLevel(data.mastery);
+    const phonetic = normalizePhonetic(data.phonetic);
 
     return (
-      <div className="space-y-6">
-        {/* 单词头部信息 */}
-        <div className="rounded-xl bg-gradient-to-br from-purple-50 to-blue-50 p-6">
-          <div className="mb-4 flex items-start justify-between">
-            <div className="flex-1">
-              <h2 className="mb-2 text-3xl font-bold text-gray-900">{data.spelling}</h2>
-              <p className="mb-3 text-gray-600">{data.phonetic}</p>
-              <div className="space-y-2">
-                {data.meanings.map((meaning, idx) => (
-                  <p key={idx} className="text-gray-700">
-                    {idx + 1}. {meaning}
-                  </p>
-                ))}
-              </div>
-            </div>
-            <div className={`flex items-center gap-2 rounded-full px-4 py-2 ${level.bgColor}`}>
-              {level.icon}
-              <span className={`font-semibold ${level.color}`}>{level.label}</span>
-            </div>
+      <motion.div
+        variants={staggerContainerVariants}
+        initial="hidden"
+        animate="visible"
+        className="pb-12"
+      >
+        {/* === Header Section (Immersive, Minimalist) === */}
+        <div className="relative pb-12 pt-8 text-center">
+          <div className="mb-6 flex items-center justify-center gap-6">
+            <h2 className="text-6xl font-bold tracking-tight text-gray-900 md:text-8xl">
+              {data.spelling}
+            </h2>
+            <button
+              type="button"
+              aria-label="播放发音"
+              className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-floating transition-all hover:scale-110 hover:bg-blue-600 hover:shadow-2xl active:scale-95"
+            >
+              <SpeakerHigh size={32} weight="fill" />
+            </button>
+          </div>
+
+          {phonetic ? (
+            <p className="mb-8 font-sans text-3xl font-normal text-gray-400">/{phonetic}/</p>
+          ) : null}
+
+          {/* Meanings */}
+          <div className="mx-auto flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 px-6">
+            {data.meanings.map((meaning, idx) => (
+              <span key={idx} className="text-xl font-medium text-gray-700 opacity-90">
+                {meaning}
+              </span>
+            ))}
           </div>
         </div>
 
-        {/* 掌握度评估 */}
-        {data.mastery && (
-          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
-              <ChartLine size={24} className="text-purple-500" />
-              掌握度评估
-            </h3>
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              <div>
-                <p className="mb-2 text-sm text-gray-500">综合得分</p>
-                <div className="space-y-2">
-                  <p className="text-2xl font-bold text-purple-600">
+        {/* Divider */}
+        <div className="mb-12 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+        {/* === Data Scroll Section (Card-based Layout) === */}
+        <div className="space-y-8 px-8">
+          {/* 1. Mastery Dashboard Card */}
+          {data.mastery && (
+            <motion.div
+              variants={staggerItemVariants}
+              className="rounded-3xl border border-slate-100 bg-slate-50 p-8"
+            >
+              <div className="mb-8 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ChartLine size={28} className="text-slate-700" weight="duotone" />
+                  <h3 className="text-2xl font-bold text-slate-800">掌握度评估</h3>
+                </div>
+                <div
+                  className={`rounded-full border px-4 py-1.5 ${level.borderColor} bg-gradient-to-r ${level.bgGradient} flex items-center gap-2`}
+                >
+                  <span className={`${level.color}`}>{level.icon}</span>
+                  <span className={`text-sm font-bold ${level.color}`}>{level.label}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+                <div>
+                  <p className="mb-1 text-sm text-slate-500">综合得分</p>
+                  <p className="text-3xl font-bold text-slate-900">
                     {Math.round(data.mastery.score * 100)}
                   </p>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600 transition-all"
+                      className="h-full rounded-full bg-slate-800"
                       style={{ width: `${data.mastery.score * 100}%` }}
                     />
                   </div>
                 </div>
-              </div>
-              <div>
-                <p className="mb-2 text-sm text-gray-500">置信度</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {Math.round(data.mastery.confidence * 100)}%
-                </p>
-              </div>
-              <div>
-                <p className="mb-2 text-sm text-gray-500">SRS等级</p>
-                <p className="text-2xl font-bold text-green-600">{data.mastery.factors.srsLevel}</p>
-              </div>
-              <div>
-                <p className="mb-2 text-sm text-gray-500">近期准确率</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {Math.round(data.mastery.factors.recentAccuracy * 100)}%
-                </p>
-              </div>
-            </div>
 
-            {/* 详细因素 */}
-            <div className="mt-6 border-t border-gray-100 pt-6">
-              <p className="mb-3 text-sm font-semibold text-gray-700">评估因素</p>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">ACT-R 提取概率</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full bg-green-500"
-                        style={{ width: `${data.mastery.factors.actrRecall * 100}%` }}
-                      />
-                    </div>
-                    <span className="w-12 text-right text-sm font-semibold text-gray-700">
-                      {Math.round(data.mastery.factors.actrRecall * 100)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">用户疲劳度</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full bg-red-500"
-                        style={{ width: `${data.mastery.factors.userFatigue * 100}%` }}
-                      />
-                    </div>
-                    <span className="w-12 text-right text-sm font-semibold text-gray-700">
-                      {Math.round(data.mastery.factors.userFatigue * 100)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 建议 */}
-            {data.mastery.suggestion && (
-              <div className="mt-6 flex items-start gap-3 rounded-lg bg-blue-50 p-4">
-                <Lightbulb size={20} className="mt-0.5 flex-shrink-0 text-blue-500" weight="fill" />
                 <div>
-                  <p className="mb-1 text-sm font-semibold text-blue-900">学习建议</p>
-                  <p className="text-sm text-blue-700">{data.mastery.suggestion}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 学习轨迹图表 */}
-        {data.trace.length > 0 && (
-          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
-              <Fire size={24} className="text-orange-500" weight="fill" />
-              学习轨迹
-            </h3>
-            <div className="mb-4">
-              <p className="text-sm text-gray-500">共 {data.trace.length} 次复习记录</p>
-            </div>
-            <MemoryTraceChart trace={data.trace} />
-          </div>
-        )}
-
-        {/* 评估结果历史 */}
-        {data.trace.length > 0 && (
-          <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
-              <Clock size={24} className="text-blue-500" />
-              评估历史
-            </h3>
-            <div className="max-h-64 space-y-2 overflow-y-auto">
-              {data.trace.slice(0, 10).map((record) => (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between rounded-lg bg-gray-50 p-3 transition-colors hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-3">
-                    {record.isCorrect ? (
-                      <CheckCircle size={20} className="text-green-500" weight="fill" />
-                    ) : (
-                      <X size={20} className="text-red-500" weight="bold" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">
-                        {record.isCorrect ? '回答正确' : '回答错误'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(record.timestamp).toLocaleString('zh-CN', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">
-                      {record.responseTime ? `${(record.responseTime / 1000).toFixed(1)}s` : '-'}
+                  <p className="mb-1 text-sm text-slate-500">置信度</p>
+                  <div className="flex items-end gap-2">
+                    <p className="text-3xl font-bold text-slate-900">
+                      {Math.round(data.mastery.confidence * 100)}%
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
-            {data.trace.length > 10 && (
-              <p className="mt-3 text-center text-xs text-gray-400">
-                显示最近 10 条记录，共 {data.trace.length} 条
-              </p>
-            )}
-          </div>
-        )}
 
-        {/* 复习建议 */}
-        {data.interval && (
-          <div className="animate-g3-fade-in rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
-              <Clock size={24} className="text-blue-500" />
-              复习建议
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg bg-white p-4 text-center">
-                <p className="mb-2 text-xs text-gray-500">最小间隔</p>
-                <p className="text-lg font-bold text-gray-700">{data.interval.humanReadable.min}</p>
-              </div>
-              <div className="rounded-lg border-2 border-blue-300 bg-white p-4 text-center">
-                <p className="mb-2 text-xs font-semibold text-blue-600">最佳间隔</p>
-                <p className="text-lg font-bold text-blue-600">
-                  {data.interval.humanReadable.optimal}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-4 text-center">
-                <p className="mb-2 text-xs text-gray-500">最大间隔</p>
-                <p className="text-lg font-bold text-gray-700">{data.interval.humanReadable.max}</p>
-              </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-white p-3">
-              <p className="text-sm text-gray-600">
-                目标提取概率：
-                <span className="ml-1 font-semibold text-gray-800">
-                  {Math.round(data.interval.interval.targetRecall * 100)}%
-                </span>
-              </p>
-            </div>
-          </div>
-        )}
+                <div>
+                  <p className="mb-1 text-sm text-slate-500">记忆强度 (Recall)</p>
+                  <div className="flex items-center gap-2">
+                    <Target size={20} className="text-emerald-500" weight="fill" />
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {Math.round(data.mastery.factors.actrRecall * 100)}%
+                    </p>
+                  </div>
+                </div>
 
-        {/* 空状态 */}
-        {!data.mastery && data.trace.length === 0 && (
-          <div className="rounded-xl bg-gray-50 p-12 text-center">
-            <Warning size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-600">该单词暂无学习记录</p>
-          </div>
-        )}
-      </div>
+                <div>
+                  <p className="mb-1 text-sm text-slate-500">近期准确率</p>
+                  <div className="flex items-center gap-2">
+                    <TrendUp size={20} className="text-blue-500" weight="fill" />
+                    <p className="text-2xl font-bold text-blue-600">
+                      {Math.round(data.mastery.factors.recentAccuracy * 100)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 2. Learning Trace Chart */}
+          {data.trace.length > 0 && (
+            <motion.div
+              variants={staggerItemVariants}
+              className="rounded-3xl border border-gray-100 bg-white p-8 shadow-soft"
+            >
+              <div className="mb-6 flex items-center gap-3">
+                <Fire size={28} className="text-orange-500" weight="duotone" />
+                <h3 className="text-2xl font-bold text-gray-900">学习轨迹</h3>
+              </div>
+              <div className="h-64 w-full">
+                <MemoryTraceChart trace={data.trace} />
+              </div>
+            </motion.div>
+          )}
+
+          {/* 3. Review Suggestion */}
+          {data.interval && (
+            <motion.div
+              variants={staggerItemVariants}
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white shadow-elevated"
+            >
+              <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+                <div>
+                  <div className="mb-2 flex items-center gap-3">
+                    <Lightbulb size={28} weight="fill" className="text-yellow-300" />
+                    <h3 className="text-2xl font-bold">下次复习建议</h3>
+                  </div>
+                  <p className="max-w-md text-blue-100 opacity-90">
+                    基于间隔重复算法 (SRS)，我们为您计算了最佳的复习时间点。
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4 rounded-card border border-white/20 bg-white/10 p-4 backdrop-blur-md">
+                  <div className="border-r border-white/20 px-4 text-center">
+                    <p className="mb-1 text-xs text-blue-200">最小间隔</p>
+                    <p className="text-lg font-bold">{data.interval.humanReadable.min}</p>
+                  </div>
+                  <div className="px-4 text-center">
+                    <p className="mb-1 text-xs font-bold text-yellow-300">最佳推荐</p>
+                    <p className="text-3xl font-bold">{data.interval.humanReadable.optimal}</p>
+                  </div>
+                  <div className="border-l border-white/20 px-4 text-center">
+                    <p className="mb-1 text-xs text-blue-200">最大间隔</p>
+                    <p className="text-lg font-bold">{data.interval.humanReadable.max}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Decorative Background */}
+              <div className="pointer-events-none absolute right-0 top-0 p-8 opacity-10">
+                <Clock size={200} weight="fill" />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
     );
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="xl">
-      <div className="max-h-[80vh] overflow-y-auto">{renderContent()}</div>
-    </Modal>
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
+          <motion.div
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onClick={onClose}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          />
+
+          {/* Modal Container */}
+          <motion.div
+            variants={scaleInVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            role="dialog"
+            aria-modal="true"
+            aria-label="单词掌握度详情"
+            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="关闭"
+              className="absolute right-6 top-6 z-10 rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
+            >
+              <X size={24} weight="bold" />
+            </button>
+
+            {/* Scrollable Content */}
+            <div className="custom-scrollbar flex-1 overflow-y-auto">{renderContent()}</div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };

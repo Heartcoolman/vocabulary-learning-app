@@ -55,7 +55,7 @@ const LearningCurveChart: React.FC<LearningCurveChartProps> = React.memo(({ data
   return (
     <div className="w-full animate-fade-in">
       <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-white">最近30天学习曲线</h3>
-      <div className="aspect-[2/1] w-full rounded-xl border border-gray-100 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="aspect-[2/1] w-full rounded-card border border-gray-100 bg-white p-2 shadow-soft dark:border-gray-700 dark:bg-gray-800">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
           <defs>
             <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">

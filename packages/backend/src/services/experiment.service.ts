@@ -3,8 +3,9 @@
  * 提供 A/B 测试实验的创建、管理和统计分析功能
  */
 
-import { PrismaClient, ABExperimentStatus, ABTrafficAllocation, Prisma } from '@prisma/client';
-import prisma from '../config/database';
+import { ABExperimentStatus, ABTrafficAllocation, Prisma } from '@prisma/client';
+import prisma, { DatabaseClient, getDatabaseProxy } from '../config/database';
+import { DatabaseState } from '../database/adapters/types';
 import { logger } from '../logger';
 
 // ==================== 类型定义 ====================
@@ -65,9 +66,9 @@ export interface ExperimentListItem {
 // ==================== 服务实现 ====================
 
 class ExperimentService {
-  private prisma: PrismaClient;
+  private prisma: DatabaseClient;
 
-  constructor(prismaClient: PrismaClient = prisma) {
+  constructor(prismaClient: DatabaseClient = prisma) {
     this.prisma = prismaClient;
   }
 
@@ -425,9 +426,49 @@ class ExperimentService {
   /**
    * 记录实验指标（用于用户参与实验时更新指标）
    * 使用事务和行级锁保证并发安全
+   *
+   * 针对不同数据库模式：
+   * - PostgreSQL: 使用 SELECT ... FOR UPDATE 悲观锁
+   * - SQLite: 使用乐观锁（基于 sampleCount 的 CAS 操作）
    */
   async recordMetric(experimentId: string, variantId: string, reward: number): Promise<void> {
-    // 使用事务 + FOR UPDATE 锁保证 Welford 算法的原子性
+    const isSQLiteMode = this.isSQLiteMode();
+
+    if (isSQLiteMode) {
+      // SQLite 模式：使用乐观锁（CAS - Compare And Swap）
+      await this.recordMetricWithOptimisticLock(experimentId, variantId, reward);
+    } else {
+      // PostgreSQL 模式：使用悲观锁（FOR UPDATE）
+      await this.recordMetricWithPessimisticLock(experimentId, variantId, reward);
+    }
+  }
+
+  /**
+   * 检测当前是否在 SQLite 模式下运行
+   * 通过检查 DatabaseProxy 的状态来判断
+   */
+  private isSQLiteMode(): boolean {
+    const proxy = getDatabaseProxy();
+    if (!proxy) {
+      // 未启用热备模式，使用 PostgreSQL
+      return false;
+    }
+
+    // 检查代理状态
+    const state: DatabaseState = proxy.getState();
+    // DEGRADED 状态表示使用 SQLite
+    return state === 'DEGRADED';
+  }
+
+  /**
+   * 使用悲观锁记录指标（PostgreSQL）
+   * 通过 SELECT ... FOR UPDATE 获取行级锁
+   */
+  private async recordMetricWithPessimisticLock(
+    experimentId: string,
+    variantId: string,
+    reward: number,
+  ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       // 使用 $queryRaw 执行 SELECT ... FOR UPDATE 获取行级锁
       const metrics = await tx.$queryRaw<
@@ -438,7 +479,7 @@ class ExperimentService {
         }>
       >`
         SELECT "sampleCount", "averageReward", "m2"
-        FROM "ABExperimentMetrics"
+        FROM "ab_experiment_metrics"
         WHERE "experimentId" = ${experimentId} AND "variantId" = ${variantId}
         FOR UPDATE
       `;
@@ -469,10 +510,88 @@ class ExperimentService {
           averageReward: newMean,
           m2: newM2,
           stdDev: newStdDev,
-          primaryMetric: newMean, // 主要指标使用平均奖励
+          primaryMetric: newMean,
         },
       });
     });
+  }
+
+  /**
+   * 使用乐观锁记录指标（SQLite）
+   * 通过 CAS（Compare And Swap）实现原子更新
+   * 使用 sampleCount 作为版本号进行冲突检测
+   */
+  private async recordMetricWithOptimisticLock(
+    experimentId: string,
+    variantId: string,
+    reward: number,
+  ): Promise<void> {
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY_MS = 10;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      // 1. 读取当前值
+      const currentMetrics = await this.prisma.aBExperimentMetrics.findUnique({
+        where: {
+          experimentId_variantId: {
+            experimentId,
+            variantId,
+          },
+        },
+        select: {
+          sampleCount: true,
+          averageReward: true,
+          m2: true,
+        },
+      });
+
+      if (!currentMetrics) {
+        throw new Error('指标记录不存在');
+      }
+
+      // 2. 计算新值（Welford 算法）
+      const oldSampleCount = currentMetrics.sampleCount;
+      const n = oldSampleCount + 1;
+      const delta = reward - currentMetrics.averageReward;
+      const newMean = currentMetrics.averageReward + delta / n;
+      const delta2 = reward - newMean;
+      const newM2 = currentMetrics.m2 + delta * delta2;
+      const newStdDev = n > 1 ? Math.sqrt(newM2 / (n - 1)) : 0;
+
+      // 3. 尝试 CAS 更新：只有当 sampleCount 未变化时才更新
+      // 使用 updateMany 配合 where 条件实现乐观锁
+      const result = await this.prisma.aBExperimentMetrics.updateMany({
+        where: {
+          experimentId,
+          variantId,
+          sampleCount: oldSampleCount, // 版本检查：确保数据未被其他操作修改
+        },
+        data: {
+          sampleCount: n,
+          averageReward: newMean,
+          m2: newM2,
+          stdDev: newStdDev,
+          primaryMetric: newMean,
+        },
+      });
+
+      // 4. 检查更新是否成功
+      if (result.count > 0) {
+        // 更新成功
+        return;
+      }
+
+      // 5. 更新失败（发生并发冲突），等待后重试
+      if (attempt < MAX_RETRIES - 1) {
+        // 指数退避 + 随机抖动
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt) + Math.random() * RETRY_DELAY_MS;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        logger.debug({ experimentId, variantId, attempt: attempt + 1 }, '乐观锁冲突，正在重试...');
+      }
+    }
+
+    // 重试次数用尽，抛出错误
+    throw new Error(`记录指标失败：并发冲突重试${MAX_RETRIES}次后仍然失败`);
   }
 
   /**
@@ -583,7 +702,8 @@ class ExperimentService {
       hash = (hash << 5) - hash + char;
       hash = hash & 0xffffffff; // 转换为32位整数
     }
-    return Math.abs(hash);
+    // 转换为 32 位无符号整数（避免归一化时落入 [0, 0.5] 导致分配偏斜）
+    return hash >>> 0;
   }
 
   // ==================== 私有方法 ====================

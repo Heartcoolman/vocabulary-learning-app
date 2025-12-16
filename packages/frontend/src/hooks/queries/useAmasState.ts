@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
-import ApiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { UserState } from '../../types/amas';
 
 /**
@@ -21,7 +21,7 @@ export function useAmasState() {
   return useQuery({
     queryKey: queryKeys.amas.state(),
     queryFn: async () => {
-      return await ApiClient.getAmasState();
+      return await apiClient.getAmasState();
     },
     // AMAS状态实时性配置 - 使用 DATA_CACHE_CONFIG.amasState 预设
     ...DATA_CACHE_CONFIG.amasState,
@@ -37,7 +37,7 @@ export function useAmasStrategy() {
   return useQuery({
     queryKey: queryKeys.amas.strategy(),
     queryFn: async () => {
-      return await ApiClient.getAmasStrategy();
+      return await apiClient.getAmasStrategy();
     },
     staleTime: CACHE_TIME.SHORT, // 1分钟
     gcTime: GC_TIME.MEDIUM, // 10分钟
@@ -54,7 +54,7 @@ export function useAmasColdStartPhase() {
   return useQuery({
     queryKey: queryKeys.amas.phase(),
     queryFn: async () => {
-      return await ApiClient.getAmasColdStartPhase();
+      return await apiClient.getAmasColdStartPhase();
     },
     staleTime: CACHE_TIME.MEDIUM_SHORT, // 2分钟
     gcTime: GC_TIME.LONG, // 15分钟
@@ -125,7 +125,7 @@ export function usePrefetchAmasState() {
     await queryClient.prefetchQuery({
       queryKey: queryKeys.amas.state(),
       queryFn: async () => {
-        return await ApiClient.getAmasState();
+        return await apiClient.getAmasState();
       },
       staleTime: CACHE_TIME.REALTIME,
     });

@@ -14,11 +14,14 @@ import { IncomingMessage, ServerResponse } from 'http';
 import pinoHttp, { HttpLogger, Options } from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
 import { logger, serializers } from './index';
+import { env } from '../config/env';
 
 // ==================== 配置常量 ====================
 
 /** 不记录日志的路径（健康检查等） */
-const SILENT_PATHS = ['/health', '/favicon.ico', '/robots.txt'];
+const SILENT_PATHS = Array.from(
+  new Set([env.HEALTHCHECK_ENDPOINT, '/health', '/favicon.ico', '/robots.txt']),
+);
 
 /** 静态资源路径前缀 */
 const STATIC_PREFIXES = ['/static/', '/assets/'];
@@ -32,7 +35,7 @@ function shouldSilence(path: string): boolean {
   if (SILENT_PATHS.includes(path)) {
     return true;
   }
-  return STATIC_PREFIXES.some(prefix => path.startsWith(prefix));
+  return STATIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 /**
@@ -41,7 +44,7 @@ function shouldSilence(path: string): boolean {
 function determineLogLevel(
   _req: IncomingMessage,
   res: ServerResponse,
-  err?: Error
+  err?: Error,
 ): 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent' {
   if (err) {
     return 'error';

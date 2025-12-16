@@ -11,6 +11,7 @@ import { recordDifficultyComputationTime, recordQueueAdjustmentDuration } from '
 import { amasService } from './amas.service';
 import { StrategyParams } from '../amas';
 import { logger } from '../logger';
+import { AppError } from '../middleware/error.middleware';
 
 // ========== 队列调整相关类型 ==========
 
@@ -213,30 +214,54 @@ class MasteryLearningService {
   ): Promise<WordWithPriority[]> {
     const now = new Date();
 
-    // 查询到期的学习状态
+    // 查询到期的学习状态（避免使用 include/关系过滤，确保 SQLite 降级模式可用）
     const dueStates = await prisma.wordLearningState.findMany({
       where: {
         userId,
-        wordId: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
+        ...(excludeIds.length > 0 ? { wordId: { notIn: excludeIds } } : {}),
         nextReviewDate: { lte: now },
         state: { in: ['LEARNING', 'REVIEWING', 'NEW'] },
       },
-      include: { word: true },
+      select: {
+        wordId: true,
+        nextReviewDate: true,
+      },
     });
 
     if (dueStates.length === 0) {
       return [];
     }
 
-    // 批量获取得分
     const wordIds = dueStates.map((s) => s.wordId);
-    const scores = await prisma.wordScore.findMany({
-      where: { userId, wordId: { in: wordIds } },
-    });
+
+    // 批量获取得分 + 单词详情
+    const [scores, words] = await Promise.all([
+      prisma.wordScore.findMany({
+        where: { userId, wordId: { in: wordIds } },
+      }),
+      prisma.word.findMany({
+        where: { id: { in: wordIds } },
+        select: {
+          id: true,
+          spelling: true,
+          phonetic: true,
+          meanings: true,
+          examples: true,
+          audioUrl: true,
+        },
+      }),
+    ]);
     const scoreMap = new Map(scores.map((s) => [s.wordId, s]));
+    const wordMap = new Map(words.map((w) => [w.id, w]));
 
     // 计算每个单词的优先级和难度
-    return dueStates.map((state) => {
+    const results: WordWithPriority[] = [];
+    for (const state of dueStates) {
+      const word = wordMap.get(state.wordId);
+      if (!word) {
+        continue;
+      }
+
       const score = scoreMap.get(state.wordId);
       const overdueDays = state.nextReviewDate
         ? (now.getTime() - state.nextReviewDate.getTime()) / 86400000
@@ -254,18 +279,20 @@ class MasteryLearningService {
       // 难度计算：基于错误率和得分
       const difficulty = this.computeWordDifficultyFromScore(score, errorRate);
 
-      return {
-        id: state.word.id,
-        spelling: state.word.spelling,
-        phonetic: state.word.phonetic,
-        meanings: state.word.meanings,
-        examples: state.word.examples,
-        audioUrl: state.word.audioUrl,
+      results.push({
+        id: word.id,
+        spelling: word.spelling,
+        phonetic: word.phonetic,
+        meanings: word.meanings,
+        examples: word.examples,
+        audioUrl: word.audioUrl,
         difficulty,
         isNew: false,
         priority,
-      };
-    });
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -284,6 +311,14 @@ class MasteryLearningService {
       return [];
     }
 
+    // 获取用户已学习过的单词（显式排除，避免依赖关系过滤）
+    const learnedStates = await prisma.wordLearningState.findMany({
+      where: { userId },
+      select: { wordId: true },
+    });
+    const learnedWordIds = learnedStates.map((s) => s.wordId);
+    const excludedIds = Array.from(new Set([...excludeIds, ...learnedWordIds]));
+
     // 获取未学习过的单词
     let newWords: Array<{
       id: string;
@@ -298,8 +333,7 @@ class MasteryLearningService {
       newWords = await prisma.word.findMany({
         where: {
           wordBookId: { in: config.selectedWordBookIds },
-          id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
-          learningStates: { none: { userId } },
+          ...(excludedIds.length > 0 ? { id: { notIn: excludedIds } } : {}),
         },
         take: count * 2,
         orderBy: { createdAt: 'asc' },
@@ -309,8 +343,7 @@ class MasteryLearningService {
       const candidates = await prisma.word.findMany({
         where: {
           wordBookId: { in: config.selectedWordBookIds },
-          id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
-          learningStates: { none: { userId } },
+          ...(excludedIds.length > 0 ? { id: { notIn: excludedIds } } : {}),
         },
         take: count * 5, // 多取一些用于随机
       });
@@ -427,51 +460,45 @@ class MasteryLearningService {
       return [];
     }
 
-    // 获取未学习过的单词
+    // 获取用户已学习过的单词（显式排除，避免依赖关系过滤/PG 专用 SQL）
+    const learnedStates = await prisma.wordLearningState.findMany({
+      where: { userId },
+      select: { wordId: true },
+    });
+    const learnedWordIds = learnedStates.map((s) => s.wordId);
+    const excludedIds = Array.from(new Set([...excludeWordIds, ...learnedWordIds]));
+
     if (config.studyMode === 'sequential') {
       // 顺序模式：按创建时间排序
       const additionalWords = await prisma.word.findMany({
         where: {
           wordBookId: { in: config.selectedWordBookIds },
-          id: { notIn: excludeWordIds },
-          learningStates: {
-            none: { userId }, // 从未学习过的单词
-          },
+          ...(excludedIds.length > 0 ? { id: { notIn: excludedIds } } : {}),
         },
         take: count,
         orderBy: { createdAt: 'asc' },
       });
       logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（顺序模式）`);
       return additionalWords;
-    } else {
-      // 随机模式：获取更多单词后随机选取
-      // 使用 PostgreSQL 原生随机排序，保证真正随机
-      const additionalWords = await prisma.$queryRaw<
-        Array<{
-          id: string;
-          spelling: string;
-          phonetic: string;
-          meanings: string[];
-          examples: string[];
-          audioUrl: string | null;
-          wordBookId: string;
-          createdAt: Date;
-          updatedAt: Date;
-        }>
-      >`
-        SELECT w.* FROM "words" w
-        WHERE w."wordBookId" = ANY(${config.selectedWordBookIds})
-          AND w.id NOT IN (SELECT unnest(${excludeWordIds}::text[]))
-          AND NOT EXISTS (
-            SELECT 1 FROM "word_learning_states" ls
-            WHERE ls."wordId" = w.id AND ls."userId" = ${userId}
-          )
-        ORDER BY RANDOM()
-        LIMIT ${count}
-      `;
-      logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（随机模式）`);
-      return additionalWords;
     }
+
+    // 随机模式：应用层随机（兼容 SQLite 降级）
+    const candidates = await prisma.word.findMany({
+      where: {
+        wordBookId: { in: config.selectedWordBookIds },
+        ...(excludedIds.length > 0 ? { id: { notIn: excludedIds } } : {}),
+      },
+      take: count * 5,
+    });
+
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+
+    const additionalWords = candidates.slice(0, count);
+    logger.debug(`[MasteryLearning] 补充了${additionalWords.length}个新词（随机模式）`);
+    return additionalWords;
   }
 
   /**
@@ -495,7 +522,7 @@ class MasteryLearningService {
     );
 
     try {
-      await prisma.learningSession.updateMany({
+      const result = await prisma.learningSession.updateMany({
         where: {
           id: sessionId,
           userId,
@@ -505,6 +532,10 @@ class MasteryLearningService {
           totalQuestions: progress.totalQuestions,
         },
       });
+
+      if (result.count === 0) {
+        throw AppError.notFound('学习会话不存在');
+      }
 
       logger.debug(`[MasteryLearning] 会话进度同步成功: sessionId=${sessionId}`);
     } catch (error) {
@@ -598,7 +629,7 @@ class MasteryLearningService {
     });
 
     if (!session) {
-      throw new Error(`Session not found or access denied: ${sessionId}`);
+      throw AppError.notFound('学习会话不存在');
     }
 
     return {

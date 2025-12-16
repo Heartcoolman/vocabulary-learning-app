@@ -169,7 +169,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           onClick={onClose}
         />
 
-        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+        <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-card bg-white shadow-2xl dark:bg-gray-900">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
             <div>
@@ -220,7 +220,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
               <>
                 {activeTab === 'factors' && (
                   <div className="space-y-6">
-                    <div className="rounded-lg bg-indigo-50 p-4 text-sm leading-relaxed text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
+                    <div className="rounded-button bg-indigo-50 p-4 text-sm leading-relaxed text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
                       <strong>AI 思考：</strong> {explanationData.reasoning}
                     </div>
                     {explanationData.factors && (

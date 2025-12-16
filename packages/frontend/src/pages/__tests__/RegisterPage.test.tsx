@@ -23,9 +23,13 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
-vi.mock('@/components/Icon', () => ({
-  ArrowLeft: () => <span data-testid="arrow-left">←</span>,
-}));
+vi.mock('@/components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Icon')>();
+  return {
+    ...actual,
+    ArrowLeft: () => <span data-testid="arrow-left">←</span>,
+  };
+});
 
 describe('RegisterPage', () => {
   beforeEach(() => {

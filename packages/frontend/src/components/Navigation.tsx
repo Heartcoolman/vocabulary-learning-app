@@ -91,17 +91,17 @@ function NavigationComponent() {
 
   const linkClass = (path: string) => {
     const base =
-      'px-4 py-2 rounded-lg text-base font-medium transition-all duration-g3-fast ease-g3';
+      'px-4 py-2 rounded-button text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
-      ? `${base} bg-blue-500 text-white shadow-sm`
+      ? `${base} bg-blue-500 text-white shadow-soft`
       : `${base} text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`;
   };
 
   const mobileLinkClass = (path: string) => {
     const base =
-      'block px-4 py-3 rounded-lg text-base font-medium transition-all duration-g3-fast ease-g3';
+      'block px-4 py-3 rounded-button text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
-      ? `${base} bg-blue-500 text-white shadow-sm`
+      ? `${base} bg-blue-500 text-white shadow-soft`
       : `${base} text-gray-700 hover:bg-gray-100`;
   };
 
@@ -125,14 +125,14 @@ function NavigationComponent() {
 
   return (
     <header
-      className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-sm backdrop-blur-md"
+      className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md"
       role="banner"
     >
       <div className="mx-auto max-w-7xl px-4 py-4">
         <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center space-x-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex items-center space-x-2 rounded-button focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="返回首页"
           >
             <h1 className="text-2xl font-bold text-gray-900">词汇学习</h1>
@@ -181,9 +181,9 @@ function NavigationComponent() {
               <div className="relative" ref={insightsRef}>
                 <button
                   onClick={() => setIsInsightsOpen(!isInsightsOpen)}
-                  className={`flex items-center gap-1 rounded-lg px-4 py-2 text-base font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1 rounded-button px-4 py-2 text-base font-medium transition-all duration-g3-fast ${
                     isInsightsActive()
-                      ? 'bg-blue-500 text-white shadow-sm'
+                      ? 'bg-blue-500 text-white shadow-soft'
                       : 'text-gray-700 hover:scale-105 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95'
                   }`}
                   aria-expanded={isInsightsOpen}
@@ -198,7 +198,7 @@ function NavigationComponent() {
                 </button>
 
                 {isInsightsOpen && (
-                  <div className="animate-fade-in-down absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                  <div className="animate-fade-in-down absolute right-0 top-full z-50 mt-2 w-48 rounded-button border border-gray-200 bg-white py-1 shadow-elevated">
                     {insightsLinks.map(({ path, icon: Icon, label }) => (
                       <Link
                         key={path}
@@ -253,7 +253,7 @@ function NavigationComponent() {
           {/* 移动端汉堡菜单按钮 */}
           <button
             ref={hamburgerRef}
-            className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 lg:hidden"
+            className="rounded-button p-2 text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 lg:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-expanded={isMobileMenuOpen}
             aria-label={isMobileMenuOpen ? '关闭菜单' : '打开菜单'}

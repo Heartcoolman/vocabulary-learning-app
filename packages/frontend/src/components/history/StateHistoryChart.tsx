@@ -77,7 +77,7 @@ const MetricChart: React.FC<{
   }, [values]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 transition-all hover:shadow-lg">
+    <div className="rounded-card border border-gray-200 bg-white p-5 transition-all hover:shadow-elevated">
       {/* 标题和趋势箭头 */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm font-medium text-gray-500">{label}</span>
@@ -135,7 +135,7 @@ const MetricChart: React.FC<{
       {/* 简洁的进度条 */}
       <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
+          className="h-full rounded-full transition-all duration-g3-slower ease-g3"
           style={{
             width: `${Math.min(100, currentValue * 100)}%`,
             backgroundColor: color,
@@ -157,7 +157,7 @@ const StateHistoryChart: React.FC<StateHistoryChartProps> = React.memo(({ stateH
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
           <ChartLine size={24} weight="duotone" color="#3b82f6" />

@@ -14,8 +14,14 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { CachedStateRepository, CachedModelRepository } from '../../../../src/amas/repositories/cached-repository';
-import { DatabaseStateRepository, DatabaseModelRepository } from '../../../../src/amas/repositories/database-repository';
+import {
+  CachedStateRepository,
+  CachedModelRepository,
+} from '../../../../src/amas/repositories/cached-repository';
+import {
+  DatabaseStateRepository,
+  DatabaseModelRepository,
+} from '../../../../src/amas/repositories/database-repository';
 import { UserState, BanditModel } from '../../../../src/amas/types';
 import { redisCacheService, REDIS_CACHE_KEYS } from '../../../../src/services/redis-cache.service';
 
@@ -43,6 +49,12 @@ vi.mock('../../../../src/config/redis', () => ({
 
 vi.mock('../../../../src/logger', () => ({
   amasLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  startupLogger: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
@@ -518,7 +530,7 @@ describe('Cache Integration Scenarios', () => {
         stateRepo.loadState(testUserId),
       ]);
 
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toEqual(mockState);
       });
     });
@@ -569,7 +581,10 @@ describe('Cache Integration Scenarios', () => {
 
     it('should handle partial cache data', async () => {
       // Versioned data with empty data field
-      vi.mocked(redisCacheService.getUserState).mockResolvedValue({ data: null, version: Date.now() });
+      vi.mocked(redisCacheService.getUserState).mockResolvedValue({
+        data: null,
+        version: Date.now(),
+      });
       vi.mocked(mockDbStateRepo.loadState).mockResolvedValue(createMockUserState());
 
       const result = await stateRepo.loadState(testUserId);

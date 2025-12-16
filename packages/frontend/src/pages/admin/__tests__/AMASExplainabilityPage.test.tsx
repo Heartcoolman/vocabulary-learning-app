@@ -32,27 +32,31 @@ vi.mock('../../../services/explainabilityApi', () => ({
 import AMASExplainabilityPage from '../AMASExplainabilityPage';
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  Warning: () => <span data-testid="warning-icon">Warning</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  Brain: () => <span data-testid="brain-icon">Brain</span>,
-  Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
-  ArrowClockwise: () => <span data-testid="refresh-icon">Refresh</span>,
-  Clock: () => <span data-testid="clock-icon">Clock</span>,
-  TrendUp: () => <span data-testid="trend-up-icon">TrendUp</span>,
-  TrendDown: () => <span data-testid="trend-down-icon">TrendDown</span>,
-  Minus: () => <span data-testid="minus-icon">Minus</span>,
-  Info: () => <span data-testid="info-icon">Info</span>,
-  Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
-  Target: () => <span data-testid="target-icon">Target</span>,
-  ChartLine: () => <span data-testid="chart-icon">Chart</span>,
-  Question: () => <span data-testid="question-icon">Question</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    Warning: () => <span data-testid="warning-icon">Warning</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    Brain: () => <span data-testid="brain-icon">Brain</span>,
+    Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
+    ArrowClockwise: () => <span data-testid="refresh-icon">Refresh</span>,
+    Clock: () => <span data-testid="clock-icon">Clock</span>,
+    TrendUp: () => <span data-testid="trend-up-icon">TrendUp</span>,
+    TrendDown: () => <span data-testid="trend-down-icon">TrendDown</span>,
+    Minus: () => <span data-testid="minus-icon">Minus</span>,
+    Info: () => <span data-testid="info-icon">Info</span>,
+    Lightning: () => <span data-testid="lightning-icon">Lightning</span>,
+    Target: () => <span data-testid="target-icon">Target</span>,
+    ChartLine: () => <span data-testid="chart-icon">Chart</span>,
+    Question: () => <span data-testid="question-icon">Question</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({

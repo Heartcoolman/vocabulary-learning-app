@@ -4,14 +4,14 @@
 
 ## 📊 测试分类概览
 
-| 分类 | 命令 | 测试数量 | 描述 |
-|------|------|----------|------|
-| **Part 1** | `pnpm test:1:backend-services` | ~150+ | Backend 服务层单元测试 |
-| **Part 2** | `pnpm test:2:backend-amas` | ~260+ | Backend AMAS 智能算法模块测试 |
-| **Part 3** | `pnpm test:3:backend-api` | ~200+ | Backend API 路由集成测试 |
-| **Part 4** | `pnpm test:4:frontend-components` | ~400+ | Frontend 组件测试 |
-| **Part 5** | `pnpm test:5:frontend-pages` | ~300+ | Frontend 页面测试 |
-| **Part 6** | `pnpm test:6:e2e` | ~50+ | 端到端测试 |
+| 分类       | 命令                              | 测试数量 | 描述                          |
+| ---------- | --------------------------------- | -------- | ----------------------------- |
+| **Part 1** | `pnpm test:1:backend-services`    | ~150+    | Backend 服务层单元测试        |
+| **Part 2** | `pnpm test:2:backend-amas`        | ~260+    | Backend AMAS 智能算法模块测试 |
+| **Part 3** | `pnpm test:3:backend-api`         | ~200+    | Backend API 路由集成测试      |
+| **Part 4** | `pnpm test:4:frontend-components` | ~400+    | Frontend 组件测试             |
+| **Part 5** | `pnpm test:5:frontend-pages`      | ~300+    | Frontend 页面测试             |
+| **Part 6** | `pnpm test:6:e2e`                 | ~50+     | 端到端测试                    |
 
 ---
 
@@ -19,9 +19,15 @@
 
 **命令**: `pnpm test:1:backend-services`
 
+**前置条件（推荐）**：
+
+- 启动测试数据库（PostgreSQL: `localhost:5433`）：`pnpm --filter @danci/backend test:db:up`
+- 若仅运行不依赖数据库的纯单测（例如部分 AMAS 算法单测），可设置 `SKIP_TEST_DB=true` 跳过测试启动时的数据库连通性检查
+
 **路径**: `packages/backend/tests/unit/services/`
 
 **包含的测试**:
+
 - `about.service.test.ts` - About 服务
 - `admin.service.test.ts` - 管理员服务
 - `algorithm-config.service.test.ts` - 算法配置服务
@@ -68,6 +74,7 @@
 **包含的子模块**:
 
 ### modeling/ - 认知建模
+
 - `actr-memory.test.ts` - ACT-R 记忆模型
 - `attention-monitor.test.ts` - 注意力监测
 - `cognitive-profiler.test.ts` - 认知画像器
@@ -77,31 +84,38 @@
 - `trend-analyzer.test.ts` - 趋势分析器
 
 ### learning/ - 在线学习算法
+
 - `coldstart.test.ts` - 冷启动策略
 - `linucb.test.ts` - LinUCB 算法
 - `linucb-async.test.ts` - 异步 LinUCB
 - `thompson-sampling.test.ts` - 汤普森采样
 
 ### decision/ - 决策系统
+
 - `ensemble.test.ts` - 集成决策
 
 ### engine/ - 引擎核心
+
 - `engine-core.test.ts` - 引擎核心逻辑
 
 ### evaluation/ - 评估模块
+
 - `causal-inference.test.ts` - 因果推断
 - `delayed-reward-aggregator.test.ts` - 延迟奖励聚合
 
 ### monitoring/ - 监控模块
+
 - `alert-engine.test.ts` - 告警引擎
 - `metrics-collector.test.ts` - 指标收集器
 - `monitoring-service.test.ts` - 监控服务
 
 ### optimization/ - 优化模块
+
 - `bayesian-optimizer.test.ts` - 贝叶斯优化器
 - `multi-objective-optimizer.test.ts` - 多目标优化器
 
 ### config/ - 配置模块
+
 - `action-space.test.ts` - 动作空间配置
 - `feature-flags.test.ts` - 特性标志
 - `reward-profiles.test.ts` - 奖励配置
@@ -116,6 +130,7 @@
 **路径**: `packages/backend/tests/integration/api/`
 
 **包含的测试** (31个路由):
+
 - `about.routes.test.ts`
 - `admin.routes.test.ts`
 - `alerts.routes.test.ts`
@@ -159,6 +174,7 @@
 **包含的组件目录**:
 
 ### 根目录组件
+
 - `AmasStatus.test.tsx`
 - `AmasSuggestion.test.tsx`
 - `BadgeCelebration.test.tsx`
@@ -180,13 +196,16 @@
 - `WordCard.test.tsx`
 
 ### admin/
+
 - `AMASDecisionsTab.test.tsx`
 
 ### dashboard/
+
 - `DailyMissionCard.test.tsx`
 - `ProgressOverviewCard.test.tsx`
 
 ### explainability/
+
 - `CounterfactualPanel.test.tsx`
 - `DecisionFactors.test.tsx`
 - `ExplainabilityModal.test.tsx`
@@ -194,19 +213,23 @@
 - `WeightRadarChart.test.tsx`
 
 ### profile/
+
 - `ChronotypeCard.test.tsx`
 - `HabitHeatmap.test.tsx`
 
 ### progress/
+
 - `GoalTracker.test.tsx`
 - `MasteryDistributionChart.test.tsx`
 - `MilestoneCard.test.tsx`
 
 ### ui/
+
 - `Modal.test.tsx`
 - `Toast.test.tsx`
 
 ### word-mastery/
+
 - `MasteryStatsCard.test.tsx`
 - `MasteryWordItem.test.tsx`
 - `MemoryTraceChart.test.tsx`
@@ -223,6 +246,7 @@
 **包含的页面**:
 
 ### 根目录页面
+
 - `AchievementPage.test.tsx`
 - `BadgeGalleryPage.test.tsx`
 - `BatchImportPage.test.tsx`
@@ -247,6 +271,7 @@
 - `WordMasteryPage.test.tsx`
 
 ### about/
+
 - `AboutHomePage.test.tsx`
 - `AboutLayout.test.tsx`
 - `DashboardPage.test.tsx`
@@ -255,6 +280,7 @@
 - `SystemStatusPage.test.tsx`
 
 ### admin/
+
 - `AdminDashboard.test.tsx`
 - `AdminLayout.test.tsx`
 - `AdminUsers.test.tsx`
@@ -281,6 +307,7 @@
 **路径**: `tests/e2e/`
 
 **包含的测试**:
+
 - `admin.spec.ts` - 管理员功能
 - `amas-decision.spec.ts` - AMAS 决策流程
 - `auth.spec.ts` - 认证流程

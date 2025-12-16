@@ -15,7 +15,7 @@ const SuggestionModalComponent = ({ isOpen, onClose, result, onBreak }: Suggesti
 
   return (
     <div className="fixed inset-0 z-50 flex animate-g3-fade-in items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="relative w-full max-w-md animate-g3-scale-in overflow-hidden rounded-card bg-white shadow-floating">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-2 text-blue-600">
@@ -40,7 +40,7 @@ const SuggestionModalComponent = ({ isOpen, onClose, result, onBreak }: Suggesti
         <div className="flex justify-end bg-gray-50 px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
           >
             明白了
           </button>

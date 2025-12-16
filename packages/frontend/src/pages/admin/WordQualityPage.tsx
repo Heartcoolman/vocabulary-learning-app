@@ -148,24 +148,24 @@ function QualityCheckPanel({
         {loadingStats ? (
           <>
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-20 rounded-lg" />
+              <Skeleton key={i} className="h-20 rounded-button" />
             ))}
           </>
         ) : stats ? (
           <>
-            <div className="rounded-lg bg-blue-50 p-4">
+            <div className="rounded-button bg-blue-50 p-4">
               <div className="text-2xl font-bold text-blue-700">{stats.totalChecks}</div>
               <div className="text-sm text-blue-600">累计检查</div>
             </div>
-            <div className="rounded-lg bg-red-50 p-4">
+            <div className="rounded-button bg-red-50 p-4">
               <div className="text-2xl font-bold text-red-700">{stats.openIssues}</div>
               <div className="text-sm text-red-600">待处理问题</div>
             </div>
-            <div className="rounded-lg bg-green-50 p-4">
+            <div className="rounded-button bg-green-50 p-4">
               <div className="text-2xl font-bold text-green-700">{stats.fixedIssues}</div>
               <div className="text-sm text-green-600">已修复</div>
             </div>
-            <div className="rounded-lg bg-gray-50 p-4">
+            <div className="rounded-button bg-gray-50 p-4">
               <div className="text-2xl font-bold text-gray-700">
                 {stats.lastCheckDate
                   ? new Date(stats.lastCheckDate).toLocaleDateString('zh-CN')
@@ -178,13 +178,13 @@ function QualityCheckPanel({
       </div>
 
       {/* 启动检查 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-lg font-medium text-gray-900">启动质量检查</h3>
         <div className="flex items-center gap-4">
           <select
             value={checkType}
             onChange={(e) => setCheckType(e.target.value as CheckType)}
-            className="rounded-lg border border-gray-300 px-3 py-2"
+            className="rounded-button border border-gray-300 px-3 py-2"
           >
             <option value="FULL">全面检查</option>
             <option value="SPELLING">拼写检查</option>
@@ -208,7 +208,7 @@ function QualityCheckPanel({
       </div>
 
       {/* 待处理问题 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-medium text-gray-900">待处理问题</h3>
@@ -234,7 +234,7 @@ function QualityCheckPanel({
         {loadingIssues ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 rounded-lg" />
+              <Skeleton key={i} className="h-16 rounded-button" />
             ))}
           </div>
         ) : issues?.items && issues.items.length > 0 ? (
@@ -242,7 +242,7 @@ function QualityCheckPanel({
             {issues.items.map((issue) => (
               <div
                 key={issue.id}
-                className="flex items-start justify-between rounded-lg bg-gray-50 p-4"
+                className="flex items-start justify-between rounded-button bg-gray-50 p-4"
               >
                 <div className="flex-1">
                   <div className="mb-1 flex items-center gap-2">
@@ -288,7 +288,7 @@ function QualityCheckPanel({
       </div>
 
       {/* 检查历史 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <button
           onClick={() => setShowHistory(!showHistory)}
           className="flex w-full items-center justify-between"
@@ -304,13 +304,13 @@ function QualityCheckPanel({
         {showHistory && (
           <div className="mt-4">
             {loadingHistory ? (
-              <Skeleton className="h-32 rounded-lg" />
+              <Skeleton className="h-32 rounded-button" />
             ) : history?.items && history.items.length > 0 ? (
               <div className="space-y-3">
                 {history.items.map((check) => (
                   <div
                     key={check.id}
-                    className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                    className="flex items-center justify-between rounded-button bg-gray-50 p-3"
                   >
                     <div>
                       <span className="text-sm font-medium">{check.checkType}</span>
@@ -415,13 +415,13 @@ function ContentEnhancePanel({ wordBookId }: { wordBookId: string }) {
   return (
     <div className="space-y-6">
       {/* 启动增强 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-lg font-medium text-gray-900">批量内容增强</h3>
         <div className="flex items-center gap-4">
           <select
             value={enhanceType}
             onChange={(e) => setEnhanceType(e.target.value as EnhanceType)}
-            className="rounded-lg border border-gray-300 px-3 py-2"
+            className="rounded-button border border-gray-300 px-3 py-2"
           >
             <option value="meanings">生成释义</option>
             <option value="examples">生成例句</option>
@@ -447,7 +447,7 @@ function ContentEnhancePanel({ wordBookId }: { wordBookId: string }) {
       </div>
 
       {/* 待审核内容 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900">待审核内容</h3>
           {variants && <span className="text-sm text-gray-500">共 {variants.total} 个</span>}
@@ -456,13 +456,13 @@ function ContentEnhancePanel({ wordBookId }: { wordBookId: string }) {
         {loadingVariants ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
+              <Skeleton key={i} className="h-24 rounded-button" />
             ))}
           </div>
         ) : variants?.items && variants.items.length > 0 ? (
           <div className="space-y-4">
             {variants.items.map((variant) => (
-              <div key={variant.id} className="rounded-lg bg-gray-50 p-4">
+              <div key={variant.id} className="rounded-button bg-gray-50 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900">{variant.spelling}</span>
@@ -547,7 +547,7 @@ export default function WordQualityPage() {
       </div>
 
       {/* 词库选择 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6">
         <div className="mb-4 flex items-center gap-2">
           <Books className="h-5 w-5 text-blue-500" />
           <h2 className="text-lg font-medium text-gray-900">选择词库</h2>
@@ -556,7 +556,7 @@ export default function WordQualityPage() {
         {loadingWordBooks ? (
           <div className="flex gap-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-10 w-32 rounded-lg" />
+              <Skeleton key={i} className="h-10 w-32 rounded-button" />
             ))}
           </div>
         ) : wordBooks && wordBooks.length > 0 ? (
@@ -565,7 +565,7 @@ export default function WordQualityPage() {
               <button
                 key={wb.id}
                 onClick={() => setSelectedWordBook({ id: wb.id, name: wb.name })}
-                className={`rounded-lg border px-4 py-2 transition-colors ${
+                className={`rounded-button border px-4 py-2 transition-colors ${
                   selectedWordBook?.id === wb.id
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-300 hover:border-gray-400'

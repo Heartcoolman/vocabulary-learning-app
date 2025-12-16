@@ -67,7 +67,7 @@ export function WordListExample() {
         <button
           onClick={handleCreateWord}
           disabled={createWordMutation.isPending}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-button bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {createWordMutation.isPending ? '创建中...' : '创建示例单词'}
         </button>
@@ -75,7 +75,7 @@ export function WordListExample() {
 
       {/* 显示 mutation 状态 */}
       {createWordMutation.isError && (
-        <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
+        <div className="mb-4 rounded-button bg-red-50 p-4 text-red-700">
           创建失败:{' '}
           {createWordMutation.error instanceof Error
             ? createWordMutation.error.message
@@ -84,7 +84,7 @@ export function WordListExample() {
       )}
 
       {createWordMutation.isSuccess && (
-        <div className="mb-4 rounded-lg bg-green-50 p-4 text-green-700">创建成功！</div>
+        <div className="mb-4 rounded-button bg-green-50 p-4 text-green-700">创建成功！</div>
       )}
 
       {/* 单词列表 */}
@@ -93,7 +93,7 @@ export function WordListExample() {
           words.map((word) => (
             <div
               key={word.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+              className="flex items-center justify-between rounded-button border border-gray-200 bg-white p-4 shadow-soft transition-shadow hover:shadow-elevated"
             >
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{word.spelling}</h3>
@@ -114,7 +114,7 @@ export function WordListExample() {
       </div>
 
       {/* React Query 特性说明 */}
-      <div className="mt-8 rounded-lg bg-blue-50 p-4">
+      <div className="mt-8 rounded-button bg-blue-50 p-4">
         <h3 className="mb-2 font-semibold text-blue-900">React Query 特性演示：</h3>
         <ul className="space-y-1 text-sm text-blue-800">
           <li>✅ 自动缓存：数据会被缓存，避免重复请求</li>

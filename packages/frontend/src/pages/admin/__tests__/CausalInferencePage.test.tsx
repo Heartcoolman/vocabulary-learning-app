@@ -40,20 +40,24 @@ vi.mock('../../../services/client', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  Warning: () => <span data-testid="warning-icon">Warning</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  ChartBar: () => <span data-testid="chart-icon">Chart</span>,
-  Brain: () => <span data-testid="brain-icon">Brain</span>,
-  Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
-  ArrowClockwise: () => <span data-testid="refresh-icon">Refresh</span>,
-  FileText: () => <span data-testid="file-icon">File</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    Warning: () => <span data-testid="warning-icon">Warning</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    ChartBar: () => <span data-testid="chart-icon">Chart</span>,
+    Brain: () => <span data-testid="brain-icon">Brain</span>,
+    Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
+    ArrowClockwise: () => <span data-testid="refresh-icon">Refresh</span>,
+    FileText: () => <span data-testid="file-icon">File</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({
@@ -78,13 +82,9 @@ const mockATE = {
 };
 
 const mockDiagnostics = {
-  mean: 0.5,
-  std: 0.2,
-  median: 0.48,
-  treatmentMean: 0.65,
-  controlMean: 0.35,
-  overlap: 0.85,
-  auc: 0.72,
+  observationCount: 20,
+  treatmentDistribution: { 0: 10, 1: 10 },
+  latestEstimate: mockATE,
 };
 
 const renderWithRouter = () => {
@@ -197,7 +197,7 @@ describe('CausalInferencePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('0.1500')).toBeInTheDocument();
+        expect(screen.getAllByText('0.1500').length).toBeGreaterThan(0);
       });
     });
 
@@ -224,7 +224,7 @@ describe('CausalInferencePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('样本量')).toBeInTheDocument();
-        expect(screen.getByText('100')).toBeInTheDocument();
+        expect(screen.getAllByText('100').length).toBeGreaterThan(0);
       });
     });
 
@@ -246,32 +246,31 @@ describe('CausalInferencePage', () => {
       });
     });
 
-    it('should display mean propensity score', async () => {
+    it('should display observation count', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('平均倾向得分')).toBeInTheDocument();
-        expect(screen.getByText('0.5000')).toBeInTheDocument();
+        expect(screen.getByText('总观测数量')).toBeInTheDocument();
+        expect(screen.getByText('20')).toBeInTheDocument();
       });
     });
 
-    it('should display treatment and control means', async () => {
+    it('should display treatment distribution', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('处理组平均')).toBeInTheDocument();
-        expect(screen.getByText('0.6500')).toBeInTheDocument();
-        expect(screen.getByText('对照组平均')).toBeInTheDocument();
-        expect(screen.getByText('0.3500')).toBeInTheDocument();
+        expect(screen.getByText('处理组分布')).toBeInTheDocument();
+        expect(screen.getByText(/对照组\(0\):/)).toBeInTheDocument();
+        expect(screen.getByText(/处理组\(1\):/)).toBeInTheDocument();
       });
     });
 
-    it('should display overlap', async () => {
+    it('should display latest estimate when available', async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('样本重叠度')).toBeInTheDocument();
-        expect(screen.getByText('85.00%')).toBeInTheDocument();
+        expect(screen.getByText('最新因果效应估计')).toBeInTheDocument();
+        expect(screen.getAllByText('0.1500').length).toBeGreaterThan(0);
       });
     });
   });

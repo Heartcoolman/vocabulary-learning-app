@@ -1,6 +1,12 @@
+import http from 'http';
 import app from './app';
 import { env } from './config/env';
-import prisma from './config/database';
+import prisma, {
+  initializeDatabaseProxy,
+  closeDatabaseProxy,
+  isHotStandbyEnabled,
+  getDatabaseProxy,
+} from './config/database';
 import { connectRedis, disconnectRedis } from './config/redis';
 import { startDelayedRewardWorker, stopDelayedRewardWorker } from './workers/delayed-reward.worker';
 import { startOptimizationWorker } from './workers/optimization.worker';
@@ -24,11 +30,17 @@ import {
 // env.PORT 已在 env.ts 中转换为 number 类型
 const PORT = env.PORT;
 
+// 保存HTTP服务器实例，用于优雅关闭
+let httpServer: http.Server | null = null;
+
 // 保存worker引用，用于优雅关闭
 let delayedRewardWorkerTask: ScheduledTask | null = null;
 let optimizationWorkerTask: ScheduledTask | null = null;
 let llmAdvisorWorkerTask: ScheduledTask | null = null;
 let forgettingAlertWorkerTask: ScheduledTask | null = null;
+
+// 关闭超时时间（毫秒）
+const SHUTDOWN_TIMEOUT = 30000;
 
 async function startServer() {
   try {
@@ -38,9 +50,24 @@ async function startServer() {
       startupLogger.info('Sentry error tracking initialized');
     }
 
-    // 测试数据库连接
-    await prisma.$connect();
-    startupLogger.info('Database connected successfully');
+    // 初始化数据库连接（支持热备降级）
+    if (isHotStandbyEnabled()) {
+      // 热备模式：使用 DatabaseProxy，支持 PostgreSQL 不可用时自动降级到 SQLite
+      await initializeDatabaseProxy();
+      const proxy = getDatabaseProxy();
+      const state = proxy?.getState() || 'NORMAL';
+      if (state === 'DEGRADED') {
+        startupLogger.warn(
+          'Database started in DEGRADED mode (SQLite only) - PostgreSQL unavailable',
+        );
+      } else {
+        startupLogger.info('Database connected in hot-standby mode (PostgreSQL + SQLite)');
+      }
+    } else {
+      // 非热备模式：直接连接 PostgreSQL
+      await prisma.$connect();
+      startupLogger.info('Database connected successfully');
+    }
 
     // 连接 Redis 缓存（可选，连接失败不影响启动）
     const redisConnected = await connectRedis();
@@ -99,7 +126,7 @@ async function startServer() {
     }
 
     // 启动服务器
-    app.listen(PORT, () => {
+    httpServer = app.listen(PORT, () => {
       startupLogger.info(
         { port: PORT, env: env.NODE_ENV, corsOrigin: env.CORS_ORIGIN },
         'Server running',
@@ -133,83 +160,129 @@ async function startServer() {
 async function gracefulShutdown(signal: string, exitCode: number = 0) {
   startupLogger.info({ signal, exitCode }, 'Received signal, shutting down gracefully');
 
-  // Critical Fix #2: Flush决策记录器队列，避免丢失尾部轨迹
+  // 设置关闭超时保护
+  const shutdownTimeout = setTimeout(() => {
+    startupLogger.error({ timeout: SHUTDOWN_TIMEOUT }, 'Graceful shutdown timed out, forcing exit');
+    process.exit(exitCode || 1);
+  }, SHUTDOWN_TIMEOUT);
+
+  // 确保超时计时器不阻止进程退出
+  shutdownTimeout.unref();
+
   try {
-    const decisionRecorder = getSharedDecisionRecorder(prisma);
-    await decisionRecorder.cleanup();
-    startupLogger.info('Decision recorder flushed');
-  } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to flush decision recorder');
-  }
+    // 第一步：关闭HTTP服务器，停止接受新连接
+    if (httpServer) {
+      await new Promise<void>((resolve, reject) => {
+        startupLogger.info('Closing HTTP server, waiting for active connections...');
 
-  // 停止延迟奖励Worker
-  if (delayedRewardWorkerTask) {
-    stopDelayedRewardWorker(delayedRewardWorkerTask);
-    startupLogger.info('Delayed reward worker stopped');
-  }
+        // server.close() 会停止接受新连接，并等待现有连接完成
+        httpServer!.close((err) => {
+          if (err) {
+            startupLogger.error({ err }, 'Error closing HTTP server');
+            reject(err);
+          } else {
+            startupLogger.info('HTTP server closed successfully');
+            resolve();
+          }
+        });
 
-  // 停止优化Worker
-  if (optimizationWorkerTask) {
-    optimizationWorkerTask.stop();
-    startupLogger.info('Optimization worker stopped');
-  }
-
-  // 停止 LLM 顾问Worker
-  if (llmAdvisorWorkerTask) {
-    stopLLMAdvisorWorker();
-    startupLogger.info('LLM advisor worker stopped');
-  }
-
-  // 停止遗忘预警Worker
-  if (forgettingAlertWorkerTask) {
-    stopForgettingAlertWorker();
-    startupLogger.info('Forgetting alert worker stopped');
-  }
-
-  // 停止Alert监控服务
-  try {
-    stopAlertMonitoring();
-    startupLogger.info('Alert monitoring stopped');
-  } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to stop alert monitoring');
-  }
-
-  // 停止HTTP指标采集并flush队列
-  try {
-    if (env.NODE_ENV !== 'test') {
-      const { stopMetricsCollection } = require('./middleware/metrics.middleware');
-      await stopMetricsCollection();
-      startupLogger.info('Metrics collection stopped');
+        // 设置Keep-alive连接的超时，加速关闭
+        httpServer!.closeIdleConnections();
+      });
     }
+
+    // 第二步：Flush决策记录器队列，避免丢失尾部轨迹
+    try {
+      const decisionRecorder = getSharedDecisionRecorder(prisma);
+      await decisionRecorder.cleanup();
+      startupLogger.info('Decision recorder flushed');
+    } catch (error) {
+      startupLogger.warn({ err: error }, 'Failed to flush decision recorder');
+    }
+
+    // 第三步：停止所有Worker
+    // 停止延迟奖励Worker
+    if (delayedRewardWorkerTask) {
+      stopDelayedRewardWorker(delayedRewardWorkerTask);
+      startupLogger.info('Delayed reward worker stopped');
+    }
+
+    // 停止优化Worker
+    if (optimizationWorkerTask) {
+      optimizationWorkerTask.stop();
+      startupLogger.info('Optimization worker stopped');
+    }
+
+    // 停止 LLM 顾问Worker
+    if (llmAdvisorWorkerTask) {
+      stopLLMAdvisorWorker();
+      startupLogger.info('LLM advisor worker stopped');
+    }
+
+    // 停止遗忘预警Worker
+    if (forgettingAlertWorkerTask) {
+      stopForgettingAlertWorker();
+      startupLogger.info('Forgetting alert worker stopped');
+    }
+
+    // 停止Alert监控服务
+    try {
+      stopAlertMonitoring();
+      startupLogger.info('Alert monitoring stopped');
+    } catch (error) {
+      startupLogger.warn({ err: error }, 'Failed to stop alert monitoring');
+    }
+
+    // 停止HTTP指标采集并flush队列
+    try {
+      if (env.NODE_ENV !== 'test') {
+        const { stopMetricsCollection } = require('./middleware/metrics.middleware');
+        await stopMetricsCollection();
+        startupLogger.info('Metrics collection stopped');
+      }
+    } catch (error) {
+      startupLogger.warn({ err: error }, 'Failed to stop metrics collection');
+    }
+
+    // Flush Sentry 事件队列
+    try {
+      await sentryFlush(2000);
+      startupLogger.info('Sentry events flushed');
+    } catch (error) {
+      startupLogger.warn({ err: error }, 'Failed to flush Sentry events');
+    }
+
+    // 第四步：断开 Redis 连接
+    await disconnectRedis();
+    startupLogger.info('Redis disconnected');
+
+    // 第五步：断开数据库连接
+    if (isHotStandbyEnabled()) {
+      await closeDatabaseProxy();
+      startupLogger.info('Database proxy disconnected');
+    } else {
+      await prisma.$disconnect();
+      startupLogger.info('Database disconnected');
+    }
+
+    // 关闭 Sentry 客户端
+    try {
+      await sentryClose(2000);
+      startupLogger.info('Sentry client closed');
+    } catch (error) {
+      startupLogger.warn({ err: error }, 'Failed to close Sentry client');
+    }
+
+    // 清除超时计时器
+    clearTimeout(shutdownTimeout);
+
+    startupLogger.info('Graceful shutdown completed');
+    process.exit(exitCode);
   } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to stop metrics collection');
+    startupLogger.error({ err: error }, 'Error during graceful shutdown');
+    clearTimeout(shutdownTimeout);
+    process.exit(exitCode || 1);
   }
-
-  // Flush Sentry 事件队列
-  try {
-    await sentryFlush(2000);
-    startupLogger.info('Sentry events flushed');
-  } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to flush Sentry events');
-  }
-
-  // 断开 Redis 连接
-  await disconnectRedis();
-  startupLogger.info('Redis disconnected');
-
-  // 断开数据库连接
-  await prisma.$disconnect();
-  startupLogger.info('Database disconnected');
-
-  // 关闭 Sentry 客户端
-  try {
-    await sentryClose(2000);
-    startupLogger.info('Sentry client closed');
-  } catch (error) {
-    startupLogger.warn({ err: error }, 'Failed to close Sentry client');
-  }
-
-  process.exit(exitCode);
 }
 
 // 注册信号处理

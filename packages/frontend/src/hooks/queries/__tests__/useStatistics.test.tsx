@@ -8,7 +8,19 @@ import StorageService from '../../../services/StorageService';
 import * as AuthContext from '../../../contexts/AuthContext';
 
 // Mock dependencies
-vi.mock('@/services/client');
+vi.mock('@/services/client', () => {
+  const client = {
+    getRecords: vi.fn(),
+    getStudyProgress: vi.fn(),
+    getUserStatistics: vi.fn(),
+    createRecord: vi.fn(),
+    batchCreateRecords: vi.fn(),
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 vi.mock('../../../services/StorageService');
 vi.mock('../../../contexts/AuthContext');
 
@@ -47,7 +59,7 @@ describe('useStatistics', () => {
       vi.spyOn(StorageService, 'getWords').mockResolvedValue(mockWords as any);
       vi.spyOn(StorageService, 'getWordLearningStates').mockResolvedValue(mockWordStates as any);
       vi.spyOn(StorageService, 'getStudyStatistics').mockResolvedValue(mockStudyStats as any);
-      vi.spyOn(apiClient, 'getRecords').mockResolvedValue(mockRecords as any);
+      vi.mocked(apiClient.getRecords).mockResolvedValue(mockRecords as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -83,7 +95,7 @@ describe('useStatistics', () => {
         correctRate: 0,
         wordStats: new Map(),
       });
-      vi.spyOn(apiClient, 'getRecords').mockResolvedValue({ records: [], pagination: {} } as any);
+      vi.mocked(apiClient.getRecords).mockResolvedValue({ records: [], pagination: {} } as any);
 
       const { result } = renderHook(() => useStatistics(), { wrapper });
 
@@ -106,7 +118,7 @@ describe('useStatistics', () => {
         weeklyTrend: [5, 8, 10, 12, 15, 18, 20],
       };
 
-      vi.spyOn(apiClient, 'getStudyProgress').mockResolvedValue(mockProgress);
+      vi.mocked(apiClient.getStudyProgress).mockResolvedValue(mockProgress);
 
       const { result } = renderHook(() => useStudyProgress(), { wrapper });
 
@@ -118,7 +130,7 @@ describe('useStatistics', () => {
     });
 
     it('should auto-refresh every minute', async () => {
-      vi.spyOn(apiClient, 'getStudyProgress').mockResolvedValue({} as any);
+      vi.mocked(apiClient.getStudyProgress).mockResolvedValue({} as any);
 
       const { result } = renderHook(() => useStudyProgress(), { wrapper });
 
@@ -136,7 +148,7 @@ describe('useStatistics', () => {
         correctRate: 0.85,
       };
 
-      vi.spyOn(apiClient, 'getUserStatistics').mockResolvedValue(mockStats);
+      vi.mocked(apiClient.getUserStatistics).mockResolvedValue(mockStats);
 
       const { result } = renderHook(() => useUserStatistics(), { wrapper });
 

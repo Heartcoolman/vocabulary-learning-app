@@ -11,6 +11,7 @@
 Week 3 Day 15 的所有关键任务已完成，开发环境数据库迁移成功，所有部署前验证通过。系统已准备好部署到生产环境。
 
 **关键指标**:
+
 - ✅ HIGH 优先级问题修复: 2/2 (100%)
 - ✅ 数据库迁移状态: 成功
 - ✅ 测试通过率: 13/13 (100%)
@@ -24,6 +25,7 @@ Week 3 Day 15 的所有关键任务已完成，开发环境数据库迁移成功
 ### 1.1 HIGH 优先级修复 (P0)
 
 #### ✅ Issue 3.1: explainability.service.ts DB 错误处理
+
 **问题**: DB 查询失败时会导致服务崩溃
 **修复**: 添加 try-catch 和运行时类型验证
 **文件**: [backend/src/services/explainability.service.ts](../backend/src/services/explainability.service.ts)
@@ -33,7 +35,9 @@ Week 3 Day 15 的所有关键任务已完成，开发环境数据库迁移成功
 try {
   dbInsight = await prisma.decisionInsight.findUnique({
     where: { decisionId: targetId },
-    select: { /* ... */ }
+    select: {
+      /* ... */
+    },
   });
 } catch (dbError) {
   console.warn('[Explainability] DB query failed, falling back to computation');
@@ -42,11 +46,13 @@ try {
 ```
 
 #### ✅ Issue 5.1: Alert 集成测试修复
+
 **问题**: 4/13 测试失败，使用了不存在的 metric 名称
 **修复**: 更新所有测试使用真实的 ALERT_RULES metric
 **文件**: [backend/tests/integration/alert-monitoring.integration.test.ts](../backend/tests/integration/alert-monitoring.integration.test.ts)
 
 **改动**:
+
 - `decision.latency.p99` → `http.request.duration.p95`
 - 使用 `db.slow_queries.per_min` 和 `http.error_rate.5xx`
 - 调整阈值和 consecutivePeriods 以匹配实际规则
@@ -56,9 +62,11 @@ try {
 ### 1.2 数据库迁移
 
 #### ✅ 迁移创建
+
 **文件**: `backend/prisma/migrations/20251203071615_add_decision_insights/migration.sql`
 
 **表结构**:
+
 ```sql
 CREATE TABLE "decision_insights" (
     "id" TEXT NOT NULL,
@@ -75,22 +83,27 @@ CREATE TABLE "decision_insights" (
 ```
 
 **索引**:
+
 - UNIQUE: `decision_id`
 - 复合索引: `(user_id, decision_id)`
 - 单字段索引: `feature_vector_hash`, `created_at`
 
 #### ✅ 迁移执行 (开发环境 Docker)
+
 **数据库**: `danci-postgres` (Docker 容器)
 **执行命令**:
+
 ```bash
 docker exec danci-backend npx prisma migrate deploy
 ```
 
 **遇到的问题与解决**:
+
 1. 迁移标记为失败 → 使用 `migrate resolve --rolled-back` 重置
 2. 表已存在错误 → 验证表结构正确后使用 `migrate resolve --applied` 标记为已应用
 
 **验证结果**:
+
 ```bash
 ✓ 表结构与 schema 完全匹配
 ✓ 所有索引已创建
@@ -100,9 +113,11 @@ docker exec danci-backend npx prisma migrate deploy
 ### 1.3 部署文档
 
 #### ✅ 部署清单
+
 **文件**: [docs/deployment-checklist.md](./deployment-checklist.md)
 
 **包含内容**:
+
 - 部署前检查清单 (代码质量、数据库、环境变量、依赖)
 - 分步部署流程
 - 部署后验证步骤
@@ -110,9 +125,11 @@ docker exec danci-backend npx prisma migrate deploy
 - 90 分钟部署时间线
 
 #### ✅ Smoke Test 脚本
+
 **文件**: [backend/tests/smoke-test.sh](../backend/tests/smoke-test.sh)
 
 **测试内容**:
+
 1. 数据库连接测试
 2. `decision_insights` 表存在性验证
 3. Alert 集成测试执行 (13/13)
@@ -148,32 +165,35 @@ Failed: 0
 
 ### 3.1 测试覆盖率
 
-| 测试类型 | 通过/总数 | 通过率 |
-|---------|----------|--------|
-| Alert 集成测试 | 13/13 | 100% ✅ |
-| Smoke Tests | 3/3 | 100% ✅ |
-| 性能测试 | 1/1 | 100% ✅ |
+| 测试类型       | 通过/总数 | 通过率  |
+| -------------- | --------- | ------- |
+| Alert 集成测试 | 13/13     | 100% ✅ |
+| Smoke Tests    | 3/3       | 100% ✅ |
+| 性能测试       | 1/1       | 100% ✅ |
 
 **性能指标**:
+
 - Alert Engine 评估时间: 0.01ms/tick (目标: <10ms) ✅
 
 ### 3.2 数据库状态
 
-| 检查项 | 状态 |
-|--------|------|
-| 迁移状态 | ✅ 最新 |
-| 表结构验证 | ✅ 匹配 schema |
-| 索引创建 | ✅ 5/5 索引已创建 |
-| 数据一致性 | ✅ 正常 |
+| 检查项     | 状态              |
+| ---------- | ----------------- |
+| 迁移状态   | ✅ 最新           |
+| 表结构验证 | ✅ 匹配 schema    |
+| 索引创建   | ✅ 5/5 索引已创建 |
+| 数据一致性 | ✅ 正常           |
 
 ### 3.3 代码质量
 
 **修复前**:
+
 - 维护性: B+ (8/10)
 - 可靠性: B (7/10)
 - 测试通过率: 69%
 
 **修复后**:
+
 - 维护性: A (8.5/10)
 - 可靠性: A- (8.5/10)
 - 测试通过率: 100% ✅
@@ -238,6 +258,7 @@ Failed: 0
 - P99 latency > 2000ms
 
 **回滚步骤**:
+
 ```bash
 # 1. 回滚代码
 git checkout <previous-commit>
@@ -258,11 +279,11 @@ pm2 restart danci-backend
 
 ### 5.1 MEDIUM 优先级 (P1) - 下个冲刺处理
 
-| Issue | 描述 | 影响 | 计划 |
-|-------|------|------|------|
-| 1.1 | DecisionInsight 缺少外键约束 | 数据完整性 | Week 4 Day 1 |
-| 2.1 | 缺少 insight write 失败指标 | 监控可见性 | Week 4 Day 2 |
-| 6.1 | Load test 缺少身份验证 | 测试真实性 | Week 4 Day 3 |
+| Issue | 描述                         | 影响       | 计划         |
+| ----- | ---------------------------- | ---------- | ------------ |
+| 1.1   | DecisionInsight 缺少外键约束 | 数据完整性 | Week 4 Day 1 |
+| 2.1   | 缺少 insight write 失败指标  | 监控可见性 | Week 4 Day 2 |
+| 6.1   | Load test 缺少身份验证       | 测试真实性 | Week 4 Day 3 |
 
 ### 5.2 LOW 优先级 (P2) - 可选改进
 
@@ -274,6 +295,7 @@ pm2 restart danci-backend
 ### 5.3 已知非阻塞问题
 
 **TypeScript 编译错误** (15 个错误):
+
 - 位置: `src/ai/llm-client.ts`, `src/services/amas.service.ts` 等
 - 影响: 无 (运行时正常，仅类型检查)
 - 状态: 已存在，与本次部署无关
@@ -285,20 +307,20 @@ pm2 restart danci-backend
 
 ### 6.1 Alert Engine
 
-| 指标 | 目标 | 实际 | 状态 |
-|------|------|------|------|
-| 评估时间/tick | <10ms | 0.01ms | ✅ 优秀 |
-| 并发规则数 | 10+ | 3 (测试) | ✅ 正常 |
-| History 大小限制 | 200 | 200 | ✅ 正常 |
+| 指标             | 目标  | 实际     | 状态    |
+| ---------------- | ----- | -------- | ------- |
+| 评估时间/tick    | <10ms | 0.01ms   | ✅ 优秀 |
+| 并发规则数       | 10+   | 3 (测试) | ✅ 正常 |
+| History 大小限制 | 200   | 200      | ✅ 正常 |
 
 ### 6.2 Decision Recorder
 
-| 指标 | 目标 | 配置 |
-|------|------|------|
-| 队列大小 | 1000 | MAX_QUEUE_SIZE=1000 |
-| 批次大小 | 20 | MAX_BATCH_SIZE=20 |
-| 重试次数 | 3 | MAX_RETRY_ATTEMPTS=3 |
-| 刷新间隔 | 1s | QUEUE_FLUSH_INTERVAL_MS=1000 |
+| 指标     | 目标 | 配置                         |
+| -------- | ---- | ---------------------------- |
+| 队列大小 | 1000 | MAX_QUEUE_SIZE=1000          |
+| 批次大小 | 20   | MAX_BATCH_SIZE=20            |
+| 重试次数 | 3    | MAX_RETRY_ATTEMPTS=3         |
+| 刷新间隔 | 1s   | QUEUE_FLUSH_INTERVAL_MS=1000 |
 
 ### 6.3 待生产验证指标
 
@@ -314,15 +336,16 @@ pm2 restart danci-backend
 
 ### 7.1 已配置 Alert Rules
 
-| Rule | Metric | Threshold | Consecutive Periods |
-|------|--------|-----------|---------------------|
-| High Request Latency | http.request.duration.p95 | 1.0s | 2 |
-| Slow Database Queries | db.slow_queries.per_min | 10 | 1 |
-| High 5xx Error Rate | http.error_rate.5xx | 0.01 | 3 |
+| Rule                  | Metric                    | Threshold | Consecutive Periods |
+| --------------------- | ------------------------- | --------- | ------------------- |
+| High Request Latency  | http.request.duration.p95 | 1.0s      | 2                   |
+| Slow Database Queries | db.slow_queries.per_min   | 10        | 1                   |
+| High 5xx Error Rate   | http.error_rate.5xx       | 0.01      | 3                   |
 
 ### 7.2 关键监控指标
 
 **需在生产环境监控**:
+
 - `decision.recorder.queue.size` - 队列大小
 - `decision.recorder.backpressure.count` - 背压事件
 - `decision.recorder.write.success.duration` - 写入延迟
@@ -331,6 +354,7 @@ pm2 restart danci-backend
 ### 7.3 Webhook 配置
 
 **环境变量**:
+
 ```bash
 ALERT_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 ```
@@ -351,6 +375,7 @@ ALERT_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 ### 8.2 环境变量检查
 
 **生产环境必需**:
+
 ```bash
 DATABASE_URL=postgresql://user:password@host:5432/db
 NODE_ENV=production
@@ -388,6 +413,7 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 ### 9.2 部署后验证清单
 
 **15 分钟内完成**:
+
 - [ ] Smoke test 通过
 - [ ] API 健康检查 200 OK
 - [ ] 数据库迁移状态: 最新
@@ -395,6 +421,7 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 - [ ] P99 延迟 < 1000ms
 
 **30 分钟观察期**:
+
 - [ ] 无新的 alert firing
 - [ ] Cache hit rate > 80%
 - [ ] 队列大小稳定
@@ -409,6 +436,7 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 ✅ **系统已就绪，可安全部署到生产环境**
 
 **关键成就**:
+
 1. 所有 HIGH 优先级问题已修复
 2. 数据库迁移在开发环境验证成功
 3. 测试通过率达到 100%
@@ -427,6 +455,7 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 ### 10.3 建议部署窗口
 
 **最佳时间**:
+
 - 工作日 10:00-12:00 或 14:00-16:00
 - 避免周五晚上和节假日前
 
@@ -438,13 +467,13 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 
 ### A. 文件变更清单
 
-| 文件 | 类型 | 说明 |
-|------|------|------|
-| `backend/src/services/explainability.service.ts` | 修改 | DB 错误处理 |
-| `backend/tests/integration/alert-monitoring.integration.test.ts` | 修改 | Metric 名称修复 |
-| `backend/prisma/migrations/20251203071615_add_decision_insights/` | 新增 | 数据库迁移 |
-| `docs/deployment-checklist.md` | 新增 | 部署清单 |
-| `backend/tests/smoke-test.sh` | 新增 | Smoke test 脚本 |
+| 文件                                                              | 类型 | 说明            |
+| ----------------------------------------------------------------- | ---- | --------------- |
+| `backend/src/services/explainability.service.ts`                  | 修改 | DB 错误处理     |
+| `backend/tests/integration/alert-monitoring.integration.test.ts`  | 修改 | Metric 名称修复 |
+| `backend/prisma/migrations/20251203071615_add_decision_insights/` | 新增 | 数据库迁移      |
+| `docs/deployment-checklist.md`                                    | 新增 | 部署清单        |
+| `backend/tests/smoke-test.sh`                                     | 新增 | Smoke test 脚本 |
 
 ### B. 相关文档
 
@@ -453,12 +482,14 @@ REDIS_URL=redis://localhost:6379  # 如果使用 Redis
 ### C. 数据库备份命令
 
 **备份生产数据库**:
+
 ```bash
 docker exec danci-postgres pg_dump -U danci -d vocabulary_db -F c -f /tmp/backup-$(date +%Y%m%d-%H%M%S).dump
 docker cp danci-postgres:/tmp/backup-*.dump ./backups/
 ```
 
 **恢复备份**:
+
 ```bash
 docker cp ./backups/backup-<timestamp>.dump danci-postgres:/tmp/
 docker exec danci-postgres pg_restore -U danci -d vocabulary_db -c /tmp/backup-<timestamp>.dump
@@ -469,5 +500,3 @@ docker exec danci-postgres pg_restore -U danci -d vocabulary_db -c /tmp/backup-<
 **报告生成时间**: 2025-12-03
 **审核状态**: ✅ 已验证
 **批准部署**: 是
-
-**签署**: Claude Code (Automated Review System)

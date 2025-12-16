@@ -11,6 +11,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { loginAsUser, waitForPageReady, generateTestUser, fillRegistrationForm, submitForm } from './utils/test-helpers';
+import { buildBackendUrl } from './utils/urls';
 
 test.describe('A/B Experiments', () => {
   test.describe('Experiment Assignment', () => {
@@ -74,7 +75,7 @@ test.describe('A/B Experiments', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 请求用户信息（可能包含实验分组）
-      const response = await request.get('http://localhost:3000/api/users/profile', {
+      const response = await request.get(buildBackendUrl('/api/users/profile'), {
         headers: {
           'Cookie': cookieHeader,
         },
@@ -269,14 +270,14 @@ test.describe('Data Migration Verification', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 请求用户数据
-      const profileResponse = await request.get('http://localhost:3000/api/users/profile', {
+      const profileResponse = await request.get(buildBackendUrl('/api/users/profile'), {
         headers: { 'Cookie': cookieHeader },
       });
 
       expect(profileResponse.ok()).toBeTruthy();
 
       // 请求学习统计
-      const statsResponse = await request.get('http://localhost:3000/api/statistics/overview', {
+      const statsResponse = await request.get(buildBackendUrl('/api/statistics/overview'), {
         headers: { 'Cookie': cookieHeader },
       });
 
@@ -307,7 +308,7 @@ test.describe('Data Migration Verification', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 获取用户配置
-      const response = await request.get('http://localhost:3000/api/users/profile', {
+      const response = await request.get(buildBackendUrl('/api/users/profile'), {
         headers: { 'Cookie': cookieHeader },
       });
 

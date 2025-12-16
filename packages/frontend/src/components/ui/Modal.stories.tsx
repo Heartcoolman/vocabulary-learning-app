@@ -656,7 +656,7 @@ export const MultiStepModal: Story = {
               {['免费版', '专业版', '企业版'].map((plan) => (
                 <button
                   key={plan}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
+                  className={`rounded-button border p-4 text-left transition-colors ${
                     formData.plan === plan
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
@@ -671,7 +671,7 @@ export const MultiStepModal: Story = {
 
           {step === 3 && (
             <div className="text-center">
-              <div className="mb-4 rounded-lg bg-gray-50 p-4 text-left">
+              <div className="mb-4 rounded-button bg-gray-50 p-4 text-left">
                 <p className="text-sm text-gray-500">姓名</p>
                 <p className="font-medium">{formData.name}</p>
                 <p className="mt-2 text-sm text-gray-500">邮箱</p>

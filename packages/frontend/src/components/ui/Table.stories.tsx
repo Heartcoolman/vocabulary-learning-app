@@ -706,7 +706,7 @@ export const Selectable: Story = {
     return (
       <div className="flex flex-col gap-4">
         {selectedIds.length > 0 && (
-          <div className="flex items-center gap-4 rounded-lg bg-blue-50 p-3">
+          <div className="flex items-center gap-4 rounded-button bg-blue-50 p-3">
             <span className="text-sm text-blue-700">已选择 {selectedIds.length} 项</span>
             <Button variant="danger" size="sm">
               批量删除

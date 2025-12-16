@@ -12,7 +12,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG, CACHE_TIME, GC_TIME } from '../../lib/cacheConfig';
-import apiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { StudyConfig } from '../../types/models';
 
 /**

@@ -239,7 +239,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}
       transition={g3SpringStandard}
-      className={`relative w-full min-w-[100px] max-w-[140px] cursor-pointer rounded-lg border p-2 backdrop-blur-sm transition-colors duration-200 lg:p-2.5 ${currentStyle.border} ${currentStyle.bg} ${currentStyle.glow} ${isSelected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900' : ''} ${isHighlighted ? 'border-cyan-400/60' : ''} `}
+      className={`relative w-full min-w-[100px] max-w-[140px] cursor-pointer rounded-button border p-2 backdrop-blur-sm transition-colors duration-g3-fast lg:p-2.5 ${currentStyle.border} ${currentStyle.bg} ${currentStyle.glow} ${isSelected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900' : ''} ${isHighlighted ? 'border-cyan-400/60' : ''} `}
     >
       {/* 头部：图标 + 状态 */}
       <div className="mb-1.5 flex items-center justify-between">
@@ -265,7 +265,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
       {/* 处理中的发光效果 */}
       {state.status === 'processing' && (
         <motion.div
-          className="absolute -inset-0.5 -z-10 rounded-lg"
+          className="absolute -inset-0.5 -z-10 rounded-button"
           style={{ backgroundColor: `${typeColor}10` }}
           animate={{ opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}

@@ -27,7 +27,7 @@ export default function AboutLayout() {
         {/* 标题区 */}
         <div className="border-b border-gray-200 p-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
+            <div className="flex h-10 w-10 items-center justify-center rounded-card bg-gradient-to-br from-blue-500 to-indigo-600 shadow-elevated shadow-blue-500/25">
               <Sparkle size={24} weight="fill" className="text-white" />
             </div>
             <div>
@@ -51,9 +51,9 @@ export default function AboutLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                className={`flex items-center gap-3 rounded-card px-4 py-3 transition-all duration-g3-fast hover:scale-[1.02] active:scale-[0.98] ${
                   finalActive
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-elevated shadow-blue-500/25'
                     : 'text-gray-700 hover:bg-gray-100'
                 } `}
               >
@@ -68,7 +68,7 @@ export default function AboutLayout() {
         <div className="border-t border-gray-200 p-4">
           <Link
             to="/login"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 font-medium text-white shadow-lg shadow-green-500/25 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-green-500/30 active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-card bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 font-medium text-white shadow-elevated shadow-green-500/25 transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-floating hover:shadow-green-500/30 active:scale-[0.98]"
           >
             <SignIn size={20} weight="bold" />
             开始学习

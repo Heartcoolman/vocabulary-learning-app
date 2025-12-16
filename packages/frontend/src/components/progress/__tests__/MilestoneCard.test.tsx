@@ -7,28 +7,32 @@ import { render, screen } from '@testing-library/react';
 import { MilestoneCard, Milestone } from '../MilestoneCard';
 
 // Mock Icon components
-vi.mock('../../Icon', () => ({
-  Trophy: ({ className }: any) => (
-    <span data-testid="icon-trophy" className={className}>
-      Trophy
-    </span>
-  ),
-  Star: ({ className }: any) => (
-    <span data-testid="icon-star" className={className}>
-      Star
-    </span>
-  ),
-  Target: ({ className }: any) => (
-    <span data-testid="icon-target" className={className}>
-      Target
-    </span>
-  ),
-  Lightning: ({ className }: any) => (
-    <span data-testid="icon-zap" className={className}>
-      Zap
-    </span>
-  ),
-}));
+vi.mock('../../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../Icon')>();
+  return {
+    ...actual,
+    Trophy: ({ className }: any) => (
+      <span data-testid="icon-trophy" className={className}>
+        Trophy
+      </span>
+    ),
+    Star: ({ className }: any) => (
+      <span data-testid="icon-star" className={className}>
+        Star
+      </span>
+    ),
+    Target: ({ className }: any) => (
+      <span data-testid="icon-target" className={className}>
+        Target
+      </span>
+    ),
+    Lightning: ({ className }: any) => (
+      <span data-testid="icon-zap" className={className}>
+        Zap
+      </span>
+    ),
+  };
+});
 
 describe('MilestoneCard', () => {
   const defaultMilestone: Milestone = {
@@ -247,14 +251,14 @@ describe('MilestoneCard', () => {
 
       const card = container.firstChild as HTMLElement;
       expect(card.classList.contains('border')).toBe(true);
-      expect(card.classList.contains('rounded-xl')).toBe(true);
+      expect(card.classList.contains('rounded-card')).toBe(true);
     });
 
     it('should have hover effect', () => {
       const { container } = render(<MilestoneCard milestone={defaultMilestone} />);
 
       const card = container.firstChild as HTMLElement;
-      expect(card.classList.contains('hover:shadow-md')).toBe(true);
+      expect(card.classList.contains('hover:shadow-elevated')).toBe(true);
     });
 
     it('should have transition effect', () => {
@@ -269,7 +273,7 @@ describe('MilestoneCard', () => {
 
       const iconContainer = container.querySelector('.w-10.h-10');
       expect(iconContainer).toBeInTheDocument();
-      expect(iconContainer?.classList.contains('rounded-lg')).toBe(true);
+      expect(iconContainer?.classList.contains('rounded-button')).toBe(true);
     });
 
     it('should have progress bar with correct styling', () => {

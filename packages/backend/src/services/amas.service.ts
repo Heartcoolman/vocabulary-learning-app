@@ -27,7 +27,7 @@ import { recordFeatureVectorSaved } from './metrics.service';
 import prisma from '../config/database';
 import { delayedRewardService } from './delayed-reward.service';
 import { stateHistoryService } from './state-history.service';
-import { habitProfileService } from './habit-profile.service';
+import userProfileService from './user-profile.service';
 import { evaluationService } from './evaluation.service';
 import { experimentService } from './experiment.service';
 import { Prisma, WordState } from '@prisma/client';
@@ -66,6 +66,14 @@ class AMASService {
     // 记录功能开关状态
     serviceLogger.info('AMAS Service初始化完成');
     serviceLogger.info({ summary: getFeatureFlagsSummary() }, '功能开关状态');
+  }
+
+  /**
+   * 失效用户奖励配置缓存（学习模式）
+   * 让用户切换学习模式后立即生效，避免等待内存缓存 TTL
+   */
+  invalidateRewardProfileCache(userId: string): void {
+    this.engine.invalidateRewardProfileCache(userId);
   }
 
   /**
@@ -249,31 +257,12 @@ class AMASService {
    * 指数退避重试，最多 3 次
    */
   private async persistHabitProfileWithRetry(userId: string): Promise<void> {
-    const maxAttempts = 3;
-    const baseDelayMs = 500;
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        await habitProfileService.persistHabitProfile(userId);
-        serviceLogger.info({ userId, attempt }, '习惯画像持久化成功');
-        return;
-      } catch (error) {
-        lastError = error;
-        if (attempt < maxAttempts) {
-          const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
-          serviceLogger.warn(
-            { err: error, userId, attempt, nextRetryMs: backoffMs },
-            '习惯画像持久化失败，准备重试',
-          );
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        }
-      }
+    // userProfileService.persistHabitProfile 内部具备：样本数门槛 + upsert 原子写入 + 自身错误兜底
+    // 这里不再对失败做重试，避免放大并发/连接池压力
+    const saved = await userProfileService.persistHabitProfile(userId);
+    if (saved) {
+      serviceLogger.info({ userId }, '习惯画像持久化成功');
     }
-    // 所有重试失败后，抛出错误（保留原始错误作为 cause）
-    const error = new Error(`习惯画像持久化失败（已重试 ${maxAttempts} 次）`);
-    (error as Error & { cause?: unknown }).cause = lastError;
-    throw error;
   }
 
   /**
@@ -315,7 +304,7 @@ class AMASService {
     };
 
     // 记录学习时间事件（用于习惯画像）
-    habitProfileService.recordTimeEvent(userId, rawEvent.timestamp);
+    userProfileService.recordTimeEvent(userId, rawEvent.timestamp);
 
     // ==================== A/B 测试实验集成 ====================
     // 获取用户参与的活跃实验并应用变体参数
@@ -365,7 +354,7 @@ class AMASService {
 
     // 定期自动持久化习惯画像（每 10 个事件检查一次）
     // 使用异步方式，不阻塞主流程，带重试机制
-    const profile = habitProfileService.getHabitProfile(userId);
+    const profile = userProfileService.getHabitProfile(userId);
     if (profile.samples.timeEvents >= 10 && profile.samples.timeEvents % 10 === 0) {
       this.persistHabitProfileWithRetry(userId).catch((error) => {
         serviceLogger.warn({ err: error, userId }, '习惯画像自动持久化最终失败');

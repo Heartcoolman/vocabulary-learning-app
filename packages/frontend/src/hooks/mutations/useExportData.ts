@@ -11,7 +11,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient from '../../services/client';
+import { apiClient } from '../../services/client';
 import type { Word, AnswerRecord } from '../../types/models';
 import { PAGINATION_CONFIG } from '../../constants/pagination';
 import { addExportHistory } from '../queries/useExportHistory';

@@ -79,44 +79,48 @@ vi.mock('@/components/ui', () => ({
     ) : null,
 }));
 
-vi.mock('@/components/Icon', () => ({
-  Books: ({
-    size,
-    weight,
-    color,
-    className,
-  }: {
-    size?: number;
-    weight?: string;
-    color?: string;
-    className?: string;
-  }) => (
-    <span data-testid="icon-books" className={className}>
-      📚
-    </span>
-  ),
-  CircleNotch: ({
-    className,
-    size,
-    weight,
-    color,
-  }: {
-    className?: string;
-    size?: number;
-    weight?: string;
-    color?: string;
-  }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  UploadSimple: ({ size, weight }: { size?: number; weight?: string }) => (
-    <span data-testid="icon-upload">📤</span>
-  ),
-  NotePencil: ({ size, weight }: { size?: number; weight?: string }) => (
-    <span data-testid="icon-edit">✏️</span>
-  ),
-}));
+vi.mock('@/components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Icon')>();
+  return {
+    ...actual,
+    Books: ({
+      size,
+      weight,
+      color,
+      className,
+    }: {
+      size?: number;
+      weight?: string;
+      color?: string;
+      className?: string;
+    }) => (
+      <span data-testid="icon-books" className={className}>
+        📚
+      </span>
+    ),
+    CircleNotch: ({
+      className,
+      size,
+      weight,
+      color,
+    }: {
+      className?: string;
+      size?: number;
+      weight?: string;
+      color?: string;
+    }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    UploadSimple: ({ size, weight }: { size?: number; weight?: string }) => (
+      <span data-testid="icon-upload">📤</span>
+    ),
+    NotePencil: ({ size, weight }: { size?: number; weight?: string }) => (
+      <span data-testid="icon-edit">✏️</span>
+    ),
+  };
+});
 
 vi.mock('lucide-react', () => ({
   Upload: () => <span data-testid="icon-upload">📤</span>,

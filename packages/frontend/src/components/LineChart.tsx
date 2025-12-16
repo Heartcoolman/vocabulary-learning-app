@@ -161,7 +161,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
               fill={chartColors.primary}
               stroke="white"
               strokeWidth="2"
-              className="cursor-pointer transition-all duration-200"
+              className="cursor-pointer transition-all duration-g3-fast"
               onMouseEnter={() => setHoveredPoint(index)}
               onMouseLeave={() => setHoveredPoint(null)}
             />

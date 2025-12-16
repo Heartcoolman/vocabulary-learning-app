@@ -112,6 +112,8 @@ class TrackingService {
         this.trackingLogger.error({ err }, 'Periodic flush failed');
       });
     }, this.FLUSH_INTERVAL_MS);
+    // 允许在测试/脚本场景下进程正常退出
+    this.flushTimer.unref();
   }
 
   /**

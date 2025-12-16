@@ -88,11 +88,11 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
   const maxScore = Math.max(...Object.values(profile.scores));
 
   return (
-    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur-sm">
+    <div className="flex h-full animate-g3-fade-in flex-col overflow-hidden rounded-card border border-gray-100 bg-white/80 shadow-soft backdrop-blur-sm">
       <div className="p-6 pb-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={`rounded-xl p-3 ${config.bg} ${config.color}`}>
+            <div className={`rounded-card p-3 ${config.bg} ${config.color}`}>
               <MainIcon size={24} weight="duotone" />
             </div>
             <div>
@@ -120,7 +120,7 @@ const LearningStyleCard: React.FC<LearningStyleCardProps> = ({ data }) => {
                     width: `${(m.score / (maxScore || 1)) * 100}%`,
                     transitionDelay: `${200 + idx * 100}ms`,
                   }}
-                  className={`h-full rounded-full transition-all duration-700 ease-out ${m.color}`}
+                  className={`h-full rounded-full transition-all duration-g3-slower ease-g3 ${m.color}`}
                 />
               </div>
             </div>

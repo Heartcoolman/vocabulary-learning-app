@@ -21,7 +21,7 @@ import type {
 
 import { CircuitBreaker, CircuitBreakerOptions, CircuitState } from '../common/circuit-breaker';
 
-import { LinUCB, LinUCBContext as TSLinUCBContext } from './linucb';
+import { LinUCB, LinUCBContext as TSLinUCBContext } from '../algorithms/learners';
 
 import { Action as TSAction, UserState as TSUserState, BanditModel } from '../types';
 

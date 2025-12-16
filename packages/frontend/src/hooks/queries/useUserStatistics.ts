@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, {
-  UserDetailedStatistics,
-  UserLearningData,
-  UserLearningHeatmap,
+import {
+  apiClient,
+  type UserDetailedStatistics,
+  type UserLearningData,
+  type UserLearningHeatmap,
 } from '../../services/client';
 
 /**

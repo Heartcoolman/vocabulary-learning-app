@@ -30,13 +30,17 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Confetti: () => <span data-testid="confetti-icon">Confetti</span>,
-  Star: () => <span data-testid="star-icon">Star</span>,
-  Trophy: () => <span data-testid="trophy-icon">Trophy</span>,
-  Medal: () => <span data-testid="medal-icon">Medal</span>,
-  X: () => <span data-testid="x-icon">X</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Confetti: () => <span data-testid="confetti-icon">Confetti</span>,
+    Star: () => <span data-testid="star-icon">Star</span>,
+    Trophy: () => <span data-testid="trophy-icon">Trophy</span>,
+    Medal: () => <span data-testid="medal-icon">Medal</span>,
+    X: () => <span data-testid="x-icon">X</span>,
+  };
+});
 
 // Mock animations
 vi.mock('../../utils/animations', () => ({

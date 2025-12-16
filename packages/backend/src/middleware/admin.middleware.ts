@@ -28,7 +28,7 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
           ip: req.ip,
           path: req.path,
           method: req.method,
-          userAgent: req.headers['user-agent'],
+          userAgent: (req as any).headers?.['user-agent'],
         },
         'Unauthorized admin access attempt - no user',
       );

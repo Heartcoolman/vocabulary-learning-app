@@ -6,9 +6,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+const { mockRequestAdmin } = vi.hoisted(() => ({
+  mockRequestAdmin: vi.fn(),
+}));
+
+vi.mock('../../../services/client', () => ({
+  adminClient: {
+    requestAdmin: mockRequestAdmin,
+  },
+}));
+
+vi.mock('react-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-dom')>();
+  return {
+    ...actual,
+    createPortal: (node: any) => node,
+  };
+});
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -52,22 +66,26 @@ vi.mock('../../../components/ui', () => ({
 import LogAlertsPage from '../LogAlertsPage';
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  Warning: () => <span data-testid="warning-icon">Warning</span>,
-  Bell: () => <span data-testid="bell-icon">Bell</span>,
-  CheckCircle: () => <span data-testid="check-icon">Check</span>,
-  XCircle: () => <span data-testid="x-icon">X</span>,
-  WarningCircle: () => <span data-testid="warning-circle-icon">WarningCircle</span>,
-  Plus: () => <span data-testid="plus-icon">Plus</span>,
-  Trash: () => <span data-testid="trash-icon">Trash</span>,
-  Pencil: () => <span data-testid="pencil-icon">Pencil</span>,
-  X: () => <span data-testid="x-close-icon">X</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    Warning: () => <span data-testid="warning-icon">Warning</span>,
+    Bell: () => <span data-testid="bell-icon">Bell</span>,
+    CheckCircle: () => <span data-testid="check-icon">Check</span>,
+    XCircle: () => <span data-testid="x-icon">X</span>,
+    WarningCircle: () => <span data-testid="warning-circle-icon">WarningCircle</span>,
+    Plus: () => <span data-testid="plus-icon">Plus</span>,
+    Trash: () => <span data-testid="trash-icon">Trash</span>,
+    Pencil: () => <span data-testid="pencil-icon">Pencil</span>,
+    X: () => <span data-testid="x-close-icon">X</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({
@@ -123,15 +141,11 @@ const renderWithRouter = () => {
 describe('LogAlertsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      // Mock the actual endpoint used by the component
-      if (url.includes('/api/admin/logs/log-alerts')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRules), // Return array directly
-        });
+    mockRequestAdmin.mockImplementation((url: string) => {
+      if (url.startsWith('/api/admin/logs/log-alerts')) {
+        return Promise.resolve(mockRules);
       }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve([]);
     });
   });
 
@@ -249,23 +263,14 @@ describe('LogAlertsPage', () => {
     });
 
     it('should submit create form', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      mockRequestAdmin.mockImplementation((url: string, options?: RequestInit) => {
         if (options?.method === 'POST') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ ...mockRules[0], id: 'new-rule' }),
-          });
+          return Promise.resolve({ ...mockRules[0], id: 'new-rule' });
         }
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockRules),
-          });
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve(mockRules);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -289,7 +294,7 @@ describe('LogAlertsPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockRequestAdmin).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts'),
           expect.objectContaining({ method: 'POST' }),
         );
@@ -347,23 +352,14 @@ describe('LogAlertsPage', () => {
     });
 
     it('should delete alert on confirmation', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      mockRequestAdmin.mockImplementation((url: string, options?: RequestInit) => {
         if (options?.method === 'DELETE') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ success: true }),
-          });
+          return Promise.resolve(undefined);
         }
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockRules),
-          });
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve(mockRules);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -384,7 +380,7 @@ describe('LogAlertsPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockRequestAdmin).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts/rule-1'),
           expect.objectContaining({ method: 'DELETE' }),
         );
@@ -419,23 +415,14 @@ describe('LogAlertsPage', () => {
 
   describe('toggle alert', () => {
     it('should toggle alert status on button click', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      mockRequestAdmin.mockImplementation((url: string, options?: RequestInit) => {
         if (options?.method === 'PUT' && url.includes('/rule-1')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ ...mockRules[0], enabled: false }),
-          });
+          return Promise.resolve({ ...mockRules[0], enabled: false });
         }
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockRules),
-          });
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve(mockRules);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -446,7 +433,7 @@ describe('LogAlertsPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockRequestAdmin).toHaveBeenCalledWith(
           expect.stringContaining('/api/admin/logs/log-alerts/rule-1'),
           expect.objectContaining({ method: 'PUT' }),
         );
@@ -456,7 +443,7 @@ describe('LogAlertsPage', () => {
 
   describe('error handling', () => {
     it('should show error toast when fetch fails', async () => {
-      mockFetch.mockRejectedValue(new Error('API Error'));
+      mockRequestAdmin.mockRejectedValue(new Error('API Error'));
 
       renderWithRouter();
 
@@ -466,23 +453,14 @@ describe('LogAlertsPage', () => {
     });
 
     it('should show error toast when create fails', async () => {
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      mockRequestAdmin.mockImplementation((url: string, options?: RequestInit) => {
         if (options?.method === 'POST') {
-          return Promise.resolve({
-            ok: false,
-            json: () => Promise.resolve({ error: 'Create failed' }),
-          });
+          return Promise.reject(new Error('Create failed'));
         }
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve(mockRules),
-          });
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve(mockRules);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -520,17 +498,11 @@ describe('LogAlertsPage', () => {
 
   describe('empty state', () => {
     it('should show empty state when no alerts', async () => {
-      mockFetch.mockImplementation((url: string) => {
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve([]), // Return empty array directly
-          });
+      mockRequestAdmin.mockImplementation((url: string) => {
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve([]);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -541,17 +513,11 @@ describe('LogAlertsPage', () => {
     });
 
     it('should show empty state guidance text', async () => {
-      mockFetch.mockImplementation((url: string) => {
-        if (url.includes('/api/admin/logs/log-alerts')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve([]),
-          });
+      mockRequestAdmin.mockImplementation((url: string) => {
+        if (url.startsWith('/api/admin/logs/log-alerts')) {
+          return Promise.resolve([]);
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
+        return Promise.resolve([]);
       });
 
       renderWithRouter();
@@ -565,7 +531,7 @@ describe('LogAlertsPage', () => {
   describe('loading state', () => {
     it('should show loading spinner while fetching', async () => {
       // Make fetch take a long time
-      mockFetch.mockImplementation(() => new Promise(() => {}));
+      mockRequestAdmin.mockImplementation(() => new Promise(() => {}));
 
       renderWithRouter();
 

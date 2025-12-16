@@ -12,17 +12,21 @@ import {
   type TodayWordsResponse,
   type StudyProgressResponse,
 } from '../useStudyConfig';
-import apiClient from '../../../services/client';
+import { apiClient } from '../../../services/client';
 import type { StudyConfig } from '../../../types/models';
 
 // Mock apiClient
-vi.mock('../../../services/client', () => ({
-  default: {
+vi.mock('../../../services/client', () => {
+  const client = {
     getStudyConfig: vi.fn(),
     getTodayWords: vi.fn(),
     getStudyProgress: vi.fn(),
-  },
-}));
+  };
+  return {
+    apiClient: client,
+    default: client,
+  };
+});
 
 const mockApiClient = apiClient as unknown as {
   getStudyConfig: ReturnType<typeof vi.fn>;
@@ -36,6 +40,7 @@ function createTestQueryClient() {
     defaultOptions: {
       queries: {
         retry: false,
+        retryDelay: () => 0,
         gcTime: 0,
       },
     },

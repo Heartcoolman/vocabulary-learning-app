@@ -7,9 +7,15 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LogViewerPage from '../LogViewerPage';
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+const { mockRequestAdmin } = vi.hoisted(() => ({
+  mockRequestAdmin: vi.fn(),
+}));
+
+vi.mock('../../../services/client', () => ({
+  adminClient: {
+    requestAdmin: mockRequestAdmin,
+  },
+}));
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -20,23 +26,27 @@ const mockLocalStorage = {
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  CircleNotch: ({ className }: { className?: string }) => (
-    <span data-testid="loading-spinner" className={className}>
-      Loading
-    </span>
-  ),
-  Warning: () => <span data-testid="warning-icon">Warning</span>,
-  MagnifyingGlass: () => <span data-testid="search-icon">Search</span>,
-  CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
-  CaretLeft: () => <span data-testid="caret-left-icon">CaretLeft</span>,
-  CaretRight: () => <span data-testid="caret-right-icon">CaretRight</span>,
-  File: () => <span data-testid="file-icon">File</span>,
-  Bug: () => <span data-testid="bug-icon">Bug</span>,
-  Info: () => <span data-testid="info-icon">Info</span>,
-  WarningCircle: () => <span data-testid="warning-circle-icon">WarningCircle</span>,
-  XCircle: () => <span data-testid="x-circle-icon">XCircle</span>,
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    CircleNotch: ({ className }: { className?: string }) => (
+      <span data-testid="loading-spinner" className={className}>
+        Loading
+      </span>
+    ),
+    Warning: () => <span data-testid="warning-icon">Warning</span>,
+    MagnifyingGlass: () => <span data-testid="search-icon">Search</span>,
+    CaretDown: () => <span data-testid="caret-down-icon">CaretDown</span>,
+    CaretLeft: () => <span data-testid="caret-left-icon">CaretLeft</span>,
+    CaretRight: () => <span data-testid="caret-right-icon">CaretRight</span>,
+    File: () => <span data-testid="file-icon">File</span>,
+    Bug: () => <span data-testid="bug-icon">Bug</span>,
+    Info: () => <span data-testid="info-icon">Info</span>,
+    WarningCircle: () => <span data-testid="warning-circle-icon">WarningCircle</span>,
+    XCircle: () => <span data-testid="x-circle-icon">XCircle</span>,
+  };
+});
 
 // Mock logger
 vi.mock('../../../utils/logger', () => ({
@@ -116,24 +126,14 @@ const renderWithRouter = () => {
 describe('LogViewerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes('/api/admin/logs/stats')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true, data: mockStats }),
-        });
+    mockRequestAdmin.mockImplementation((url: string) => {
+      if (url.startsWith('/api/admin/logs/stats')) {
+        return Promise.resolve(mockStats);
       }
-      if (url.includes('/api/admin/logs')) {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-              data: { logs: mockLogs, pagination: mockPagination },
-            }),
-        });
+      if (url.startsWith('/api/admin/logs?')) {
+        return Promise.resolve({ logs: mockLogs, pagination: mockPagination });
       }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      return Promise.resolve({});
     });
   });
 
@@ -341,10 +341,7 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('levels=ERROR'),
-          expect.anything(),
-        );
+        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('levels=ERROR'));
       });
     });
 
@@ -378,10 +375,7 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('source=frontend'),
-          expect.anything(),
-        );
+        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('source=frontend'));
       });
     });
 
@@ -412,10 +406,7 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('search=error'),
-          expect.anything(),
-        );
+        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('search=error'));
       });
     });
 
@@ -465,10 +456,7 @@ describe('LogViewerPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('page=2'),
-          expect.anything(),
-        );
+        expect(mockRequestAdmin).toHaveBeenCalledWith(expect.stringContaining('page=2'));
       });
     });
 
@@ -484,7 +472,7 @@ describe('LogViewerPage', () => {
 
   describe('error handling', () => {
     it('should show error when fetch fails', async () => {
-      mockFetch.mockRejectedValue(new Error('API Error'));
+      mockRequestAdmin.mockRejectedValue(new Error('API Error'));
 
       renderWithRouter();
 
@@ -494,7 +482,7 @@ describe('LogViewerPage', () => {
     });
 
     it('should show retry button on error', async () => {
-      mockFetch.mockRejectedValue(new Error('API Error'));
+      mockRequestAdmin.mockRejectedValue(new Error('API Error'));
 
       renderWithRouter();
 
@@ -504,28 +492,21 @@ describe('LogViewerPage', () => {
     });
 
     it('should retry fetch on retry button click', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('API Error'));
-      mockFetch.mockImplementation((url: string) => {
-        if (url.includes('/api/admin/logs/stats')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ success: true, data: mockStats }),
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-              data: { logs: mockLogs, pagination: mockPagination },
-            }),
-        });
-      });
+      mockRequestAdmin.mockImplementation(() => Promise.reject(new Error('API Error')));
 
       renderWithRouter();
 
       await waitFor(() => {
         const retryButton = screen.getByText('重试');
+        mockRequestAdmin.mockImplementation((url: string) => {
+          if (url.startsWith('/api/admin/logs/stats')) {
+            return Promise.resolve(mockStats);
+          }
+          if (url.startsWith('/api/admin/logs?')) {
+            return Promise.resolve({ logs: mockLogs, pagination: mockPagination });
+          }
+          return Promise.resolve({});
+        });
         fireEvent.click(retryButton);
       });
 
@@ -537,21 +518,17 @@ describe('LogViewerPage', () => {
 
   describe('empty state', () => {
     it('should show empty state when no logs', async () => {
-      mockFetch.mockImplementation((url: string) => {
-        if (url.includes('/api/admin/logs/stats')) {
+      mockRequestAdmin.mockImplementation((url: string) => {
+        if (url.startsWith('/api/admin/logs/stats')) {
+          return Promise.resolve(mockStats);
+        }
+        if (url.startsWith('/api/admin/logs?')) {
           return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ success: true, data: mockStats }),
+            logs: [],
+            pagination: { ...mockPagination, total: 0, totalPages: 0 },
           });
         }
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              success: true,
-              data: { logs: [], pagination: { ...mockPagination, total: 0, totalPages: 0 } },
-            }),
-        });
+        return Promise.resolve({});
       });
 
       renderWithRouter();

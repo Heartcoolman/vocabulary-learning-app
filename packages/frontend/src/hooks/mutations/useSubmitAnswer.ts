@@ -81,7 +81,11 @@ export interface UseSubmitAnswerOptions {
   /** 错误处理回调 */
   onError?: (error: Error) => void;
   /** 成功处理回调 */
-  onSuccess?: (result: AmasProcessResult) => void;
+  onSuccess?: (
+    result: AmasProcessResult,
+    variables: SubmitAnswerParams,
+    context: OptimisticContext | undefined,
+  ) => void;
   /** 是否启用乐观更新（默认：true） */
   enableOptimisticUpdate?: boolean;
   /** 重试次数（默认：3） */
@@ -191,7 +195,7 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
     },
 
     // 乐观更新：在请求发送前立即更新本地状态
-    onMutate: async (params: SubmitAnswerParams) => {
+    onMutate: (params: SubmitAnswerParams) => {
       if (!enableOptimisticUpdate) {
         return { submitParams: params };
       }
@@ -217,13 +221,13 @@ export function useSubmitAnswer(options: UseSubmitAnswerOptions = {}) {
     },
 
     // 成功：更新缓存并触发回调
-    onSuccess: (result) => {
+    onSuccess: (result, variables, context) => {
       // 更新AMAS结果缓存
       queryClient.setQueryData(['amas', result.sessionId], result);
 
       // 触发AMAS结果回调
       callbacksRef.current.onAmasResult?.(result);
-      callbacksRef.current.onSuccess?.(result);
+      callbacksRef.current.onSuccess?.(result, variables, context);
     },
 
     // 错误：回滚乐观更新

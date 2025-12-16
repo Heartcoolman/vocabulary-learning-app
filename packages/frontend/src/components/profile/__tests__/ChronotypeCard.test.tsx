@@ -123,7 +123,7 @@ describe('ChronotypeCard', () => {
       );
 
       expect(container.querySelector('.bg-white')).toBeInTheDocument();
-      expect(container.querySelector('.rounded-2xl')).toBeInTheDocument();
+      expect(container.querySelector('.rounded-card')).toBeInTheDocument();
     });
   });
 });

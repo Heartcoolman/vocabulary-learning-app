@@ -35,15 +35,15 @@ export const ChronotypeCard: React.FC<ChronotypeCardProps> = ({ type, confidence
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated">
       {/* Background Decoration */}
       <div
-        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-500 ${isMorning ? 'bg-amber-400' : isEvening ? 'bg-indigo-600' : 'bg-teal-400'}`}
+        className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-g3-slow ${isMorning ? 'bg-amber-400' : isEvening ? 'bg-indigo-600' : 'bg-teal-400'}`}
       />
 
       <div className="relative z-10">
         <div className="mb-4 flex items-start justify-between">
-          <div className="rounded-xl bg-gray-50 p-3 transition-transform duration-300 group-hover:scale-110">
+          <div className="rounded-card bg-gray-50 p-3 transition-transform duration-g3-normal group-hover:scale-110">
             {getIcon()}
           </div>
           <div className="flex flex-col items-end">

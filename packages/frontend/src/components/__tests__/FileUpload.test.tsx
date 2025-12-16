@@ -9,16 +9,20 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import FileUpload from '../FileUpload';
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  UploadSimple: ({ className }: { className?: string }) => (
-    <span data-testid="upload-icon" className={className}>
-      Upload
-    </span>
-  ),
-  X: () => <span data-testid="x-icon">X</span>,
-  FileText: () => <span data-testid="file-icon">File</span>,
-  WarningCircle: () => <span data-testid="warning-icon">Warning</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    UploadSimple: ({ className }: { className?: string }) => (
+      <span data-testid="upload-icon" className={className}>
+        Upload
+      </span>
+    ),
+    X: () => <span data-testid="x-icon">X</span>,
+    FileText: () => <span data-testid="file-icon">File</span>,
+    WarningCircle: () => <span data-testid="warning-icon">Warning</span>,
+  };
+});
 
 // Helper to create a mock file
 const createMockFile = (name: string, size: number, type: string): File => {

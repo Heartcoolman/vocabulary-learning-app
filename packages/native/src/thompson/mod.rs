@@ -516,7 +516,7 @@ impl ThompsonSamplingNative {
             let context_map = self
                 .context_params
                 .entry(action_key)
-                .or_insert_with(HashMap::new);
+                .or_default();
 
             let params = context_map
                 .entry(context_key)
@@ -565,7 +565,7 @@ impl ThompsonSamplingNative {
             let context_map = self
                 .context_params
                 .entry(action_key)
-                .or_insert_with(HashMap::new);
+                .or_default();
 
             let params = context_map
                 .entry(context_key)
@@ -665,7 +665,7 @@ impl ThompsonSamplingNative {
         let context_map = self
             .context_params
             .entry(action_key)
-            .or_insert_with(HashMap::new);
+            .or_default();
         context_map.insert(context_key, BetaParams::new(alpha, beta));
     }
 
@@ -776,7 +776,7 @@ impl ThompsonSamplingNative {
         let context_map = self
             .context_params
             .entry(action_key.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
 
         context_map
             .entry(context_key.to_string())

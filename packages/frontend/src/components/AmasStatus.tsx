@@ -78,7 +78,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
         <div className="animate-pulse space-y-3">
           <div className="h-4 w-2/3 rounded bg-gray-200"></div>
           <div className="h-2 w-full rounded bg-gray-200"></div>
@@ -90,7 +90,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
+      <div className="rounded-card border border-red-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
         <div className="flex items-center gap-2 text-red-600">
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -108,7 +108,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (!state || !phase) {
     return (
-      <div className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
         <div className="text-center text-sm text-gray-500">暂无学习状态数据</div>
       </div>
     );
@@ -165,7 +165,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   return (
     <div
-      className="rounded-xl border border-gray-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200"
+      className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast"
       role="region"
       aria-label="学习状态监控"
     >
@@ -190,7 +190,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full transition-all duration-500 ${getBarColor(state.attention)}`}
+              className={`h-full transition-all duration-g3-slow ${getBarColor(state.attention)}`}
               style={{ width: `${state.attention * 100}%` }}
               role="progressbar"
               aria-valuenow={state.attention * 100}
@@ -211,7 +211,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full transition-all duration-500 ${getBarColor(state.fatigue, true)}`}
+              className={`h-full transition-all duration-g3-slow ${getBarColor(state.fatigue, true)}`}
               style={{ width: `${state.fatigue * 100}%` }}
               role="progressbar"
               aria-valuenow={state.fatigue * 100}
@@ -232,7 +232,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full transition-all duration-500 ${getBarColor(state.memory)}`}
+              className={`h-full transition-all duration-g3-slow ${getBarColor(state.memory)}`}
               style={{ width: `${state.memory * 100}%` }}
               role="progressbar"
               aria-valuenow={state.memory * 100}
@@ -253,7 +253,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full transition-all duration-500 ${getBarColor(state.speed)}`}
+              className={`h-full transition-all duration-g3-slow ${getBarColor(state.speed)}`}
               style={{ width: `${state.speed * 100}%` }}
               role="progressbar"
               aria-valuenow={state.speed * 100}

@@ -136,7 +136,7 @@ export default function WordDetailPage() {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={() => navigate(`/admin/users/${userId}`)}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
           >
             返回用户详情
           </button>
@@ -158,7 +158,7 @@ export default function WordDetailPage() {
 
       {/* 单词信息头部 */}
       {history && (
-        <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-8 shadow-soft">
           <div className="mb-6 text-center">
             <h1 className="mb-2 text-6xl font-bold text-gray-900">{history.word.spelling}</h1>
             <p className="text-2xl text-gray-400">{history.word.phonetic}</p>
@@ -207,25 +207,25 @@ export default function WordDetailPage() {
                 当前学习状态
               </h4>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-2xl font-bold text-blue-600">
                     {history.wordState.masteryLevel}
                   </div>
                   <div className="text-sm text-gray-600">掌握程度</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-2xl font-bold text-purple-600">
                     {history.wordState.reviewCount}
                   </div>
                   <div className="text-sm text-gray-600">复习次数</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-2xl font-bold text-green-600">
                     {history.wordState.easeFactor.toFixed(2)}
                   </div>
                   <div className="text-sm text-gray-600">难度因子</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-sm font-medium text-gray-900">
                     {history.wordState.state}
                   </div>
@@ -242,31 +242,31 @@ export default function WordDetailPage() {
                 当前得分详情
               </h4>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                <div className="rounded-lg bg-blue-50 p-4">
+                <div className="rounded-button bg-blue-50 p-4">
                   <div className="mb-1 text-2xl font-bold text-blue-600">
                     {history.wordScore.totalScore.toFixed(0)}
                   </div>
                   <div className="text-sm text-gray-600">总分</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-xl font-bold text-gray-700">
                     {history.wordScore.accuracyScore.toFixed(0)}
                   </div>
                   <div className="text-sm text-gray-600">正确率分</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-xl font-bold text-gray-700">
                     {history.wordScore.speedScore.toFixed(0)}
                   </div>
                   <div className="text-sm text-gray-600">速度分</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-xl font-bold text-gray-700">
                     {history.wordScore.stabilityScore.toFixed(0)}
                   </div>
                   <div className="text-sm text-gray-600">稳定性分</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded-button bg-gray-50 p-4">
                   <div className="mb-1 text-xl font-bold text-gray-700">
                     {history.wordScore.proficiencyScore.toFixed(0)}
                   </div>
@@ -280,7 +280,7 @@ export default function WordDetailPage() {
 
       {/* 单词得分曲线图 */}
       {scoreHistory && scoreHistory.scoreHistory.length > 0 && (
-        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
               <ChartBar size={24} weight="duotone" className="text-blue-500" />
@@ -295,7 +295,7 @@ export default function WordDetailPage() {
           </div>
 
           {/* 简化的曲线图 - 使用SVG */}
-          <div className="relative h-64 rounded-lg bg-gray-50 p-4">
+          <div className="relative h-64 rounded-button bg-gray-50 p-4">
             <svg className="h-full w-full" viewBox="0 0 800 200">
               {/* 网格线 */}
               {[0, 25, 50, 75, 100].map((y) => (
@@ -365,7 +365,7 @@ export default function WordDetailPage() {
 
       {/* 用户学习热力图 */}
       {heatmap.length > 0 && (
-        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
             <Clock size={24} weight="duotone" className="text-orange-500" />
             学习热力图（最近90天）
@@ -394,7 +394,7 @@ export default function WordDetailPage() {
                 >
                   {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 transform group-hover:block">
-                    <div className="whitespace-nowrap rounded-lg bg-gray-900 px-3 py-2 text-xs text-white">
+                    <div className="whitespace-nowrap rounded-button bg-gray-900 px-3 py-2 text-xs text-white">
                       <div>{day.date}</div>
                       <div>活跃度: {day.activityLevel}</div>
                       <div>正确率: {day.accuracy.toFixed(1)}%</div>
@@ -428,7 +428,7 @@ export default function WordDetailPage() {
 
       {/* 完整学习历史 */}
       {history && history.records.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="rounded-card border border-gray-200 bg-white shadow-soft">
           <div className="flex items-center justify-between border-b border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900">完整学习历史</h2>
             <button
@@ -436,7 +436,7 @@ export default function WordDetailPage() {
                 setFlagRecordId(undefined);
                 setShowFlagDialog(true);
               }}
-              className="flex items-center gap-2 rounded-lg bg-yellow-100 px-4 py-2 text-yellow-700 transition-colors hover:bg-yellow-200"
+              className="flex items-center gap-2 rounded-button bg-yellow-100 px-4 py-2 text-yellow-700 transition-colors hover:bg-yellow-200"
             >
               <Flag size={16} weight="bold" />
               <span>标记异常</span>
@@ -532,7 +532,7 @@ export default function WordDetailPage() {
       {/* 异常标记对话框 */}
       {showFlagDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-          <div className="w-full max-w-md animate-g3-slide-up rounded-2xl bg-white p-8 shadow-xl">
+          <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating">
             <div className="mb-6 flex items-center gap-3">
               <Warning size={32} weight="duotone" className="text-yellow-500" />
               <h3 className="text-2xl font-bold text-gray-900">标记异常</h3>
@@ -544,7 +544,7 @@ export default function WordDetailPage() {
                 <select
                   value={flagReason}
                   onChange={(e) => setFlagReason(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
                 >
                   <option value="">请选择原因</option>
                   <option value="异常响应时间">异常响应时间</option>
@@ -563,7 +563,7 @@ export default function WordDetailPage() {
                   onChange={(e) => setFlagNotes(e.target.value)}
                   placeholder="请输入详细说明..."
                   rows={4}
-                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
+                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
             </div>
@@ -576,7 +576,7 @@ export default function WordDetailPage() {
                   setFlagReason('');
                   setFlagNotes('');
                 }}
-                className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all hover:bg-gray-200"
+                className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all hover:bg-gray-200"
                 disabled={isFlagging}
               >
                 取消
@@ -584,7 +584,7 @@ export default function WordDetailPage() {
               <button
                 onClick={handleFlagRecord}
                 disabled={!flagReason.trim() || isFlagging}
-                className="flex-1 rounded-xl bg-yellow-500 px-6 py-3 font-medium text-white shadow-lg transition-all hover:bg-yellow-600 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-card bg-yellow-500 px-6 py-3 font-medium text-white shadow-elevated transition-all hover:bg-yellow-600 hover:shadow-floating disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isFlagging ? '标记中...' : '确认标记'}
               </button>

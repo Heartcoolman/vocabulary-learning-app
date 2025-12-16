@@ -8,10 +8,14 @@ import SuggestionModal from '../SuggestionModal';
 import { AmasProcessResult } from '../../types/amas';
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  X: () => <span data-testid="x-icon">X</span>,
-  Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    X: () => <span data-testid="x-icon">X</span>,
+    Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
+  };
+});
 
 // Mock AmasSuggestion component
 vi.mock('../AmasSuggestion', () => ({

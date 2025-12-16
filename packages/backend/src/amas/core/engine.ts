@@ -14,8 +14,8 @@
  * - 奖励配置缓存
  */
 
-import { PrismaClient } from '@prisma/client';
 import { PipelineStageType, PipelineStageStatus } from '@prisma/client';
+import { DatabaseClient } from '../../config/database';
 
 // ==================== 外部依赖 ====================
 import { FeatureBuilder } from '../perception/feature-builder';
@@ -29,7 +29,7 @@ import {
   ReviewTrace,
 } from '../models/cognitive';
 import { FatigueEstimator } from '../models/fatigue-estimator';
-import { LinUCB, ContextBuildInput } from '../algorithms/learners';
+import { LinUCB, type ContextBuildInput } from '../algorithms/learners';
 import { ColdStartManager } from '../learning/coldstart';
 import { ThompsonSampling } from '../algorithms/learners';
 import { HeuristicLearner } from '../learning/heuristic';
@@ -250,7 +250,7 @@ export interface EngineDependencies {
   userParamsManager?: UserParamsManager;
   recorder?: DecisionRecorderService;
   decisionTracer?: DecisionTracer;
-  prisma?: PrismaClient;
+  prisma?: DatabaseClient;
   memoryConfig?: MemoryManagementConfig;
   persistence?: PersistenceManager;
   rewardCacheManager?: RewardCacheManager;
@@ -2222,36 +2222,38 @@ export class AMASEngine {
     reward: number,
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const model = await this.modelRepo.loadModel(userId);
-      if (!model) {
-        return { success: false, error: 'model_not_found' };
-      }
+      return await this.isolation.withUserLock(userId, async () => {
+        const model = await this.modelRepo.loadModel(userId);
+        if (!model) {
+          return { success: false, error: 'model_not_found' };
+        }
 
-      let alignedFeatureVector = featureVector;
-      if (featureVector.length !== model.d) {
-        this.logger?.info('Feature vector dimension mismatch, applying compatibility fix', {
-          userId,
-          featureVectorLength: featureVector.length,
-          modelDimension: model.d,
+        let alignedFeatureVector = featureVector;
+        if (featureVector.length !== model.d) {
+          this.logger?.info('Feature vector dimension mismatch, applying compatibility fix', {
+            userId,
+            featureVectorLength: featureVector.length,
+            modelDimension: model.d,
+          });
+
+          alignedFeatureVector = this.featureVectorBuilder.alignFeatureVectorDimension(
+            featureVector,
+            model.d,
+          );
+        }
+
+        const tempBandit = new LinUCB({
+          alpha: model.alpha,
+          lambda: model.lambda,
+          dimension: model.d,
         });
+        tempBandit.setModel(model);
+        tempBandit.updateWithFeatureVector(new Float32Array(alignedFeatureVector), reward);
 
-        alignedFeatureVector = this.featureVectorBuilder.alignFeatureVectorDimension(
-          featureVector,
-          model.d,
-        );
-      }
+        await this.modelRepo.saveModel(userId, tempBandit.getModel());
 
-      const tempBandit = new LinUCB({
-        alpha: model.alpha,
-        lambda: model.lambda,
-        dimension: model.d,
+        return { success: true };
       });
-      tempBandit.setModel(model);
-      tempBandit.updateWithFeatureVector(new Float32Array(alignedFeatureVector), reward);
-
-      await this.modelRepo.saveModel(userId, tempBandit.getModel());
-
-      return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, error: message };

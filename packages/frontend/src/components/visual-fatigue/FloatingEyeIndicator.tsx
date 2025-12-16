@@ -115,7 +115,7 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, className = '' }: MetricCardProps) {
   return (
-    <div className={`rounded-lg bg-gray-50 px-3 py-2 ${className}`}>
+    <div className={`rounded-button bg-gray-50 px-3 py-2 ${className}`}>
       <div className="text-xs text-gray-500">{label}</div>
       <div className="font-mono text-sm font-medium text-gray-700">{value}</div>
     </div>
@@ -313,7 +313,7 @@ function FloatingEyeIndicatorComponent({
               exit={{ opacity: 0, x: 8 }}
               transition={g3SpringSnappy}
             >
-              <div className="relative whitespace-nowrap rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white shadow-lg">
+              <div className="relative whitespace-nowrap rounded-button bg-gray-800 px-3 py-1.5 text-sm text-white shadow-elevated">
                 {getHoverTip()}
                 {/* 右侧小三角 */}
                 <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 border-4 border-transparent border-l-gray-800" />
@@ -329,7 +329,7 @@ function FloatingEyeIndicatorComponent({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           disabled={isLoading}
-          className={`group relative flex ${sizeConfig.button} items-center justify-center rounded-full border border-white/40 shadow-elevated backdrop-blur-xl transition-colors duration-200 ${
+          className={`group relative flex ${sizeConfig.button} items-center justify-center rounded-full border border-white/40 shadow-elevated backdrop-blur-xl transition-colors duration-g3-fast ${
             enabled ? (hasError ? 'bg-red-50/90' : 'bg-white/90') : 'bg-gray-100/90'
           } ${isLoading ? 'cursor-wait' : 'cursor-pointer'} `}
           style={{
@@ -374,7 +374,7 @@ function FloatingEyeIndicatorComponent({
           {/* 加载提示气泡 */}
           {isLoading && (
             <motion.div
-              className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-800 px-2.5 py-1 text-xs text-white shadow-lg"
+              className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-button bg-gray-800 px-2.5 py-1 text-xs text-white shadow-elevated"
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={g3SpringSnappy}
@@ -431,7 +431,7 @@ function FloatingEyeIndicatorComponent({
                 strokeWidth={sizeConfig.ring.stroke}
                 strokeDasharray={`${ringProgress} ${ringCircumference}`}
                 strokeLinecap="round"
-                className="transition-all duration-300"
+                className="transition-all duration-g3-normal"
               />
             </svg>
           )}
@@ -462,7 +462,7 @@ function FloatingEyeIndicatorComponent({
         <AnimatePresence>
           {isExpanded && enabled && (
             <motion.div
-              className={`w-80 overflow-hidden rounded-2xl border border-white/40 p-4 shadow-floating backdrop-blur-xl ${embedded ? 'absolute right-0 top-full z-50 mt-2' : 'mt-2'} `}
+              className={`w-80 overflow-hidden rounded-card border border-white/40 p-4 shadow-floating backdrop-blur-xl ${embedded ? 'absolute right-0 top-full z-50 mt-2' : 'mt-2'} `}
               style={{
                 background:
                   'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,250,251,0.88) 100%)',
@@ -487,7 +487,7 @@ function FloatingEyeIndicatorComponent({
                       strokeWidth="4"
                       strokeDasharray={`${fatigueScore * 176} 176`}
                       strokeLinecap="round"
-                      className="transition-all duration-500"
+                      className="transition-all duration-g3-slow"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -515,7 +515,7 @@ function FloatingEyeIndicatorComponent({
 
               {/* 错误显示 */}
               {hasError && (
-                <div className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-600">
+                <div className="mt-3 rounded-button bg-red-50 p-2.5 text-xs text-red-600">
                   {errorMessage}
                 </div>
               )}
@@ -534,7 +534,7 @@ function FloatingEyeIndicatorComponent({
               <div className="mt-3">
                 <button
                   onClick={() => setShowDetails(!showDetails)}
-                  className="flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                  className="flex w-full items-center justify-center gap-1 rounded-button py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                 >
                   {showDetails ? '收起详情' : '展开详情'}
                   <motion.span
@@ -578,7 +578,7 @@ function FloatingEyeIndicatorComponent({
                         </div>
 
                         {/* 头部姿态 */}
-                        <div className="rounded-lg bg-gray-50 p-2">
+                        <div className="rounded-button bg-gray-50 p-2">
                           <div className="mb-1 text-xs text-gray-500">头部姿态</div>
                           <div className="grid grid-cols-3 gap-2 text-center">
                             <div>

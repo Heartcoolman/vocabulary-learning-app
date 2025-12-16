@@ -119,7 +119,7 @@ export default function ProfilePage() {
           <p className="mb-6 text-gray-600">登录后即可查看个人资料</p>
           <button
             onClick={() => navigate('/login')}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:bg-blue-600"
+            className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:bg-blue-600"
           >
             前往登录
           </button>
@@ -170,7 +170,7 @@ export default function ProfilePage() {
           {activeTab === 'profile' && (
             <div className="max-w-2xl space-y-6">
               {/* 用户信息卡片 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">基本信息</h2>
 
                 <div className="space-y-4">
@@ -198,11 +198,11 @@ export default function ProfilePage() {
               </div>
 
               {/* 账号管理 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">账号管理</h2>
                 <button
                   onClick={() => setLogoutConfirm(true)}
-                  className="w-full rounded-lg border border-red-200 bg-red-50 px-6 py-3 font-medium text-red-600 transition-all duration-200 hover:scale-105 hover:bg-red-100 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
+                  className="w-full rounded-button border border-red-200 bg-red-50 px-6 py-3 font-medium text-red-600 transition-all duration-g3-fast hover:scale-105 hover:bg-red-100 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
                 >
                   退出登录
                 </button>
@@ -213,14 +213,14 @@ export default function ProfilePage() {
           {activeTab === 'password' && (
             <div className="max-w-2xl space-y-6">
               {/* 修改密码表单 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">修改密码</h2>
 
                 <form onSubmit={handleChangePassword}>
                   {/* 错误提示 */}
                   {error && (
                     <div
-                      className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                      className="mb-4 rounded-button border border-red-300 bg-red-100 p-3 text-sm text-red-700"
                       role="alert"
                       aria-live="assertive"
                     >
@@ -231,7 +231,7 @@ export default function ProfilePage() {
                   {/* 成功提示 */}
                   {success && (
                     <div
-                      className="mb-4 rounded-lg border border-green-300 bg-green-100 p-3 text-sm text-green-700"
+                      className="mb-4 rounded-button border border-green-300 bg-green-100 p-3 text-sm text-green-700"
                       role="status"
                       aria-live="polite"
                     >
@@ -253,7 +253,7 @@ export default function ProfilePage() {
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       disabled={loading}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="输入当前密码"
                       autoComplete="current-password"
                     />
@@ -273,7 +273,7 @@ export default function ProfilePage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       disabled={loading}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="至少8个字符"
                       autoComplete="new-password"
                       aria-describedby="new-password-hint"
@@ -297,7 +297,7 @@ export default function ProfilePage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       disabled={loading}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="再次输入新密码"
                       autoComplete="new-password"
                     />
@@ -307,7 +307,7 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                    className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                   >
                     {loading ? '修改中...' : '修改密码'}
                   </button>
@@ -319,12 +319,12 @@ export default function ProfilePage() {
           {activeTab === 'cache' && (
             <div className="max-w-2xl space-y-6">
               {/* 数据缓存管理 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 text-xl font-bold text-gray-900">数据缓存</h2>
 
                 {cacheError && (
                   <div
-                    className="mb-4 rounded-lg border border-red-300 bg-red-100 p-3 text-sm text-red-700"
+                    className="mb-4 rounded-button border border-red-300 bg-red-100 p-3 text-sm text-red-700"
                     role="alert"
                     aria-live="assertive"
                   >
@@ -334,7 +334,7 @@ export default function ProfilePage() {
 
                 {cacheSuccess && (
                   <div
-                    className="mb-4 rounded-lg border border-green-300 bg-green-100 p-3 text-sm text-green-700"
+                    className="mb-4 rounded-button border border-green-300 bg-green-100 p-3 text-sm text-green-700"
                     role="status"
                     aria-live="polite"
                   >
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                   <button
                     onClick={handleSync}
                     disabled={isSyncing}
-                    className="w-full rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSyncing ? '同步中...' : '刷新缓存'}
                   </button>
@@ -354,7 +354,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => setClearCacheConfirm(true)}
                     disabled={isSyncing}
-                    className="w-full rounded-lg bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     清除本地缓存
                   </button>
@@ -369,9 +369,9 @@ export default function ProfilePage() {
 
           {activeTab === 'habit' && (
             <div className="max-w-2xl space-y-6">
-              <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
+              <div className="rounded-card border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-soft">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-500">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-card bg-indigo-500">
                     <Pulse size={24} weight="bold" className="text-white" />
                   </div>
                   <div className="flex-1">
@@ -382,7 +382,7 @@ export default function ProfilePage() {
                     </p>
                     <button
                       onClick={() => navigate('/habit-profile')}
-                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+                      className="inline-flex items-center gap-2 rounded-button bg-indigo-600 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-indigo-700 hover:shadow-elevated active:scale-95"
                     >
                       查看完整分析
                       <ArrowRight size={18} weight="bold" />
@@ -392,7 +392,7 @@ export default function ProfilePage() {
               </div>
 
               {/* 功能说明 */}
-              <div className="rounded-xl border border-gray-200/60 bg-white p-6 shadow-sm">
+              <div className="rounded-card border border-gray-200/60 bg-white p-6 shadow-soft">
                 <h3 className="mb-3 text-lg font-semibold text-gray-900">包含以下内容：</h3>
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-center gap-2">

@@ -313,6 +313,21 @@ function convertApiWord(apiWord: ApiWord): Word {
  */
 export class AdminClient extends BaseClient {
   /**
+   * 管理端通用请求入口（用于 AdminClient 尚未封装的后台能力）
+   *
+   * 目的：
+   * - 避免页面层直接 fetch 导致 baseUrl/credentials/CSRF/header 不一致
+   * - 保持统一的错误处理与 401 回调
+   *
+   * 注意：
+   * - endpoint 传入形如 `/api/admin/...` 的相对路径
+   * - 返回值为后端响应中的 `data` 字段（与 BaseClient.request 一致）
+   */
+  async requestAdmin<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.request<T>(endpoint, options);
+  }
+
+  /**
    * 获取用户列表（管理员）
    */
   async getUsers(params?: {
@@ -390,10 +405,12 @@ export class AdminClient extends BaseClient {
    */
   async exportUserWords(userId: string, format: 'csv' | 'excel' = 'csv'): Promise<void> {
     const url = `${this.baseUrl}/api/admin/users/${userId}/words/export?format=${format}`;
+    const token = this.tokenManager.getToken();
 
     const response = await fetch(url, {
+      credentials: 'include',
       headers: {
-        Authorization: this.tokenManager.getToken() ? `Bearer ${this.tokenManager.getToken()}` : '',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
 

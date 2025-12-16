@@ -162,7 +162,7 @@ export default function AdminDashboard() {
           </p>
           <button
             onClick={() => refetchStats()}
-            className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -250,10 +250,10 @@ export default function AdminDashboard() {
           return (
             <div
               key={card.label}
-              className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-lg"
+              className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated"
             >
               <div
-                className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${getColorClasses(
+                className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-button ${getColorClasses(
                   card.color,
                 )}`}
               >
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
           <Pulse size={28} weight="duotone" className="text-blue-500" />
           系统健康度
         </h2>
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           {(() => {
             const statusConfig: Record<
               string,
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 ${config.bgColor} rounded-lg`}>
+                    <div className={`p-3 ${config.bgColor} rounded-button`}>
                       <Icon size={32} weight="bold" className={config.color} />
                     </div>
                     <div>
@@ -332,7 +332,7 @@ export default function AdminDashboard() {
                 <div className="mb-4">
                   <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className={`h-full transition-all duration-500 ${getScoreBarColorClass(systemHealth.score)}`}
+                      className={`h-full transition-all duration-g3-slow ${getScoreBarColorClass(systemHealth.score)}`}
                       style={{ width: `${systemHealth.score}%` }}
                     />
                   </div>
@@ -372,10 +372,10 @@ export default function AdminDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <button
             onClick={() => navigate('/admin/users')}
-            className="rounded-xl border border-gray-200/60 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 p-2">
+              <div className="rounded-button bg-blue-50 p-2">
                 <UsersThree size={24} weight="duotone" className="text-blue-600" />
               </div>
               <h3 className="font-semibold text-gray-900">用户管理</h3>
@@ -385,10 +385,10 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => navigate('/admin/wordbooks')}
-            className="rounded-xl border border-gray-200/60 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-lg bg-purple-50 p-2">
+              <div className="rounded-button bg-purple-50 p-2">
                 <Books size={24} weight="duotone" className="text-purple-600" />
               </div>
               <h3 className="font-semibold text-gray-900">词库管理</h3>
@@ -398,10 +398,10 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => navigate('/admin/algorithm-config')}
-            className="rounded-xl border border-gray-200/60 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-50 p-2">
+              <div className="rounded-button bg-indigo-50 p-2">
                 <Gear size={24} weight="duotone" className="text-indigo-600" />
               </div>
               <h3 className="font-semibold text-gray-900">算法配置</h3>
@@ -411,10 +411,10 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => navigate('/admin/experiments')}
-            className="rounded-xl border border-gray-200/60 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-lg bg-green-50 p-2">
+              <div className="rounded-button bg-green-50 p-2">
                 <ChartBar size={24} weight="duotone" className="text-green-600" />
               </div>
               <h3 className="font-semibold text-gray-900">实验管理</h3>
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
           <Brain size={28} weight="duotone" className="text-purple-500" />
           AMAS 管理面板
         </h2>
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           {isAmasLoading ? (
             <div className="flex items-center justify-center py-8">
               <CircleNotch className="animate-spin" size={32} weight="bold" color="#3b82f6" />
@@ -441,7 +441,7 @@ export default function AdminDashboard() {
               <p className="mb-4 text-gray-600">{amasError}</p>
               <button
                 onClick={loadAmasStrategy}
-                className="rounded-lg bg-blue-500 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+                className="rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
               >
                 重试
               </button>
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
           ) : amasStrategy ? (
             <div>
               <div className="mb-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg bg-blue-50 p-4">
+                <div className="rounded-button bg-blue-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Lightning size={20} weight="duotone" className="text-blue-600" />
                     <span className="text-sm text-gray-600">新单词比例</span>
@@ -458,7 +458,7 @@ export default function AdminDashboard() {
                     {Math.round((amasStrategy.new_ratio || 0) * 100)}%
                   </p>
                 </div>
-                <div className="rounded-lg bg-green-50 p-4">
+                <div className="rounded-button bg-green-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Pulse size={20} weight="duotone" className="text-green-600" />
                     <span className="text-sm text-gray-600">难度级别</span>
@@ -467,7 +467,7 @@ export default function AdminDashboard() {
                     {amasStrategy.difficulty || 'mid'}
                   </p>
                 </div>
-                <div className="rounded-lg bg-purple-50 p-4">
+                <div className="rounded-button bg-purple-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <ChartBar size={20} weight="duotone" className="text-purple-600" />
                     <span className="text-sm text-gray-600">批次大小</span>
@@ -482,7 +482,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={loadAmasStrategy}
                   disabled={isAmasLoading}
-                  className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ArrowClockwise size={18} weight="bold" />
                   刷新策略
@@ -490,7 +490,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={handleResetAmas}
                   disabled={isResetting}
-                  className="flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-button bg-yellow-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isResetting ? (
                     <>
@@ -518,7 +518,7 @@ export default function AdminDashboard() {
           <Eye size={28} weight="duotone" className="text-cyan-500" />
           视觉疲劳检测统计
         </h2>
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           {isVfLoading ? (
             <div className="flex items-center justify-center py-8">
               <CircleNotch className="animate-spin" size={32} weight="bold" color="#06b6d4" />
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
             <div>
               {/* 主要���标卡片 */}
               <div className="mb-6 grid gap-4 md:grid-cols-4">
-                <div className="rounded-lg bg-cyan-50 p-4">
+                <div className="rounded-button bg-cyan-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <ChartBar size={20} weight="duotone" className="text-cyan-600" />
                     <span className="text-sm text-gray-600">数据量</span>
@@ -547,7 +547,7 @@ export default function AdminDashboard() {
                     今日 +{visualFatigueStats.dataVolume.recordsToday}
                   </p>
                 </div>
-                <div className="rounded-lg bg-blue-50 p-4">
+                <div className="rounded-button bg-blue-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <UsersThree size={20} weight="duotone" className="text-blue-600" />
                     <span className="text-sm text-gray-600">启用率</span>
@@ -560,7 +560,7 @@ export default function AdminDashboard() {
                     用户
                   </p>
                 </div>
-                <div className="rounded-lg bg-amber-50 p-4">
+                <div className="rounded-button bg-amber-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Pulse size={20} weight="duotone" className="text-amber-600" />
                     <span className="text-sm text-gray-600">平均疲劳度</span>
@@ -572,7 +572,7 @@ export default function AdminDashboard() {
                     融合后 {(visualFatigueStats.fatigue.avgFusedFatigue * 100).toFixed(0)}%
                   </p>
                 </div>
-                <div className="rounded-lg bg-red-50 p-4">
+                <div className="rounded-button bg-red-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Warning size={20} weight="duotone" className="text-red-600" />
                     <span className="text-sm text-gray-600">高疲劳用户</span>
@@ -585,7 +585,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* 疲劳度分布 */}
-              <div className="rounded-lg bg-gray-50 p-4">
+              <div className="rounded-button bg-gray-50 p-4">
                 <h4 className="mb-3 text-sm font-semibold text-gray-700">疲劳度分布</h4>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
                     <div className="flex-1">
                       <div className="h-4 overflow-hidden rounded-full bg-gray-200">
                         <div
-                          className="h-full bg-green-500 transition-all duration-500"
+                          className="h-full bg-green-500 transition-all duration-g3-slow"
                           style={{
                             width: `${visualFatigueStats.fatigue.fatigueDistribution.low}%`,
                           }}
@@ -609,7 +609,7 @@ export default function AdminDashboard() {
                     <div className="flex-1">
                       <div className="h-4 overflow-hidden rounded-full bg-gray-200">
                         <div
-                          className="h-full bg-yellow-500 transition-all duration-500"
+                          className="h-full bg-yellow-500 transition-all duration-g3-slow"
                           style={{
                             width: `${visualFatigueStats.fatigue.fatigueDistribution.medium}%`,
                           }}
@@ -625,7 +625,7 @@ export default function AdminDashboard() {
                     <div className="flex-1">
                       <div className="h-4 overflow-hidden rounded-full bg-gray-200">
                         <div
-                          className="h-full bg-red-500 transition-all duration-500"
+                          className="h-full bg-red-500 transition-all duration-g3-slow"
                           style={{
                             width: `${visualFatigueStats.fatigue.fatigueDistribution.high}%`,
                           }}
@@ -651,7 +651,7 @@ export default function AdminDashboard() {
 
       {/* 额外信息 */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           <h2 className="mb-4 text-xl font-bold text-gray-900">用户活跃度</h2>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -674,7 +674,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
           <h2 className="mb-4 text-xl font-bold text-gray-900">词库统计</h2>
           <div className="space-y-3">
             <div className="flex justify-between">

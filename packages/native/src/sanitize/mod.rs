@@ -1,5 +1,6 @@
 use crate::types::{
-    DiagnosticResult, EPSILON, MAX_COVARIANCE, MAX_FEATURE_ABS, MIN_LAMBDA, MIN_RANK1_DIAG,
+    CHOLESKY_RECOMPUTE_INTERVAL, DiagnosticResult, EPSILON, MAX_COVARIANCE, MAX_FEATURE_ABS,
+    MIN_LAMBDA, MIN_RANK1_DIAG,
 };
 
 /// 检查数组是否包含无效值 (NaN 或 Inf)
@@ -12,10 +13,8 @@ pub fn sanitize_feature_vector(x: &mut [f64]) {
     for val in x.iter_mut() {
         if val.is_nan() || val.is_infinite() {
             *val = 0.0;
-        } else if *val > MAX_FEATURE_ABS {
-            *val = MAX_FEATURE_ABS;
-        } else if *val < -MAX_FEATURE_ABS {
-            *val = -MAX_FEATURE_ABS;
+        } else {
+            *val = (*val).clamp(-MAX_FEATURE_ABS, MAX_FEATURE_ABS);
         }
     }
 }
@@ -60,8 +59,8 @@ pub fn sanitize_covariance(a: &mut [f64], d: usize, lambda: f64) {
 
 /// 判断是否需要完整重新计算 Cholesky 分解
 pub fn needs_full_recompute(update_count: u32, l: &[f64], d: usize) -> bool {
-    // 每 100 次更新强制重算
-    if update_count % 100 == 0 {
+    // 每隔固定周期强制重算（与 TS 侧 CHOLESKY_RECOMPUTE_INTERVAL 对齐）
+    if update_count.is_multiple_of(CHOLESKY_RECOMPUTE_INTERVAL) {
         return true;
     }
 
@@ -365,13 +364,12 @@ mod tests {
     #[test]
     fn test_needs_full_recompute_periodic() {
         let l = vec![1.0, 0.0, 0.0, 1.0]; // 2x2 单位矩阵
-        // 每 100 次更新强制重算
-        assert!(needs_full_recompute(100, &l, 2));
-        assert!(needs_full_recompute(200, &l, 2));
-        assert!(needs_full_recompute(0, &l, 2)); // 0 也是 100 的倍数
-        assert!(!needs_full_recompute(50, &l, 2));
-        assert!(!needs_full_recompute(99, &l, 2));
-        assert!(!needs_full_recompute(101, &l, 2));
+        // 每隔固定周期强制重算（与 CHOLESKY_RECOMPUTE_INTERVAL 对齐）
+        assert!(needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL, &l, 2));
+        assert!(needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL * 2, &l, 2));
+        assert!(needs_full_recompute(0, &l, 2)); // 0 也是周期的倍数
+        assert!(!needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL - 1, &l, 2));
+        assert!(!needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL + 1, &l, 2));
     }
 
     #[test]

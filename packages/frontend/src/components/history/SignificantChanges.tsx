@@ -17,7 +17,7 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
     }
 
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
           <Target size={24} weight="duotone" color="#f59e0b" />
           显著变化
@@ -26,7 +26,7 @@ const SignificantChanges: React.FC<SignificantChangesProps> = React.memo(
           {significantChanges.map((change, index) => (
             <div
               key={index}
-              className={`flex items-center gap-4 rounded-xl border-2 p-4 transition-all ${
+              className={`flex items-center gap-4 rounded-card border-2 p-4 transition-all ${
                 change.isPositive ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
               } `}
             >

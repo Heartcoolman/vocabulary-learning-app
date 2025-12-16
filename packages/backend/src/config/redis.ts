@@ -2,7 +2,11 @@ import Redis from 'ioredis';
 import { cacheLogger } from '../logger';
 import { env } from './env';
 
-const REDIS_URL = env.REDIS_URL || `redis://${env.REDIS_HOST}:${env.REDIS_PORT}/${env.REDIS_DB}`;
+const REDIS_URL =
+  env.REDIS_URL ||
+  (env.REDIS_PASSWORD
+    ? `redis://:${encodeURIComponent(env.REDIS_PASSWORD)}@${env.REDIS_HOST}:${env.REDIS_PORT}/${env.REDIS_DB}`
+    : `redis://${env.REDIS_HOST}:${env.REDIS_PORT}/${env.REDIS_DB}`);
 
 let redisClient: Redis | null = null;
 

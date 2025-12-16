@@ -6,33 +6,37 @@ import { render, screen } from '@testing-library/react';
 import ChronotypeCard, { ChronotypeProfile } from '../ChronotypeCard';
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Sun: ({ size, weight }: any) => (
-    <span data-testid="sun-icon" data-size={size} data-weight={weight}>
-      Sun
-    </span>
-  ),
-  Moon: ({ size, weight }: any) => (
-    <span data-testid="moon-icon" data-size={size} data-weight={weight}>
-      Moon
-    </span>
-  ),
-  SunHorizon: ({ size, weight }: any) => (
-    <span data-testid="sun-horizon-icon" data-size={size} data-weight={weight}>
-      SunHorizon
-    </span>
-  ),
-  TrendUp: ({ size, weight }: any) => (
-    <span data-testid="trend-up-icon" data-size={size} data-weight={weight}>
-      TrendUp
-    </span>
-  ),
-  Sparkle: ({ size, weight }: any) => (
-    <span data-testid="sparkle-icon" data-size={size} data-weight={weight}>
-      Sparkle
-    </span>
-  ),
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Sun: ({ size, weight }: any) => (
+      <span data-testid="sun-icon" data-size={size} data-weight={weight}>
+        Sun
+      </span>
+    ),
+    Moon: ({ size, weight }: any) => (
+      <span data-testid="moon-icon" data-size={size} data-weight={weight}>
+        Moon
+      </span>
+    ),
+    SunHorizon: ({ size, weight }: any) => (
+      <span data-testid="sun-horizon-icon" data-size={size} data-weight={weight}>
+        SunHorizon
+      </span>
+    ),
+    TrendUp: ({ size, weight }: any) => (
+      <span data-testid="trend-up-icon" data-size={size} data-weight={weight}>
+        TrendUp
+      </span>
+    ),
+    Sparkle: ({ size, weight }: any) => (
+      <span data-testid="sparkle-icon" data-size={size} data-weight={weight}>
+        Sparkle
+      </span>
+    ),
+  };
+});
 
 describe('ChronotypeCard', () => {
   // ==================== Default State Tests ====================
@@ -278,13 +282,13 @@ describe('ChronotypeCard', () => {
 
     it('should have shadow', () => {
       render(<ChronotypeCard />);
-      const card = screen.getByText(/Intermediate/).closest('.shadow-sm');
+      const card = screen.getByText(/Intermediate/).closest('.shadow-soft');
       expect(card).toBeInTheDocument();
     });
 
     it('should have rounded corners', () => {
       render(<ChronotypeCard />);
-      const card = screen.getByText(/Intermediate/).closest('.rounded-xl');
+      const card = screen.getByText(/Intermediate/).closest('.rounded-card');
       expect(card).toBeInTheDocument();
     });
   });

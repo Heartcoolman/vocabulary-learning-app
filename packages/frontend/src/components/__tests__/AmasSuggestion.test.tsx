@@ -8,11 +8,15 @@ import AmasSuggestion from '../AmasSuggestion';
 import { AmasProcessResult } from '../../types/amas';
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Coffee: () => <span data-testid="coffee-icon">Coffee</span>,
-  Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
-  PushPin: () => <span data-testid="pushpin-icon">PushPin</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Coffee: () => <span data-testid="coffee-icon">Coffee</span>,
+    Lightbulb: () => <span data-testid="lightbulb-icon">Lightbulb</span>,
+    PushPin: () => <span data-testid="pushpin-icon">PushPin</span>,
+  };
+});
 
 // Helper function to create test AmasProcessResult
 function createTestResult(overrides: Partial<AmasProcessResult> = {}): AmasProcessResult {
@@ -67,8 +71,8 @@ describe('AmasSuggestion', () => {
   describe('AI suggestion display', () => {
     it('should display AI suggestion title', () => {
       const result = createTestResult({
-      explanation: 'Test explanation',
-    });
+        explanation: 'Test explanation',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('AI建议')).toBeInTheDocument();
@@ -76,8 +80,8 @@ describe('AmasSuggestion', () => {
 
     it('should display lightbulb icon for AI suggestion', () => {
       const result = createTestResult({
-      explanation: 'Test explanation',
-    });
+        explanation: 'Test explanation',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByTestId('lightbulb-icon')).toBeInTheDocument();
@@ -85,8 +89,8 @@ describe('AmasSuggestion', () => {
 
     it('should display explanation text', () => {
       const result = createTestResult({
-      explanation: 'This is a test explanation',
-    });
+        explanation: 'This is a test explanation',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('This is a test explanation')).toBeInTheDocument();
@@ -94,8 +98,8 @@ describe('AmasSuggestion', () => {
 
     it('should display suggestion text', () => {
       const result = createTestResult({
-      suggestion: 'This is a test suggestion',
-    });
+        suggestion: 'This is a test suggestion',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('This is a test suggestion')).toBeInTheDocument();
@@ -103,8 +107,8 @@ describe('AmasSuggestion', () => {
 
     it('should display pushpin icon for suggestion', () => {
       const result = createTestResult({
-      suggestion: 'Test suggestion',
-    });
+        suggestion: 'Test suggestion',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByTestId('pushpin-icon')).toBeInTheDocument();
@@ -116,9 +120,9 @@ describe('AmasSuggestion', () => {
   describe('break suggestion', () => {
     it('should display break suggestion title', () => {
       const result = createTestResult({
-      explanation: 'You need a break',
-      shouldBreak: true,
-    });
+        explanation: 'You need a break',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
 
       expect(screen.getByText('休息建议')).toBeInTheDocument();
@@ -126,9 +130,9 @@ describe('AmasSuggestion', () => {
 
     it('should display coffee icon for break suggestion', () => {
       const result = createTestResult({
-      explanation: 'You need a break',
-      shouldBreak: true,
-    });
+        explanation: 'You need a break',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
 
       expect(screen.getByTestId('coffee-icon')).toBeInTheDocument();
@@ -136,9 +140,9 @@ describe('AmasSuggestion', () => {
 
     it('should display break button when shouldBreak is true', () => {
       const result = createTestResult({
-      explanation: 'You need a break',
-      shouldBreak: true,
-    });
+        explanation: 'You need a break',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
 
       expect(screen.getByText('好的，休息一下')).toBeInTheDocument();
@@ -146,9 +150,9 @@ describe('AmasSuggestion', () => {
 
     it('should call onBreak when break button is clicked', () => {
       const result = createTestResult({
-      explanation: 'You need a break',
-      shouldBreak: true,
-    });
+        explanation: 'You need a break',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
 
       const breakButton = screen.getByText('好的，休息一下');
@@ -159,9 +163,9 @@ describe('AmasSuggestion', () => {
 
     it('should not display break button when onBreak is not provided', () => {
       const result = createTestResult({
-      explanation: 'You need a break',
-      shouldBreak: true,
-    });
+        explanation: 'You need a break',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.queryByText('好的，休息一下')).not.toBeInTheDocument();
@@ -173,9 +177,15 @@ describe('AmasSuggestion', () => {
   describe('strategy display', () => {
     it('should display strategy parameters', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      strategy: { ...createTestResult().strategy, difficulty: 'easy', batch_size: 15, new_ratio: 0.5, hint_level: 2 },
-    });
+        explanation: 'Test',
+        strategy: {
+          ...createTestResult().strategy,
+          difficulty: 'easy',
+          batch_size: 15,
+          new_ratio: 0.5,
+          hint_level: 2,
+        },
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('批量:')).toBeInTheDocument();
@@ -190,9 +200,9 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 简单 for easy', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      strategy: { ...createTestResult().strategy, difficulty: 'easy' },
-    });
+        explanation: 'Test',
+        strategy: { ...createTestResult().strategy, difficulty: 'easy' },
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('简单')).toBeInTheDocument();
@@ -200,8 +210,8 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 中等 for mid', () => {
       const result = createTestResult({
-      explanation: 'Test',
-    });
+        explanation: 'Test',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('中等')).toBeInTheDocument();
@@ -209,9 +219,9 @@ describe('AmasSuggestion', () => {
 
     it('should display difficulty as 困难 for hard', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      strategy: { ...createTestResult().strategy, difficulty: 'hard' },
-    });
+        explanation: 'Test',
+        strategy: { ...createTestResult().strategy, difficulty: 'hard' },
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('困难')).toBeInTheDocument();
@@ -219,9 +229,9 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 无 for 0', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      strategy: { ...createTestResult().strategy, hint_level: 0 },
-    });
+        explanation: 'Test',
+        strategy: { ...createTestResult().strategy, hint_level: 0 },
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('无')).toBeInTheDocument();
@@ -229,8 +239,8 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 少 for 1', () => {
       const result = createTestResult({
-      explanation: 'Test',
-    });
+        explanation: 'Test',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('少')).toBeInTheDocument();
@@ -238,9 +248,9 @@ describe('AmasSuggestion', () => {
 
     it('should display hint level as 多 for 2', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      strategy: { ...createTestResult().strategy, hint_level: 2 },
-    });
+        explanation: 'Test',
+        strategy: { ...createTestResult().strategy, hint_level: 2 },
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByText('多')).toBeInTheDocument();
@@ -252,8 +262,8 @@ describe('AmasSuggestion', () => {
   describe('accessibility', () => {
     it('should have role alert', () => {
       const result = createTestResult({
-      explanation: 'Test',
-    });
+        explanation: 'Test',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -261,8 +271,8 @@ describe('AmasSuggestion', () => {
 
     it('should have aria-live polite', () => {
       const result = createTestResult({
-      explanation: 'Test',
-    });
+        explanation: 'Test',
+      });
       render(<AmasSuggestion result={result} />);
 
       expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'polite');
@@ -270,9 +280,9 @@ describe('AmasSuggestion', () => {
 
     it('should have aria-label on break button', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      shouldBreak: true,
-    });
+        explanation: 'Test',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} onBreak={mockOnBreak} />);
 
       expect(screen.getByRole('button')).toHaveAttribute('aria-label', '休息一下');
@@ -284,9 +294,9 @@ describe('AmasSuggestion', () => {
   describe('styling', () => {
     it('should have orange styling for break suggestion', () => {
       const result = createTestResult({
-      explanation: 'Test',
-      shouldBreak: true,
-    });
+        explanation: 'Test',
+        shouldBreak: true,
+      });
       render(<AmasSuggestion result={result} />);
 
       const alert = screen.getByRole('alert');
@@ -295,8 +305,8 @@ describe('AmasSuggestion', () => {
 
     it('should have blue styling for AI suggestion', () => {
       const result = createTestResult({
-      explanation: 'Test',
-    });
+        explanation: 'Test',
+      });
       render(<AmasSuggestion result={result} />);
 
       const alert = screen.getByRole('alert');

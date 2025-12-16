@@ -300,12 +300,35 @@ export class LLMProviderService {
       return !!this.config.baseUrl;
     }
 
-    // 其他提供者需要 API Key
-    if (!this.config.apiKey) {
-      return false;
+    // 自定义提供者：API Key 可选，但必须配置 baseUrl
+    if (this.config.provider === 'custom') {
+      return !!this.config.baseUrl;
     }
 
+    // OpenAI / Anthropic 需要 API Key
+    if (!this.config.apiKey) return false;
+
     return true;
+  }
+
+  private getConfigValidationErrorMessage(): string {
+    if (!this.config.enabled) {
+      return 'LLM 服务未启用';
+    }
+
+    if (this.config.provider === 'custom') {
+      return '自定义提供者需要设置 LLM_BASE_URL';
+    }
+
+    if (this.config.provider === 'ollama') {
+      return 'Ollama 需要设置 LLM_BASE_URL';
+    }
+
+    if (!this.config.apiKey) {
+      return '请设置 LLM_API_KEY';
+    }
+
+    return 'LLM 配置不完整，请检查 API Key 或 Base URL 设置';
   }
 
   /**
@@ -343,7 +366,7 @@ export class LLMProviderService {
     }
 
     if (!this.isConfigValid) {
-      throw new Error('LLM 配置不完整，请检查 API Key 或 Base URL 设置');
+      throw new Error(this.getConfigValidationErrorMessage());
     }
 
     let lastError: Error | null = null;

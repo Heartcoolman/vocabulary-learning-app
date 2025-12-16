@@ -6,7 +6,7 @@
 import { StateRepository, ModelRepository } from '../amas/core/engine';
 import { UserState, UserStateWithColdStart, BanditModel } from '../amas/types';
 import { amasLogger } from '../logger';
-import prisma from '../config/database';
+import { getActiveDbClient, DatabaseClient } from '../config/database';
 import {
   choleskyDecompose,
   createRegularizedIdentity,
@@ -169,11 +169,37 @@ function sanitizeUserState(state: UserState): UserState {
 
 /**
  * 数据库用户状态仓库
+ *
+ * 支持热备模式：通过 getActiveDbClient() 动态获取当前活跃的数据库客户端，
+ * 在 PostgreSQL 不可用时自动切换到 SQLite 备库。
  */
 export class DatabaseStateRepository implements StateRepository {
+  private dbClient: DatabaseClient | null = null;
+
+  /**
+   * 构造函数
+   * @param dbClient 可选的数据库客户端，用于依赖注入。如果不传入，将动态获取活跃客户端。
+   */
+  constructor(dbClient?: DatabaseClient) {
+    this.dbClient = dbClient || null;
+  }
+
+  /**
+   * 获取数据库客户端
+   * 支持依赖注入和动态热备切换
+   */
+  private getDbClient(): DatabaseClient {
+    // 如果通过依赖注入传入了客户端，直接使用
+    if (this.dbClient) {
+      return this.dbClient;
+    }
+    // 否则动态获取当前活跃的数据库客户端
+    return getActiveDbClient();
+  }
+
   async loadState(userId: string): Promise<UserState | null> {
     try {
-      const db = prisma;
+      const db = this.getDbClient();
 
       const record = await db.amasUserState.findUnique({
         where: { userId },
@@ -211,7 +237,7 @@ export class DatabaseStateRepository implements StateRepository {
 
   async saveState(userId: string, state: UserState): Promise<void> {
     try {
-      const db = prisma;
+      const db = this.getDbClient();
 
       // 清理并验证状态值
       const safeState = sanitizeUserState(state);
@@ -259,11 +285,37 @@ export class DatabaseStateRepository implements StateRepository {
 
 /**
  * 数据库模型仓库（LinUCB模型）
+ *
+ * 支持热备模式：通过 getActiveDbClient() 动态获取当前活跃的数据库客户端，
+ * 在 PostgreSQL 不可用时自动切换到 SQLite 备库。
  */
 export class DatabaseModelRepository implements ModelRepository {
+  private dbClient: DatabaseClient | null = null;
+
+  /**
+   * 构造函数
+   * @param dbClient 可选的数据库客户端，用于依赖注入。如果不传入，将动态获取活跃客户端。
+   */
+  constructor(dbClient?: DatabaseClient) {
+    this.dbClient = dbClient || null;
+  }
+
+  /**
+   * 获取数据库客户端
+   * 支持依赖注入和动态热备切换
+   */
+  private getDbClient(): DatabaseClient {
+    // 如果通过依赖注入传入了客户端，直接使用
+    if (this.dbClient) {
+      return this.dbClient;
+    }
+    // 否则动态获取当前活跃的数据库客户端
+    return getActiveDbClient();
+  }
+
   async loadModel(userId: string): Promise<BanditModel | null> {
     try {
-      const db = prisma;
+      const db = this.getDbClient();
 
       const record = await db.amasUserModel.findUnique({
         where: { userId },
@@ -289,7 +341,7 @@ export class DatabaseModelRepository implements ModelRepository {
 
   async saveModel(userId: string, model: BanditModel): Promise<void> {
     try {
-      const db = prisma;
+      const db = this.getDbClient();
 
       // 序列化 Float32Array 为普通数组
       const serializedModel = serializeBanditModel(model);

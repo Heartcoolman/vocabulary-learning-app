@@ -32,7 +32,7 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">单词得分权重</h2>
         <p className="mt-1 text-sm text-gray-600">
@@ -54,7 +54,7 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
             max="100"
             value={weights.accuracy}
             onChange={(e) => updateWeight('accuracy', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-green-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-green-500"
           />
         </div>
 
@@ -70,7 +70,7 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
             max="100"
             value={weights.speed}
             onChange={(e) => updateWeight('speed', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-blue-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500"
           />
         </div>
 
@@ -86,7 +86,7 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
             max="100"
             value={weights.stability}
             onChange={(e) => updateWeight('stability', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-purple-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-purple-500"
           />
         </div>
 
@@ -102,13 +102,13 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
             max="100"
             value={weights.proficiency}
             onChange={(e) => updateWeight('proficiency', parseInt(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-yellow-500"
+            className="h-2 w-full cursor-pointer appearance-none rounded-button bg-gray-200 accent-yellow-500"
           />
         </div>
       </div>
 
       {/* 总和显示 */}
-      <div className={`mt-4 rounded-lg p-3 ${isValid ? 'bg-green-50' : 'bg-red-50'}`}>
+      <div className={`mt-4 rounded-button p-3 ${isValid ? 'bg-green-50' : 'bg-red-50'}`}>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">权重总和</span>
           <span className={`text-lg font-bold ${isValid ? 'text-green-600' : 'text-red-600'}`}>
@@ -122,7 +122,7 @@ export const ScoreWeightsSection = memo(function ScoreWeightsSection({
         )}
       </div>
 
-      <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      <div className="mt-4 rounded-button bg-gray-50 p-3">
         <p className="text-sm text-gray-600">
           <strong>默认值：</strong>
           正确率 {defaultWeights.accuracy}%、 速度 {defaultWeights.speed}%、 稳定性{' '}

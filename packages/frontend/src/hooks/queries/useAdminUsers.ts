@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import apiClient, { AdminUsersResponse, UserOverview } from '../../services/client';
+import { apiClient, type AdminUsersResponse, type UserOverview } from '../../services/client';
 
 /**
  * 管理员用户列表查询参数

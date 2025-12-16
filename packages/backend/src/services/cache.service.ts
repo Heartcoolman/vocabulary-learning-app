@@ -8,6 +8,10 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 class CacheService {
   private cache: Map<string, CacheEntry<any>> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
@@ -39,7 +43,7 @@ class CacheService {
    */
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
@@ -74,7 +78,8 @@ class CacheService {
    * @param pattern 键的模式（支持通配符 *）
    */
   deletePattern(pattern: string): void {
-    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    const escaped = escapeRegExp(pattern).replace(/\\\*/g, '.*');
+    const regex = new RegExp(`^${escaped}$`);
     const keysToDelete: string[] = [];
 
     for (const key of this.cache.keys()) {
@@ -83,7 +88,7 @@ class CacheService {
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -106,11 +111,7 @@ class CacheService {
    * @param factory 工厂函数，当缓存不存在时调用
    * @param ttlSeconds TTL（秒）
    */
-  async getOrSet<T>(
-    key: string,
-    factory: () => Promise<T> | T,
-    ttlSeconds = 3600
-  ): Promise<T> {
+  async getOrSet<T>(key: string, factory: () => Promise<T> | T, ttlSeconds = 3600): Promise<T> {
     const cached = this.get<T>(key);
     if (cached !== null) {
       return cached;
@@ -134,7 +135,7 @@ class CacheService {
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 
   /**
@@ -143,7 +144,7 @@ class CacheService {
   getStats(): { size: number; keys: string[] } {
     return {
       size: this.cache.size,
-      keys: Array.from(this.cache.keys())
+      keys: Array.from(this.cache.keys()),
     };
   }
 
@@ -170,19 +171,19 @@ export const CacheKeys = {
   // 算法配置缓存（TTL: 1小时）
   ALGORITHM_CONFIG: 'algorithm_config',
   ALGORITHM_CONFIG_DEFAULT: 'algorithm_config:default',
-  
+
   // 用户学习状态缓存（TTL: 5分钟）
   USER_LEARNING_STATE: (userId: string, wordId: string) => `learning_state:${userId}:${wordId}`,
   USER_LEARNING_STATES: (userId: string) => `learning_states:${userId}`,
   USER_DUE_WORDS: (userId: string) => `due_words:${userId}`,
-  
+
   // 单词得分缓存（TTL: 10分钟）
   WORD_SCORE: (userId: string, wordId: string) => `word_score:${userId}:${wordId}`,
   WORD_SCORES: (userId: string) => `word_scores:${userId}`,
-  
+
   // 用户统计缓存（TTL: 5分钟）
   USER_STATS: (userId: string) => `user_stats:${userId}`,
-  
+
   // 单词列表缓存（TTL: 10分钟）
   WORDBOOK_WORDS: (wordbookId: string) => `wordbook_words:${wordbookId}`,
 

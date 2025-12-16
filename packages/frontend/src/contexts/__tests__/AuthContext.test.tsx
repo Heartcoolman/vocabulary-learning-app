@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { render, screen } from '@testing-library/react';
 import { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock authClient - must be defined before vi.mock
 const mockLogin = vi.fn();
@@ -16,6 +17,8 @@ const mockSetToken = vi.fn();
 const mockClearToken = vi.fn();
 const mockGetToken = vi.fn();
 const mockSetOnUnauthorized = vi.fn();
+const mockGetWords = vi.fn();
+const mockGetRecords = vi.fn();
 
 vi.mock('../../services/client', () => ({
   authClient: {
@@ -27,6 +30,12 @@ vi.mock('../../services/client', () => ({
     clearToken: (...args: unknown[]) => mockClearToken(...args),
     getToken: (...args: unknown[]) => mockGetToken(...args),
     setOnUnauthorized: (...args: unknown[]) => mockSetOnUnauthorized(...args),
+  },
+  wordClient: {
+    getWords: (...args: unknown[]) => mockGetWords(...args),
+  },
+  learningClient: {
+    getRecords: (...args: unknown[]) => mockGetRecords(...args),
   },
 }));
 
@@ -61,7 +70,12 @@ vi.unmock('../../contexts/AuthContext');
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Test wrapper component
-const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>;
+let queryClient: QueryClient;
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>{children}</AuthProvider>
+  </QueryClientProvider>
+);
 
 // Test consumer component
 const TestConsumer = () => {
@@ -102,9 +116,17 @@ const mockUser = {
 
 describe('AuthContext', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
     vi.clearAllMocks();
     // Default: no token
     mockGetToken.mockReturnValue(null);
+    mockGetWords.mockResolvedValue([]);
+    mockGetRecords.mockResolvedValue({ records: [], total: 0 } as any);
     mockSetCurrentUser.mockResolvedValue(undefined);
     mockClearLocalData.mockResolvedValue(undefined);
   });
@@ -477,9 +499,11 @@ describe('AuthContext', () => {
   describe('Provider rendering', () => {
     it('should render children correctly', async () => {
       render(
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>,
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <TestConsumer />
+          </AuthProvider>
+        </QueryClientProvider>,
       );
 
       await waitFor(() => {
@@ -495,9 +519,11 @@ describe('AuthContext', () => {
       mockLogin.mockResolvedValue(authResponse);
 
       render(
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>,
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <TestConsumer />
+          </AuthProvider>
+        </QueryClientProvider>,
       );
 
       await waitFor(() => {

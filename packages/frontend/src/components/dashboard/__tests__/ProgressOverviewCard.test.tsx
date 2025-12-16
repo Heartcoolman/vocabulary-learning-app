@@ -8,23 +8,27 @@ import { ProgressOverviewCard } from '../ProgressOverviewCard';
 import type { StudyProgressData } from '../../../hooks/useStudyProgress';
 
 // Mock Icon components
-vi.mock('../../../components/Icon', () => ({
-  Trophy: ({ className, weight }: any) => (
-    <span data-testid="icon-trophy" className={className}>
-      Trophy
-    </span>
-  ),
-  Target: ({ className, weight }: any) => (
-    <span data-testid="icon-target" className={className}>
-      Target
-    </span>
-  ),
-  BookOpen: ({ className, weight }: any) => (
-    <span data-testid="icon-book" className={className}>
-      Book
-    </span>
-  ),
-}));
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
+  return {
+    ...actual,
+    Trophy: ({ className }: any) => (
+      <span data-testid="icon-trophy" className={className}>
+        Trophy
+      </span>
+    ),
+    Target: ({ className }: any) => (
+      <span data-testid="icon-target" className={className}>
+        Target
+      </span>
+    ),
+    BookOpen: ({ className }: any) => (
+      <span data-testid="icon-book" className={className}>
+        Book
+      </span>
+    ),
+  };
+});
 
 describe('ProgressOverviewCard', () => {
   const defaultData: StudyProgressData = {
@@ -184,7 +188,7 @@ describe('ProgressOverviewCard', () => {
 
       const card = container.firstChild as HTMLElement;
       expect(card.classList.contains('bg-white')).toBe(true);
-      expect(card.classList.contains('rounded-2xl')).toBe(true);
+      expect(card.classList.contains('rounded-card')).toBe(true);
     });
 
     it('should apply indigo styling to total studied card', () => {

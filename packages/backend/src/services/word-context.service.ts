@@ -97,12 +97,56 @@ export interface ContextStats {
 // ==================== 服务类 ====================
 
 export class WordContextService {
+  private async assertWordAccessible(
+    wordId: string,
+    userId: string,
+  ): Promise<{ id: string; spelling: string }> {
+    const word = await prisma.word.findFirst({
+      where: {
+        id: wordId,
+        wordBook: {
+          OR: [{ type: 'SYSTEM' }, { type: 'USER', userId }],
+        },
+      },
+      select: { id: true, spelling: true },
+    });
+
+    if (!word) {
+      throw new Error('单词不存在或无权访问');
+    }
+
+    return word;
+  }
+
+  private async assertContextAccessible(
+    contextId: string,
+    userId: string,
+  ): Promise<{ id: string; wordId: string; contextType: ContextType }> {
+    const context = await prisma.wordContext.findFirst({
+      where: {
+        id: contextId,
+        word: {
+          wordBook: {
+            OR: [{ type: 'SYSTEM' }, { type: 'USER', userId }],
+          },
+        },
+      },
+      select: { id: true, wordId: true, contextType: true },
+    });
+
+    if (!context) {
+      throw new Error('语境不存在或无权访问');
+    }
+
+    return context;
+  }
+
   // ==================== 语境管理 ====================
 
   /**
    * 添加语境
    */
-  async addContext(request: CreateContextRequest): Promise<WordContextData> {
+  async addContext(userId: string, request: CreateContextRequest): Promise<WordContextData> {
     const { wordId, contextType, content, metadata } = request;
 
     logger.debug(
@@ -114,15 +158,7 @@ export class WordContextService {
       '[WordContext] 添加语境',
     );
 
-    // 验证单词是否存在
-    const word = await prisma.word.findUnique({
-      where: { id: wordId },
-      select: { id: true, spelling: true },
-    });
-
-    if (!word) {
-      throw new Error(`单词不存在: ${wordId}`);
-    }
+    const word = await this.assertWordAccessible(wordId, userId);
 
     // 创建语境记录
     const context = await prisma.wordContext.create({
@@ -150,8 +186,23 @@ export class WordContextService {
   /**
    * 批量添加语境
    */
-  async addContexts(requests: CreateContextRequest[]): Promise<WordContextData[]> {
+  async addContexts(userId: string, requests: CreateContextRequest[]): Promise<WordContextData[]> {
     logger.debug({ count: requests.length }, '[WordContext] 批量添加语境');
+
+    // 校验所有 wordId 权限（避免批量接口写入越权数据）
+    const uniqueWordIds = Array.from(new Set(requests.map((r) => r.wordId)));
+    const accessibleWords = await prisma.word.findMany({
+      where: {
+        id: { in: uniqueWordIds },
+        wordBook: {
+          OR: [{ type: 'SYSTEM' }, { type: 'USER', userId }],
+        },
+      },
+      select: { id: true },
+    });
+    if (accessibleWords.length !== uniqueWordIds.length) {
+      throw new Error('批量语境包含不存在或无权访问的单词');
+    }
 
     const contexts = await prisma.$transaction(
       requests.map((request) =>
@@ -174,7 +225,11 @@ export class WordContextService {
   /**
    * 获取单词的语境列表
    */
-  async getContexts(wordId: string, options: GetContextsOptions = {}): Promise<WordContextData[]> {
+  async getContexts(
+    userId: string,
+    wordId: string,
+    options: GetContextsOptions = {},
+  ): Promise<WordContextData[]> {
     const {
       type,
       difficulty,
@@ -187,6 +242,8 @@ export class WordContextService {
 
     logger.debug({ wordId, options }, '[WordContext] 获取语境列表');
 
+    await this.assertWordAccessible(wordId, userId);
+
     // 构建查询条件
     const where: any = { wordId };
 
@@ -195,20 +252,27 @@ export class WordContextService {
     }
 
     // 元数据过滤（使用 JSON 过滤）
+    // 注意：difficulty 与 tags 需要可组合过滤，不能互相覆盖
+    const metadataFilters: any[] = [];
     if (difficulty) {
-      where.metadata = {
-        path: ['difficulty'],
-        equals: difficulty,
-      };
+      metadataFilters.push({
+        metadata: {
+          path: ['difficulty'],
+          equals: difficulty,
+        },
+      });
     }
-
     if (tags && tags.length > 0) {
-      // 注意：Prisma 的 JSON 过滤可能需要数据库原生支持
-      // 这里使用简化实现，实际生产环境可能需要更复杂的查询
-      where.metadata = {
-        path: ['tags'],
-        array_contains: tags,
-      };
+      // 注意：Prisma 的 JSON 过滤依赖数据库原生支持
+      metadataFilters.push({
+        metadata: {
+          path: ['tags'],
+          array_contains: tags,
+        },
+      });
+    }
+    if (metadataFilters.length > 0) {
+      where.AND = metadataFilters;
     }
 
     // 排序
@@ -221,6 +285,26 @@ export class WordContextService {
       orderBy.createdAt = sortOrder;
     }
 
+    const needsInMemorySort = sortBy === 'usageCount' || sortBy === 'effectivenessScore';
+
+    // 对于元数据字段排序：先取更大的候选集，再在内存中排序并做分页，
+    // 避免 “先分页再排序” 导致推荐结果失真（尤其是 recommendContextsForWords 的 top-N 场景）。
+    if (needsInMemorySort) {
+      const MAX_CANDIDATES = 1000;
+      const CANDIDATE_BUFFER = 200;
+      const candidateTake = Math.min(MAX_CANDIDATES, limit + offset + CANDIDATE_BUFFER);
+
+      const contexts = await prisma.wordContext.findMany({
+        where,
+        orderBy,
+        take: candidateTake,
+      });
+
+      const sorted = this.sortByMetadata(contexts, sortBy, sortOrder);
+      const paged = sorted.slice(offset, offset + limit);
+      return paged.map((context) => this.mapContextData(context));
+    }
+
     const contexts = await prisma.wordContext.findMany({
       where,
       orderBy,
@@ -228,23 +312,20 @@ export class WordContextService {
       skip: offset,
     });
 
-    // 如果是按元数据字段排序，需要在内存中排序
-    let sortedContexts = contexts;
-    if (sortBy === 'usageCount' || sortBy === 'effectivenessScore') {
-      sortedContexts = this.sortByMetadata(contexts, sortBy, sortOrder);
-    }
-
-    return sortedContexts.map((context) => this.mapContextData(context));
+    return contexts.map((context) => this.mapContextData(context));
   }
 
   /**
    * 获取随机语境
    */
   async getRandomContext(
+    userId: string,
     wordId: string,
     options: { type?: ContextType; difficulty?: 'easy' | 'medium' | 'hard' } = {},
   ): Promise<WordContextData | null> {
     logger.debug({ wordId, options }, '[WordContext] 获取随机语境');
+
+    await this.assertWordAccessible(wordId, userId);
 
     const { type, difficulty } = options;
 
@@ -289,8 +370,14 @@ export class WordContextService {
   /**
    * 更新语境内容
    */
-  async updateContext(contextId: string, content: string): Promise<WordContextData> {
+  async updateContext(
+    userId: string,
+    contextId: string,
+    content: string,
+  ): Promise<WordContextData> {
     logger.debug({ contextId, contentLength: content.length }, '[WordContext] 更新语境内容');
+
+    await this.assertContextAccessible(contextId, userId);
 
     const context = await prisma.wordContext.update({
       where: { id: contextId },
@@ -306,10 +393,13 @@ export class WordContextService {
    * 更新语境元数据
    */
   async updateContextMetadata(
+    userId: string,
     contextId: string,
     metadata: UpdateContextMetadataRequest,
   ): Promise<WordContextData> {
     logger.debug({ contextId, metadata }, '[WordContext] 更新语境元数据');
+
+    await this.assertContextAccessible(contextId, userId);
 
     // 获取现有元数据
     const existingContext = await prisma.wordContext.findUnique({
@@ -339,8 +429,10 @@ export class WordContextService {
   /**
    * 删除语境
    */
-  async deleteContext(contextId: string): Promise<void> {
+  async deleteContext(userId: string, contextId: string): Promise<void> {
     logger.debug({ contextId }, '[WordContext] 删除语境');
+
+    await this.assertContextAccessible(contextId, userId);
 
     await prisma.wordContext.delete({
       where: { id: contextId },
@@ -352,8 +444,22 @@ export class WordContextService {
   /**
    * 批量删除语境
    */
-  async deleteContexts(contextIds: string[]): Promise<number> {
+  async deleteContexts(userId: string, contextIds: string[]): Promise<number> {
     logger.debug({ count: contextIds.length }, '[WordContext] 批量删除语境');
+
+    const accessibleCount = await prisma.wordContext.count({
+      where: {
+        id: { in: contextIds },
+        word: {
+          wordBook: {
+            OR: [{ type: 'SYSTEM' }, { type: 'USER', userId }],
+          },
+        },
+      },
+    });
+    if (accessibleCount !== contextIds.length) {
+      throw new Error('批量删除包含不存在或无权访问的语境');
+    }
 
     const result = await prisma.wordContext.deleteMany({
       where: { id: { in: contextIds } },
@@ -369,8 +475,10 @@ export class WordContextService {
   /**
    * 获取单词的语境统计
    */
-  async getContextStats(wordId: string): Promise<ContextStats> {
+  async getContextStats(userId: string, wordId: string): Promise<ContextStats> {
     logger.debug({ wordId }, '[WordContext] 获取语境统计');
+
+    await this.assertWordAccessible(wordId, userId);
 
     const contexts = await prisma.wordContext.findMany({
       where: { wordId },
@@ -420,8 +528,10 @@ export class WordContextService {
   /**
    * 记录语境使用
    */
-  async recordContextUsage(contextId: string): Promise<void> {
+  async recordContextUsage(userId: string, contextId: string): Promise<void> {
     logger.debug({ contextId }, '[WordContext] 记录语境使用');
+
+    await this.assertContextAccessible(contextId, userId);
 
     // 获取现有元数据
     const context = await prisma.wordContext.findUnique({
@@ -455,12 +565,14 @@ export class WordContextService {
   /**
    * 更新语境效果评分
    */
-  async updateEffectivenessScore(contextId: string, score: number): Promise<void> {
+  async updateEffectivenessScore(userId: string, contextId: string, score: number): Promise<void> {
     if (score < 0 || score > 1) {
       throw new Error(`无效的效果评分: ${score}（应在 0-1 之间）`);
     }
 
     logger.debug({ contextId, score }, '[WordContext] 更新效果评分');
+
+    await this.assertContextAccessible(contextId, userId);
 
     // 获取现有元数据
     const context = await prisma.wordContext.findUnique({
@@ -495,6 +607,7 @@ export class WordContextService {
    * 用于在选词后提供语境强化
    */
   async recommendContextsForWords(
+    userId: string,
     wordIds: string[],
     options: {
       contextType?: ContextType;
@@ -509,7 +622,15 @@ export class WordContextService {
     const result: Record<string, WordContextData[]> = {};
 
     for (const wordId of wordIds) {
-      const contexts = await this.getContexts(wordId, {
+      // 无权限访问的单词直接返回空数组，避免数据泄露
+      try {
+        await this.assertWordAccessible(wordId, userId);
+      } catch {
+        result[wordId] = [];
+        continue;
+      }
+
+      const contexts = await this.getContexts(userId, wordId, {
         type: contextType,
         difficulty,
         limit: maxPerWord,
@@ -527,6 +648,7 @@ export class WordContextService {
    * 获取单词的最佳语境（用于学习展示）
    */
   async getBestContext(
+    userId: string,
     wordId: string,
     options: {
       preferredType?: ContextType;
@@ -544,7 +666,7 @@ export class WordContextService {
 
     // 优先获取指定类型和难度的语境
     if (preferredType && difficulty) {
-      const context = await this.getRandomContext(wordId, {
+      const context = await this.getRandomContext(userId, wordId, {
         type: preferredType,
         difficulty: difficulty as 'easy' | 'medium' | 'hard',
       });
@@ -553,14 +675,14 @@ export class WordContextService {
 
     // 退化：获取任意类型但符合难度的语境
     if (difficulty) {
-      const context = await this.getRandomContext(wordId, {
+      const context = await this.getRandomContext(userId, wordId, {
         difficulty: difficulty as 'easy' | 'medium' | 'hard',
       });
       if (context) return context;
     }
 
     // 再退化：获取任意语境
-    return await this.getRandomContext(wordId);
+    return await this.getRandomContext(userId, wordId);
   }
 
   // ==================== 私有辅助方法 ====================

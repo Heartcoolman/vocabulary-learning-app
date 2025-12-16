@@ -70,7 +70,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
 
   if (!analyticsData) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
+      <div className="rounded-card border border-gray-200 bg-white p-12 text-center">
         <CalendarBlank size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
         <p className="text-lg text-gray-500">暂无学习数据</p>
         <p className="mt-2 text-sm text-gray-400">用户尚未开始学习</p>
@@ -83,7 +83,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       {/* 学习概况卡片 */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* 平均响应时间 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center justify-between">
             <Lightning size={32} weight="duotone" className="text-yellow-500" />
           </div>
@@ -94,7 +94,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
         </div>
 
         {/* 学习偏好时段 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center justify-between">
             <Clock size={32} weight="duotone" className="text-indigo-500" />
           </div>
@@ -109,7 +109,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
         </div>
 
         {/* 最活跃时段 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center justify-between">
             <Flame size={32} weight="duotone" className="text-orange-500" />
           </div>
@@ -121,7 +121,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 30天学习活动热力图 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
         <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
           <CalendarBlank size={24} weight="duotone" className="text-blue-500" />
           30天学习活动热力图
@@ -161,7 +161,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 学习时段分布 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
         <h2 className="mb-6 text-xl font-bold text-gray-900">24小时学习时段分布</h2>
         <div className="flex h-64 items-end gap-1">
           {analyticsData.hourDistribution.map((count, hour) => {
@@ -191,7 +191,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 准确率趋势 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
         <h2 className="mb-6 text-xl font-bold text-gray-900">每日准确率趋势</h2>
         <div className="flex h-64 items-end gap-2">
           {analyticsData.dailyAccuracyTrend.map((point, index) => (
@@ -219,28 +219,28 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 学习模式分析 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
         <h2 className="mb-6 text-xl font-bold text-gray-900">学习模式分析</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className="rounded-lg bg-blue-50 p-4 text-center">
+          <div className="rounded-button bg-blue-50 p-4 text-center">
             <div className="mb-1 text-2xl font-bold text-blue-600">
               {analyticsData.learningPattern.morning}
             </div>
             <div className="text-sm text-gray-600">上午 (6-12点)</div>
           </div>
-          <div className="rounded-lg bg-green-50 p-4 text-center">
+          <div className="rounded-button bg-green-50 p-4 text-center">
             <div className="mb-1 text-2xl font-bold text-green-600">
               {analyticsData.learningPattern.afternoon}
             </div>
             <div className="text-sm text-gray-600">下午 (12-18点)</div>
           </div>
-          <div className="rounded-lg bg-orange-50 p-4 text-center">
+          <div className="rounded-button bg-orange-50 p-4 text-center">
             <div className="mb-1 text-2xl font-bold text-orange-600">
               {analyticsData.learningPattern.evening}
             </div>
             <div className="text-sm text-gray-600">傍晚 (18-24点)</div>
           </div>
-          <div className="rounded-lg bg-purple-50 p-4 text-center">
+          <div className="rounded-button bg-purple-50 p-4 text-center">
             <div className="mb-1 text-2xl font-bold text-purple-600">
               {analyticsData.learningPattern.night}
             </div>
@@ -251,7 +251,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
 
       {/* 薄弱环节识别 */}
       {analyticsData.weakWords.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
             <Target size={24} weight="duotone" className="text-red-500" />
             薄弱环节识别
@@ -260,7 +260,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
             {analyticsData.weakWords.map((word, index) => (
               <div
                 key={word.wordId}
-                className="flex items-center justify-between rounded-lg bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                className="flex items-center justify-between rounded-button bg-gray-50 p-4 transition-colors hover:bg-gray-100"
               >
                 <div className="flex items-center gap-4">
                   <div className="text-lg font-semibold text-gray-400">#{index + 1}</div>
@@ -300,7 +300,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       )}
 
       {/* 导出学习报告按钮 */}
-      <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+      <div className="rounded-card border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="mb-1 text-lg font-semibold text-gray-900">导出学习报告</h3>
@@ -309,7 +309,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
           <button
             onClick={() => onExport('excel')}
             disabled={isExporting}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-blue-600 px-6 py-3 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download size={20} weight="bold" />
             <span>{isExporting ? '导出中...' : '导出报告'}</span>

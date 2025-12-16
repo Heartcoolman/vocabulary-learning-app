@@ -2,6 +2,23 @@ import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import seedrandom from 'seedrandom';
 
+// ==================== Global Middleware Mocks ====================
+
+// Integration tests focus on route/service behavior; CSRF is covered elsewhere and would
+// otherwise require every non-exempt POST/PUT/DELETE/PATCH test to manage tokens/cookies.
+vi.mock('../src/middleware/csrf.middleware', () => ({
+  csrfTokenMiddleware: (_req: any, _res: any, next: any) => next(),
+  csrfValidationMiddleware: (_req: any, _res: any, next: any) => next(),
+  getCsrfToken: () => null,
+  refreshCsrfToken: () => 'test-csrf-token',
+  default: {
+    csrfTokenMiddleware: (_req: any, _res: any, next: any) => next(),
+    csrfValidationMiddleware: (_req: any, _res: any, next: any) => next(),
+    getCsrfToken: () => null,
+    refreshCsrfToken: () => 'test-csrf-token',
+  },
+}));
+
 // ==================== Deterministic Randomness ====================
 
 const originalRandom = Math.random;
@@ -37,12 +54,13 @@ export function restoreRandom(): void {
 
 // ==================== Database Setup ====================
 
-const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ||
+const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ||
   'postgresql://test_user:test_password@localhost:5433/vocabulary_test';
 
 export const prisma = new PrismaClient({
   datasourceUrl: TEST_DATABASE_URL,
-  log: process.env.DEBUG ? ['query', 'info', 'warn', 'error'] : ['error']
+  log: process.env.DEBUG ? ['query', 'info', 'warn', 'error'] : ['error'],
 });
 
 /**
@@ -59,7 +77,7 @@ export async function cleanDatabase(): Promise<void> {
     'PersistedAMASState',
     'UserStateHistory',
     'LearningSession',
-    'AnomalyFlag'
+    'AnomalyFlag',
   ];
 
   for (const table of tablesToClean) {
@@ -90,7 +108,7 @@ export const mockLogger = {
   debug: vi.fn(),
   trace: vi.fn(),
   fatal: vi.fn(),
-  child: vi.fn().mockReturnThis()
+  child: vi.fn().mockReturnThis(),
 };
 
 /**
@@ -101,7 +119,7 @@ export const mockTelemetry = {
   histogram: vi.fn(),
   increment: vi.fn(),
   gauge: vi.fn(),
-  timing: vi.fn()
+  timing: vi.fn(),
 };
 
 // ==================== Redis Mock ====================
@@ -131,13 +149,13 @@ export const mockRedis = {
   }),
   keys: vi.fn(async (pattern: string) => {
     const regex = new RegExp(pattern.replace('*', '.*'));
-    return Array.from(redisStore.keys()).filter(k => regex.test(k));
+    return Array.from(redisStore.keys()).filter((k) => regex.test(k));
   }),
   flushall: vi.fn(async () => {
     redisStore.clear();
     return 'OK';
   }),
-  quit: vi.fn()
+  quit: vi.fn(),
 };
 
 export function clearRedisStore(): void {
@@ -147,11 +165,19 @@ export function clearRedisStore(): void {
 // ==================== Test Lifecycle Hooks ====================
 
 beforeAll(async () => {
-  // Connect to test database
+  // Connect to test database (required by DB-backed integration tests and factories)
+  // Set SKIP_TEST_DB=true to bypass this check for pure unit-test runs.
+  if (process.env.SKIP_TEST_DB === 'true') {
+    return;
+  }
+
   try {
     await prisma.$connect();
   } catch (error) {
-    console.warn('Database connection failed, some tests may be skipped:', error);
+    const guidance =
+      `Test database connection failed: ${TEST_DATABASE_URL}\n` +
+      `Start test services with: pnpm --filter @danci/backend test:db:up`;
+    throw new Error(`${guidance}\n${error instanceof Error ? error.message : String(error)}`);
   }
 });
 
@@ -182,12 +208,12 @@ afterEach(() => {
 export async function waitFor(
   condition: () => boolean | Promise<boolean>,
   timeout = 5000,
-  interval = 100
+  interval = 100,
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     if (await condition()) return;
-    await new Promise(resolve => setTimeout(resolve, interval));
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
   throw new Error('waitFor timeout');
 }
@@ -196,7 +222,7 @@ export async function waitFor(
  * Create a delay
  */
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

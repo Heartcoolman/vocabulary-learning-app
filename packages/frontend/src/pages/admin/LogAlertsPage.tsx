@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Bell, Plus, Trash, Warning, CircleNotch, Pencil, X } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
+import { adminClient } from '../../services/client';
 
 /**
  * 日志级别枚举
@@ -81,18 +82,8 @@ export default function LogAlertsPage() {
   const loadRules = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/logs/log-alerts', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('加载告警规则失败');
-      }
-
-      const data = await response.json();
-      setRules(Array.isArray(data.data) ? data.data : []);
+      const data = await adminClient.requestAdmin<LogAlertRule[]>('/api/admin/logs/log-alerts');
+      setRules(Array.isArray(data) ? data : []);
     } catch (error) {
       adminLogger.error({ err: error }, '加载告警规则失败');
       toast.error('加载告警规则失败: ' + (error instanceof Error ? error.message : '未知错误'));
@@ -111,22 +102,11 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch('/api/admin/logs/log-alerts', {
+      const newRule = await adminClient.requestAdmin<LogAlertRule>('/api/admin/logs/log-alerts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) {
-        throw new Error('创建告警规则失败');
-      }
-
-      const result = await response.json();
-      const newRule = result.data;
-      setRules([...rules, newRule]);
+      setRules((prev) => [...prev, newRule]);
       setShowCreateModal(false);
       resetForm();
       toast.success('告警规则创建成功');
@@ -148,22 +128,14 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/admin/logs/log-alerts/${editingRule.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const updatedRule = await adminClient.requestAdmin<LogAlertRule>(
+        `/api/admin/logs/log-alerts/${editingRule.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(formData),
         },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('更新告警规则失败');
-      }
-
-      const result = await response.json();
-      const updatedRule = result.data;
-      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
+      );
+      setRules((prev) => prev.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       setShowEditModal(false);
       setEditingRule(null);
       resetForm();
@@ -186,18 +158,10 @@ export default function LogAlertsPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/admin/logs/log-alerts/${deletingRuleId}`, {
+      await adminClient.requestAdmin<void>(`/api/admin/logs/log-alerts/${deletingRuleId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        },
       });
-
-      if (!response.ok) {
-        throw new Error('删除告警规则失败');
-      }
-
-      setRules(rules.filter((r) => r.id !== deletingRuleId));
+      setRules((prev) => prev.filter((r) => r.id !== deletingRuleId));
       setShowDeleteConfirm(false);
       setDeletingRuleId(null);
       toast.success('告警规则已删除');
@@ -214,25 +178,17 @@ export default function LogAlertsPage() {
    */
   const toggleRuleEnabled = async (rule: LogAlertRule) => {
     try {
-      const response = await fetch(`/api/admin/logs/log-alerts/${rule.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      const updatedRule = await adminClient.requestAdmin<LogAlertRule>(
+        `/api/admin/logs/log-alerts/${rule.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...rule,
+            enabled: !rule.enabled,
+          }),
         },
-        body: JSON.stringify({
-          ...rule,
-          enabled: !rule.enabled,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('更新规则状态失败');
-      }
-
-      const result = await response.json();
-      const updatedRule = result.data;
-      setRules(rules.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
+      );
+      setRules((prev) => prev.map((r) => (r.id === updatedRule.id ? updatedRule : r)));
       toast.success(updatedRule.enabled ? '规则已启用' : '规则已禁用');
     } catch (error) {
       adminLogger.error({ err: error, ruleId: rule.id }, '切换规则状态失败');
@@ -374,7 +330,7 @@ export default function LogAlertsPage() {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             <Plus size={20} weight="bold" />
             创建规则
@@ -384,7 +340,7 @@ export default function LogAlertsPage() {
 
       {/* 规则列表 */}
       {rules.length === 0 ? (
-        <div className="rounded-xl border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm">
           <Bell size={64} weight="duotone" className="mx-auto mb-4 text-gray-300" />
           <h3 className="mb-2 text-xl font-bold text-gray-900">暂无告警规则</h3>
           <p className="mb-6 text-gray-600">点击上方"创建规则"按钮添加第一个告警规则</p>
@@ -394,7 +350,7 @@ export default function LogAlertsPage() {
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="rounded-xl border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm transition-all duration-200 hover:shadow-lg"
+              className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -485,14 +441,14 @@ export default function LogAlertsPage() {
                 <div className="ml-4 flex items-center gap-2">
                   <button
                     onClick={() => openEditModal(rule)}
-                    className="rounded-lg p-2 text-blue-600 transition-all hover:bg-blue-50"
+                    className="rounded-button p-2 text-blue-600 transition-all hover:bg-blue-50"
                     title="编辑规则"
                   >
                     <Pencil size={20} weight="bold" />
                   </button>
                   <button
                     onClick={() => openDeleteConfirm(rule.id)}
-                    className="rounded-lg p-2 text-red-600 transition-all hover:bg-red-50"
+                    className="rounded-button p-2 text-red-600 transition-all hover:bg-red-50"
                     title="删除规则"
                   >
                     <Trash size={20} weight="bold" />
@@ -541,7 +497,7 @@ export default function LogAlertsPage() {
       {showDeleteConfirm &&
         createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-            <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl">
+            <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating">
               <div className="mb-6 text-center">
                 <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
                 <h3 className="mb-2 text-2xl font-bold text-gray-900">确认删除</h3>
@@ -555,14 +511,14 @@ export default function LogAlertsPage() {
                     setDeletingRuleId(null);
                   }}
                   disabled={isSaving}
-                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isSaving}
-                  className="flex-1 rounded-xl bg-red-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-red-600 disabled:opacity-50"
+                  className="flex-1 rounded-card bg-red-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:bg-red-600 disabled:opacity-50"
                 >
                   {isSaving ? '删除中...' : '确认删除'}
                 </button>
@@ -601,11 +557,14 @@ function RuleFormModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-xl">
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-floating">
         {/* 固定头部 */}
         <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
           <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
-          <button onClick={onCancel} className="rounded-lg p-2 transition-all hover:bg-gray-100">
+          <button
+            onClick={onCancel}
+            className="rounded-button p-2 transition-all hover:bg-gray-100"
+          >
             <X size={24} weight="bold" />
           </button>
         </div>
@@ -622,7 +581,7 @@ function RuleFormModal({
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 placeholder="例如：高频错误日志告警"
               />
             </div>
@@ -634,7 +593,7 @@ function RuleFormModal({
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={2}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 placeholder="简要描述此规则的用途"
               />
             </div>
@@ -650,7 +609,7 @@ function RuleFormModal({
                     key={level}
                     type="button"
                     onClick={() => toggleLevel(level)}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                    className={`rounded-button px-4 py-2 text-sm font-medium transition-all ${
                       formData.levels.includes(level)
                         ? `${getLevelColor(level)} ring-2 ring-offset-2`
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -671,7 +630,7 @@ function RuleFormModal({
                 type="text"
                 value={formData.module}
                 onChange={(e) => setFormData({ ...formData, module: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 placeholder="例如：amas.*（留空表示匹配所有模块）"
               />
               <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
@@ -686,7 +645,7 @@ function RuleFormModal({
                 type="text"
                 value={formData.messagePattern}
                 onChange={(e) => setFormData({ ...formData, messagePattern: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 placeholder="例如：database.*error（留空表示匹配所有消息）"
               />
               <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
@@ -705,7 +664,7 @@ function RuleFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -719,7 +678,7 @@ function RuleFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -733,7 +692,7 @@ function RuleFormModal({
                 type="url"
                 value={formData.webhookUrl}
                 onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/webhook"
               />
               <p className="mt-1 text-xs text-gray-500">告警触发时将发送 POST 请求到此 URL</p>
@@ -751,7 +710,7 @@ function RuleFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })
                 }
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">同一规则在冷却时间内不会重复发送告警</p>
             </div>
@@ -777,14 +736,14 @@ function RuleFormModal({
           <button
             onClick={onCancel}
             disabled={isSaving}
-            className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-200 hover:bg-gray-200 disabled:opacity-50"
+            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50"
           >
             取消
           </button>
           <button
             onClick={onSubmit}
             disabled={isSaving}
-            className="flex-1 rounded-xl bg-blue-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:bg-blue-600 disabled:opacity-50"
+            className="flex-1 rounded-card bg-blue-500 px-6 py-3 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:bg-blue-600 disabled:opacity-50"
           >
             {isSaving ? '保存中...' : '保存'}
           </button>

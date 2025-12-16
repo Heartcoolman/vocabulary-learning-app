@@ -66,7 +66,7 @@ router.post('/', async (req: AuthRequest, res: Response, next) => {
       });
     }
 
-    const context = await wordContextService.addContext({
+    const context = await wordContextService.addContext(req.user!.id, {
       wordId,
       contextType: contextType as ContextType,
       content,
@@ -121,7 +121,7 @@ router.post('/batch', async (req: AuthRequest, res: Response, next) => {
       }
     }
 
-    const contexts = await wordContextService.addContexts(requests);
+    const contexts = await wordContextService.addContexts(req.user!.id, requests);
 
     res.status(201).json({
       success: true,
@@ -149,7 +149,7 @@ router.get('/word/:wordId', async (req: AuthRequest, res: Response, next) => {
     const { wordId } = req.params;
     const { type, difficulty, limit, offset, sortBy, sortOrder } = req.query;
 
-    const contexts = await wordContextService.getContexts(wordId, {
+    const contexts = await wordContextService.getContexts(req.user!.id, wordId, {
       type: type as ContextType | undefined,
       difficulty: difficulty as 'easy' | 'medium' | 'hard' | undefined,
       limit: limit ? parseInt(limit as string, 10) : 20,
@@ -180,7 +180,7 @@ router.get('/word/:wordId/random', async (req: AuthRequest, res: Response, next)
     const { wordId } = req.params;
     const { type, difficulty } = req.query;
 
-    const context = await wordContextService.getRandomContext(wordId, {
+    const context = await wordContextService.getRandomContext(req.user!.id, wordId, {
       type: type as ContextType | undefined,
       difficulty: difficulty as 'easy' | 'medium' | 'hard' | undefined,
     });
@@ -215,7 +215,7 @@ router.get('/word/:wordId/best', async (req: AuthRequest, res: Response, next) =
     const { wordId } = req.params;
     const { preferredType, userLevel } = req.query;
 
-    const context = await wordContextService.getBestContext(wordId, {
+    const context = await wordContextService.getBestContext(req.user!.id, wordId, {
       preferredType: preferredType as ContextType | undefined,
       userLevel: userLevel as 'beginner' | 'intermediate' | 'advanced' | undefined,
     });
@@ -245,7 +245,7 @@ router.get('/word/:wordId/stats', async (req: AuthRequest, res: Response, next) 
   try {
     const { wordId } = req.params;
 
-    const stats = await wordContextService.getContextStats(wordId);
+    const stats = await wordContextService.getContextStats(req.user!.id, wordId);
 
     res.json({
       success: true,
@@ -278,7 +278,7 @@ router.put('/:contextId/content', async (req: AuthRequest, res: Response, next) 
       });
     }
 
-    const context = await wordContextService.updateContext(contextId, content);
+    const context = await wordContextService.updateContext(req.user!.id, contextId, content);
 
     res.json({
       success: true,
@@ -311,7 +311,11 @@ router.put('/:contextId/metadata', async (req: AuthRequest, res: Response, next)
     const { contextId } = req.params;
     const metadata = req.body;
 
-    const context = await wordContextService.updateContextMetadata(contextId, metadata);
+    const context = await wordContextService.updateContextMetadata(
+      req.user!.id,
+      contextId,
+      metadata,
+    );
 
     res.json({
       success: true,
@@ -330,7 +334,7 @@ router.post('/:contextId/usage', async (req: AuthRequest, res: Response, next) =
   try {
     const { contextId } = req.params;
 
-    await wordContextService.recordContextUsage(contextId);
+    await wordContextService.recordContextUsage(req.user!.id, contextId);
 
     res.json({
       success: true,
@@ -363,7 +367,7 @@ router.put('/:contextId/effectiveness', async (req: AuthRequest, res: Response, 
       });
     }
 
-    await wordContextService.updateEffectivenessScore(contextId, score);
+    await wordContextService.updateEffectivenessScore(req.user!.id, contextId, score);
 
     res.json({
       success: true,
@@ -382,7 +386,7 @@ router.delete('/:contextId', async (req: AuthRequest, res: Response, next) => {
   try {
     const { contextId } = req.params;
 
-    await wordContextService.deleteContext(contextId);
+    await wordContextService.deleteContext(req.user!.id, contextId);
 
     logger.info({ contextId }, '[WordContext] 语境已删除');
 
@@ -416,7 +420,7 @@ router.delete('/batch', async (req: AuthRequest, res: Response, next) => {
       });
     }
 
-    const count = await wordContextService.deleteContexts(contextIds);
+    const count = await wordContextService.deleteContexts(req.user!.id, contextIds);
 
     res.json({
       success: true,
@@ -451,7 +455,7 @@ router.post('/recommend', async (req: AuthRequest, res: Response, next) => {
       });
     }
 
-    const contexts = await wordContextService.recommendContextsForWords(wordIds, {
+    const contexts = await wordContextService.recommendContextsForWords(req.user!.id, wordIds, {
       contextType: contextType as ContextType | undefined,
       difficulty: difficulty as 'easy' | 'medium' | 'hard' | undefined,
       maxPerWord,

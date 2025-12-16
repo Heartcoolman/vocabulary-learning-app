@@ -75,13 +75,13 @@ export default function FlashcardPage() {
           <div className="flex justify-center gap-4">
             <button
               onClick={resetSession}
-              className="rounded-lg bg-blue-500 px-6 py-3 text-white hover:bg-blue-600"
+              className="rounded-button bg-blue-500 px-6 py-3 text-white hover:bg-blue-600"
             >
               重新开始
             </button>
             <button
               onClick={() => navigate('/learn')}
-              className="rounded-lg bg-gray-100 px-6 py-3 hover:bg-gray-200"
+              className="rounded-button bg-gray-100 px-6 py-3 hover:bg-gray-200"
             >
               返回学习
             </button>
@@ -104,7 +104,10 @@ export default function FlashcardPage() {
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="mx-auto w-full max-w-4xl p-4">
         <div className="mb-4 flex items-center gap-4">
-          <button onClick={() => navigate('/learn')} className="rounded-lg p-2 hover:bg-gray-100">
+          <button
+            onClick={() => navigate('/learn')}
+            className="rounded-button p-2 hover:bg-gray-100"
+          >
             <ArrowLeft size={24} />
           </button>
           <h1 className="text-xl font-bold">闪记模式</h1>

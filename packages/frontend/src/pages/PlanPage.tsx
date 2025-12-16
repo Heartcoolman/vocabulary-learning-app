@@ -204,7 +204,7 @@ export default function PlanPage() {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={loadData}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -227,13 +227,13 @@ export default function PlanPage() {
 
         {/* 无计划时显示创建按钮 */}
         {!plan ? (
-          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
             <Calendar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800">还没有学习计划</h2>
             <p className="mb-6 text-blue-600">创建一个智能学习计划，让学习更有目标</p>
             <button
               onClick={() => setShowGenerateModal(true)}
-              className="mx-auto flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="mx-auto flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               <Plus size={20} weight="bold" />
               创建学习计划
@@ -244,7 +244,7 @@ export default function PlanPage() {
             {/* 每日目标卡片 */}
             <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {/* 今日目标 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                     <Target size={24} weight="duotone" color="#2563eb" />
@@ -264,7 +264,7 @@ export default function PlanPage() {
                     </div>
                     <div className="h-2 w-full rounded-full bg-gray-200">
                       <div
-                        className="h-2 rounded-full bg-blue-500 transition-all duration-500"
+                        className="h-2 rounded-full bg-blue-500 transition-all duration-g3-slow"
                         style={{
                           width: `${Math.min((progress.completedToday / progress.targetToday) * 100, 100)}%`,
                         }}
@@ -275,7 +275,7 @@ export default function PlanPage() {
               </div>
 
               {/* 本周进度 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                     <CheckCircle size={24} weight="duotone" color="#16a34a" />
@@ -290,7 +290,7 @@ export default function PlanPage() {
                 {progress && (
                   <div className="h-2 w-full rounded-full bg-gray-200">
                     <div
-                      className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                      className="h-2 rounded-full bg-green-500 transition-all duration-g3-slow"
                       style={{ width: `${progress.weeklyProgress}%` }}
                     />
                   </div>
@@ -298,7 +298,7 @@ export default function PlanPage() {
               </div>
 
               {/* 总体进度 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                     <ChartBar size={24} weight="duotone" color="#9333ea" />
@@ -313,7 +313,7 @@ export default function PlanPage() {
                 {progress && (
                   <div className="h-2 w-full rounded-full bg-gray-200">
                     <div
-                      className="h-2 rounded-full bg-purple-500 transition-all duration-500"
+                      className="h-2 rounded-full bg-purple-500 transition-all duration-g3-slow"
                       style={{ width: `${progress.overallProgress}%` }}
                     />
                   </div>
@@ -321,7 +321,7 @@ export default function PlanPage() {
               </div>
 
               {/* 计划状态 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">
                   <div
                     className={`flex h-12 w-12 items-center justify-center rounded-full ${
@@ -357,7 +357,7 @@ export default function PlanPage() {
             {/* 预计完成日期和词书分配 */}
             <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* 预计完成日期 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                   <Calendar size={24} weight="duotone" color="#3b82f6" />
                   预计完成日期
@@ -381,7 +381,7 @@ export default function PlanPage() {
               </div>
 
               {/* 词书分配饼图 */}
-              <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                   <Books size={24} weight="duotone" color="#a855f7" />
                   词书分配
@@ -423,7 +423,7 @@ export default function PlanPage() {
 
             {/* 周里程碑 */}
             {plan.weeklyMilestones && plan.weeklyMilestones.length > 0 && (
-              <div className="mb-8 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                   <Target size={24} weight="duotone" color="#f59e0b" />
                   周里程碑
@@ -432,7 +432,7 @@ export default function PlanPage() {
                   {plan.weeklyMilestones.map((milestone, index) => (
                     <div
                       key={index}
-                      className={`flex items-center gap-4 rounded-xl border-2 p-4 transition-all ${
+                      className={`flex items-center gap-4 rounded-card border-2 p-4 transition-all ${
                         milestone.completed
                           ? 'border-green-300 bg-green-50'
                           : 'border-gray-200 bg-gray-50'
@@ -472,7 +472,7 @@ export default function PlanPage() {
             <div className="flex flex-wrap justify-center gap-4">
               <button
                 onClick={() => setShowGenerateModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+                className="flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
               >
                 <Plus size={20} weight="bold" />
                 重新生成计划
@@ -480,7 +480,7 @@ export default function PlanPage() {
               <button
                 onClick={handleAdjustPlan}
                 disabled={isAdjusting}
-                className="flex items-center gap-2 rounded-lg bg-gray-100 px-6 py-3 text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-button bg-gray-100 px-6 py-3 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:opacity-50"
               >
                 {isAdjusting ? (
                   <CircleNotch className="animate-spin" size={20} weight="bold" />
@@ -491,7 +491,7 @@ export default function PlanPage() {
               </button>
               <button
                 onClick={() => navigate('/learning')}
-                className="flex items-center gap-2 rounded-lg bg-green-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-green-600 active:scale-95"
+                className="flex items-center gap-2 rounded-button bg-green-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-green-600 active:scale-95"
               >
                 开始学习
                 <ArrowRight size={20} weight="bold" />
@@ -507,7 +507,7 @@ export default function PlanPage() {
             onClick={() => setShowGenerateModal(false)}
           >
             <div
-              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-xl"
+              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating"
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900">
@@ -532,7 +532,7 @@ export default function PlanPage() {
                         dailyTarget: parseInt(e.target.value) || 20,
                       }))
                     }
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">建议范围：10-50 词/天</p>
                 </div>
@@ -553,7 +553,7 @@ export default function PlanPage() {
                         targetDays: parseInt(e.target.value) || 30,
                       }))
                     }
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">建议范围：7-90 天</p>
                 </div>
@@ -562,14 +562,14 @@ export default function PlanPage() {
               <div className="mt-8 flex gap-4">
                 <button
                   onClick={() => setShowGenerateModal(false)}
-                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-200 hover:bg-gray-200"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleGeneratePlan}
                   disabled={isGenerating}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95 disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-card bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95 disabled:opacity-50"
                 >
                   {isGenerating ? (
                     <>

@@ -77,7 +77,7 @@ const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry: () => void }
       <p className="mb-6 text-gray-600">{error}</p>
       <button
         onClick={onRetry}
-        className="rounded-lg bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+        className="rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
       >
         重试
       </button>
@@ -98,9 +98,9 @@ const MetricCard = ({
   trend?: 'positive' | 'negative' | 'neutral';
   subtext?: string;
 }) => (
-  <div className="animate-g3-fade-in rounded-xl border border-gray-200 bg-white/90 p-5 shadow-sm backdrop-blur">
+  <div className="animate-g3-fade-in rounded-card border border-gray-200 bg-white/90 p-5 shadow-soft backdrop-blur">
     <div className="mb-2 flex items-start justify-between">
-      <div className="rounded-lg bg-gray-50 p-2 text-gray-500">
+      <div className="rounded-button bg-gray-50 p-2 text-gray-500">
         <IconComponent size={20} weight="duotone" />
       </div>
       {trend && (
@@ -144,7 +144,7 @@ const ParamCard = ({
   const percentage = ((value - space.min) / (space.max - space.min)) * 100;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-button border border-gray-200 bg-white p-4">
       <div className="mb-2 flex items-start justify-between">
         <span className="text-sm font-medium text-gray-700">{name}</span>
         <span className="font-mono text-sm font-bold text-blue-600">{value.toFixed(4)}</span>
@@ -152,7 +152,7 @@ const ParamCard = ({
 
       <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-g3-slow"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -196,10 +196,10 @@ const HistoryChart = ({ history }: { history: OptimizationHistory[] }) => {
         return (
           <div key={index} className="group flex items-center gap-3">
             <span className="w-24 shrink-0 text-xs text-gray-500">{date}</span>
-            <div className="relative h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
+            <div className="relative h-8 flex-1 overflow-hidden rounded-button bg-gray-100">
               <div
                 style={{ width: `${height}%`, transitionDelay: `${index * 50}ms` }}
-                className="h-full rounded-lg bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
+                className="h-full rounded-button bg-gradient-to-r from-green-400 to-green-600 transition-all duration-g3-slow"
               />
             </div>
             <span className="w-20 text-right font-mono text-sm font-medium text-gray-700">
@@ -358,7 +358,7 @@ export default function OptimizationDashboard() {
         </div>
         <button
           onClick={loadAllData}
-          className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+          className="rounded-button border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
           title="刷新数据"
         >
           <ArrowsClockwise size={18} weight="bold" />
@@ -406,7 +406,7 @@ export default function OptimizationDashboard() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-card border border-gray-200 bg-white shadow-soft">
         <div className="flex overflow-x-auto border-b border-gray-200">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -433,7 +433,7 @@ export default function OptimizationDashboard() {
           {/* Tab 1: Optimization Suggestion */}
           {activeTab === 'suggestion' && (
             <div className="animate-g3-fade-in space-y-6">
-              <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-start gap-3 rounded-button border border-blue-100 bg-blue-50 p-4">
                 <Info size={20} className="mt-0.5 shrink-0 text-blue-600" weight="bold" />
                 <div className="text-sm text-blue-800">
                   <p className="mb-1 font-medium">下一个推荐参数组合</p>
@@ -457,7 +457,7 @@ export default function OptimizationDashboard() {
                   </div>
 
                   {/* Evaluation Input */}
-                  <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6">
+                  <div className="mt-6 rounded-button border border-gray-200 bg-gray-50 p-6">
                     <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
                       <CheckCircle size={20} className="text-green-600" weight="bold" />
                       记录评估结果
@@ -473,13 +473,13 @@ export default function OptimizationDashboard() {
                         max="1"
                         value={evaluationValue}
                         onChange={(e) => setEvaluationValue(e.target.value)}
-                        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                         placeholder="例如: 0.85"
                       />
                       <button
                         onClick={handleRecordEvaluation}
                         disabled={evaluating}
-                        className="rounded-lg bg-green-600 px-6 py-2 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-button bg-green-600 px-6 py-2 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {evaluating ? '记录中...' : '提交评估'}
                       </button>
@@ -500,7 +500,7 @@ export default function OptimizationDashboard() {
           {/* Tab 2: Optimization History */}
           {activeTab === 'history' && (
             <div className="animate-g3-fade-in space-y-6">
-              <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50 p-4">
+              <div className="flex items-start gap-3 rounded-button border border-amber-100 bg-amber-50 p-4">
                 <Clock size={20} className="mt-0.5 shrink-0 text-amber-600" weight="bold" />
                 <div className="text-sm text-amber-800">
                   <p className="mb-1 font-medium">历史评估记录</p>
@@ -511,7 +511,7 @@ export default function OptimizationDashboard() {
               <HistoryChart history={history} />
 
               {history.length > 0 && (
-                <div className="mt-6 rounded-lg bg-gray-50 p-4">
+                <div className="mt-6 rounded-button bg-gray-50 p-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-2xl font-bold text-gray-900">
@@ -540,7 +540,7 @@ export default function OptimizationDashboard() {
           {/* Tab 3: Best Parameters */}
           {activeTab === 'best' && (
             <div className="animate-g3-fade-in space-y-6">
-              <div className="flex items-start gap-3 rounded-lg border border-green-100 bg-green-50 p-4">
+              <div className="flex items-start gap-3 rounded-button border border-green-100 bg-green-50 p-4">
                 <Target size={20} className="mt-0.5 shrink-0 text-green-600" weight="bold" />
                 <div className="text-sm text-green-800">
                   <p className="mb-1 font-medium">当前最佳参数配置</p>
@@ -552,7 +552,7 @@ export default function OptimizationDashboard() {
 
               {bestParams?.params && bestParams.value !== null && (
                 <>
-                  <div className="rounded-lg border border-green-100 bg-gradient-to-br from-green-50 to-white p-6">
+                  <div className="rounded-button border border-green-100 bg-gradient-to-br from-green-50 to-white p-6">
                     <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">最佳性能值</h3>
                       <span className="text-3xl font-bold text-green-600">
@@ -563,7 +563,10 @@ export default function OptimizationDashboard() {
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {Object.entries(bestParams.params).map(([name, value]) => (
-                      <div key={name} className="rounded-lg border border-gray-200 bg-white p-4">
+                      <div
+                        key={name}
+                        className="rounded-button border border-gray-200 bg-white p-4"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-700">{name}</span>
                           <span className="font-mono text-lg font-bold text-gray-900">
@@ -588,7 +591,7 @@ export default function OptimizationDashboard() {
           {/* Tab 4: Control Panel */}
           {activeTab === 'control' && (
             <div className="animate-g3-fade-in space-y-6">
-              <div className="flex items-start gap-3 rounded-lg border border-purple-100 bg-purple-50 p-4">
+              <div className="flex items-start gap-3 rounded-button border border-purple-100 bg-purple-50 p-4">
                 <Gear size={20} className="mt-0.5 shrink-0 text-purple-600" weight="bold" />
                 <div className="text-sm text-purple-800">
                   <p className="mb-1 font-medium">优化器控制面板</p>
@@ -598,9 +601,9 @@ export default function OptimizationDashboard() {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {/* Trigger Optimization */}
-                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
+                <div className="space-y-4 rounded-button border border-gray-200 bg-white p-6">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
+                    <div className="rounded-button bg-blue-50 p-3 text-blue-600">
                       <Play size={24} weight="fill" />
                     </div>
                     <div>
@@ -611,16 +614,16 @@ export default function OptimizationDashboard() {
                   <button
                     onClick={handleTriggerOptimization}
                     disabled={triggering}
-                    className="w-full rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {triggering ? '触发中...' : '触发优化'}
                   </button>
                 </div>
 
                 {/* Reset Optimizer */}
-                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
+                <div className="space-y-4 rounded-button border border-gray-200 bg-white p-6">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-red-50 p-3 text-red-600">
+                    <div className="rounded-button bg-red-50 p-3 text-red-600">
                       <ArrowCounterClockwise size={24} weight="bold" />
                     </div>
                     <div>
@@ -631,7 +634,7 @@ export default function OptimizationDashboard() {
                   <button
                     onClick={() => setShowResetConfirm(true)}
                     disabled={resetting}
-                    className="w-full rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-button bg-red-600 px-6 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {resetting ? '重置中...' : '重置优化器'}
                   </button>
@@ -643,7 +646,7 @@ export default function OptimizationDashboard() {
           {/* Tab 5: Diagnostics */}
           {activeTab === 'diagnostics' && (
             <div className="animate-g3-fade-in space-y-6">
-              <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-start gap-3 rounded-button border border-gray-200 bg-gray-50 p-4">
                 <Activity size={20} className="mt-0.5 shrink-0 text-gray-600" weight="bold" />
                 <div className="text-sm text-gray-800">
                   <p className="mb-1 font-medium">优化器诊断信息</p>
@@ -652,7 +655,7 @@ export default function OptimizationDashboard() {
               </div>
 
               {diagnostics && (
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <div className="overflow-hidden rounded-button border border-gray-200 bg-white">
                   <button
                     onClick={() => setExpandedDiagnostics(!expandedDiagnostics)}
                     className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"

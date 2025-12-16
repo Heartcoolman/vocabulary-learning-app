@@ -240,13 +240,13 @@ describe('MotivationCard', () => {
     it('should render card with rounded corners', () => {
       const { container } = render(<MotivationCard streak={5} level={60} trend="stable" />);
 
-      expect(container.querySelector('.rounded-2xl')).toBeInTheDocument();
+      expect(container.querySelector('.rounded-card')).toBeInTheDocument();
     });
 
     it('should have hover shadow effect', () => {
       const { container } = render(<MotivationCard streak={5} level={60} trend="stable" />);
 
-      expect(container.querySelector('.hover\\:shadow-md')).toBeInTheDocument();
+      expect(container.querySelector('.hover\\:shadow-elevated')).toBeInTheDocument();
     });
 
     it('should have orange background blur effect', () => {

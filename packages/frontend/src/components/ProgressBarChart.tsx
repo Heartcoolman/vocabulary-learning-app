@@ -48,7 +48,7 @@ const ProgressBarChart: React.FC<ProgressBarChartProps> = ({ data, height = 40 }
                 aria-label={`${item.label}: ${clampedPercentage.toFixed(0)}%`}
               >
                 <div
-                  className={`h-full ${barColor} rounded-full transition-all duration-500 ease-out`}
+                  className={`h-full ${barColor} rounded-full transition-all duration-g3-slow ease-g3`}
                   style={{ width: `${clampedPercentage}%` }}
                 />
               </div>

@@ -124,7 +124,7 @@ export default function LearningTimePage() {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={loadData}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -148,9 +148,9 @@ export default function LearningTimePage() {
         {/* 黄金学习时间徽章 */}
         {goldenTime && (
           <div
-            className={`mb-8 rounded-2xl border-2 p-6 transition-all duration-300 ${
+            className={`mb-8 rounded-card border-2 p-6 transition-all duration-g3-normal ${
               goldenTime.isGolden
-                ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-lg'
+                ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-elevated'
                 : 'border-gray-200 bg-white/80 backdrop-blur-sm'
             } `}
           >
@@ -199,7 +199,7 @@ export default function LearningTimePage() {
 
         {/* 数据不足提示 */}
         {insufficientData && (
-          <div className="mb-8 rounded-2xl border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="mb-8 rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
             <ChartBar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800">数据收集中</h2>
             <p className="mb-4 text-blue-600">
@@ -208,7 +208,7 @@ export default function LearningTimePage() {
             </p>
             <div className="mx-auto mb-2 h-4 w-full max-w-xs rounded-full bg-blue-200">
               <div
-                className="h-4 rounded-full bg-blue-500 transition-all duration-500"
+                className="h-4 rounded-full bg-blue-500 transition-all duration-g3-slow"
                 style={{
                   width: `${Math.min((insufficientData.currentCount / insufficientData.minRequired) * 100, 100)}%`,
                 }}
@@ -219,7 +219,7 @@ export default function LearningTimePage() {
             </p>
             <button
               onClick={() => navigate('/learning')}
-              className="mt-6 rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="mt-6 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               开始学习
             </button>
@@ -230,7 +230,7 @@ export default function LearningTimePage() {
         {timePreference && (
           <>
             {/* 推荐时间段 */}
-            <div className="mb-8 rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                 <Sparkle size={24} weight="duotone" color="#a855f7" />
                 推荐学习时段
@@ -241,7 +241,7 @@ export default function LearningTimePage() {
                   return (
                     <div
                       key={slot.hour}
-                      className={`rounded-xl border-2 p-4 transition-all duration-200 hover:scale-105 ${
+                      className={`rounded-card border-2 p-4 transition-all duration-g3-fast hover:scale-105 ${
                         index === 0
                           ? 'border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50'
                           : 'border-gray-200 bg-gray-50'
@@ -277,7 +277,7 @@ export default function LearningTimePage() {
                       </div>
                       <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
                         <div
-                          className={`h-2 rounded-full transition-all duration-500 ${index === 0 ? 'bg-yellow-400' : 'bg-blue-500'}`}
+                          className={`h-2 rounded-full transition-all duration-g3-slow ${index === 0 ? 'bg-yellow-400' : 'bg-blue-500'}`}
                           style={{ width: `${slot.score * 100}%` }}
                         />
                       </div>
@@ -291,7 +291,7 @@ export default function LearningTimePage() {
             </div>
 
             {/* 24小时分布图 */}
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                   <ChartBar size={24} weight="duotone" color="#3b82f6" />
@@ -311,14 +311,14 @@ export default function LearningTimePage() {
                     return (
                       <div key={hour} className="group relative flex flex-1 flex-col items-center">
                         {/* 悬停提示 */}
-                        <div className="absolute bottom-full z-10 mb-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <div className="absolute bottom-full z-10 mb-2 opacity-0 transition-opacity duration-g3-fast group-hover:opacity-100">
                           <div className="whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white">
                             {formatHour(hour)}: {Math.round(score * 100)}%
                           </div>
                         </div>
                         {/* 柱子 */}
                         <div
-                          className={`w-full cursor-pointer rounded-t transition-all duration-300 hover:opacity-80 ${getBarColor(score, isGoldenHour)} ${isCurrentHour ? 'ring-2 ring-blue-500 ring-offset-2' : ''} `}
+                          className={`w-full cursor-pointer rounded-t transition-all duration-g3-normal hover:opacity-80 ${getBarColor(score, isGoldenHour)} ${isCurrentHour ? 'ring-2 ring-blue-500 ring-offset-2' : ''} `}
                           style={{ height: `${Math.max(score * 100, 4)}%` }}
                         />
                       </div>
@@ -355,7 +355,7 @@ export default function LearningTimePage() {
               </div>
 
               {/* 置信度说明 */}
-              <div className="mt-4 rounded-xl bg-gray-50 p-4">
+              <div className="mt-4 rounded-card bg-gray-50 p-4">
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">分析置信度:</span>{' '}
                   {Math.round(timePreference.confidence * 100)}%

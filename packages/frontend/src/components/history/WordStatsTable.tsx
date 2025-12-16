@@ -40,7 +40,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
             return (
               <div
                 key={stat.wordId}
-                className={`group relative animate-g3-fade-in rounded-xl border bg-white/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg ${mastery.border}`}
+                className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated ${mastery.border}`}
                 style={{ animationDelay: `${index * 30}ms` }}
               >
                 {/* 掌握程度标签 */}
@@ -88,7 +88,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
                         fill="none"
                         strokeDasharray={`${2 * Math.PI * 36}`}
                         strokeDashoffset={`${2 * Math.PI * 36 * (1 - stat.correctRate / 100)}`}
-                        className={`transition-all duration-500 ${
+                        className={`transition-all duration-g3-slow ${
                           stat.correctRate >= 80
                             ? 'text-green-500'
                             : stat.correctRate >= 40
@@ -130,7 +130,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
             <button
               onClick={() => onPageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="rounded-lg border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               上一页
             </button>
@@ -140,7 +140,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
             <button
               onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-lg border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               下一页
             </button>

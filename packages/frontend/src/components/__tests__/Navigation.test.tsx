@@ -23,18 +23,22 @@ vi.mock('../../utils/animations', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  CaretDown: () => <span data-testid="caret-down">▼</span>,
-  Clock: () => <span>🕐</span>,
-  TrendUp: () => <span>📈</span>,
-  Trophy: () => <span>🏆</span>,
-  CalendarCheck: () => <span>📅</span>,
-  ChartBar: () => <span>📊</span>,
-  Target: () => <span>🎯</span>,
-  UserCircle: () => <span>👤</span>,
-  List: () => <span data-testid="list-icon">☰</span>,
-  X: () => <span data-testid="x-icon">✕</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    CaretDown: () => <span data-testid="caret-down">▼</span>,
+    Clock: () => <span>🕐</span>,
+    TrendUp: () => <span>📈</span>,
+    Trophy: () => <span>🏆</span>,
+    CalendarCheck: () => <span>📅</span>,
+    ChartBar: () => <span>📊</span>,
+    Target: () => <span>🎯</span>,
+    UserCircle: () => <span>👤</span>,
+    List: () => <span data-testid="list-icon">☰</span>,
+    X: () => <span data-testid="x-icon">✕</span>,
+  };
+});
 
 // Mock AuthContext
 const mockUseAuth = vi.fn();

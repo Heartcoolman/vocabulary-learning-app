@@ -74,31 +74,31 @@ const PerformanceTestPage: React.FC = () => {
         </div>
 
         {/* Control Panel */}
-        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
           <h2 className="mb-4 text-xl font-bold text-gray-900">测试控制面板</h2>
           <div className="flex flex-wrap gap-4">
             <button
               onClick={forceRerender}
-              className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+              className="rounded-button bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
             >
               触发重渲染 ({renderCount} 次)
             </button>
             <button
               onClick={generateReport}
-              className="rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition-colors hover:bg-green-700"
+              className="rounded-button bg-green-600 px-6 py-3 font-medium text-white transition-colors hover:bg-green-700"
             >
               生成性能报告
             </button>
             <button
               onClick={clearMetrics}
-              className="rounded-lg bg-gray-600 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700"
+              className="rounded-button bg-gray-600 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700"
             >
               清除数据
             </button>
           </div>
 
           {showReport && (
-            <div className="mt-6 rounded-lg bg-gray-50 p-4">
+            <div className="mt-6 rounded-button bg-gray-50 p-4">
               <h3 className="mb-2 text-lg font-bold text-gray-900">性能统计</h3>
               <pre className="overflow-x-auto text-xs text-gray-700">
                 {performanceMonitor.generateReport()}
@@ -110,7 +110,7 @@ const PerformanceTestPage: React.FC = () => {
         {/* Test Components */}
         <div className="space-y-8">
           {/* DailyMissionCard Test */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
             <h2 className="mb-4 text-xl font-bold text-gray-900">✅ DailyMissionCard</h2>
             <PerformanceProfiler id="DailyMissionCard">
               <DailyMissionCard
@@ -125,7 +125,7 @@ const PerformanceTestPage: React.FC = () => {
           </div>
 
           {/* ProgressOverviewCard Test */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
             <h2 className="mb-4 text-xl font-bold text-gray-900">✅ ProgressOverviewCard</h2>
             <PerformanceProfiler id="ProgressOverviewCard">
               <ProgressOverviewCard data={progressData} />
@@ -133,7 +133,7 @@ const PerformanceTestPage: React.FC = () => {
           </div>
 
           {/* MasteryWordItem Test */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
             <h2 className="mb-4 text-xl font-bold text-gray-900">✅ MasteryWordItem</h2>
             <PerformanceProfiler id="MasteryWordItem">
               <MasteryWordItem {...masteryData} />
@@ -141,7 +141,7 @@ const PerformanceTestPage: React.FC = () => {
           </div>
 
           {/* Optimization Summary */}
-          <div className="rounded-xl border border-green-200 bg-green-50 p-6">
+          <div className="rounded-card border border-green-200 bg-green-50 p-6">
             <h2 className="mb-4 text-xl font-bold text-green-900">🎉 优化完成总结</h2>
             <div className="space-y-2 text-green-800">
               <p className="font-semibold">已优化组件 (15/15):</p>
@@ -156,7 +156,7 @@ const PerformanceTestPage: React.FC = () => {
                 <li>✅ 其他8个之前已优化的组件</li>
               </ul>
 
-              <div className="mt-4 rounded-lg border border-green-300 bg-white p-4">
+              <div className="mt-4 rounded-button border border-green-300 bg-white p-4">
                 <p className="font-semibold text-green-900">优化技术:</p>
                 <ul className="ml-6 mt-2 list-disc space-y-1 text-sm">
                   <li>React.memo包装所有组件</li>
@@ -167,7 +167,7 @@ const PerformanceTestPage: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="mt-4 rounded-lg border border-green-300 bg-white p-4">
+              <div className="mt-4 rounded-button border border-green-300 bg-white p-4">
                 <p className="font-semibold text-green-900">预期性能提升:</p>
                 <ul className="ml-6 mt-2 list-disc space-y-1 text-sm">
                   <li>减少30-50%的不必要重渲染</li>

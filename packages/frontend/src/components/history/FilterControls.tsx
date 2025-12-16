@@ -25,16 +25,16 @@ interface FilterControlsProps {
 const FilterControls: React.FC<FilterControlsProps> = React.memo(
   ({ sortBy, filterBy, statistics, onSortChange, onFilterChange }) => {
     return (
-      <div className="mb-8 rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
           <div>
             <h3 className="mb-3 text-sm font-medium text-gray-700">筛选</h3>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => onFilterChange('all')}
-                className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   filterBy === 'all'
-                    ? 'bg-blue-500 text-white shadow-md'
+                    ? 'bg-blue-500 text-white shadow-elevated'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -42,9 +42,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
               </button>
               <button
                 onClick={() => onFilterChange('mastered')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   filterBy === 'mastered'
-                    ? 'bg-green-500 text-white shadow-md'
+                    ? 'bg-green-500 text-white shadow-elevated'
                     : 'bg-green-100 text-green-700 hover:bg-green-200'
                 }`}
               >
@@ -53,9 +53,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
               </button>
               <button
                 onClick={() => onFilterChange('reviewing')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   filterBy === 'reviewing'
-                    ? 'bg-yellow-500 text-white shadow-md'
+                    ? 'bg-yellow-500 text-white shadow-elevated'
                     : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                 }`}
               >
@@ -64,9 +64,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
               </button>
               <button
                 onClick={() => onFilterChange('struggling')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   filterBy === 'struggling'
-                    ? 'bg-red-500 text-white shadow-md'
+                    ? 'bg-red-500 text-white shadow-elevated'
                     : 'bg-red-100 text-red-700 hover:bg-red-200'
                 }`}
               >
@@ -81,9 +81,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => onSortChange('time')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   sortBy === 'time'
-                    ? 'bg-gray-900 text-white shadow-md'
+                    ? 'bg-gray-900 text-white shadow-elevated'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -92,9 +92,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
               </button>
               <button
                 onClick={() => onSortChange('correctRate')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   sortBy === 'correctRate'
-                    ? 'bg-gray-900 text-white shadow-md'
+                    ? 'bg-gray-900 text-white shadow-elevated'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -103,9 +103,9 @@ const FilterControls: React.FC<FilterControlsProps> = React.memo(
               </button>
               <button
                 onClick={() => onSortChange('attempts')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   sortBy === 'attempts'
-                    ? 'bg-gray-900 text-white shadow-md'
+                    ? 'bg-gray-900 text-white shadow-elevated'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >

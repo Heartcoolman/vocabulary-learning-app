@@ -82,7 +82,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
             fill="rgba(99, 102, 241, 0.2)"
             stroke="#6366f1"
             strokeWidth="2"
-            className="transition-all duration-1000 ease-out"
+            className="transition-all duration-g3-slower ease-g3"
           />
 
           {/* Data Points */}

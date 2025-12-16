@@ -163,7 +163,7 @@ export const StaticPreview: Story = {
   render: () => (
     <div className="space-y-3">
       {/* Success */}
-      <div className="flex min-w-[280px] items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-800 shadow-lg">
+      <div className="flex min-w-[280px] items-start gap-3 rounded-button border border-green-200 bg-green-50 px-4 py-3 text-green-800 shadow-elevated">
         <svg
           className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500"
           fill="currentColor"
@@ -180,7 +180,7 @@ export const StaticPreview: Story = {
       </div>
 
       {/* Error */}
-      <div className="flex min-w-[280px] items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 shadow-lg">
+      <div className="flex min-w-[280px] items-start gap-3 rounded-button border border-red-200 bg-red-50 px-4 py-3 text-red-800 shadow-elevated">
         <svg
           className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
           fill="currentColor"
@@ -197,7 +197,7 @@ export const StaticPreview: Story = {
       </div>
 
       {/* Warning */}
-      <div className="flex min-w-[280px] items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 shadow-lg">
+      <div className="flex min-w-[280px] items-start gap-3 rounded-button border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 shadow-elevated">
         <svg
           className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500"
           fill="currentColor"
@@ -214,7 +214,7 @@ export const StaticPreview: Story = {
       </div>
 
       {/* Info */}
-      <div className="flex min-w-[280px] items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 shadow-lg">
+      <div className="flex min-w-[280px] items-start gap-3 rounded-button border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 shadow-elevated">
         <svg
           className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500"
           fill="currentColor"

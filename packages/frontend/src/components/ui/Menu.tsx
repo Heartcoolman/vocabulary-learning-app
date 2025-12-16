@@ -253,7 +253,7 @@ export const MenuItem = memo(
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           className={cn(
-            'flex items-center gap-2 rounded-md',
+            'flex items-center gap-2 rounded-button',
             'transition-all duration-g3-fast ease-g3',
             'cursor-pointer select-none',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
@@ -340,7 +340,7 @@ export const SubMenu = memo(
             onClick={toggleOpen}
             onKeyDown={handleKeyDown}
             className={cn(
-              'flex items-center gap-2 rounded-md',
+              'flex items-center gap-2 rounded-button',
               'transition-all duration-g3-fast ease-g3',
               'cursor-pointer select-none',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
@@ -388,7 +388,7 @@ export const SubMenu = memo(
                 'm-0 list-none overflow-hidden',
                 'animate-g3-fade-in',
                 mode === 'horizontal' &&
-                  'absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-gray-100 bg-white py-1 shadow-elevated',
+                  'absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-button border border-gray-100 bg-white py-1 shadow-elevated',
                 mode !== 'horizontal' && 'mt-1 pl-4',
               )}
             >

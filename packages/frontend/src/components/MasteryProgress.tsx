@@ -57,7 +57,7 @@ function MasteryProgress({
 
   return (
     <div
-      className={`w-full rounded-xl border border-gray-100 bg-white px-5 py-4 shadow-sm ${className}`}
+      className={`w-full rounded-card border border-gray-100 bg-white px-5 py-4 shadow-soft ${className}`}
       role="region"
       aria-label="掌握模式学习进度"
       data-testid="mastery-progress"
@@ -66,7 +66,7 @@ function MasteryProgress({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
-            className={`rounded-lg p-2 ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}
+            className={`rounded-button p-2 ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}
           >
             {isCompleted ? (
               <CheckCircle size={20} weight="fill" />
@@ -87,7 +87,7 @@ function MasteryProgress({
       {/* Progress Bar */}
       <div className="relative mb-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
         <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${
+          className={`h-full rounded-full transition-all duration-g3-slower ease-g3 ${
             isCompleted
               ? 'bg-gradient-to-r from-green-400 to-green-500'
               : 'bg-gradient-to-r from-blue-400 to-blue-600'

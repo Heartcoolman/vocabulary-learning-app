@@ -188,7 +188,7 @@ export class WordBookService {
       type: wb.type,
       userId: wb.userId,
       isPublic: wb.isPublic,
-      wordCount: wb._count.words,
+      wordCount: wb._count?.words ?? wb.wordCount ?? 0,
       coverImage: wb.coverImage,
       createdAt: wb.createdAt,
       updatedAt: wb.updatedAt,
@@ -228,7 +228,7 @@ export class WordBookService {
       type: wb.type,
       userId: wb.userId,
       isPublic: wb.isPublic,
-      wordCount: wb._count.words,
+      wordCount: wb._count?.words ?? wb.wordCount ?? 0,
       coverImage: wb.coverImage,
       createdAt: wb.createdAt,
       updatedAt: wb.updatedAt,
@@ -264,7 +264,7 @@ export class WordBookService {
       type: wb.type,
       userId: wb.userId,
       isPublic: wb.isPublic,
-      wordCount: wb._count.words,
+      wordCount: wb._count?.words ?? wb.wordCount ?? 0,
       coverImage: wb.coverImage,
       createdAt: wb.createdAt,
       updatedAt: wb.updatedAt,
@@ -295,7 +295,7 @@ export class WordBookService {
 
     return {
       ...wordBook,
-      wordCount: wordBook._count.words,
+      wordCount: wordBook._count?.words ?? wordBook.wordCount ?? 0,
     };
   }
 

@@ -63,6 +63,25 @@ describe('ExperimentService', () => {
       if (Array.isArray(operations)) {
         return Promise.all(operations);
       }
+      if (typeof operations === 'function') {
+        const tx = {
+          $queryRaw: async () => {
+            const metrics = await mockABExperimentMetricsFindUnique();
+            if (!metrics) return [];
+            return [
+              {
+                sampleCount: metrics.sampleCount,
+                averageReward: metrics.averageReward,
+                m2: metrics.m2,
+              },
+            ];
+          },
+          aBExperimentMetrics: {
+            update: (...args: any[]) => mockABExperimentMetricsUpdate(...args),
+          },
+        };
+        return operations(tx);
+      }
       return operations;
     });
 

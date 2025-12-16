@@ -1,5 +1,6 @@
 import prisma from '../config/database';
 import { CreateWordDto, UpdateWordDto } from '../types';
+import { Prisma } from '@prisma/client';
 
 /**
  * WordService - 单词服务（已废弃，使用 WordBookService 代替）
@@ -146,8 +147,8 @@ export class WordService {
     }
 
     // 使用事务确保单词创建和计数更新的原子性
-    const word = await prisma.$transaction(async (tx) => {
-      const created = await tx.word.create({
+    const [created] = await prisma.$transaction([
+      prisma.word.create({
         data: {
           wordBook: { connect: { id: wordBookId } },
           spelling: data.spelling,
@@ -156,18 +157,14 @@ export class WordService {
           examples: data.examples,
           audioUrl: data.audioUrl ?? undefined,
         },
-      });
-
-      // 在同一事务内更新词书单词计数
-      await tx.wordBook.update({
+      }),
+      prisma.wordBook.update({
         where: { id: wordBookId },
         data: { wordCount: { increment: 1 } },
-      });
+      }),
+    ]);
 
-      return created;
-    });
-
-    return word;
+    return created;
   }
 
   /**
@@ -232,21 +229,52 @@ export class WordService {
    * @param query 搜索关键词
    * @param limit 返回结果数量限制，默认20
    */
-  async searchWords(query: string, limit: number = 20) {
+  async searchWords(query: string, limit: number = 20, userId?: string) {
     if (!query || query.trim().length === 0) {
       return [];
     }
 
-    const searchTerm = query.trim().toLowerCase();
+    const searchTerm = query.trim();
+    const lowerTerm = searchTerm.toLowerCase();
+    const escaped = lowerTerm.replace(/[%_\\]/g, '\\$&');
+    const pattern = `%${escaped}%`;
+    const prefixPattern = `${escaped}%`;
 
-    // 搜索单词拼写或释义中包含关键词的单词
+    // 权限：仅返回系统词书 + 当前用户自己的词书（避免泄露其他用户私有词书内容）
+    const accessFilter = userId
+      ? Prisma.sql`(wb.type = 'SYSTEM' OR (wb.type = 'USER' AND wb."userId" = ${userId}))`
+      : Prisma.sql`(wb.type = 'SYSTEM')`;
+
+    // 说明：
+    // - spelling 可用 Prisma contains，但 meanings 是 string[]，无法做子串匹配；这里用 unnest 做 ILIKE
+    // - 先取 id 再用 Prisma 拉取完整对象，避免手写所有字段映射
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT w.id
+      FROM "words" w
+      JOIN "word_books" wb ON wb.id = w."wordBookId"
+      WHERE ${accessFilter}
+        AND (
+          lower(w.spelling) LIKE ${pattern} ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1 FROM unnest(w.meanings) m
+            WHERE lower(m) LIKE ${pattern} ESCAPE '\\'
+          )
+        )
+      ORDER BY
+        CASE
+          WHEN lower(w.spelling) = ${lowerTerm} THEN 0
+          WHEN lower(w.spelling) LIKE ${prefixPattern} ESCAPE '\\' THEN 1
+          ELSE 2
+        END,
+        w.spelling ASC
+      LIMIT ${limit}
+    `);
+
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return [];
+
     const words = await prisma.word.findMany({
-      where: {
-        OR: [
-          { spelling: { contains: searchTerm, mode: 'insensitive' } },
-          { meanings: { hasSome: [searchTerm] } },
-        ],
-      },
+      where: { id: { in: ids } },
       include: {
         wordBook: {
           select: {
@@ -256,14 +284,10 @@ export class WordService {
           },
         },
       },
-      take: limit,
-      orderBy: [
-        // 完全匹配优先
-        { spelling: 'asc' },
-      ],
     });
 
-    return words;
+    const byId = new Map(words.map((w) => [w.id, w]));
+    return ids.map((id) => byId.get(id)).filter((w): w is (typeof words)[0] => !!w);
   }
 
   /**

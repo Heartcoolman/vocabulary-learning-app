@@ -169,23 +169,22 @@ const mockMemoryStatus = {
 };
 
 const mockFeatureFlags = {
+  readEnabled: true,
+  writeEnabled: true,
   flags: {
-    trendAnalyzer: true,
-    heuristicBaseline: true,
-    thompsonSampling: true,
-    linucb: true,
-    actrMemory: true,
-    coldStartManager: true,
-    ensemble: true,
-    bayesianOptimizer: false,
-    causalInference: true,
-    abTestEngine: false,
-    offlineReplay: true,
-    delayedReward: true,
-    personalizedHalfLife: true,
-    multiObjective: false,
-    learningModes: true,
-    wordReviewHistory: true,
+    trendAnalyzer: { enabled: true, status: 'healthy', latencyMs: 40 },
+    heuristicBaseline: { enabled: true, status: 'healthy', latencyMs: 25 },
+    thompsonSampling: { enabled: true, status: 'healthy', latencyMs: 30 },
+    actrMemory: { enabled: true, status: 'healthy', latencyMs: 20 },
+    ensemble: { enabled: true, status: 'healthy' },
+    coldStartManager: { enabled: true, status: 'healthy' },
+    userParamsManager: { enabled: true, status: 'healthy' },
+    causalInference: { enabled: true, status: 'healthy', latencyMs: 60 },
+    bayesianOptimizer: { enabled: false, status: 'disabled' },
+    delayedReward: { enabled: true, status: 'healthy' },
+    realDataRead: { enabled: true, status: 'healthy' },
+    realDataWrite: { enabled: true, status: 'healthy' },
+    visualization: { enabled: true, status: 'healthy' },
   },
 };
 
@@ -195,6 +194,7 @@ vi.mock('../../../services/aboutApi', () => ({
   getUserStateStatus: vi.fn(),
   getMemoryStatus: vi.fn(),
   getFeatureFlags: vi.fn(),
+  getOverviewStatsWithSource: vi.fn(),
 }));
 
 // Mock logger
@@ -218,6 +218,7 @@ import {
   getUserStateStatus,
   getMemoryStatus,
   getFeatureFlags,
+  getOverviewStatsWithSource,
 } from '../../../services/aboutApi';
 
 describe('SystemStatusPage', () => {
@@ -228,6 +229,10 @@ describe('SystemStatusPage', () => {
     (getUserStateStatus as any).mockResolvedValue(mockUserStateStatus);
     (getMemoryStatus as any).mockResolvedValue(mockMemoryStatus);
     (getFeatureFlags as any).mockResolvedValue(mockFeatureFlags);
+    (getOverviewStatsWithSource as any).mockResolvedValue({
+      data: { todayDecisions: 0, activeUsers: 0, totalWords: 0, avgAccuracy: 0 },
+      source: 'virtual',
+    });
   });
 
   afterEach(() => {
@@ -503,7 +508,7 @@ describe('SystemStatusPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('功能开关状态')).toBeInTheDocument();
+        expect(screen.getByText('功能运行状态')).toBeInTheDocument();
       });
     });
 
@@ -511,10 +516,9 @@ describe('SystemStatusPage', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText('趋势分析器')).toBeInTheDocument();
-        expect(screen.getByText('Thompson 采样')).toBeInTheDocument();
-        expect(screen.getByText('LinUCB 算法')).toBeInTheDocument();
-        expect(screen.getByText('ACT-R 记忆')).toBeInTheDocument();
+        expect(screen.getByText('趋势分析')).toBeInTheDocument();
+        expect(screen.getByText('Thompson采样')).toBeInTheDocument();
+        expect(screen.getByText('ACT-R记忆')).toBeInTheDocument();
         expect(screen.getByText('集成学习')).toBeInTheDocument();
       });
     });

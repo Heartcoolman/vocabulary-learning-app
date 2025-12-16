@@ -53,13 +53,7 @@ class WordService {
    * 根据ID获取单词详情
    */
   async getWordById(id: string): Promise<{ data: Word }> {
-    // 注意：当前 ApiClient 没有 getWordById 方法
-    // 我们需要从列表中过滤，或者等待后端添加此接口
-    const words = await apiClient.getWords();
-    const word = words.find((w) => w.id === id);
-    if (!word) {
-      throw new Error(`单词不存在: ${id}`);
-    }
+    const word = await apiClient.getWordById(id);
     return { data: word };
   }
 

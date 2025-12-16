@@ -21,15 +21,18 @@ export const PageSkeleton = () => (
 
       {/* 卡片网格骨架 */}
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="h-32 rounded-lg bg-gray-200"></div>
-        <div className="h-32 rounded-lg bg-gray-200"></div>
-        <div className="h-32 rounded-lg bg-gray-200"></div>
+        <div className="h-32 rounded-button bg-gray-200"></div>
+        <div className="h-32 rounded-button bg-gray-200"></div>
+        <div className="h-32 rounded-button bg-gray-200"></div>
       </div>
 
       {/* 列表骨架 */}
       <div className="mt-8 space-y-3">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex items-center space-x-4 rounded-lg bg-white p-4 shadow-sm">
+          <div
+            key={i}
+            className="flex items-center space-x-4 rounded-button bg-white p-4 shadow-soft"
+          >
             <div className="h-12 w-12 rounded-full bg-gray-200"></div>
             <div className="flex-1 space-y-2">
               <div className="h-4 w-1/3 rounded bg-gray-200"></div>
@@ -60,7 +63,7 @@ export const CompactSkeleton = () => (
  * 卡片骨架屏 - 用于卡片式布局页面
  */
 export const CardSkeleton = () => (
-  <div className="animate-pulse rounded-lg bg-white p-6 shadow-sm">
+  <div className="animate-pulse rounded-button bg-white p-6 shadow-soft">
     <div className="mb-4 h-6 w-1/2 rounded bg-gray-200"></div>
     <div className="space-y-3">
       <div className="h-4 w-full rounded bg-gray-200"></div>
@@ -85,7 +88,7 @@ export const StatsSkeleton = () => (
       {/* 统计卡片 */}
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-lg bg-white p-4 shadow-sm">
+          <div key={i} className="rounded-button bg-white p-4 shadow-soft">
             <div className="mb-2 h-4 w-1/2 rounded bg-gray-200"></div>
             <div className="h-8 w-3/4 rounded bg-gray-200"></div>
           </div>
@@ -93,7 +96,7 @@ export const StatsSkeleton = () => (
       </div>
 
       {/* 图表区域 */}
-      <div className="rounded-lg bg-white p-6 shadow-sm">
+      <div className="rounded-button bg-white p-6 shadow-soft">
         <div className="mb-4 h-6 w-1/4 rounded bg-gray-200"></div>
         <div className="h-64 w-full rounded bg-gray-200"></div>
       </div>
@@ -118,7 +121,7 @@ export const ListSkeleton = () => (
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
-            className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm"
+            className="flex items-center justify-between rounded-button bg-white p-4 shadow-soft"
           >
             <div className="flex items-center space-x-4">
               <div className="h-10 w-10 rounded bg-gray-200"></div>

@@ -14,137 +14,152 @@
 import bcrypt from 'bcrypt';
 import prisma from '../config/database';
 import { serviceLogger } from '../logger';
-import { HabitRecognizer, HabitProfile } from '../amas/models/cognitive';
-import { ChronotypeDetector, ChronotypeProfile } from '../amas/models/cognitive';
-import { LearningStyleProfiler, LearningStyleProfile } from '../amas/models/cognitive';
+import { Prisma } from '@prisma/client';
+import {
+  HabitRecognizer,
+  HabitProfile,
+  type ChronotypeProfile,
+  type LearningStyleProfile,
+} from '../amas/models/cognitive';
 import { getEventBus, type ProfileUpdatedPayload } from '../core/event-bus';
 import decisionEventsService from './decision-events.service';
+import { amasService } from './amas.service';
+import {
+  getChronotypeProfile,
+  getLearningStyleProfile,
+  invalidateCognitiveCacheForUser,
+  InsufficientDataError,
+} from './cognitive-profiling.service';
+
+export {
+  MIN_PROFILING_RECORDS,
+  CACHE_TTL_MS,
+  InsufficientDataError,
+  AnalysisError,
+} from './cognitive-profiling.service';
 
 const logger = serviceLogger.child({ module: 'user-profile-service' });
-
-// ==================== 错误类型定义 ====================
-
-export const MIN_PROFILING_RECORDS = 20;
-export const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h cache
-
-/**
- * 数据不足错误
- */
-export class InsufficientDataError extends Error {
-  code = 'INSUFFICIENT_DATA';
-  required: number;
-  actual: number;
-  constructor(required: number, actual: number) {
-    super(`Insufficient data to build profile (need ${required}, have ${actual})`);
-    this.required = required;
-    this.actual = actual;
-  }
-}
-
-/**
- * 分析错误
- */
-export class AnalysisError extends Error {
-  code = 'ANALYSIS_FAILED';
-}
 
 // ==================== 习惯识别器管理 ====================
 
 // 用户习惯识别器实例缓存 (内存中保持状态累积)
-const userRecognizers = new Map<string, HabitRecognizer>();
+// 注意：这是进程内缓存，需做回收以避免长期运行导致内存增长
+type RecognizerCacheEntry = {
+  recognizer: HabitRecognizer;
+  lastAccessAt: number;
+};
+
+const userRecognizers = new Map<string, RecognizerCacheEntry>();
+const RECOGNIZER_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h 未访问则回收
+const RECOGNIZER_CACHE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1h 清理一次
+const RECOGNIZER_CACHE_MAX_SIZE = 5000;
+
+function cleanupRecognizerCache(): void {
+  const now = Date.now();
+  for (const [userId, entry] of userRecognizers.entries()) {
+    if (now - entry.lastAccessAt > RECOGNIZER_CACHE_TTL_MS) {
+      userRecognizers.delete(userId);
+    }
+  }
+
+  if (userRecognizers.size <= RECOGNIZER_CACHE_MAX_SIZE) {
+    return;
+  }
+
+  // 超过上限时，按最久未访问淘汰（简单实现，避免引入复杂 LRU 结构）
+  const entries = Array.from(userRecognizers.entries()).sort(
+    (a, b) => a[1].lastAccessAt - b[1].lastAccessAt,
+  );
+  const overflow = userRecognizers.size - RECOGNIZER_CACHE_MAX_SIZE;
+  for (let i = 0; i < overflow; i++) {
+    userRecognizers.delete(entries[i][0]);
+  }
+}
+
+const recognizerCleanupTimer = setInterval(
+  () => cleanupRecognizerCache(),
+  RECOGNIZER_CACHE_CLEANUP_INTERVAL_MS,
+);
+recognizerCleanupTimer.unref();
 
 /**
  * 获取用户专属的习惯识别器实例
  */
 function getRecognizer(userId: string): HabitRecognizer {
-  let recognizer = userRecognizers.get(userId);
-  if (!recognizer) {
-    recognizer = new HabitRecognizer();
-    userRecognizers.set(userId, recognizer);
+  const now = Date.now();
+  const existing = userRecognizers.get(userId);
+  if (existing) {
+    existing.lastAccessAt = now;
+    return existing.recognizer;
+  }
+
+  const recognizer = new HabitRecognizer();
+  userRecognizers.set(userId, { recognizer, lastAccessAt: now });
+  if (userRecognizers.size > RECOGNIZER_CACHE_MAX_SIZE) {
+    cleanupRecognizerCache();
   }
   return recognizer;
 }
 
-// ==================== 认知画像分析器 ====================
-
-type CacheEntry<T> = { value: T; expiresAt: number };
-
-// 延迟实例化：只在首次使用时创建实例，便于测试 mock
-let chronotypeDetector: ChronotypeDetector | null = null;
-let learningStyleProfiler: LearningStyleProfiler | null = null;
-
-const getChronotypeDetector = (): ChronotypeDetector => {
-  if (!chronotypeDetector) {
-    chronotypeDetector = new ChronotypeDetector();
+function setRecognizer(userId: string, recognizer: HabitRecognizer): void {
+  userRecognizers.set(userId, { recognizer, lastAccessAt: Date.now() });
+  if (userRecognizers.size > RECOGNIZER_CACHE_MAX_SIZE) {
+    cleanupRecognizerCache();
   }
-  return chronotypeDetector;
-};
+}
 
-const getLearningStyleProfiler = (): LearningStyleProfiler => {
-  if (!learningStyleProfiler) {
-    learningStyleProfiler = new LearningStyleProfiler();
-  }
-  return learningStyleProfiler;
-};
+function isNumberArray24(value: unknown): value is number[] {
+  return (
+    Array.isArray(value) &&
+    value.length === 24 &&
+    value.every((v) => typeof v === 'number' && Number.isFinite(v))
+  );
+}
 
-const chronotypeCache = new Map<string, CacheEntry<ChronotypeProfile>>();
-const learningStyleCache = new Map<string, CacheEntry<LearningStyleProfile>>();
+function computePreferredSlots(timePref: number[], topK: number = 3): number[] {
+  const indexed = timePref.map((v, hour) => ({ hour, v })).sort((a, b) => b.v - a.v);
+  return indexed.slice(0, topK).map((x) => x.hour);
+}
 
-const fromCache = <T>(cache: Map<string, CacheEntry<T>>, userId: string) => {
-  const entry = cache.get(userId);
-  if (!entry) return null;
-  if (entry.expiresAt < Date.now()) {
-    cache.delete(userId);
+async function loadPersistedHabitProfile(userId: string): Promise<HabitProfile | null> {
+  const record = await prisma.habitProfile.findUnique({
+    where: { userId },
+    select: { timePref: true, rhythmPref: true, updatedAt: true },
+  });
+
+  if (!record) return null;
+
+  const timePref = record.timePref;
+  const rhythmPref = record.rhythmPref as
+    | { sessionMedianMinutes?: unknown; batchMedian?: unknown }
+    | null
+    | undefined;
+
+  if (!isNumberArray24(timePref)) {
     return null;
   }
-  return entry.value;
-};
 
-const saveCache = <T>(cache: Map<string, CacheEntry<T>>, userId: string, value: T) => {
-  cache.set(userId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
-  return value;
-};
+  const sessionMedianMinutes =
+    rhythmPref &&
+    typeof rhythmPref.sessionMedianMinutes === 'number' &&
+    Number.isFinite(rhythmPref.sessionMedianMinutes)
+      ? rhythmPref.sessionMedianMinutes
+      : 15;
+  const batchMedian =
+    rhythmPref &&
+    typeof rhythmPref.batchMedian === 'number' &&
+    Number.isFinite(rhythmPref.batchMedian)
+      ? rhythmPref.batchMedian
+      : 8;
 
-const ensureSufficientData = (sampleCount?: number) => {
-  if (typeof sampleCount === 'number' && sampleCount < MIN_PROFILING_RECORDS) {
-    throw new InsufficientDataError(MIN_PROFILING_RECORDS, sampleCount);
-  }
-};
-
-const getChronotypeProfile = async (userId: string): Promise<ChronotypeProfile> => {
-  const cached = fromCache(chronotypeCache, userId);
-  if (cached) return cached;
-  let result: ChronotypeProfile;
-  try {
-    result = await getChronotypeDetector().analyzeChronotype(userId);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Chronotype analysis failed';
-    throw new AnalysisError(message);
-  }
-  if (!result) throw new AnalysisError('Chronotype analysis returned empty result');
-  ensureSufficientData(result.sampleCount);
-  return saveCache(chronotypeCache, userId, result);
-};
-
-const getLearningStyleProfile = async (userId: string): Promise<LearningStyleProfile> => {
-  const cached = fromCache(learningStyleCache, userId);
-  if (cached) return cached;
-  let result: LearningStyleProfile;
-  try {
-    result = await getLearningStyleProfiler().detectLearningStyle(userId);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Learning style analysis failed';
-    throw new AnalysisError(message);
-  }
-  if (!result) throw new AnalysisError('Learning style analysis returned empty result');
-  ensureSufficientData(result.sampleCount);
-  return saveCache(learningStyleCache, userId, result);
-};
-
-const invalidateCognitiveCacheForUser = (userId: string) => {
-  chronotypeCache.delete(userId);
-  learningStyleCache.delete(userId);
-};
+  return {
+    timePref,
+    rhythmPref: { sessionMedianMinutes, batchMedian },
+    preferredTimeSlots: computePreferredSlots(timePref),
+    // samples 无法从持久化记录精确恢复，这里给出“可展示”的最小兼容值
+    samples: { timeEvents: 10, sessions: 0, batches: 0 },
+  };
+}
 
 // ==================== 常量定义 ====================
 
@@ -404,6 +419,9 @@ class UserProfileService {
       data: { rewardProfile: profileId } as any,
     });
 
+    // 奖励配置在 AMAS 引擎侧存在内存缓存，需手动失效以确保立即生效
+    amasService.invalidateRewardProfileCache(userId);
+
     logger.info({ userId, profileId }, '用户奖励配置已更新');
 
     return user;
@@ -501,7 +519,12 @@ class UserProfileService {
       let habitProfile: HabitProfile | null = null;
       if (includeHabit) {
         try {
-          habitProfile = getRecognizer(userId).getHabitProfile();
+          const realtime = getRecognizer(userId).getHabitProfile();
+          if (realtime.samples.timeEvents >= 10) {
+            habitProfile = realtime;
+          } else {
+            habitProfile = (await loadPersistedHabitProfile(userId)) ?? realtime;
+          }
         } catch (error) {
           logger.warn({ userId, error }, '获取习惯画像失败');
         }
@@ -572,36 +595,49 @@ class UserProfileService {
       if (!params) {
         await this.updateHabitProfileFromHistory(userId);
       } else {
-        // 直接更新数据库
-        const updateData: any = {};
-        if (params.timePref) {
-          updateData.timePref = {
-            preferredTimes: params.timePref,
-          };
+        // 直接更新数据库（保持 habit_profiles.timePref 为 24 长度数组，避免数据形态漂移）
+        if (params.timePref && !isNumberArray24(params.timePref)) {
+          throw new Error('timePref 必须为长度为 24 的 number[]');
         }
-        if (params.rhythmPref) {
-          updateData.rhythmPref = params.rhythmPref;
-        }
+
+        const updateData: Prisma.HabitProfileUpdateInput = {
+          updatedAt: new Date(),
+          ...(params.timePref
+            ? { timePref: params.timePref as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(params.rhythmPref
+            ? { rhythmPref: params.rhythmPref as unknown as Prisma.InputJsonValue }
+            : {}),
+        };
+
+        const createData: Prisma.HabitProfileCreateInput = {
+          user: { connect: { id: userId } },
+          timePref: (params.timePref
+            ? (params.timePref as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull) as unknown as Prisma.InputJsonValue,
+          rhythmPref: (params.rhythmPref
+            ? (params.rhythmPref as unknown as Prisma.InputJsonValue)
+            : ({} as unknown as Prisma.InputJsonValue)) as unknown as Prisma.InputJsonValue,
+        };
 
         await prisma.habitProfile.upsert({
           where: { userId },
-          update: {
-            ...updateData,
-            updatedAt: new Date(),
-          },
-          create: {
-            userId,
-            timePref: updateData.timePref || {},
-            rhythmPref: updateData.rhythmPref || {},
-          },
+          update: updateData,
+          create: createData,
         });
+
+        // 让内存识别器失效，下一次读取会回退到持久化画像
+        this.resetUserHabit(userId);
       }
 
-      // 持久化内存中的习惯画像
-      await this.persistHabitProfile(userId);
+      // 持久化内存中的习惯画像（无 params 情况：已从历史重建内存识别器）
+      if (!params) {
+        await this.persistHabitProfile(userId);
+      }
 
       // 获取最新的习惯画像
-      const habitProfile = getRecognizer(userId).getHabitProfile();
+      const habitProfile =
+        (await loadPersistedHabitProfile(userId)) ?? getRecognizer(userId).getHabitProfile();
 
       // 发布画像更新事件
       this.publishProfileUpdatedEvent(userId, 'habit', ['timePref', 'rhythmPref']);
@@ -931,55 +967,36 @@ class UserProfileService {
       (await prisma.learningSession.findMany({
         where: { userId },
         orderBy: { startedAt: 'desc' },
+        take: 200,
+        include: {
+          _count: { select: { answerRecords: true } },
+        },
       })) ?? [];
 
     if (!sessions.length) {
       return;
     }
 
-    // 计算首选时间段（小时）和平均时长
-    const hourCounts = new Map<number, number>();
-    const durations: number[] = [];
-
+    // 从会话数据重建用户习惯识别器（避免写入错误形态的 timePref）
+    const recognizer = new HabitRecognizer();
     for (const session of sessions) {
-      const start = session.startedAt || new Date();
-      const duration = session.endedAt
-        ? new Date(session.endedAt).getTime() - new Date(start).getTime()
-        : 0;
+      const hour = session.startedAt.getHours();
+      recognizer.updateTimePref(hour);
 
-      const hour = new Date(start).getHours();
-      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
-      if (duration && Number.isFinite(duration)) {
-        durations.push(duration);
+      if (session.endedAt) {
+        const durationMinutes = (session.endedAt.getTime() - session.startedAt.getTime()) / 60000;
+        if (durationMinutes > 0 && durationMinutes < 180) {
+          recognizer.updateSessionDuration(durationMinutes);
+        }
+      }
+
+      const batchSize = session._count?.answerRecords ?? 0;
+      if (batchSize > 0) {
+        recognizer.updateBatchSize(batchSize);
       }
     }
 
-    const sortedHours = Array.from(hourCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([hour]) => hour)
-      .slice(0, 3);
-
-    const avgSessionDuration =
-      durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-
-    const payload = {
-      preferredTimes: sortedHours,
-      avgSessionDuration,
-      consistency: Math.min(1, sessions.length / 30),
-    };
-
-    await prisma.habitProfile.upsert({
-      where: { userId },
-      update: {
-        timePref: payload,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        timePref: payload,
-        rhythmPref: {},
-      },
-    });
+    setRecognizer(userId, recognizer);
   }
 
   /**

@@ -5,6 +5,7 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
+import designSystemRules from './eslint-rules/design-system.js';
 
 export default tseslint.config(
   js.configs.recommended,
@@ -27,6 +28,7 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      'design-system': { rules: designSystemRules.rules },
     },
     rules: {
       // TypeScript 规则
@@ -42,6 +44,11 @@ export default tseslint.config(
 
       // Console 规则 - 禁止在源代码中使用 console
       'no-console': 'error',
+
+      // 设计规范规则 - 禁止非语义化类名
+      'design-system/no-non-semantic-classes': 'warn',
+      // 建议使用预定义按钮类 (可选，设为 off 可关闭)
+      'design-system/prefer-btn-classes': 'off',
     },
   },
   // 测试文件豁免

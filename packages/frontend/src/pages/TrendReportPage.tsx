@@ -114,9 +114,9 @@ const DaysSelector = memo(({ selectedDays, onSelect }: DaysSelectorProps) => {
         <button
           key={days}
           onClick={() => onSelect(days)}
-          className={`rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
+          className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
             selectedDays === days
-              ? 'bg-blue-500 text-white shadow-sm'
+              ? 'bg-blue-500 text-white shadow-soft'
               : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
@@ -138,7 +138,7 @@ const TrendCard = memo(({ trendInfo }: TrendCardProps) => {
 
   return (
     <div
-      className={`mb-8 rounded-2xl border-2 p-6 transition-all duration-300 ${colors.bg} border-${colors.text.replace('text-', '')} `}
+      className={`mb-8 rounded-card border-2 p-6 transition-all duration-g3-normal ${colors.bg} border-${colors.text.replace('text-', '')} `}
     >
       <div className="flex items-center gap-4">
         <div
@@ -173,7 +173,7 @@ const InterventionCard = memo(({ intervention }: InterventionCardProps) => {
   const colors = getInterventionColor(intervention.type);
 
   return (
-    <div className={`mb-8 rounded-2xl border-2 p-6 ${colors.bg} ${colors.border} `}>
+    <div className={`mb-8 rounded-card border-2 p-6 ${colors.bg} ${colors.border} `}>
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white">
           <Lightbulb size={24} weight="duotone" color={colors.icon} />
@@ -236,7 +236,7 @@ const TrendChartCard = memo(
     const shouldShowRed = isResponseTime ? direction === 'up' : direction === 'down';
 
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
             <Icon size={20} weight="duotone" color={iconColor} />
@@ -401,7 +401,7 @@ export default function TrendReportPage() {
           <p className="mb-6 text-gray-600">{error}</p>
           <button
             onClick={loadData}
-            className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+            className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
           >
             重试
           </button>
@@ -461,7 +461,7 @@ export default function TrendReportPage() {
 
         {trendReport && (
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                 <Info size={24} weight="duotone" color="#3b82f6" />
                 总结
@@ -471,7 +471,7 @@ export default function TrendReportPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
               <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
                 <Lightbulb size={24} weight="duotone" color="#f59e0b" />
                 建议
@@ -490,7 +490,7 @@ export default function TrendReportPage() {
         )}
 
         {trendHistory.length > 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
             <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
               <Calendar size={24} weight="duotone" color="#6b7280" />
               历史记录
@@ -530,13 +530,13 @@ export default function TrendReportPage() {
         )}
 
         {!trendReport && !trendInfo && trendHistory.length === 0 && (
-          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
             <ChartLine size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
             <h2 className="mb-2 text-xl font-bold text-blue-800">收集数据中</h2>
             <p className="mb-4 text-blue-600">需要更多学习数据才能生成趋势分析</p>
             <button
               onClick={() => navigate('/learning')}
-              className="rounded-lg bg-blue-500 px-6 py-3 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-600 active:scale-95"
+              className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
             >
               开始学习
             </button>

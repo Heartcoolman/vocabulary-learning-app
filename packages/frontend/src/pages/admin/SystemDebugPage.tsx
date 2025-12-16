@@ -479,7 +479,7 @@ function FallbackTestPanel() {
         </div>
 
         {/* 当前选中场景说明 */}
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+        <div className="rounded-button border border-blue-100 bg-blue-50 p-3">
           <div className="mb-1 flex items-center gap-2">
             <span className={`font-medium ${scenarios[reason]?.color}`}>
               {scenarios[reason]?.label}
@@ -498,7 +498,7 @@ function FallbackTestPanel() {
 
         {/* 测试结果 */}
         {result && (
-          <div className="rounded-lg border bg-gray-50 p-3 text-sm">
+          <div className="rounded-button border bg-gray-50 p-3 text-sm">
             <div className="mb-2 flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="font-medium">测试结果</span>

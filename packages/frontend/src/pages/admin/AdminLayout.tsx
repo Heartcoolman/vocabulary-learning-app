@@ -107,7 +107,7 @@ export default function AdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2 rounded-button px-4 py-2 transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   isActive
                     ? 'bg-blue-50 font-medium text-blue-600'
                     : 'text-gray-700 hover:bg-gray-100'
@@ -123,7 +123,7 @@ export default function AdminLayout() {
         <div className="border-t border-gray-200 p-4">
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-gray-700 transition-all hover:bg-gray-100"
+            className="flex items-center gap-2 rounded-button px-4 py-2 text-gray-700 transition-all hover:bg-gray-100"
           >
             <ArrowLeft size={16} weight="bold" />
             返回主页

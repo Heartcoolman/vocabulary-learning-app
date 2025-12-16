@@ -5,10 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useStudyProgress, StudyProgressData } from '../useStudyProgress';
-import { apiClient } from '@/services/client';
+import { wordBookClient } from '../../services/client';
 
-vi.mock('@/services/client', () => ({
-  apiClient: {
+vi.mock('../../services/client', () => ({
+  wordBookClient: {
     getStudyProgress: vi.fn(),
   },
 }));
@@ -19,7 +19,7 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-const mockApiClient = apiClient as unknown as {
+const mockWordBookClient = wordBookClient as unknown as {
   getStudyProgress: ReturnType<typeof vi.fn>;
 };
 
@@ -38,7 +38,7 @@ describe('useStudyProgress', () => {
 
   describe('progress fetching', () => {
     it('should fetch progress data on mount', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -46,7 +46,7 @@ describe('useStudyProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(1);
+      expect(mockWordBookClient.getStudyProgress).toHaveBeenCalledTimes(1);
       expect(result.current.progress).toEqual(mockProgressData);
       expect(result.current.error).toBeNull();
     });
@@ -56,7 +56,7 @@ describe('useStudyProgress', () => {
       const promise = new Promise<StudyProgressData>((resolve) => {
         resolvePromise = resolve;
       });
-      mockApiClient.getStudyProgress.mockReturnValueOnce(promise);
+      mockWordBookClient.getStudyProgress.mockReturnValueOnce(promise);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -80,7 +80,7 @@ describe('useStudyProgress', () => {
 
   describe('progress data', () => {
     it('should return todayStudied from progress data', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -92,7 +92,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should return todayTarget from progress data', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -104,7 +104,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should return totalStudied from progress data', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -116,7 +116,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should return correctRate from progress data', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -128,7 +128,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should return weeklyTrend array from progress data', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -144,7 +144,7 @@ describe('useStudyProgress', () => {
   describe('error handling', () => {
     it('should handle API error and set error message', async () => {
       const mockError = new Error('Network error');
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(mockError);
+      mockWordBookClient.getStudyProgress.mockRejectedValueOnce(mockError);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -157,7 +157,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should clear error on successful refresh after error', async () => {
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(new Error('Network error'));
+      mockWordBookClient.getStudyProgress.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -166,7 +166,7 @@ describe('useStudyProgress', () => {
       });
 
       // 设置成功的响应
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       await act(async () => {
         await result.current.refresh();
@@ -179,7 +179,7 @@ describe('useStudyProgress', () => {
 
   describe('refresh functionality', () => {
     it('should refresh progress data when refresh is called', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -192,19 +192,19 @@ describe('useStudyProgress', () => {
         todayStudied: 30,
         totalStudied: 505,
       };
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(updatedProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(updatedProgressData);
 
       await act(async () => {
         await result.current.refresh();
       });
 
-      expect(mockApiClient.getStudyProgress).toHaveBeenCalledTimes(2);
+      expect(mockWordBookClient.getStudyProgress).toHaveBeenCalledTimes(2);
       expect(result.current.progress?.todayStudied).toBe(30);
       expect(result.current.progress?.totalStudied).toBe(505);
     });
 
     it('should set loading to true during refresh', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -216,7 +216,7 @@ describe('useStudyProgress', () => {
       const promise = new Promise<StudyProgressData>((resolve) => {
         resolvePromise = resolve;
       });
-      mockApiClient.getStudyProgress.mockReturnValueOnce(promise);
+      mockWordBookClient.getStudyProgress.mockReturnValueOnce(promise);
 
       act(() => {
         result.current.refresh();
@@ -235,7 +235,7 @@ describe('useStudyProgress', () => {
     });
 
     it('should handle refresh error gracefully', async () => {
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(mockProgressData);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -243,7 +243,7 @@ describe('useStudyProgress', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      mockApiClient.getStudyProgress.mockRejectedValueOnce(new Error('Refresh failed'));
+      mockWordBookClient.getStudyProgress.mockRejectedValueOnce(new Error('Refresh failed'));
 
       await act(async () => {
         await result.current.refresh();
@@ -262,7 +262,7 @@ describe('useStudyProgress', () => {
         correctRate: 0,
         weeklyTrend: [],
       };
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(emptyProgress);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(emptyProgress);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -280,7 +280,7 @@ describe('useStudyProgress', () => {
         ...mockProgressData,
         correctRate: 1.0,
       };
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(perfectProgress);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(perfectProgress);
 
       const { result } = renderHook(() => useStudyProgress());
 
@@ -297,7 +297,7 @@ describe('useStudyProgress', () => {
         todayStudied: 75,
         todayTarget: 50,
       };
-      mockApiClient.getStudyProgress.mockResolvedValueOnce(exceededProgress);
+      mockWordBookClient.getStudyProgress.mockResolvedValueOnce(exceededProgress);
 
       const { result } = renderHook(() => useStudyProgress());
 

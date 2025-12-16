@@ -136,7 +136,7 @@ const HabitProfileTab: React.FC = () => {
           <p className="mb-4 text-red-600">{error || '数据加载失败'}</p>
           <button
             onClick={loadHabitProfile}
-            className="mx-auto flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+            className="mx-auto flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
           >
             <ArrowClockwise size={16} weight="bold" />
             重试
@@ -155,9 +155,9 @@ const HabitProfileTab: React.FC = () => {
     <div className="space-y-6">
       {/* Row 1: Core Statistics */}
       <div className="grid animate-g3-fade-in grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-lg bg-blue-100 p-2">
+            <div className="rounded-button bg-blue-100 p-2">
               <Clock className="text-blue-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">学习时长</h3>
@@ -172,9 +172,9 @@ const HabitProfileTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-lg bg-green-100 p-2">
+            <div className="rounded-button bg-green-100 p-2">
               <TrendUp className="text-green-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">学习节奏</h3>
@@ -189,9 +189,9 @@ const HabitProfileTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-lg bg-purple-100 p-2">
+            <div className="rounded-button bg-purple-100 p-2">
               <Calendar className="text-purple-600" size={24} weight="bold" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">数据样本</h3>
@@ -224,7 +224,7 @@ const HabitProfileTab: React.FC = () => {
             <LearningStyleCard data={cognitiveProfile.learningStyle} />
           </>
         ) : (
-          <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-6 text-center">
+          <div className="col-span-2 rounded-card border border-gray-200 bg-gray-50 p-6 text-center">
             <p className="text-sm text-gray-600">认知画像数据加载中或数据不足...</p>
             <p className="mt-2 text-xs text-gray-500">
               需要至少20条学习记录才能生成Chronotype，50条记录才能生成Learning Style
@@ -234,7 +234,7 @@ const HabitProfileTab: React.FC = () => {
       </div>
 
       {profile.preferredTimeSlots.length > 0 && (
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
           <h3 className="mb-3 text-lg font-semibold text-gray-800">偏好时段</h3>
           <div className="flex flex-wrap gap-2">
             {profile.preferredTimeSlots.map((hour: number) => (
@@ -250,16 +250,16 @@ const HabitProfileTab: React.FC = () => {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
         <HabitHeatmap timePref={profile.timePref} />
       </div>
 
-      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
         <h3 className="mb-4 text-lg font-semibold text-gray-800">数据管理</h3>
 
         {actionMessage && (
           <div
-            className={`mb-4 rounded-lg p-3 text-sm ${
+            className={`mb-4 rounded-button p-3 text-sm ${
               actionMessage.type === 'success'
                 ? 'border border-green-200 bg-green-50 text-green-700'
                 : 'border border-red-200 bg-red-50 text-red-700'
@@ -273,7 +273,7 @@ const HabitProfileTab: React.FC = () => {
           <button
             onClick={handleSaveProfile}
             disabled={actionLoading !== null}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-all duration-200 hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-blue-600 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {actionLoading === 'save' ? (
               <ArrowClockwise size={16} weight="bold" className="animate-spin" />
@@ -286,7 +286,7 @@ const HabitProfileTab: React.FC = () => {
           <button
             onClick={handleInitProfile}
             disabled={actionLoading !== null}
-            className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {actionLoading === 'init' ? (
               <ArrowClockwise size={16} weight="bold" className="animate-spin" />
@@ -302,7 +302,7 @@ const HabitProfileTab: React.FC = () => {
         </p>
       </div>
 
-      <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+      <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
         <h4 className="mb-2 flex items-center gap-1 text-sm font-semibold text-blue-900">
           <Lightbulb size={16} weight="fill" className="text-blue-600" /> 关于习惯画像
         </h4>

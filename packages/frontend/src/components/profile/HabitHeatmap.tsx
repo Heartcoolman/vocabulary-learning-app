@@ -82,7 +82,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
       );
     }
     return (
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center gap-2">
           <h3 className="text-lg font-bold text-gray-800">学习时段热力图</h3>
         </div>
@@ -99,7 +99,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
           <h3 className="text-lg font-bold text-gray-800">学习时段偏好</h3>
           <div className="group relative">
             <Info size={18} className="cursor-help text-gray-400" />
-            <div className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-48 -translate-y-1/2 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-48 -translate-y-1/2 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-elevated transition-opacity group-hover:opacity-100">
               颜色越深代表该时段的学习频率越高
             </div>
           </div>
@@ -128,7 +128,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
               role="button"
               tabIndex={0}
               aria-label={`${hour}:00 - ${hour}:59 (${getTimeLabel(hour)}) - 活跃度: ${val.toFixed(1)}`}
-              className={`flex aspect-square cursor-default flex-col items-center justify-center rounded-lg transition-all hover:scale-105 ${colors.bg}`}
+              className={`flex aspect-square cursor-default flex-col items-center justify-center rounded-button transition-all hover:scale-105 ${colors.bg}`}
               title={`${hour}:00 - ${hour}:59 (${getTimeLabel(hour)}) - 活跃度: ${val.toFixed(1)}`}
             >
               <span className={`font-mono text-xs font-medium ${colors.text}`}>{hour}</span>
@@ -150,7 +150,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
               role="button"
               tabIndex={0}
               aria-label={`${label}时段 - 活跃度: ${sum.toFixed(1)}`}
-              className={`rounded-lg p-3 text-center ${
+              className={`rounded-button p-3 text-center ${
                 intensity > 0.5 ? 'bg-blue-100' : intensity > 0.2 ? 'bg-blue-50' : 'bg-gray-50'
               }`}
             >
@@ -170,7 +170,9 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">{mainContent}</div>
+    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+      {mainContent}
+    </div>
   );
 };
 

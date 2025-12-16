@@ -6,44 +6,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ExperimentDashboard from '../ExperimentDashboard';
 
-const mockExperimentStatus = {
-  status: 'running' as const,
-  pValue: 0.03,
-  effectSize: 0.15,
-  confidenceInterval: { lower: 0.05, upper: 0.25 },
-  isSignificant: true,
-  statisticalPower: 0.85,
-  sampleSizes: [
-    { variantId: 'linucb', sampleCount: 500 },
-    { variantId: 'thompson', sampleCount: 500 },
-  ],
-  winner: null,
-  recommendation: '继续运行实验',
-  reason: '样本量尚未达到最小要求',
-  isActive: true,
-};
-
-vi.mock('@/services/client', () => ({
-  default: {
-    getExperimentStatus: vi.fn().mockResolvedValue({
-      status: 'running' as const,
-      pValue: 0.03,
-      effectSize: 0.15,
-      confidenceInterval: { lower: 0.05, upper: 0.25 },
-      isSignificant: true,
-      statisticalPower: 0.85,
-      sampleSizes: [
-        { variantId: 'linucb', sampleCount: 500 },
-        { variantId: 'thompson', sampleCount: 500 },
-      ],
-      winner: null,
-      recommendation: '继续运行实验',
-      reason: '样本量尚未达到最小要求',
-      isActive: true,
-    }),
-    toggleExperiment: vi.fn().mockResolvedValue(undefined),
-    createExperiment: vi.fn().mockResolvedValue({ id: 'new-exp-id' }),
+const { mockApiClient } = vi.hoisted(() => ({
+  mockApiClient: {
+    getExperiments: vi.fn(),
+    startExperiment: vi.fn(),
+    stopExperiment: vi.fn(),
+    deleteExperiment: vi.fn(),
+    getExperimentStatus: vi.fn(),
+    createExperiment: vi.fn(),
   },
+}));
+
+vi.mock('../../../services/client', () => ({
+  default: mockApiClient,
+  apiClient: mockApiClient,
 }));
 
 vi.mock('framer-motion', () => {
@@ -92,8 +68,8 @@ vi.mock('lucide-react', () => ({
 }));
 
 // Mock Icon components from phosphor-icons/react (used via components/Icon)
-vi.mock('@/components/Icon', async () => {
-  const actual = await vi.importActual('@/components/Icon');
+vi.mock('../../../components/Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/Icon')>();
   return {
     ...actual,
     Activity: () => <span data-testid="icon-activity">📊</span>,
@@ -117,155 +93,139 @@ vi.mock('@/components/Icon', async () => {
 describe('ExperimentDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
 
-  describe('loading state', () => {
-    it('should show loading state initially', () => {
-      render(<ExperimentDashboard />);
+    mockApiClient.getExperiments.mockResolvedValue({
+      experiments: [
+        {
+          id: 'exp-running',
+          name: '运行中实验',
+          description: 'desc',
+          status: 'RUNNING',
+          trafficAllocation: 'EVEN',
+          minSampleSize: 100,
+          significanceLevel: 0.05,
+          startedAt: new Date().toISOString(),
+          endedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          variantCount: 2,
+          totalSamples: 1000,
+        },
+        {
+          id: 'exp-draft',
+          name: '草稿实验',
+          description: null,
+          status: 'DRAFT',
+          trafficAllocation: 'EVEN',
+          minSampleSize: 100,
+          significanceLevel: 0.05,
+          startedAt: null,
+          endedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          variantCount: 2,
+          totalSamples: 0,
+        },
+      ],
+    });
 
-      // Loading state shows RefreshCw icon
-      expect(screen.getByTestId('icon-refresh')).toBeInTheDocument();
+    mockApiClient.getExperimentStatus.mockResolvedValue({
+      status: 'running',
+      pValue: 0.03,
+      effectSize: 0.15,
+      confidenceInterval: { lower: 0.05, upper: 0.25 },
+      isSignificant: true,
+      statisticalPower: 0.85,
+      sampleSizes: [
+        { variantId: 'linucb', sampleCount: 500 },
+        { variantId: 'thompson', sampleCount: 500 },
+      ],
+      winner: null,
+      recommendation: '继续运行实验',
+      reason: '样本量尚未达到最小要求',
+      isActive: true,
     });
   });
 
-  describe('data display', () => {
-    it('should render page title', async () => {
-      render(<ExperimentDashboard />);
+  it('should show loading state initially', () => {
+    render(<ExperimentDashboard />);
+    expect(screen.getByTestId('icon-refresh')).toBeInTheDocument();
+  });
 
-      await waitFor(() => {
-        // Page title is "A/B 测试仪表盘: Bandit 算法优化"
-        expect(screen.getByText(/测试仪表盘/)).toBeInTheDocument();
-      });
+  it('should render list header after loading', async () => {
+    render(<ExperimentDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('A/B 测试实验管理')).toBeInTheDocument();
     });
 
-    it('should display experiment status badge', async () => {
-      render(<ExperimentDashboard />);
+    expect(screen.getByText('运行中实验')).toBeInTheDocument();
+    expect(screen.getByText('草稿实验')).toBeInTheDocument();
+    expect(screen.getAllByText('运行中').length).toBeGreaterThan(0);
+  });
 
-      await waitFor(() => {
-        expect(screen.getByText(/运行中/i)).toBeInTheDocument();
-      });
+  it('should start draft experiment when start button clicked', async () => {
+    render(<ExperimentDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('草稿实验')).toBeInTheDocument();
     });
 
-    it('should display p-value', async () => {
-      render(<ExperimentDashboard />);
+    fireEvent.click(screen.getByTitle('启动实验'));
 
-      await waitFor(() => {
-        const elements = screen.getAllByText(/0\.03/);
-        expect(elements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should display effect size', async () => {
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        // effectSize 0.15 is displayed as percentage "15.0%" in multiple places
-        const elements = screen.getAllByText(/15\.0%/);
-        expect(elements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should display sample sizes', async () => {
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        // Component shows total samples as "1,000" and individual samples "500" in multiple places
-        const elements = screen.getAllByText(/1,000|500/);
-        expect(elements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should display recommendation', async () => {
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/继续运行实验/)).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(mockApiClient.startExperiment).toHaveBeenCalledWith('exp-draft');
     });
   });
 
-  describe('completed experiment', () => {
-    it('should show winner when experiment is completed', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
-        ...mockExperimentStatus,
-        status: 'completed',
-        winner: 'treatment',
-        recommendation: '推荐采用实验组策略',
-      });
+  it('should stop running experiment when stop button clicked', async () => {
+    render(<ExperimentDashboard />);
 
-      render(<ExperimentDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText('运行中实验')).toBeInTheDocument();
+    });
 
-      await waitFor(() => {
-        expect(screen.getByText(/已完成/i)).toBeInTheDocument();
-      });
+    fireEvent.click(screen.getByTitle('停止实验'));
+
+    await waitFor(() => {
+      expect(mockApiClient.stopExperiment).toHaveBeenCalledWith('exp-running');
     });
   });
 
-  describe('stopped experiment', () => {
-    it('should show stopped status', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
-        ...mockExperimentStatus,
-        status: 'stopped',
-        isActive: false,
-      });
+  it('should delete non-running experiment when confirmed', async () => {
+    render(<ExperimentDashboard />);
 
-      render(<ExperimentDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText('草稿实验')).toBeInTheDocument();
+    });
 
-      await waitFor(() => {
-        expect(screen.getByText(/已停止/i)).toBeInTheDocument();
-      });
+    fireEvent.click(screen.getByTitle('删除实验'));
+
+    await waitFor(() => {
+      expect(mockApiClient.deleteExperiment).toHaveBeenCalledWith('exp-draft');
     });
   });
 
-  describe('statistical significance', () => {
-    it('should indicate when results are significant', async () => {
-      render(<ExperimentDashboard />);
+  it('should open detail and display key metrics', async () => {
+    render(<ExperimentDashboard />);
 
-      await waitFor(() => {
-        // Check for significance indicator - component shows "统计显著" when isSignificant is true
-        expect(screen.getByText(/统计显著/)).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('运行中实验')).toBeInTheDocument();
     });
 
-    it('should indicate when results are not significant', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getExperimentStatus).mockResolvedValue({
-        ...mockExperimentStatus,
-        isSignificant: false,
-        pValue: 0.12,
-      });
+    fireEvent.click(screen.getAllByTitle('查看详情')[0]);
 
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        const elements = screen.getAllByText(/0\.12/);
-        expect(elements.length).toBeGreaterThan(0);
-      });
+    await waitFor(() => {
+      expect(screen.getByText('实验详情')).toBeInTheDocument();
     });
-  });
 
-  describe('error handling', () => {
-    it('should show error message on API failure', async () => {
-      const apiClient = (await import('@/services/client')).default;
-      vi.mocked(apiClient.getExperimentStatus).mockRejectedValue(new Error('API Error'));
-
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/错误|失败/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('experiment controls', () => {
-    it('should render refresh button', async () => {
-      render(<ExperimentDashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('icon-refresh')).toBeInTheDocument();
-      });
-    });
+    expect(mockApiClient.getExperimentStatus).toHaveBeenCalledWith('exp-running');
+    expect(screen.getByText('0.0300')).toBeInTheDocument();
+    expect(screen.getAllByText('15.0%').length).toBeGreaterThan(0);
+    expect(screen.getByText('继续运行实验')).toBeInTheDocument();
   });
 });

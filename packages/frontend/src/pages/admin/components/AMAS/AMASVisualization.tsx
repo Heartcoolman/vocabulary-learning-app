@@ -59,7 +59,7 @@ const TimelineItemCard = memo(function TimelineItemCard({ item }: { item: Decisi
         className={`absolute left-2 top-3 h-4 w-4 rounded-full border-2 border-white ${getConfidenceColor(item.decision.confidence)}`}
       />
 
-      <div className="rounded-lg bg-gray-50 p-4 transition-all hover:bg-gray-100">
+      <div className="rounded-button bg-gray-50 p-4 transition-all hover:bg-gray-100">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-gray-900">
             单词 ID: {item.wordId.slice(0, 8)}...
@@ -104,7 +104,7 @@ const LoadMoreButton = memo(function LoadMoreButton({
     <button
       onClick={onClick}
       disabled={isLoading}
-      className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-blue-600 transition-all hover:bg-blue-50 disabled:opacity-50"
+      className="flex w-full items-center justify-center gap-2 rounded-button py-3 text-blue-600 transition-all hover:bg-blue-50 disabled:opacity-50"
     >
       {isLoading ? (
         <>
@@ -133,7 +133,7 @@ function AMASVisualizationComponent({
   hasMore,
 }: AMASVisualizationProps) {
   return (
-    <div className="rounded-xl border border-gray-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
@@ -143,7 +143,7 @@ function AMASVisualizationComponent({
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="rounded-lg p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
           title="刷新"
         >
           <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />

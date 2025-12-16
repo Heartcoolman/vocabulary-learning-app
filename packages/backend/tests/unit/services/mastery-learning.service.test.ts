@@ -260,7 +260,7 @@ describe('MasteryLearningService', () => {
 
       await expect(
         masteryLearningService.getSessionProgress('session-404', 'user-1'),
-      ).rejects.toThrow('Session not found');
+      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
   });
 
@@ -278,6 +278,17 @@ describe('MasteryLearningService', () => {
           where: { id: 'session-1', userId: 'user-1' },
         }),
       );
+    });
+
+    it('should throw for non-existent session', async () => {
+      (prisma.learningSession.updateMany as any).mockResolvedValue({ count: 0 });
+
+      await expect(
+        masteryLearningService.syncSessionProgress('session-404', 'user-1', {
+          actualMasteryCount: 1,
+          totalQuestions: 1,
+        }),
+      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
   });
 

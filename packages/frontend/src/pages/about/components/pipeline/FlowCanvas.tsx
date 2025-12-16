@@ -267,7 +267,7 @@ const MetricCard: React.FC<{ label: string; value: string; color: string }> = ({
   value,
   color,
 }) => (
-  <div className="rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-2 backdrop-blur-md">
+  <div className="rounded-button border border-slate-700 bg-slate-900/90 px-3 py-2 backdrop-blur-md">
     <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
     <div className="font-mono text-lg font-bold" style={{ color }}>
       {value}

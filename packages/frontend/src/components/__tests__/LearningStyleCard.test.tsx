@@ -16,13 +16,17 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock Icon components
-vi.mock('../Icon', () => ({
-  Eye: () => <span data-testid="eye-icon">Eye</span>,
-  Headphones: () => <span data-testid="headphones-icon">Headphones</span>,
-  Hand: () => <span data-testid="hand-icon">Hand</span>,
-  Brain: () => <span data-testid="brain-icon">Brain</span>,
-  Sparkle: () => <span data-testid="sparkle-icon">Sparkle</span>,
-}));
+vi.mock('../Icon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../Icon')>();
+  return {
+    ...actual,
+    Eye: () => <span data-testid="eye-icon">Eye</span>,
+    Headphones: () => <span data-testid="headphones-icon">Headphones</span>,
+    Hand: () => <span data-testid="hand-icon">Hand</span>,
+    Brain: () => <span data-testid="brain-icon">Brain</span>,
+    Sparkle: () => <span data-testid="sparkle-icon">Sparkle</span>,
+  };
+});
 
 describe('LearningStyleCard', () => {
   // ==================== Default State Tests ====================
@@ -338,14 +342,14 @@ describe('LearningStyleCard', () => {
     it('should have shadow', () => {
       render(<LearningStyleCard />);
 
-      const card = screen.getByText('视觉型 (Visual)').closest('.shadow-sm');
+      const card = screen.getByText('视觉型 (Visual)').closest('.shadow-soft');
       expect(card).toBeInTheDocument();
     });
 
     it('should have rounded corners', () => {
       render(<LearningStyleCard />);
 
-      const card = screen.getByText('视觉型 (Visual)').closest('.rounded-xl');
+      const card = screen.getByText('视觉型 (Visual)').closest('.rounded-card');
       expect(card).toBeInTheDocument();
     });
   });

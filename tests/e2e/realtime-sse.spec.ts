@@ -11,6 +11,7 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { loginAsUser, waitForPageReady } from './utils/test-helpers';
+import { buildBackendUrl } from './utils/urls';
 
 test.describe('Realtime SSE', () => {
   test.beforeEach(async ({ page }) => {
@@ -257,7 +258,7 @@ test.describe('Realtime SSE', () => {
       const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
       // 请求统计信息
-      const response = await request.get('http://localhost:3000/api/v1/realtime/stats', {
+      const response = await request.get(buildBackendUrl('/api/v1/realtime/stats'), {
         headers: {
           'Cookie': cookieHeader,
         },

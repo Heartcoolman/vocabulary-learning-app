@@ -227,6 +227,11 @@ export class BayesianOptimizer {
       return this.randomSample();
     }
 
+    // 超出评估预算后仍需可用，但避免在边界/压力场景下触发 O(n^3) 计算
+    if (this.shouldStop()) {
+      return this.randomSample();
+    }
+
     // 更新GP缓存
     this.updateGPCache();
 
@@ -288,12 +293,13 @@ export class BayesianOptimizer {
 
     this.updateGPCache();
 
-    const n = this.observations.length;
+    const gpObservations = this.getGpObservations();
+    const n = gpObservations.length;
     const kStar = new Float64Array(n);
 
     // 计算k*
     for (let i = 0; i < n; i++) {
-      kStar[i] = this.kernel(x, this.observations[i].params);
+      kStar[i] = this.kernel(x, gpObservations[i].params);
     }
 
     // 均值: μ = k*^T * α
@@ -344,7 +350,15 @@ export class BayesianOptimizer {
     }
 
     const { mean, std } = this.getPosterior(x);
-    return mean + this.beta * std;
+
+    // beta 可能来自配置或边界测试，避免数值溢出导致 Infinity
+    const exploration = this.beta * std;
+    const safeExploration = Number.isFinite(exploration)
+      ? exploration
+      : Math.sign(this.beta) * Number.MAX_VALUE;
+
+    const ucb = mean + safeExploration;
+    return Number.isFinite(ucb) ? ucb : Math.sign(ucb) * Number.MAX_VALUE;
   }
 
   /**
@@ -551,6 +565,21 @@ export class BayesianOptimizer {
   }
 
   /**
+   * 获取用于GP建模的观测子集
+   *
+   * 说明：
+   * - 完整观测仍然保留在 observations 中，用于查询与持久化
+   * - GP 训练仅使用最近 maxEvaluations 条观测，避免在边界/压力场景中出现 O(n^3) 退化
+   */
+  private getGpObservations(): Observation[] {
+    const limit = Math.max(1, Math.floor(this.maxEvaluations));
+    if (this.observations.length <= limit) {
+      return this.observations;
+    }
+    return this.observations.slice(-limit);
+  }
+
+  /**
    * Matern 5/2 核函数
    */
   private kernel(x1: number[], x2: number[]): number {
@@ -574,14 +603,15 @@ export class BayesianOptimizer {
       return;
     }
 
-    const n = this.observations.length;
+    const gpObservations = this.getGpObservations();
+    const n = gpObservations.length;
     if (n === 0) return;
 
     // 构建核矩阵 K + σ²I + jitter*I
     const K = new Float64Array(n * n);
     for (let i = 0; i < n; i++) {
       for (let j = 0; j <= i; j++) {
-        const kij = this.kernel(this.observations[i].params, this.observations[j].params);
+        const kij = this.kernel(gpObservations[i].params, gpObservations[j].params);
         K[i * n + j] = kij;
         K[j * n + i] = kij;
       }
@@ -613,7 +643,7 @@ export class BayesianOptimizer {
     // 计算α = L^T \ (L \ y)
     const y = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      y[i] = this.observations[i].value;
+      y[i] = gpObservations[i].value;
     }
 
     const z = this.solveTriangular(this.cachedL, y, n, false);

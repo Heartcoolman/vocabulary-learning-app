@@ -24,7 +24,7 @@ const DailyMissionCardComponent = ({
   const remaining = Math.max(0, todayTarget - todayStudied);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg transition-all hover:shadow-xl">
+    <div className="overflow-hidden rounded-card border border-gray-100 bg-white shadow-elevated transition-all hover:shadow-floating">
       <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-500 p-6 text-white sm:p-8">
         <div className="relative z-10">
           <div className="mb-6 flex items-start justify-between">
@@ -57,7 +57,7 @@ const DailyMissionCardComponent = ({
             </div>
             <div className="h-4 overflow-hidden rounded-full border border-blue-400/20 bg-blue-900/30 backdrop-blur-sm">
               <div
-                className="relative h-full rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-1000 ease-out"
+                className="relative h-full rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-g3-slower ease-g3"
                 style={{ width: `${progress}%` }}
               >
                 <div className="absolute inset-0 w-1/2 skew-x-12 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
@@ -71,7 +71,7 @@ const DailyMissionCardComponent = ({
 
       <div className="p-6 sm:p-8">
         <div className="mb-8 grid grid-cols-2 gap-4">
-          <div className="group flex flex-col items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-center transition-colors hover:bg-emerald-100">
+          <div className="group flex flex-col items-center rounded-card border border-emerald-100 bg-emerald-50 p-4 text-center transition-colors hover:bg-emerald-100">
             <div className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
               今日已学
             </div>
@@ -79,7 +79,7 @@ const DailyMissionCardComponent = ({
               {todayStudied}
             </div>
           </div>
-          <div className="group flex flex-col items-center rounded-xl border border-amber-100 bg-amber-50 p-4 text-center transition-colors hover:bg-amber-100">
+          <div className="group flex flex-col items-center rounded-card border border-amber-100 bg-amber-50 p-4 text-center transition-colors hover:bg-amber-100">
             <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-600">
               剩余单词
             </div>
@@ -90,7 +90,7 @@ const DailyMissionCardComponent = ({
         </div>
 
         <div className="mb-6 flex items-center justify-between text-sm font-medium text-gray-500">
-          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-button bg-gray-50 px-3 py-1.5">
             <Clock className="h-4 w-4 text-gray-400" weight="bold" />
             <span>预计 ~{estimatedTime} 分钟</span>
           </div>
@@ -100,7 +100,7 @@ const DailyMissionCardComponent = ({
         <button
           onClick={onStart}
           disabled={isCompleted}
-          className={`flex w-full transform items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold shadow-lg transition-all active:scale-[0.98] ${
+          className={`flex w-full transform items-center justify-center gap-2 rounded-card py-4 text-lg font-bold shadow-elevated transition-all active:scale-[0.98] ${
             isCompleted
               ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
               : 'bg-blue-600 text-white hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-500/30'
@@ -126,17 +126,14 @@ const DailyMissionCardComponent = ({
  * Memoized DailyMissionCard component
  * Optimizes re-renders by comparing numeric props and function stability
  */
-export const DailyMissionCard = React.memo(
-  DailyMissionCardComponent,
-  (prevProps, nextProps) => {
-    // Only re-render if props actually change
-    return (
-      prevProps.totalWords === nextProps.totalWords &&
-      prevProps.todayStudied === nextProps.todayStudied &&
-      prevProps.todayTarget === nextProps.todayTarget &&
-      prevProps.estimatedTime === nextProps.estimatedTime &&
-      prevProps.correctRate === nextProps.correctRate &&
-      prevProps.onStart === nextProps.onStart
-    );
-  },
-);
+export const DailyMissionCard = React.memo(DailyMissionCardComponent, (prevProps, nextProps) => {
+  // Only re-render if props actually change
+  return (
+    prevProps.totalWords === nextProps.totalWords &&
+    prevProps.todayStudied === nextProps.todayStudied &&
+    prevProps.todayTarget === nextProps.todayTarget &&
+    prevProps.estimatedTime === nextProps.estimatedTime &&
+    prevProps.correctRate === nextProps.correctRate &&
+    prevProps.onStart === nextProps.onStart
+  );
+});

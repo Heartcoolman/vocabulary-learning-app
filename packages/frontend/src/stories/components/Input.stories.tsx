@@ -267,7 +267,7 @@ export const Textarea: Story = {
  */
 export const FormGroup: Story = {
   render: () => (
-    <div className="w-96 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="w-96 space-y-4 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
       <h3 className="text-lg font-semibold text-gray-900">用户注册</h3>
 
       <div className="space-y-2">

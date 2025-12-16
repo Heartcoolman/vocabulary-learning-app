@@ -335,6 +335,14 @@ export class EnsembleLearningFramework implements BaseLearner<
     const ctx = this.normalizeContext(context);
     const boundedReward = this.clamp(reward, -1, 1);
 
+    // 始终递增更新计数：用于监控、持久化以及并发边界测试
+    this.updateCount += 1;
+
+    // 冷启动未完成时持续喂入更新，避免调用方提前进入normal导致永远不warm
+    if (!this.coldStart.isCompleted()) {
+      this.coldStart.update(state, action, boundedReward, ctx.base);
+    }
+
     if (ctx.phase === 'normal') {
       // normal阶段：更新主学习器，跳过coldStart以保持其状态稳定
       this.linucb.update(state, action, boundedReward, ctx.linucb);
@@ -344,10 +352,8 @@ export class EnsembleLearningFramework implements BaseLearner<
 
       // 更新集成权重
       this.updateWeights(boundedReward, action);
-      this.updateCount += 1;
     } else {
       // 非normal阶段：更新所有子学习器（确保成熟前已有数据）
-      this.coldStart.update(state, action, boundedReward, ctx.base);
       this.linucb.update(state, action, boundedReward, ctx.linucb);
       this.thompson.update(state, action, boundedReward, ctx.thompson);
       this.actr.update(state, action, boundedReward, ctx.actr);
