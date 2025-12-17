@@ -34,7 +34,7 @@
     "@danci/shared": "workspace:*",
     "@mediapipe/tasks-vision": "0.10.22-rc.20250304",
     "@phosphor-icons/react": "^2.1.10",
-    "@sentry/react": "^10.29.0",
+    "@sentry/react": "^10.31.0",
     "@tanstack/react-query": "^5.90.12",
     "@types/react-window": "^2.0.0",
     "framer-motion": "^12.23.24",
