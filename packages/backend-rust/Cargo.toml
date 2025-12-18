@@ -1,0 +1,48 @@
+[package]
+name = "danci-backend-rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "danci-backend-rust"
+path = "src/main.rs"
+
+[lib]
+name = "danci_backend_rust"
+path = "src/lib.rs"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+danci-algo = { path = "../../crates/danci-algo" }
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+redis = { version = "0.27", features = ["tokio-comp"] }
+bytes = "1"
+http-body-util = "0.1"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+base64 = "0.22"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+bcrypt = "0.15"
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures-util = "0.3"
+tokio-cron-scheduler = "0.13"
+cron = "0.12"
+rand = "0.9.2"
+parking_lot = "0.12"
+dotenvy = "0.15.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
