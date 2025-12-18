@@ -184,7 +184,7 @@ const DEFAULT_VIDEO_HEIGHT: i64 = 480;
 fn default_config() -> VisualFatigueConfigDto {
     VisualFatigueConfigDto {
         enabled: false,
-        detection_interval_ms: 200,
+        detection_interval_ms: 100, // 10 FPS (WASM优化后提升)
         report_interval_ms: 5000,
         ear_threshold: DEFAULT_EAR_THRESHOLD,
         perclos_threshold: DEFAULT_PERCLOS_THRESHOLD,

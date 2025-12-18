@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM vs TypeScript 性能对比</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #00d9ff; }
+    .benchmark-section {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #333;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .label { color: #aaa; }
+    .value { font-weight: bold; }
+    .wasm { color: #00ff88; }
+    .ts { color: #ff6b6b; }
+    .speedup { color: #ffd93d; font-size: 1.2em; }
+    button {
+      background: #00d9ff;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px 10px 0;
+    }
+    button:hover { background: #00b8d9; }
+    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    #status {
+      padding: 10px;
+      background: #0f3460;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #00d9ff;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #333;
+    }
+    th { color: #00d9ff; }
+  </style>
+</head>
+<body>
+  <h1>🚀 WASM vs TypeScript 性能对比</h1>
+
+  <div class="benchmark-section">
+    <h2>测试配置</h2>
+    <p>迭代次数: <input type="number" id="iterations" value="10000" min="100" max="100000" style="width:100px;padding:5px;"></p>
+    <button id="runBtn" onclick="runBenchmark()">运行测试</button>
+    <button onclick="runQuickTest()">快速测试 (1000次)</button>
+    <div id="status">准备就绪</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  </div>
+
+  <div class="benchmark-section" id="results" style="display:none;">
+    <h2>📊 测试结果</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>算法</th>
+          <th>TypeScript (ms)</th>
+          <th>WASM (ms)</th>
+          <th>加速比</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="benchmark-section" id="details" style="display:none;">
+    <h2>📈 详细数据</h2>
+    <div id="detailsContent"></div>
+  </div>
+
+  <script type="module">
+    // 生成模拟的MediaPipe关键点数据 (478个点)
+    function generateLandmarks() {
+      const landmarks = [];
+      for (let i = 0; i < 478; i++) {
+        landmarks.push({
+          x: Math.random(),
+          y: Math.random(),
+          z: Math.random() * 0.1
+        });
+      }
+      return landmarks;
+    }
+
+    // TypeScript 实现 (简化版，与原始实现逻辑一致)
+    const TypeScriptImpl = {
+      // EAR 计算
+      EARCalculator: class {
+        constructor(smoothingFactor = 0.3) {
+          this.smoothingFactor = smoothingFactor;
+          this.lastEAR = 0.3;
+        }
+
+        calculate(landmarks) {
+          if (!landmarks || landmarks.length < 400) {
+            return { leftEAR: -1, rightEAR: -1, avgEAR: -1, isValid: false };
+          }
+
+          const LEFT_EYE = [33, 160, 158, 133, 153, 144];
+          const RIGHT_EYE = [362, 385, 387, 263, 373, 380];
+
+          const computeEAR = (indices) => {
+            const p = indices.map(i => landmarks[i]);
+            const dist = (a, b) => Math.sqrt(
+              (b.x - a.x) ** 2 + (b.y - a.y) ** 2 + ((b.z || 0) - (a.z || 0)) ** 2
+            );
+            const v1 = dist(p[1], p[5]);
+            const v2 = dist(p[2], p[4]);
+            const h = dist(p[0], p[3]);
+            return h < 0.001 ? -1 : (v1 + v2) / (2 * h);
+          };
+
+          const leftEAR = computeEAR(LEFT_EYE);
+          const rightEAR = computeEAR(RIGHT_EYE);
+
+          if (leftEAR < 0 || rightEAR < 0) {
+            return { leftEAR, rightEAR, avgEAR: -1, isValid: false };
+          }
+
+          const rawAvg = (leftEAR + rightEAR) / 2;
+          const smoothed = this.smoothingFactor * rawAvg + (1 - this.smoothingFactor) * this.lastEAR;
+          this.lastEAR = smoothed;
+
+          return { leftEAR, rightEAR, avgEAR: smoothed, isValid: true };
+        }
+      },
+
+      // PERCLOS 计算
+      PERCLOSCalculator: class {
+        constructor(windowSizeSeconds = 60, earThreshold = 0.25, sampleRate = 10) {
+          this.windowSizeMs = windowSizeSeconds * 1000;
+          this.earThreshold = earThreshold;
+          this.maxSamples = windowSizeSeconds * sampleRate;
+          this.samples = [];
+        }
+
+        addSample(ear, timestamp) {
+          const isClosed = ear > 0 && ear < this.earThreshold;
+          this.samples.push({ ear, timestamp, isClosed });
+          this.pruneOldSamples(timestamp);
+        }
+
+        pruneOldSamples(now) {
+          const cutoff = now - this.windowSizeMs;
+          this.samples = this.samples.filter(s => s.timestamp >= cutoff);
+          if (this.samples.length > this.maxSamples) {
+            this.samples = this.samples.slice(-this.maxSamples);
+          }
+        }
+
+        calculate() {
+          if (this.samples.length === 0) {
+            return { perclos: 0, totalFrames: 0, closedFrames: 0, windowDuration: 0, isValid: false };
+          }
+          const total = this.samples.length;
+          const closed = this.samples.filter(s => s.isClosed).length;
+          const duration = total > 1 ? this.samples[total - 1].timestamp - this.samples[0].timestamp : 0;
+          const minSamples = Math.floor(this.maxSamples * 0.3);
+          return {
+            perclos: total > 0 ? closed / total : 0,
+            totalFrames: total,
+            closedFrames: closed,
+            windowDuration: duration,
+            isValid: total >= minSamples
+          };
+        }
+      },
+
+      // 眨眼检测
+      BlinkDetector: class {
+        constructor(earThreshold = 0.25, minDuration = 50, maxDuration = 400) {
+          this.earThreshold = earThreshold;
+          this.minDuration = minDuration;
+          this.maxDuration = maxDuration;
+          this.state = 'open';
+          this.closeStartTime = 0;
+          this.blinkEvents = [];
+          this.windowSizeMs = 60000;
+        }
+
+        detectBlink(ear, timestamp) {
+          const threshold = this.earThreshold;
+          const closedThreshold = threshold * 0.8;
+          let blinkEvent = null;
+
+          switch (this.state) {
+            case 'open':
+              if (ear < threshold) {
+                this.state = 'closing';
+                this.closeStartTime = timestamp;
+              }
+              break;
+            case 'closing':
+              if (ear < closedThreshold) this.state = 'closed';
+              else if (ear >= threshold) this.state = 'open';
+              break;
+            case 'closed':
+              if (ear >= closedThreshold) this.state = 'opening';
+              break;
+            case 'opening':
+              if (ear >= threshold) {
+                const duration = timestamp - this.closeStartTime;
+                if (duration >= this.minDuration && duration <= this.maxDuration) {
+                  blinkEvent = { timestamp, duration };
+                  this.blinkEvents.push(blinkEvent);
+                }
+                this.state = 'open';
+              } else if (ear < closedThreshold) {
+                this.state = 'closed';
+              }
+              break;
+          }
+
+          this.pruneOldEvents(timestamp);
+          return blinkEvent;
+        }
+
+        pruneOldEvents(now) {
+          const cutoff = now - this.windowSizeMs;
+          this.blinkEvents = this.blinkEvents.filter(e => e.timestamp >= cutoff);
+        }
+
+        getStats() {
+          const count = this.blinkEvents.length;
+          const avgDuration = count > 0
+            ? this.blinkEvents.reduce((sum, e) => sum + e.duration, 0) / count
+            : 0;
+          let blinkRate = 0;
+          if (count >= 2) {
+            const first = this.blinkEvents[0].timestamp;
+            const last = this.blinkEvents[count - 1].timestamp;
+            const durationMin = (last - first) / 60000;
+            if (durationMin > 0) blinkRate = count / durationMin;
+          }
+          return { blinkRate, avgBlinkDuration: avgDuration, blinkCount: count };
+        }
+      }
+    };
+
+    // 全局变量
+    let wasmModule = null;
+    let wasmLoaded = false;
+
+    // 加载WASM模块
+    async function loadWasm() {
+      try {
+        const response = await fetch('/wasm/visual_fatigue_wasm.js');
+        const code = await response.text();
+        const blob = new Blob([code], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        wasmModule = await import(url);
+        URL.revokeObjectURL(url);
+        await wasmModule.default('/wasm/visual_fatigue_wasm_bg.wasm');
+        wasmLoaded = true;
+        document.getElementById('status').textContent = '✅ WASM模块加载成功';
+      } catch (e) {
+        document.getElementById('status').textContent = '❌ WASM加载失败: ' + e.message;
+        console.error(e);
+      }
+    }
+
+    // 运行基准测试
+    async function runBenchmark() {
+      const iterations = parseInt(document.getElementById('iterations').value) || 10000;
+      await runTests(iterations);
+    }
+
+    window.runQuickTest = async function() {
+      await runTests(1000);
+    };
+
+    async function runTests(iterations) {
+      if (!wasmLoaded) {
+        document.getElementById('status').textContent = '正在加载WASM...';
+        await loadWasm();
+        if (!wasmLoaded) return;
+      }
+
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      document.getElementById('status').textContent = `正在运行 ${iterations} 次迭代...`;
+      document.getElementById('progress').style.width = '0%';
+
+      // 预生成测试数据
+      const testData = [];
+      for (let i = 0; i < iterations; i++) {
+        testData.push({
+          landmarks: generateLandmarks(),
+          ear: 0.15 + Math.random() * 0.2,
+          timestamp: Date.now() + i * 100
+        });
+      }
+
+      const results = {};
+      let progress = 0;
+      const updateProgress = (p) => {
+        document.getElementById('progress').style.width = p + '%';
+      };
+
+      // 1. EAR Calculator 测试
+      document.getElementById('status').textContent = '测试 EAR Calculator...';
+
+      // 预提取眼睛关键点坐标 (增强版：34点)
+      const LEFT_EYE_CONTOUR = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
+      const RIGHT_EYE_CONTOUR = [362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382];
+      const LEFT_IRIS = 468;
+      const RIGHT_IRIS = 473;
+
+      const eyeCoords = testData.map(d => {
+        const coords = new Float64Array(102); // 34点 × 3坐标
+        let idx = 0;
+        for (const i of LEFT_EYE_CONTOUR) {
+          coords[idx++] = d.landmarks[i].x;
+          coords[idx++] = d.landmarks[i].y;
+          coords[idx++] = d.landmarks[i].z || 0;
+        }
+        for (const i of RIGHT_EYE_CONTOUR) {
+          coords[idx++] = d.landmarks[i].x;
+          coords[idx++] = d.landmarks[i].y;
+          coords[idx++] = d.landmarks[i].z || 0;
+        }
+        // 虹膜中心
+        coords[idx++] = d.landmarks[LEFT_IRIS]?.x || (d.landmarks[33].x + d.landmarks[133].x) / 2;
+        coords[idx++] = d.landmarks[LEFT_IRIS]?.y || (d.landmarks[33].y + d.landmarks[133].y) / 2;
+        coords[idx++] = 0;
+        coords[idx++] = d.landmarks[RIGHT_IRIS]?.x || (d.landmarks[362].x + d.landmarks[263].x) / 2;
+        coords[idx++] = d.landmarks[RIGHT_IRIS]?.y || (d.landmarks[362].y + d.landmarks[263].y) / 2;
+        coords[idx++] = 0;
+        return coords;
+      });
+
+      // TypeScript
+      const tsEar = new TypeScriptImpl.EARCalculator(0.3);
+      const tsEarStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        tsEar.calculate(testData[i].landmarks);
+      }
+      const tsEarTime = performance.now() - tsEarStart;
+
+      updateProgress(16);
+      await new Promise(r => setTimeout(r, 10));
+
+      // WASM (增强版：34点 + 虹膜)
+      const wasmEar = new wasmModule.EARCalculator(0.3);
+      const wasmEarStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const result = wasmEar.calculate_enhanced(eyeCoords[i]);
+        result.free();
+      }
+      const wasmEarTime = performance.now() - wasmEarStart;
+      wasmEar.free();
+
+      results.ear = { ts: tsEarTime, wasm: wasmEarTime };
+      updateProgress(33);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 2. PERCLOS Calculator 测试
+      document.getElementById('status').textContent = '测试 PERCLOS Calculator...';
+
+      // TypeScript
+      const tsPerclos = new TypeScriptImpl.PERCLOSCalculator(60, 0.25, 10);
+      const tsPerclosStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        tsPerclos.addSample(testData[i].ear, testData[i].timestamp);
+        tsPerclos.calculate();
+      }
+      const tsPerclosTime = performance.now() - tsPerclosStart;
+
+      updateProgress(50);
+      await new Promise(r => setTimeout(r, 10));
+
+      // WASM
+      const wasmPerclos = new wasmModule.PERCLOSCalculator(60.0, 0.25, 10);
+      const wasmPerclosStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        wasmPerclos.add_sample(testData[i].ear, testData[i].timestamp);
+        const result = wasmPerclos.calculate();
+        result.free();
+      }
+      const wasmPerclosTime = performance.now() - wasmPerclosStart;
+      wasmPerclos.free();
+
+      results.perclos = { ts: tsPerclosTime, wasm: wasmPerclosTime };
+      updateProgress(66);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 3. Blink Detector 测试
+      document.getElementById('status').textContent = '测试 Blink Detector...';
+
+      // TypeScript
+      const tsBlink = new TypeScriptImpl.BlinkDetector(0.25, 50, 400);
+      const tsBlinkStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        tsBlink.detectBlink(testData[i].ear, testData[i].timestamp);
+        tsBlink.getStats();
+      }
+      const tsBlinkTime = performance.now() - tsBlinkStart;
+
+      updateProgress(83);
+      await new Promise(r => setTimeout(r, 10));
+
+      // WASM
+      const wasmBlink = new wasmModule.BlinkDetector(0.25, 50.0, 400.0);
+      const wasmBlinkStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const event = wasmBlink.detect_blink(testData[i].ear, testData[i].timestamp);
+        if (event) event.free();
+        const stats = wasmBlink.get_stats();
+        stats.free();
+      }
+      const wasmBlinkTime = performance.now() - wasmBlinkStart;
+      wasmBlink.free();
+
+      results.blink = { ts: tsBlinkTime, wasm: wasmBlinkTime };
+      updateProgress(50);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 4. Yawn Detector 测试
+      document.getElementById('status').textContent = '测试 Yawn Detector...';
+
+      // 预提取嘴部关键点坐标
+      const mouthCoords = testData.map(d => {
+        const coords = new Float64Array(12);
+        coords[0] = d.landmarks[13].x;
+        coords[1] = d.landmarks[13].y;
+        coords[2] = d.landmarks[13].z || 0;
+        coords[3] = d.landmarks[14].x;
+        coords[4] = d.landmarks[14].y;
+        coords[5] = d.landmarks[14].z || 0;
+        coords[6] = d.landmarks[61].x;
+        coords[7] = d.landmarks[61].y;
+        coords[8] = d.landmarks[61].z || 0;
+        coords[9] = d.landmarks[291].x;
+        coords[10] = d.landmarks[291].y;
+        coords[11] = d.landmarks[291].z || 0;
+        return coords;
+      });
+
+      // WASM Yawn
+      const wasmYawn = new wasmModule.YawnDetector(0.6, 2000.0, 8000.0, 300.0);
+      const wasmYawnStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const result = wasmYawn.process(mouthCoords[i], testData[i].timestamp);
+        result.free();
+      }
+      const wasmYawnTime = performance.now() - wasmYawnStart;
+      wasmYawn.free();
+
+      results.yawn = { ts: 0, wasm: wasmYawnTime };
+      updateProgress(62);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 5. Head Pose Estimator 测试
+      document.getElementById('status').textContent = '测试 Head Pose Estimator...';
+
+      // 预生成变换矩阵
+      const matrices = testData.map(() => {
+        const m = new Float64Array(16);
+        // 生成随机旋转矩阵
+        const angle = Math.random() * 0.5;
+        m[0] = Math.cos(angle); m[1] = Math.sin(angle); m[2] = 0; m[3] = 0;
+        m[4] = -Math.sin(angle); m[5] = Math.cos(angle); m[6] = 0; m[7] = 0;
+        m[8] = 0; m[9] = 0; m[10] = 1; m[11] = 0;
+        m[12] = 0; m[13] = 0; m[14] = 0; m[15] = 1;
+        return m;
+      });
+
+      // WASM HeadPose
+      const wasmHeadPose = new wasmModule.HeadPoseEstimator(0.3, 0.3, 30);
+      const wasmHeadPoseStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const result = wasmHeadPose.estimate_from_matrix(matrices[i]);
+        result.free();
+      }
+      const wasmHeadPoseTime = performance.now() - wasmHeadPoseStart;
+      wasmHeadPose.free();
+
+      results.headPose = { ts: 0, wasm: wasmHeadPoseTime };
+      updateProgress(75);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 6. Blendshape Analyzer 测试
+      document.getElementById('status').textContent = '测试 Blendshape Analyzer...';
+
+      // 预生成Blendshape数据
+      const blendshapeData = testData.map(() => new Float64Array([
+        Math.random() * 0.5, // eyeSquintL
+        Math.random() * 0.5, // eyeSquintR
+        Math.random() * 0.3, // browDownL
+        Math.random() * 0.3, // browDownR
+        Math.random() * 0.8, // eyeBlinkL
+        Math.random() * 0.8, // eyeBlinkR
+        Math.random() * 0.4, // jawOpen
+        Math.random() * 0.2, // browInnerUp
+      ]));
+
+      // WASM Blendshape
+      const wasmBlendshape = new wasmModule.BlendshapeAnalyzer(0.3, 0.3, 30);
+      const wasmBlendshapeStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const result = wasmBlendshape.analyze(blendshapeData[i]);
+        result.free();
+      }
+      const wasmBlendshapeTime = performance.now() - wasmBlendshapeStart;
+      wasmBlendshape.free();
+
+      results.blendshape = { ts: 0, wasm: wasmBlendshapeTime };
+      updateProgress(87);
+      await new Promise(r => setTimeout(r, 10));
+
+      // 7. Fatigue Score Calculator 测试
+      document.getElementById('status').textContent = '测试 Fatigue Score Calculator...';
+
+      // 预生成疲劳输入数据
+      const fatigueInputs = testData.map(() => new Float64Array([
+        Math.random() * 0.3,  // perclos
+        10 + Math.random() * 20, // blink_rate
+        150 + Math.random() * 200, // avg_blink_duration
+        Math.floor(Math.random() * 3), // yawn_count
+        Math.random() * 0.5 - 0.25, // head_pitch
+        0.7 + Math.random() * 0.3, // head_stability
+        Math.random() > 0.8 ? 1 : 0, // is_head_dropping
+        Math.random() * 0.5, // expression_fatigue_score
+        Math.random() * 0.4, // squint_intensity
+        1, 1, 1, 1, 1 // validity flags
+      ]));
+
+      // WASM Fatigue
+      const wasmFatigue = new wasmModule.FatigueScoreCalculator();
+      const wasmFatigueStart = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const result = wasmFatigue.calculate(fatigueInputs[i]);
+        result.free();
+      }
+      const wasmFatigueTime = performance.now() - wasmFatigueStart;
+      wasmFatigue.free();
+
+      results.fatigue = { ts: 0, wasm: wasmFatigueTime };
+      updateProgress(100);
+
+      // 显示结果
+      displayResults(results, iterations);
+      btn.disabled = false;
+      document.getElementById('status').textContent = `✅ 测试完成 (${iterations} 次迭代)`;
+    }
+
+    function displayResults(results, iterations) {
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('details').style.display = 'block';
+
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = '';
+
+      const algorithms = [
+        { key: 'ear', name: 'EAR Calculator', hasTs: true },
+        { key: 'perclos', name: 'PERCLOS Calculator', hasTs: true },
+        { key: 'blink', name: 'Blink Detector', hasTs: true },
+        { key: 'yawn', name: 'Yawn Detector', hasTs: false },
+        { key: 'headPose', name: 'Head Pose Estimator', hasTs: false },
+        { key: 'blendshape', name: 'Blendshape Analyzer', hasTs: false },
+        { key: 'fatigue', name: 'Fatigue Score Calculator', hasTs: false }
+      ];
+
+      let totalTs = 0, totalWasm = 0;
+
+      algorithms.forEach(algo => {
+        const r = results[algo.key];
+        totalWasm += r.wasm;
+
+        const row = document.createElement('tr');
+        if (algo.hasTs) {
+          const speedup = r.ts / r.wasm;
+          totalTs += r.ts;
+          row.innerHTML = `
+            <td>${algo.name}</td>
+            <td class="ts">${r.ts.toFixed(2)}</td>
+            <td class="wasm">${r.wasm.toFixed(2)}</td>
+            <td class="speedup">${speedup.toFixed(2)}x ${speedup > 1 ? '🚀' : '🐢'}</td>
+          `;
+        } else {
+          row.innerHTML = `
+            <td>${algo.name}</td>
+            <td class="ts">-</td>
+            <td class="wasm">${r.wasm.toFixed(2)}</td>
+            <td class="speedup">WASM only</td>
+          `;
+        }
+        tbody.appendChild(row);
+      });
+
+      // 总计行 (仅对比有TS实现的算法)
+      const totalSpeedup = totalTs > 0 ? totalTs / (results.ear.wasm + results.perclos.wasm + results.blink.wasm) : 0;
+      const totalRow = document.createElement('tr');
+      totalRow.style.fontWeight = 'bold';
+      totalRow.style.borderTop = '2px solid #00d9ff';
+      totalRow.innerHTML = `
+        <td>总计 (7个算法)</td>
+        <td class="ts">${totalTs.toFixed(2)}</td>
+        <td class="wasm">${totalWasm.toFixed(2)}</td>
+        <td class="speedup">${totalSpeedup > 0 ? totalSpeedup.toFixed(2) + 'x (对比3个)' : '-'}</td>
+      `;
+      tbody.appendChild(totalRow);
+
+      // 详细数据
+      const details = document.getElementById('detailsContent');
+      details.innerHTML = `
+        <div class="result-row">
+          <span class="label">迭代次数</span>
+          <span class="value">${iterations.toLocaleString()}</span>
+        </div>
+        <div class="result-row">
+          <span class="label">TypeScript 每次操作</span>
+          <span class="value ts">${(totalTs / iterations * 1000).toFixed(3)} μs</span>
+        </div>
+        <div class="result-row">
+          <span class="label">WASM 每次操作</span>
+          <span class="value wasm">${(totalWasm / iterations * 1000).toFixed(3)} μs</span>
+        </div>
+        <div class="result-row">
+          <span class="label">平均加速比</span>
+          <span class="value speedup">${totalSpeedup.toFixed(2)}x</span>
+        </div>
+        <div class="result-row">
+          <span class="label">节省时间</span>
+          <span class="value">${(totalTs - totalWasm).toFixed(2)} ms (${((1 - totalWasm/totalTs) * 100).toFixed(1)}%)</span>
+        </div>
+      `;
+    }
+
+    // 页面加载时预加载WASM
+    window.runBenchmark = runBenchmark;
+    loadWasm();
+  </script>
+</body>
+</html>

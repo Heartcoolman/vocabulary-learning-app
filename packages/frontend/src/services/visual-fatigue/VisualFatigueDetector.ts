@@ -41,7 +41,7 @@ export interface DetectorConfig {
  * 默认检测器配置
  */
 export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
-  detectionIntervalMs: 200, // 5 FPS
+  detectionIntervalMs: 100, // 10 FPS (WASM优化后提升)
   enableBlendshapes: true,
   useGPU: false, // 暂时禁用 GPU 以排查 Worker 兼容性问题
   modelPath: '/models/mediapipe/face_landmarker.task',

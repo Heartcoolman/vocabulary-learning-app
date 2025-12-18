@@ -116,7 +116,7 @@ interface VisualFatigueState {
  */
 const DEFAULT_CONFIG: VisualFatigueConfig = {
   enabled: false,
-  detectionIntervalMs: 200,
+  detectionIntervalMs: 100, // 10 FPS (WASM优化后提升)
   reportIntervalMs: 5000,
   earThreshold: 0.25, // 与 BlinkDetector 保持一致
   perclosThreshold: 0.15,
