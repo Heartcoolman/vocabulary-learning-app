@@ -1,0 +1,10 @@
+[package]
+name = "danci-algo"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# 复用现有算法实现：禁用默认特性（默认包含 NAPI 导出），仅使用纯 Rust 算法部分
+danci-native = { path = "../../packages/native", default-features = false }
+

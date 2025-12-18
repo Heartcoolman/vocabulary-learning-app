@@ -421,7 +421,11 @@ export default function LearningPage() {
         <div className="rounded-button border border-blue-200 bg-white/95 p-3 shadow-elevated backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">当前学习策略</span>
-            <p className="text-sm text-gray-600">{latestAmasResult?.explanation || '分析中...'}</p>
+            <p className="text-sm text-gray-600">
+              {typeof latestAmasResult?.explanation === 'string'
+                ? latestAmasResult.explanation
+                : latestAmasResult?.explanation?.text || '分析中...'}
+            </p>
           </div>
         </div>
       </div>

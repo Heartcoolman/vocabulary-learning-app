@@ -1,12 +1,13 @@
+#[cfg(feature = "napi")]
 use napi::bindgen_prelude::*;
+#[cfg(feature = "napi")]
 use napi_derive::napi;
-
 use crate::matrix::*;
 use crate::sanitize::*;
 use crate::types::*;
 
 /// LinUCB 原生实现
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub struct LinUCBNative {
     /// 协方差矩阵 A = X^T X + λI (d×d)
     a: Vec<f64>,
@@ -24,10 +25,10 @@ pub struct LinUCBNative {
     update_count: u32,
 }
 
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 impl LinUCBNative {
     /// 创建新的 LinUCB 实例
-    #[napi(constructor)]
+    #[cfg_attr(feature = "napi", napi(constructor))]
     pub fn new(alpha: Option<f64>, lambda: Option<f64>) -> Self {
         let alpha = alpha.unwrap_or(0.3);
         let lambda = lambda.unwrap_or(1.0).max(MIN_LAMBDA);
@@ -233,7 +234,7 @@ impl LinUCBNative {
     }
 
     /// 选择动作（类型化版本，性能更优）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action_typed(
         &self,
         state: UserState,
@@ -288,7 +289,7 @@ impl LinUCBNative {
     }
 
     /// 选择动作
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action(
         &self,
         state: UserState,
@@ -343,7 +344,7 @@ impl LinUCBNative {
     }
 
     /// 批量选择动作
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action_batch(
         &self,
         states: Vec<UserState>,
@@ -366,7 +367,7 @@ impl LinUCBNative {
     }
 
     /// 更新模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update(
         &mut self,
         state: UserState,
@@ -379,21 +380,22 @@ impl LinUCBNative {
     }
 
     /// 使用 Float64Array 更新（零拷贝）
-    #[napi]
+    #[cfg(feature = "napi")]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_with_float64_array(&mut self, feature_vec: Float64Array, reward: f64) {
         let mut x: Vec<f64> = feature_vec.to_vec();
         self.update_with_feature_vector_internal(&mut x, reward);
     }
 
     /// 使用特征向量更新
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_with_feature_vector(&mut self, feature_vec: Vec<f64>, reward: f64) {
         let mut x = feature_vec;
         self.update_with_feature_vector_internal(&mut x, reward);
     }
 
     /// 批量更新
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_batch(&mut self, feature_vecs: Vec<Vec<f64>>, rewards: Vec<f64>) -> u32 {
         let mut success_count = 0u32;
         for (x, &r) in feature_vecs.into_iter().zip(rewards.iter()) {
@@ -443,20 +445,20 @@ impl LinUCBNative {
     }
 
     /// 健康诊断
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn diagnose(&self) -> DiagnosticResult {
         diagnose_model(&self.a, &self.l, self.d)
     }
 
     /// 自检
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn self_test(&self) -> bool {
         let diag = self.diagnose();
         diag.is_healthy
     }
 
     /// 获取模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_model(&self) -> BanditModel {
         BanditModel {
             a_matrix: self.a.clone(),
@@ -470,7 +472,7 @@ impl LinUCBNative {
     }
 
     /// 设置模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_model(&mut self, model: BanditModel) {
         if model.d as usize == self.d {
             self.a = model.a_matrix;
@@ -483,31 +485,31 @@ impl LinUCBNative {
     }
 
     /// 重置模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn reset(&mut self) {
         *self = LinUCBNative::new(Some(self.alpha), Some(self.lambda));
     }
 
     /// 获取 alpha
-    #[napi(getter)]
+    #[cfg_attr(feature = "napi", napi(getter))]
     pub fn alpha(&self) -> f64 {
         self.alpha
     }
 
     /// 设置 alpha
-    #[napi(setter)]
+    #[cfg_attr(feature = "napi", napi(setter))]
     pub fn set_alpha(&mut self, value: f64) {
         self.alpha = value.max(0.0);
     }
 
     /// 获取更新计数
-    #[napi(getter)]
+    #[cfg_attr(feature = "napi", napi(getter))]
     pub fn update_count(&self) -> u32 {
         self.update_count
     }
 
     /// 计算冷启动 alpha
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_cold_start_alpha(interaction_count: u32, recent_accuracy: f64, fatigue: f64) -> f64 {
         let base_alpha = 0.3;
 

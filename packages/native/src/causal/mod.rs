@@ -1,9 +1,9 @@
+#[cfg(feature = "napi")]
 use napi_derive::napi;
-
 pub mod estimator;
 
 /// 因果观测数据
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct CausalObservation {
     /// 特征向量
@@ -19,7 +19,7 @@ pub struct CausalObservation {
 }
 
 /// 因果效应估计结果
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct CausalEstimate {
     /// 平均处理效应
@@ -41,7 +41,7 @@ pub struct CausalEstimate {
 }
 
 /// 倾向得分诊断
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct PropensityDiagnostics {
     /// 均值
@@ -61,7 +61,7 @@ pub struct PropensityDiagnostics {
 }
 
 /// 因果推断配置
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct CausalInferenceConfig {
     /// 倾向得分截断下限

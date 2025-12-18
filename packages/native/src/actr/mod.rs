@@ -21,6 +21,7 @@
 //! - Anderson, J. R., & Lebiere, C. (1998). The atomic components of thought.
 //! - Pavlik Jr, P. I., & Anderson, J. R. (2005). Practice and forgetting effects.
 
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 use rayon::prelude::*;
 
@@ -55,7 +56,7 @@ const DEFAULT_TOLERANCE: f64 = 1e-3;
 // ==================== Data Structures ====================
 
 /// Memory trace record
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct MemoryTrace {
     /// Time since this review (seconds ago from current time)
@@ -65,7 +66,7 @@ pub struct MemoryTrace {
 }
 
 /// ACT-R model state
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ACTRState {
     /// Decay rate d (default 0.5)
@@ -90,7 +91,7 @@ impl Default for ACTRState {
 }
 
 /// Cognitive profile for personalized decay rate
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug, Default)]
 pub struct CognitiveProfile {
     /// Memory factor [0, 1], higher means better memory
@@ -102,7 +103,7 @@ pub struct CognitiveProfile {
 }
 
 /// Activation computation result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ActivationResult {
     /// Base activation (without noise)
@@ -114,7 +115,7 @@ pub struct ActivationResult {
 }
 
 /// Recall prediction result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct RecallPrediction {
     /// Activation (typically -2 to 2)
@@ -126,7 +127,7 @@ pub struct RecallPrediction {
 }
 
 /// Optimal interval prediction result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct IntervalPrediction {
     /// Optimal interval (seconds)
@@ -140,7 +141,7 @@ pub struct IntervalPrediction {
 }
 
 /// Batch computation input
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct BatchComputeInput {
     /// Traces for this computation
@@ -150,7 +151,7 @@ pub struct BatchComputeInput {
 }
 
 /// Batch computation result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct BatchComputeResult {
     /// Activation value
@@ -162,17 +163,17 @@ pub struct BatchComputeResult {
 // ==================== Action Selection Types ====================
 
 /// User state for action selection
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionState {
     /// Attention level [0, 1]
-    #[napi(js_name = "A")]
+    #[cfg_attr(feature = "napi", napi(js_name = "A"))]
     pub attention: f64,
     /// Fatigue level [0, 1]
-    #[napi(js_name = "F")]
+    #[cfg_attr(feature = "napi", napi(js_name = "F"))]
     pub fatigue: f64,
     /// Motivation level [-1, 1]
-    #[napi(js_name = "M")]
+    #[cfg_attr(feature = "napi", napi(js_name = "M"))]
     pub motivation: f64,
     /// Confidence level [0, 1]
     pub conf: f64,
@@ -187,17 +188,17 @@ pub struct ACTRSelectionState {
 }
 
 /// Context for action selection
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionContext {
     /// Current time (timestamp)
-    #[napi(js_name = "currentTime")]
+    #[cfg_attr(feature = "napi", napi(js_name = "currentTime"))]
     pub current_time: f64,
     /// Session duration in milliseconds
-    #[napi(js_name = "sessionDuration")]
+    #[cfg_attr(feature = "napi", napi(js_name = "sessionDuration"))]
     pub session_duration: f64,
     /// Number of words reviewed in session
-    #[napi(js_name = "wordsReviewed")]
+    #[cfg_attr(feature = "napi", napi(js_name = "wordsReviewed"))]
     pub words_reviewed: u32,
 }
 
@@ -217,11 +218,11 @@ pub struct ACTRActionParams {
 }
 
 /// Action selection result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionResult {
     /// Selected action index
-    #[napi(js_name = "selectedIndex")]
+    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
     pub selected_index: u32,
     /// Selection score
     pub score: f64,
@@ -239,17 +240,17 @@ pub struct ACTRSelectionResult {
 /// - Predict word forgetting curves
 /// - Calculate optimal review intervals
 /// - Long-term memory retention optimization
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub struct ACTRMemoryNative {
     state: ACTRState,
     tolerance: f64,
     max_search_seconds: f64,
 }
 
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 impl ACTRMemoryNative {
     /// Create a new ACT-R memory model instance
-    #[napi(constructor)]
+    #[cfg_attr(feature = "napi", napi(constructor))]
     pub fn new(
         decay: Option<f64>,
         threshold: Option<f64>,
@@ -278,13 +279,13 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Activation value (can be -Infinity for empty traces)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_activation(&self, traces: Vec<MemoryTrace>, current_time: f64) -> f64 {
         self.compute_activation_internal(&traces, current_time, self.state.decay)
     }
 
     /// Compute activation with custom decay rate
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_activation_with_decay(
         &self,
         traces: Vec<MemoryTrace>,
@@ -332,7 +333,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Activation value (can be -Infinity for empty traces)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_activation_from_seconds_ago(&self, traces: Vec<MemoryTrace>) -> f64 {
         self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay)
     }
@@ -371,7 +372,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Recall probability [0, 1]
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn retrieval_probability(&self, activation: f64) -> f64 {
         self.compute_recall_probability_internal(
             activation,
@@ -381,7 +382,7 @@ impl ACTRMemoryNative {
     }
 
     /// Compute recall probability with custom parameters
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn retrieval_probability_with_params(
         &self,
         activation: f64,
@@ -429,7 +430,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Personalized decay rate [0.3, 0.7]
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_personalized_decay(
         &self,
         memory_factor: f64,
@@ -470,7 +471,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Optimal interval in seconds
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_optimal_interval(
         &self,
         traces: Vec<MemoryTrace>,
@@ -480,7 +481,7 @@ impl ACTRMemoryNative {
     }
 
     /// Compute optimal interval with custom decay rate
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_optimal_interval_with_decay(
         &self,
         traces: Vec<MemoryTrace>,
@@ -548,13 +549,13 @@ impl ACTRMemoryNative {
     }
 
     /// Compute full activation result (base, with noise, and probability)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_full_activation(&self, traces: Vec<MemoryTrace>) -> ActivationResult {
         self.compute_full_activation_with_decay(traces, self.state.decay)
     }
 
     /// Compute full activation with custom decay
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_full_activation_with_decay(
         &self,
         traces: Vec<MemoryTrace>,
@@ -596,7 +597,7 @@ impl ACTRMemoryNative {
     }
 
     /// Compute recall prediction with confidence
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn predict_recall(&self, traces: Vec<MemoryTrace>) -> RecallPrediction {
         if traces.is_empty() {
             return RecallPrediction {
@@ -644,7 +645,7 @@ impl ACTRMemoryNative {
     }
 
     /// Predict optimal review interval with min/max suggestions
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn predict_optimal_interval(
         &self,
         traces: Vec<MemoryTrace>,
@@ -684,7 +685,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Vector of batch computation results
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_compute_activations(&self, inputs: Vec<BatchComputeInput>) -> Vec<BatchComputeResult> {
         let decay = self.state.decay;
         let threshold = self.state.threshold;
@@ -710,7 +711,7 @@ impl ACTRMemoryNative {
     }
 
     /// Batch compute activations from "seconds ago" format using parallel processing
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_compute_activations_from_seconds_ago(
         &self,
         trace_sets: Vec<Vec<MemoryTrace>>,
@@ -735,7 +736,7 @@ impl ACTRMemoryNative {
     }
 
     /// Batch compute optimal intervals using parallel processing
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_compute_optimal_intervals(
         &self,
         trace_sets: Vec<Vec<MemoryTrace>>,
@@ -765,13 +766,13 @@ impl ACTRMemoryNative {
     }
 
     /// Get current state
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_state(&self) -> ACTRState {
         self.state.clone()
     }
 
     /// Set state
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_state(&mut self, state: ACTRState) {
         // Validate and clamp parameters
         self.state = ACTRState {
@@ -783,43 +784,43 @@ impl ACTRMemoryNative {
     }
 
     /// Update model (increment update count)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update(&mut self) {
         self.state.update_count += 1;
     }
 
     /// Reset model
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn reset(&mut self) {
         self.state.update_count = 0;
     }
 
     /// Get decay rate
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_decay(&self) -> f64 {
         self.state.decay
     }
 
     /// Set decay rate
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_decay(&mut self, decay: f64) {
         self.state.decay = decay.clamp(0.1, 1.0);
     }
 
     /// Get threshold
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_threshold(&self) -> f64 {
         self.state.threshold
     }
 
     /// Set threshold
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_threshold(&mut self, threshold: f64) {
         self.state.threshold = threshold;
     }
 
     /// Compute memory strength (normalized activation)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn compute_memory_strength(&self, traces: Vec<MemoryTrace>) -> f64 {
         let activation = self.compute_activation_from_seconds_ago_internal(&traces, self.state.decay);
         if !activation.is_finite() {
@@ -848,7 +849,7 @@ impl ACTRMemoryNative {
     ///
     /// # Returns
     /// Selection result with selected index, score and confidence
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action_from_serialized(
         &self,
         state: ACTRSelectionState,
@@ -1137,14 +1138,14 @@ fn sample_standard_normal() -> f64 {
 // ==================== Standalone Functions (exported via napi) ====================
 
 /// Compute activation (standalone function)
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub fn compute_activation(traces: Vec<MemoryTrace>, decay: Option<f64>) -> f64 {
     let d = decay.unwrap_or(DEFAULT_DECAY);
     compute_activation_from_seconds_ago_static(&traces, d)
 }
 
 /// Compute recall probability (standalone function)
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub fn compute_recall_probability(
     activation: f64,
     threshold: Option<f64>,
@@ -1156,7 +1157,7 @@ pub fn compute_recall_probability(
 }
 
 /// Compute optimal interval (standalone function)
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub fn compute_optimal_interval(
     traces: Vec<MemoryTrace>,
     target_probability: f64,

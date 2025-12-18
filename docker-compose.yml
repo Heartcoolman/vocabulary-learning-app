@@ -50,32 +50,32 @@ services:
       - danci-network
 
   # ============================================
-  # 后端服务
+  # Rust 后端服务 (主服务)
   # ============================================
-  backend:
+  backend-rust:
     build:
       context: .
-      dockerfile: packages/backend/Dockerfile
-    container_name: danci-backend
+      dockerfile: packages/backend-rust/Dockerfile
+    container_name: danci-backend-rust
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      RUST_LOG: ${RUST_LOG:-info}
+      HOST: 0.0.0.0
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-danci}:${POSTGRES_PASSWORD:-danci_secret_2024}@postgres:5432/${POSTGRES_DB:-vocabulary_db}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change_this_in_production_use_random_64_chars}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      TRUST_PROXY: '1'
       WORKER_LEADER: 'true'
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      # AMAS 配置 - 启用真实数据源
-      AMAS_ABOUT_DATA_SOURCE: real
-      AMAS_REAL_DATA_READ_ENABLED: 'true'
-      AMAS_REAL_DATA_WRITE_ENABLED: 'true'
-      AMAS_VISUALIZATION_ENABLED: 'true'
+      # SQLite 热备配置
+      SQLITE_FALLBACK_ENABLED: ${SQLITE_FALLBACK_ENABLED:-true}
+      SQLITE_FALLBACK_PATH: /app/data/fallback.db
+      # Fencing 配置
+      DB_FENCING_ENABLED: ${DB_FENCING_ENABLED:-false}
     ports:
-      - '${BACKEND_PORT:-3000}:3000'
+      - '${BACKEND_RUST_PORT:-3001}:3000'
+    volumes:
+      - rust_backend_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,6 +83,16 @@ services:
         condition: service_healthy
     networks:
       - danci-network
+
+  # ============================================
+  # 后端服务别名 (默认指向Rust后端)
+  # ============================================
+  backend:
+    extends:
+      service: backend-rust
+    container_name: danci-backend
+    ports:
+      - '${BACKEND_PORT:-3002}:3000'
 
   # ============================================
   # 前端服务 (Nginx)
@@ -96,7 +106,7 @@ services:
     ports:
       - '${FRONTEND_PORT:-5173}:80'
     depends_on:
-      - backend
+      - backend-rust
     networks:
       - danci-network
 
@@ -105,6 +115,8 @@ volumes:
     name: danci-postgres-data
   redis_data:
     name: danci-redis-data
+  rust_backend_data:
+    name: danci-rust-backend-data
 
 networks:
   danci-network:

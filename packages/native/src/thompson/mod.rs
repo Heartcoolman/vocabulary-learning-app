@@ -13,6 +13,7 @@
 //! - Cold-start friendly (prior distribution guidance)
 //! - Computationally efficient O(|A|) time complexity
 
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
@@ -36,7 +37,7 @@ const CONFIDENCE_SCALE: f64 = 20.0;
 // ==================== Data Structures ====================
 
 /// Beta distribution parameters
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BetaParams {
     /// Success count (alpha >= 0)
@@ -71,7 +72,7 @@ impl BetaParams {
 }
 
 /// Action selection result
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ActionSelection {
     /// Selected action key
@@ -87,7 +88,7 @@ pub struct ActionSelection {
 }
 
 /// Thompson Sampling configuration options
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct ThompsonSamplingOptions {
     /// Prior alpha (default: 1, uninformative prior)
@@ -118,7 +119,7 @@ impl Default for ThompsonSamplingOptions {
 }
 
 /// Serializable state for persistence
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ThompsonSamplingState {
     /// Version number (for migration)
@@ -145,7 +146,7 @@ pub struct ThompsonSamplingState {
 /// - Efficient exploration during cold-start phase
 /// - Binary feedback (correct/incorrect) learning tasks
 /// - Scenarios requiring natural exploration-exploitation balance
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub struct ThompsonSamplingNative {
     /// Global Beta parameters (indexed by action key)
     global_params: HashMap<String, BetaParams>,
@@ -167,16 +168,16 @@ pub struct ThompsonSamplingNative {
     update_count: i64,
 }
 
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 impl ThompsonSamplingNative {
     /// Create a new Thompson Sampling instance with default options
-    #[napi(constructor)]
+    #[cfg_attr(feature = "napi", napi(constructor))]
     pub fn new() -> Self {
         Self::with_options(ThompsonSamplingOptions::default())
     }
 
     /// Create a new instance with custom options
-    #[napi(factory)]
+    #[cfg_attr(feature = "napi", napi(factory))]
     pub fn with_options(options: ThompsonSamplingOptions) -> Self {
         let seed = options.seed.unwrap_or_else(|| {
             // Use system time as default seed
@@ -201,7 +202,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Create a new instance with a specific seed (for testing)
-    #[napi(factory)]
+    #[cfg_attr(feature = "napi", napi(factory))]
     pub fn with_seed(seed: u32) -> Self {
         Self {
             global_params: HashMap::new(),
@@ -221,7 +222,7 @@ impl ThompsonSamplingNative {
     /// Sample from a Beta distribution using Gamma distribution method
     ///
     /// Uses the property: Beta(alpha, beta) = Gamma(alpha) / (Gamma(alpha) + Gamma(beta))
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn sample_beta(&mut self, alpha: f64, beta: f64) -> f64 {
         let a = alpha.max(EPSILON);
         let b = beta.max(EPSILON);
@@ -242,7 +243,7 @@ impl ThompsonSamplingNative {
     ///
     /// Reference: Marsaglia, G., & Tsang, W. W. (2000).
     /// "A simple method for generating gamma variables."
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn sample_gamma(&mut self, shape: f64, scale: f64) -> f64 {
         self.sample_gamma_internal(shape, scale, 0)
     }
@@ -309,7 +310,7 @@ impl ThompsonSamplingNative {
     /// Batch sample from multiple actions
     ///
     /// Returns sampled values for each action key
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_sample(&mut self, action_keys: Vec<String>) -> Vec<f64> {
         action_keys
             .iter()
@@ -321,7 +322,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Batch sample with context support
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_sample_with_context(
         &mut self,
         context_key: String,
@@ -347,7 +348,7 @@ impl ThompsonSamplingNative {
     /// Select the best action from a list of action keys
     ///
     /// Samples from Beta distributions and returns the action with the highest sample value
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action(&mut self, action_keys: Vec<String>) -> ActionSelection {
         if action_keys.is_empty() {
             return ActionSelection {
@@ -391,7 +392,7 @@ impl ThompsonSamplingNative {
     /// Select the best action with context awareness
     ///
     /// Blends global and contextual samples based on data availability
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn select_action_with_context(
         &mut self,
         context_key: String,
@@ -448,7 +449,7 @@ impl ThompsonSamplingNative {
     /// Update parameters based on feedback
     ///
     /// - success: true -> alpha + 1, false -> beta + 1
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update(&mut self, action_key: String, success: bool) {
         let params = self
             .global_params
@@ -468,7 +469,7 @@ impl ThompsonSamplingNative {
     ///
     /// - Binary mode (default): reward >= 0 -> success, < 0 -> failure
     /// - Soft update mode: alpha += (reward + 1) / 2, beta += (1 - reward) / 2
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_with_reward(&mut self, action_key: String, reward: f64) {
         let safe_reward = reward.clamp(-1.0, 1.0);
 
@@ -495,7 +496,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Update with context
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_with_context(&mut self, context_key: String, action_key: String, success: bool) {
         // Update global params
         {
@@ -533,7 +534,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Update with context and continuous reward
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn update_with_context_and_reward(
         &mut self,
         context_key: String,
@@ -586,7 +587,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Batch update multiple actions
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn batch_update(&mut self, updates: Vec<BatchUpdateItem>) {
         for item in updates {
             if item.success {
@@ -600,7 +601,7 @@ impl ThompsonSamplingNative {
     // ==================== Query Methods ====================
 
     /// Get expected value for an action
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_expected_value(&self, action_key: String) -> f64 {
         self.global_params
             .get(&action_key)
@@ -609,7 +610,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Get expected value with context
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_expected_value_with_context(
         &self,
         context_key: String,
@@ -623,7 +624,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Get sample count for an action (observations excluding prior)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_sample_count(&self, action_key: String) -> f64 {
         self.global_params
             .get(&action_key)
@@ -632,13 +633,13 @@ impl ThompsonSamplingNative {
     }
 
     /// Get global parameters for an action
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_global_params(&self, action_key: String) -> Option<BetaParams> {
         self.global_params.get(&action_key).cloned()
     }
 
     /// Get contextual parameters
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_context_params(&self, action_key: String, context_key: String) -> Option<BetaParams> {
         self.context_params
             .get(&action_key)
@@ -647,14 +648,14 @@ impl ThompsonSamplingNative {
     }
 
     /// Set global parameters directly
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_global_params(&mut self, action_key: String, alpha: f64, beta: f64) {
         self.global_params
             .insert(action_key, BetaParams::new(alpha, beta));
     }
 
     /// Set contextual parameters directly
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_context_params(
         &mut self,
         action_key: String,
@@ -670,13 +671,13 @@ impl ThompsonSamplingNative {
     }
 
     /// Get all global stats
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_all_stats(&self) -> HashMap<String, BetaParams> {
         self.global_params.clone()
     }
 
     /// Get update count
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_update_count(&self) -> i64 {
         self.update_count
     }
@@ -684,7 +685,7 @@ impl ThompsonSamplingNative {
     // ==================== State Management ====================
 
     /// Reset all parameters
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn reset(&mut self) {
         self.global_params.clear();
         self.context_params.clear();
@@ -692,7 +693,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Get serializable state for persistence
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_state(&self) -> ThompsonSamplingState {
         ThompsonSamplingState {
             version: "1.0.0".to_string(),
@@ -705,7 +706,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Restore state from serialized data
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_state(&mut self, state: ThompsonSamplingState) {
         // Version compatibility check
         let _version = &state.version;
@@ -756,7 +757,7 @@ impl ThompsonSamplingNative {
     }
 
     /// Set random seed (for testing)
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn set_seed(&mut self, seed: u32) {
         self.rng = ChaCha8Rng::seed_from_u64(seed as u64);
     }
@@ -836,7 +837,7 @@ impl Default for ThompsonSamplingNative {
 // ==================== Supporting Types ====================
 
 /// Batch update item
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 pub struct BatchUpdateItem {
     pub action_key: String,
