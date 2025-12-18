@@ -371,14 +371,9 @@ export default function CausalInferencePage() {
                     <div className="flex-1">
                       <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-200">
                         {(() => {
-                          const left = Math.max(
-                            0,
-                            Math.min(100, (ate.confidenceInterval[0] + 1) * 50),
-                          );
-                          const right = Math.max(
-                            0,
-                            Math.min(100, (ate.confidenceInterval[1] + 1) * 50),
-                          );
+                          const ci = ate.confidenceInterval ?? [0, 0];
+                          const left = Math.max(0, Math.min(100, (ci[0] + 1) * 50));
+                          const right = Math.max(0, Math.min(100, (ci[1] + 1) * 50));
                           const width = Math.max(0, right - left);
                           return (
                             <div

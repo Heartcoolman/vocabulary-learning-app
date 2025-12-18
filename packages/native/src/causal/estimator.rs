@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 use rand::prelude::*;
 use rand::SeedableRng;
@@ -13,7 +14,7 @@ const MAX_WEIGHT: f64 = 20.0;
 const Z_95: f64 = 1.96;
 
 /// 因果推断 Native 实现
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 pub struct CausalInferenceNative {
     /// 倾向得分模型权重（包含截距项）
     propensity_weights: Vec<f64>,
@@ -34,10 +35,10 @@ pub struct CausalInferenceNative {
     convergence_threshold: f64,
 }
 
-#[napi]
+#[cfg_attr(feature = "napi", napi)]
 impl CausalInferenceNative {
     /// 创建新的因果推断实例
-    #[napi(constructor)]
+    #[cfg_attr(feature = "napi", napi(constructor))]
     pub fn new(feature_dim: u32, config: Option<CausalInferenceConfig>) -> Self {
         let config = config.unwrap_or_default();
         let d = feature_dim as usize + 1; // +1 for intercept
@@ -57,7 +58,7 @@ impl CausalInferenceNative {
     }
 
     /// 训练倾向得分模型（逻辑回归 + 梯度下降 + L2正则化）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn fit_propensity(&mut self, observations: Vec<CausalObservation>) {
         if observations.is_empty() {
             return;
@@ -115,7 +116,7 @@ impl CausalInferenceNative {
 
     /// 训练结果模型（Ridge回归 + Cholesky分解）
     /// 分别训练处理组和对照组模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn fit_outcome(&mut self, observations: Vec<CausalObservation>) {
         // 分离处理组和对照组
         let treatment_obs: Vec<_> = observations
@@ -137,7 +138,7 @@ impl CausalInferenceNative {
     }
 
     /// 完整拟合（倾向得分 + 结果模型）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn fit(&mut self, observations: Vec<CausalObservation>) {
         if observations.len() < 10 {
             return; // 样本量不足
@@ -157,7 +158,7 @@ impl CausalInferenceNative {
 
     /// 计算 AIPW 双重稳健估计
     /// 公式: tau = (1/n) * sum[ mu1(X) - mu0(X) + T(Y-mu1(X))/e(X) - (1-T)(Y-mu0(X))/(1-e(X)) ]
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn estimate_ate(&self, observations: Vec<CausalObservation>) -> CausalEstimate {
         if observations.is_empty() || !self.fitted {
             return CausalEstimate {
@@ -231,7 +232,7 @@ impl CausalInferenceNative {
     }
 
     /// Bootstrap 标准误估计（使用 Rayon 并行化）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn bootstrap_se(&self, observations: Vec<CausalObservation>, n_bootstrap: Option<u32>) -> f64 {
         let n_bootstrap = n_bootstrap.unwrap_or(100) as usize;
         let n = observations.len();
@@ -295,7 +296,7 @@ impl CausalInferenceNative {
     }
 
     /// 诊断倾向得分分布
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn diagnose_propensity(&self, observations: Vec<CausalObservation>) -> PropensityDiagnostics {
         if observations.is_empty() {
             return PropensityDiagnostics {
@@ -353,7 +354,7 @@ impl CausalInferenceNative {
     }
 
     /// 获取倾向得分（自动添加截距项）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_propensity_score(&self, features: &[f64]) -> f64 {
         let features_with_bias = Self::add_bias(features);
         let logit = Self::dot_product(&features_with_bias, &self.propensity_weights);
@@ -362,7 +363,7 @@ impl CausalInferenceNative {
     }
 
     /// 预测结果（自动添加截距项）
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn predict_outcome(&self, features: &[f64], treatment: u8) -> f64 {
         let weights = if treatment == 1 {
             &self.outcome_weights_treatment
@@ -375,19 +376,19 @@ impl CausalInferenceNative {
     }
 
     /// 检查是否已拟合
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn is_fitted(&self) -> bool {
         self.fitted
     }
 
     /// 获取特征维度
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn get_feature_dim(&self) -> u32 {
         self.feature_dim as u32
     }
 
     /// 重置模型
-    #[napi]
+    #[cfg_attr(feature = "napi", napi)]
     pub fn reset(&mut self) {
         let d = self.feature_dim + 1;
         self.propensity_weights = vec![0.0; d];

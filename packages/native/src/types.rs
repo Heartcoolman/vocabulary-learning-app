@@ -1,3 +1,4 @@
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -12,24 +13,24 @@ pub const EPSILON: f64 = 1e-10;
 pub const CHOLESKY_RECOMPUTE_INTERVAL: u32 = 200;
 
 /// BanditModel 结构体 (字段命名与 TS 对齐)
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanditModel {
-    #[napi(js_name = "A")]
+    #[cfg_attr(feature = "napi", napi(js_name = "A"))]
     pub a_matrix: Vec<f64>, // d*d, 行优先
     pub b: Vec<f64>, // d 维
-    #[napi(js_name = "L")]
+    #[cfg_attr(feature = "napi", napi(js_name = "L"))]
     pub l_matrix: Vec<f64>, // d*d, 下三角
     pub lambda: f64,
     pub alpha: f64,
     pub d: u32,
-    #[napi(js_name = "updateCount")]
+    #[cfg_attr(feature = "napi", napi(js_name = "updateCount"))]
     pub update_count: u32,
 }
 
 /// Difficulty 枚举
-#[napi]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "napi", napi)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Difficulty {
     Recognition,
     Recall,
@@ -70,89 +71,89 @@ impl FromStr for Difficulty {
 }
 
 /// Action 结构体
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Action {
-    #[napi(js_name = "wordId")]
+    #[cfg_attr(feature = "napi", napi(js_name = "wordId"))]
     pub word_id: String,
     pub difficulty: String, // 字符串形式，兼容性更好
-    #[napi(js_name = "scheduledAt")]
+    #[cfg_attr(feature = "napi", napi(js_name = "scheduledAt"))]
     pub scheduled_at: Option<f64>,
 }
 
 /// Action 类型化版本
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionTyped {
-    #[napi(js_name = "wordId")]
+    #[cfg_attr(feature = "napi", napi(js_name = "wordId"))]
     pub word_id: String,
     pub difficulty: Difficulty,
-    #[napi(js_name = "scheduledAt")]
+    #[cfg_attr(feature = "napi", napi(js_name = "scheduledAt"))]
     pub scheduled_at: Option<f64>,
 }
 
 /// UserState 结构体
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserState {
-    #[napi(js_name = "masteryLevel")]
+    #[cfg_attr(feature = "napi", napi(js_name = "masteryLevel"))]
     pub mastery_level: f64,
-    #[napi(js_name = "recentAccuracy")]
+    #[cfg_attr(feature = "napi", napi(js_name = "recentAccuracy"))]
     pub recent_accuracy: f64,
-    #[napi(js_name = "studyStreak")]
+    #[cfg_attr(feature = "napi", napi(js_name = "studyStreak"))]
     pub study_streak: u32,
-    #[napi(js_name = "totalInteractions")]
+    #[cfg_attr(feature = "napi", napi(js_name = "totalInteractions"))]
     pub total_interactions: u32,
-    #[napi(js_name = "averageResponseTime")]
+    #[cfg_attr(feature = "napi", napi(js_name = "averageResponseTime"))]
     pub average_response_time: f64,
 }
 
 /// LinUCBContext 结构体
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinUCBContext {
-    #[napi(js_name = "timeOfDay")]
+    #[cfg_attr(feature = "napi", napi(js_name = "timeOfDay"))]
     pub time_of_day: f64,
-    #[napi(js_name = "dayOfWeek")]
+    #[cfg_attr(feature = "napi", napi(js_name = "dayOfWeek"))]
     pub day_of_week: u32,
-    #[napi(js_name = "sessionDuration")]
+    #[cfg_attr(feature = "napi", napi(js_name = "sessionDuration"))]
     pub session_duration: f64,
-    #[napi(js_name = "fatigueFactor")]
+    #[cfg_attr(feature = "napi", napi(js_name = "fatigueFactor"))]
     pub fatigue_factor: Option<f64>,
 }
 
 /// ActionSelection 结构体 - 动作选择结果
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionSelection {
-    #[napi(js_name = "selectedIndex")]
+    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
     pub selected_index: u32,
-    #[napi(js_name = "selectedAction")]
+    #[cfg_attr(feature = "napi", napi(js_name = "selectedAction"))]
     pub selected_action: Action,
     pub exploitation: f64,
     pub exploration: f64,
     pub score: f64,
-    #[napi(js_name = "allScores")]
+    #[cfg_attr(feature = "napi", napi(js_name = "allScores"))]
     pub all_scores: Vec<f64>,
 }
 
 /// ActionSelectionTyped 结构体 - 类型化动作选择结果
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionSelectionTyped {
-    #[napi(js_name = "selectedIndex")]
+    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
     pub selected_index: u32,
-    #[napi(js_name = "selectedAction")]
+    #[cfg_attr(feature = "napi", napi(js_name = "selectedAction"))]
     pub selected_action: ActionTyped,
     pub exploitation: f64,
     pub exploration: f64,
     pub score: f64,
-    #[napi(js_name = "allScores")]
+    #[cfg_attr(feature = "napi", napi(js_name = "allScores"))]
     pub all_scores: Vec<f64>,
 }
 
 /// UCBStats 结构体 - UCB 统计信息
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UCBStats {
     pub theta: Vec<f64>,
@@ -162,20 +163,20 @@ pub struct UCBStats {
 }
 
 /// DiagnosticResult 结构体 - 诊断结果
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticResult {
-    #[napi(js_name = "isHealthy")]
+    #[cfg_attr(feature = "napi", napi(js_name = "isHealthy"))]
     pub is_healthy: bool,
-    #[napi(js_name = "hasNaN")]
+    #[cfg_attr(feature = "napi", napi(js_name = "hasNaN"))]
     pub has_nan: bool,
-    #[napi(js_name = "hasInf")]
+    #[cfg_attr(feature = "napi", napi(js_name = "hasInf"))]
     pub has_inf: bool,
-    #[napi(js_name = "conditionNumber")]
+    #[cfg_attr(feature = "napi", napi(js_name = "conditionNumber"))]
     pub condition_number: f64,
-    #[napi(js_name = "minDiagonal")]
+    #[cfg_attr(feature = "napi", napi(js_name = "minDiagonal"))]
     pub min_diagonal: f64,
-    #[napi(js_name = "maxDiagonal")]
+    #[cfg_attr(feature = "napi", napi(js_name = "maxDiagonal"))]
     pub max_diagonal: f64,
     pub message: String,
 }

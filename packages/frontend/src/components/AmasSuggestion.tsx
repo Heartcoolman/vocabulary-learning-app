@@ -73,7 +73,11 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
 
       {/* 解释说明 */}
       {result.explanation && (
-        <p className="mb-3 text-xs leading-relaxed text-gray-700">{result.explanation}</p>
+        <p className="mb-3 text-xs leading-relaxed text-gray-700">
+          {typeof result.explanation === 'string'
+            ? result.explanation
+            : result.explanation?.text || ''}
+        </p>
       )}
 
       {/* 具体建议 */}
