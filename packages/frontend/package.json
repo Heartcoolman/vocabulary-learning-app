@@ -53,7 +53,7 @@
     "@storybook/addon-a11y": "^10.1.4",
     "@storybook/addon-docs": "^10.1.4",
     "@storybook/addon-onboarding": "^10.1.4",
-    "@storybook/addon-vitest": "^10.1.4",
+    "@storybook/addon-vitest": "^10.1.10",
     "@storybook/react-vite": "^10.1.4",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@testing-library/jest-dom": "^6.9.1",
