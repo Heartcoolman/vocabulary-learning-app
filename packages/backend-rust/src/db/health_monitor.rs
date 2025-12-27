@@ -33,6 +33,7 @@ impl HealthCheckResult {
         }
     }
 
+    #[allow(dead_code)]
     pub fn unknown() -> Self {
         Self {
             applicable: false,
@@ -134,6 +135,7 @@ impl HealthTracker {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_recovery_threshold_reached(&self) -> bool {
         if let Some(last_failure) = self.last_failure_ms {
             let since_failure = now_ms().saturating_sub(last_failure);
