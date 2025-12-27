@@ -1,9 +1,10 @@
+use std::collections::VecDeque;
 use crate::amas::config::TrendParams;
 use crate::amas::types::TrendState;
 
 pub struct TrendAnalyzer {
     params: TrendParams,
-    history: Vec<f64>,
+    history: VecDeque<f64>,
     current_trend: TrendState,
 }
 
@@ -11,16 +12,16 @@ impl TrendAnalyzer {
     pub fn new(params: TrendParams) -> Self {
         Self {
             params,
-            history: Vec::with_capacity(100),
+            history: VecDeque::with_capacity(100),
             current_trend: TrendState::Flat,
         }
     }
 
     pub fn update(&mut self, mastery_score: f64) -> TrendState {
-        self.history.push(mastery_score);
+        self.history.push_back(mastery_score);
 
         if self.history.len() > self.params.window_size {
-            self.history.remove(0);
+            self.history.pop_front();
         }
 
         if self.history.len() < 5 {

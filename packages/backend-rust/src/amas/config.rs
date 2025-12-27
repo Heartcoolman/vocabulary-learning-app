@@ -178,7 +178,7 @@ impl Default for BanditConfig {
     fn default() -> Self {
         Self {
             alpha: 0.1,
-            context_dim: 8,
+            context_dim: 5,
             action_count: 48,
             exploration_bonus: 1.0,
         }
@@ -208,6 +208,7 @@ impl Default for RewardConfig {
 pub struct FeatureFlags {
     pub ensemble_enabled: bool,
     pub thompson_enabled: bool,
+    pub linucb_enabled: bool,
     pub heuristic_enabled: bool,
     pub causal_inference_enabled: bool,
     pub bayesian_optimizer_enabled: bool,
@@ -219,6 +220,7 @@ impl Default for FeatureFlags {
         Self {
             ensemble_enabled: true,
             thompson_enabled: true,
+            linucb_enabled: true,
             heuristic_enabled: true,
             causal_inference_enabled: false,
             bayesian_optimizer_enabled: false,
@@ -273,6 +275,9 @@ impl AMASConfig {
         }
         if let Ok(val) = std::env::var("AMAS_THOMPSON_ENABLED") {
             config.feature_flags.thompson_enabled = val.parse().unwrap_or(true);
+        }
+        if let Ok(val) = std::env::var("AMAS_LINUCB_ENABLED") {
+            config.feature_flags.linucb_enabled = val.parse().unwrap_or(true);
         }
         if let Ok(val) = std::env::var("AMAS_CAUSAL_ENABLED") {
             config.feature_flags.causal_inference_enabled = val.parse().unwrap_or(false);
