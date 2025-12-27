@@ -37,9 +37,17 @@ export default function RegisterPage() {
       return;
     }
 
-    // 验证密码长度
-    if (password.length < 8) {
-      setError('密码长度至少为8个字符');
+    // 验证密码长度和复杂度
+    if (password.length < 10) {
+      setError('密码长度至少为10个字符');
+      return;
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|`~]/.test(password);
+    if (!hasLetter || !hasDigit || !hasSpecial) {
+      setError('密码需包含字母、数字和特殊符号');
       return;
     }
 
@@ -150,14 +158,14 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
                 className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="至少8个字符"
+                placeholder="至少10个字符"
                 autoComplete="new-password"
                 aria-required="true"
                 aria-invalid={!!error}
                 aria-describedby="password-hint"
               />
               <p id="password-hint" className="mt-1 text-xs text-gray-500">
-                密码长度至少为8个字符
+                密码长度至少10个字符，需包含字母、数字和特殊符号
               </p>
             </div>
 

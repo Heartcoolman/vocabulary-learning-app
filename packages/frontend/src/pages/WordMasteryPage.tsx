@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChartBar, Warning, MagnifyingGlass } from '@phosphor-icons/react';
 import { useMasteryWords } from '../hooks/queries/useMasteryWords';
 import type { MasteryEvaluation } from '../types/word-mastery';
 import { MasteryStatsCard } from '../components/word-mastery/MasteryStatsCard';
 import { MasteryWordItem } from '../components/word-mastery/MasteryWordItem';
 import { WordMasteryDetailModal } from '../components/word-mastery/WordMasteryDetailModal';
+import { MasteryDistributionChart } from '../components/progress/MasteryDistributionChart';
 
 interface WordWithMastery {
   id: string;
@@ -19,14 +20,36 @@ const WordMasteryPage: React.FC = () => {
   // 使用React Query hooks
   const { words, stats, loading, error, refetch } = useMasteryWords();
 
-  const [filteredWords, setFilteredWords] = useState(words);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    let result = [...words];
+  const distribution = useMemo(() => {
+    const levels = [0, 0, 0, 0, 0, 0];
+    // 阈值与 MasteryWordItem 的 0.4/0.7 分界对齐
+    // 需复习(<0.4) → 新词+初识, 学习中(0.4-0.7) → 熟悉+掌握, 熟练(≥0.7) → 精通+母语
+    const thresholds = [0.2, 0.4, 0.55, 0.7, 0.85];
+
+    for (const word of words) {
+      const score = word.mastery?.score ?? 0;
+      let level = 0;
+      for (let i = 0; i < thresholds.length; i++) {
+        if (score >= thresholds[i]) level = i + 1;
+      }
+      levels[level]++;
+    }
+
+    const total = words.length || 1;
+    return levels.map((count, level) => ({
+      level,
+      count,
+      percentage: (count / total) * 100,
+    }));
+  }, [words]);
+
+  const filteredWords = useMemo(() => {
+    let result = words;
 
     // Apply filter
     if (filter !== 'all') {
@@ -56,7 +79,7 @@ const WordMasteryPage: React.FC = () => {
       );
     }
 
-    setFilteredWords(result);
+    return result;
   }, [filter, searchQuery, words]);
 
   const handleWordClick = (wordId: string) => {
@@ -147,6 +170,9 @@ const WordMasteryPage: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Mastery Distribution Chart */}
+            <MasteryDistributionChart distribution={distribution} />
 
             {/* Filters and Search */}
             <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">

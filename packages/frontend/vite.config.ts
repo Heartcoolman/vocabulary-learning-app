@@ -99,6 +99,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: proxyTargetOrigin,
           changeOrigin: true,
+          cookieDomainRewrite: '',
         },
       },
     },

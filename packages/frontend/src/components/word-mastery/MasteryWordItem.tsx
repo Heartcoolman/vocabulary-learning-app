@@ -230,6 +230,7 @@ const compareMasteryEvaluation = (
     prev.factors.srsLevel === next.factors.srsLevel &&
     prev.factors.actrRecall === next.factors.actrRecall &&
     prev.factors.recentAccuracy === next.factors.recentAccuracy &&
+    prev.factors.userFatigue === next.factors.userFatigue &&
     prev.suggestion === next.suggestion
   );
 };

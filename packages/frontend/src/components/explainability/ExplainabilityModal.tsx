@@ -107,7 +107,7 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
             factors,
             reasoning:
               explanationRes.reasoning ||
-              latestDecision.explanation ||
+              latestDecision.explanation?.text ||
               'AMAS 系统根据您当前的状态进行了最优决策。',
           });
         } else {
@@ -115,7 +115,8 @@ const ExplainabilityModal: React.FC<ExplainabilityModalProps> = React.memo(
           setExplanationData({
             decisionId: latestDecision.sessionId || `local-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            reasoning: latestDecision.explanation || 'AMAS 系统根据您当前的状态进行了最优决策。',
+            reasoning:
+              latestDecision.explanation?.text || 'AMAS 系统根据您当前的状态进行了最优决策。',
             state: {
               attention: latestDecision.state.attention,
               fatigue: latestDecision.state.fatigue,

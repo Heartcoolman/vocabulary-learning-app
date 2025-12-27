@@ -18,7 +18,8 @@ import {
   ChartPie,
   Lightbulb,
 } from '../components/Icon';
-import { FloatingEyeIndicator } from '../components/visual-fatigue';
+import { FloatingEyeIndicator, FatigueAlertModal } from '../components/visual-fatigue';
+import { useVisualFatigueStore } from '../stores/visualFatigueStore';
 import { useMasteryLearning } from '../hooks/useMasteryLearning';
 import { useDialogPauseTrackingWithStates } from '../hooks/useDialogPauseTracking';
 import { useAutoPlayPronunciation } from '../hooks/useAutoPlayPronunciation';
@@ -36,6 +37,8 @@ export default function LearningPage() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isExplainabilityOpen, setIsExplainabilityOpen] = useState(false);
+  const [isFatigueAlertOpen, setIsFatigueAlertOpen] = useState(false);
+  const fatigueAlertShownRef = useRef(false);
   const [learningType, setLearningType] = useState<'word-to-meaning' | 'meaning-to-word'>(() => {
     return (
       (localStorage.getItem(STORAGE_KEYS.LEARNING_TYPE) as 'word-to-meaning' | 'meaning-to-word') ||
@@ -45,7 +48,15 @@ export default function LearningPage() {
 
   // 使用对话框暂停追踪 Hook（替代原来的手动追踪逻辑）
   const { getPausedTime: getDialogPausedTime, resetPausedTime: resetDialogPausedTime } =
-    useDialogPauseTrackingWithStates([isStatusOpen, isSuggestionOpen, isExplainabilityOpen]);
+    useDialogPauseTrackingWithStates([
+      isStatusOpen,
+      isSuggestionOpen,
+      isExplainabilityOpen,
+      isFatigueAlertOpen,
+    ]);
+
+  // 视觉疲劳状态
+  const { enabled: fatigueEnabled, metrics: fatigueMetrics } = useVisualFatigueStore();
 
   // 保存学习类型偏好
   useEffect(() => {
@@ -68,6 +79,21 @@ export default function LearningPage() {
       trackingService.trackLearningPause('page_leave');
     };
   }, []);
+
+  // 疲劳提醒：当疲劳度超过阈值时弹出提醒
+  useEffect(() => {
+    if (!fatigueEnabled) return;
+    const fatigueScore = fatigueMetrics.visualFatigueScore;
+    // 阈值 0.6，且本次会话未弹出过
+    if (fatigueScore > 0.6 && !fatigueAlertShownRef.current) {
+      fatigueAlertShownRef.current = true;
+      setIsFatigueAlertOpen(true);
+    }
+    // 疲劳恢复到 0.3 以下时重置，允许再次提醒
+    if (fatigueScore < 0.3) {
+      fatigueAlertShownRef.current = false;
+    }
+  }, [fatigueEnabled, fatigueMetrics.visualFatigueScore]);
 
   const {
     currentWord,
@@ -175,7 +201,9 @@ export default function LearningPage() {
 
       // 根据学习类型判断正确答案
       const correctAnswers =
-        learningType === 'word-to-meaning' ? currentWord.meanings : [currentWord.spelling];
+        learningType === 'word-to-meaning'
+          ? currentWord.meanings.map((m) => LearningService.simplifyMeaning(m))
+          : [currentWord.spelling];
       const isCorrect = correctAnswers.includes(answer);
       const responseTime = Date.now() - responseStartTime;
 
@@ -264,7 +292,7 @@ export default function LearningPage() {
           <p className="mb-6 text-gray-600">你还没有添加任何单词，请先选择词书或添加单词</p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
-              onClick={() => navigate('/vocabulary')}
+              onClick={() => navigate('/study-settings')}
               className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:bg-blue-600"
             >
               选择词书
@@ -403,7 +431,9 @@ export default function LearningPage() {
           <TestOptions
             options={testOptions}
             correctAnswers={
-              learningType === 'word-to-meaning' ? currentWord.meanings : [currentWord.spelling]
+              learningType === 'word-to-meaning'
+                ? currentWord.meanings.map((m) => LearningService.simplifyMeaning(m))
+                : [currentWord.spelling]
             }
             onSelect={handleSelectAnswer}
             selectedAnswer={selectedAnswer}
@@ -422,9 +452,7 @@ export default function LearningPage() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">当前学习策略</span>
             <p className="text-sm text-gray-600">
-              {typeof latestAmasResult?.explanation === 'string'
-                ? latestAmasResult.explanation
-                : latestAmasResult?.explanation?.text || '分析中...'}
+              {latestAmasResult?.explanation?.text || '分析中...'}
             </p>
           </div>
         </div>
@@ -447,6 +475,13 @@ export default function LearningPage() {
         isOpen={isExplainabilityOpen}
         onClose={() => setIsExplainabilityOpen(false)}
         latestDecision={latestAmasResult}
+      />
+
+      <FatigueAlertModal
+        isOpen={isFatigueAlertOpen}
+        onClose={() => setIsFatigueAlertOpen(false)}
+        fatigueLevel={Math.round(fatigueMetrics.visualFatigueScore * 100)}
+        recommendations={['远眺放松眼睛', '站起来活动一下', '喝杯水休息片刻']}
       />
     </div>
   );

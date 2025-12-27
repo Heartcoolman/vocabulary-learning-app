@@ -18,6 +18,7 @@ export interface MasteryEvaluation {
     userFatigue: number;
   };
   suggestion?: string;
+  fatigueWarning?: string;
 }
 
 /**

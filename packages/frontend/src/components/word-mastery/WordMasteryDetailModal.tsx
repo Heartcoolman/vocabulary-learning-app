@@ -220,6 +220,18 @@ export const WordMasteryDetailModal: React.FC<WordMasteryDetailModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {data.mastery.suggestion && (
+                <div className="mt-6 rounded-xl bg-blue-50 p-4">
+                  <p className="text-sm text-blue-700">{data.mastery.suggestion}</p>
+                </div>
+              )}
+
+              {data.mastery.fatigueWarning && (
+                <div className="mt-4 rounded-xl bg-amber-50 p-4">
+                  <p className="text-sm text-amber-700">{data.mastery.fatigueWarning}</p>
+                </div>
+              )}
             </motion.div>
           )}
 

@@ -9,6 +9,7 @@ import React, {
   useState,
   useRef,
   useCallback,
+  useEffect,
   ReactNode,
   HTMLAttributes,
 } from 'react';
@@ -85,6 +86,8 @@ export const Tooltip = memo(
           hideTimeoutRef.current = undefined;
         }
       }, []);
+
+      useEffect(() => clearTimeouts, [clearTimeouts]);
 
       const handleShow = useCallback(() => {
         if (disabled) return;

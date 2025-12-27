@@ -75,9 +75,9 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {groupedHours.map((group, index) => (
+        {groupedHours.map((group) => (
           <div
-            key={index}
+            key={`group-${group.start}-${group.end}`}
             className="group relative"
             role="button"
             tabIndex={0}
@@ -93,7 +93,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
             </div>
 
             <div className="invisible absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:visible">
-              活动频次: {group.value.toFixed(2)}
+              活动频次: {(group.value * 100).toFixed(0)}%
               <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
             </div>
           </div>
@@ -105,7 +105,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12">
           {timePref.map((value, hour) => (
             <div
-              key={hour}
+              key={`hour-${hour}`}
               className="group relative"
               role="button"
               tabIndex={0}
@@ -120,7 +120,7 @@ const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ timePref }) => {
               <div className="invisible absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 transform whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:visible">
                 {hour}:00 - {hour}:59
                 <br />
-                频次: {value.toFixed(2)}
+                频次: {(value * 100).toFixed(0)}%
                 <div className="absolute left-1/2 top-full -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
               </div>
             </div>

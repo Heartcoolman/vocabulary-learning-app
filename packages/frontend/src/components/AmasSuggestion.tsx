@@ -15,7 +15,7 @@ interface AmasSuggestionProps {
  * 使用 React.memo 优化：仅当 result 或 onBreak 变化时重新渲染
  */
 function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
-  if (!result || (!result.explanation && !result.suggestion && !result.shouldBreak)) {
+  if (!result || (!result.explanation?.text && !result.suggestion && !result.shouldBreak)) {
     return null;
   }
 
@@ -72,12 +72,8 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
       </div>
 
       {/* 解释说明 */}
-      {result.explanation && (
-        <p className="mb-3 text-xs leading-relaxed text-gray-700">
-          {typeof result.explanation === 'string'
-            ? result.explanation
-            : result.explanation?.text || ''}
-        </p>
+      {result.explanation?.text && (
+        <p className="mb-3 text-xs leading-relaxed text-gray-700">{result.explanation.text}</p>
       )}
 
       {/* 具体建议 */}
@@ -93,24 +89,24 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
         <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
           <div className="flex justify-between rounded bg-white/50 p-2">
             <span className="text-gray-600">批量:</span>
-            <span className="font-medium text-gray-900">{result.strategy.batch_size}</span>
+            <span className="font-medium text-gray-900">{result.strategy.batch_size ?? 10}</span>
           </div>
           <div className="flex justify-between rounded bg-white/50 p-2">
             <span className="text-gray-600">难度:</span>
             <span className="font-medium text-gray-900">
-              {getDifficultyText(result.strategy.difficulty)}
+              {getDifficultyText(result.strategy.difficulty ?? 'mid')}
             </span>
           </div>
           <div className="flex justify-between rounded bg-white/50 p-2">
             <span className="text-gray-600">新词:</span>
             <span className="font-medium text-gray-900">
-              {Math.round(result.strategy.new_ratio * 100)}%
+              {Math.round((result.strategy.new_ratio ?? 0) * 100)}%
             </span>
           </div>
           <div className="flex justify-between rounded bg-white/50 p-2">
             <span className="text-gray-600">提示:</span>
             <span className="font-medium text-gray-900">
-              {getHintLevelText(result.strategy.hint_level)}
+              {getHintLevelText(result.strategy.hint_level ?? 0)}
             </span>
           </div>
         </div>
@@ -146,7 +142,7 @@ function arePropsEqual(prevProps: AmasSuggestionProps, nextProps: AmasSuggestion
 
   // 比较基本属性
   if (
-    prev.explanation !== next.explanation ||
+    prev.explanation?.text !== next.explanation?.text ||
     prev.suggestion !== next.suggestion ||
     prev.shouldBreak !== next.shouldBreak
   ) {

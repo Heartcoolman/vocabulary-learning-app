@@ -82,8 +82,12 @@ export default function WordBookDetailPage() {
   };
 
   const handleAddWord = async () => {
-    if (!newWord.spelling || !newWord.phonetic) {
-      toast.warning('请填写单词拼写和音标');
+    if (!newWord.spelling.trim()) {
+      toast.warning('请填写单词拼写');
+      return;
+    }
+    if (newWord.meanings.filter((m) => m.trim()).length === 0) {
+      toast.warning('请至少填写一个释义');
       return;
     }
 

@@ -94,7 +94,7 @@ export const MemoryTraceChart: React.FC<MemoryTraceChartProps> = ({ trace }) => 
               >
                 <title>
                   {formatDate(p.data.timestamp)}: {isCorrect ? '正确' : '错误'} (
-                  {p.data.responseTime.toFixed(1)}s)
+                  {(p.data.responseTime / 1000).toFixed(1)}s)
                 </title>
               </circle>
             </g>

@@ -24,11 +24,12 @@ import {
 } from '../../components/Icon';
 import apiClient from '../../services/client';
 import { adminLogger } from '../../utils/logger';
+import { useToastStore } from '../../stores/toastStore';
 
 // --- Types (Matching Backend) ---
 
 interface ExperimentStatus {
-  status: 'running' | 'completed' | 'stopped';
+  status: 'running' | 'completed' | 'stopped' | 'draft' | 'aborted';
   pValue: number;
   effectSize: number;
   confidenceInterval: {
@@ -115,10 +116,20 @@ const StatusBadge = ({
       icon: XCircle,
       label: '已停止',
     },
+    aborted: {
+      color: 'bg-red-100 text-red-700 border-red-200',
+      icon: XCircle,
+      label: '已中止',
+    },
     ABORTED: {
       color: 'bg-red-100 text-red-700 border-red-200',
       icon: XCircle,
       label: '已中止',
+    },
+    draft: {
+      color: 'bg-gray-100 text-gray-700 border-gray-200',
+      icon: Gear,
+      label: '草稿',
     },
     DRAFT: {
       color: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -408,12 +419,38 @@ const CreateExperimentModal = ({
             </div>
           </div>
 
+          {/* 最小可检测效应 */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              最小可检测效应 (MDE)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.minimumDetectableEffect}
+              onChange={(e) =>
+                setForm({ ...form, minimumDetectableEffect: parseFloat(e.target.value) })
+              }
+              className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              min="0.01"
+              max="0.5"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              希望能检测到的最小提升幅度，范围 0.01 - 0.5（即 1% - 50%）
+            </p>
+          </div>
+
           {/* 流量分配 */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">流量分配策略</label>
             <select
               value={form.trafficAllocation}
-              onChange={(e) => setForm({ ...form, trafficAllocation: e.target.value as any })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  trafficAllocation: e.target.value as CreateExperimentForm['trafficAllocation'],
+                })
+              }
               className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="EVEN">均匀分配</option>
@@ -612,6 +649,7 @@ const ExperimentDetail = ({
   onBack: () => void;
 }) => {
   const [data, setData] = useState<ExperimentStatus | null>(null);
+  const [variants, setVariants] = useState<VariantData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -619,8 +657,12 @@ const ExperimentDetail = ({
     setLoading(true);
     setError(null);
     try {
-      const result = await apiClient.getExperimentStatus(experimentId);
-      setData(result);
+      const [statusResult, detailResult] = await Promise.all([
+        apiClient.getExperimentStatus(experimentId),
+        apiClient.getExperiment(experimentId),
+      ]);
+      setData(statusResult);
+      setVariants(detailResult?.variants || []);
     } catch (e) {
       const err = e as Error;
       adminLogger.error({ err: e }, '加载实验数据失败');
@@ -669,17 +711,17 @@ const ExperimentDetail = ({
   }
 
   const totalSamples = data.sampleSizes.reduce((acc, curr) => acc + curr.sampleCount, 0);
-  const controlSamples =
-    data.sampleSizes.find((s) => s.variantId.includes('control') || s.variantId.includes('linucb'))
-      ?.sampleCount ||
-    data.sampleSizes[0]?.sampleCount ||
-    0;
-  const treatmentSamples =
-    data.sampleSizes.find(
-      (s) => s.variantId.includes('treatment') || s.variantId.includes('thompson'),
-    )?.sampleCount ||
-    data.sampleSizes[1]?.sampleCount ||
-    0;
+
+  // 使用 isControl 标志查找变体，而不是字符串匹配
+  const controlVariant = variants.find((v) => v.isControl);
+  const treatmentVariant = variants.find((v) => !v.isControl);
+
+  const controlSamples = controlVariant
+    ? (data.sampleSizes.find((s) => s.variantId === controlVariant.id)?.sampleCount ?? 0)
+    : (data.sampleSizes[0]?.sampleCount ?? 0);
+  const treatmentSamples = treatmentVariant
+    ? (data.sampleSizes.find((s) => s.variantId === treatmentVariant.id)?.sampleCount ?? 0)
+    : (data.sampleSizes[1]?.sampleCount ?? 0);
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl space-y-8 bg-gray-50 px-4 py-8">
@@ -904,6 +946,7 @@ export default function ExperimentDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedExperiment, setSelectedExperiment] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const toast = useToastStore();
 
   const loadExperiments = async () => {
     setLoading(true);
@@ -925,18 +968,24 @@ export default function ExperimentDashboard() {
   const handleStartExperiment = async (id: string) => {
     try {
       await apiClient.startExperiment(id);
+      toast.success('实验启动成功');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '启动实验失败');
+      toast.error('启动失败: ' + (err?.message || '未知错误'));
     }
   };
 
   const handleStopExperiment = async (id: string) => {
     try {
       await apiClient.stopExperiment(id);
+      toast.success('实验已停止');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '停止实验失败');
+      toast.error('停止失败: ' + (err?.message || '未知错误'));
     }
   };
 
@@ -946,9 +995,12 @@ export default function ExperimentDashboard() {
     }
     try {
       await apiClient.deleteExperiment(id);
+      toast.success('实验已删除');
       await loadExperiments();
     } catch (e) {
+      const err = e as Error;
       adminLogger.error({ err: e }, '删除实验失败');
+      toast.error('删除失败: ' + (err?.message || '未知错误'));
     }
   };
 

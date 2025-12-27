@@ -44,6 +44,10 @@ function WordCard({
     onPronounce();
   }, [word.id, word.spelling, onPronounce]);
 
+  // 使用 ref 存储最新的 handlePronounce，避免 useEffect 依赖变化
+  const handlePronounceRef = useRef(handlePronounce);
+  handlePronounceRef.current = handlePronounce;
+
   // 键盘快捷键支持
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -52,13 +56,13 @@ function WordCard({
       const isFormControl = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(activeTag);
       if (e.code === 'Space' && !isPronouncing && !isFormControl) {
         e.preventDefault();
-        handlePronounce();
+        handlePronounceRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isPronouncing, handlePronounce]);
+  }, [isPronouncing]);
 
   return (
     <motion.div

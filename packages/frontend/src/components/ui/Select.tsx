@@ -103,6 +103,14 @@ export const Select = memo(
       const triggerRef = useRef<HTMLButtonElement>(null);
       const listRef = useRef<HTMLDivElement>(null);
       const searchInputRef = useRef<HTMLInputElement>(null);
+      const focusTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+      useEffect(
+        () => () => {
+          if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+        },
+        [],
+      );
 
       const [selectId] = useState(() => providedId || generateId('select'));
       const listboxId = `${selectId}-listbox`;
@@ -127,8 +135,7 @@ export const Select = memo(
           if (open) {
             setSearchQuery('');
             setActiveIndex(-1);
-            // 聚焦搜索框
-            setTimeout(() => {
+            focusTimeoutRef.current = setTimeout(() => {
               searchInputRef.current?.focus();
             }, 0);
           }
@@ -482,6 +489,14 @@ export const MultiSelect = memo(
       const triggerRef = useRef<HTMLDivElement>(null);
       const listRef = useRef<HTMLDivElement>(null);
       const searchInputRef = useRef<HTMLInputElement>(null);
+      const focusTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+      useEffect(
+        () => () => {
+          if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+        },
+        [],
+      );
 
       const [selectId] = useState(() => providedId || generateId('multi-select'));
       const listboxId = `${selectId}-listbox`;
@@ -512,7 +527,7 @@ export const MultiSelect = memo(
           if (open) {
             setSearchQuery('');
             setActiveIndex(-1);
-            setTimeout(() => {
+            focusTimeoutRef.current = setTimeout(() => {
               searchInputRef.current?.focus();
             }, 0);
           }

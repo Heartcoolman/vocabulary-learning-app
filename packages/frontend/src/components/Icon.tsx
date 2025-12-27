@@ -123,6 +123,9 @@ export {
   Stop,
   // 词库质量管理页面图标
   Wrench,
+  // 403错误页面和疲劳提醒图标
+  House,
+  Bed,
 } from '@phosphor-icons/react';
 
 // 图标别名

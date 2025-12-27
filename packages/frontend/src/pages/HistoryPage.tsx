@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StorageService from '../services/StorageService';
-import ApiClient from '../services/client';
+import ApiClient, { type SessionStats } from '../services/client';
 import { handleError } from '../utils/errorHandler';
 import { learningLogger } from '../utils/logger';
 import {
@@ -27,6 +27,8 @@ import {
   ArrowUp,
   ArrowDown,
   Calendar,
+  Play,
+  Timer,
 } from '../components/Icon';
 import { IconColor, chartColors } from '../utils/iconColors';
 
@@ -52,7 +54,7 @@ interface WordStatRecord {
  */
 type SortType = 'time' | 'correctRate' | 'attempts';
 type FilterType = 'all' | 'mastered' | 'reviewing' | 'struggling';
-type ViewMode = 'words' | 'state';
+type ViewMode = 'words' | 'state' | 'sessions';
 
 export default function HistoryPage() {
   const navigate = useNavigate();
@@ -66,6 +68,12 @@ export default function HistoryPage() {
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+
+  // 会话相关状态
+  const [sessions, setSessions] = useState<SessionStats[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionsPagination, setSessionsPagination] = useState({ total: 0, limit: 10, offset: 0 });
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   // 状态历史相关状态
   const [dateRange, setDateRange] = useState<DateRangeOption>(30);
@@ -159,6 +167,37 @@ export default function HistoryPage() {
       mounted = false;
     };
   }, [viewMode, dateRange]);
+
+  // 加载会话数据
+  useEffect(() => {
+    if (viewMode !== 'sessions') return;
+
+    let mounted = true;
+
+    const loadSessions = async () => {
+      try {
+        if (mounted) setIsLoadingSessions(true);
+        const res = await ApiClient.listSessions({
+          limit: 10,
+          offset: sessionsPagination.offset,
+        });
+        if (mounted) {
+          setSessions(res.data);
+          setSessionsPagination(res.pagination);
+        }
+      } catch (err) {
+        learningLogger.error({ err }, '加载会话列表失败');
+      } finally {
+        if (mounted) setIsLoadingSessions(false);
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [viewMode, sessionsPagination.offset]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -470,7 +509,211 @@ export default function HistoryPage() {
             <ChartLine size={18} weight="bold" />
             状态历史
           </button>
+          <button
+            onClick={() => setViewMode('sessions')}
+            className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
+              viewMode === 'sessions'
+                ? 'bg-blue-500 text-white shadow-soft'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Play size={18} weight="bold" />
+            学习会话
+          </button>
         </div>
+
+        {/* 会话历史视图 */}
+        {viewMode === 'sessions' && (
+          <>
+            {isLoadingSessions ? (
+              <div className="py-12 text-center">
+                <CircleNotch
+                  className="mx-auto mb-4 animate-spin"
+                  size={48}
+                  weight="bold"
+                  color={IconColor.primary}
+                />
+                <p className="text-gray-600">正在加载会话列表...</p>
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
+                <Play
+                  size={64}
+                  weight="duotone"
+                  color={IconColor.primary}
+                  className="mx-auto mb-4"
+                />
+                <h2 className="mb-2 text-xl font-bold text-blue-800">暂无学习会话</h2>
+                <p className="mb-4 text-blue-600">开始学习后会自动创建学习会话</p>
+                <button
+                  onClick={() => navigate('/learning')}
+                  className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
+                >
+                  开始学习
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {sessions.map((session) => {
+                    const startDate = new Date(session.startedAt);
+                    const isExpanded = expandedSessionId === session.id;
+                    const completionRate = session.targetMasteryCount
+                      ? Math.min(
+                          100,
+                          (session.actualMasteryCount / session.targetMasteryCount) * 100,
+                        )
+                      : null;
+
+                    return (
+                      <div
+                        key={session.id}
+                        className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="mb-2 flex items-center gap-3">
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                  session.endedAt
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}
+                              >
+                                {session.endedAt ? '已完成' : '进行中'}
+                              </span>
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                                {session.sessionType}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {startDate.toLocaleDateString('zh-CN')}{' '}
+                              {startDate.toLocaleTimeString('zh-CN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                            className="rounded-button border border-gray-200 px-3 py-1 text-sm text-gray-600 transition-all hover:bg-gray-50"
+                          >
+                            {isExpanded ? '收起' : '详情'}
+                          </button>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                              <Hash size={14} />
+                              <span className="text-xs">题目数</span>
+                            </div>
+                            <p className="text-lg font-bold text-gray-900">
+                              {session.totalQuestions}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                              <CheckCircle size={14} />
+                              <span className="text-xs">掌握数</span>
+                            </div>
+                            <p className="text-lg font-bold text-green-600">
+                              {session.actualMasteryCount}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                              <Timer size={14} />
+                              <span className="text-xs">时长</span>
+                            </div>
+                            <p className="text-lg font-bold text-gray-900">
+                              {Math.floor(session.duration / 60)}分{session.duration % 60}秒
+                            </p>
+                          </div>
+                          {session.flowPeakScore !== undefined &&
+                            session.flowPeakScore !== null && (
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-1 text-gray-500">
+                                  <Brain size={14} />
+                                  <span className="text-xs">心流峰值</span>
+                                </div>
+                                <p className="text-lg font-bold text-purple-600">
+                                  {(session.flowPeakScore * 100).toFixed(0)}%
+                                </p>
+                              </div>
+                            )}
+                        </div>
+
+                        {completionRate !== null && (
+                          <div className="mt-4">
+                            <div className="mb-1 flex justify-between text-xs text-gray-500">
+                              <span>目标完成度</span>
+                              <span>{completionRate.toFixed(0)}%</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
+                                style={{ width: `${completionRate}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {isExpanded && (
+                          <div className="mt-4 border-t border-gray-100 pt-4">
+                            <p className="text-sm text-gray-500">
+                              会话ID:{' '}
+                              <code className="rounded bg-gray-100 px-2 py-0.5 text-xs">
+                                {session.id}
+                              </code>
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              答题记录数: {session.answerRecordCount} | 上下文切换:{' '}
+                              {session.contextShifts}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {sessionsPagination.total > sessionsPagination.limit && (
+                  <div className="mt-8 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() =>
+                        setSessionsPagination((p) => ({
+                          ...p,
+                          offset: Math.max(0, p.offset - p.limit),
+                        }))
+                      }
+                      disabled={sessionsPagination.offset === 0}
+                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      上一页
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      {Math.floor(sessionsPagination.offset / sessionsPagination.limit) + 1} /{' '}
+                      {Math.ceil(sessionsPagination.total / sessionsPagination.limit)}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setSessionsPagination((p) => ({ ...p, offset: p.offset + p.limit }))
+                      }
+                      disabled={
+                        sessionsPagination.offset + sessionsPagination.limit >=
+                        sessionsPagination.total
+                      }
+                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
 
         {/* 状态历史视图 */}
         {viewMode === 'state' && (

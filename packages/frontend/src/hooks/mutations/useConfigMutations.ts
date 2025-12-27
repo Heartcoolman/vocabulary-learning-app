@@ -80,6 +80,8 @@ export function useResetAlgorithmConfig() {
   });
 }
 
+const SESSION_CACHE_KEY = 'mastery_session_cache';
+
 /**
  * 更新学习配置
  *
@@ -96,6 +98,13 @@ export function useUpdateStudyConfig() {
       return await wordBookClient.updateStudyConfig(data);
     },
     onSuccess: () => {
+      // 清除学习会话缓存，避免旧缓存干扰新词书的学习
+      try {
+        localStorage.removeItem(SESSION_CACHE_KEY);
+      } catch {
+        // ignore
+      }
+
       // 使所有相关查询失效，触发重新获取
       queryClient.invalidateQueries({ queryKey: queryKeys.studyConfig.config() });
       queryClient.invalidateQueries({ queryKey: queryKeys.studyConfig.todayWords() });

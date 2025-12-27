@@ -47,10 +47,20 @@ export default function PlanPage() {
       setIsLoading(true);
       setError(null);
 
-      const [planData, progressData] = await Promise.all([
+      const results = await Promise.allSettled([
         ApiClient.getLearningPlan(),
         ApiClient.getPlanProgress(),
       ]);
+
+      const planResult = results[0];
+      const progressResult = results[1];
+
+      if (planResult.status === 'rejected' && progressResult.status === 'rejected') {
+        throw planResult.reason;
+      }
+
+      const planData = planResult.status === 'fulfilled' ? planResult.value : null;
+      const progressData = progressResult.status === 'fulfilled' ? progressResult.value : null;
 
       setPlan(planData);
       setProgress(progressData);

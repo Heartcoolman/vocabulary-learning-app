@@ -490,6 +490,7 @@ export function useMasterySync(options: UseMasterySyncOptions) {
               isCorrect: params.isCorrect,
               responseTime: params.responseTime,
               sessionId: getSessionId(),
+              pausedTimeMs: params.pausedTimeMs,
             });
           },
           maxRetries: 3,

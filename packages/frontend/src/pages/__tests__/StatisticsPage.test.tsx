@@ -43,9 +43,9 @@ const mockStatisticsData: FullStatisticsData = {
   studyDays: 3,
   consecutiveDays: 2,
   dailyAccuracy: [
-    { date: '2024-01-13', accuracy: 100 },
+    { date: '2024-01-13', accuracy: 1.0 },
     { date: '2024-01-14', accuracy: 0 },
-    { date: '2024-01-15', accuracy: 100 },
+    { date: '2024-01-15', accuracy: 1.0 },
   ],
   weekdayHeat: [1, 2, 0, 0, 0, 0, 1],
 };

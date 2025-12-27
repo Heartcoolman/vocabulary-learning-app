@@ -5,6 +5,8 @@ import { apiClient } from '../../services/client';
 import type { Word } from '../../types/models';
 import type { UserMasteryStats, MasteryEvaluation } from '../../types/word-mastery';
 
+const MAX_MASTERY_BATCH_SIZE = 100;
+
 /**
  * 获取已学习单词列表的 Query Hook
  *
@@ -60,8 +62,14 @@ export function useBatchMasteryEvaluation(
     queryKey: queryKeys.studyProgress.masteryBatch(wordIds, userFatigue),
     queryFn: async () => {
       if (wordIds.length === 0) return [];
-      const data = await apiClient.batchProcessWordMastery(wordIds, userFatigue);
-      return data;
+      const batches: string[][] = [];
+      for (let i = 0; i < wordIds.length; i += MAX_MASTERY_BATCH_SIZE) {
+        batches.push(wordIds.slice(i, i + MAX_MASTERY_BATCH_SIZE));
+      }
+      const results = await Promise.all(
+        batches.map((batch) => apiClient.batchProcessWordMastery(batch, userFatigue)),
+      );
+      return results.flat();
     },
     staleTime: 60 * 1000, // 1分钟
     enabled: wordIds.length > 0,

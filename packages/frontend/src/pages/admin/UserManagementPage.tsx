@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { UserOverview, User as UserDetail } from '../../services/client';
+import apiClient, { UserOverview } from '../../services/client';
+import type { User as UserDetail } from '../../services/client/admin/AdminClient';
 import {
   UsersThree,
   MagnifyingGlass,
