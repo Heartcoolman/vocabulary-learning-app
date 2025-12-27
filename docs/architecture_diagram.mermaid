@@ -1,0 +1,70 @@
+graph TD
+    %% 样式定义
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#000;
+    classDef server fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#000;
+    classDef db fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#000;
+    classDef engine fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#000;
+
+    subgraph User["客户端层"]
+        Browser[("浏览器 (Chrome/Edge)")]:::client
+        
+        subgraph Frontend["React 前端应用 (@danci/frontend)"]
+            UI["UI 组件库\n(React + Tailwind)"]:::client
+            Store["状态管理\n(Zustand + React Query)"]:::client
+            SmartWorker["智能 Worker\n(视觉疲劳检测)"]:::client
+            MediaPile["WASM 模块\n(MediaPipe Core)"]:::client
+        end
+    end
+
+    subgraph Access["接入层"]
+        Nginx["Nginx 网关\n(反向代理 + 静态资源)"]:::server
+    end
+
+    subgraph Service["服务层 (@danci/backend-rust)"]
+        API["API 服务\n(Axum + Tokio)"]:::server
+        Auth["认证模块\n(JWT)"]:::server
+        
+        subgraph AMAS_System["AMAS 智能学习系统"]
+            Perception["感知层\n(特征提取)"]:::engine
+            Modeling["建模层\n(状态追踪)"]:::engine
+            Learning["学习层\n(LinUCB 算法)"]:::engine
+            Decision["决策层\n(策略映射)"]:::engine
+        end
+        
+        Native["Rust Native 扩展\n(@danci/native)"]:::server
+    end
+
+    subgraph Storage["数据层"]
+        PG[("PostgreSQL\n业务数据")]:::db
+        TSDB[("TimescaleDB\n时序数据")]:::db
+        Redis[("Redis\n高速缓存")]:::db
+        SQLite[("SQLite\n热备/降级")]:::db
+    end
+
+    %% 连接关系
+    Browser -->|HTTPS / WSS| Nginx
+    Nginx -->|/assets| UI
+    Nginx -->|/api| API
+
+    %% 前端内部
+    UI <--> Store
+    UI -->|视频流帧| SmartWorker
+    SmartWorker -->|计算| MediaPile
+    SmartWorker -->|疲劳指标| UI
+
+    %% 后端调用
+    API --> Auth
+    API -->|学习/复习请求| AMAS_System
+    
+    %% AMAS 流程
+    AMAS_System --> Perception
+    Perception --> Modeling
+    Modeling --> Learning
+    Learning --> Decision
+    Learning -.->|加速计算| Native
+
+    %% 数据访问
+    API -->|CRUD| PG
+    AMAS_System -->|保存学习记录| TSDB
+    API -->|Session/Cache| Redis
+    API -.->|灾备写入| SQLite
