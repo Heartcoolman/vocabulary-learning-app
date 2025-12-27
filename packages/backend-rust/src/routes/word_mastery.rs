@@ -4,14 +4,11 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Row};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -139,12 +136,11 @@ pub fn router() -> Router<AppState> {
 
 async fn get_stats(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    let word_ids = list_user_word_ids(proxy.as_ref(), db_state, &user.id).await?;
+    let word_ids = list_user_word_ids(proxy.as_ref(), &user.id).await?;
     if word_ids.is_empty() {
         return Ok(Json(SuccessResponse {
             success: true,
@@ -160,11 +156,11 @@ async fn get_stats(
         }));
     }
 
-    let fatigue = select_user_fatigue(proxy.as_ref(), db_state, &user.id)
+    let fatigue = select_user_fatigue(proxy.as_ref(), &user.id)
         .await?
         .unwrap_or(0.0);
-    let evaluations = evaluate_words_batch(proxy.as_ref(), db_state, &user.id, &word_ids, fatigue).await?;
-    let state_counts = count_learning_state_buckets(proxy.as_ref(), db_state, &user.id).await?;
+    let evaluations = evaluate_words_batch(proxy.as_ref(), &user.id, &word_ids, fatigue).await?;
+    let state_counts = count_learning_state_buckets(proxy.as_ref(), &user.id).await?;
 
     let total_score: f64 = evaluations.iter().map(|e| e.score).sum();
     let total_recall: f64 = evaluations.iter().map(|e| e.factors.actr_recall).sum();
@@ -189,11 +185,10 @@ async fn get_stats(
 
 async fn batch_evaluate(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<BatchRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if payload.word_ids.is_empty() {
         return Err(json_error(
@@ -223,7 +218,7 @@ async fn batch_evaluate(
     }
 
     let fatigue = clamp01(payload.user_fatigue.unwrap_or(0.0));
-    let evaluations = evaluate_words_batch(proxy.as_ref(), db_state, &user.id, &unique_ids, fatigue).await?;
+    let evaluations = evaluate_words_batch(proxy.as_ref(), &user.id, &unique_ids, fatigue).await?;
     Ok(Json(SuccessResponse {
         success: true,
         data: evaluations,
@@ -232,27 +227,25 @@ async fn batch_evaluate(
 
 async fn get_word(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<FatigueQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let fatigue = clamp01(query.user_fatigue.unwrap_or(0.0));
-    let eval = evaluate_single_word(proxy.as_ref(), db_state, &user.id, word_id.trim(), fatigue).await?;
+    let eval = evaluate_single_word(proxy.as_ref(), &user.id, word_id.trim(), fatigue).await?;
     Ok(Json(SuccessResponse { success: true, data: eval }))
 }
 
 async fn get_trace(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<TraceQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let limit = query.limit.unwrap_or(DEFAULT_TRACE_LIMIT).max(1).min(MAX_TRACE_LIMIT);
-    let trace = select_review_trace(proxy.as_ref(), db_state, &user.id, word_id.trim(), limit).await?;
+    let trace = select_review_trace(proxy.as_ref(), &user.id, word_id.trim(), limit).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -266,14 +259,13 @@ async fn get_trace(
 
 async fn get_interval(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<IntervalQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let target_recall = query.target_recall.unwrap_or(0.9).clamp(0.01, 1.0);
-    let trace = select_review_trace_raw(proxy.as_ref(), db_state, &user.id, word_id.trim(), MAX_TRACE_LIMIT).await?;
+    let trace = select_review_trace_raw(proxy.as_ref(), &user.id, word_id.trim(), MAX_TRACE_LIMIT).await?;
     let actr_trace = to_actr_trace(&trace)?;
 
     let model = danci_algo::ACTRMemoryNative::new(None, None, None);
@@ -302,25 +294,20 @@ async fn get_interval(
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 struct StateBuckets {
@@ -330,166 +317,75 @@ struct StateBuckets {
 
 async fn count_learning_state_buckets(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<StateBuckets, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "state"::text as "state", COUNT(*) as "count"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+        GROUP BY "state"
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "state" as "state", COUNT(*) as "count"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-            GROUP BY "state"
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-        let mut new_words = 0usize;
-        let mut learning_words = 0usize;
-        for row in rows {
-            let state = row.try_get::<String, _>("state").unwrap_or_default();
-            let count = row.try_get::<i64, _>("count").unwrap_or(0).max(0) as usize;
-            match state.as_str() {
-                "NEW" => new_words = count,
-                "LEARNING" | "REVIEWING" => learning_words += count,
-                _ => {}
-            }
+    let mut new_words = 0usize;
+    let mut learning_words = 0usize;
+    for row in rows {
+        let state = row.try_get::<String, _>("state").unwrap_or_default();
+        let count = row.try_get::<i64, _>("count").unwrap_or(0).max(0) as usize;
+        match state.as_str() {
+            "NEW" => new_words = count,
+            "LEARNING" | "REVIEWING" => learning_words += count,
+            _ => {}
         }
-        Ok(StateBuckets { new_words, learning_words })
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "state"::text as "state", COUNT(*) as "count"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-            GROUP BY "state"
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
-
-        let mut new_words = 0usize;
-        let mut learning_words = 0usize;
-        for row in rows {
-            let state = row.try_get::<String, _>("state").unwrap_or_default();
-            let count = row.try_get::<i64, _>("count").unwrap_or(0).max(0) as usize;
-            match state.as_str() {
-                "NEW" => new_words = count,
-                "LEARNING" | "REVIEWING" => learning_words += count,
-                _ => {}
-            }
-        }
-        Ok(StateBuckets { new_words, learning_words })
     }
+    Ok(StateBuckets { new_words, learning_words })
 }
 
 async fn list_user_word_ids(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId" as "wordId"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("wordId").ok())
-            .collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId" as "wordId"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("wordId").ok())
-            .collect())
-    }
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "wordId" as "wordId"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| row.try_get::<String, _>("wordId").ok())
+        .collect())
 }
 
 async fn select_user_fatigue(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<f64>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT "fatigue" as "fatigue"
-            FROM "amas_user_states"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-        Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT "fatigue" as "fatigue"
-            FROM "amas_user_states"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-        Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()))
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "fatigue" as "fatigue"
+        FROM "amas_user_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+    Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()))
 }
 
 #[derive(Clone)]
@@ -512,7 +408,6 @@ struct TraceRow {
 
 async fn evaluate_single_word(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     user_fatigue: f64,
@@ -521,9 +416,9 @@ async fn evaluate_single_word(
         return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId不能为空"));
     }
 
-    let learning_state = select_learning_state(proxy, state, user_id, word_id).await?;
-    let word_score = select_word_score(proxy, state, user_id, word_id).await?;
-    let trace_rows = select_review_trace_raw(proxy, state, user_id, word_id, DEFAULT_TRACE_LIMIT).await?;
+    let learning_state = select_learning_state(proxy, user_id, word_id).await?;
+    let word_score = select_word_score(proxy, user_id, word_id).await?;
+    let trace_rows = select_review_trace_raw(proxy, user_id, word_id, DEFAULT_TRACE_LIMIT).await?;
     let actr_trace = to_actr_trace(&trace_rows)?;
 
     let model = danci_algo::ACTRMemoryNative::new(None, None, None);
@@ -540,7 +435,6 @@ async fn evaluate_single_word(
 
 async fn evaluate_words_batch(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
     user_fatigue: f64,
@@ -549,9 +443,9 @@ async fn evaluate_words_batch(
         return Ok(Vec::new());
     }
 
-    let learning_states = select_learning_states_batch(proxy, state, user_id, word_ids).await?;
-    let word_scores = select_word_scores_batch(proxy, state, user_id, word_ids).await?;
-    let traces = select_review_traces_batch(proxy, state, user_id, word_ids, DEFAULT_TRACE_LIMIT).await?;
+    let learning_states = select_learning_states_batch(proxy, user_id, word_ids).await?;
+    let word_scores = select_word_scores_batch(proxy, user_id, word_ids).await?;
+    let traces = select_review_traces_batch(proxy, user_id, word_ids, DEFAULT_TRACE_LIMIT).await?;
 
     let model = danci_algo::ACTRMemoryNative::new(None, None, None);
     let mut evaluations: Vec<MasteryEvaluationDto> = Vec::with_capacity(word_ids.len());
@@ -633,246 +527,129 @@ fn generate_suggestion(actr_recall: f64, srs_level: i64, is_learned: bool) -> Op
 
 async fn select_learning_state(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<Option<LearningStateRow>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "masteryLevel" as "masteryLevel"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+          AND "wordId" = $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT "masteryLevel" as "masteryLevel"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-              AND "wordId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-
-        Ok(row.map(|r| LearningStateRow {
-            mastery_level: r.try_get::<i64, _>("masteryLevel").unwrap_or(0),
-        }))
-    } else {
-        let Some(pool) = primary else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT "masteryLevel" as "masteryLevel"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-              AND "wordId" = $2
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-
-        Ok(row.map(|r| LearningStateRow {
-            mastery_level: r
-                .try_get::<i32, _>("masteryLevel")
-                .map(|v| v as i64)
-                .unwrap_or(0),
-        }))
-    }
+    Ok(row.map(|r| LearningStateRow {
+        mastery_level: r
+            .try_get::<i32, _>("masteryLevel")
+            .map(|v| v as i64)
+            .unwrap_or(0),
+    }))
 }
 
 async fn select_word_score(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<Option<WordScoreRow>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "recentAccuracy" as "recentAccuracy"
+        FROM "word_scores"
+        WHERE "userId" = $1
+          AND "wordId" = $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT "recentAccuracy" as "recentAccuracy"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "wordId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-
-        Ok(row.map(|r| WordScoreRow {
-            recent_accuracy: r.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),
-        }))
-    } else {
-        let Some(pool) = primary else { return Ok(None) };
-        let row = sqlx::query(
-            r#"
-            SELECT "recentAccuracy" as "recentAccuracy"
-            FROM "word_scores"
-            WHERE "userId" = $1
-              AND "wordId" = $2
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .fetch_optional(&pool)
-        .await
-        .unwrap_or(None);
-
-        Ok(row.map(|r| WordScoreRow {
-            recent_accuracy: r.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),
-        }))
-    }
+    Ok(row.map(|r| WordScoreRow {
+        recent_accuracy: r.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),
+    }))
 }
 
 async fn select_learning_states_batch(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<HashMap<String, LearningStateRow>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "wordId" as "wordId", "masteryLevel" as "masteryLevel"
-            FROM "word_learning_states"
-            WHERE "userId" = 
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        let rows = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        let mut map = HashMap::new();
-        for row in rows {
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let mastery_level = row.try_get::<i64, _>("masteryLevel").unwrap_or(0);
-            map.insert(word_id, LearningStateRow { mastery_level });
-        }
-        Ok(map)
-    } else {
-        let Some(pool) = primary else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "wordId" as "wordId", "masteryLevel" as "masteryLevel"
-            FROM "word_learning_states"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        let rows = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        let mut map = HashMap::new();
-        for row in rows {
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let mastery_level = row
-                .try_get::<i32, _>("masteryLevel")
-                .map(|v| v as i64)
-                .unwrap_or(0);
-            map.insert(word_id, LearningStateRow { mastery_level });
-        }
-        Ok(map)
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "wordId" as "wordId", "masteryLevel" as "masteryLevel"
+        FROM "word_learning_states"
+        WHERE "userId" =
+        "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(" AND \"wordId\" IN (");
+    let mut separated = qb.separated(", ");
+    for id in word_ids {
+        separated.push_bind(id);
     }
+    separated.push_unseparated(")");
+    let rows = qb.build().fetch_all(pool).await.unwrap_or_default();
+
+    let mut map = HashMap::new();
+    for row in rows {
+        let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
+        let mastery_level = row
+            .try_get::<i32, _>("masteryLevel")
+            .map(|v| v as i64)
+            .unwrap_or(0);
+        map.insert(word_id, LearningStateRow { mastery_level });
+    }
+    Ok(map)
 }
 
 async fn select_word_scores_batch(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<HashMap<String, WordScoreRow>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "wordId" as "wordId", "recentAccuracy" as "recentAccuracy"
-            FROM "word_scores"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        let rows = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        let mut map = HashMap::new();
-        for row in rows {
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let recent_accuracy = row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0);
-            map.insert(word_id, WordScoreRow { recent_accuracy });
-        }
-        Ok(map)
-    } else {
-        let Some(pool) = primary else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "wordId" as "wordId", "recentAccuracy" as "recentAccuracy"
-            FROM "word_scores"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        let rows = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        let mut map = HashMap::new();
-        for row in rows {
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let recent_accuracy = row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0);
-            map.insert(word_id, WordScoreRow { recent_accuracy });
-        }
-        Ok(map)
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "wordId" as "wordId", "recentAccuracy" as "recentAccuracy"
+        FROM "word_scores"
+        WHERE "userId" =
+        "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(" AND \"wordId\" IN (");
+    let mut separated = qb.separated(", ");
+    for id in word_ids {
+        separated.push_bind(id);
     }
+    separated.push_unseparated(")");
+    let rows = qb.build().fetch_all(pool).await.unwrap_or_default();
+
+    let mut map = HashMap::new();
+    for row in rows {
+        let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
+        let recent_accuracy = row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0);
+        map.insert(word_id, WordScoreRow { recent_accuracy });
+    }
+    Ok(map)
 }
 
 async fn select_review_trace(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     limit: i64,
 ) -> Result<Vec<ReviewTraceRecordDto>, AppError> {
-    let raw = select_review_trace_raw(proxy, state, user_id, word_id, limit).await?;
+    let raw = select_review_trace_raw(proxy, user_id, word_id, limit).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     Ok(raw
@@ -890,144 +667,73 @@ async fn select_review_trace(
 
 async fn select_review_trace_raw(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     limit: i64,
 ) -> Result<Vec<TraceRow>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "id","timestamp","isCorrect","responseTime"
+        FROM "word_review_traces"
+        WHERE "userId" = $1
+          AND "wordId" = $2
+        ORDER BY "timestamp" DESC
+        LIMIT $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(Vec::new()) };
-        let rows = sqlx::query(
-            r#"
-            SELECT "id","timestamp","isCorrect","responseTime"
-            FROM "word_review_traces"
-            WHERE "userId" = ?
-              AND "wordId" = ?
-            ORDER BY "timestamp" DESC
-            LIMIT ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .bind(limit)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            let id = row.try_get::<String, _>("id").unwrap_or_default();
-            let ts_raw = row.try_get::<String, _>("timestamp").unwrap_or_default();
-            let ts_ms = crate::auth::parse_sqlite_datetime_ms(&ts_raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-            let is_correct = row.try_get::<i64, _>("isCorrect").unwrap_or(0) != 0;
-            let response_time = row.try_get::<i64, _>("responseTime").unwrap_or(0);
-            out.push(TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time });
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else { return Ok(Vec::new()) };
-        let rows = sqlx::query(
-            r#"
-            SELECT "id","timestamp","isCorrect","responseTime"
-            FROM "word_review_traces"
-            WHERE "userId" = $1
-              AND "wordId" = $2
-            ORDER BY "timestamp" DESC
-            LIMIT $3
-            "#,
-        )
-        .bind(user_id)
-        .bind(word_id)
-        .bind(limit)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            let id = row.try_get::<String, _>("id").unwrap_or_default();
-            let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
-            let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
-            let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
-            let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
-            out.push(TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time });
-        }
-        Ok(out)
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let id = row.try_get::<String, _>("id").unwrap_or_default();
+        let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+        let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
+        let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
+        let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
+        out.push(TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time });
     }
+    Ok(out)
 }
 
 async fn select_review_traces_batch(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
     per_word_limit: i64,
 ) -> Result<HashMap<String, Vec<TraceRow>>, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "id","wordId","timestamp","isCorrect","responseTime"
+        FROM "word_review_traces"
+        WHERE "userId" =
+        "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(" AND \"wordId\" IN (");
+    let mut separated = qb.separated(", ");
+    for id in word_ids {
+        separated.push_bind(id);
+    }
+    separated.push_unseparated(")");
+    qb.push(" ORDER BY \"wordId\" ASC, \"timestamp\" DESC");
+    let fetched = qb.build().fetch_all(pool).await.unwrap_or_default();
 
     let mut rows: Vec<(String, TraceRow)> = Vec::new();
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "id","wordId","timestamp","isCorrect","responseTime"
-            FROM "word_review_traces"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        qb.push(" ORDER BY \"wordId\" ASC, \"timestamp\" DESC");
-        let fetched = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        for row in fetched {
-            let id = row.try_get::<String, _>("id").unwrap_or_default();
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let ts_raw = row.try_get::<String, _>("timestamp").unwrap_or_default();
-            let ts_ms = crate::auth::parse_sqlite_datetime_ms(&ts_raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-            let is_correct = row.try_get::<i64, _>("isCorrect").unwrap_or(0) != 0;
-            let response_time = row.try_get::<i64, _>("responseTime").unwrap_or(0);
-            rows.push((word_id.clone(), TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time }));
-        }
-    } else {
-        let Some(pool) = primary else { return Ok(HashMap::new()) };
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "id","wordId","timestamp","isCorrect","responseTime"
-            FROM "word_review_traces"
-            WHERE "userId" =
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-        qb.push(" ORDER BY \"wordId\" ASC, \"timestamp\" DESC");
-        let fetched = qb.build().fetch_all(&pool).await.unwrap_or_default();
-
-        for row in fetched {
-            let id = row.try_get::<String, _>("id").unwrap_or_default();
-            let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-            let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
-            let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
-            let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
-            let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
-            rows.push((word_id.clone(), TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time }));
-        }
+    for row in fetched {
+        let id = row.try_get::<String, _>("id").unwrap_or_default();
+        let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
+        let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+        let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
+        let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
+        let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
+        rows.push((word_id.clone(), TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time }));
     }
 
     let mut map: HashMap<String, Vec<TraceRow>> = HashMap::new();

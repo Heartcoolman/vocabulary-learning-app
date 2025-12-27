@@ -4,14 +4,11 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, put};
-use axum::Extension;
 use axum::Json;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -151,11 +148,10 @@ pub fn router() -> axum::Router<AppState> {
 
 async fn add_context(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<CreateContextRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let word_id = payload.word_id.trim().to_string();
     if word_id.is_empty() {
@@ -176,7 +172,7 @@ async fn add_context(
         ));
     }
 
-    assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await?;
+    assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
     let metadata = match payload.metadata {
         Some(value) if value.is_object() => Some(value),
@@ -195,7 +191,6 @@ async fn add_context(
 
     insert_context(
         proxy.as_ref(),
-        db_state,
         &context_id,
         &word_id,
         &context_type,
@@ -224,11 +219,10 @@ async fn add_context(
 
 async fn add_contexts_batch(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<Vec<CreateContextRequest>>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if payload.is_empty() {
         return Err(json_error(
@@ -255,7 +249,7 @@ async fn add_contexts_batch(
         }
     }
 
-    let accessible_count = count_accessible_words(proxy.as_ref(), db_state, &user.id, &unique_word_ids).await?;
+    let accessible_count = count_accessible_words(proxy.as_ref(), &user.id, &unique_word_ids).await?;
     if accessible_count != unique_word_ids.len() as i64 {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -286,7 +280,6 @@ async fn add_contexts_batch(
         let context_id = uuid::Uuid::new_v4().to_string();
         insert_context(
             proxy.as_ref(),
-            db_state,
             &context_id,
             &word_id,
             &context_type,
@@ -318,13 +311,12 @@ async fn add_contexts_batch(
 
 async fn get_contexts_for_word(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<GetContextsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
     let sort_by = query.sort_by.clone().unwrap_or_else(|| "createdAt".to_string());
     let sort_order = query.sort_order.clone().unwrap_or_else(|| "desc".to_string());
@@ -338,7 +330,7 @@ async fn get_contexts_for_word(
         sort_order,
     };
 
-    let contexts = select_contexts_for_word(proxy.as_ref(), db_state, &user.id, &word_id, &options).await?;
+    let contexts = select_contexts_for_word(proxy.as_ref(), &user.id, &word_id, &options).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -348,18 +340,17 @@ async fn get_contexts_for_word(
 
 async fn get_random_context(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<GetRandomQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
     let context_type = query.r#type.map(|v| normalize_context_type(&v)).transpose()?;
     let difficulty = query.difficulty.map(|v| normalize_difficulty(&v)).transpose()?;
 
-    let context = select_random_context(proxy.as_ref(), db_state, &word_id, context_type.as_deref(), difficulty.as_deref()).await?;
+    let context = select_random_context(proxy.as_ref(), &word_id, context_type.as_deref(), difficulty.as_deref()).await?;
     let Some(context) = context else {
         return Err(json_error(
             StatusCode::NOT_FOUND,
@@ -376,13 +367,12 @@ async fn get_random_context(
 
 async fn get_best_context(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
     Query(query): Query<GetBestQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
     let preferred_type = query
         .preferred_type
@@ -398,7 +388,6 @@ async fn get_best_context(
     if let (Some(preferred_type), Some(difficulty)) = (preferred_type.as_deref(), difficulty.as_deref()) {
         best = select_random_context(
             proxy.as_ref(),
-            db_state,
             &word_id,
             Some(preferred_type),
             Some(difficulty),
@@ -408,12 +397,12 @@ async fn get_best_context(
 
     if best.is_none() {
         if let Some(difficulty) = difficulty.as_deref() {
-            best = select_random_context(proxy.as_ref(), db_state, &word_id, None, Some(difficulty)).await?;
+            best = select_random_context(proxy.as_ref(), &word_id, None, Some(difficulty)).await?;
         }
     }
 
     if best.is_none() {
-        best = select_random_context(proxy.as_ref(), db_state, &word_id, None, None).await?;
+        best = select_random_context(proxy.as_ref(), &word_id, None, None).await?;
     }
 
     Ok(Json(SuccessResponse {
@@ -424,14 +413,13 @@ async fn get_best_context(
 
 async fn get_context_stats(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(word_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
-    let contexts = select_all_contexts_for_word(proxy.as_ref(), db_state, &word_id).await?;
+    let contexts = select_all_contexts_for_word(proxy.as_ref(), &word_id).await?;
     let mut by_type: HashMap<String, i64> = HashMap::from([
         ("SENTENCE".to_string(), 0),
         ("CONVERSATION".to_string(), 0),
@@ -484,13 +472,12 @@ async fn get_context_stats(
 
 async fn update_content(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(context_id): Path<String>,
     Json(payload): Json<UpdateContentRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_context_accessible(proxy.as_ref(), db_state, &user.id, &context_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
     let content = payload.content.trim().to_string();
     if content.is_empty() {
@@ -501,8 +488,8 @@ async fn update_content(
         ));
     }
 
-    update_context_content(proxy.as_ref(), db_state, &context_id, &content).await?;
-    let updated = select_context_by_id(proxy.as_ref(), db_state, &context_id).await?.ok_or_else(|| {
+    update_context_content(proxy.as_ref(), &context_id, &content).await?;
+    let updated = select_context_by_id(proxy.as_ref(), &context_id).await?.ok_or_else(|| {
         json_error(StatusCode::NOT_FOUND, "CONTEXT_NOT_FOUND", "语境不存在或无权访问")
     })?;
 
@@ -511,27 +498,26 @@ async fn update_content(
 
 async fn update_metadata(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(context_id): Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_context_accessible(proxy.as_ref(), db_state, &user.id, &context_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
     let new_meta = payload.as_object().cloned().ok_or_else(|| {
         json_error(StatusCode::BAD_REQUEST, "INVALID_METADATA", "metadata 必须是对象")
     })?;
 
-    let existing = select_context_metadata(proxy.as_ref(), db_state, &context_id).await?;
+    let existing = select_context_metadata(proxy.as_ref(), &context_id).await?;
     let mut merged = existing.unwrap_or_default();
     for (k, v) in new_meta {
         merged.insert(k, v);
     }
 
-    update_context_metadata(proxy.as_ref(), db_state, &context_id, &merged).await?;
+    update_context_metadata(proxy.as_ref(), &context_id, &merged).await?;
 
-    let updated = select_context_by_id(proxy.as_ref(), db_state, &context_id).await?.ok_or_else(|| {
+    let updated = select_context_by_id(proxy.as_ref(), &context_id).await?.ok_or_else(|| {
         json_error(StatusCode::NOT_FOUND, "CONTEXT_NOT_FOUND", "语境不存在或无权访问")
     })?;
 
@@ -540,14 +526,13 @@ async fn update_metadata(
 
 async fn record_usage(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(context_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_context_accessible(proxy.as_ref(), db_state, &user.id, &context_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
-    let existing = select_context_metadata(proxy.as_ref(), db_state, &context_id).await?.unwrap_or_default();
+    let existing = select_context_metadata(proxy.as_ref(), &context_id).await?.unwrap_or_default();
     let mut merged = existing;
 
     let usage_count = merged.get("usageCount").and_then(|v| v.as_i64()).unwrap_or(0) + 1;
@@ -555,7 +540,7 @@ async fn record_usage(
     merged.insert("usageCount".to_string(), serde_json::Value::Number(usage_count.into()));
     merged.insert("viewCount".to_string(), serde_json::Value::Number(view_count.into()));
 
-    update_context_metadata(proxy.as_ref(), db_state, &context_id, &merged).await?;
+    update_context_metadata(proxy.as_ref(), &context_id, &merged).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -565,13 +550,12 @@ async fn record_usage(
 
 async fn update_effectiveness(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(context_id): Path<String>,
     Json(payload): Json<UpdateEffectivenessRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_context_accessible(proxy.as_ref(), db_state, &user.id, &context_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
     if !(0.0..=1.0).contains(&payload.score) || payload.score.is_nan() {
         return Err(json_error(
@@ -581,7 +565,7 @@ async fn update_effectiveness(
         ));
     }
 
-    let existing = select_context_metadata(proxy.as_ref(), db_state, &context_id).await?.unwrap_or_default();
+    let existing = select_context_metadata(proxy.as_ref(), &context_id).await?.unwrap_or_default();
     let mut merged = existing;
     merged.insert(
         "effectivenessScore".to_string(),
@@ -591,7 +575,7 @@ async fn update_effectiveness(
         ),
     );
 
-    update_context_metadata(proxy.as_ref(), db_state, &context_id, &merged).await?;
+    update_context_metadata(proxy.as_ref(), &context_id, &merged).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -601,13 +585,12 @@ async fn update_effectiveness(
 
 async fn delete_context(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(context_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    assert_context_accessible(proxy.as_ref(), db_state, &user.id, &context_id).await?;
-    delete_context_by_id(proxy.as_ref(), db_state, &context_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
+    delete_context_by_id(proxy.as_ref(), &context_id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -617,11 +600,10 @@ async fn delete_context(
 
 async fn delete_contexts_batch(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<BatchDeleteRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if payload.context_ids.is_empty() {
         return Err(json_error(
@@ -631,7 +613,7 @@ async fn delete_contexts_batch(
         ));
     }
 
-    let count = count_accessible_contexts(proxy.as_ref(), db_state, &user.id, &payload.context_ids).await?;
+    let count = count_accessible_contexts(proxy.as_ref(), &user.id, &payload.context_ids).await?;
     if count != payload.context_ids.len() as i64 {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -640,7 +622,7 @@ async fn delete_contexts_batch(
         ));
     }
 
-    delete_contexts(proxy.as_ref(), db_state, &payload.context_ids).await?;
+    delete_contexts(proxy.as_ref(), &payload.context_ids).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -650,11 +632,10 @@ async fn delete_contexts_batch(
 
 async fn recommend_contexts_for_words(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<RecommendRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if payload.word_ids.is_empty() {
         return Err(json_error(
@@ -670,7 +651,7 @@ async fn recommend_contexts_for_words(
 
     let mut result: HashMap<String, Vec<WordContextData>> = HashMap::new();
     for word_id in payload.word_ids {
-        let accessible = assert_word_accessible(proxy.as_ref(), db_state, &user.id, &word_id).await;
+        let accessible = assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await;
         if accessible.is_err() {
             result.insert(word_id, Vec::new());
             continue;
@@ -686,7 +667,7 @@ async fn recommend_contexts_for_words(
         };
 
         let contexts =
-            select_contexts_for_word(proxy.as_ref(), db_state, &user.id, &word_id, &options).await?;
+            select_contexts_for_word(proxy.as_ref(), &user.id, &word_id, &options).await?;
         result.insert(word_id, contexts);
     }
 
@@ -695,26 +676,21 @@ async fn recommend_contexts_for_words(
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers).ok_or_else(|| {
         json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
     })?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn normalize_context_type(value: &str) -> Result<String, AppError> {
@@ -797,15 +773,11 @@ struct ContextQueryOptions {
 
 async fn assert_word_accessible(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
 ) -> Result<(), AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    let ok = match selected {
-        SelectedReadPool::Primary(pool) => is_word_accessible_pg(&pool, user_id, word_id).await?,
-        SelectedReadPool::Fallback(pool) => is_word_accessible_sqlite(&pool, user_id, word_id).await?,
-    };
+    let pool = proxy.pool();
+    let ok = is_word_accessible_pg(&pool, user_id, word_id).await?;
 
     if ok {
         Ok(())
@@ -820,15 +792,11 @@ async fn assert_word_accessible(
 
 async fn assert_context_accessible(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     context_id: &str,
 ) -> Result<(), AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    let ok = match selected {
-        SelectedReadPool::Primary(pool) => is_context_accessible_pg(&pool, user_id, context_id).await?,
-        SelectedReadPool::Fallback(pool) => is_context_accessible_sqlite(&pool, user_id, context_id).await?,
-    };
+    let pool = proxy.pool();
+    let ok = is_context_accessible_pg(&pool, user_id, context_id).await?;
 
     if ok {
         Ok(())
@@ -843,28 +811,20 @@ async fn assert_context_accessible(
 
 async fn count_accessible_words(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<i64, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => count_accessible_words_pg(&pool, user_id, word_ids).await,
-        SelectedReadPool::Fallback(pool) => count_accessible_words_sqlite(&pool, user_id, word_ids).await,
-    }
+    let pool = proxy.pool();
+    count_accessible_words_pg(&pool, user_id, word_ids).await
 }
 
 async fn count_accessible_contexts(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     context_ids: &[String],
 ) -> Result<i64, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => count_accessible_contexts_pg(&pool, user_id, context_ids).await,
-        SelectedReadPool::Fallback(pool) => count_accessible_contexts_sqlite(&pool, user_id, context_ids).await,
-    }
+    let pool = proxy.pool();
+    count_accessible_contexts_pg(&pool, user_id, context_ids).await
 }
 
 async fn is_word_accessible_pg(pool: &PgPool, user_id: &str, word_id: &str) -> Result<bool, AppError> {
@@ -875,29 +835,6 @@ async fn is_word_accessible_pg(pool: &PgPool, user_id: &str, word_id: &str) -> R
         JOIN "word_books" wb ON wb."id" = w."wordBookId"
         WHERE w."id" = $1
           AND (wb."type" = 'SYSTEM' OR (wb."type" = 'USER' AND wb."userId" = $2))
-        LIMIT 1
-        "#,
-    )
-    .bind(word_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(row.is_some())
-}
-
-async fn is_word_accessible_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    word_id: &str,
-) -> Result<bool, AppError> {
-    let row = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT w."id"
-        FROM "words" w
-        JOIN "word_books" wb ON wb."id" = w."wordBookId"
-        WHERE w."id" = ?
-          AND (wb."type" = 'SYSTEM' OR (wb."type" = 'USER' AND wb."userId" = ?))
         LIMIT 1
         "#,
     )
@@ -933,30 +870,6 @@ async fn is_context_accessible_pg(
     Ok(row.is_some())
 }
 
-async fn is_context_accessible_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    context_id: &str,
-) -> Result<bool, AppError> {
-    let row = sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT wc."id"
-        FROM "word_contexts" wc
-        JOIN "words" w ON w."id" = wc."wordId"
-        JOIN "word_books" wb ON wb."id" = w."wordBookId"
-        WHERE wc."id" = ?
-          AND (wb."type" = 'SYSTEM' OR (wb."type" = 'USER' AND wb."userId" = ?))
-        LIMIT 1
-        "#,
-    )
-    .bind(context_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(row.is_some())
-}
-
 async fn count_accessible_words_pg(
     pool: &PgPool,
     user_id: &str,
@@ -967,41 +880,6 @@ async fn count_accessible_words_pg(
     }
 
     let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
-        r#"
-        SELECT COUNT(*)
-        FROM "words" w
-        JOIN "word_books" wb ON wb."id" = w."wordBookId"
-        WHERE w."id" IN (
-        "#,
-    );
-    {
-        let mut separated = qb.separated(", ");
-        for id in word_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-    }
-    qb.push(r#" AND (wb."type" = 'SYSTEM' OR (wb."type" = 'USER' AND wb."userId" = "#)
-        .push_bind(user_id)
-        .push("))");
-    let count: i64 = qb
-        .build_query_scalar()
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(count)
-}
-
-async fn count_accessible_words_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    word_ids: &[String],
-) -> Result<i64, AppError> {
-    if word_ids.is_empty() {
-        return Ok(0);
-    }
-
-    let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
         r#"
         SELECT COUNT(*)
         FROM "words" w
@@ -1063,66 +941,25 @@ async fn count_accessible_contexts_pg(
     Ok(count)
 }
 
-async fn count_accessible_contexts_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    context_ids: &[String],
-) -> Result<i64, AppError> {
-    if context_ids.is_empty() {
-        return Ok(0);
-    }
-
-    let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-        r#"
-        SELECT COUNT(*)
-        FROM "word_contexts" wc
-        JOIN "words" w ON w."id" = wc."wordId"
-        JOIN "word_books" wb ON wb."id" = w."wordBookId"
-        WHERE wc."id" IN (
-        "#,
-    );
-    {
-        let mut separated = qb.separated(", ");
-        for id in context_ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-    }
-    qb.push(r#" AND (wb."type" = 'SYSTEM' OR (wb."type" = 'USER' AND wb."userId" = "#)
-        .push_bind(user_id)
-        .push("))");
-    let count: i64 = qb
-        .build_query_scalar()
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(count)
-}
-
 async fn select_contexts_for_word(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_id: &str,
     options: &ContextQueryOptions,
 ) -> Result<Vec<WordContextData>, AppError> {
-    assert_word_accessible(proxy, state, user_id, word_id).await?;
+    assert_word_accessible(proxy, user_id, word_id).await?;
 
-    let contexts = select_context_rows(proxy, state, word_id, options).await?;
+    let contexts = select_context_rows(proxy, word_id, options).await?;
     Ok(contexts.into_iter().map(map_context_row).collect())
 }
 
 async fn select_context_rows(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     word_id: &str,
     options: &ContextQueryOptions,
 ) -> Result<Vec<ContextRow>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => select_context_rows_pg(&pool, word_id, options).await,
-        SelectedReadPool::Fallback(pool) => select_context_rows_sqlite(&pool, word_id, options).await,
-    }
+    let pool = proxy.pool();
+    select_context_rows_pg(&pool, word_id, options).await
 }
 
 async fn select_context_rows_pg(
@@ -1184,82 +1021,8 @@ async fn select_context_rows_pg(
     Ok(contexts[start..end].to_vec())
 }
 
-async fn select_context_rows_sqlite(
-    pool: &SqlitePool,
-    word_id: &str,
-    options: &ContextQueryOptions,
-) -> Result<Vec<ContextRow>, AppError> {
-    let sort_order = if options.sort_order.to_ascii_lowercase() == "asc" { "ASC" } else { "DESC" };
-    let needs_in_memory = matches!(options.sort_by.as_str(), "usageCount" | "effectivenessScore");
-    let needs_metadata_filter = options.difficulty.is_some();
-
-    if !needs_in_memory && !needs_metadata_filter {
-        let sql = format!(
-            r#"
-            SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-            FROM "word_contexts"
-            WHERE "wordId" = ?
-              AND (? IS NULL OR "contextType" = ?)
-            ORDER BY "createdAt" {sort_order}
-            LIMIT ? OFFSET ?
-            "#
-        );
-        let rows = sqlx::query(&sql)
-            .bind(word_id)
-            .bind(options.context_type.as_deref())
-            .bind(options.context_type.as_deref())
-            .bind(options.limit)
-            .bind(options.offset)
-            .fetch_all(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        return Ok(rows.into_iter().map(map_context_row_sqlite).collect());
-    }
-
-    let candidate_take = (options.limit + options.offset + 200).min(1000);
-    let sql = format!(
-        r#"
-        SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-        FROM "word_contexts"
-        WHERE "wordId" = ?
-          AND (? IS NULL OR "contextType" = ?)
-        ORDER BY "createdAt" {sort_order}
-        LIMIT ?
-        "#
-    );
-    let rows = sqlx::query(&sql)
-        .bind(word_id)
-        .bind(options.context_type.as_deref())
-        .bind(options.context_type.as_deref())
-        .bind(candidate_take)
-        .fetch_all(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let mut contexts: Vec<ContextRow> = rows.into_iter().map(map_context_row_sqlite).collect();
-
-    if let Some(difficulty) = options.difficulty.as_deref() {
-        contexts.retain(|ctx| {
-            ctx.metadata
-                .as_ref()
-                .and_then(|meta| meta.get("difficulty"))
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v == difficulty)
-        });
-    }
-
-    if needs_in_memory {
-        sort_contexts_by_metadata(&mut contexts, options.sort_by.as_str(), options.sort_order.as_str());
-    }
-
-    let start = options.offset.min(contexts.len() as i64) as usize;
-    let end = (options.offset + options.limit).min(contexts.len() as i64) as usize;
-    Ok(contexts[start..end].to_vec())
-}
-
 async fn select_all_contexts_for_word(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     word_id: &str,
 ) -> Result<Vec<WordContextData>, AppError> {
     let options = ContextQueryOptions {
@@ -1270,68 +1033,34 @@ async fn select_all_contexts_for_word(
         sort_by: "createdAt".to_string(),
         sort_order: "desc".to_string(),
     };
-    let rows = select_context_rows(proxy, state, word_id, &options).await?;
+    let rows = select_context_rows(proxy, word_id, &options).await?;
     Ok(rows.into_iter().map(map_context_row).collect())
 }
 
 async fn select_random_context(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     word_id: &str,
     context_type: Option<&str>,
     difficulty: Option<&str>,
 ) -> Result<Option<WordContextData>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let sql = r#"
-                SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-                FROM "word_contexts"
-                WHERE "wordId" = $1
-                  AND ($2::text IS NULL OR "contextType" = $2)
-                  AND ($3::text IS NULL OR ("metadata"->>'difficulty') = $3)
-                ORDER BY RANDOM()
-                LIMIT 1
-            "#;
-            let row = sqlx::query(sql)
-                .bind(word_id)
-                .bind(context_type)
-                .bind(difficulty)
-                .fetch_optional(&pool)
-                .await
-                .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row.map(map_context_row_pg).map(map_context_row))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let sql = r#"
-                SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-                FROM "word_contexts"
-                WHERE "wordId" = ?
-                  AND (? IS NULL OR "contextType" = ?)
-                ORDER BY RANDOM()
-                LIMIT 50
-            "#;
-            let rows = sqlx::query(sql)
-                .bind(word_id)
-                .bind(context_type)
-                .bind(context_type)
-                .fetch_all(&pool)
-                .await
-                .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-            let mut contexts: Vec<ContextRow> = rows.into_iter().map(map_context_row_sqlite).collect();
-            if let Some(diff) = difficulty {
-                contexts.retain(|ctx| {
-                    ctx.metadata
-                        .as_ref()
-                        .and_then(|meta| meta.get("difficulty"))
-                        .and_then(|v| v.as_str())
-                        .is_some_and(|v| v == diff)
-                });
-            }
-            Ok(contexts.into_iter().next().map(map_context_row))
-        }
-    }
+    let pool = proxy.pool();
+    let sql = r#"
+        SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
+        FROM "word_contexts"
+        WHERE "wordId" = $1
+          AND ($2::text IS NULL OR "contextType" = $2)
+          AND ($3::text IS NULL OR ("metadata"->>'difficulty') = $3)
+        ORDER BY RANDOM()
+        LIMIT 1
+    "#;
+    let row = sqlx::query(sql)
+        .bind(word_id)
+        .bind(context_type)
+        .bind(difficulty)
+        .fetch_optional(pool)
+        .await
+        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    Ok(row.map(map_context_row_pg).map(map_context_row))
 }
 
 fn sort_contexts_by_metadata(contexts: &mut [ContextRow], field: &str, order: &str) {
@@ -1352,116 +1081,51 @@ fn metadata_number(meta: Option<&serde_json::Value>, field: &str) -> f64 {
 
 async fn select_context_by_id(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
 ) -> Result<Option<WordContextData>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    let row = match selected {
-        SelectedReadPool::Primary(pool) => sqlx::query(
-            r#"
-            SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-            FROM "word_contexts"
-            WHERE "id" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(context_id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?
-        .map(map_context_row_pg),
-        SelectedReadPool::Fallback(pool) => sqlx::query(
-            r#"
-            SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
-            FROM "word_contexts"
-            WHERE "id" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(context_id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?
-        .map(map_context_row_sqlite),
-    };
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "id","wordId","contextType","content","metadata","createdAt","updatedAt"
+        FROM "word_contexts"
+        WHERE "id" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(context_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?
+    .map(map_context_row_pg);
 
     Ok(row.map(map_context_row))
 }
 
 async fn select_context_metadata(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
 ) -> Result<Option<serde_json::Map<String, serde_json::Value>>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query_scalar::<_, Option<serde_json::Value>>(
-                r#"SELECT "metadata" FROM "word_contexts" WHERE "id" = $1"#,
-            )
-            .bind(context_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row.flatten().and_then(|v| v.as_object().cloned()))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query_scalar::<_, Option<String>>(
-                r#"SELECT "metadata" FROM "word_contexts" WHERE "id" = ?"#,
-            )
-            .bind(context_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            let value = row.flatten().and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok());
-            Ok(value.and_then(|v| v.as_object().cloned()))
-        }
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query_scalar::<_, Option<serde_json::Value>>(
+        r#"SELECT "metadata" FROM "word_contexts" WHERE "id" = $1"#,
+    )
+    .bind(context_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    Ok(row.flatten().and_then(|v| v.as_object().cloned()))
 }
 
 async fn insert_context(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
     word_id: &str,
     context_type: &str,
     content: &str,
     metadata: Option<&serde_json::Value>,
-    now_iso: &str,
+    _now_iso: &str,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(context_id.to_string()));
-        data.insert("wordId".to_string(), serde_json::Value::String(word_id.to_string()));
-        data.insert(
-            "contextType".to_string(),
-            serde_json::Value::String(context_type.to_string()),
-        );
-        data.insert("content".to_string(), serde_json::Value::String(content.to_string()));
-        if let Some(meta) = metadata {
-            data.insert("metadata".to_string(), meta.clone());
-        }
-        data.insert("createdAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "word_contexts".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -1477,7 +1141,7 @@ async fn insert_context(
     .bind(metadata.cloned())
     .bind(now)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
     Ok(())
@@ -1485,40 +1149,16 @@ async fn insert_context(
 
 async fn update_context_content(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
     content: &str,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(context_id.to_string()));
-        let mut data = serde_json::Map::new();
-        data.insert("content".to_string(), serde_json::Value::String(content.to_string()));
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_contexts".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(r#"UPDATE "word_contexts" SET "content" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
         .bind(content)
         .bind(now)
         .bind(context_id)
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
     Ok(())
@@ -1526,40 +1166,16 @@ async fn update_context_content(
 
 async fn update_context_metadata(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
     metadata: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(context_id.to_string()));
-        let mut data = serde_json::Map::new();
-        data.insert("metadata".to_string(), serde_json::Value::Object(metadata.clone()));
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_contexts".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(r#"UPDATE "word_contexts" SET "metadata" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
         .bind(serde_json::Value::Object(metadata.clone()))
         .bind(now)
         .bind(context_id)
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
     Ok(())
@@ -1567,33 +1183,12 @@ async fn update_context_metadata(
 
 async fn delete_context_by_id(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_id: &str,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(context_id.to_string()));
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "word_contexts".to_string(),
-            r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     sqlx::query(r#"DELETE FROM "word_contexts" WHERE "id" = $1"#)
         .bind(context_id)
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
     Ok(())
@@ -1601,25 +1196,13 @@ async fn delete_context_by_id(
 
 async fn delete_contexts(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     context_ids: &[String],
 ) -> Result<(), AppError> {
     if context_ids.is_empty() {
         return Ok(());
     }
 
-    if proxy.sqlite_enabled() {
-        for id in context_ids {
-            delete_context_by_id(proxy, state, id).await?;
-        }
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
+    let pool = proxy.pool();
     let mut qb =
         sqlx::QueryBuilder::<sqlx::Postgres>::new(r#"DELETE FROM "word_contexts" WHERE "id" IN ("#);
     {
@@ -1631,7 +1214,7 @@ async fn delete_contexts(
     }
 
     qb.build()
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
     Ok(())
@@ -1657,20 +1240,6 @@ fn map_context_row_pg(row: sqlx::postgres::PgRow) -> ContextRow {
     }
 }
 
-fn map_context_row_sqlite(row: sqlx::sqlite::SqliteRow) -> ContextRow {
-    let metadata_text = row.try_get::<Option<String>, _>("metadata").ok().flatten();
-    let metadata = metadata_text.and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok());
-    ContextRow {
-        id: row.try_get("id").unwrap_or_default(),
-        word_id: row.try_get("wordId").unwrap_or_default(),
-        context_type: row.try_get("contextType").unwrap_or_default(),
-        content: row.try_get("content").unwrap_or_default(),
-        metadata,
-        created_at: normalize_datetime_str(&row.try_get::<String, _>("createdAt").unwrap_or_default()),
-        updated_at: normalize_datetime_str(&row.try_get::<String, _>("updatedAt").unwrap_or_default()),
-    }
-}
-
 fn map_context_row(row: ContextRow) -> WordContextData {
     WordContextData {
         id: row.id,
@@ -1683,28 +1252,3 @@ fn map_context_row(row: ContextRow) -> WordContextData {
     }
 }
 
-enum SelectedReadPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-async fn select_read_pool(
-    proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
-) -> Result<SelectedReadPool, AppError> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedReadPool::Fallback)
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedReadPool::Primary(pool)),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedReadPool::Fallback)
-                .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        },
-    }
-}

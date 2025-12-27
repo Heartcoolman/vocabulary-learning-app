@@ -2,7 +2,6 @@ use chrono::{Duration, Utc};
 use serde::Serialize;
 use sqlx::Row;
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 const MIN_SESSION_COUNT: i64 = 20;
@@ -53,10 +52,9 @@ pub enum TimePreferenceResponse {
 
 pub async fn get_time_preferences(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
     user_id: &str,
 ) -> Result<TimePreferenceResponse, String> {
-    let session_count = get_session_count(proxy, db_state, user_id).await?;
+    let session_count = get_session_count(proxy, user_id).await?;
 
     if session_count < MIN_SESSION_COUNT {
         return Ok(TimePreferenceResponse::Insufficient(InsufficientDataResult {
@@ -66,7 +64,7 @@ pub async fn get_time_preferences(
         }));
     }
 
-    let time_pref = calculate_time_pref_from_records(proxy, db_state, user_id).await?;
+    let time_pref = calculate_time_pref_from_records(proxy, user_id).await?;
     let preferred_slots = get_recommended_slots(&time_pref);
     let confidence = calculate_confidence(session_count, &time_pref);
 
@@ -80,12 +78,11 @@ pub async fn get_time_preferences(
 
 pub async fn is_golden_time(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
     user_id: &str,
 ) -> Result<GoldenTimeResult, String> {
     let current_hour = Utc::now().hour() as i32;
 
-    let preferences = get_time_preferences(proxy, db_state, user_id).await?;
+    let preferences = get_time_preferences(proxy, user_id).await?;
 
     match preferences {
         TimePreferenceResponse::Insufficient(_) => Ok(GoldenTimeResult {
@@ -106,97 +103,47 @@ pub async fn is_golden_time(
     }
 }
 
-async fn get_session_count(proxy: &DatabaseProxy, db_state: DatabaseState, user_id: &str) -> Result<i64, String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(0); };
-        let count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(DISTINCT "sessionId") FROM "answer_records" WHERE "userId" = ? AND "sessionId" IS NOT NULL"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-        Ok(count)
-    } else {
-        let Some(pool) = primary else { return Ok(0); };
-        let count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(DISTINCT "sessionId") FROM "answer_records" WHERE "userId" = $1 AND "sessionId" IS NOT NULL"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-        Ok(count)
-    }
+async fn get_session_count(proxy: &DatabaseProxy, user_id: &str) -> Result<i64, String> {
+    let pool = proxy.pool();
+    let count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(DISTINCT "sessionId") FROM "answer_records" WHERE "userId" = $1 AND "sessionId" IS NOT NULL"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+    Ok(count)
 }
 
 async fn calculate_time_pref_from_records(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<f64>, String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
+    let pool = proxy.pool();
     let mut hour_counts = vec![0i64; 24];
     let mut hour_scores = vec![0.0f64; 24];
 
     let cutoff = Utc::now() - Duration::days(TIME_PREF_WINDOW_DAYS);
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(vec![1.0 / 24.0; 24]); };
-        let cutoff_str = cutoff.format("%Y-%m-%dT%H:%M:%S").to_string();
+    let rows = sqlx::query(
+        r#"SELECT "timestamp", "isCorrect", "responseTime" FROM "answer_records" WHERE "userId" = $1 AND "timestamp" >= $2"#,
+    )
+    .bind(user_id)
+    .bind(cutoff.naive_utc())
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-        let rows = sqlx::query(
-            r#"SELECT "timestamp", "isCorrect", "responseTime" FROM "answer_records" WHERE "userId" = ? AND "timestamp" >= ?"#,
-        )
-        .bind(user_id)
-        .bind(&cutoff_str)
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    for row in rows {
+        let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else { continue };
+        let is_correct: bool = row.try_get("isCorrect").unwrap_or(false);
+        let response_time: i64 = row.try_get("responseTime").unwrap_or(0);
 
-        for row in rows {
-            let ts: String = row.try_get("timestamp").unwrap_or_default();
-            let is_correct: i32 = row.try_get("isCorrect").unwrap_or(0);
-            let response_time: i64 = row.try_get("responseTime").unwrap_or(0);
-
-            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&ts) {
-                let hour = dt.hour() as usize;
-                hour_counts[hour] += 1;
-                let correct_score = if is_correct != 0 { 1.0 } else { 0.0 };
-                let speed_score = (1.0 - (response_time as f64 / 10000.0)).max(0.0).min(1.0);
-                hour_scores[hour] += correct_score * 0.7 + speed_score * 0.3;
-            }
-        }
-    } else {
-        let Some(pool) = primary else { return Ok(vec![1.0 / 24.0; 24]); };
-
-        let rows = sqlx::query(
-            r#"SELECT "timestamp", "isCorrect", "responseTime" FROM "answer_records" WHERE "userId" = $1 AND "timestamp" >= $2"#,
-        )
-        .bind(user_id)
-        .bind(cutoff.naive_utc())
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-        for row in rows {
-            let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else { continue };
-            let is_correct: bool = row.try_get("isCorrect").unwrap_or(false);
-            let response_time: i64 = row.try_get("responseTime").unwrap_or(0);
-
-            let hour = ts.hour() as usize;
-            hour_counts[hour] += 1;
-            let correct_score = if is_correct { 1.0 } else { 0.0 };
-            let speed_score = (1.0 - (response_time as f64 / 10000.0)).max(0.0).min(1.0);
-            hour_scores[hour] += correct_score * 0.7 + speed_score * 0.3;
-        }
+        let hour = ts.hour() as usize;
+        hour_counts[hour] += 1;
+        let correct_score = if is_correct { 1.0 } else { 0.0 };
+        let speed_score = (1.0 - (response_time as f64 / 10000.0)).max(0.0).min(1.0);
+        hour_scores[hour] += correct_score * 0.7 + speed_score * 0.3;
     }
 
     let time_pref: Vec<f64> = hour_scores

@@ -1,12 +1,11 @@
 use chrono::{Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent,
     StrategyParams as AmasStrategyParams, UserState,
 };
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 // ========== Legacy types for backward compatibility ==========
@@ -217,11 +216,6 @@ pub struct BatchEventItem {
     pub timestamp: i64,
 }
 
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
 pub struct AMASService;
 
 impl AMASService {
@@ -257,28 +251,6 @@ impl AMASService {
             ColdStartPhase::Normal => "normal".to_string(),
         }
     }
-
-    pub async fn select_read_pool(
-        proxy: &DatabaseProxy,
-        state: DatabaseState,
-    ) -> Result<SelectedPool, String> {
-        match state {
-            DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-            DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-                Some(pool) => Ok(SelectedPool::Primary(pool)),
-                None => proxy
-                    .fallback_pool()
-                    .await
-                    .map(SelectedPool::Fallback)
-                    .ok_or_else(|| "服务不可用".to_string()),
-            },
-        }
-    }
-
 }
 
 // ========== process_event ==========
@@ -400,20 +372,15 @@ pub fn get_delayed_rewards() -> DelayedRewardsResult {
 
 // ========== get_learning_curve ==========
 pub async fn get_learning_curve(
-    pool: &SelectedPool,
+    proxy: &DatabaseProxy,
     user_id: &str,
     days: i32,
 ) -> Result<LearningCurveResult, String> {
     let today = Utc::now().date_naive();
     let start_date = today - Duration::days(days as i64);
 
-    let points = match pool {
-        SelectedPool::Primary(pg) => select_learning_curve_pg(pg, user_id, start_date).await?,
-        SelectedPool::Fallback(sqlite) => {
-            let start_str = start_date.format("%Y-%m-%d").to_string();
-            select_learning_curve_sqlite(sqlite, user_id, &start_str).await?
-        }
-    };
+    let pool = proxy.pool();
+    let points = select_learning_curve_pg(&pool, user_id, start_date).await?;
 
     let mastery_values: Vec<f64> = points.iter().map(|p| p.mastery).collect();
     let trend = compute_mastery_trend(&mastery_values);
@@ -458,43 +425,6 @@ async fn select_learning_curve_pg(
     Ok(points)
 }
 
-async fn select_learning_curve_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    start_date: &str,
-) -> Result<Vec<LearningCurvePoint>, String> {
-    let rows = sqlx::query(
-        r#"SELECT "date", "attention", "fatigue", "motivation", "memory"
-           FROM "user_state_history" WHERE "userId" = ? AND "date" >= ? ORDER BY "date" ASC"#,
-    )
-    .bind(user_id)
-    .bind(start_date)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("数据库查询失败: {e}"))?;
-
-    let mut points = Vec::with_capacity(rows.len());
-    for row in rows {
-        let date: String = row.try_get("date").unwrap_or_default();
-        let attention: f64 = row.try_get("attention").unwrap_or(0.0);
-        let fatigue: f64 = row.try_get("fatigue").unwrap_or(0.0);
-        let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
-        let memory: f64 = row.try_get("memory").unwrap_or(0.0);
-        points.push(LearningCurvePoint {
-            date: normalize_history_date(&date),
-            mastery: memory * 100.0,
-            attention, fatigue, motivation,
-        });
-    }
-    Ok(points)
-}
-
-fn normalize_history_date(value: &str) -> String {
-    if value.contains('T') { return value.to_string(); }
-    if value.len() == 10 { return format!("{value}T00:00:00.000Z"); }
-    value.to_string()
-}
-
 fn compute_mastery_trend(values: &[f64]) -> String {
     if values.len() < 2 { return "flat".to_string(); }
     let delta = values[values.len() - 1] - values[0];
@@ -504,39 +434,24 @@ fn compute_mastery_trend(values: &[f64]) -> String {
 }
 
 // ========== get_phase ==========
-pub async fn get_phase(pool: &SelectedPool, user_id: &str) -> Result<PhaseResult, String> {
-    let phase = match load_cold_start_phase(pool, user_id).await? {
+pub async fn get_phase(proxy: &DatabaseProxy, user_id: &str) -> Result<PhaseResult, String> {
+    let pool = proxy.pool();
+    let phase = match load_cold_start_phase(&pool, user_id).await? {
         Some(p) => p,
-        None => infer_phase_from_interactions(pool, user_id).await?,
+        None => infer_phase_from_interactions(&pool, user_id).await?,
     };
     Ok(PhaseResult { description: phase_description(&phase).to_string(), phase })
 }
 
-async fn load_cold_start_phase(pool: &SelectedPool, user_id: &str) -> Result<Option<String>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = $1"#)
-                .bind(user_id)
-                .fetch_optional(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            let value: Option<serde_json::Value> = row.try_get("coldStartState").ok();
-            Ok(extract_phase_from_json(value.as_ref()))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = ?"#)
-                .bind(user_id)
-                .fetch_optional(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            let Some(row) = row else { return Ok(None) };
-            let raw: Option<String> = row.try_get("coldStartState").ok();
-            let Some(raw) = raw else { return Ok(None) };
-            let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw));
-            Ok(extract_phase_from_json(Some(&parsed)))
-        }
-    }
+async fn load_cold_start_phase(pool: &PgPool, user_id: &str) -> Result<Option<String>, String> {
+    let row = sqlx::query(r#"SELECT "coldStartState" FROM "amas_user_states" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
+    let Some(row) = row else { return Ok(None) };
+    let value: Option<serde_json::Value> = row.try_get("coldStartState").ok();
+    Ok(extract_phase_from_json(value.as_ref()))
 }
 
 fn extract_phase_from_json(value: Option<&serde_json::Value>) -> Option<String> {
@@ -569,79 +484,48 @@ fn phase_description(phase: &str) -> &'static str {
     }
 }
 
-async fn infer_phase_from_interactions(pool: &SelectedPool, user_id: &str) -> Result<String, String> {
+async fn infer_phase_from_interactions(pool: &PgPool, user_id: &str) -> Result<String, String> {
     let count = count_recent_interactions(pool, user_id).await?;
     if count < 5 { return Ok("classify".to_string()); }
     if count < 8 { return Ok("explore".to_string()); }
     Ok("normal".to_string())
 }
 
-async fn count_recent_interactions(pool: &SelectedPool, user_id: &str) -> Result<i64, String> {
-    match pool {
-        SelectedPool::Primary(pg) => sqlx::query_scalar::<_, i64>(
-            r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = $1 LIMIT 8) AS t"#,
-        )
-        .bind(user_id)
-        .fetch_one(pg)
-        .await
-        .map_err(|e| format!("查询失败: {e}")),
-        SelectedPool::Fallback(sqlite) => sqlx::query_scalar::<_, i64>(
-            r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = ? LIMIT 8)"#,
-        )
-        .bind(user_id)
-        .fetch_one(sqlite)
-        .await
-        .map_err(|e| format!("查询失败: {e}")),
-    }
+async fn count_recent_interactions(pool: &PgPool, user_id: &str) -> Result<i64, String> {
+    sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(1) FROM (SELECT 1 FROM "answer_records" WHERE "userId" = $1 LIMIT 8) AS t"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))
 }
 
 // ========== get_trend_intervention ==========
-pub async fn get_trend_intervention(pool: &SelectedPool, user_id: &str) -> Result<InterventionResult, String> {
-    let (trend_state, consecutive_days) = load_current_trend(pool, user_id).await?;
+pub async fn get_trend_intervention(proxy: &DatabaseProxy, user_id: &str) -> Result<InterventionResult, String> {
+    let pool = proxy.pool();
+    let (trend_state, consecutive_days) = load_current_trend(&pool, user_id).await?;
     Ok(compute_intervention(&trend_state, consecutive_days))
 }
 
-async fn load_current_trend(pool: &SelectedPool, user_id: &str) -> Result<(String, i64), String> {
-    let (explicit_state, history) = match pool {
-        SelectedPool::Primary(pg) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#,
-            ).bind(user_id).fetch_optional(pg).await.map_err(|e| format!("查询失败: {e}"))?;
+async fn load_current_trend(pool: &PgPool, user_id: &str) -> Result<(String, i64), String> {
+    let trend_state: Option<String> = sqlx::query_scalar(
+        r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#,
+    ).bind(user_id).fetch_optional(pool).await.map_err(|e| format!("查询失败: {e}"))?;
 
-            let rows = sqlx::query(
-                r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
-                   WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
-            ).bind(user_id).fetch_all(pg).await.map_err(|e| format!("查询失败: {e}"))?;
+    let rows = sqlx::query(
+        r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
+           WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
+    ).bind(user_id).fetch_all(pool).await.map_err(|e| format!("查询失败: {e}"))?;
 
-            let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
-                trend_state: row.try_get("trendState").ok(),
-                motivation: row.try_get("motivation").unwrap_or(0.0),
-                memory: row.try_get("memory").unwrap_or(0.0),
-                speed: row.try_get("speed").unwrap_or(0.0),
-            }).collect();
-            (trend_state, history)
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = ?"#,
-            ).bind(user_id).fetch_optional(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
+    let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
+        trend_state: row.try_get("trendState").ok(),
+        motivation: row.try_get("motivation").unwrap_or(0.0),
+        memory: row.try_get("memory").unwrap_or(0.0),
+        speed: row.try_get("speed").unwrap_or(0.0),
+    }).collect();
 
-            let rows = sqlx::query(
-                r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
-                   WHERE "userId" = ? ORDER BY "date" DESC LIMIT 30"#,
-            ).bind(user_id).fetch_all(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-
-            let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
-                trend_state: row.try_get("trendState").ok(),
-                motivation: row.try_get("motivation").unwrap_or(0.0),
-                memory: row.try_get("memory").unwrap_or(0.0),
-                speed: row.try_get("speed").unwrap_or(0.0),
-            }).collect();
-            (trend_state, history)
-        }
-    };
-
-    let state = explicit_state.as_deref()
+    let state = trend_state.as_deref()
         .and_then(normalize_trend_state)
         .map(|v| v.to_string())
         .unwrap_or_else(|| calculate_trend_from_history(&history));
@@ -714,7 +598,6 @@ fn compute_intervention(trend_state: &str, consecutive_days: i64) -> Interventio
 // ========== reset_user ==========
 pub async fn reset_user(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<(), String> {
     let now = Utc::now().naive_utc();
@@ -724,55 +607,7 @@ pub async fn reset_user(
     let default_cognitive = serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 });
     let default_model = serde_json::json!({});
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".into(), serde_json::Value::String(state_id.clone()));
-        create.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-        create.insert("attention".into(), serde_json::json!(0.7));
-        create.insert("fatigue".into(), serde_json::json!(0));
-        create.insert("motivation".into(), serde_json::json!(0));
-        create.insert("confidence".into(), serde_json::json!(0.5));
-        create.insert("cognitiveProfile".into(), default_cognitive.clone());
-        create.insert("habitProfile".into(), serde_json::Value::Null);
-        create.insert("trendState".into(), serde_json::Value::Null);
-        create.insert("coldStartState".into(), serde_json::Value::Null);
-        create.insert("lastUpdateTs".into(), serde_json::json!(now_ms));
-        create.insert("updatedAt".into(), serde_json::Value::String(now.to_string()));
-
-        let state_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_states".to_string(),
-            r#where: where_clause.clone(),
-            create: create.clone(),
-            update: create,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, state_op).await.map_err(|e| format!("写入失败: {e}"))?;
-
-        let mut model_create = serde_json::Map::new();
-        model_create.insert("id".into(), serde_json::Value::String(model_id));
-        model_create.insert("userId".into(), serde_json::Value::String(user_id.to_string()));
-        model_create.insert("modelData".into(), default_model.clone());
-        model_create.insert("updatedAt".into(), serde_json::Value::String(now.to_string()));
-
-        let model_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_models".to_string(),
-            r#where: where_clause,
-            create: model_create.clone(),
-            update: model_create,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy.write_operation(state, model_op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
+    let pool = proxy.pool();
     sqlx::query(
         r#"INSERT INTO "amas_user_states" ("id","userId","attention","fatigue","motivation","confidence",
            "cognitiveProfile","habitProfile","trendState","coldStartState","lastUpdateTs","updatedAt")
@@ -786,14 +621,14 @@ pub async fn reset_user(
     .bind(&default_cognitive).bind(Option::<serde_json::Value>::None)
     .bind(Option::<String>::None).bind(Option::<serde_json::Value>::None)
     .bind(now_ms).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     sqlx::query(
         r#"INSERT INTO "amas_user_models" ("id","userId","modelData","updatedAt") VALUES ($1,$2,$3,$4)
            ON CONFLICT ("userId") DO UPDATE SET "modelData"=EXCLUDED."modelData","updatedAt"=EXCLUDED."updatedAt""#,
     )
     .bind(&model_id).bind(user_id).bind(&default_model).bind(now)
-    .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+    .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
 }

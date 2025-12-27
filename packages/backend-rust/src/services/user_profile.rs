@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Local, NaiveDateTime, SecondsFormat, TimeZone, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 // ========== Types ==========
@@ -103,11 +102,6 @@ pub const REWARD_PROFILES: &[RewardProfileItem] = &[
     RewardProfileItem { id: "relaxed", name: "轻松模式", description: "降低压力，保持学习动力" },
 ];
 
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
 struct AnswerRecordChrono {
     timestamp_ms: i64,
     is_correct: bool,
@@ -117,23 +111,6 @@ struct AnswerRecordInteraction {
     timestamp_ms: i64,
     dwell_time: i64,
     response_time: Option<i64>,
-}
-
-// ========== Pool Selection ==========
-
-pub async fn select_pool(proxy: &DatabaseProxy, state: DatabaseState) -> Result<SelectedPool, String> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool().await
-            .map(SelectedPool::Fallback)
-            .ok_or_else(|| "服务不可用".to_string()),
-        _ => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedPool::Primary(pool)),
-            None => proxy.fallback_pool().await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-        },
-    }
 }
 
 // ========== Validation ==========
@@ -155,14 +132,7 @@ pub fn validate_password(password: &str) -> Option<&'static str> {
 
 // ========== Read Operations ==========
 
-pub async fn get_user_profile(pool: &SelectedPool, user_id: &str) -> Result<Option<UserProfile>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => get_user_profile_pg(pg, user_id).await,
-        SelectedPool::Fallback(sqlite) => get_user_profile_sqlite(sqlite, user_id).await,
-    }
-}
-
-async fn get_user_profile_pg(pool: &PgPool, user_id: &str) -> Result<Option<UserProfile>, String> {
+pub async fn get_user_profile(pool: &PgPool, user_id: &str) -> Result<Option<UserProfile>, String> {
     let row = sqlx::query(
         r#"SELECT "id","email","username","role"::text as "role","rewardProfile","createdAt","updatedAt"
            FROM "users" WHERE "id" = $1 LIMIT 1"#,
@@ -187,69 +157,19 @@ async fn get_user_profile_pg(pool: &PgPool, user_id: &str) -> Result<Option<User
     }))
 }
 
-async fn get_user_profile_sqlite(pool: &SqlitePool, user_id: &str) -> Result<Option<UserProfile>, String> {
-    let row = sqlx::query(
-        r#"SELECT "id","email","username","role","rewardProfile","createdAt","updatedAt"
-           FROM "users" WHERE "id" = ? LIMIT 1"#,
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| format!("查询失败: {e}"))?;
-
-    let Some(row) = row else { return Ok(None) };
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-
-    Ok(Some(UserProfile {
-        id: row.try_get("id").unwrap_or_default(),
-        email: row.try_get("email").unwrap_or_default(),
-        username: row.try_get("username").unwrap_or_default(),
-        role: row.try_get("role").unwrap_or_default(),
-        reward_profile: row.try_get::<Option<String>, _>("rewardProfile").ok().flatten().unwrap_or_else(|| "standard".to_string()),
-        created_at: normalize_datetime_str(&created_raw),
-        updated_at: normalize_datetime_str(&updated_raw),
-    }))
+pub async fn get_reward_profile(pool: &PgPool, user_id: &str) -> Result<String, String> {
+    let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = $1 LIMIT 1"#)
+        .bind(user_id).fetch_optional(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten().unwrap_or_else(|| "standard".to_string()))
 }
 
-pub async fn get_reward_profile(pool: &SelectedPool, user_id: &str) -> Result<String, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = $1 LIMIT 1"#)
-                .bind(user_id).fetch_optional(pg).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten().unwrap_or_else(|| "standard".to_string()))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = ? LIMIT 1"#)
-                .bind(user_id).fetch_optional(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten().unwrap_or_else(|| "standard".to_string()))
-        }
-    }
+pub async fn get_password_hash(pool: &PgPool, user_id: &str) -> Result<Option<String>, String> {
+    let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = $1 LIMIT 1"#)
+        .bind(user_id).fetch_optional(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
 }
 
-pub async fn get_password_hash(pool: &SelectedPool, user_id: &str) -> Result<Option<String>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = $1 LIMIT 1"#)
-                .bind(user_id).fetch_optional(pg).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = ? LIMIT 1"#)
-                .bind(user_id).fetch_optional(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
-        }
-    }
-}
-
-pub async fn get_user_statistics(pool: &SelectedPool, user_id: &str) -> Result<UserStatistics, String> {
-    match pool {
-        SelectedPool::Primary(pg) => get_user_statistics_pg(pg, user_id).await,
-        SelectedPool::Fallback(sqlite) => get_user_statistics_sqlite(sqlite, user_id).await,
-    }
-}
-
-async fn get_user_statistics_pg(pool: &PgPool, user_id: &str) -> Result<UserStatistics, String> {
+pub async fn get_user_statistics(pool: &PgPool, user_id: &str) -> Result<UserStatistics, String> {
     let word_books: Vec<String> = sqlx::query_scalar(
         r#"SELECT "id" FROM "word_books" WHERE ("type"::text = 'SYSTEM') OR (("type"::text = 'USER') AND "userId" = $1)"#,
     )
@@ -259,21 +179,6 @@ async fn get_user_statistics_pg(pool: &PgPool, user_id: &str) -> Result<UserStat
     let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1"#)
         .bind(user_id).fetch_one(pool).await.unwrap_or(0);
     let correct_count: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1 AND "isCorrect" = true"#)
-        .bind(user_id).fetch_one(pool).await.unwrap_or(0);
-
-    Ok(build_statistics(total_words, total_records, correct_count))
-}
-
-async fn get_user_statistics_sqlite(pool: &SqlitePool, user_id: &str) -> Result<UserStatistics, String> {
-    let word_books: Vec<String> = sqlx::query_scalar(
-        r#"SELECT "id" FROM "word_books" WHERE "type" = 'SYSTEM' OR ("type" = 'USER' AND "userId" = ?)"#,
-    )
-    .bind(user_id).fetch_all(pool).await.unwrap_or_default();
-
-    let total_words = count_words_sqlite(pool, &word_books).await.unwrap_or(0);
-    let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = ?"#)
-        .bind(user_id).fetch_one(pool).await.unwrap_or(0);
-    let correct_count: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = ? AND "isCorrect" = 1"#)
         .bind(user_id).fetch_one(pool).await.unwrap_or(0);
 
     Ok(build_statistics(total_words, total_records, correct_count))
@@ -293,18 +198,9 @@ async fn count_words_pg(pool: &PgPool, word_book_ids: &[String]) -> Result<i64, 
     qb.build_query_scalar().fetch_one(pool).await
 }
 
-async fn count_words_sqlite(pool: &SqlitePool, word_book_ids: &[String]) -> Result<i64, sqlx::Error> {
-    if word_book_ids.is_empty() { return Ok(0); }
-    let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" IN ("#);
-    let mut sep = qb.separated(", ");
-    for id in word_book_ids { sep.push_bind(id); }
-    sep.push_unseparated(")");
-    qb.build_query_scalar().fetch_one(pool).await
-}
-
 // ========== Cognitive Profile ==========
 
-pub async fn compute_chronotype(pool: &SelectedPool, user_id: &str) -> Result<ChronotypeProfile, String> {
+pub async fn compute_chronotype(pool: &PgPool, user_id: &str) -> Result<ChronotypeProfile, String> {
     let records = fetch_records_for_chronotype(pool, user_id).await?;
     let mut hourly_data: HashMap<i32, (i64, i64)> = HashMap::new();
 
@@ -345,7 +241,7 @@ pub async fn compute_chronotype(pool: &SelectedPool, user_id: &str) -> Result<Ch
     }
 }
 
-pub async fn compute_learning_style(pool: &SelectedPool, user_id: &str) -> Result<LearningStyleProfile, String> {
+pub async fn compute_learning_style(pool: &PgPool, user_id: &str) -> Result<LearningStyleProfile, String> {
     let interactions = fetch_records_for_learning_style(pool, user_id).await?;
     let sample_count = interactions.len() as i64;
 
@@ -409,120 +305,53 @@ pub async fn compute_learning_style(pool: &SelectedPool, user_id: &str) -> Resul
     })
 }
 
-pub async fn get_cognitive_profile(pool: &SelectedPool, user_id: &str) -> CognitiveProfileResponse {
+pub async fn get_cognitive_profile(pool: &PgPool, user_id: &str) -> CognitiveProfileResponse {
     let chronotype = compute_chronotype(pool, user_id).await.ok().filter(|p| p.sample_count >= 20);
     let learning_style = compute_learning_style(pool, user_id).await.ok().filter(|p| p.sample_count >= 20);
     CognitiveProfileResponse { chronotype, learning_style }
 }
 
-async fn fetch_records_for_chronotype(pool: &SelectedPool, user_id: &str) -> Result<Vec<AnswerRecordChrono>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT "timestamp", "isCorrect" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 500"#)
-                .bind(user_id).fetch_all(pg).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().filter_map(|row| {
-                let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
-                Some(AnswerRecordChrono { timestamp_ms: DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis(), is_correct: row.try_get("isCorrect").unwrap_or(false) })
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT CAST("timestamp" AS TEXT) AS "timestamp", "isCorrect" FROM "answer_records" WHERE "userId" = ? ORDER BY "timestamp" DESC LIMIT 500"#)
-                .bind(user_id).fetch_all(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().filter_map(|row| {
-                let ts: String = row.try_get("timestamp").ok()?;
-                let timestamp_ms = parse_datetime_millis(&ts)?;
-                let is_correct: i64 = row.try_get("isCorrect").unwrap_or(0);
-                Some(AnswerRecordChrono { timestamp_ms, is_correct: is_correct != 0 })
-            }).collect())
-        }
-    }
+async fn fetch_records_for_chronotype(pool: &PgPool, user_id: &str) -> Result<Vec<AnswerRecordChrono>, String> {
+    let rows = sqlx::query(r#"SELECT "timestamp", "isCorrect" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 500"#)
+        .bind(user_id).fetch_all(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    Ok(rows.iter().filter_map(|row| {
+        let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
+        Some(AnswerRecordChrono { timestamp_ms: DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis(), is_correct: row.try_get("isCorrect").unwrap_or(false) })
+    }).collect())
 }
 
-async fn fetch_records_for_learning_style(pool: &SelectedPool, user_id: &str) -> Result<Vec<AnswerRecordInteraction>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT "timestamp", "dwellTime", "responseTime" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 200"#)
-                .bind(user_id).fetch_all(pg).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().filter_map(|row| {
-                let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
-                Some(AnswerRecordInteraction {
-                    timestamp_ms: DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis(),
-                    dwell_time: row.try_get::<Option<i64>, _>("dwellTime").ok().flatten().unwrap_or(0),
-                    response_time: row.try_get::<Option<i64>, _>("responseTime").ok().flatten(),
-                })
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT CAST("timestamp" AS TEXT) AS "timestamp", "dwellTime", "responseTime" FROM "answer_records" WHERE "userId" = ? ORDER BY "timestamp" DESC LIMIT 200"#)
-                .bind(user_id).fetch_all(sqlite).await.map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.iter().filter_map(|row| {
-                let ts: String = row.try_get("timestamp").ok()?;
-                let timestamp_ms = parse_datetime_millis(&ts)?;
-                Some(AnswerRecordInteraction {
-                    timestamp_ms,
-                    dwell_time: row.try_get::<Option<i64>, _>("dwellTime").ok().flatten().unwrap_or(0),
-                    response_time: row.try_get::<Option<i64>, _>("responseTime").ok().flatten(),
-                })
-            }).collect())
-        }
-    }
+async fn fetch_records_for_learning_style(pool: &PgPool, user_id: &str) -> Result<Vec<AnswerRecordInteraction>, String> {
+    let rows = sqlx::query(r#"SELECT "timestamp", "dwellTime", "responseTime" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 200"#)
+        .bind(user_id).fetch_all(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    Ok(rows.iter().filter_map(|row| {
+        let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
+        Some(AnswerRecordInteraction {
+            timestamp_ms: DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis(),
+            dwell_time: row.try_get::<Option<i64>, _>("dwellTime").ok().flatten().unwrap_or(0),
+            response_time: row.try_get::<Option<i64>, _>("responseTime").ok().flatten(),
+        })
+    }).collect())
 }
 
 // ========== Write Operations ==========
 
-pub async fn update_reward_profile(proxy: &DatabaseProxy, state: DatabaseState, user_id: &str, profile_id: &str) -> Result<(), String> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".into(), serde_json::json!(user_id));
-        let mut data = serde_json::Map::new();
-        data.insert("rewardProfile".into(), serde_json::json!(profile_id));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "users".to_string(), r#where: where_clause, data,
-            operation_id: uuid::Uuid::new_v4().to_string(), timestamp_ms: None, critical: Some(true),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
+pub async fn update_reward_profile(proxy: &DatabaseProxy, user_id: &str, profile_id: &str) -> Result<(), String> {
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(r#"UPDATE "users" SET "rewardProfile" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
         .bind(profile_id).bind(now).bind(user_id)
-        .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+        .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
     Ok(())
 }
 
-pub async fn update_password(proxy: &DatabaseProxy, state: DatabaseState, user_id: &str, new_hash: &str) -> Result<(), String> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".into(), serde_json::json!(user_id));
-        let mut data = serde_json::Map::new();
-        data.insert("passwordHash".into(), serde_json::json!(new_hash));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "users".to_string(), r#where: where_clause, data,
-            operation_id: uuid::Uuid::new_v4().to_string(), timestamp_ms: None, critical: Some(true),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".into(), serde_json::json!(user_id));
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "sessions".to_string(), r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(), timestamp_ms: None, critical: Some(true),
-        };
-        proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-        return Ok(());
-    }
-
-    let pool = proxy.primary_pool().await.ok_or("数据库不可用")?;
+pub async fn update_password(proxy: &DatabaseProxy, user_id: &str, new_hash: &str) -> Result<(), String> {
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(r#"UPDATE "users" SET "passwordHash" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
         .bind(new_hash).bind(now).bind(user_id)
-        .execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+        .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
     sqlx::query(r#"DELETE FROM "sessions" WHERE "userId" = $1"#)
-        .bind(user_id).execute(&pool).await.map_err(|e| format!("写入失败: {e}"))?;
+        .bind(user_id).execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
     Ok(())
 }
 
@@ -530,21 +359,6 @@ pub async fn update_password(proxy: &DatabaseProxy, state: DatabaseState, user_i
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
     DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
-fn parse_datetime_millis(value: &str) -> Option<i64> {
-    if let Ok(parsed) = DateTime::parse_from_rfc3339(value) { return Some(parsed.timestamp_millis()); }
-    if let Ok(parsed) = NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S") {
-        return Some(DateTime::<Utc>::from_naive_utc_and_offset(parsed, Utc).timestamp_millis());
-    }
-    None
-}
-
-fn normalize_datetime_str(value: &str) -> String {
-    if let Some(ms) = parse_datetime_millis(value) {
-        if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(ms) { return dt.to_rfc3339_opts(SecondsFormat::Millis, true); }
-    }
-    value.to_string()
 }
 
 fn avg_performance(history: &[LearningHistoryItem], hours: &[i32]) -> f64 {

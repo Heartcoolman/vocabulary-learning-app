@@ -25,12 +25,8 @@ static API_LIMITER: OnceLock<Arc<RateLimiter>> = OnceLock::new();
 static AUTH_LIMITER: OnceLock<Arc<RateLimiter>> = OnceLock::new();
 
 pub async fn api_rate_limit_middleware(req: Request<Body>, next: Next) -> Response {
-    if is_test_env() {
-        return next.run(req).await;
-    }
-
     let path = req.uri().path();
-    if !matches_api_prefix(path) {
+    if !matches_api_prefix(path) || should_skip_api_rate_limit(&req) {
         return next.run(req).await;
     }
 
@@ -48,7 +44,7 @@ pub async fn api_rate_limit_middleware(req: Request<Body>, next: Next) -> Respon
 }
 
 pub async fn auth_rate_limit_middleware(req: Request<Body>, next: Next) -> Response {
-    if is_test_env() {
+    if is_test_env() || is_loopback_request(&req) {
         return next.run(req).await;
     }
 
@@ -115,6 +111,15 @@ fn matches_api_prefix(path: &str) -> bool {
     path == "/api" || path.starts_with("/api/")
 }
 
+fn should_skip_api_rate_limit(req: &Request<Body>) -> bool {
+    if is_test_env() || is_loopback_request(req) {
+        return true;
+    }
+
+    let path = req.uri().path();
+    path.starts_with("/api/v1/realtime/")
+}
+
 fn api_config() -> RateLimitConfig {
     RateLimitConfig {
         window_ms: env_u64("RATE_LIMIT_WINDOW_MS").unwrap_or(DEFAULT_API_WINDOW_MS),
@@ -136,6 +141,12 @@ fn is_test_env() -> bool {
         std::env::var("NODE_ENV").ok().as_deref(),
         Some("test")
     )
+}
+
+fn is_loopback_request(req: &Request<Body>) -> bool {
+    extract_client_ip(req)
+        .map(|ip| ip.is_loopback())
+        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -268,4 +279,3 @@ fn extract_x_forwarded_for(req: &Request<Body>) -> Option<IpAddr> {
     let first = raw.split(',').next()?.trim();
     first.parse::<IpAddr>().ok()
 }
-

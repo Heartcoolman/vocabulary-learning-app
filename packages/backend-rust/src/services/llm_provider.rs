@@ -136,7 +136,14 @@ impl LLMProvider {
                     let status = resp.status();
                     if status.is_success() {
                         let bytes = resp.bytes().await?;
-                        return Ok(serde_json::from_slice(&bytes)?);
+                        match serde_json::from_slice(&bytes) {
+                            Ok(v) => return Ok(v),
+                            Err(e) => {
+                                let body_str = String::from_utf8_lossy(&bytes);
+                                tracing::error!("Failed to parse LLM response JSON: {}. Body: {}", e, body_str);
+                                return Err(LLMError::Json(e));
+                            }
+                        }
                     }
                     let body = resp.text().await.unwrap_or_default();
                     let err = LLMError::HttpStatus { status, body };

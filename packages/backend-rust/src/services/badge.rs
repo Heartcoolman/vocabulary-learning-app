@@ -2,9 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{Duration, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -125,95 +124,42 @@ pub struct UserStats {
     pub cognitive_improvement: CognitiveImprovementData,
 }
 
-pub enum SelectedPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
+pub async fn get_user_badges(pool: &PgPool, user_id: &str) -> Result<Vec<UserBadge>, String> {
+    let rows = sqlx::query(
+        r#"SELECT ub."id", ub."badgeId", ub."tier", ub."unlockedAt",
+           b."name", b."description", b."iconUrl", b."category"::text
+           FROM "user_badges" ub
+           JOIN "badge_definitions" b ON ub."badgeId" = b."id"
+           WHERE ub."userId" = $1 ORDER BY ub."unlockedAt" DESC"#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-pub async fn select_pool(proxy: &DatabaseProxy, state: DatabaseState) -> Result<SelectedPool, String> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool().await
-            .map(SelectedPool::Fallback)
-            .ok_or_else(|| "服务不可用".to_string()),
-        _ => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedPool::Primary(pool)),
-            None => proxy.fallback_pool().await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-        },
-    }
-}
-
-pub async fn get_user_badges(pool: &SelectedPool, user_id: &str) -> Result<Vec<UserBadge>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT ub."id", ub."badgeId", ub."tier", ub."unlockedAt",
-                   b."name", b."description", b."iconUrl", b."category"::text
-                   FROM "user_badges" ub
-                   JOIN "badge_definitions" b ON ub."badgeId" = b."id"
-                   WHERE ub."userId" = $1 ORDER BY ub."unlockedAt" DESC"#,
-            )
-            .bind(user_id)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|row| {
-                let unlocked_at: NaiveDateTime = row.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-                UserBadge {
-                    id: row.try_get("id").unwrap_or_default(),
-                    badge_id: row.try_get("badgeId").unwrap_or_default(),
-                    name: row.try_get("name").unwrap_or_default(),
-                    description: row.try_get("description").unwrap_or_default(),
-                    icon_url: row.try_get("iconUrl").unwrap_or_default(),
-                    category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: row.try_get("tier").unwrap_or(1),
-                    unlocked_at: chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339(),
-                }
-            }).collect())
+    Ok(rows.iter().map(|row| {
+        let unlocked_at: NaiveDateTime = row.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        UserBadge {
+            id: row.try_get("id").unwrap_or_default(),
+            badge_id: row.try_get("badgeId").unwrap_or_default(),
+            name: row.try_get("name").unwrap_or_default(),
+            description: row.try_get("description").unwrap_or_default(),
+            icon_url: row.try_get("iconUrl").unwrap_or_default(),
+            category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
+            tier: row.try_get("tier").unwrap_or(1),
+            unlocked_at: chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339(),
         }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT ub."id", ub."badgeId", ub."tier", ub."unlockedAt",
-                   b."name", b."description", b."iconUrl", b."category"
-                   FROM "user_badges" ub
-                   JOIN "badge_definitions" b ON ub."badgeId" = b."id"
-                   WHERE ub."userId" = ? ORDER BY ub."unlockedAt" DESC"#,
-            )
-            .bind(user_id)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|row| {
-                let unlocked_at: String = row.try_get("unlockedAt").unwrap_or_default();
-                UserBadge {
-                    id: row.try_get("id").unwrap_or_default(),
-                    badge_id: row.try_get("badgeId").unwrap_or_default(),
-                    name: row.try_get("name").unwrap_or_default(),
-                    description: row.try_get("description").unwrap_or_default(),
-                    icon_url: row.try_get("iconUrl").unwrap_or_default(),
-                    category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: row.try_get("tier").unwrap_or(1),
-                    unlocked_at,
-                }
-            }).collect())
-        }
-    }
+    }).collect())
 }
 
 pub async fn check_and_award_badges(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<NewBadgeResult>, String> {
-    let pool = select_pool(proxy, state).await?;
-    let stats = get_user_stats(&pool, user_id).await?;
-
-    let all_badges = get_all_badge_definitions(&pool).await?;
-    let existing = get_existing_badge_keys(&pool, user_id).await?;
+    let pool = proxy.pool();
+    let stats = get_user_stats(pool, user_id).await?;
+    let all_badges = get_all_badge_definitions(pool).await?;
+    let existing = get_existing_badge_keys(pool, user_id).await?;
 
     let mut new_badges = Vec::new();
     let now = Utc::now();
@@ -228,36 +174,17 @@ pub async fn check_and_award_badges(
         if check_badge_eligibility(&badge.condition, &stats) {
             let user_badge_id = uuid::Uuid::new_v4().to_string();
 
-            if proxy.sqlite_enabled() {
-                let mut data = serde_json::Map::new();
-                data.insert("id".into(), serde_json::json!(user_badge_id));
-                data.insert("userId".into(), serde_json::json!(user_id));
-                data.insert("badgeId".into(), serde_json::json!(badge.id));
-                data.insert("tier".into(), serde_json::json!(badge.tier));
-                data.insert("unlockedAt".into(), serde_json::json!(now_str));
-
-                let op = crate::db::dual_write_manager::WriteOperation::Insert {
-                    table: "user_badges".to_string(),
-                    data,
-                    operation_id: uuid::Uuid::new_v4().to_string(),
-                    timestamp_ms: None,
-                    critical: Some(true),
-                };
-                proxy.write_operation(state, op).await.map_err(|e| format!("写入失败: {e}"))?;
-            } else {
-                let pg = proxy.primary_pool().await.ok_or("数据库不可用")?;
-                sqlx::query(
-                    r#"INSERT INTO "user_badges" ("id","userId","badgeId","tier","unlockedAt")
-                       VALUES ($1,$2,$3,$4,NOW())"#,
-                )
-                .bind(&user_badge_id)
-                .bind(user_id)
-                .bind(&badge.id)
-                .bind(badge.tier)
-                .execute(&pg)
-                .await
-                .map_err(|e| format!("写入失败: {e}"))?;
-            }
+            sqlx::query(
+                r#"INSERT INTO "user_badges" ("id","userId","badgeId","tier","unlockedAt")
+                   VALUES ($1,$2,$3,$4,NOW())"#,
+            )
+            .bind(&user_badge_id)
+            .bind(user_id)
+            .bind(&badge.id)
+            .bind(badge.tier)
+            .execute(pool)
+            .await
+            .map_err(|e| format!("写入失败: {e}"))?;
 
             new_badges.push(NewBadgeResult {
                 badge: UserBadge {
@@ -280,7 +207,7 @@ pub async fn check_and_award_badges(
 }
 
 pub async fn get_badge_details(
-    pool: &SelectedPool,
+    pool: &PgPool,
     badge_id: &str,
     user_id: Option<&str>,
 ) -> Result<Option<BadgeDetails>, String> {
@@ -308,7 +235,7 @@ pub async fn get_badge_details(
 }
 
 pub async fn get_badge_progress(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
     badge_id: &str,
 ) -> Result<Option<BadgeProgress>, String> {
@@ -329,7 +256,7 @@ pub async fn get_badge_progress(
 }
 
 pub async fn get_all_badges_with_status(
-    pool: &SelectedPool,
+    pool: &PgPool,
     user_id: &str,
 ) -> Result<Vec<BadgeDetails>, String> {
     let all_badges = get_all_badge_definitions(pool).await?;
@@ -364,232 +291,111 @@ pub async fn get_all_badges_with_status(
     }).collect())
 }
 
-async fn get_all_badge_definitions(pool: &SelectedPool) -> Result<Vec<BadgeDetails>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id","name","description","iconUrl","category"::text,"tier","condition"
-                   FROM "badge_definitions" ORDER BY "category","tier""#,
-            )
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+async fn get_all_badge_definitions(pool: &PgPool) -> Result<Vec<BadgeDetails>, String> {
+    let rows = sqlx::query(
+        r#"SELECT "id","name","description","iconUrl","category"::text,"tier","condition"
+           FROM "badge_definitions" ORDER BY "category","tier""#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(rows.iter().map(|row| {
-                let condition_raw: serde_json::Value = row.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
-                BadgeDetails {
-                    id: row.try_get("id").unwrap_or_default(),
-                    name: row.try_get("name").unwrap_or_default(),
-                    description: row.try_get("description").unwrap_or_default(),
-                    icon_url: row.try_get("iconUrl").unwrap_or_default(),
-                    category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: row.try_get("tier").unwrap_or(1),
-                    condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
-                        condition_type: "streak".to_string(),
-                        value: 1.0,
-                        params: None,
-                    }),
-                    unlocked: false,
-                    unlocked_at: None,
-                    progress: None,
-                }
-            }).collect())
+    Ok(rows.iter().map(|row| {
+        let condition_raw: serde_json::Value = row.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
+        BadgeDetails {
+            id: row.try_get("id").unwrap_or_default(),
+            name: row.try_get("name").unwrap_or_default(),
+            description: row.try_get("description").unwrap_or_default(),
+            icon_url: row.try_get("iconUrl").unwrap_or_default(),
+            category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
+            tier: row.try_get("tier").unwrap_or(1),
+            condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
+                condition_type: "streak".to_string(),
+                value: 1.0,
+                params: None,
+            }),
+            unlocked: false,
+            unlocked_at: None,
+            progress: None,
         }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id","name","description","iconUrl","category","tier","condition"
-                   FROM "badge_definitions" ORDER BY "category","tier""#,
-            )
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|row| {
-                let condition_raw: String = row.try_get("condition").unwrap_or_default();
-                let condition: BadgeCondition = serde_json::from_str(&condition_raw).unwrap_or(BadgeCondition {
-                    condition_type: "streak".to_string(),
-                    value: 1.0,
-                    params: None,
-                });
-                BadgeDetails {
-                    id: row.try_get("id").unwrap_or_default(),
-                    name: row.try_get("name").unwrap_or_default(),
-                    description: row.try_get("description").unwrap_or_default(),
-                    icon_url: row.try_get("iconUrl").unwrap_or_default(),
-                    category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: row.try_get("tier").unwrap_or(1),
-                    condition,
-                    unlocked: false,
-                    unlocked_at: None,
-                    progress: None,
-                }
-            }).collect())
-        }
-    }
+    }).collect())
 }
 
-async fn get_badge_definition(pool: &SelectedPool, badge_id: &str) -> Result<Option<BadgeDetails>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(
-                r#"SELECT "id","name","description","iconUrl","category"::text,"tier","condition"
-                   FROM "badge_definitions" WHERE "id" = $1"#,
-            )
-            .bind(badge_id)
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+async fn get_badge_definition(pool: &PgPool, badge_id: &str) -> Result<Option<BadgeDetails>, String> {
+    let row = sqlx::query(
+        r#"SELECT "id","name","description","iconUrl","category"::text,"tier","condition"
+           FROM "badge_definitions" WHERE "id" = $1"#,
+    )
+    .bind(badge_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(row.map(|r| {
-                let condition_raw: serde_json::Value = r.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
-                BadgeDetails {
-                    id: r.try_get("id").unwrap_or_default(),
-                    name: r.try_get("name").unwrap_or_default(),
-                    description: r.try_get("description").unwrap_or_default(),
-                    icon_url: r.try_get("iconUrl").unwrap_or_default(),
-                    category: r.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: r.try_get("tier").unwrap_or(1),
-                    condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
-                        condition_type: "streak".to_string(),
-                        value: 1.0,
-                        params: None,
-                    }),
-                    unlocked: false,
-                    unlocked_at: None,
-                    progress: None,
-                }
-            }))
+    Ok(row.map(|r| {
+        let condition_raw: serde_json::Value = r.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
+        BadgeDetails {
+            id: r.try_get("id").unwrap_or_default(),
+            name: r.try_get("name").unwrap_or_default(),
+            description: r.try_get("description").unwrap_or_default(),
+            icon_url: r.try_get("iconUrl").unwrap_or_default(),
+            category: r.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
+            tier: r.try_get("tier").unwrap_or(1),
+            condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
+                condition_type: "streak".to_string(),
+                value: 1.0,
+                params: None,
+            }),
+            unlocked: false,
+            unlocked_at: None,
+            progress: None,
         }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(
-                r#"SELECT "id","name","description","iconUrl","category","tier","condition"
-                   FROM "badge_definitions" WHERE "id" = ?"#,
-            )
-            .bind(badge_id)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(row.map(|r| {
-                let condition_raw: String = r.try_get("condition").unwrap_or_default();
-                let condition: BadgeCondition = serde_json::from_str(&condition_raw).unwrap_or(BadgeCondition {
-                    condition_type: "streak".to_string(),
-                    value: 1.0,
-                    params: None,
-                });
-                BadgeDetails {
-                    id: r.try_get("id").unwrap_or_default(),
-                    name: r.try_get("name").unwrap_or_default(),
-                    description: r.try_get("description").unwrap_or_default(),
-                    icon_url: r.try_get("iconUrl").unwrap_or_default(),
-                    category: r.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-                    tier: r.try_get("tier").unwrap_or(1),
-                    condition,
-                    unlocked: false,
-                    unlocked_at: None,
-                    progress: None,
-                }
-            }))
-        }
-    }
+    }))
 }
 
-async fn get_existing_badge_keys(pool: &SelectedPool, user_id: &str) -> Result<HashSet<String>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT "badgeId","tier" FROM "user_badges" WHERE "userId" = $1"#)
-                .bind(user_id)
-                .fetch_all(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
+async fn get_existing_badge_keys(pool: &PgPool, user_id: &str) -> Result<HashSet<String>, String> {
+    let rows = sqlx::query(r#"SELECT "badgeId","tier" FROM "user_badges" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(rows.iter().map(|r| {
-                let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-                let tier: i64 = r.try_get("tier").unwrap_or(1);
-                format!("{badge_id}:{tier}")
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT "badgeId","tier" FROM "user_badges" WHERE "userId" = ?"#)
-                .bind(user_id)
-                .fetch_all(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|r| {
-                let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-                let tier: i64 = r.try_get("tier").unwrap_or(1);
-                format!("{badge_id}:{tier}")
-            }).collect())
-        }
-    }
+    Ok(rows.iter().map(|r| {
+        let badge_id: String = r.try_get("badgeId").unwrap_or_default();
+        let tier: i64 = r.try_get("tier").unwrap_or(1);
+        format!("{badge_id}:{tier}")
+    }).collect())
 }
 
-async fn get_user_badge_map(pool: &SelectedPool, user_id: &str) -> Result<HashMap<String, String>, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT "badgeId","tier","unlockedAt" FROM "user_badges" WHERE "userId" = $1"#)
-                .bind(user_id)
-                .fetch_all(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
+async fn get_user_badge_map(pool: &PgPool, user_id: &str) -> Result<HashMap<String, String>, String> {
+    let rows = sqlx::query(r#"SELECT "badgeId","tier","unlockedAt" FROM "user_badges" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(rows.iter().map(|r| {
-                let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-                let tier: i64 = r.try_get("tier").unwrap_or(1);
-                let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-                (format!("{badge_id}:{tier}"), chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339())
-            }).collect())
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT "badgeId","tier","unlockedAt" FROM "user_badges" WHERE "userId" = ?"#)
-                .bind(user_id)
-                .fetch_all(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(rows.iter().map(|r| {
-                let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-                let tier: i64 = r.try_get("tier").unwrap_or(1);
-                let unlocked_at: String = r.try_get("unlockedAt").unwrap_or_default();
-                (format!("{badge_id}:{tier}"), unlocked_at)
-            }).collect())
-        }
-    }
+    Ok(rows.iter().map(|r| {
+        let badge_id: String = r.try_get("badgeId").unwrap_or_default();
+        let tier: i64 = r.try_get("tier").unwrap_or(1);
+        let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        (format!("{badge_id}:{tier}"), chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339())
+    }).collect())
 }
 
-async fn check_user_has_badge(pool: &SelectedPool, user_id: &str, badge_id: &str) -> Result<(bool, Option<String>), String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let row = sqlx::query(r#"SELECT "unlockedAt" FROM "user_badges" WHERE "userId" = $1 AND "badgeId" = $2 LIMIT 1"#)
-                .bind(user_id)
-                .bind(badge_id)
-                .fetch_optional(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
+async fn check_user_has_badge(pool: &PgPool, user_id: &str, badge_id: &str) -> Result<(bool, Option<String>), String> {
+    let row = sqlx::query(r#"SELECT "unlockedAt" FROM "user_badges" WHERE "userId" = $1 AND "badgeId" = $2 LIMIT 1"#)
+        .bind(user_id)
+        .bind(badge_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
 
-            Ok(row.map(|r| {
-                let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-                (true, Some(chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339()))
-            }).unwrap_or((false, None)))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let row = sqlx::query(r#"SELECT "unlockedAt" FROM "user_badges" WHERE "userId" = ? AND "badgeId" = ? LIMIT 1"#)
-                .bind(user_id)
-                .bind(badge_id)
-                .fetch_optional(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-
-            Ok(row.map(|r| {
-                let unlocked_at: String = r.try_get("unlockedAt").unwrap_or_default();
-                (true, Some(unlocked_at))
-            }).unwrap_or((false, None)))
-        }
-    }
+    Ok(row.map(|r| {
+        let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        (true, Some(chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339()))
+    }).unwrap_or((false, None)))
 }
 
-async fn get_user_stats(pool: &SelectedPool, user_id: &str) -> Result<UserStats, String> {
+async fn get_user_stats(pool: &PgPool, user_id: &str) -> Result<UserStats, String> {
     let consecutive_days = calculate_consecutive_days(pool, user_id).await?;
     let total_words_learned = calculate_total_words_learned(pool, user_id).await?;
     let total_sessions = calculate_total_sessions(pool, user_id).await?;
@@ -674,33 +480,18 @@ fn get_current_value_for_condition(condition: &BadgeCondition, stats: &UserStats
     }
 }
 
-async fn calculate_consecutive_days(pool: &SelectedPool, user_id: &str) -> Result<i64, String> {
-    let dates: Vec<String> = match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT DISTINCT DATE("timestamp") as d FROM "answer_records" WHERE "userId" = $1 ORDER BY d DESC"#,
-            )
-            .bind(user_id)
-            .fetch_all(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+async fn calculate_consecutive_days(pool: &PgPool, user_id: &str) -> Result<i64, String> {
+    let rows = sqlx::query(
+        r#"SELECT DISTINCT DATE("timestamp") as d FROM "answer_records" WHERE "userId" = $1 ORDER BY d DESC"#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            rows.iter().filter_map(|r| {
-                r.try_get::<chrono::NaiveDate, _>("d").ok().map(|d| d.to_string())
-            }).collect()
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT DISTINCT DATE("timestamp") as d FROM "answer_records" WHERE "userId" = ? ORDER BY d DESC"#,
-            )
-            .bind(user_id)
-            .fetch_all(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            rows.iter().filter_map(|r| r.try_get::<String, _>("d").ok()).collect()
-        }
-    };
+    let dates: Vec<String> = rows.iter().filter_map(|r| {
+        r.try_get::<chrono::NaiveDate, _>("d").ok().map(|d| d.to_string())
+    }).collect();
 
     if dates.is_empty() {
         return Ok(0);
@@ -730,142 +521,66 @@ async fn calculate_consecutive_days(pool: &SelectedPool, user_id: &str) -> Resul
     Ok(consecutive)
 }
 
-async fn calculate_total_words_learned(pool: &SelectedPool, user_id: &str) -> Result<i64, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            sqlx::query_scalar(r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = $1 AND "reviewCount" > 0"#)
-                .bind(user_id)
-                .fetch_one(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))
-        }
-        SelectedPool::Fallback(sqlite) => {
-            sqlx::query_scalar(r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = ? AND "reviewCount" > 0"#)
-                .bind(user_id)
-                .fetch_one(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))
-        }
-    }
+async fn calculate_total_words_learned(pool: &PgPool, user_id: &str) -> Result<i64, String> {
+    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = $1 AND "reviewCount" > 0"#)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))
 }
 
-async fn calculate_total_sessions(pool: &SelectedPool, user_id: &str) -> Result<i64, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT DISTINCT "sessionId" FROM "answer_records" WHERE "userId" = $1 AND "sessionId" IS NOT NULL"#)
-                .bind(user_id)
-                .fetch_all(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.len() as i64)
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT DISTINCT "sessionId" FROM "answer_records" WHERE "userId" = ? AND "sessionId" IS NOT NULL"#)
-                .bind(user_id)
-                .fetch_all(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-            Ok(rows.len() as i64)
-        }
-    }
+async fn calculate_total_sessions(pool: &PgPool, user_id: &str) -> Result<i64, String> {
+    let rows = sqlx::query(r#"SELECT DISTINCT "sessionId" FROM "answer_records" WHERE "userId" = $1 AND "sessionId" IS NOT NULL"#)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
+    Ok(rows.len() as i64)
 }
 
-async fn calculate_recent_accuracy(pool: &SelectedPool, user_id: &str) -> Result<f64, String> {
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(r#"SELECT "isCorrect" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 50"#)
-                .bind(user_id)
-                .fetch_all(pg)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
+async fn calculate_recent_accuracy(pool: &PgPool, user_id: &str) -> Result<f64, String> {
+    let rows = sqlx::query(r#"SELECT "isCorrect" FROM "answer_records" WHERE "userId" = $1 ORDER BY "timestamp" DESC LIMIT 50"#)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询失败: {e}"))?;
 
-            if rows.is_empty() {
-                return Ok(0.0);
-            }
-
-            let correct = rows.iter().filter(|r| r.try_get::<bool, _>("isCorrect").unwrap_or(false)).count();
-            Ok(correct as f64 / rows.len() as f64)
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(r#"SELECT "isCorrect" FROM "answer_records" WHERE "userId" = ? ORDER BY "timestamp" DESC LIMIT 50"#)
-                .bind(user_id)
-                .fetch_all(sqlite)
-                .await
-                .map_err(|e| format!("查询失败: {e}"))?;
-
-            if rows.is_empty() {
-                return Ok(0.0);
-            }
-
-            let correct = rows.iter().filter(|r| r.try_get::<i64, _>("isCorrect").unwrap_or(0) != 0).count();
-            Ok(correct as f64 / rows.len() as f64)
-        }
+    if rows.is_empty() {
+        return Ok(0.0);
     }
+
+    let correct = rows.iter().filter(|r| r.try_get::<bool, _>("isCorrect").unwrap_or(false)).count();
+    Ok(correct as f64 / rows.len() as f64)
 }
 
-async fn calculate_cognitive_improvement(pool: &SelectedPool, user_id: &str) -> Result<CognitiveImprovementData, String> {
+async fn calculate_cognitive_improvement(pool: &PgPool, user_id: &str) -> Result<CognitiveImprovementData, String> {
     let thirty_days_ago = (Utc::now() - Duration::days(30)).naive_utc();
 
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let past = sqlx::query(
-                r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = $1 AND "date" <= $2 ORDER BY "date" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .bind(thirty_days_ago.date())
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+    let past = sqlx::query(
+        r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = $1 AND "date" <= $2 ORDER BY "date" DESC LIMIT 1"#,
+    )
+    .bind(user_id)
+    .bind(thirty_days_ago.date())
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let current = sqlx::query(
-                r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .fetch_optional(pg)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
+    let current = sqlx::query(
+        r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-            let (Some(past), Some(current)) = (past, current) else {
-                return Ok(CognitiveImprovementData::default());
-            };
+    let (Some(past), Some(current)) = (past, current) else {
+        return Ok(CognitiveImprovementData::default());
+    };
 
-            Ok(CognitiveImprovementData {
-                memory: current.try_get::<f64, _>("memory").unwrap_or(0.0) - past.try_get::<f64, _>("memory").unwrap_or(0.0),
-                speed: current.try_get::<f64, _>("speed").unwrap_or(0.0) - past.try_get::<f64, _>("speed").unwrap_or(0.0),
-                stability: current.try_get::<f64, _>("stability").unwrap_or(0.0) - past.try_get::<f64, _>("stability").unwrap_or(0.0),
-                has_data: true,
-            })
-        }
-        SelectedPool::Fallback(sqlite) => {
-            let thirty_days_ago_str = thirty_days_ago.date().to_string();
-
-            let past = sqlx::query(
-                r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = ? AND "date" <= ? ORDER BY "date" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .bind(&thirty_days_ago_str)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            let current = sqlx::query(
-                r#"SELECT "memory","speed","stability" FROM "user_state_history" WHERE "userId" = ? ORDER BY "date" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .fetch_optional(sqlite)
-            .await
-            .map_err(|e| format!("查询失败: {e}"))?;
-
-            let (Some(past), Some(current)) = (past, current) else {
-                return Ok(CognitiveImprovementData::default());
-            };
-
-            Ok(CognitiveImprovementData {
-                memory: current.try_get::<f64, _>("memory").unwrap_or(0.0) - past.try_get::<f64, _>("memory").unwrap_or(0.0),
-                speed: current.try_get::<f64, _>("speed").unwrap_or(0.0) - past.try_get::<f64, _>("speed").unwrap_or(0.0),
-                stability: current.try_get::<f64, _>("stability").unwrap_or(0.0) - past.try_get::<f64, _>("stability").unwrap_or(0.0),
-                has_data: true,
-            })
-        }
-    }
+    Ok(CognitiveImprovementData {
+        memory: current.try_get::<f64, _>("memory").unwrap_or(0.0) - past.try_get::<f64, _>("memory").unwrap_or(0.0),
+        speed: current.try_get::<f64, _>("speed").unwrap_or(0.0) - past.try_get::<f64, _>("speed").unwrap_or(0.0),
+        stability: current.try_get::<f64, _>("stability").unwrap_or(0.0) - past.try_get::<f64, _>("stability").unwrap_or(0.0),
+        has_data: true,
+    })
 }

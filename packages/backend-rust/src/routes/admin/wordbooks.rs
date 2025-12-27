@@ -6,8 +6,6 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::db::state_machine::DatabaseState;
-use crate::db::DatabaseProxy;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -94,8 +92,10 @@ struct WordInput {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BatchAddResult {
-    count: usize,
-    words: Vec<Word>,
+    imported: usize,
+    failed: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    errors: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -117,53 +117,26 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
-    let pool = match get_pool(&proxy, db_state).await {
-        Ok(p) => p,
-        Err(e) => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", &e).into_response(),
-    };
 
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(50).clamp(1, 100);
     let offset = (page - 1) * page_size;
 
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let rows = sqlx::query(
-                r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
-                   FROM "word_books" WHERE "type" = 'SYSTEM' ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
-            )
-            .bind(page_size)
-            .bind(offset)
-            .fetch_all(&pg)
-            .await;
+    let rows = sqlx::query(
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
+           FROM "word_books" WHERE "type" = 'SYSTEM' ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2"#,
+    )
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(proxy.pool())
+    .await;
 
-            match rows {
-                Ok(rows) => {
-                    let wordbooks: Vec<WordBook> = rows.iter().map(|r| parse_wordbook_pg(r)).collect();
-                    (StatusCode::OK, Json(SuccessResponse { success: true, data: wordbooks })).into_response()
-                }
-                Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
-            }
+    match rows {
+        Ok(rows) => {
+            let wordbooks: Vec<WordBook> = rows.iter().map(|r| parse_wordbook_pg(r)).collect();
+            (StatusCode::OK, Json(SuccessResponse { success: true, data: wordbooks })).into_response()
         }
-        SelectedPool::Fallback(sqlite) => {
-            let rows = sqlx::query(
-                r#"SELECT "id","name","description","type","userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
-                   FROM "word_books" WHERE "type" = 'SYSTEM' ORDER BY "createdAt" DESC LIMIT ? OFFSET ?"#,
-            )
-            .bind(page_size)
-            .bind(offset)
-            .fetch_all(&sqlite)
-            .await;
-
-            match rows {
-                Ok(rows) => {
-                    let wordbooks: Vec<WordBook> = rows.iter().map(|r| parse_wordbook_sqlite(r)).collect();
-                    (StatusCode::OK, Json(SuccessResponse { success: true, data: wordbooks })).into_response()
-                }
-                Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
-            }
-        }
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
     }
 }
 
@@ -178,58 +151,23 @@ async fn create_wordbook(State(state): State<AppState>, Json(input): Json<Create
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now();
     let now_str = now.to_rfc3339();
 
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".into(), serde_json::json!(id));
-        data.insert("name".into(), serde_json::json!(input.name.trim()));
-        if let Some(ref d) = input.description {
-            data.insert("description".into(), serde_json::json!(d.trim()));
-        }
-        data.insert("type".into(), serde_json::json!("SYSTEM"));
-        data.insert("isPublic".into(), serde_json::json!(true));
-        data.insert("wordCount".into(), serde_json::json!(0));
-        if let Some(ref c) = input.cover_image {
-            data.insert("coverImage".into(), serde_json::json!(c.trim()));
-        }
-        data.insert("createdAt".into(), serde_json::json!(now_str));
-        data.insert("updatedAt".into(), serde_json::json!(now_str));
+    let result = sqlx::query(
+        r#"INSERT INTO "word_books" ("id","name","description","type","isPublic","wordCount","coverImage","createdAt","updatedAt")
+           VALUES ($1,$2,$3,'SYSTEM'::"WordBookType",true,0,$4,NOW(),NOW())"#,
+    )
+    .bind(&id)
+    .bind(input.name.trim())
+    .bind(input.description.as_ref().map(|d| d.trim()))
+    .bind(input.cover_image.as_ref().map(|c| c.trim()))
+    .execute(proxy.pool())
+    .await;
 
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "word_books".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(e) = proxy.write_operation(db_state, op).await {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-        }
-    } else {
-        let pg = match proxy.primary_pool().await {
-            Some(p) => p,
-            None => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response(),
-        };
-
-        let result = sqlx::query(
-            r#"INSERT INTO "word_books" ("id","name","description","type","isPublic","wordCount","coverImage","createdAt","updatedAt")
-               VALUES ($1,$2,$3,'SYSTEM'::\"WordBookType\",true,0,$4,NOW(),NOW())"#,
-        )
-        .bind(&id)
-        .bind(input.name.trim())
-        .bind(input.description.as_ref().map(|d| d.trim()))
-        .bind(input.cover_image.as_ref().map(|c| c.trim()))
-        .execute(&pg)
-        .await;
-
-        if let Err(e) = result {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-        }
+    if let Err(e) = result {
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
     }
 
     let wordbook = WordBook {
@@ -252,79 +190,37 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
-    let pool = match get_pool(&proxy, db_state).await {
-        Ok(p) => p,
-        Err(e) => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", &e).into_response(),
-    };
 
-    match pool {
-        SelectedPool::Primary(pg) => {
-            let wb_row = sqlx::query(
-                r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
-                   FROM "word_books" WHERE "id" = $1"#,
+    let wb_row = sqlx::query(
+        r#"SELECT "id","name","description","type"::text,"userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
+           FROM "word_books" WHERE "id" = $1"#,
+    )
+    .bind(&id)
+    .fetch_optional(proxy.pool())
+    .await;
+
+    match wb_row {
+        Ok(Some(r)) => {
+            let wordbook = parse_wordbook_pg(&r);
+
+            let word_rows = sqlx::query(
+                r#"SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+                   FROM "words" WHERE "wordBookId" = $1 ORDER BY "createdAt" DESC"#,
             )
             .bind(&id)
-            .fetch_optional(&pg)
-            .await;
+            .fetch_all(proxy.pool())
+            .await
+            .unwrap_or_default();
 
-            match wb_row {
-                Ok(Some(r)) => {
-                    let wordbook = parse_wordbook_pg(&r);
+            let words: Vec<Word> = word_rows.iter().map(|r| parse_word_pg(r)).collect();
 
-                    let word_rows = sqlx::query(
-                        r#"SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-                           FROM "words" WHERE "wordBookId" = $1 ORDER BY "createdAt" DESC"#,
-                    )
-                    .bind(&id)
-                    .fetch_all(&pg)
-                    .await
-                    .unwrap_or_default();
-
-                    let words: Vec<Word> = word_rows.iter().map(|r| parse_word_pg(r)).collect();
-
-                    (StatusCode::OK, Json(SuccessResponse {
-                        success: true,
-                        data: WordBookDetailData { wordbook, words },
-                    })).into_response()
-                }
-                Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-                Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
-            }
+            (StatusCode::OK, Json(SuccessResponse {
+                success: true,
+                data: WordBookDetailData { wordbook, words },
+            })).into_response()
         }
-        SelectedPool::Fallback(sqlite) => {
-            let wb_row = sqlx::query(
-                r#"SELECT "id","name","description","type","userId","isPublic","wordCount","coverImage","createdAt","updatedAt"
-                   FROM "word_books" WHERE "id" = ?"#,
-            )
-            .bind(&id)
-            .fetch_optional(&sqlite)
-            .await;
-
-            match wb_row {
-                Ok(Some(r)) => {
-                    let wordbook = parse_wordbook_sqlite(&r);
-
-                    let word_rows = sqlx::query(
-                        r#"SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-                           FROM "words" WHERE "wordBookId" = ? ORDER BY "createdAt" DESC"#,
-                    )
-                    .bind(&id)
-                    .fetch_all(&sqlite)
-                    .await
-                    .unwrap_or_default();
-
-                    let words: Vec<Word> = word_rows.iter().map(|r| parse_word_sqlite(r)).collect();
-
-                    (StatusCode::OK, Json(SuccessResponse {
-                        success: true,
-                        data: WordBookDetailData { wordbook, words },
-                    })).into_response()
-                }
-                Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-                Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
-            }
-        }
+        Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
+        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
     }
 }
 
@@ -341,93 +237,55 @@ async fn update_wordbook(State(state): State<AppState>, Path(id): Path<String>, 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
-    let now = chrono::Utc::now();
-    let now_str = now.to_rfc3339();
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".into(), serde_json::json!(id));
+    let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
+        .bind(&id)
+        .fetch_optional(proxy.pool())
+        .await;
 
-        let mut data = serde_json::Map::new();
-        if let Some(ref n) = input.name {
-            data.insert("name".into(), serde_json::json!(n.trim()));
-        }
-        if let Some(ref d) = input.description {
-            data.insert("description".into(), serde_json::json!(d.trim()));
-        }
-        if let Some(ref c) = input.cover_image {
-            data.insert("coverImage".into(), serde_json::json!(c.trim()));
-        }
-        data.insert("updatedAt".into(), serde_json::json!(now_str));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(e) = proxy.write_operation(db_state, op).await {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-        }
-    } else {
-        let pg = match proxy.primary_pool().await {
-            Some(p) => p,
-            None => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response(),
-        };
-
-        let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
-            .bind(&id)
-            .fetch_optional(&pg)
-            .await;
-
-        match existing {
-            Ok(Some(row)) => {
-                let wb_type: String = row.try_get("type").unwrap_or_default();
-                if wb_type != "SYSTEM" {
-                    return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能修改系统词书").into_response();
-                }
+    match existing {
+        Ok(Some(row)) => {
+            let wb_type: String = row.try_get("type").unwrap_or_default();
+            if wb_type != "SYSTEM" {
+                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能修改系统词书").into_response();
             }
-            Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-            Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
         }
+        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
+        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+    }
 
-        let mut sets = vec![r#""updatedAt" = NOW()"#.to_string()];
-        let mut bind_idx = 1;
+    let mut sets = vec![r#""updatedAt" = NOW()"#.to_string()];
+    let mut bind_idx = 1;
 
-        if input.name.is_some() {
-            sets.push(format!(r#""name" = ${bind_idx}"#));
-            bind_idx += 1;
-        }
-        if input.description.is_some() {
-            sets.push(format!(r#""description" = ${bind_idx}"#));
-            bind_idx += 1;
-        }
-        if input.cover_image.is_some() {
-            sets.push(format!(r#""coverImage" = ${bind_idx}"#));
-            bind_idx += 1;
-        }
+    if input.name.is_some() {
+        sets.push(format!(r#""name" = ${bind_idx}"#));
+        bind_idx += 1;
+    }
+    if input.description.is_some() {
+        sets.push(format!(r#""description" = ${bind_idx}"#));
+        bind_idx += 1;
+    }
+    if input.cover_image.is_some() {
+        sets.push(format!(r#""coverImage" = ${bind_idx}"#));
+        bind_idx += 1;
+    }
 
-        let sql = format!(r#"UPDATE "word_books" SET {} WHERE "id" = ${bind_idx}"#, sets.join(", "));
-        let mut q = sqlx::query(&sql);
+    let sql = format!(r#"UPDATE "word_books" SET {} WHERE "id" = ${bind_idx}"#, sets.join(", "));
+    let mut q = sqlx::query(&sql);
 
-        if let Some(ref n) = input.name {
-            q = q.bind(n.trim());
-        }
-        if let Some(ref d) = input.description {
-            q = q.bind(d.trim());
-        }
-        if let Some(ref c) = input.cover_image {
-            q = q.bind(c.trim());
-        }
-        q = q.bind(&id);
+    if let Some(ref n) = input.name {
+        q = q.bind(n.trim());
+    }
+    if let Some(ref d) = input.description {
+        q = q.bind(d.trim());
+    }
+    if let Some(ref c) = input.cover_image {
+        q = q.bind(c.trim());
+    }
+    q = q.bind(&id);
 
-        if let Err(e) = q.execute(&pg).await {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-        }
+    if let Err(e) = q.execute(proxy.pool()).await {
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
     }
 
     (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "更新成功" }))).into_response()
@@ -437,52 +295,29 @@ async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".into(), serde_json::json!(id));
+    let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
+        .bind(&id)
+        .fetch_optional(proxy.pool())
+        .await;
 
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(e) = proxy.write_operation(db_state, op).await {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DELETE_ERROR", &e.to_string()).into_response();
-        }
-    } else {
-        let pg = match proxy.primary_pool().await {
-            Some(p) => p,
-            None => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response(),
-        };
-
-        let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
-            .bind(&id)
-            .fetch_optional(&pg)
-            .await;
-
-        match existing {
-            Ok(Some(row)) => {
-                let wb_type: String = row.try_get("type").unwrap_or_default();
-                if wb_type != "SYSTEM" {
-                    return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能删除系统词书").into_response();
-                }
+    match existing {
+        Ok(Some(row)) => {
+            let wb_type: String = row.try_get("type").unwrap_or_default();
+            if wb_type != "SYSTEM" {
+                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能删除系统词书").into_response();
             }
-            Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-            Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
         }
+        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
+        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+    }
 
-        if let Err(e) = sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
-            .bind(&id)
-            .execute(&pg)
-            .await
-        {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DELETE_ERROR", &e.to_string()).into_response();
-        }
+    if let Err(e) = sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
+        .bind(&id)
+        .execute(proxy.pool())
+        .await
+    {
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DELETE_ERROR", &e.to_string()).into_response();
     }
 
     (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "删除成功" }))).into_response()
@@ -505,162 +340,68 @@ async fn batch_add_words(State(state): State<AppState>, Path(id): Path<String>, 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
     };
-    let db_state = state.db_state().read().await.state();
-    let now = chrono::Utc::now();
-    let now_str = now.to_rfc3339();
-    let mut created_words = Vec::new();
 
-    if proxy.sqlite_enabled() {
-        for word_input in &input.words {
-            let word_id = uuid::Uuid::new_v4().to_string();
+    let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
+        .bind(&id)
+        .fetch_optional(proxy.pool())
+        .await;
 
-            let mut data = serde_json::Map::new();
-            data.insert("id".into(), serde_json::json!(word_id));
-            data.insert("spelling".into(), serde_json::json!(word_input.spelling.trim()));
-            if let Some(ref p) = word_input.phonetic {
-                data.insert("phonetic".into(), serde_json::json!(p));
+    match existing {
+        Ok(Some(row)) => {
+            let wb_type: String = row.try_get("type").unwrap_or_default();
+            if wb_type != "SYSTEM" {
+                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能向系统词书批量添加单词").into_response();
             }
-            data.insert("meanings".into(), serde_json::json!(serde_json::to_string(&word_input.meanings).unwrap_or_default()));
-            data.insert("examples".into(), serde_json::json!(serde_json::to_string(&word_input.examples).unwrap_or_default()));
-            if let Some(ref a) = word_input.audio_url {
-                data.insert("audioUrl".into(), serde_json::json!(a));
-            }
-            data.insert("wordBookId".into(), serde_json::json!(id));
-            data.insert("createdAt".into(), serde_json::json!(now_str));
-            data.insert("updatedAt".into(), serde_json::json!(now_str));
-
-            let op = crate::db::dual_write_manager::WriteOperation::Insert {
-                table: "words".to_string(),
-                data,
-                operation_id: uuid::Uuid::new_v4().to_string(),
-                timestamp_ms: None,
-                critical: Some(true),
-            };
-
-            if let Err(e) = proxy.write_operation(db_state, op).await {
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-            }
-
-            created_words.push(Word {
-                id: word_id,
-                spelling: word_input.spelling.trim().to_string(),
-                phonetic: word_input.phonetic.clone(),
-                meanings: word_input.meanings.clone(),
-                examples: word_input.examples.clone(),
-                audio_url: word_input.audio_url.clone(),
-                word_book_id: id.clone(),
-                created_at: now_str.clone(),
-                updated_at: now_str.clone(),
-            });
         }
+        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
+        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+    }
 
-        let count = created_words.len() as i64;
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".into(), serde_json::json!(id));
-        let mut update_data = serde_json::Map::new();
-        update_data.insert("wordCount".into(), serde_json::json!(format!("EXPR:\"wordCount\" + {count}")));
-        update_data.insert("updatedAt".into(), serde_json::json!(now_str));
+    let _now = chrono::Utc::now();
+    let mut imported = 0usize;
+    let mut failed = 0usize;
+    let mut errors: Vec<String> = Vec::new();
 
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            data: update_data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        let _ = proxy.write_operation(db_state, op).await;
-    } else {
-        let pg = match proxy.primary_pool().await {
-            Some(p) => p,
-            None => return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response(),
-        };
+    for (idx, word_input) in input.words.iter().enumerate() {
+        let word_id = uuid::Uuid::new_v4().to_string();
+        let meanings_json = serde_json::to_value(&word_input.meanings).unwrap_or_default();
+        let examples_json = serde_json::to_value(&word_input.examples).unwrap_or_default();
 
-        let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
-            .bind(&id)
-            .fetch_optional(&pg)
-            .await;
+        let result = sqlx::query(
+            r#"INSERT INTO "words" ("id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt")
+               VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())"#,
+        )
+        .bind(&word_id)
+        .bind(word_input.spelling.trim())
+        .bind(&word_input.phonetic)
+        .bind(&meanings_json)
+        .bind(&examples_json)
+        .bind(&word_input.audio_url)
+        .bind(&id)
+        .execute(proxy.pool())
+        .await;
 
-        match existing {
-            Ok(Some(row)) => {
-                let wb_type: String = row.try_get("type").unwrap_or_default();
-                if wb_type != "SYSTEM" {
-                    return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能向系统词书批量添加单词").into_response();
-                }
+        match result {
+            Ok(_) => imported += 1,
+            Err(e) => {
+                failed += 1;
+                errors.push(format!("第{}个单词 '{}': {}", idx + 1, word_input.spelling, e));
             }
-            Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-            Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
         }
+    }
 
-        for word_input in &input.words {
-            let word_id = uuid::Uuid::new_v4().to_string();
-            let meanings_json = serde_json::to_value(&word_input.meanings).unwrap_or_default();
-            let examples_json = serde_json::to_value(&word_input.examples).unwrap_or_default();
-
-            let result = sqlx::query(
-                r#"INSERT INTO "words" ("id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt")
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())"#,
-            )
-            .bind(&word_id)
-            .bind(word_input.spelling.trim())
-            .bind(&word_input.phonetic)
-            .bind(&meanings_json)
-            .bind(&examples_json)
-            .bind(&word_input.audio_url)
-            .bind(&id)
-            .execute(&pg)
-            .await;
-
-            if let Err(e) = result {
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
-            }
-
-            created_words.push(Word {
-                id: word_id,
-                spelling: word_input.spelling.trim().to_string(),
-                phonetic: word_input.phonetic.clone(),
-                meanings: word_input.meanings.clone(),
-                examples: word_input.examples.clone(),
-                audio_url: word_input.audio_url.clone(),
-                word_book_id: id.clone(),
-                created_at: now_str.clone(),
-                updated_at: now_str.clone(),
-            });
-        }
-
-        let count = created_words.len() as i64;
+    if imported > 0 {
         let _ = sqlx::query(r#"UPDATE "word_books" SET "wordCount" = "wordCount" + $1, "updatedAt" = NOW() WHERE "id" = $2"#)
-            .bind(count)
+            .bind(imported as i64)
             .bind(&id)
-            .execute(&pg)
+            .execute(proxy.pool())
             .await;
     }
 
-    let count = created_words.len();
     (StatusCode::CREATED, Json(SuccessResponse {
         success: true,
-        data: BatchAddResult { count, words: created_words },
+        data: BatchAddResult { imported, failed, errors },
     })).into_response()
-}
-
-enum SelectedPool {
-    Primary(sqlx::PgPool),
-    Fallback(sqlx::SqlitePool),
-}
-
-async fn get_pool(proxy: &DatabaseProxy, db_state: DatabaseState) -> Result<SelectedPool, String> {
-    match db_state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool().await
-            .map(SelectedPool::Fallback)
-            .ok_or_else(|| "服务不可用".to_string()),
-        _ => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedPool::Primary(pool)),
-            None => proxy.fallback_pool().await
-                .map(SelectedPool::Fallback)
-                .ok_or_else(|| "服务不可用".to_string()),
-        },
-    }
 }
 
 fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
@@ -678,21 +419,6 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
         cover_image: row.try_get("coverImage").ok(),
         created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(created_at, chrono::Utc).to_rfc3339(),
         updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(updated_at, chrono::Utc).to_rfc3339(),
-    }
-}
-
-fn parse_wordbook_sqlite(row: &sqlx::sqlite::SqliteRow) -> WordBook {
-    WordBook {
-        id: row.try_get("id").unwrap_or_default(),
-        name: row.try_get("name").unwrap_or_default(),
-        description: row.try_get("description").ok(),
-        wordbook_type: row.try_get("type").unwrap_or_else(|_| "SYSTEM".to_string()),
-        user_id: row.try_get("userId").ok(),
-        is_public: row.try_get::<i32, _>("isPublic").unwrap_or(1) != 0,
-        word_count: row.try_get("wordCount").unwrap_or(0),
-        cover_image: row.try_get("coverImage").ok(),
-        created_at: row.try_get("createdAt").unwrap_or_default(),
-        updated_at: row.try_get("updatedAt").unwrap_or_default(),
     }
 }
 
@@ -718,24 +444,5 @@ fn parse_word_pg(row: &sqlx::postgres::PgRow) -> Word {
         word_book_id: row.try_get("wordBookId").unwrap_or_default(),
         created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(created_at, chrono::Utc).to_rfc3339(),
         updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(updated_at, chrono::Utc).to_rfc3339(),
-    }
-}
-
-fn parse_word_sqlite(row: &sqlx::sqlite::SqliteRow) -> Word {
-    let meanings_raw: String = row.try_get("meanings").unwrap_or_default();
-    let examples_raw: String = row.try_get("examples").unwrap_or_default();
-    let meanings: Vec<String> = serde_json::from_str(&meanings_raw).unwrap_or_default();
-    let examples: Vec<String> = serde_json::from_str(&examples_raw).unwrap_or_default();
-
-    Word {
-        id: row.try_get("id").unwrap_or_default(),
-        spelling: row.try_get("spelling").unwrap_or_default(),
-        phonetic: row.try_get("phonetic").ok(),
-        meanings,
-        examples,
-        audio_url: row.try_get("audioUrl").ok(),
-        word_book_id: row.try_get("wordBookId").unwrap_or_default(),
-        created_at: row.try_get("createdAt").unwrap_or_default(),
-        updated_at: row.try_get("updatedAt").unwrap_or_default(),
     }
 }

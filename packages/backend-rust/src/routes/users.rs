@@ -9,7 +9,6 @@ use chrono::{DateTime, Local, NaiveDateTime, SecondsFormat, TimeZone, Timelike, 
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -124,6 +123,7 @@ struct CognitiveProfileResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct UpdatePasswordRequest {
     old_password: String,
     new_password: String,
@@ -133,6 +133,12 @@ struct UpdatePasswordRequest {
 #[serde(rename_all = "camelCase")]
 struct UpdateRewardProfileRequest {
     profile_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProfileRequest {
+    username: Option<String>,
 }
 
 const REWARD_PROFILES: &[RewardProfileItem] = &[
@@ -166,27 +172,103 @@ pub async fn me(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let user = match select_user_me(proxy.as_ref(), request_state, &auth_user.id).await {
-        Ok(value) => value,
+    let user = match select_user_me(proxy.as_ref(), &auth_user.id).await {
+        Ok(Some(value)) => value,
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
+        }
         Err(err) => {
             tracing::warn!(error = %err, "user me query failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        }
+    };
+
+    Json(SuccessResponse {
+        success: true,
+        data: user,
+    })
+    .into_response()
+}
+
+pub async fn update_profile(
+    State(state): State<AppState>,
+    req: Request<Body>,
+) -> Response {
+    let (parts, body_bytes) = match split_body(req).await {
+        Ok(value) => value,
+        Err(res) => return res,
+    };
+
+    let token = crate::auth::extract_token(&parts.headers);
+    let Some(token) = token else {
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+    };
+
+    let payload: UpdateProfileRequest = match serde_json::from_slice(&body_bytes) {
+        Ok(payload) => payload,
+        Err(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+        }
+    };
+
+    let username = match &payload.username {
+        Some(name) if name.trim().len() >= 2 => name.trim().to_string(),
+        Some(_) => {
+            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "用户名至少2个字符").into_response();
+        }
+        None => {
+            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请提供要更新的字段").into_response();
+        }
+    };
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+        }
+    };
+
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    if let Err(err) = sqlx::query(
+        r#"
+        UPDATE "users"
+        SET "username" = $1, "updatedAt" = $2
+        WHERE "id" = $3
+        "#,
+    )
+    .bind(&username)
+    .bind(now)
+    .bind(&auth_user.id)
+    .execute(pool)
+    .await
+    {
+        tracing::warn!(error = %err, "profile update failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    }
+
+    let user = match select_user_me(proxy.as_ref(), &auth_user.id).await {
+        Ok(Some(value)) => value,
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "user profile query failed");
             return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
         }
     };
@@ -207,24 +289,18 @@ pub async fn statistics(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let stats = match select_user_statistics(proxy.as_ref(), request_state, &auth_user.id).await {
+    let stats = match select_user_statistics(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "user statistics query failed");
@@ -248,24 +324,18 @@ pub async fn v1_me_profile(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let user = match select_user_me(proxy.as_ref(), request_state, &auth_user.id).await {
+    let user = match select_user_me(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(value)) => value,
         Ok(None) => {
             return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
@@ -298,24 +368,18 @@ pub async fn reward_profile(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let current_profile = match select_user_reward_profile(proxy.as_ref(), request_state, &auth_user.id).await {
+    let current_profile = match select_user_reward_profile(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(profile)) => profile,
         Ok(None) => "standard".to_string(),
         Err(err) => {
@@ -390,68 +454,34 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
         .into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(auth_user.id.clone()));
-
-        let mut data = serde_json::Map::new();
-        data.insert(
-            "rewardProfile".to_string(),
-            serde_json::Value::String(payload.profile_id.clone()),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "users".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(err) = proxy.write_operation(request_state, op).await {
-            tracing::warn!(error = %err, "reward profile update write failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
-        };
-
-        let now = Utc::now().naive_utc();
-        if let Err(err) = sqlx::query(
-            r#"
-            UPDATE "users"
-            SET "rewardProfile" = $1, "updatedAt" = $2
-            WHERE "id" = $3
-            "#,
-        )
-        .bind(&payload.profile_id)
-        .bind(now)
-        .bind(&auth_user.id)
-        .execute(&primary)
-        .await
-        {
-            tracing::warn!(error = %err, "reward profile update failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    if let Err(err) = sqlx::query(
+        r#"
+        UPDATE "users"
+        SET "rewardProfile" = $1, "updatedAt" = $2
+        WHERE "id" = $3
+        "#,
+    )
+    .bind(&payload.profile_id)
+    .bind(now)
+    .bind(&auth_user.id)
+    .execute(pool)
+    .await
+    {
+        tracing::warn!(error = %err, "reward profile update failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
     Json(SuccessResponse {
@@ -502,17 +532,11 @@ async fn cognitive_part(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -521,7 +545,7 @@ async fn cognitive_part(
 
     match part {
         CognitivePart::Chronotype => {
-            let profile = match compute_chronotype(proxy.as_ref(), request_state, &auth_user.id).await {
+            let profile = match compute_chronotype(proxy.as_ref(), &auth_user.id).await {
                 Ok(profile) => profile,
                 Err(err) => {
                     tracing::warn!(error = %err, "chronotype compute failed");
@@ -537,7 +561,7 @@ async fn cognitive_part(
             .into_response()
         }
         CognitivePart::LearningStyle => {
-            let profile = match compute_learning_style(proxy.as_ref(), request_state, &auth_user.id).await {
+            let profile = match compute_learning_style(proxy.as_ref(), &auth_user.id).await {
                 Ok(profile) => profile,
                 Err(err) => {
                     tracing::warn!(error = %err, "learning style compute failed");
@@ -553,7 +577,7 @@ async fn cognitive_part(
             .into_response()
         }
         CognitivePart::Combined => {
-            let chronotype = match compute_chronotype(proxy.as_ref(), request_state, &auth_user.id).await {
+            let chronotype = match compute_chronotype(proxy.as_ref(), &auth_user.id).await {
                 Ok(profile) if profile.sample_count >= 20 => Some(profile),
                 Ok(_) => None,
                 Err(err) => {
@@ -562,7 +586,7 @@ async fn cognitive_part(
                 }
             };
 
-            let learning_style = match compute_learning_style(proxy.as_ref(), request_state, &auth_user.id).await {
+            let learning_style = match compute_learning_style(proxy.as_ref(), &auth_user.id).await {
                 Ok(profile) if profile.sample_count >= 20 => Some(profile),
                 Ok(_) => None,
                 Err(err) => {
@@ -612,24 +636,18 @@ pub async fn update_password(
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", message).into_response();
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let password_hash = match select_user_password_hash(proxy.as_ref(), request_state, &auth_user.id).await {
+    let password_hash = match select_user_password_hash(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(hash)) => hash,
         Ok(None) => {
             return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
@@ -652,73 +670,32 @@ pub async fn update_password(
         }
     };
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(auth_user.id.clone()));
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    if let Err(err) = sqlx::query(
+        r#"
+        UPDATE "users"
+        SET "passwordHash" = $1, "updatedAt" = $2
+        WHERE "id" = $3
+        "#,
+    )
+    .bind(&new_hash)
+    .bind(now)
+    .bind(&auth_user.id)
+    .execute(pool)
+    .await
+    {
+        tracing::warn!(error = %err, "password update failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    }
 
-        let mut data = serde_json::Map::new();
-        data.insert("passwordHash".to_string(), serde_json::Value::String(new_hash));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "users".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(err) = proxy.write_operation(request_state, op).await {
-            tracing::warn!(error = %err, "password update write failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
-
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(auth_user.id.clone()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "sessions".to_string(),
-            r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        if let Err(err) = proxy.write_operation(request_state, op).await {
-            tracing::warn!(error = %err, "session cleanup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
-        };
-
-        let now = Utc::now().naive_utc();
-        if let Err(err) = sqlx::query(
-            r#"
-            UPDATE "users"
-            SET "passwordHash" = $1, "updatedAt" = $2
-            WHERE "id" = $3
-            "#,
-        )
-        .bind(&new_hash)
-        .bind(now)
+    if let Err(err) = sqlx::query(r#"DELETE FROM "sessions" WHERE "userId" = $1"#)
         .bind(&auth_user.id)
-        .execute(&primary)
+        .execute(pool)
         .await
-        {
-            tracing::warn!(error = %err, "password update failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
-
-        if let Err(err) = sqlx::query(r#"DELETE FROM "sessions" WHERE "userId" = $1"#)
-            .bind(&auth_user.id)
-            .execute(&primary)
-            .await
-        {
-            tracing::warn!(error = %err, "session delete failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
-        }
+    {
+        tracing::warn!(error = %err, "session delete failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
     Json(MessageResponse {
@@ -730,264 +707,104 @@ pub async fn update_password(
 
 async fn select_user_me(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Option<MeResponse>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT
+          "id",
+          "email",
+          "username",
+          "role"::text as "role",
+          "rewardProfile",
+          "createdAt",
+          "updatedAt"
+        FROM "users"
+        WHERE "id" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
+    let Some(row) = row else {
+        return Ok(None);
+    };
 
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id",
-              "email",
-              "username",
-              "role",
-              "rewardProfile",
-              "createdAt",
-              "updatedAt"
-            FROM "users"
-            WHERE "id" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
+    let created_at: NaiveDateTime = row.try_get("createdAt")?;
+    let updated_at: NaiveDateTime = row.try_get("updatedAt")?;
 
-        let Some(row) = row else {
-            return Ok(None);
-        };
-
-        let created_raw: String = row.try_get("createdAt")?;
-        let updated_raw: String = row.try_get("updatedAt")?;
-
-        let created_ms = crate::auth::parse_sqlite_datetime_ms(&created_raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-        let updated_ms = crate::auth::parse_sqlite_datetime_ms(&updated_raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-
-        let created_at = crate::auth::format_timestamp_ms_iso_millis(created_ms)
-            .unwrap_or_else(|| Utc::now().to_rfc3339());
-        let updated_at = crate::auth::format_timestamp_ms_iso_millis(updated_ms)
-            .unwrap_or_else(|| Utc::now().to_rfc3339());
-
-        Ok(Some(MeResponse {
-            id: row.try_get("id")?,
-            email: row.try_get("email")?,
-            username: row.try_get("username")?,
-            role: row.try_get("role")?,
-            reward_profile: row.try_get::<Option<String>, _>("rewardProfile")?.unwrap_or_else(|| "standard".to_string()),
-            created_at,
-            updated_at,
-        }))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id",
-              "email",
-              "username",
-              "role"::text as "role",
-              "rewardProfile",
-              "createdAt",
-              "updatedAt"
-            FROM "users"
-            WHERE "id" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else {
-            return Ok(None);
-        };
-
-        let created_at: NaiveDateTime = row.try_get("createdAt")?;
-        let updated_at: NaiveDateTime = row.try_get("updatedAt")?;
-
-        Ok(Some(MeResponse {
-            id: row.try_get("id")?,
-            email: row.try_get("email")?,
-            username: row.try_get("username")?,
-            role: row.try_get("role")?,
-            reward_profile: row.try_get::<Option<String>, _>("rewardProfile")?.unwrap_or_else(|| "standard".to_string()),
-            created_at: format_naive_iso(created_at),
-            updated_at: format_naive_iso(updated_at),
-        }))
-    }
+    Ok(Some(MeResponse {
+        id: row.try_get("id")?,
+        email: row.try_get("email")?,
+        username: row.try_get("username")?,
+        role: row.try_get("role")?,
+        reward_profile: row.try_get::<Option<String>, _>("rewardProfile")?.unwrap_or_else(|| "standard".to_string()),
+        created_at: format_naive_iso(created_at),
+        updated_at: format_naive_iso(updated_at),
+    }))
 }
 
 async fn select_user_reward_profile(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Option<String>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
-        let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = ? LIMIT 1"#)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await?;
-        Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = $1 LIMIT 1"#)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await?;
-        Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten())
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query(r#"SELECT "rewardProfile" FROM "users" WHERE "id" = $1 LIMIT 1"#)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?;
+    Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten())
 }
 
 async fn select_user_password_hash(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Option<String>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
-        let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = ? LIMIT 1"#)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await?;
-        Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = $1 LIMIT 1"#)
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await?;
-        Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query(r#"SELECT "passwordHash" FROM "users" WHERE "id" = $1 LIMIT 1"#)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?;
+    Ok(row.and_then(|r| r.try_get::<String, _>("passwordHash").ok()))
 }
 
 async fn select_user_statistics(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<StatisticsResponse, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
+    let word_books: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT "id"
+        FROM "word_books"
+        WHERE ("type"::text = 'SYSTEM') OR (("type"::text = 'USER') AND "userId" = $1)
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(StatisticsResponse {
-                total_words: 0,
-                total_records: 0,
-                correct_count: 0,
-                accuracy: 0.0,
-            });
-        };
+    let total_words = count_words_postgres(pool, &word_books).await.unwrap_or(0);
 
-        let word_books: Vec<String> = sqlx::query_scalar(
-            r#"
-            SELECT "id"
-            FROM "word_books"
-            WHERE "type" = 'SYSTEM' OR ("type" = 'USER' AND "userId" = ?)
-            "#,
-        )
+    let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1"#)
         .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-
-        let total_words = count_words_sqlite(&pool, &word_books).await.unwrap_or(0);
-
-        let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = ?"#)
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await
-            .unwrap_or(0);
-
-        let correct_count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = ? AND "isCorrect" = 1"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
+        .fetch_one(pool)
         .await
         .unwrap_or(0);
 
-        Ok(build_accuracy(total_words, total_records, correct_count))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(StatisticsResponse {
-                total_words: 0,
-                total_records: 0,
-                correct_count: 0,
-                accuracy: 0.0,
-            });
-        };
+    let correct_count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1 AND "isCorrect" = true"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
 
-        let word_books: Vec<String> = sqlx::query_scalar(
-            r#"
-            SELECT "id"
-            FROM "word_books"
-            WHERE ("type"::text = 'SYSTEM') OR (("type"::text = 'USER') AND "userId" = $1)
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-
-        let total_words = count_words_postgres(&pool, &word_books).await.unwrap_or(0);
-
-        let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1"#)
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await
-            .unwrap_or(0);
-
-        let correct_count: i64 = sqlx::query_scalar(
-            r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1 AND "isCorrect" = true"#,
-        )
-        .bind(user_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap_or(0);
-
-        Ok(build_accuracy(total_words, total_records, correct_count))
-    }
+    Ok(build_accuracy(total_words, total_records, correct_count))
 }
 
 fn build_accuracy(total_words: i64, total_records: i64, correct_count: i64) -> StatisticsResponse {
@@ -1019,10 +836,9 @@ struct AnswerRecordInteraction {
 
 async fn compute_chronotype(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<ChronotypeProfile, sqlx::Error> {
-    let records = fetch_answer_records_for_chronotype(proxy, state, user_id).await?;
+    let records = fetch_answer_records_for_chronotype(proxy, user_id).await?;
 
     let mut hourly_data: HashMap<i32, (i64, i64)> = HashMap::new();
     for record in records {
@@ -1156,82 +972,37 @@ fn variance(values: &[f64]) -> f64 {
 
 async fn fetch_answer_records_for_chronotype(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Vec<AnswerRecordChrono>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "timestamp", "isCorrect"
+        FROM "answer_records"
+        WHERE "userId" = $1
+        ORDER BY "timestamp" DESC
+        LIMIT 500
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT CAST("timestamp" AS TEXT) AS "timestamp", "isCorrect"
-            FROM "answer_records"
-            WHERE "userId" = ?
-            ORDER BY "timestamp" DESC
-            LIMIT 500
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            let ts: String = row.try_get("timestamp")?;
-            let Some(timestamp_ms) = crate::auth::parse_sqlite_datetime_ms(&ts) else {
-                continue;
-            };
-            let is_correct_num: i64 = row.try_get("isCorrect")?;
-            records.push(AnswerRecordChrono {
-                timestamp_ms,
-                is_correct: is_correct_num != 0,
-            });
-        }
-        Ok(records)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT "timestamp", "isCorrect"
-            FROM "answer_records"
-            WHERE "userId" = $1
-            ORDER BY "timestamp" DESC
-            LIMIT 500
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            let timestamp: NaiveDateTime = row.try_get("timestamp")?;
-            let timestamp_ms = DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc).timestamp_millis();
-            let is_correct: bool = row.try_get("isCorrect")?;
-            records.push(AnswerRecordChrono { timestamp_ms, is_correct });
-        }
-        Ok(records)
+    let mut records = Vec::with_capacity(rows.len());
+    for row in rows {
+        let timestamp: NaiveDateTime = row.try_get("timestamp")?;
+        let timestamp_ms = DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc).timestamp_millis();
+        let is_correct: bool = row.try_get("isCorrect")?;
+        records.push(AnswerRecordChrono { timestamp_ms, is_correct });
     }
+    Ok(records)
 }
 
 async fn compute_learning_style(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<LearningStyleProfile, sqlx::Error> {
-    let interactions = fetch_answer_records_for_learning_style(proxy, state, user_id).await?;
+    let interactions = fetch_answer_records_for_learning_style(proxy, user_id).await?;
     let sample_count = interactions.len() as i64;
 
     if interactions.is_empty() {
@@ -1452,81 +1223,35 @@ fn compute_kinesthetic_score(
 
 async fn fetch_answer_records_for_learning_style(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<Vec<AnswerRecordInteraction>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "timestamp", "dwellTime", "responseTime"
+        FROM "answer_records"
+        WHERE "userId" = $1
+        ORDER BY "timestamp" DESC
+        LIMIT 200
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT CAST("timestamp" AS TEXT) AS "timestamp", "dwellTime", "responseTime"
-            FROM "answer_records"
-            WHERE "userId" = ?
-            ORDER BY "timestamp" DESC
-            LIMIT 200
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            let ts: String = row.try_get("timestamp")?;
-            let Some(timestamp_ms) = crate::auth::parse_sqlite_datetime_ms(&ts) else {
-                continue;
-            };
-            let dwell_time: i64 = row.try_get::<Option<i64>, _>("dwellTime")?.unwrap_or(0);
-            let response_time: Option<i64> = row.try_get::<Option<i64>, _>("responseTime")?;
-            records.push(AnswerRecordInteraction {
-                timestamp_ms,
-                dwell_time,
-                response_time,
-            });
-        }
-        Ok(records)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let rows = sqlx::query(
-            r#"
-            SELECT "timestamp", "dwellTime", "responseTime"
-            FROM "answer_records"
-            WHERE "userId" = $1
-            ORDER BY "timestamp" DESC
-            LIMIT 200
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            let timestamp: NaiveDateTime = row.try_get("timestamp")?;
-            let timestamp_ms = DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc).timestamp_millis();
-            let dwell_time: i64 = row.try_get::<Option<i64>, _>("dwellTime")?.unwrap_or(0);
-            let response_time: Option<i64> = row.try_get::<Option<i64>, _>("responseTime")?;
-            records.push(AnswerRecordInteraction {
-                timestamp_ms,
-                dwell_time,
-                response_time,
-            });
-        }
-        Ok(records)
+    let mut records = Vec::with_capacity(rows.len());
+    for row in rows {
+        let timestamp: NaiveDateTime = row.try_get("timestamp")?;
+        let timestamp_ms = DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc).timestamp_millis();
+        let dwell_time: i64 = row.try_get::<Option<i64>, _>("dwellTime")?.unwrap_or(0);
+        let response_time: Option<i64> = row.try_get::<Option<i64>, _>("responseTime")?;
+        records.push(AnswerRecordInteraction {
+            timestamp_ms,
+            dwell_time,
+            response_time,
+        });
     }
+    Ok(records)
 }
 
 async fn count_words_postgres(pool: &sqlx::PgPool, word_book_ids: &[String]) -> Result<i64, sqlx::Error> {
@@ -1535,23 +1260,6 @@ async fn count_words_postgres(pool: &sqlx::PgPool, word_book_ids: &[String]) -> 
     }
 
     let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
-        r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" IN ("#,
-    );
-    let mut separated = qb.separated(", ");
-    for id in word_book_ids {
-        separated.push_bind(id);
-    }
-    separated.push_unseparated(")");
-
-    qb.build_query_scalar().fetch_one(pool).await
-}
-
-async fn count_words_sqlite(pool: &sqlx::SqlitePool, word_book_ids: &[String]) -> Result<i64, sqlx::Error> {
-    if word_book_ids.is_empty() {
-        return Ok(0);
-    }
-
-    let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
         r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" IN ("#,
     );
     let mut separated = qb.separated(", ");

@@ -6,7 +6,6 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, error, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 
 const BATCH_SIZE: i64 = 50;
 const MAX_RETRY: i32 = 3;
@@ -26,20 +25,7 @@ pub async fn process_pending_rewards(db: Arc<DatabaseProxy>) -> Result<(), super
     let start = Instant::now();
     debug!("Starting delayed reward processing cycle");
 
-    // Check database state first before any operations
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        debug!("Database degraded, skipping delayed reward processing");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping delayed reward processing");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     recover_stuck_tasks(&pool).await?;
 
@@ -164,7 +150,7 @@ async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<
         let record = sqlx::query(
             r#"
             SELECT ar.id, ar."wordId", ar."isCorrect"
-            FROM "answer_record" ar
+            FROM "answer_records" ar
             WHERE ar.id = $1 AND ar."userId" = $2
             "#,
         )
@@ -182,7 +168,7 @@ async fn process_single_task_atomic(pool: &PgPool, task: &RewardTask) -> Result<
             let now = Utc::now();
             sqlx::query(
                 r#"
-                UPDATE "word_learning_state"
+                UPDATE "word_learning_states"
                 SET "lastRewardApplied" = $1, "cumulativeReward" = COALESCE("cumulativeReward", 0) + $2, "updatedAt" = $3
                 WHERE "userId" = $4 AND "wordId" = $5
                 "#,

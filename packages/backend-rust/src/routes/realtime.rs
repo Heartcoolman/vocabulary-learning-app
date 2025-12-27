@@ -8,15 +8,12 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::sse::{Event, Sse};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, RwLock};
 use tokio_stream::wrappers::{BroadcastStream, IntervalStream};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -198,6 +195,7 @@ impl RealtimeHub {
 #[serde(rename_all = "camelCase")]
 struct StreamQuery {
     event_types: Option<String>,
+    token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -225,25 +223,22 @@ pub fn router() -> Router<AppState> {
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+    fallback_token: Option<String>,
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
+        .or(fallback_token)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn allowed_event_types() -> HashSet<String> {
@@ -253,6 +248,7 @@ fn allowed_event_types() -> HashSet<String> {
         "flow-update",
         "next-suggestion",
         "forgetting-alert",
+        "quality-task-progress",
         "ping",
         "error",
     ]
@@ -263,12 +259,11 @@ fn allowed_event_types() -> HashSet<String> {
 
 async fn session_stream(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Query(query): Query<StreamQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_user(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_user(&state, &headers, query.token.clone()).await?;
 
     let allowed = allowed_event_types();
     let event_types = query.event_types.as_ref().map(|raw| {
@@ -346,21 +341,19 @@ async fn session_stream(
 
 async fn get_stats(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user, _db_state) = require_user(&state, request_state, &headers).await?;
+    let (_proxy, _user) = require_user(&state, &headers, None).await?;
     let stats = hub().stats().await;
     Ok(Json(SuccessResponse { success: true, data: stats }))
 }
 
 async fn send_test_event(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<TestBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_user(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_user(&state, &headers, None).await?;
 
     let env = std::env::var("NODE_ENV").unwrap_or_else(|_| "development".to_string());
     if env != "development" && env != "test" {

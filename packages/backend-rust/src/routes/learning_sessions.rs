@@ -2,14 +2,11 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post, put};
-use axum::Extension;
 use axum::Json;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -161,18 +158,17 @@ pub fn router() -> axum::Router<AppState> {
 
 async fn list_sessions(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Query(query): Query<ListSessionsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
     let offset = query.offset.unwrap_or(0).max(0);
     let include_active = query.include_active.unwrap_or(false);
 
-    let total = count_user_sessions(proxy.as_ref(), db_state, &user.id, include_active).await?;
-    let sessions = select_user_sessions(proxy.as_ref(), db_state, &user.id, limit, offset, include_active).await?;
+    let total = count_user_sessions(proxy.as_ref(), &user.id, include_active).await?;
+    let sessions = select_user_sessions(proxy.as_ref(), &user.id, limit, offset, include_active).await?;
 
     Ok(Json(SuccessResponseWithPagination {
         success: true,
@@ -183,11 +179,10 @@ async fn list_sessions(
 
 async fn create_session(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<CreateSessionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let session_type = payload
         .session_type
@@ -220,7 +215,6 @@ async fn create_session(
     let session_id = uuid::Uuid::new_v4().to_string();
     insert_learning_session(
         proxy.as_ref(),
-        db_state,
         &session_id,
         &user.id,
         &session_type,
@@ -239,16 +233,11 @@ async fn create_session(
 
 async fn start_session(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    let session = select_learning_session(proxy.as_ref(), db_state, &session_id).await?;
-
-    let Some(session) = session else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
-    };
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let session = verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
     if session.ended_at.is_some() {
         return Err(json_error(
@@ -278,13 +267,13 @@ async fn start_session(
 
 async fn end_session(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    set_session_ended_at(proxy.as_ref(), db_state, &session_id).await?;
-    let stats = get_session_stats_internal(proxy.as_ref(), db_state, &session_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
+    set_session_ended_at(proxy.as_ref(), &session_id).await?;
+    let stats = get_session_stats_internal(proxy.as_ref(), &session_id).await?;
 
     let payload = serde_json::json!({
         "sessionId": session_id,
@@ -305,12 +294,12 @@ async fn end_session(
 
 async fn update_progress(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Json(payload): Json<UpdateProgressRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
     if let Some(value) = payload.flow_peak_score {
         if !(0.0..=1.0).contains(&value) {
@@ -332,7 +321,7 @@ async fn update_progress(
         }
     }
 
-    update_session_progress(proxy.as_ref(), db_state, &session_id, payload).await?;
+    update_session_progress(proxy.as_ref(), &session_id, payload).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -342,41 +331,37 @@ async fn update_progress(
 
 async fn get_session_stats(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
-    let stats = get_session_stats_internal(proxy.as_ref(), db_state, &session_id).await?;
-    Ok(Json(SuccessResponse { success: true, data: stats }))
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let session = verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
+    Ok(Json(SuccessResponse { success: true, data: row_to_stats(&session) }))
 }
 
 async fn get_session_detail(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
-
-    let stats = get_session_stats_internal(proxy.as_ref(), db_state, &session_id).await?;
-    let answer_records = select_session_answer_records(proxy.as_ref(), db_state, &session_id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let session = verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
+    let answer_records = select_session_answer_records(proxy.as_ref(), &session_id).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: SessionDetail { stats, answer_records },
+        data: SessionDetail { stats: row_to_stats(&session), answer_records },
     }))
 }
 
 async fn get_active_session(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    let session_id = select_active_session_id(proxy.as_ref(), db_state, &user.id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let session_id = select_active_session_id(proxy.as_ref(), &user.id).await?;
     let data = match session_id {
-        Some(id) => Some(get_session_stats_internal(proxy.as_ref(), db_state, &id).await?),
+        Some(id) => Some(get_session_stats_internal(proxy.as_ref(), &id).await?),
         None => None,
     };
 
@@ -385,12 +370,12 @@ async fn get_active_session(
 
 async fn detect_flow(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Json(payload): Json<FlowRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
     validate_unit_interval(payload.challenge_level, "challengeLevel")?;
     validate_unit_interval(payload.skill_level, "skillLevel")?;
@@ -398,7 +383,7 @@ async fn detect_flow(
 
     let flow_score = compute_flow_score(payload.challenge_level, payload.skill_level, payload.concentration);
 
-    update_flow_peak_score_if_higher(proxy.as_ref(), db_state, &session_id, flow_score).await?;
+    update_flow_peak_score_if_higher(proxy.as_ref(), &session_id, flow_score).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -408,12 +393,12 @@ async fn detect_flow(
 
 async fn track_emotion(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Json(payload): Json<EmotionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
     if !matches!(payload.r#type.as_str(), "answer" | "pause" | "resume" | "end") {
         return Err(json_error(
@@ -423,7 +408,7 @@ async fn track_emotion(
         ));
     }
 
-    update_cognitive_load_from_emotion(proxy.as_ref(), db_state, &session_id, &payload).await?;
+    update_cognitive_load_from_emotion(proxy.as_ref(), &session_id, &payload).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -433,26 +418,34 @@ async fn track_emotion(
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers).ok_or_else(|| {
         json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
     })?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
+}
+
+async fn verify_session_ownership(
+    proxy: &crate::db::DatabaseProxy,
+    session_id: &str,
+    user_id: &str,
+) -> Result<LearningSessionRow, AppError> {
+    let session = select_learning_session(proxy, session_id).await?;
+    match session {
+        Some(s) if s.user_id == user_id => Ok(s),
+        Some(_) => Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "无权访问此会话")),
+        None => Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}"))),
+    }
 }
 
 fn validate_unit_interval(value: f64, field: &'static str) -> Result<(), AppError> {
@@ -513,20 +506,10 @@ struct LearningSessionRow {
 
 async fn select_session_answer_records(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
 ) -> Result<Vec<SessionAnswerRecord>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => select_session_answer_records_pg(&pool, session_id).await,
-        SelectedReadPool::Fallback(pool) => select_session_answer_records_sqlite(&pool, session_id).await,
-    }
-}
+    let pool = proxy.pool();
 
-async fn select_session_answer_records_pg(
-    pool: &PgPool,
-    session_id: &str,
-) -> Result<Vec<SessionAnswerRecord>, AppError> {
     let rows = sqlx::query(
         r#"
         SELECT "id","wordId","isCorrect","responseTime","dwellTime","timestamp"
@@ -557,44 +540,11 @@ async fn select_session_answer_records_pg(
     Ok(out)
 }
 
-async fn select_session_answer_records_sqlite(
-    pool: &SqlitePool,
-    session_id: &str,
-) -> Result<Vec<SessionAnswerRecord>, AppError> {
-    let rows = sqlx::query(
-        r#"
-        SELECT "id","wordId","isCorrect","responseTime","dwellTime","timestamp"
-        FROM "answer_records"
-        WHERE "sessionId" = ?
-        ORDER BY "timestamp" ASC
-        "#,
-    )
-    .bind(session_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        let timestamp: String = row.try_get("timestamp").unwrap_or_default();
-        out.push(SessionAnswerRecord {
-            id: row.try_get("id").unwrap_or_default(),
-            word_id: row.try_get("wordId").unwrap_or_default(),
-            is_correct: row.try_get::<i64, _>("isCorrect").unwrap_or(0) != 0,
-            response_time: row.try_get::<Option<i64>, _>("responseTime").ok().flatten(),
-            dwell_time: row.try_get::<Option<i64>, _>("dwellTime").ok().flatten(),
-            timestamp: normalize_datetime_str(&timestamp),
-        });
-    }
-    Ok(out)
-}
-
 async fn get_session_stats_internal(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
 ) -> Result<SessionStats, AppError> {
-    let Some(session) = select_learning_session(proxy, state, session_id).await? else {
+    let Some(session) = select_learning_session(proxy, session_id).await? else {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
     };
     Ok(row_to_stats(&session))
@@ -631,56 +581,19 @@ fn row_to_stats(row: &LearningSessionRow) -> SessionStats {
 
 async fn insert_learning_session(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     user_id: &str,
     session_type: &str,
     target_mastery_count: Option<i64>,
 ) -> Result<(), AppError> {
-    if proxy.sqlite_enabled() {
-        let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(session_id.to_string()));
-        data.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        data.insert("sessionType".to_string(), serde_json::Value::String(session_type.to_string()));
-        if let Some(value) = target_mastery_count {
-            data.insert(
-                "targetMasteryCount".to_string(),
-                serde_json::Value::Number(value.into()),
-            );
-        }
-        data.insert("startedAt".to_string(), serde_json::Value::String(now_iso.clone()));
-        data.insert("totalQuestions".to_string(), serde_json::Value::Number(0.into()));
-        data.insert("actualMasteryCount".to_string(), serde_json::Value::Number(0.into()));
-        data.insert("contextShifts".to_string(), serde_json::Value::Number(0.into()));
-        data.insert("createdAt".to_string(), serde_json::Value::String(now_iso.clone()));
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "learning_sessions".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
+
     sqlx::query(
         r#"
         INSERT INTO "learning_sessions"
           ("id","userId","startedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","contextShifts","createdAt","updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        VALUES ($1,$2,$3,$4,$5,$6,$7::"SessionType",$8,$9,$10)
         "#,
     )
     .bind(session_id)
@@ -693,7 +606,7 @@ async fn insert_learning_session(
     .bind(0_i32)
     .bind(now)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
@@ -702,48 +615,20 @@ async fn insert_learning_session(
 
 async fn set_session_ended_at(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
 ) -> Result<(), AppError> {
-    let exists = select_learning_session(proxy, state, session_id).await?;
+    let exists = select_learning_session(proxy, session_id).await?;
     if exists.is_none() {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
     }
 
-    if proxy.sqlite_enabled() {
-        let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(session_id.to_string()));
-
-        let mut data = serde_json::Map::new();
-        data.insert("endedAt".to_string(), serde_json::Value::String(now_iso));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "learning_sessions".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     let affected = sqlx::query(r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
         .bind(now)
         .bind(now)
         .bind(session_id)
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
         .rows_affected();
@@ -755,70 +640,15 @@ async fn set_session_ended_at(
 
 async fn update_session_progress(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     payload: UpdateProgressRequest,
 ) -> Result<(), AppError> {
-    let exists = select_learning_session(proxy, state, session_id).await?;
+    let exists = select_learning_session(proxy, session_id).await?;
     if exists.is_none() {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
     }
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(session_id.to_string()));
-        let mut data = serde_json::Map::new();
-
-        if let Some(value) = payload.total_questions {
-            data.insert("totalQuestions".to_string(), serde_json::Value::Number(value.into()));
-        }
-        if let Some(value) = payload.actual_mastery_count {
-            data.insert(
-                "actualMasteryCount".to_string(),
-                serde_json::Value::Number(value.into()),
-            );
-        }
-        if let Some(value) = payload.flow_peak_score {
-            data.insert(
-                "flowPeakScore".to_string(),
-                serde_json::Value::Number(serde_json::Number::from_f64(value).unwrap_or_else(|| 0.into())),
-            );
-        }
-        if let Some(value) = payload.avg_cognitive_load {
-            data.insert(
-                "avgCognitiveLoad".to_string(),
-                serde_json::Value::Number(serde_json::Number::from_f64(value).unwrap_or_else(|| 0.into())),
-            );
-        }
-        if let Some(value) = payload.context_shifts {
-            data.insert("contextShifts".to_string(), serde_json::Value::Number(value.into()));
-        }
-
-        if data.is_empty() {
-            return Ok(());
-        }
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "learning_sessions".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
-
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(r#"UPDATE "learning_sessions" SET "#);
     let mut separated = qb.separated(", ");
@@ -845,7 +675,7 @@ async fn update_session_progress(
     qb.push(r#" WHERE "id" = "#).push_bind(session_id);
     let affected = qb
         .build()
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
         .rows_affected();
@@ -859,11 +689,10 @@ async fn update_session_progress(
 
 async fn update_flow_peak_score_if_higher(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     score: f64,
 ) -> Result<(), AppError> {
-    let session = select_learning_session(proxy, state, session_id).await?;
+    let session = select_learning_session(proxy, session_id).await?;
     let Some(session) = session else {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
     };
@@ -874,7 +703,6 @@ async fn update_flow_peak_score_if_higher(
 
     update_session_progress(
         proxy,
-        state,
         session_id,
         UpdateProgressRequest {
             total_questions: None,
@@ -889,11 +717,10 @@ async fn update_flow_peak_score_if_higher(
 
 async fn update_cognitive_load_from_emotion(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
     payload: &EmotionRequest,
 ) -> Result<(), AppError> {
-    let session = select_learning_session(proxy, state, session_id).await?;
+    let session = select_learning_session(proxy, session_id).await?;
     let Some(session) = session else {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
     };
@@ -920,7 +747,6 @@ async fn update_cognitive_load_from_emotion(
 
     update_session_progress(
         proxy,
-        state,
         session_id,
         UpdateProgressRequest {
             total_questions: None,
@@ -935,22 +761,11 @@ async fn update_cognitive_load_from_emotion(
 
 async fn count_user_sessions(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     include_active: bool,
 ) -> Result<i64, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => count_user_sessions_pg(&pool, user_id, include_active).await,
-        SelectedReadPool::Fallback(pool) => count_user_sessions_sqlite(&pool, user_id, include_active).await,
-    }
-}
+    let pool = proxy.pool();
 
-async fn count_user_sessions_pg(
-    pool: &PgPool,
-    user_id: &str,
-    include_active: bool,
-) -> Result<i64, AppError> {
     let sql = if include_active {
         r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1"#
     } else {
@@ -965,52 +780,15 @@ async fn count_user_sessions_pg(
     Ok(count)
 }
 
-async fn count_user_sessions_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    include_active: bool,
-) -> Result<i64, AppError> {
-    let sql = if include_active {
-        r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = ?"#.to_string()
-    } else {
-        r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = ? AND "endedAt" IS NOT NULL"#.to_string()
-    };
-
-    let count: i64 = sqlx::query_scalar(&sql)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(count)
-}
-
 async fn select_user_sessions(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     limit: i64,
     offset: i64,
     include_active: bool,
 ) -> Result<Vec<SessionStats>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    let sessions = match selected {
-        SelectedReadPool::Primary(pool) => {
-            select_user_sessions_pg(&pool, user_id, limit, offset, include_active).await?
-        }
-        SelectedReadPool::Fallback(pool) => {
-            select_user_sessions_sqlite(&pool, user_id, limit, offset, include_active).await?
-        }
-    };
-    Ok(sessions.iter().map(row_to_stats).collect())
-}
+    let pool = proxy.pool();
 
-async fn select_user_sessions_pg(
-    pool: &PgPool,
-    user_id: &str,
-    limit: i64,
-    offset: i64,
-    include_active: bool,
-) -> Result<Vec<LearningSessionRow>, AppError> {
     let base = if include_active {
         r#"SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
            FROM "learning_sessions" WHERE "userId" = $1 ORDER BY "startedAt" DESC LIMIT $2 OFFSET $3"#
@@ -1027,11 +805,11 @@ async fn select_user_sessions_pg(
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-    let mut out = Vec::with_capacity(rows.len());
+    let mut sessions = Vec::with_capacity(rows.len());
     for row in rows {
         let session_id: String = row.try_get("id").unwrap_or_default();
-        let answer_record_count = count_answer_records_pg(pool, &session_id).await?;
-        out.push(LearningSessionRow {
+        let answer_record_count = count_answer_records(pool, &session_id).await?;
+        let session_row = LearningSessionRow {
             id: session_id,
             user_id: row.try_get("userId").unwrap_or_default(),
             started_at: format_naive_datetime(row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc())),
@@ -1048,106 +826,33 @@ async fn select_user_sessions_pg(
             avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
             context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
             answer_record_count,
-        });
+        };
+        sessions.push(row_to_stats(&session_row));
     }
-    Ok(out)
-}
-
-async fn select_user_sessions_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    limit: i64,
-    offset: i64,
-    include_active: bool,
-) -> Result<Vec<LearningSessionRow>, AppError> {
-    let sql = if include_active {
-        r#"SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
-           FROM "learning_sessions" WHERE "userId" = ? ORDER BY "startedAt" DESC LIMIT ? OFFSET ?"#
-    } else {
-        r#"SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
-           FROM "learning_sessions" WHERE "userId" = ? AND "endedAt" IS NOT NULL ORDER BY "startedAt" DESC LIMIT ? OFFSET ?"#
-    };
-
-    let rows = sqlx::query(sql)
-        .bind(user_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        let session_id: String = row.try_get("id").unwrap_or_default();
-        let answer_record_count = count_answer_records_sqlite(pool, &session_id).await?;
-        out.push(LearningSessionRow {
-            id: session_id,
-            user_id: row.try_get("userId").unwrap_or_default(),
-            started_at: normalize_datetime_str(&row.try_get::<String, _>("startedAt").unwrap_or_default()),
-            ended_at: row
-                .try_get::<Option<String>, _>("endedAt")
-                .ok()
-                .flatten()
-                .map(|v| normalize_datetime_str(&v)),
-            total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-            actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-            target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-            session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-            flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-            avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-            context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
-            answer_record_count,
-        });
-    }
-    Ok(out)
+    Ok(sessions)
 }
 
 async fn select_active_session_id(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<String>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query_scalar::<_, String>(
-                r#"SELECT "id" FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NULL ORDER BY "startedAt" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row)
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query_scalar::<_, String>(
-                r#"SELECT "id" FROM "learning_sessions" WHERE "userId" = ? AND "endedAt" IS NULL ORDER BY "startedAt" DESC LIMIT 1"#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row)
-        }
-    }
+    let pool = proxy.pool();
+    let row = sqlx::query_scalar::<_, String>(
+        r#"SELECT "id" FROM "learning_sessions" WHERE "userId" = $1 AND "endedAt" IS NULL ORDER BY "startedAt" DESC LIMIT 1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    Ok(row)
 }
 
 async fn select_learning_session(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     session_id: &str,
 ) -> Result<Option<LearningSessionRow>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => select_learning_session_pg(&pool, session_id).await,
-        SelectedReadPool::Fallback(pool) => select_learning_session_sqlite(&pool, session_id).await,
-    }
-}
+    let pool = proxy.pool();
 
-async fn select_learning_session_pg(
-    pool: &PgPool,
-    session_id: &str,
-) -> Result<Option<LearningSessionRow>, AppError> {
     let row = sqlx::query(
         r#"
         SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
@@ -1163,7 +868,7 @@ async fn select_learning_session_pg(
 
     let Some(row) = row else { return Ok(None) };
 
-    let answer_record_count = count_answer_records_pg(pool, session_id).await?;
+    let answer_record_count = count_answer_records(pool, session_id).await?;
 
     Ok(Some(LearningSessionRow {
         id: row.try_get("id").unwrap_or_default(),
@@ -1185,85 +890,10 @@ async fn select_learning_session_pg(
     }))
 }
 
-async fn select_learning_session_sqlite(
-    pool: &SqlitePool,
-    session_id: &str,
-) -> Result<Option<LearningSessionRow>, AppError> {
-    let row = sqlx::query(
-        r#"
-        SELECT "id","userId","startedAt","endedAt","totalQuestions","actualMasteryCount","targetMasteryCount","sessionType","flowPeakScore","avgCognitiveLoad","contextShifts"
-        FROM "learning_sessions"
-        WHERE "id" = ?
-        LIMIT 1
-        "#,
-    )
-    .bind(session_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let Some(row) = row else { return Ok(None) };
-
-    let answer_record_count = count_answer_records_sqlite(pool, session_id).await?;
-
-    Ok(Some(LearningSessionRow {
-        id: row.try_get("id").unwrap_or_default(),
-        user_id: row.try_get("userId").unwrap_or_default(),
-        started_at: normalize_datetime_str(&row.try_get::<String, _>("startedAt").unwrap_or_default()),
-        ended_at: row
-            .try_get::<Option<String>, _>("endedAt")
-            .ok()
-            .flatten()
-            .map(|v| normalize_datetime_str(&v)),
-        total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-        actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-        target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-        session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-        flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-        avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-        context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
-        answer_record_count,
-    }))
-}
-
-async fn count_answer_records_pg(pool: &PgPool, session_id: &str) -> Result<i64, AppError> {
+async fn count_answer_records(pool: &PgPool, session_id: &str) -> Result<i64, AppError> {
     sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "sessionId" = $1"#)
         .bind(session_id)
         .fetch_one(pool)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))
-}
-
-async fn count_answer_records_sqlite(pool: &SqlitePool, session_id: &str) -> Result<i64, AppError> {
-    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "sessionId" = ?"#)
-        .bind(session_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))
-}
-
-enum SelectedReadPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-async fn select_read_pool(
-    proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
-) -> Result<SelectedReadPool, AppError> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedReadPool::Fallback)
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedReadPool::Primary(pool)),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedReadPool::Fallback)
-                .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        },
-    }
 }

@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
-
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
+use sqlx::{PgPool, Row};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -133,129 +130,74 @@ pub struct CounterfactualInput {
 }
 
 pub async fn get_decision_explanation(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     decision_id: Option<&str>,
 ) -> Result<Option<ExplainResult>, String> {
     let target_id = match decision_id {
         Some(id) => id.to_string(),
-        None => match get_latest_decision_id(pg_pool, sqlite_pool, request_state, user_id).await? {
+        None => match get_latest_decision_id(pg_pool, user_id).await? {
             Some(id) => id,
             None => return Ok(None),
         },
     };
 
-    query_decision_insight(pg_pool, sqlite_pool, request_state, user_id, &target_id).await
+    query_decision_insight(pg_pool, user_id, &target_id).await
 }
 
 pub async fn get_decision_timeline(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     limit: i32,
     cursor: Option<&str>,
 ) -> Result<DecisionTimelineResponse, String> {
-    query_decision_timeline(pg_pool, sqlite_pool, request_state, user_id, limit, cursor).await
+    query_decision_timeline(pg_pool, user_id, limit, cursor).await
 }
 
 pub async fn run_counterfactual(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     input: CounterfactualInput,
 ) -> Result<Option<CounterfactualResult>, String> {
     let target_id = match input.decision_id.as_deref() {
         Some(id) => id.to_string(),
-        None => match get_latest_decision_id(pg_pool, sqlite_pool, request_state, user_id).await? {
+        None => match get_latest_decision_id(pg_pool, user_id).await? {
             Some(id) => id,
             None => return Ok(None),
         },
     };
 
-    compute_counterfactual(pg_pool, sqlite_pool, request_state, user_id, &target_id, input.overrides).await
+    compute_counterfactual(pg_pool, user_id, &target_id, input.overrides).await
 }
 
 async fn get_latest_decision_id(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
 ) -> Result<Option<String>, String> {
-    let db_state = request_state.map(|s| s.0).unwrap_or(DatabaseState::Normal);
+    let row = sqlx::query(
+        r#"
+        SELECT dr."decisionId"
+        FROM "decision_records" dr
+        JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
+        WHERE ar."userId" = $1
+        ORDER BY dr."timestamp" DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pg_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-    match db_state {
-        DatabaseState::Normal | DatabaseState::Degraded => {
-            if let Some(pool) = pg_pool {
-                let row = sqlx::query(
-                    r#"
-                    SELECT dr."decisionId"
-                    FROM "decision_records" dr
-                    JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-                    WHERE ar."userId" = $1
-                    ORDER BY dr."timestamp" DESC
-                    LIMIT 1
-                    "#,
-                )
-                .bind(user_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-
-                return Ok(row.map(|r| r.get("decisionId")));
-            }
-        }
-        _ => {}
-    }
-
-    if let Some(pool) = sqlite_pool {
-        let row = sqlx::query(
-            r#"
-            SELECT dr."decisionId"
-            FROM "decision_records" dr
-            JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-            WHERE ar."userId" = ?
-            ORDER BY dr."timestamp" DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-        return Ok(row.map(|r| r.get("decisionId")));
-    }
-
-    Ok(None)
+    Ok(row.map(|r| r.get("decisionId")))
 }
 
 async fn query_decision_insight(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     decision_id: &str,
 ) -> Result<Option<ExplainResult>, String> {
-    let db_state = request_state.map(|s| s.0).unwrap_or(DatabaseState::Normal);
-
-    match db_state {
-        DatabaseState::Normal | DatabaseState::Degraded => {
-            if let Some(pool) = pg_pool {
-                return query_decision_insight_pg(pool, user_id, decision_id).await;
-            }
-        }
-        _ => {}
-    }
-
-    if let Some(pool) = sqlite_pool {
-        return query_decision_insight_sqlite(pool, user_id, decision_id).await;
-    }
-
-    Ok(None)
+    query_decision_insight_pg(pg_pool, user_id, decision_id).await
 }
 
 async fn query_decision_insight_pg(
@@ -340,89 +282,6 @@ async fn query_decision_insight_pg(
     Ok(None)
 }
 
-async fn query_decision_insight_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    decision_id: &str,
-) -> Result<Option<ExplainResult>, String> {
-    let insight_row = sqlx::query(
-        r#"
-        SELECT di."state_snapshot", di."difficulty_factors", di."triggers", di."created_at"
-        FROM "decision_insights" di
-        JOIN "decision_records" dr ON di."decision_id" = dr."decisionId"
-        JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-        WHERE di."decision_id" = ? AND ar."userId" = ?
-        LIMIT 1
-        "#,
-    )
-    .bind(decision_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    if let Some(row) = insight_row {
-        let state_str: Option<String> = row.try_get("state_snapshot").ok();
-        let factors_str: Option<String> = row.try_get("difficulty_factors").ok();
-        let triggers_str: Option<String> = row.try_get("triggers").ok();
-        let created_at: Option<String> = row.try_get("created_at").ok();
-
-        let state_snapshot = state_str.and_then(|s| serde_json::from_str(&s).ok());
-        let difficulty_factors = factors_str.and_then(|s| serde_json::from_str(&s).ok());
-        let triggers: Option<Vec<String>> = triggers_str.and_then(|s| serde_json::from_str(&s).ok());
-
-        let state = parse_state_snapshot(state_snapshot);
-        let factors = parse_difficulty_factors(difficulty_factors);
-
-        return Ok(Some(ExplainResult {
-            decision_id: decision_id.to_string(),
-            timestamp: created_at.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            state,
-            difficulty_factors: factors,
-            weights: None,
-            triggers,
-            stages: None,
-        }));
-    }
-
-    let record_row = sqlx::query(
-        r#"
-        SELECT dr."decisionId", dr."timestamp", dr."weightsSnapshot", dr."confidence"
-        FROM "decision_records" dr
-        JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-        WHERE dr."decisionId" = ? AND ar."userId" = ?
-        LIMIT 1
-        "#,
-    )
-    .bind(decision_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    if let Some(row) = record_row {
-        let weights_str: Option<String> = row.try_get("weightsSnapshot").ok();
-        let timestamp: Option<String> = row.try_get("timestamp").ok();
-        let weights = weights_str.and_then(|s| serde_json::from_str(&s).ok());
-
-        return Ok(Some(ExplainResult {
-            decision_id: decision_id.to_string(),
-            timestamp: timestamp.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            state: StateSnapshot {
-                attention: None,
-                fatigue: None,
-                motivation: None,
-            },
-            difficulty_factors: DifficultyFactors::default(),
-            weights,
-            triggers: None,
-            stages: None,
-        }));
-    }
-
-    Ok(None)
-}
-
 fn parse_state_snapshot(value: Option<serde_json::Value>) -> StateSnapshot {
     let Some(obj) = value.and_then(|v| v.as_object().cloned()) else {
         return StateSnapshot {
@@ -453,35 +312,14 @@ fn parse_difficulty_factors(value: Option<serde_json::Value>) -> DifficultyFacto
 }
 
 async fn query_decision_timeline(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     limit: i32,
     cursor: Option<&str>,
 ) -> Result<DecisionTimelineResponse, String> {
-    let db_state = request_state.map(|s| s.0).unwrap_or(DatabaseState::Normal);
     let fetch_limit = (limit + 1).min(201);
-
     let parsed_cursor = cursor.and_then(parse_cursor);
-
-    match db_state {
-        DatabaseState::Normal | DatabaseState::Degraded => {
-            if let Some(pool) = pg_pool {
-                return query_decision_timeline_pg(pool, user_id, fetch_limit, parsed_cursor.as_ref()).await;
-            }
-        }
-        _ => {}
-    }
-
-    if let Some(pool) = sqlite_pool {
-        return query_decision_timeline_sqlite(pool, user_id, fetch_limit, parsed_cursor.as_ref()).await;
-    }
-
-    Ok(DecisionTimelineResponse {
-        items: vec![],
-        next_cursor: None,
-    })
+    query_decision_timeline_pg(pg_pool, user_id, fetch_limit, parsed_cursor.as_ref()).await
 }
 
 struct ParsedCursor {
@@ -556,53 +394,6 @@ async fn query_decision_timeline_pg(
     build_timeline_response_pg(rows, fetch_limit)
 }
 
-async fn query_decision_timeline_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    fetch_limit: i32,
-    cursor: Option<&ParsedCursor>,
-) -> Result<DecisionTimelineResponse, String> {
-    let rows = if let Some(c) = cursor {
-        sqlx::query(
-            r#"
-            SELECT dr."id", dr."decisionId", dr."answerRecordId", dr."timestamp",
-                   dr."selectedAction", dr."confidence", ar."wordId"
-            FROM "decision_records" dr
-            JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-            WHERE ar."userId" = ? AND (dr."timestamp", dr."id") < (?, ?)
-            ORDER BY dr."timestamp" DESC, dr."id" DESC
-            LIMIT ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(&c.timestamp)
-        .bind(&c.id)
-        .bind(fetch_limit)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?
-    } else {
-        sqlx::query(
-            r#"
-            SELECT dr."id", dr."decisionId", dr."answerRecordId", dr."timestamp",
-                   dr."selectedAction", dr."confidence", ar."wordId"
-            FROM "decision_records" dr
-            JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-            WHERE ar."userId" = ?
-            ORDER BY dr."timestamp" DESC, dr."id" DESC
-            LIMIT ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(fetch_limit)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?
-    };
-
-    build_timeline_response_sqlite(rows, fetch_limit)
-}
-
 fn build_timeline_response_pg(
     rows: Vec<sqlx::postgres::PgRow>,
     fetch_limit: i32,
@@ -655,56 +446,6 @@ fn build_timeline_response_pg(
     Ok(DecisionTimelineResponse { items, next_cursor })
 }
 
-fn build_timeline_response_sqlite(
-    rows: Vec<sqlx::sqlite::SqliteRow>,
-    fetch_limit: i32,
-) -> Result<DecisionTimelineResponse, String> {
-    let has_more = rows.len() as i32 > fetch_limit - 1;
-    let take_count = if has_more { fetch_limit - 1 } else { rows.len() as i32 };
-
-    let mut items = Vec::with_capacity(take_count as usize);
-    let mut last_ts = String::new();
-    let mut last_id = String::new();
-
-    for (i, row) in rows.into_iter().enumerate() {
-        if i as i32 >= take_count {
-            break;
-        }
-
-        let id: String = row.try_get("id").unwrap_or_default();
-        let decision_id: String = row.try_get("decisionId").unwrap_or_default();
-        let answer_id: String = row.try_get("answerRecordId").unwrap_or_default();
-        let word_id: String = row.try_get("wordId").unwrap_or_default();
-        let confidence: f64 = row.try_get("confidence").unwrap_or(0.0);
-        let timestamp: String = row.try_get("timestamp").unwrap_or_default();
-        let action_str: String = row.try_get("selectedAction").unwrap_or_default();
-        let selected_action_json: serde_json::Value = serde_json::from_str(&action_str).unwrap_or(serde_json::Value::Null);
-        let selected_action = parse_selected_action(&selected_action_json);
-
-        last_ts = timestamp.clone();
-        last_id = id.clone();
-
-        items.push(DecisionTimelineItem {
-            answer_id,
-            word_id,
-            timestamp,
-            decision: DecisionInfo {
-                decision_id,
-                confidence,
-                selected_action,
-            },
-        });
-    }
-
-    let next_cursor = if has_more {
-        Some(encode_cursor(&last_ts, &last_id))
-    } else {
-        None
-    };
-
-    Ok(DecisionTimelineResponse { items, next_cursor })
-}
-
 fn parse_selected_action(value: &serde_json::Value) -> SelectedAction {
     let obj = match value.as_object() {
         Some(o) => o,
@@ -729,14 +470,12 @@ fn parse_selected_action(value: &serde_json::Value) -> SelectedAction {
 }
 
 async fn compute_counterfactual(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     decision_id: &str,
     overrides: Option<CounterfactualOverrides>,
 ) -> Result<Option<CounterfactualResult>, String> {
-    let base_state = query_base_state(pg_pool, sqlite_pool, request_state, user_id, decision_id).await?;
+    let base_state = query_base_state(pg_pool, user_id, decision_id).await?;
     let Some(base) = base_state else {
         return Ok(None);
     };
@@ -767,108 +506,51 @@ async fn compute_counterfactual(
 }
 
 async fn query_base_state(
-    pg_pool: Option<&PgPool>,
-    sqlite_pool: Option<&SqlitePool>,
-    request_state: Option<&RequestDbState>,
+    pg_pool: &PgPool,
     user_id: &str,
     decision_id: &str,
 ) -> Result<Option<StateSnapshot>, String> {
-    let db_state = request_state.map(|s| s.0).unwrap_or(DatabaseState::Normal);
+    let row = sqlx::query(
+        r#"
+        SELECT di."state_snapshot"
+        FROM "decision_insights" di
+        JOIN "decision_records" dr ON di."decision_id" = dr."decisionId"
+        JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
+        WHERE di."decision_id" = $1 AND ar."userId" = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(decision_id)
+    .bind(user_id)
+    .fetch_optional(pg_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-    match db_state {
-        DatabaseState::Normal | DatabaseState::Degraded => {
-            if let Some(pool) = pg_pool {
-                let row = sqlx::query(
-                    r#"
-                    SELECT di."state_snapshot"
-                    FROM "decision_insights" di
-                    JOIN "decision_records" dr ON di."decision_id" = dr."decisionId"
-                    JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-                    WHERE di."decision_id" = $1 AND ar."userId" = $2
-                    LIMIT 1
-                    "#,
-                )
-                .bind(decision_id)
-                .bind(user_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-
-                if let Some(r) = row {
-                    let snapshot: Option<serde_json::Value> = r.try_get("state_snapshot").ok();
-                    return Ok(Some(parse_state_snapshot(snapshot)));
-                }
-
-                let user_state_row = sqlx::query(
-                    r#"
-                    SELECT "attention", "fatigue", "motivation"
-                    FROM "amas_user_states"
-                    WHERE "userId" = $1
-                    ORDER BY "updatedAt" DESC
-                    LIMIT 1
-                    "#,
-                )
-                .bind(user_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-
-                if let Some(r) = user_state_row {
-                    return Ok(Some(StateSnapshot {
-                        attention: r.try_get("attention").ok(),
-                        fatigue: r.try_get("fatigue").ok(),
-                        motivation: r.try_get("motivation").ok(),
-                    }));
-                }
-            }
-        }
-        _ => {}
+    if let Some(r) = row {
+        let snapshot: Option<serde_json::Value> = r.try_get("state_snapshot").ok();
+        return Ok(Some(parse_state_snapshot(snapshot)));
     }
 
-    if let Some(pool) = sqlite_pool {
-        let row = sqlx::query(
-            r#"
-            SELECT di."state_snapshot"
-            FROM "decision_insights" di
-            JOIN "decision_records" dr ON di."decision_id" = dr."decisionId"
-            JOIN "answer_records" ar ON dr."answerRecordId" = ar."id"
-            WHERE di."decision_id" = ? AND ar."userId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(decision_id)
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let user_state_row = sqlx::query(
+        r#"
+        SELECT "attention", "fatigue", "motivation"
+        FROM "amas_user_states"
+        WHERE "userId" = $1
+        ORDER BY "updatedAt" DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pg_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-        if let Some(r) = row {
-            let snapshot_str: Option<String> = r.try_get("state_snapshot").ok();
-            let snapshot = snapshot_str.and_then(|s| serde_json::from_str(&s).ok());
-            return Ok(Some(parse_state_snapshot(snapshot)));
-        }
-
-        let user_state_row = sqlx::query(
-            r#"
-            SELECT "attention", "fatigue", "motivation"
-            FROM "amas_user_states"
-            WHERE "userId" = ?
-            ORDER BY "updatedAt" DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-        if let Some(r) = user_state_row {
-            return Ok(Some(StateSnapshot {
-                attention: r.try_get("attention").ok(),
-                fatigue: r.try_get("fatigue").ok(),
-                motivation: r.try_get("motivation").ok(),
-            }));
-        }
+    if let Some(r) = user_state_row {
+        return Ok(Some(StateSnapshot {
+            attention: r.try_get("attention").ok(),
+            fatigue: r.try_get("fatigue").ok(),
+            motivation: r.try_get("motivation").ok(),
+        }));
     }
 
     Ok(Some(StateSnapshot {

@@ -5,7 +5,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use axum::body::Body;
-use axum::extract::{Extension, Path, Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{header, Request, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
@@ -1016,7 +1016,6 @@ async fn pipeline_trace(State(_state): State<AppState>, Path(packet_id): Path<St
 
 async fn pipeline_inject_fault(
     State(state): State<AppState>,
-    request_state: Option<Extension<crate::middleware::RequestDbState>>,
     headers: axum::http::HeaderMap,
     Json(payload): Json<FaultInjectionRequest>,
 ) -> Response {
@@ -1040,11 +1039,7 @@ async fn pipeline_inject_fault(
         return about_error(StatusCode::UNAUTHORIZED, "认证失败，请重新登录");
     };
 
-    let db_state = request_state
-        .map(|Extension(state)| state.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), db_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => return about_error(StatusCode::UNAUTHORIZED, "认证失败，请重新登录"),
     };
@@ -1439,13 +1434,7 @@ async fn about_health(State(state): State<AppState>, req: Request<Body>) -> Resp
         return about_error(StatusCode::UNAUTHORIZED, "认证失败，请重新登录");
     };
 
-    let request_state = req
-        .extensions()
-        .get::<crate::middleware::RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => return about_error(StatusCode::UNAUTHORIZED, "认证失败，请重新登录"),
     };

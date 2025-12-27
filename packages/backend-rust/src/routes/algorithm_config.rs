@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -107,24 +106,18 @@ pub async fn get_active(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let config = match select_active_config(proxy.as_ref(), request_state).await {
+    let config = match select_active_config(proxy.as_ref()).await {
         Ok(config) => config,
         Err(err) => {
             tracing::warn!(error = %err, "select active algorithm config failed");
@@ -199,17 +192,11 @@ pub async fn update_config(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -230,7 +217,7 @@ pub async fn update_config(
         .into_response();
     }
 
-    let old_config = match select_config_by_id(proxy.as_ref(), request_state, &config_id).await {
+    let old_config = match select_config_by_id(proxy.as_ref(), &config_id).await {
         Ok(Some(config)) => config,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
         Err(err) => {
@@ -241,7 +228,6 @@ pub async fn update_config(
 
     if let Err(err) = apply_config_update(
         proxy.as_ref(),
-        request_state,
         &config_id,
         config_obj,
         user.id.as_str(),
@@ -254,7 +240,7 @@ pub async fn update_config(
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
-    let updated_config = match select_config_by_id(proxy.as_ref(), request_state, &config_id).await {
+    let updated_config = match select_config_by_id(proxy.as_ref(), &config_id).await {
         Ok(Some(config)) => config,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
         Err(err) => {
@@ -293,17 +279,11 @@ pub async fn reset_config(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -316,7 +296,7 @@ pub async fn reset_config(
 
     let target_id = match payload.config_id {
         Some(value) => value,
-        None => match select_active_config(proxy.as_ref(), request_state).await {
+        None => match select_active_config(proxy.as_ref()).await {
             Ok(Some(config)) => config.id,
             Ok(None) => {
                 return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "没有可用的算法配置")
@@ -329,7 +309,7 @@ pub async fn reset_config(
         },
     };
 
-    let old_config = match select_config_by_id(proxy.as_ref(), request_state, &target_id).await {
+    let old_config = match select_config_by_id(proxy.as_ref(), &target_id).await {
         Ok(Some(config)) => config,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
         Err(err) => {
@@ -338,7 +318,7 @@ pub async fn reset_config(
         }
     };
 
-    let default_config = match select_active_config(proxy.as_ref(), request_state).await {
+    let default_config = match select_active_config(proxy.as_ref()).await {
         Ok(Some(config)) => config,
         Ok(None) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "默认配置不存在").into_response(),
         Err(err) => {
@@ -349,7 +329,6 @@ pub async fn reset_config(
 
     if let Err(err) = apply_reset_to_default(
         proxy.as_ref(),
-        request_state,
         &target_id,
         user.id.as_str(),
         &old_config,
@@ -361,7 +340,7 @@ pub async fn reset_config(
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
-    let updated_config = match select_config_by_id(proxy.as_ref(), request_state, &target_id).await {
+    let updated_config = match select_config_by_id(proxy.as_ref(), &target_id).await {
         Ok(Some(config)) => config,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
         Err(err) => {
@@ -382,17 +361,11 @@ pub async fn history(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -411,7 +384,7 @@ pub async fn history(
         .min(200);
     let config_id = params.get("configId").cloned();
 
-    match select_config_history(proxy.as_ref(), request_state, config_id.as_deref(), limit).await {
+    match select_config_history(proxy.as_ref(), config_id.as_deref(), limit).await {
         Ok(history) => Json(SuccessResponse { success: true, data: history }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "select config history failed");
@@ -429,24 +402,18 @@ pub async fn presets(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let _user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let _user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    match select_all_configs(proxy.as_ref(), request_state).await {
+    match select_all_configs(proxy.as_ref()).await {
         Ok(configs) => Json(SuccessResponse { success: true, data: configs }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "select algorithm configs failed");
@@ -457,7 +424,6 @@ pub async fn presets(
 
 async fn apply_config_update(
     proxy: &crate::db::DatabaseProxy,
-    request_state: crate::db::state_machine::DatabaseState,
     config_id: &str,
     update: &serde_json::Map<String, serde_json::Value>,
     changed_by: &str,
@@ -470,57 +436,18 @@ async fn apply_config_update(
         serde_json::Value::String(now_iso_millis()),
     );
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(config_id.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "algorithm_configs".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(request_state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string().into()))?;
-
-        let new_config = select_config_by_id(proxy, request_state, config_id)
-            .await?
-            .ok_or_else(|| sqlx::Error::RowNotFound)?;
-
-        insert_config_history(
-            proxy,
-            request_state,
-            config_id,
-            changed_by,
-            change_reason,
-            old_config,
-            &new_config,
-        )
-        .await?;
-
-        return Ok(());
-    }
-
-    let Some(pool) = proxy.primary_pool().await else {
-        return Err(sqlx::Error::RowNotFound);
-    };
+    let pool = proxy.pool();
 
     let old_json = serde_json::to_value(old_config).unwrap_or(serde_json::Value::Null);
-    let new_config = update_postgres_config(&pool, config_id, &data).await?;
+    let new_config = update_postgres_config(pool, config_id, &data, old_config).await?;
     let new_json = serde_json::to_value(&new_config).unwrap_or(serde_json::Value::Null);
 
-    insert_postgres_history(&pool, config_id, changed_by, change_reason, old_json, new_json).await?;
+    insert_postgres_history(pool, config_id, changed_by, change_reason, old_json, new_json).await?;
     Ok(())
 }
 
 async fn apply_reset_to_default(
     proxy: &crate::db::DatabaseProxy,
-    request_state: crate::db::state_machine::DatabaseState,
     config_id: &str,
     changed_by: &str,
     old_config: &AlgorithmConfigDto,
@@ -619,50 +546,13 @@ async fn apply_reset_to_default(
         serde_json::Value::String(now_iso_millis()),
     );
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(config_id.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "algorithm_configs".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(request_state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string().into()))?;
-
-        let new_config = select_config_by_id(proxy, request_state, config_id)
-            .await?
-            .ok_or_else(|| sqlx::Error::RowNotFound)?;
-
-        insert_config_history(
-            proxy,
-            request_state,
-            config_id,
-            changed_by,
-            Some("重置为默认配置"),
-            old_config,
-            &new_config,
-        )
-        .await?;
-
-        return Ok(());
-    }
-
-    let Some(pool) = proxy.primary_pool().await else {
-        return Err(sqlx::Error::RowNotFound);
-    };
+    let pool = proxy.pool();
 
     let old_json = serde_json::to_value(old_config).unwrap_or(serde_json::Value::Null);
-    let new_config = update_postgres_config(&pool, config_id, &data).await?;
+    let new_config = update_postgres_config(pool, config_id, &data, old_config).await?;
     let new_json = serde_json::to_value(&new_config).unwrap_or(serde_json::Value::Null);
     insert_postgres_history(
-        &pool,
+        pool,
         config_id,
         changed_by,
         Some("重置为默认配置"),
@@ -670,52 +560,6 @@ async fn apply_reset_to_default(
         new_json,
     )
     .await?;
-    Ok(())
-}
-
-async fn insert_config_history(
-    proxy: &crate::db::DatabaseProxy,
-    request_state: crate::db::state_machine::DatabaseState,
-    config_id: &str,
-    changed_by: &str,
-    change_reason: Option<&str>,
-    old_config: &AlgorithmConfigDto,
-    new_config: &AlgorithmConfigDto,
-) -> Result<(), sqlx::Error> {
-    let mut data = serde_json::Map::new();
-    data.insert("id".to_string(), serde_json::Value::String(Uuid::new_v4().to_string()));
-    data.insert(
-        "configId".to_string(),
-        serde_json::Value::String(config_id.to_string()),
-    );
-    data.insert(
-        "changedBy".to_string(),
-        serde_json::Value::String(changed_by.to_string()),
-    );
-    if let Some(reason) = change_reason {
-        data.insert("changeReason".to_string(), serde_json::Value::String(reason.to_string()));
-    }
-    data.insert(
-        "previousValue".to_string(),
-        serde_json::to_value(old_config).unwrap_or(serde_json::Value::Null),
-    );
-    data.insert(
-        "newValue".to_string(),
-        serde_json::to_value(new_config).unwrap_or(serde_json::Value::Null),
-    );
-
-    let op = crate::db::dual_write_manager::WriteOperation::Insert {
-        table: "config_history".to_string(),
-        data,
-        operation_id: Uuid::new_v4().to_string(),
-        timestamp_ms: None,
-        critical: Some(false),
-    };
-
-    proxy
-        .write_operation(request_state, op)
-        .await
-        .map_err(|err| sqlx::Error::Protocol(err.to_string().into()))?;
     Ok(())
 }
 
@@ -749,161 +593,133 @@ async fn insert_postgres_history(
     Ok(())
 }
 
+fn merge_optional<T: Clone>(updated: Option<T>, current: &T) -> T {
+    updated.unwrap_or_else(|| current.clone())
+}
+
 async fn update_postgres_config(
     pool: &sqlx::PgPool,
     config_id: &str,
     update: &serde_json::Map<String, serde_json::Value>,
+    old_config: &AlgorithmConfigDto,
 ) -> Result<AlgorithmConfigDto, sqlx::Error> {
     let input: AlgorithmConfigUpdateInput =
         serde_json::from_value(serde_json::Value::Object(update.clone())).unwrap_or_default();
 
-    let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(r#"UPDATE "algorithm_configs" SET "#);
-    let mut separated = qb.separated(", ");
+    let name = merge_optional(input.name, &old_config.name);
+    let description = merge_optional(input.description, &old_config.description);
+    let review_intervals = merge_optional(input.review_intervals, &old_config.review_intervals);
+    let consecutive_correct_threshold =
+        merge_optional(input.consecutive_correct_threshold, &old_config.consecutive_correct_threshold);
+    let consecutive_wrong_threshold =
+        merge_optional(input.consecutive_wrong_threshold, &old_config.consecutive_wrong_threshold);
+    let difficulty_adjustment_interval =
+        merge_optional(input.difficulty_adjustment_interval, &old_config.difficulty_adjustment_interval);
+    let priority_weight_new_word =
+        merge_optional(input.priority_weight_new_word, &old_config.priority_weight_new_word);
+    let priority_weight_error_rate =
+        merge_optional(input.priority_weight_error_rate, &old_config.priority_weight_error_rate);
+    let priority_weight_overdue_time =
+        merge_optional(input.priority_weight_overdue_time, &old_config.priority_weight_overdue_time);
+    let priority_weight_word_score =
+        merge_optional(input.priority_weight_word_score, &old_config.priority_weight_word_score);
+    let score_weight_accuracy = merge_optional(input.score_weight_accuracy, &old_config.score_weight_accuracy);
+    let score_weight_speed = merge_optional(input.score_weight_speed, &old_config.score_weight_speed);
+    let score_weight_stability =
+        merge_optional(input.score_weight_stability, &old_config.score_weight_stability);
+    let score_weight_proficiency =
+        merge_optional(input.score_weight_proficiency, &old_config.score_weight_proficiency);
+    let speed_threshold_excellent =
+        merge_optional(input.speed_threshold_excellent, &old_config.speed_threshold_excellent);
+    let speed_threshold_good = merge_optional(input.speed_threshold_good, &old_config.speed_threshold_good);
+    let speed_threshold_average =
+        merge_optional(input.speed_threshold_average, &old_config.speed_threshold_average);
+    let speed_threshold_slow = merge_optional(input.speed_threshold_slow, &old_config.speed_threshold_slow);
+    let new_word_ratio_default = merge_optional(input.new_word_ratio_default, &old_config.new_word_ratio_default);
+    let new_word_ratio_high_accuracy =
+        merge_optional(input.new_word_ratio_high_accuracy, &old_config.new_word_ratio_high_accuracy);
+    let new_word_ratio_low_accuracy =
+        merge_optional(input.new_word_ratio_low_accuracy, &old_config.new_word_ratio_low_accuracy);
+    let new_word_ratio_high_accuracy_threshold = merge_optional(
+        input.new_word_ratio_high_accuracy_threshold,
+        &old_config.new_word_ratio_high_accuracy_threshold,
+    );
+    let new_word_ratio_low_accuracy_threshold = merge_optional(
+        input.new_word_ratio_low_accuracy_threshold,
+        &old_config.new_word_ratio_low_accuracy_threshold,
+    );
+    let mastery_thresholds = merge_optional(input.mastery_thresholds, &old_config.mastery_thresholds);
+    let updated_at = Utc::now().naive_utc();
 
-    if let Some(value) = input.name {
-        separated.push(r#""name" = "#);
-        separated.push_bind(value);
-    }
+    let sql = format!(
+        r#"
+        UPDATE "algorithm_configs"
+        SET
+            "name" = $1,
+            "description" = $2,
+            "reviewIntervals" = $3,
+            "consecutiveCorrectThreshold" = $4,
+            "consecutiveWrongThreshold" = $5,
+            "difficultyAdjustmentInterval" = $6,
+            "priorityWeightNewWord" = $7,
+            "priorityWeightErrorRate" = $8,
+            "priorityWeightOverdueTime" = $9,
+            "priorityWeightWordScore" = $10,
+            "scoreWeightAccuracy" = $11,
+            "scoreWeightSpeed" = $12,
+            "scoreWeightStability" = $13,
+            "scoreWeightProficiency" = $14,
+            "speedThresholdExcellent" = $15,
+            "speedThresholdGood" = $16,
+            "speedThresholdAverage" = $17,
+            "speedThresholdSlow" = $18,
+            "newWordRatioDefault" = $19,
+            "newWordRatioHighAccuracy" = $20,
+            "newWordRatioLowAccuracy" = $21,
+            "newWordRatioHighAccuracyThreshold" = $22,
+            "newWordRatioLowAccuracyThreshold" = $23,
+            "masteryThresholds" = $24,
+            "updatedAt" = $25
+        WHERE "id" = $26
+        RETURNING {}
+        "#,
+        config_select_sql()
+    );
 
-    if let Some(value) = input.description {
-        separated.push(r#""description" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.review_intervals {
-        separated.push(r#""reviewIntervals" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.consecutive_correct_threshold {
-        separated.push(r#""consecutiveCorrectThreshold" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.consecutive_wrong_threshold {
-        separated.push(r#""consecutiveWrongThreshold" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.difficulty_adjustment_interval {
-        separated.push(r#""difficultyAdjustmentInterval" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.priority_weight_new_word {
-        separated.push(r#""priorityWeightNewWord" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.priority_weight_error_rate {
-        separated.push(r#""priorityWeightErrorRate" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.priority_weight_overdue_time {
-        separated.push(r#""priorityWeightOverdueTime" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.priority_weight_word_score {
-        separated.push(r#""priorityWeightWordScore" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.score_weight_accuracy {
-        separated.push(r#""scoreWeightAccuracy" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.score_weight_speed {
-        separated.push(r#""scoreWeightSpeed" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.score_weight_stability {
-        separated.push(r#""scoreWeightStability" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.score_weight_proficiency {
-        separated.push(r#""scoreWeightProficiency" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.speed_threshold_excellent {
-        separated.push(r#""speedThresholdExcellent" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.speed_threshold_good {
-        separated.push(r#""speedThresholdGood" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.speed_threshold_average {
-        separated.push(r#""speedThresholdAverage" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.speed_threshold_slow {
-        separated.push(r#""speedThresholdSlow" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.new_word_ratio_default {
-        separated.push(r#""newWordRatioDefault" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.new_word_ratio_high_accuracy {
-        separated.push(r#""newWordRatioHighAccuracy" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.new_word_ratio_low_accuracy {
-        separated.push(r#""newWordRatioLowAccuracy" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.new_word_ratio_high_accuracy_threshold {
-        separated.push(r#""newWordRatioHighAccuracyThreshold" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.new_word_ratio_low_accuracy_threshold {
-        separated.push(r#""newWordRatioLowAccuracyThreshold" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.mastery_thresholds {
-        separated.push(r#""masteryThresholds" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.is_default {
-        separated.push(r#""isDefault" = "#);
-        separated.push_bind(value);
-    }
-
-    if let Some(value) = input.created_by {
-        separated.push(r#""createdBy" = "#);
-        separated.push_bind(value);
-    }
-
-    separated.push(r#""updatedAt" = "#);
-    separated.push_bind(Utc::now().naive_utc());
-
-    qb.push(" WHERE \"id\" = ");
-    qb.push_bind(config_id);
-    qb.push(" RETURNING ");
-    qb.push(config_select_sql());
-
-    let row = qb.build().fetch_one(pool).await?;
+    let row = sqlx::query(&sql)
+        .bind(name)
+        .bind(description)
+        .bind(review_intervals)
+        .bind(consecutive_correct_threshold)
+        .bind(consecutive_wrong_threshold)
+        .bind(difficulty_adjustment_interval)
+        .bind(priority_weight_new_word)
+        .bind(priority_weight_error_rate)
+        .bind(priority_weight_overdue_time)
+        .bind(priority_weight_word_score)
+        .bind(score_weight_accuracy)
+        .bind(score_weight_speed)
+        .bind(score_weight_stability)
+        .bind(score_weight_proficiency)
+        .bind(speed_threshold_excellent)
+        .bind(speed_threshold_good)
+        .bind(speed_threshold_average)
+        .bind(speed_threshold_slow)
+        .bind(new_word_ratio_default)
+        .bind(new_word_ratio_high_accuracy)
+        .bind(new_word_ratio_low_accuracy)
+        .bind(new_word_ratio_high_accuracy_threshold)
+        .bind(new_word_ratio_low_accuracy_threshold)
+        .bind(mastery_thresholds)
+        .bind(updated_at)
+        .bind(config_id)
+        .fetch_one(pool)
+        .await?;
     Ok(map_postgres_config_row(&row))
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 struct AlgorithmConfigUpdateInput {
     name: Option<String>,
     description: Option<Option<String>>,
@@ -935,180 +751,69 @@ struct AlgorithmConfigUpdateInput {
 
 async fn select_active_config(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
 ) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(None);
-        };
-        select_active_config_sqlite(pool).await
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        select_active_config_postgres(&pool).await
-    }
+    select_active_config_postgres(proxy.pool()).await
 }
 
 async fn select_config_by_id(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     config_id: &str,
 ) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(None);
-        };
-        let row = sqlx::query(&format!(r#"SELECT {} FROM "algorithm_configs" WHERE "id" = ? LIMIT 1"#, config_select_sql()))
-            .bind(config_id)
-            .fetch_optional(pool)
-            .await?;
-        Ok(row.map(|row| map_sqlite_config_row(&row)))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(&format!(
-            r#"SELECT {} FROM "algorithm_configs" WHERE "id" = $1 LIMIT 1"#,
-            config_select_sql()
-        ))
-        .bind(config_id)
-        .fetch_optional(&pool)
-        .await?;
-        Ok(row.map(|row| map_postgres_config_row(&row)))
-    }
+    let row = sqlx::query(&format!(
+        r#"SELECT {} FROM "algorithm_configs" WHERE "id" = $1 LIMIT 1"#,
+        config_select_sql()
+    ))
+    .bind(config_id)
+    .fetch_optional(proxy.pool())
+    .await?;
+    Ok(row.map(|row| map_postgres_config_row(&row)))
 }
 
 async fn select_all_configs(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
 ) -> Result<Vec<AlgorithmConfigDto>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(&format!(
-            r#"SELECT {} FROM "algorithm_configs" ORDER BY "createdAt" DESC"#,
-            config_select_sql()
-        ))
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.iter().map(map_sqlite_config_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(&format!(
-            r#"SELECT {} FROM "algorithm_configs" ORDER BY "createdAt" DESC"#,
-            config_select_sql()
-        ))
-        .fetch_all(&pool)
-        .await?;
-        Ok(rows.iter().map(map_postgres_config_row).collect())
-    }
+    let rows = sqlx::query(&format!(
+        r#"SELECT {} FROM "algorithm_configs" ORDER BY "createdAt" DESC"#,
+        config_select_sql()
+    ))
+    .fetch_all(proxy.pool())
+    .await?;
+    Ok(rows.iter().map(map_postgres_config_row).collect())
 }
 
 async fn select_config_history(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     config_id: Option<&str>,
     limit: u64,
 ) -> Result<Vec<ConfigHistoryDto>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(Vec::new());
-        };
-
-        let sql = if config_id.is_some() {
-            r#"
-            SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
-            FROM "config_history"
-            WHERE "configId" = ?
-            ORDER BY "timestamp" DESC
-            LIMIT ?
-            "#
-        } else {
-            r#"
-            SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
-            FROM "config_history"
-            ORDER BY "timestamp" DESC
-            LIMIT ?
-            "#
-        };
-
-        let rows = if let Some(config_id) = config_id {
-            sqlx::query(sql)
-                .bind(config_id)
-                .bind(limit as i64)
-                .fetch_all(pool)
-                .await?
-        } else {
-            sqlx::query(sql).bind(limit as i64).fetch_all(pool).await?
-        };
-
-        Ok(rows.iter().map(map_sqlite_history_row).collect())
+    let sql = if config_id.is_some() {
+        r#"
+        SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
+        FROM "config_history"
+        WHERE "configId" = $1
+        ORDER BY "timestamp" DESC
+        LIMIT $2
+        "#
     } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
+        r#"
+        SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
+        FROM "config_history"
+        ORDER BY "timestamp" DESC
+        LIMIT $1
+        "#
+    };
 
-        let sql = if config_id.is_some() {
-            r#"
-            SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
-            FROM "config_history"
-            WHERE "configId" = $1
-            ORDER BY "timestamp" DESC
-            LIMIT $2
-            "#
-        } else {
-            r#"
-            SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
-            FROM "config_history"
-            ORDER BY "timestamp" DESC
-            LIMIT $1
-            "#
-        };
+    let rows = if let Some(config_id) = config_id {
+        sqlx::query(sql)
+            .bind(config_id)
+            .bind(limit as i64)
+            .fetch_all(proxy.pool())
+            .await?
+    } else {
+        sqlx::query(sql).bind(limit as i64).fetch_all(proxy.pool()).await?
+    };
 
-        let rows = if let Some(config_id) = config_id {
-            sqlx::query(sql)
-                .bind(config_id)
-                .bind(limit as i64)
-                .fetch_all(&pool)
-                .await?
-        } else {
-            sqlx::query(sql).bind(limit as i64).fetch_all(&pool).await?
-        };
-
-        Ok(rows.iter().map(map_postgres_history_row).collect())
-    }
+    Ok(rows.iter().map(map_postgres_history_row).collect())
 }
 
 async fn select_active_config_postgres(pool: &sqlx::PgPool) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
@@ -1127,24 +832,6 @@ async fn select_active_config_postgres(pool: &sqlx::PgPool) -> Result<Option<Alg
     );
     let row = sqlx::query(&sql_first).fetch_optional(pool).await?;
     Ok(row.map(|row| map_postgres_config_row(&row)))
-}
-
-async fn select_active_config_sqlite(pool: &sqlx::SqlitePool) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
-    let sql_default = format!(
-        r#"SELECT {} FROM "algorithm_configs" WHERE "isDefault" = 1 ORDER BY "createdAt" ASC LIMIT 1"#,
-        config_select_sql()
-    );
-    let row = sqlx::query(&sql_default).fetch_optional(pool).await?;
-    if let Some(row) = row {
-        return Ok(Some(map_sqlite_config_row(&row)));
-    }
-
-    let sql_first = format!(
-        r#"SELECT {} FROM "algorithm_configs" ORDER BY "createdAt" ASC LIMIT 1"#,
-        config_select_sql()
-    );
-    let row = sqlx::query(&sql_first).fetch_optional(pool).await?;
-    Ok(row.map(|row| map_sqlite_config_row(&row)))
 }
 
 fn config_select_sql() -> &'static str {
@@ -1218,47 +905,6 @@ fn map_postgres_config_row(row: &sqlx::postgres::PgRow) -> AlgorithmConfigDto {
     }
 }
 
-fn map_sqlite_config_row(row: &sqlx::sqlite::SqliteRow) -> AlgorithmConfigDto {
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-    let review_raw: String = row.try_get("reviewIntervals").unwrap_or_default();
-    let mastery_raw: String = row.try_get("masteryThresholds").unwrap_or_default();
-    let created_at = format_sqlite_datetime(&created_raw);
-    let updated_at = format_sqlite_datetime(&updated_raw);
-
-    AlgorithmConfigDto {
-        id: row.try_get("id").unwrap_or_default(),
-        name: row.try_get("name").unwrap_or_default(),
-        description: row.try_get("description").ok(),
-        review_intervals: parse_json_i32_array(&review_raw),
-        consecutive_correct_threshold: row.try_get::<i64, _>("consecutiveCorrectThreshold").unwrap_or(5) as i32,
-        consecutive_wrong_threshold: row.try_get::<i64, _>("consecutiveWrongThreshold").unwrap_or(3) as i32,
-        difficulty_adjustment_interval: row.try_get::<i64, _>("difficultyAdjustmentInterval").unwrap_or(1) as i32,
-        priority_weight_new_word: row.try_get::<i64, _>("priorityWeightNewWord").unwrap_or(40) as i32,
-        priority_weight_error_rate: row.try_get::<i64, _>("priorityWeightErrorRate").unwrap_or(30) as i32,
-        priority_weight_overdue_time: row.try_get::<i64, _>("priorityWeightOverdueTime").unwrap_or(20) as i32,
-        priority_weight_word_score: row.try_get::<i64, _>("priorityWeightWordScore").unwrap_or(10) as i32,
-        score_weight_accuracy: row.try_get::<i64, _>("scoreWeightAccuracy").unwrap_or(40) as i32,
-        score_weight_speed: row.try_get::<i64, _>("scoreWeightSpeed").unwrap_or(30) as i32,
-        score_weight_stability: row.try_get::<i64, _>("scoreWeightStability").unwrap_or(20) as i32,
-        score_weight_proficiency: row.try_get::<i64, _>("scoreWeightProficiency").unwrap_or(10) as i32,
-        speed_threshold_excellent: row.try_get::<i64, _>("speedThresholdExcellent").unwrap_or(3000) as i32,
-        speed_threshold_good: row.try_get::<i64, _>("speedThresholdGood").unwrap_or(5000) as i32,
-        speed_threshold_average: row.try_get::<i64, _>("speedThresholdAverage").unwrap_or(10000) as i32,
-        speed_threshold_slow: row.try_get::<i64, _>("speedThresholdSlow").unwrap_or(10000) as i32,
-        new_word_ratio_default: row.try_get::<f64, _>("newWordRatioDefault").unwrap_or(0.3),
-        new_word_ratio_high_accuracy: row.try_get::<f64, _>("newWordRatioHighAccuracy").unwrap_or(0.5),
-        new_word_ratio_low_accuracy: row.try_get::<f64, _>("newWordRatioLowAccuracy").unwrap_or(0.1),
-        new_word_ratio_high_accuracy_threshold: row.try_get::<f64, _>("newWordRatioHighAccuracyThreshold").unwrap_or(0.85),
-        new_word_ratio_low_accuracy_threshold: row.try_get::<f64, _>("newWordRatioLowAccuracyThreshold").unwrap_or(0.65),
-        mastery_thresholds: parse_json_value(&mastery_raw),
-        is_default: row.try_get::<i64, _>("isDefault").unwrap_or(0) != 0,
-        created_at,
-        updated_at,
-        created_by: row.try_get("createdBy").ok(),
-    }
-}
-
 fn map_postgres_history_row(row: &sqlx::postgres::PgRow) -> ConfigHistoryDto {
     let timestamp: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
     ConfigHistoryDto {
@@ -1269,21 +915,6 @@ fn map_postgres_history_row(row: &sqlx::postgres::PgRow) -> ConfigHistoryDto {
         previous_value: row.try_get("previousValue").unwrap_or(serde_json::Value::Null),
         new_value: row.try_get("newValue").unwrap_or(serde_json::Value::Null),
         timestamp: format_naive_datetime_iso_millis(timestamp),
-    }
-}
-
-fn map_sqlite_history_row(row: &sqlx::sqlite::SqliteRow) -> ConfigHistoryDto {
-    let prev_raw: String = row.try_get("previousValue").unwrap_or_default();
-    let next_raw: String = row.try_get("newValue").unwrap_or_default();
-    let timestamp_raw: String = row.try_get("timestamp").unwrap_or_default();
-    ConfigHistoryDto {
-        id: row.try_get("id").unwrap_or_default(),
-        config_id: row.try_get("configId").unwrap_or_default(),
-        changed_by: row.try_get("changedBy").unwrap_or_default(),
-        change_reason: row.try_get("changeReason").ok(),
-        previous_value: parse_json_value(&prev_raw),
-        new_value: parse_json_value(&next_raw),
-        timestamp: format_sqlite_datetime(&timestamp_raw),
     }
 }
 
@@ -1379,32 +1010,6 @@ async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, b
         Err(_) => return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response()),
     };
     Ok((parts, body_bytes))
-}
-
-fn parse_json_i32_array(raw: &str) -> Vec<i32> {
-    match serde_json::from_str::<serde_json::Value>(raw) {
-        Ok(serde_json::Value::Array(items)) => items
-            .into_iter()
-            .filter_map(|item| match item {
-                serde_json::Value::Number(n) => n.as_i64().map(|v| v as i32),
-                serde_json::Value::String(s) => s.parse::<i32>().ok(),
-                _ => None,
-            })
-            .collect(),
-        _ => Vec::new(),
-    }
-}
-
-fn parse_json_value(raw: &str) -> serde_json::Value {
-    if raw.trim().is_empty() {
-        return serde_json::Value::Null;
-    }
-    serde_json::from_str(raw).unwrap_or(serde_json::Value::Null)
-}
-
-fn format_sqlite_datetime(raw: &str) -> String {
-    let ms = crate::auth::parse_sqlite_datetime_ms(raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-    crate::auth::format_timestamp_ms_iso_millis(ms).unwrap_or_else(|| Utc::now().to_rfc3339())
 }
 
 fn format_naive_datetime_iso_millis(value: NaiveDateTime) -> String {

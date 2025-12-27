@@ -7,7 +7,6 @@ use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -82,18 +81,32 @@ struct CreateWordRequest {
     audio_url: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BatchAddWordsRequest {
+    words: Vec<CreateWordRequest>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BatchAddWordsResult {
+    imported: usize,
+    failed: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    errors: Vec<String>,
+}
+
 pub async fn list_user_wordbooks(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, _req) = match authenticate(&state, req).await {
+    let (proxy, user_id, _req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
 
     let books = match select_word_books(
         proxy.as_ref(),
-        request_state,
         Some(&user_id),
         WordBookSelection::UserOnly,
     )
@@ -117,12 +130,12 @@ pub async fn list_system_wordbooks(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, _user_id, _req) = match authenticate(&state, req).await {
+    let (proxy, _user_id, _req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
 
-    let books = match select_word_books(proxy.as_ref(), request_state, None, WordBookSelection::SystemOnly).await {
+    let books = match select_word_books(proxy.as_ref(), None, WordBookSelection::SystemOnly).await {
         Ok(books) => books,
         Err(err) => {
             tracing::warn!(error = %err, "system wordbooks query failed");
@@ -141,14 +154,13 @@ pub async fn list_available_wordbooks(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, _req) = match authenticate(&state, req).await {
+    let (proxy, user_id, _req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
 
     let books = match select_word_books(
         proxy.as_ref(),
-        request_state,
         Some(&user_id),
         WordBookSelection::SystemAndUser,
     )
@@ -221,17 +233,11 @@ pub async fn create_wordbook(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -243,7 +249,6 @@ pub async fn create_wordbook(
 
     if let Err(err) = insert_word_book(
         proxy.as_ref(),
-        request_state,
         &id,
         &auth_user.id,
         &name,
@@ -282,7 +287,7 @@ pub async fn get_wordbook(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, req) = match authenticate(&state, req).await {
+    let (proxy, user_id, req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
@@ -292,7 +297,7 @@ pub async fn get_wordbook(
         return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法").into_response();
     }
 
-    match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => {
             if book.r#type == "USER" && book.user_id.as_deref() != Some(&user_id) {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "无权访问此词书").into_response();
@@ -357,24 +362,18 @@ pub async fn update_wordbook(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let mut book = match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    let mut book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => book,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
         Err(err) => {
@@ -404,7 +403,7 @@ pub async fn update_wordbook(
     let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     book.updated_at = now_iso.clone();
 
-    if let Err(err) = apply_word_book_update(proxy.as_ref(), request_state, &book, &now_iso).await {
+    if let Err(err) = apply_word_book_update(proxy.as_ref(), &book, &now_iso).await {
         tracing::warn!(error = %err, "wordbook update failed");
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
@@ -416,7 +415,7 @@ pub async fn delete_wordbook(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, req) = match authenticate(&state, req).await {
+    let (proxy, user_id, req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
@@ -426,7 +425,7 @@ pub async fn delete_wordbook(
         return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法").into_response();
     }
 
-    let book = match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    let book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => book,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
         Err(err) => {
@@ -442,7 +441,12 @@ pub async fn delete_wordbook(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "无权删除此词书").into_response();
     }
 
-    if let Err(err) = delete_word_book_record(proxy.as_ref(), request_state, &word_book_id).await {
+    if let Err(err) = delete_words_in_wordbook(proxy.as_ref(), &word_book_id).await {
+        tracing::warn!(error = %err, "wordbook words delete failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    }
+
+    if let Err(err) = delete_word_book_record(proxy.as_ref(), &word_book_id).await {
         tracing::warn!(error = %err, "wordbook delete failed");
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
@@ -458,7 +462,7 @@ pub async fn get_wordbook_words(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, req) = match authenticate(&state, req).await {
+    let (proxy, user_id, req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
@@ -470,7 +474,18 @@ pub async fn get_wordbook_words(
     }
     let word_book_id = segments[2].to_string();
 
-    let book = match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    let query_string = req.uri().query().unwrap_or("");
+    let page = get_query_param(query_string, "page")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(1)
+        .max(1);
+    let page_size = get_query_param(query_string, "pageSize")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(100)
+        .clamp(1, 500);
+    let offset = (page - 1) * page_size;
+
+    let book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => book,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
         Err(err) => {
@@ -483,7 +498,7 @@ pub async fn get_wordbook_words(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "无权访问此词书").into_response();
     }
 
-    let words = match select_words_in_word_book(proxy.as_ref(), request_state, &word_book_id).await {
+    let words = match select_words_in_word_book_paginated(proxy.as_ref(), &word_book_id, page_size, offset).await {
         Ok(words) => words,
         Err(err) => {
             tracing::warn!(error = %err, "wordbook words query failed");
@@ -536,24 +551,18 @@ pub async fn add_word_to_wordbook(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    let book = match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    let book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => book,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
         Err(err) => {
@@ -573,7 +582,6 @@ pub async fn add_word_to_wordbook(
     let word_id = uuid::Uuid::new_v4().to_string();
     if let Err(err) = insert_word(
         proxy.as_ref(),
-        request_state,
         &word_id,
         &word_book_id,
         &spelling,
@@ -589,7 +597,7 @@ pub async fn add_word_to_wordbook(
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
-    if let Err(err) = refresh_word_book_count(proxy.as_ref(), request_state, &word_book_id).await {
+    if let Err(err) = refresh_word_book_count(proxy.as_ref(), &word_book_id).await {
         tracing::warn!(error = %err, "word count refresh failed");
     }
 
@@ -613,11 +621,127 @@ pub async fn add_word_to_wordbook(
         .into_response()
 }
 
+pub async fn batch_add_words_to_wordbook(
+    State(state): State<AppState>,
+    req: Request<Body>,
+) -> Response {
+    let (parts, body_bytes) = match split_body(req).await {
+        Ok(value) => value,
+        Err(res) => return res,
+    };
+
+    let payload: BatchAddWordsRequest = match serde_json::from_slice(&body_bytes) {
+        Ok(payload) => payload,
+        Err(_) => return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法").into_response(),
+    };
+
+    if payload.words.is_empty() {
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "单词列表不能为空").into_response();
+    }
+    if payload.words.len() > 1000 {
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "单次导入不能超过1000个单词").into_response();
+    }
+
+    let path = parts.uri.path();
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    if segments.len() < 4 {
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求参数不合法").into_response();
+    }
+    let word_book_id = segments[2].to_string();
+
+    let token = crate::auth::extract_token(&parts.headers);
+    let Some(token) = token else {
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+    };
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+        }
+    };
+
+    let book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
+        Ok(Some(book)) => book,
+        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
+        Err(err) => {
+            tracing::warn!(error = %err, "wordbook lookup failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        }
+    };
+
+    if book.r#type == "SYSTEM" {
+        return json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无法向系统词书添加单词").into_response();
+    }
+    if book.user_id.as_deref() != Some(&auth_user.id) {
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "无权向此词书添加单词").into_response();
+    }
+
+    let now_iso = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let mut imported = 0usize;
+    let mut errors = Vec::new();
+
+    for (idx, word) in payload.words.iter().enumerate() {
+        let spelling = word.spelling.trim();
+        if spelling.is_empty() {
+            errors.push(format!("第{}个单词: 拼写不能为空", idx + 1));
+            continue;
+        }
+        if word.meanings.is_empty() {
+            errors.push(format!("第{}个单词 '{}': 至少需要一个释义", idx + 1, spelling));
+            continue;
+        }
+
+        let phonetic = word.phonetic.as_deref().unwrap_or("");
+        let word_id = uuid::Uuid::new_v4().to_string();
+
+        if let Err(err) = insert_word(
+            proxy.as_ref(),
+            &word_id,
+            &word_book_id,
+            spelling,
+            phonetic,
+            &word.meanings,
+            &word.examples,
+            word.audio_url.as_deref(),
+            &now_iso,
+        )
+        .await
+        {
+            tracing::warn!(error = %err, spelling = %spelling, "batch word insert failed");
+            errors.push(format!("第{}个单词 '{}': 插入失败", idx + 1, spelling));
+            continue;
+        }
+        imported += 1;
+    }
+
+    if let Err(err) = refresh_word_book_count(proxy.as_ref(), &word_book_id).await {
+        tracing::warn!(error = %err, "word count refresh failed");
+    }
+
+    (
+        StatusCode::OK,
+        Json(SuccessResponse {
+            success: true,
+            data: BatchAddWordsResult {
+                imported,
+                failed: errors.len(),
+                errors,
+            },
+        }),
+    )
+        .into_response()
+}
+
 pub async fn remove_word_from_wordbook(
     State(state): State<AppState>,
     req: Request<Body>,
 ) -> Response {
-    let (proxy, request_state, user_id, req) = match authenticate(&state, req).await {
+    let (proxy, user_id, req) = match authenticate(&state, req).await {
         Ok(value) => value,
         Err(res) => return res,
     };
@@ -630,7 +754,7 @@ pub async fn remove_word_from_wordbook(
     let word_book_id = segments[2].to_string();
     let word_id = segments[4].to_string();
 
-    let book = match select_word_book_by_id(proxy.as_ref(), request_state, &word_book_id).await {
+    let book = match select_word_book_by_id(proxy.as_ref(), &word_book_id).await {
         Ok(Some(book)) => book,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
         Err(err) => {
@@ -646,7 +770,7 @@ pub async fn remove_word_from_wordbook(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "无权从此词书删除单词").into_response();
     }
 
-    let belongs = match word_belongs_to_book(proxy.as_ref(), request_state, &word_book_id, &word_id).await {
+    let belongs = match word_belongs_to_book(proxy.as_ref(), &word_book_id, &word_id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "word belongs check failed");
@@ -658,12 +782,12 @@ pub async fn remove_word_from_wordbook(
         return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "单词不存在或不属于此词书").into_response();
     }
 
-    if let Err(err) = delete_word_record(proxy.as_ref(), request_state, &word_id).await {
+    if let Err(err) = delete_word_record(proxy.as_ref(), &word_id).await {
         tracing::warn!(error = %err, "word delete failed");
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
-    if let Err(err) = refresh_word_book_count(proxy.as_ref(), request_state, &word_book_id).await {
+    if let Err(err) = refresh_word_book_count(proxy.as_ref(), &word_book_id).await {
         tracing::warn!(error = %err, "word count refresh failed");
     }
 
@@ -682,421 +806,236 @@ enum WordBookSelection {
 
 async fn select_word_books(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: Option<&str>,
     selection: WordBookSelection,
 ) -> Result<Vec<WordBookResponse>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(Vec::new());
-        };
-        let (query, binds_user) = match selection {
-            WordBookSelection::UserOnly => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage", wb."type", wb."userId",
-                       wb."isPublic", COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE wb."type" = 'USER' AND wb."userId" = ?
-                GROUP BY wb."id"
-                ORDER BY wb."createdAt" DESC
-                "#,
-                true,
-            ),
-            WordBookSelection::SystemOnly => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage", wb."type", wb."userId",
-                       wb."isPublic", COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE wb."type" = 'SYSTEM'
-                GROUP BY wb."id"
-                ORDER BY wb."createdAt" DESC
-                "#,
-                false,
-            ),
-            WordBookSelection::SystemAndUser => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage", wb."type", wb."userId",
-                       wb."isPublic", COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE (wb."type" = 'SYSTEM') OR (wb."type" = 'USER' AND wb."userId" = ?)
-                GROUP BY wb."id"
-                ORDER BY wb."type" ASC, wb."createdAt" DESC
-                "#,
-                true,
-            ),
-        };
-
-        let mut query = sqlx::query(query);
-        if binds_user {
-            query = query.bind(user_id.unwrap_or_default());
-        }
-        let rows = query.fetch_all(pool).await?;
-        Ok(rows.into_iter().map(|row| map_sqlite_word_book_row(&row)).collect())
-    } else {
-        let Some(pool) = primary.as_ref() else {
-            return Ok(Vec::new());
-        };
-        let (query, binds_user) = match selection {
-            WordBookSelection::UserOnly => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage",
-                       wb."type"::text as "type", wb."userId", wb."isPublic",
-                       COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE wb."type"::text = 'USER' AND wb."userId" = $1
-                GROUP BY wb."id"
-                ORDER BY wb."createdAt" DESC
-                "#,
-                true,
-            ),
-            WordBookSelection::SystemOnly => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage",
-                       wb."type"::text as "type", wb."userId", wb."isPublic",
-                       COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE wb."type"::text = 'SYSTEM'
-                GROUP BY wb."id"
-                ORDER BY wb."createdAt" DESC
-                "#,
-                false,
-            ),
-            WordBookSelection::SystemAndUser => (
-                r#"
-                SELECT wb."id", wb."name", wb."description", wb."coverImage",
-                       wb."type"::text as "type", wb."userId", wb."isPublic",
-                       COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-                FROM "word_books" wb
-                LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-                WHERE (wb."type"::text = 'SYSTEM') OR (wb."type"::text = 'USER' AND wb."userId" = $1)
-                GROUP BY wb."id"
-                ORDER BY wb."type"::text ASC, wb."createdAt" DESC
-                "#,
-                true,
-            ),
-        };
-
-        let mut query = sqlx::query(query);
-        if binds_user {
-            query = query.bind(user_id.unwrap_or_default());
-        }
-        let rows = query.fetch_all(pool).await?;
-        Ok(rows.into_iter().map(|row| map_postgres_word_book_row(&row)).collect())
-    }
-}
-
-async fn select_word_book_by_id(
-    proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
-    word_book_id: &str,
-) -> Result<Option<WordBookResponse>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT wb."id", wb."name", wb."description", wb."coverImage", wb."type", wb."userId",
-                   wb."isPublic", COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
-            FROM "word_books" wb
-            LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-            WHERE wb."id" = ?
-            GROUP BY wb."id"
-            LIMIT 1
-            "#,
-        )
-        .bind(word_book_id)
-        .fetch_optional(pool)
-        .await?;
-        Ok(row.map(|row| map_sqlite_word_book_row(&row)))
-    } else {
-        let Some(pool) = primary.as_ref() else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
+    let pool = proxy.pool();
+    let (query, binds_user) = match selection {
+        WordBookSelection::UserOnly => (
             r#"
             SELECT wb."id", wb."name", wb."description", wb."coverImage",
                    wb."type"::text as "type", wb."userId", wb."isPublic",
                    COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
             FROM "word_books" wb
             LEFT JOIN "words" w ON w."wordBookId" = wb."id"
-            WHERE wb."id" = $1
+            WHERE wb."type"::text = 'USER' AND wb."userId" = $1
             GROUP BY wb."id"
-            LIMIT 1
+            ORDER BY wb."createdAt" DESC
             "#,
-        )
-        .bind(word_book_id)
-        .fetch_optional(pool)
-        .await?;
-        Ok(row.map(|row| map_postgres_word_book_row(&row)))
+            true,
+        ),
+        WordBookSelection::SystemOnly => (
+            r#"
+            SELECT wb."id", wb."name", wb."description", wb."coverImage",
+                   wb."type"::text as "type", wb."userId", wb."isPublic",
+                   COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
+            FROM "word_books" wb
+            LEFT JOIN "words" w ON w."wordBookId" = wb."id"
+            WHERE wb."type"::text = 'SYSTEM'
+            GROUP BY wb."id"
+            ORDER BY wb."createdAt" DESC
+            "#,
+            false,
+        ),
+        WordBookSelection::SystemAndUser => (
+            r#"
+            SELECT wb."id", wb."name", wb."description", wb."coverImage",
+                   wb."type"::text as "type", wb."userId", wb."isPublic",
+                   COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
+            FROM "word_books" wb
+            LEFT JOIN "words" w ON w."wordBookId" = wb."id"
+            WHERE (wb."type"::text = 'SYSTEM') OR (wb."type"::text = 'USER' AND wb."userId" = $1)
+            GROUP BY wb."id"
+            ORDER BY wb."type"::text ASC, wb."createdAt" DESC
+            "#,
+            true,
+        ),
+    };
+
+    let mut query = sqlx::query(query);
+    if binds_user {
+        query = query.bind(user_id.unwrap_or_default());
     }
+    let rows = query.fetch_all(pool).await?;
+    Ok(rows.into_iter().map(|row| map_postgres_word_book_row(&row)).collect())
+}
+
+async fn select_word_book_by_id(
+    proxy: &crate::db::DatabaseProxy,
+    word_book_id: &str,
+) -> Result<Option<WordBookResponse>, sqlx::Error> {
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT wb."id", wb."name", wb."description", wb."coverImage",
+               wb."type"::text as "type", wb."userId", wb."isPublic",
+               COUNT(w."id") as "wordCount", wb."createdAt", wb."updatedAt"
+        FROM "word_books" wb
+        LEFT JOIN "words" w ON w."wordBookId" = wb."id"
+        WHERE wb."id" = $1
+        GROUP BY wb."id"
+        LIMIT 1
+        "#,
+    )
+    .bind(word_book_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|row| map_postgres_word_book_row(&row)))
 }
 
 async fn select_words_in_word_book(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_book_id: &str,
 ) -> Result<Vec<WordResponse>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "wordBookId" = $1
+        ORDER BY "createdAt" DESC
+        "#,
+    )
+    .bind(word_book_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|row| map_postgres_word_row(&row)).collect())
+}
 
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "wordBookId" = ?
-            ORDER BY "createdAt" DESC
-            "#,
-        )
-        .bind(word_book_id)
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.into_iter().map(|row| map_sqlite_word_row(&row)).collect())
-    } else {
-        let Some(pool) = primary.as_ref() else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "wordBookId" = $1
-            ORDER BY "createdAt" DESC
-            "#,
-        )
-        .bind(word_book_id)
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.into_iter().map(|row| map_postgres_word_row(&row)).collect())
-    }
+async fn select_words_in_word_book_paginated(
+    proxy: &crate::db::DatabaseProxy,
+    word_book_id: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<WordResponse>, sqlx::Error> {
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "wordBookId" = $1
+        ORDER BY "createdAt" DESC
+        LIMIT $2 OFFSET $3
+        "#,
+    )
+    .bind(word_book_id)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|row| map_postgres_word_row(&row)).collect())
+}
+
+fn get_query_param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
+    query
+        .split('&')
+        .find_map(|pair| {
+            let mut parts = pair.splitn(2, '=');
+            let k = parts.next()?;
+            let v = parts.next()?;
+            if k == key { Some(v) } else { None }
+        })
 }
 
 async fn word_belongs_to_book(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_book_id: &str,
     word_id: &str,
 ) -> Result<bool, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(false);
-        };
-        let exists: Option<String> = sqlx::query_scalar(
-            r#"SELECT "id" FROM "words" WHERE "id" = ? AND "wordBookId" = ? LIMIT 1"#,
-        )
-        .bind(word_id)
-        .bind(word_book_id)
-        .fetch_optional(pool)
-        .await?;
-        Ok(exists.is_some())
-    } else {
-        let Some(pool) = primary.as_ref() else {
-            return Ok(false);
-        };
-        let exists: Option<String> = sqlx::query_scalar(
-            r#"SELECT "id" FROM "words" WHERE "id" = $1 AND "wordBookId" = $2 LIMIT 1"#,
-        )
-        .bind(word_id)
-        .bind(word_book_id)
-        .fetch_optional(pool)
-        .await?;
-        Ok(exists.is_some())
-    }
+    let pool = proxy.pool();
+    let exists: Option<String> = sqlx::query_scalar(
+        r#"SELECT "id" FROM "words" WHERE "id" = $1 AND "wordBookId" = $2 LIMIT 1"#,
+    )
+    .bind(word_id)
+    .bind(word_book_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(exists.is_some())
 }
 
 async fn insert_word_book(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     id: &str,
     user_id: &str,
     name: &str,
     description: Option<&str>,
     cover_image: Option<&str>,
-    now_iso: &str,
+    _now_iso: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(id.to_string()));
-        data.insert("name".to_string(), serde_json::Value::String(name.to_string()));
-        data.insert("type".to_string(), serde_json::Value::String("USER".to_string()));
-        data.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        data.insert("isPublic".to_string(), serde_json::Value::Bool(false));
-        data.insert("wordCount".to_string(), serde_json::Value::Number(0.into()));
-        if let Some(description) = description {
-            data.insert("description".to_string(), serde_json::Value::String(description.to_string()));
-        }
-        if let Some(cover_image) = cover_image {
-            data.insert("coverImage".to_string(), serde_json::Value::String(cover_image.to_string()));
-        }
-        data.insert("createdAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "word_books".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        let now = Utc::now().naive_utc();
-        sqlx::query(
-            r#"
-            INSERT INTO "word_books"
-              ("id","name","description","type","userId","isPublic","wordCount","coverImage","createdAt","updatedAt")
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            "#,
-        )
-        .bind(id)
-        .bind(name)
-        .bind(description)
-        .bind("USER")
-        .bind(user_id)
-        .bind(false)
-        .bind(0_i64)
-        .bind(cover_image)
-        .bind(now)
-        .bind(now)
-        .execute(&primary)
-        .await?;
-        Ok(())
-    }
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "word_books"
+          ("id","name","description","type","userId","isPublic","wordCount","coverImage","createdAt","updatedAt")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        "#,
+    )
+    .bind(id)
+    .bind(name)
+    .bind(description)
+    .bind("USER")
+    .bind(user_id)
+    .bind(false)
+    .bind(0_i64)
+    .bind(cover_image)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 async fn apply_word_book_update(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     book: &WordBookResponse,
-    now_iso: &str,
+    _now_iso: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(book.id.clone()));
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        UPDATE "word_books"
+        SET "name" = $1, "description" = $2, "coverImage" = $3, "updatedAt" = $4
+        WHERE "id" = $5
+        "#,
+    )
+    .bind(&book.name)
+    .bind(&book.description)
+    .bind(&book.cover_image)
+    .bind(now)
+    .bind(&book.id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
 
-        let mut data = serde_json::Map::new();
-        data.insert("name".to_string(), serde_json::Value::String(book.name.clone()));
-        if let Some(desc) = book.description.as_ref() {
-            data.insert("description".to_string(), serde_json::Value::String(desc.clone()));
-        }
-        if let Some(url) = book.cover_image.as_ref() {
-            data.insert("coverImage".to_string(), serde_json::Value::String(url.clone()));
-        }
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        let now = Utc::now().naive_utc();
-        sqlx::query(
-            r#"
-            UPDATE "word_books"
-            SET "name" = $1, "description" = $2, "coverImage" = $3, "updatedAt" = $4
-            WHERE "id" = $5
-            "#,
-        )
-        .bind(&book.name)
-        .bind(&book.description)
-        .bind(&book.cover_image)
-        .bind(now)
-        .bind(&book.id)
-        .execute(&primary)
+async fn delete_words_in_wordbook(
+    proxy: &crate::db::DatabaseProxy,
+    word_book_id: &str,
+) -> Result<(), sqlx::Error> {
+    let pool = proxy.pool();
+    sqlx::query(r#"DELETE FROM "words" WHERE "wordBookId" = $1"#)
+        .bind(word_book_id)
+        .execute(pool)
         .await?;
-        Ok(())
-    }
+    Ok(())
 }
 
 async fn delete_word_book_record(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_book_id: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(word_book_id.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
-            .bind(word_book_id)
-            .execute(&primary)
-            .await?;
-        Ok(())
-    }
+    let pool = proxy.pool();
+    sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
+        .bind(word_book_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 async fn insert_word(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_id: &str,
     word_book_id: &str,
     spelling: &str,
@@ -1104,169 +1043,67 @@ async fn insert_word(
     meanings: &[String],
     examples: &[String],
     audio_url: Option<&str>,
-    now_iso: &str,
+    _now_iso: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".to_string(), serde_json::Value::String(word_id.to_string()));
-        data.insert("wordBookId".to_string(), serde_json::Value::String(word_book_id.to_string()));
-        data.insert("spelling".to_string(), serde_json::Value::String(spelling.to_string()));
-        data.insert("phonetic".to_string(), serde_json::Value::String(phonetic.to_string()));
-        data.insert(
-            "meanings".to_string(),
-            serde_json::Value::Array(meanings.iter().map(|v| serde_json::Value::String(v.clone())).collect()),
-        );
-        data.insert(
-            "examples".to_string(),
-            serde_json::Value::Array(examples.iter().map(|v| serde_json::Value::String(v.clone())).collect()),
-        );
-        if let Some(audio_url) = audio_url {
-            data.insert("audioUrl".to_string(), serde_json::Value::String(audio_url.to_string()));
-        }
-        data.insert("createdAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "words".to_string(),
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        let now = Utc::now().naive_utc();
-        sqlx::query(
-            r#"
-            INSERT INTO "words"
-              ("id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt")
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            "#,
-        )
-        .bind(word_id)
-        .bind(spelling)
-        .bind(phonetic)
-        .bind(meanings.to_vec())
-        .bind(examples.to_vec())
-        .bind(audio_url)
-        .bind(word_book_id)
-        .bind(now)
-        .bind(now)
-        .execute(&primary)
-        .await?;
-        Ok(())
-    }
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "words"
+          ("id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        "#,
+    )
+    .bind(word_id)
+    .bind(spelling)
+    .bind(phonetic)
+    .bind(meanings.to_vec())
+    .bind(examples.to_vec())
+    .bind(audio_url)
+    .bind(word_book_id)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 async fn delete_word_record(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_id: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(word_id.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Delete {
-            table: "words".to_string(),
-            r#where: where_clause,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        sqlx::query(r#"DELETE FROM "words" WHERE "id" = $1"#)
-            .bind(word_id)
-            .execute(&primary)
-            .await?;
-        Ok(())
-    }
+    let pool = proxy.pool();
+    sqlx::query(r#"DELETE FROM "words" WHERE "id" = $1"#)
+        .bind(word_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 async fn refresh_word_book_count(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_book_id: &str,
 ) -> Result<(), sqlx::Error> {
-    let count = count_words(proxy, state, word_book_id).await?;
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(word_book_id.to_string()));
-
-        let mut data = serde_json::Map::new();
-        data.insert("wordCount".to_string(), serde_json::Value::Number(count.into()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "word_books".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        Ok(())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-        sqlx::query(r#"UPDATE "word_books" SET "wordCount" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
-            .bind(count)
-            .bind(Utc::now().naive_utc())
-            .bind(word_book_id)
-            .execute(&primary)
-            .await?;
-        Ok(())
-    }
+    let count = count_words(proxy, word_book_id).await?;
+    let pool = proxy.pool();
+    sqlx::query(r#"UPDATE "word_books" SET "wordCount" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
+        .bind(count)
+        .bind(Utc::now().naive_utc())
+        .bind(word_book_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 async fn count_words(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     word_book_id: &str,
 ) -> Result<i64, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback.as_ref() else {
-            return Ok(0);
-        };
-        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = ?"#)
-            .bind(word_book_id)
-            .fetch_one(pool)
-            .await
-    } else {
-        let Some(pool) = primary.as_ref() else {
-            return Ok(0);
-        };
-        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
-            .bind(word_book_id)
-            .fetch_one(pool)
-            .await
-    }
+    let pool = proxy.pool();
+    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
+        .bind(word_book_id)
+        .fetch_one(pool)
+        .await
 }
 
 fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
@@ -1287,24 +1124,6 @@ fn map_postgres_word_book_row(row: &sqlx::postgres::PgRow) -> WordBookResponse {
     }
 }
 
-fn map_sqlite_word_book_row(row: &sqlx::sqlite::SqliteRow) -> WordBookResponse {
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-
-    WordBookResponse {
-        id: row.try_get("id").unwrap_or_default(),
-        name: row.try_get("name").unwrap_or_default(),
-        description: row.try_get::<Option<String>, _>("description").ok().flatten(),
-        cover_image: row.try_get::<Option<String>, _>("coverImage").ok().flatten(),
-        r#type: row.try_get("type").unwrap_or_else(|_| "SYSTEM".to_string()),
-        user_id: row.try_get::<Option<String>, _>("userId").ok().flatten(),
-        is_public: row.try_get::<i64, _>("isPublic").unwrap_or(0) != 0,
-        word_count: row.try_get::<i64, _>("wordCount").unwrap_or(0),
-        created_at: format_sqlite_datetime(&created_raw),
-        updated_at: format_sqlite_datetime(&updated_raw),
-    }
-}
-
 fn map_postgres_word_row(row: &sqlx::postgres::PgRow) -> WordResponse {
     let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
     let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
@@ -1321,41 +1140,6 @@ fn map_postgres_word_row(row: &sqlx::postgres::PgRow) -> WordResponse {
     }
 }
 
-fn map_sqlite_word_row(row: &sqlx::sqlite::SqliteRow) -> WordResponse {
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-    WordResponse {
-        id: row.try_get("id").unwrap_or_default(),
-        word_book_id: row.try_get("wordBookId").unwrap_or_default(),
-        spelling: row.try_get("spelling").unwrap_or_default(),
-        phonetic: row.try_get("phonetic").unwrap_or_default(),
-        meanings: parse_json_string_array(&row.try_get::<String, _>("meanings").unwrap_or_default()),
-        examples: parse_json_string_array(&row.try_get::<String, _>("examples").unwrap_or_default()),
-        audio_url: row.try_get::<Option<String>, _>("audioUrl").ok().flatten(),
-        created_at: format_sqlite_datetime(&created_raw),
-        updated_at: format_sqlite_datetime(&updated_raw),
-    }
-}
-
-fn parse_json_string_array(raw: &str) -> Vec<String> {
-    match serde_json::from_str::<serde_json::Value>(raw) {
-        Ok(serde_json::Value::Array(items)) => items
-            .into_iter()
-            .filter_map(|item| match item {
-                serde_json::Value::String(v) => Some(v),
-                other => Some(other.to_string()),
-            })
-            .collect(),
-        Ok(serde_json::Value::String(v)) => vec![v],
-        _ => Vec::new(),
-    }
-}
-
-fn format_sqlite_datetime(raw: &str) -> String {
-    let ms = crate::auth::parse_sqlite_datetime_ms(raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-    crate::auth::format_timestamp_ms_iso_millis(ms).unwrap_or_else(|| Utc::now().to_rfc3339())
-}
-
 fn format_naive_iso(value: NaiveDateTime) -> String {
     DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
 }
@@ -1366,7 +1150,6 @@ async fn authenticate(
 ) -> Result<
     (
         std::sync::Arc<crate::db::DatabaseProxy>,
-        crate::db::state_machine::DatabaseState,
         String,
         Request<Body>,
     ),
@@ -1377,24 +1160,18 @@ async fn authenticate(
         return Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response());
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response());
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response());
         }
     };
 
-    Ok((proxy, request_state, auth_user.id, req))
+    Ok((proxy, auth_user.id, req))
 }
 
 async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {

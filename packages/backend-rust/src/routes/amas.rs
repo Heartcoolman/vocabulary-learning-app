@@ -1,21 +1,26 @@
 use std::sync::Arc;
 
-use axum::extract::{Extension, Query, State};
+use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
 };
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
+use crate::services::learning_state::{
+    upsert_word_state, WordState, WordStateUpdateData,
+};
+use crate::services::record::{create_record, CreateRecordInput};
+use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
+use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
+use crate::db::operations::{insert_decision_record, DecisionRecord};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -85,6 +90,42 @@ struct ProcessEventResponse {
     reward: RewardResponse,
     #[serde(skip_serializing_if = "Option::is_none")]
     cold_start_phase: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    should_break: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suggestion: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    objective_evaluation: Option<ObjectiveEvaluationResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    multi_objective_adjusted: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ObjectiveEvaluationResponse {
+    metrics: MultiObjectiveMetricsResponse,
+    constraints_satisfied: bool,
+    constraint_violations: Vec<ConstraintViolationResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suggested_adjustments: Option<StrategyResponse>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MultiObjectiveMetricsResponse {
+    short_term_score: f64,
+    long_term_score: f64,
+    efficiency_score: f64,
+    aggregated_score: f64,
+    ts: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConstraintViolationResponse {
+    constraint: String,
+    expected: f64,
+    actual: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,8 +214,11 @@ struct BatchProcessRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BatchProcessResponse {
+    #[serde(rename = "processed")]
     processed_count: usize,
+    #[serde(rename = "finalState")]
     final_state: StateResponse,
+    #[serde(rename = "finalStrategy")]
     final_strategy: StrategyResponse,
 }
 
@@ -208,20 +252,21 @@ fn not_implemented() -> Response {
 
 async fn process_event(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(body): Json<ProcessEventRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, user, _) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let session_id = body.session_id
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
+    let word_id = body.word_id.clone();
+    let response_time = body.response_time.max(0);
     let raw_event = RawEvent {
         word_id: Some(body.word_id),
         is_correct: body.is_correct,
-        response_time: body.response_time,
+        response_time,
         dwell_time: body.dwell_time,
         pause_count: body.pause_count.unwrap_or(0),
         switch_count: body.switch_count.unwrap_or(0),
@@ -240,6 +285,105 @@ async fn process_event(
     let result = engine.process_event(&user.id, raw_event, options)
         .await
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, "AMAS_ERROR", &e))?;
+
+    // Save state snapshot for learning curve history
+    let snapshot = UserStateSnapshot {
+        attention: result.state.attention,
+        fatigue: result.state.fatigue,
+        motivation: result.state.motivation,
+        memory: result.state.cognitive.mem,
+        speed: result.state.cognitive.speed,
+        stability: result.state.cognitive.stability,
+        trend_state: result.state.trend.map(|t| t.as_str().to_string()),
+    };
+    if let Err(e) = save_state_snapshot(&proxy, &user.id, snapshot).await {
+        tracing::warn!(error = %e, "Failed to save state snapshot");
+    }
+
+    // Update word_learning_states based on mastery decision
+    if let Some(ref mastery) = result.word_mastery_decision {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let mastery_level = ((mastery.new_mastery * 5.0).floor() as i32).clamp(0, 5);
+        let word_state = if mastery.new_mastery >= 0.8 {
+            WordState::Mastered
+        } else if mastery.new_mastery >= 0.4 {
+            WordState::Reviewing
+        } else if mastery.new_mastery > 0.0 {
+            WordState::Learning
+        } else {
+            WordState::New
+        };
+        let next_review_ms = now_ms + (mastery.new_interval * 24.0 * 60.0 * 60.0 * 1000.0) as i64;
+
+        let update_data = WordStateUpdateData {
+            state: Some(word_state),
+            mastery_level: Some(mastery_level),
+            ease_factor: None,
+            review_count: None,
+            last_review_date: Some(now_ms),
+            next_review_date: Some(next_review_ms),
+            increment_review: true,
+        };
+
+        if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
+            tracing::warn!(error = %e, "Failed to update word learning state");
+        }
+    }
+
+    // Write answer record for statistics
+    tracing::debug!(
+        word_id = %word_id,
+        response_time = body.response_time,
+        is_correct = body.is_correct,
+        "Creating answer record with responseTime"
+    );
+    let record_input = CreateRecordInput {
+        word_id,
+        selected_option: None,
+        selected_answer: None,
+        correct_answer: None,
+        is_correct: body.is_correct,
+        timestamp_ms: Some(chrono::Utc::now().timestamp_millis()),
+        response_time: Some(body.response_time),
+        dwell_time: body.dwell_time,
+        session_id: Some(session_id.clone()),
+        mastery_level_before: None,
+        mastery_level_after: result.word_mastery_decision.as_ref()
+            .map(|m| ((m.new_mastery * 5.0).round() as i64).clamp(0, 5)),
+    };
+    match create_record(&proxy, &user.id, record_input).await {
+        Ok(record) => {
+            let delay_ms = 5 * 60 * 1000i64;
+            let _ = enqueue_delayed_reward(&proxy, EnqueueRewardInput {
+                user_id: user.id.clone(),
+                answer_record_id: Some(record.id.clone()),
+                session_id: Some(session_id.clone()),
+                reward: result.reward.value,
+                due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
+                idempotency_key: format!("reward:{}:{}", user.id, record.id),
+            }).await;
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to create answer record");
+        }
+    }
+
+    // Write decision record for explainability
+    let decision_record = DecisionRecord {
+        id: Uuid::new_v4().to_string(),
+        user_id: user.id.clone(),
+        session_id: Some(session_id.clone()),
+        decision_type: "process_event".to_string(),
+        input_state: serde_json::to_value(&result.state).unwrap_or_default(),
+        output_action: serde_json::to_value(&result.strategy).unwrap_or_default(),
+        reward: Some(result.reward.value),
+        delayed_reward: None,
+        feature_vector_id: result.feature_vector.as_ref().map(|_| Uuid::new_v4().to_string()),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    if let Err(e) = insert_decision_record(&proxy, &decision_record).await {
+        tracing::warn!(error = %e, "Failed to insert decision record");
+    }
 
     let response = ProcessEventResponse {
         session_id,
@@ -272,6 +416,37 @@ async fn process_event(
             ColdStartPhase::Explore => "explore".to_string(),
             ColdStartPhase::Normal => "normal".to_string(),
         }),
+        should_break: if result.state.fatigue > 0.7 || result.state.attention < 0.3 {
+            Some(true)
+        } else {
+            None
+        },
+        suggestion: if result.state.fatigue > 0.7 {
+            Some("您已学习较长时间，建议休息一下".to_string())
+        } else if result.state.attention < 0.3 {
+            Some("注意力下降，建议稍作休息后继续".to_string())
+        } else if result.state.motivation < -0.3 {
+            Some("学习动力不足，可以尝试更简单的内容".to_string())
+        } else {
+            None
+        },
+        objective_evaluation: result.objective_evaluation.map(|oe| ObjectiveEvaluationResponse {
+            metrics: MultiObjectiveMetricsResponse {
+                short_term_score: oe.metrics.short_term_score,
+                long_term_score: oe.metrics.long_term_score,
+                efficiency_score: oe.metrics.efficiency_score,
+                aggregated_score: oe.metrics.aggregated_score,
+                ts: oe.metrics.ts,
+            },
+            constraints_satisfied: oe.constraints_satisfied,
+            constraint_violations: oe.constraint_violations.into_iter().map(|cv| ConstraintViolationResponse {
+                constraint: cv.constraint,
+                expected: cv.expected,
+                actual: cv.actual,
+            }).collect(),
+            suggested_adjustments: oe.suggested_adjustments.map(|s| strategy_to_response(&s)),
+        }),
+        multi_objective_adjusted: result.multi_objective_adjusted,
     };
 
     Ok(Json(SuccessResponse {
@@ -282,10 +457,9 @@ async fn process_event(
 
 async fn get_state(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, user, _) = require_user(&state, request_state, &headers).await?;
+    let (_, user) = require_user(&state, &headers).await?;
 
     let engine = state.amas_engine();
     let user_state = engine.get_user_state(&user.id).await;
@@ -301,10 +475,9 @@ async fn get_state(
 
 async fn get_strategy(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, user, _) = require_user(&state, request_state, &headers).await?;
+    let (_, user) = require_user(&state, &headers).await?;
 
     let engine = state.amas_engine();
     let strategy = engine.get_current_strategy(&user.id).await;
@@ -327,11 +500,10 @@ async fn get_strategy(
 
 async fn batch_process(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(body): Json<BatchProcessRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, user, _) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if body.events.is_empty() {
         return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "事件数组不能为空"));
@@ -345,6 +517,7 @@ async fn batch_process(
     let mut final_strategy = None;
 
     for event in &body.events {
+        let word_id = event.word_id.clone();
         let raw_event = RawEvent {
             word_id: Some(event.word_id.clone()),
             is_correct: event.is_correct,
@@ -360,6 +533,68 @@ async fn batch_process(
 
         match engine.process_event(&user.id, raw_event, options).await {
             Ok(result) => {
+                // Update word_learning_states for this event
+                if let Some(ref mastery) = result.word_mastery_decision {
+                    let now_ms = chrono::Utc::now().timestamp_millis();
+                    let mastery_level = ((mastery.new_mastery * 5.0).floor() as i32).clamp(0, 5);
+                    let word_state = if mastery.new_mastery >= 0.8 {
+                        WordState::Mastered
+                    } else if mastery.new_mastery >= 0.4 {
+                        WordState::Reviewing
+                    } else if mastery.new_mastery > 0.0 {
+                        WordState::Learning
+                    } else {
+                        WordState::New
+                    };
+                    let next_review_ms = now_ms + (mastery.new_interval * 24.0 * 60.0 * 60.0 * 1000.0) as i64;
+
+                    let update_data = WordStateUpdateData {
+                        state: Some(word_state),
+                        mastery_level: Some(mastery_level),
+                        ease_factor: None,
+                        review_count: None,
+                        last_review_date: Some(now_ms),
+                        next_review_date: Some(next_review_ms),
+                        increment_review: true,
+                    };
+
+                    if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
+                        tracing::warn!(error = %e, "Failed to update word learning state in batch");
+                    }
+                }
+
+                // Create answer record (same as process_event)
+                let record_input = CreateRecordInput {
+                    word_id: word_id.clone(),
+                    selected_option: None,
+                    selected_answer: None,
+                    correct_answer: None,
+                    is_correct: event.is_correct,
+                    timestamp_ms: Some(event.timestamp),
+                    response_time: Some(event.response_time),
+                    dwell_time: None,
+                    session_id: None,
+                    mastery_level_before: None,
+                    mastery_level_after: result.word_mastery_decision.as_ref()
+                        .map(|m| ((m.new_mastery * 5.0).floor() as i64).clamp(0, 5)),
+                };
+                match create_record(&proxy, &user.id, record_input).await {
+                    Ok(record) => {
+                        let delay_ms = 5 * 60 * 1000i64;
+                        let _ = enqueue_delayed_reward(&proxy, EnqueueRewardInput {
+                            user_id: user.id.clone(),
+                            answer_record_id: Some(record.id.clone()),
+                            session_id: None,
+                            reward: result.reward.value,
+                            due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
+                            idempotency_key: format!("reward:{}:{}", user.id, record.id),
+                        }).await;
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to create answer record in batch");
+                    }
+                }
+
                 final_state = Some(result.state);
                 final_strategy = Some(result.strategy);
             }
@@ -384,10 +619,9 @@ async fn batch_process(
 
 async fn get_delayed_rewards(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, _user, _) = require_user(&state, request_state, &headers).await?;
+    let (_, _user) = require_user(&state, &headers).await?;
 
     #[derive(Serialize)]
     struct DelayedRewardsResponse {
@@ -406,12 +640,11 @@ async fn get_delayed_rewards(
 
 async fn get_time_preferences(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    match crate::services::learning_time::get_time_preferences(&proxy, db_state, &user.id).await {
+    match crate::services::learning_time::get_time_preferences(&proxy, &user.id).await {
         Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
         Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
@@ -419,12 +652,11 @@ async fn get_time_preferences(
 
 async fn get_golden_time(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    match crate::services::learning_time::is_golden_time(&proxy, db_state, &user.id).await {
+    match crate::services::learning_time::is_golden_time(&proxy, &user.id).await {
         Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
         Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
@@ -432,12 +664,11 @@ async fn get_golden_time(
 
 async fn get_trend(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    match crate::services::trend_analysis::get_current_trend(&proxy, db_state, &user.id).await {
+    match crate::services::trend_analysis::get_current_trend(&proxy, &user.id).await {
         Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
         Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
@@ -445,14 +676,13 @@ async fn get_trend(
 
 async fn get_trend_history(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Query(query): Query<DaysQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let days = query.days.unwrap_or(28) as i64;
 
-    match crate::services::trend_analysis::get_trend_history(&proxy, db_state, &user.id, days).await {
+    match crate::services::trend_analysis::get_trend_history(&proxy, &user.id, days).await {
         Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
         Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
@@ -460,27 +690,56 @@ async fn get_trend_history(
 
 async fn get_trend_report(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    match crate::services::trend_analysis::generate_trend_report(&proxy, db_state, &user.id).await {
+    match crate::services::trend_analysis::generate_trend_report(&proxy, &user.id).await {
         Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
         Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
 }
 
-async fn get_history(Query(_query): Query<RangeQuery>) -> Response {
-    not_implemented()
+async fn get_history(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<RangeQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let range = query.range.unwrap_or(30);
+
+    match crate::services::state_history::get_state_history(proxy.pool(), &user.id, range).await {
+        Ok(history) => Ok(Json(SuccessResponse { success: true, data: history })),
+        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+    }
 }
 
-async fn get_growth(Query(_query): Query<RangeQuery>) -> Response {
-    not_implemented()
+async fn get_growth(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<RangeQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let range = query.range.unwrap_or(30);
+
+    match crate::services::state_history::get_cognitive_growth(proxy.pool(), &user.id, range).await {
+        Ok(growth) => Ok(Json(SuccessResponse { success: true, data: growth })),
+        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+    }
 }
 
-async fn get_changes(Query(_query): Query<RangeQuery>) -> Response {
-    not_implemented()
+async fn get_changes(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<RangeQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let range = query.range.unwrap_or(30);
+
+    match crate::services::state_history::get_significant_changes(proxy.pool(), &user.id, range).await {
+        Ok(changes) => Ok(Json(SuccessResponse { success: true, data: changes })),
+        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+    }
 }
 
 async fn explain_decision(
@@ -497,22 +756,17 @@ async fn explain_decision(
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let request_state = DatabaseState::Normal;
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
         }
     };
 
-    let pg_pool = proxy.primary_pool().await;
-    let sqlite_pool = proxy.fallback_pool().await;
-    let request_state_ref = Some(&RequestDbState(request_state));
+    let pool = proxy.pool();
 
     match crate::services::explainability::get_decision_explanation(
-        pg_pool.as_ref(),
-        sqlite_pool.as_ref(),
-        request_state_ref,
+        &pool,
         &auth_user.id,
         query.decision_id.as_deref(),
     )
@@ -550,23 +804,18 @@ async fn get_decision_timeline(
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let request_state = DatabaseState::Normal;
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
         }
     };
 
-    let pg_pool = proxy.primary_pool().await;
-    let sqlite_pool = proxy.fallback_pool().await;
-    let request_state_ref = Some(&RequestDbState(request_state));
+    let pool = proxy.pool();
     let limit = query.limit.unwrap_or(50).min(200);
 
     match crate::services::explainability::get_decision_timeline(
-        pg_pool.as_ref(),
-        sqlite_pool.as_ref(),
-        request_state_ref,
+        &pool,
         &auth_user.id,
         limit,
         query.cursor.as_deref(),
@@ -599,22 +848,17 @@ async fn counterfactual(
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let request_state = DatabaseState::Normal;
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
         }
     };
 
-    let pg_pool = proxy.primary_pool().await;
-    let sqlite_pool = proxy.fallback_pool().await;
-    let request_state_ref = Some(&RequestDbState(request_state));
+    let pool = proxy.pool();
 
     match crate::services::explainability::run_counterfactual(
-        pg_pool.as_ref(),
-        sqlite_pool.as_ref(),
-        request_state_ref,
+        &pool,
         &auth_user.id,
         input,
     )
@@ -711,60 +955,29 @@ struct TrendHistoryPoint {
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
-enum SelectedReadPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-async fn select_read_pool(
-    proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
-) -> Result<SelectedReadPool, AppError> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedReadPool::Fallback)
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedReadPool::Primary(pool)),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedReadPool::Fallback)
-                .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        },
-    }
-}
 
 async fn get_learning_curve(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Query(query): Query<DaysQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     let days = query.days.unwrap_or(30);
     if !(7..=90).contains(&days) {
         return Err(json_error(
@@ -776,14 +989,9 @@ async fn get_learning_curve(
 
     let today = Utc::now().date_naive();
     let start_date = today - Duration::days(days as i64);
-    let start_date_str = start_date.format("%Y-%m-%d").to_string();
 
-    let points = match select_read_pool(proxy.as_ref(), db_state).await? {
-        SelectedReadPool::Primary(pool) => select_learning_curve_pg(&pool, &user.id, start_date).await?,
-        SelectedReadPool::Fallback(pool) => {
-            select_learning_curve_sqlite(&pool, &user.id, &start_date_str).await?
-        }
-    };
+    let pool = proxy.pool();
+    let points = select_learning_curve_pg(&pool, &user.id, start_date).await?;
 
     let mastery_values: Vec<f64> = points.iter().map(|p| p.mastery).collect();
     let trend = compute_mastery_trend(&mastery_values);
@@ -854,65 +1062,6 @@ async fn select_learning_curve_pg(
     Ok(points)
 }
 
-async fn select_learning_curve_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    start_date: &str,
-) -> Result<Vec<LearningCurvePoint>, AppError> {
-    let rows = sqlx::query(
-        r#"
-        SELECT "date", "attention", "fatigue", "motivation", "memory"
-        FROM "user_state_history"
-        WHERE "userId" = ? AND "date" >= ?
-        ORDER BY "date" ASC
-        "#,
-    )
-    .bind(user_id)
-    .bind(start_date)
-    .fetch_all(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let mut points = Vec::with_capacity(rows.len());
-    for row in rows {
-        let date: String = row
-            .try_get("date")
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let attention: f64 = row
-            .try_get("attention")
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let fatigue: f64 = row
-            .try_get("fatigue")
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let motivation: f64 = row
-            .try_get("motivation")
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-        let memory: f64 = row
-            .try_get("memory")
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-        points.push(LearningCurvePoint {
-            date: normalize_history_date(&date),
-            mastery: memory * 100.0,
-            attention,
-            fatigue,
-            motivation,
-        });
-    }
-
-    Ok(points)
-}
-
-fn normalize_history_date(value: &str) -> String {
-    if value.contains('T') {
-        return value.to_string();
-    }
-    if value.len() == 10 {
-        return format!("{value}T00:00:00.000Z");
-    }
-    value.to_string()
-}
-
 fn compute_mastery_trend(values: &[f64]) -> String {
     if values.len() < 2 {
         return "flat".to_string();
@@ -929,11 +1078,10 @@ fn compute_mastery_trend(values: &[f64]) -> String {
 
 async fn get_phase(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    let pool = select_read_pool(proxy.as_ref(), db_state).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let pool = proxy.pool();
 
     let phase = match load_cold_start_phase(&pool, &user.id).await? {
         Some(value) => value,
@@ -950,51 +1098,26 @@ async fn get_phase(
 }
 
 async fn load_cold_start_phase(
-    pool: &SelectedReadPool,
+    pool: &PgPool,
     user_id: &str,
 ) -> Result<Option<String>, AppError> {
-    match pool {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT "coldStartState"
-                FROM "amas_user_states"
-                WHERE "userId" = $1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let row = sqlx::query(
+        r#"
+        SELECT "coldStartState"
+        FROM "amas_user_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-            let Some(row) = row else { return Ok(None) };
-            let value: Option<serde_json::Value> = row
-                .try_get("coldStartState")
-                .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(extract_phase_from_json(value.as_ref()))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT "coldStartState"
-                FROM "amas_user_states"
-                WHERE "userId" = ?
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-            let Some(row) = row else { return Ok(None) };
-            let raw: Option<String> = row
-                .try_get("coldStartState")
-                .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            let Some(raw) = raw else { return Ok(None) };
-            let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw));
-            Ok(extract_phase_from_json(Some(&parsed)))
-        }
-    }
+    let Some(row) = row else { return Ok(None) };
+    let value: Option<serde_json::Value> = row
+        .try_get("coldStartState")
+        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    Ok(extract_phase_from_json(value.as_ref()))
 }
 
 fn extract_phase_from_json(value: Option<&serde_json::Value>) -> Option<String> {
@@ -1029,7 +1152,7 @@ fn phase_description(phase: &str) -> &'static str {
 }
 
 async fn infer_phase_from_interactions(
-    pool: &SelectedReadPool,
+    pool: &PgPool,
     user_id: &str,
 ) -> Result<String, AppError> {
     let count = count_recent_interactions(pool, user_id).await?;
@@ -1043,46 +1166,30 @@ async fn infer_phase_from_interactions(
 }
 
 async fn count_recent_interactions(
-    pool: &SelectedReadPool,
+    pool: &PgPool,
     user_id: &str,
 ) -> Result<i64, AppError> {
-    match pool {
-        SelectedReadPool::Primary(pool) => sqlx::query_scalar::<_, i64>(
-            r#"
-            SELECT COUNT(1) FROM (
-                SELECT 1 FROM "answer_records"
-                WHERE "userId" = $1
-                LIMIT 8
-            ) AS t
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")),
-        SelectedReadPool::Fallback(pool) => sqlx::query_scalar::<_, i64>(
-            r#"
-            SELECT COUNT(1) FROM (
-                SELECT 1 FROM "answer_records"
-                WHERE "userId" = ?
-                LIMIT 8
-            ) AS t
-            "#,
-        )
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")),
-    }
+    sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(1) FROM (
+            SELECT 1 FROM "answer_records"
+            WHERE "userId" = $1
+            LIMIT 8
+        ) AS t
+        "#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))
 }
 
 async fn get_trend_intervention(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    let pool = select_read_pool(proxy.as_ref(), db_state).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    let pool = proxy.pool();
 
     let (trend_state, consecutive_days) = load_current_trend(&pool, &user.id).await?;
     let result = compute_intervention(&trend_state, consecutive_days);
@@ -1094,99 +1201,50 @@ async fn get_trend_intervention(
 }
 
 async fn load_current_trend(
-    pool: &SelectedReadPool,
+    pool: &PgPool,
     user_id: &str,
 ) -> Result<(String, i64), AppError> {
-    let (explicit_state, history) = match pool {
-        SelectedReadPool::Primary(pool) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"
-                SELECT "trendState"
-                FROM "amas_user_states"
-                WHERE "userId" = $1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let trend_state: Option<String> = sqlx::query_scalar(
+        r#"
+        SELECT "trendState"
+        FROM "amas_user_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-            let rows = sqlx::query(
-                r#"
-                SELECT "trendState", "motivation", "memory", "speed"
-                FROM "user_state_history"
-                WHERE "userId" = $1
-                ORDER BY "date" DESC
-                LIMIT 30
-                "#,
-            )
-            .bind(user_id)
-            .fetch_all(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let rows = sqlx::query(
+        r#"
+        SELECT "trendState", "motivation", "memory", "speed"
+        FROM "user_state_history"
+        WHERE "userId" = $1
+        ORDER BY "date" DESC
+        LIMIT 30
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-            let mut history = Vec::with_capacity(rows.len());
-            for row in rows {
-                let trend_state: Option<String> = row.try_get("trendState").ok();
-                let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
-                let memory: f64 = row.try_get("memory").unwrap_or(0.0);
-                let speed: f64 = row.try_get("speed").unwrap_or(0.0);
-                history.push(TrendHistoryPoint {
-                    trend_state,
-                    motivation,
-                    memory,
-                    speed,
-                });
-            }
+    let mut history = Vec::with_capacity(rows.len());
+    for row in rows {
+        let trend_state: Option<String> = row.try_get("trendState").ok();
+        let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
+        let memory: f64 = row.try_get("memory").unwrap_or(0.0);
+        let speed: f64 = row.try_get("speed").unwrap_or(0.0);
+        history.push(TrendHistoryPoint {
+            trend_state,
+            motivation,
+            memory,
+            speed,
+        });
+    }
 
-            (trend_state, history)
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let trend_state: Option<String> = sqlx::query_scalar(
-                r#"
-                SELECT "trendState"
-                FROM "amas_user_states"
-                WHERE "userId" = ?
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-            let rows = sqlx::query(
-                r#"
-                SELECT "trendState", "motivation", "memory", "speed"
-                FROM "user_state_history"
-                WHERE "userId" = ?
-                ORDER BY "date" DESC
-                LIMIT 30
-                "#,
-            )
-            .bind(user_id)
-            .fetch_all(pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-            let mut history = Vec::with_capacity(rows.len());
-            for row in rows {
-                let trend_state: Option<String> = row.try_get("trendState").ok();
-                let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
-                let memory: f64 = row.try_get("memory").unwrap_or(0.0);
-                let speed: f64 = row.try_get("speed").unwrap_or(0.0);
-                history.push(TrendHistoryPoint {
-                    trend_state,
-                    motivation,
-                    memory,
-                    speed,
-                });
-            }
-
-            (trend_state, history)
-        }
-    };
-
-    let state = explicit_state
+    let state = trend_state
         .as_deref()
         .and_then(normalize_trend_state)
         .map(|v| v.to_string())
@@ -1319,11 +1377,10 @@ fn compute_intervention(trend_state: &str, consecutive_days: i64) -> Interventio
 
 async fn reset_user(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
-    reset_user_state(proxy.as_ref(), db_state, &user.id).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
+    reset_user_state(proxy.as_ref(), &user.id).await?;
 
     Ok(Json(SuccessMessageResponse {
         success: true,
@@ -1333,7 +1390,6 @@ async fn reset_user(
 
 async fn reset_user_state(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<(), AppError> {
     let now = Utc::now().naive_utc();
@@ -1345,132 +1401,7 @@ async fn reset_user_state(
     let model_id = Uuid::new_v4().to_string();
     let default_model = serde_json::json!({});
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".to_string(), serde_json::Value::String(state_id));
-        create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        create.insert(
-            "attention".to_string(),
-            serde_json::Number::from_f64(0.7)
-                .map(serde_json::Value::Number)
-                .unwrap_or_else(|| serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        create.insert(
-            "fatigue".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(0)),
-        );
-        create.insert(
-            "motivation".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(0)),
-        );
-        create.insert(
-            "confidence".to_string(),
-            serde_json::Value::Number(serde_json::Number::from_f64(0.5).unwrap_or_else(|| serde_json::Number::from(0))),
-        );
-        create.insert("cognitiveProfile".to_string(), default_cognitive.clone());
-        create.insert("habitProfile".to_string(), serde_json::Value::Null);
-        create.insert("trendState".to_string(), serde_json::Value::Null);
-        create.insert("coldStartState".to_string(), serde_json::Value::Null);
-        create.insert(
-            "lastUpdateTs".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(now_ms)),
-        );
-        create.insert(
-            "updatedAt".to_string(),
-            serde_json::Value::String(now.to_string()),
-        );
-
-        let mut update = serde_json::Map::new();
-        update.insert(
-            "attention".to_string(),
-            serde_json::Number::from_f64(0.7)
-                .map(serde_json::Value::Number)
-                .unwrap_or_else(|| serde_json::Value::Number(serde_json::Number::from(0))),
-        );
-        update.insert(
-            "fatigue".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(0)),
-        );
-        update.insert(
-            "motivation".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(0)),
-        );
-        update.insert(
-            "confidence".to_string(),
-            serde_json::Value::Number(serde_json::Number::from_f64(0.5).unwrap_or_else(|| serde_json::Number::from(0))),
-        );
-        update.insert("cognitiveProfile".to_string(), default_cognitive);
-        update.insert("habitProfile".to_string(), serde_json::Value::Null);
-        update.insert("trendState".to_string(), serde_json::Value::Null);
-        update.insert("coldStartState".to_string(), serde_json::Value::Null);
-        update.insert(
-            "lastUpdateTs".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(now_ms)),
-        );
-        update.insert(
-            "updatedAt".to_string(),
-            serde_json::Value::String(now.to_string()),
-        );
-
-        let state_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_states".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy
-            .write_operation(state, state_op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-
-        let mut model_where = serde_json::Map::new();
-        model_where.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-
-        let mut model_create = serde_json::Map::new();
-        model_create.insert("id".to_string(), serde_json::Value::String(model_id));
-        model_create.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        model_create.insert("modelData".to_string(), default_model.clone());
-        model_create.insert(
-            "updatedAt".to_string(),
-            serde_json::Value::String(now.to_string()),
-        );
-
-        let mut model_update = serde_json::Map::new();
-        model_update.insert("modelData".to_string(), default_model);
-        model_update.insert(
-            "updatedAt".to_string(),
-            serde_json::Value::String(now.to_string()),
-        );
-
-        let model_op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "amas_user_models".to_string(),
-            r#where: model_where,
-            create: model_create,
-            update: model_update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy
-            .write_operation(state, model_op)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
-
-        return Ok(());
-    }
-
-    let pool = proxy
-        .primary_pool()
-        .await
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"))?;
+    let pool = proxy.pool();
 
     sqlx::query(
         r#"
@@ -1506,7 +1437,7 @@ async fn reset_user_state(
     .bind(user_id)
     .bind(0.7f64)
     .bind(0.0f64)
-    .bind(0.0f64)
+    .bind(0.5f64)
     .bind(0.5f64)
     .bind(default_cognitive.clone())
     .bind(Option::<serde_json::Value>::None)
@@ -1514,7 +1445,7 @@ async fn reset_user_state(
     .bind(Option::<serde_json::Value>::None)
     .bind(now_ms)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
@@ -1536,7 +1467,7 @@ async fn reset_user_state(
     .bind(user_id)
     .bind(default_model)
     .bind(now)
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
