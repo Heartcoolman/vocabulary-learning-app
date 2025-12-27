@@ -217,6 +217,8 @@ pub struct ColdStartState {
     pub probe_index: i32,
     pub update_count: i32,
     pub settled_strategy: Option<StrategyParams>,
+    #[serde(default)]
+    pub classification_scores: [f64; 3],
 }
 
 impl Default for ColdStartState {
@@ -227,6 +229,7 @@ impl Default for ColdStartState {
             probe_index: 0,
             update_count: 0,
             settled_strategy: None,
+            classification_scores: [0.0; 3],
         }
     }
 }
@@ -437,6 +440,35 @@ pub struct ProcessResult {
     pub feature_vector: Option<FeatureVector>,
     pub word_mastery_decision: Option<WordMasteryDecision>,
     pub cold_start_phase: Option<ColdStartPhase>,
+    pub objective_evaluation: Option<ObjectiveEvaluation>,
+    pub multi_objective_adjusted: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MultiObjectiveMetrics {
+    pub short_term_score: f64,
+    pub long_term_score: f64,
+    pub efficiency_score: f64,
+    pub aggregated_score: f64,
+    pub ts: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConstraintViolation {
+    pub constraint: String,
+    pub expected: f64,
+    pub actual: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObjectiveEvaluation {
+    pub metrics: MultiObjectiveMetrics,
+    pub constraints_satisfied: bool,
+    pub constraint_violations: Vec<ConstraintViolation>,
+    pub suggested_adjustments: Option<StrategyParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -493,8 +525,8 @@ impl Default for BanditArm {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BanditModel {
-    pub arms: Vec<BanditArm>,
-    pub context_dim: usize,
+    pub thompson_params: Option<serde_json::Value>,
+    pub linucb_state: Option<serde_json::Value>,
     pub last_action_idx: Option<usize>,
 }
 

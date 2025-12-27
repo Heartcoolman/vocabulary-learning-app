@@ -62,13 +62,15 @@ impl EnsembleDecision {
             }
         }
 
-        if let Some(action) = linucb_action {
-            candidates.push(DecisionCandidate {
-                source: "linucb".to_string(),
-                strategy: action.clone(),
-                confidence: state.conf,
-                weight: self.linucb_weight,
-            });
+        if self.feature_flags.linucb_enabled {
+            if let Some(action) = linucb_action {
+                candidates.push(DecisionCandidate {
+                    source: "linucb".to_string(),
+                    strategy: action.clone(),
+                    confidence: state.conf,
+                    weight: self.linucb_weight,
+                });
+            }
         }
 
         if candidates.is_empty() {
