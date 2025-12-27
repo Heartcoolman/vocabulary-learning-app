@@ -56,6 +56,74 @@ interface ApiConfigHistory {
 }
 
 /**
+ * API 响应中的用户状态（后端紧凑格式）
+ * 后端使用简写字段名: A/F/M/C
+ */
+interface ApiUserState {
+  A: number;
+  F: number;
+  M: number;
+  C: {
+    mem: number;
+    speed: number;
+    stability: number;
+  };
+  conf?: number;
+  ts?: number;
+}
+
+/**
+ * API 响应中的 ProcessEvent 结果（后端紧凑格式）
+ */
+interface ApiProcessEventResponse {
+  sessionId: string;
+  strategy: {
+    interval_scale: number;
+    new_ratio: number;
+    difficulty: string;
+    batch_size: number;
+    hint_level: number;
+  };
+  explanation: {
+    factors: Array<{ name: string; value: number; impact: string; percentage: number }>;
+    changes: string[];
+    text: string;
+  };
+  state: ApiUserState;
+  wordMasteryDecision?: {
+    wordId: string;
+    prevMastery: number;
+    newMastery: number;
+    prevInterval: number;
+    newInterval: number;
+    quality: number;
+  };
+  reward: { value: number; reason: string };
+  coldStartPhase?: string;
+  shouldBreak?: boolean;
+  suggestion?: string;
+}
+
+/**
+ * 将后端状态响应转换为前端状态格式
+ */
+function transformApiUserState(
+  raw: ApiUserState | null | undefined,
+): import('../../../types/amas').UserStateFrontend {
+  const c = raw?.C ?? { mem: 0.5, speed: 0.5, stability: 0.5 };
+  return {
+    attention: raw?.A ?? 0.5,
+    fatigue: raw?.F ?? 0.5,
+    motivation: raw?.M ?? 0,
+    memory: c.mem ?? 0.5,
+    speed: c.speed ?? 0.5,
+    stability: c.stability ?? 0.5,
+    confidence: raw?.conf,
+    timestamp: raw?.ts,
+  };
+}
+
+/**
  * AmasClient - AMAS自适应学习系统相关API
  *
  * 职责：
@@ -169,7 +237,7 @@ export class AmasClient extends BaseClient {
       isDefault: !!raw.isDefault,
       createdAt: new Date(raw.createdAt).getTime(),
       updatedAt: new Date(raw.updatedAt).getTime(),
-      createdBy: raw.createdBy ?? '',
+      createdBy: raw.createdBy,
     };
   }
 
@@ -183,6 +251,8 @@ export class AmasClient extends BaseClient {
     delete flat.id;
     delete flat.createdAt;
     delete flat.updatedAt;
+    delete flat.isDefault;
+    delete flat.createdBy;
 
     if (config.priorityWeights) {
       flat.priorityWeightNewWord = config.priorityWeights.newWord;
@@ -314,13 +384,35 @@ export class AmasClient extends BaseClient {
     eventData: import('../../../types/amas').LearningEventInput,
   ): Promise<import('../../../types/amas').AmasProcessResult> {
     try {
-      return await this.request<import('../../../types/amas').AmasProcessResult>(
-        '/api/amas/process',
-        {
-          method: 'POST',
-          body: JSON.stringify(eventData),
+      const raw = await this.request<ApiProcessEventResponse>('/api/amas/process', {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+      });
+      return {
+        sessionId: raw.sessionId,
+        strategy: {
+          interval_scale: raw.strategy.interval_scale,
+          new_ratio: raw.strategy.new_ratio,
+          difficulty: raw.strategy.difficulty as 'easy' | 'mid' | 'hard',
+          batch_size: raw.strategy.batch_size,
+          hint_level: raw.strategy.hint_level,
         },
-      );
+        state: transformApiUserState(raw.state),
+        explanation: raw.explanation,
+        wordMasteryDecision: raw.wordMasteryDecision
+          ? {
+              wordId: raw.wordMasteryDecision.wordId,
+              prevMastery: raw.wordMasteryDecision.prevMastery,
+              newMastery: raw.wordMasteryDecision.newMastery,
+              prevInterval: raw.wordMasteryDecision.prevInterval,
+              newInterval: raw.wordMasteryDecision.newInterval,
+              quality: raw.wordMasteryDecision.quality,
+              isMastered: raw.wordMasteryDecision.newMastery >= 0.8,
+              confidence: Math.min(raw.wordMasteryDecision.newMastery, 1),
+              suggestedRepeats: raw.wordMasteryDecision.quality < 3 ? 2 : 0,
+            }
+          : undefined,
+      };
     } catch (error) {
       apiLogger.error({ err: error }, '处理学习事件失败');
       throw error;
@@ -332,7 +424,8 @@ export class AmasClient extends BaseClient {
    */
   async getAmasState(): Promise<import('../../../types/amas').UserState | null> {
     try {
-      return await this.request<import('../../../types/amas').UserState>('/api/amas/state');
+      const raw = await this.request<ApiUserState>('/api/amas/state');
+      return transformApiUserState(raw);
     } catch (error) {
       if (error instanceof ApiError && error.isNotFound) {
         return null;
@@ -771,22 +864,29 @@ export class AmasClient extends BaseClient {
     totalRecords: number;
   }> {
     try {
-      return await this.request<{
-        history: import('../../../types/amas-enhanced').StateHistoryPoint[];
-        summary: {
-          recordCount: number;
-          averages: {
-            attention: number;
-            fatigue: number;
-            motivation: number;
-            memory: number;
-            speed: number;
-            stability: number;
-          };
-        };
-        range: number;
-        totalRecords: number;
-      }>(`/api/amas/history?range=${range}`);
+      const history = await this.request<
+        import('../../../types/amas-enhanced').StateHistoryPoint[]
+      >(`/api/amas/history?range=${range}`);
+
+      const recordCount = history.length;
+      const averages =
+        recordCount > 0
+          ? {
+              attention: history.reduce((s, h) => s + h.attention, 0) / recordCount,
+              fatigue: history.reduce((s, h) => s + h.fatigue, 0) / recordCount,
+              motivation: history.reduce((s, h) => s + h.motivation, 0) / recordCount,
+              memory: history.reduce((s, h) => s + h.memory, 0) / recordCount,
+              speed: history.reduce((s, h) => s + h.speed, 0) / recordCount,
+              stability: history.reduce((s, h) => s + h.stability, 0) / recordCount,
+            }
+          : { attention: 0, fatigue: 0, motivation: 0, memory: 0, speed: 0, stability: 0 };
+
+      return {
+        history,
+        summary: { recordCount, averages },
+        range,
+        totalRecords: recordCount,
+      };
     } catch (error) {
       apiLogger.error({ err: error }, '获取状态历史失败');
       throw error;
@@ -810,17 +910,36 @@ export class AmasClient extends BaseClient {
     periodLabel: string;
   }> {
     try {
-      return await this.request<{
+      const raw = await this.request<{
         current: import('../../../types/amas-enhanced').CognitiveProfile;
-        past: import('../../../types/amas-enhanced').CognitiveProfile;
-        changes: {
-          memory: { value: number; percent: number; direction: 'up' | 'down' };
-          speed: { value: number; percent: number; direction: 'up' | 'down' };
-          stability: { value: number; percent: number; direction: 'up' | 'down' };
-        };
-        period: number;
-        periodLabel: string;
+        previous: import('../../../types/amas-enhanced').CognitiveProfile;
+        memoryChange: number;
+        speedChange: number;
+        stabilityChange: number;
+        days: number;
       }>(`/api/amas/growth?range=${range}`);
+
+      const makeChange = (
+        current: number,
+        previous: number,
+        changePercent: number,
+      ): { value: number; percent: number; direction: 'up' | 'down' } => ({
+        value: Math.abs(current - previous),
+        percent: Math.abs(changePercent),
+        direction: changePercent >= 0 ? 'up' : 'down',
+      });
+
+      return {
+        current: raw.current,
+        past: raw.previous,
+        changes: {
+          memory: makeChange(raw.current.memory, raw.previous.memory, raw.memoryChange),
+          speed: makeChange(raw.current.speed, raw.previous.speed, raw.speedChange),
+          stability: makeChange(raw.current.stability, raw.previous.stability, raw.stabilityChange),
+        },
+        period: raw.days,
+        periodLabel: `${raw.days}天`,
+      };
     } catch (error) {
       apiLogger.error({ err: error }, '获取认知成长失败');
       throw error;
@@ -841,14 +960,30 @@ export class AmasClient extends BaseClient {
     summary: string;
   }> {
     try {
-      return await this.request<{
-        changes: Array<
-          import('../../../types/amas-enhanced').SignificantChange & { description: string }
-        >;
-        range: number;
-        hasSignificantChanges: boolean;
-        summary: string;
-      }>(`/api/amas/changes?range=${range}`);
+      const rawChanges = await this.request<
+        import('../../../types/amas-enhanced').SignificantChange[]
+      >(`/api/amas/changes?range=${range}`);
+
+      const changesWithDesc = rawChanges.map((c) => ({
+        ...c,
+        description: `${c.metricLabel}${c.direction === 'up' ? '提升' : '下降'}了 ${Math.abs(c.changePercent).toFixed(1)}%`,
+      }));
+
+      const positiveCount = changesWithDesc.filter((c) => c.isPositive).length;
+      let summary = '暂无显著变化';
+      if (changesWithDesc.length > 0) {
+        summary =
+          positiveCount > changesWithDesc.length / 2
+            ? `${range}天内有 ${positiveCount} 项指标呈积极变化`
+            : `${range}天内有 ${changesWithDesc.length - positiveCount} 项指标需要关注`;
+      }
+
+      return {
+        changes: changesWithDesc,
+        range,
+        hasSignificantChanges: changesWithDesc.length > 0,
+        summary,
+      };
     } catch (error) {
       apiLogger.error({ err: error }, '获取显著变化失败');
       throw error;

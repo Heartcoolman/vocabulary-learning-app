@@ -213,7 +213,7 @@ describe('WordClient', () => {
 
       const result = await client.batchImportWords('wordbook-123', words);
 
-      expect(mockRequest).toHaveBeenCalledWith('/api/wordbooks/wordbook-123/words/batch', {
+      expect(mockRequest).toHaveBeenCalledWith('/api/admin/wordbooks/wordbook-123/words/batch', {
         method: 'POST',
         body: JSON.stringify({ words }),
       });
@@ -236,6 +236,47 @@ describe('WordClient', () => {
         examples: [],
       });
       await expect(client.batchImportWords('book-1', tooManyWords)).rejects.toThrow(
+        '单次导入不能超过1000个单词',
+      );
+    });
+  });
+
+  describe('batchImportWordsToUserWordbook', () => {
+    it('should import words to a user word book', async () => {
+      const words = [
+        { spelling: 'word1', meanings: ['意思1'] },
+        { spelling: 'word2', phonetic: 'w2', meanings: ['意思2'], examples: [] },
+      ];
+      const mockResponse = { imported: 2, failed: 0 };
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const result = await client.batchImportWordsToUserWordbook('wordbook-123', words);
+
+      expect(mockRequest).toHaveBeenCalledWith('/api/wordbooks/wordbook-123/words/batch', {
+        method: 'POST',
+        body: JSON.stringify({ words }),
+      });
+      expect(result).toEqual({ imported: 2, failed: 0 });
+    });
+
+    it('should throw error if wordBookId is empty', async () => {
+      await expect(client.batchImportWordsToUserWordbook('', [])).rejects.toThrow(
+        'wordBookId 必须是非空字符串',
+      );
+    });
+
+    it('should throw error if words array is empty', async () => {
+      await expect(client.batchImportWordsToUserWordbook('book-1', [])).rejects.toThrow(
+        'words 必须是非空数组',
+      );
+    });
+
+    it('should throw error if words array exceeds 1000', async () => {
+      const tooManyWords = Array(1001).fill({
+        spelling: 'test',
+        meanings: ['测试'],
+      });
+      await expect(client.batchImportWordsToUserWordbook('book-1', tooManyWords)).rejects.toThrow(
         '单次导入不能超过1000个单词',
       );
     });

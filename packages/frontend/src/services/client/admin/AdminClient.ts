@@ -9,7 +9,9 @@ export interface User {
   email: string;
   username: string;
   role: 'USER' | 'ADMIN';
+  rewardProfile?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /**
@@ -670,7 +672,25 @@ export class AdminClient extends BaseClient {
       timestamp: string;
     }>
   > {
-    return this.request('/api/optimization/history');
+    const response = await this.request<{
+      observations: Array<{
+        params: Record<string, number>;
+        value: number;
+        timestamp: number;
+      }>;
+      bestParams: Record<string, number> | null;
+      bestValue: number | null;
+      evaluationCount: number;
+    }>('/api/optimization/history');
+
+    return (response.observations || []).map((obs) => ({
+      params: obs.params,
+      value: obs.value,
+      timestamp:
+        typeof obs.timestamp === 'number'
+          ? new Date(obs.timestamp).toISOString()
+          : String(obs.timestamp),
+    }));
   }
 
   /**
@@ -855,7 +875,30 @@ export class AdminClient extends BaseClient {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     const query = queryParams.toString();
-    return this.request(`/api/experiments${query ? `?${query}` : ''}`);
+
+    const response = await this.request<{
+      data: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        status: 'DRAFT' | 'RUNNING' | 'COMPLETED' | 'ABORTED';
+        trafficAllocation: 'EVEN' | 'WEIGHTED' | 'DYNAMIC';
+        minSampleSize: number;
+        significanceLevel: number;
+        startedAt: string | null;
+        endedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+        variantCount: number;
+        totalSamples: number;
+      }>;
+      pagination: { total: number; page: number; pageSize: number };
+    }>(`/api/experiments${query ? `?${query}` : ''}`);
+
+    return {
+      experiments: response.data,
+      total: response.pagination.total,
+    };
   }
 
   /**

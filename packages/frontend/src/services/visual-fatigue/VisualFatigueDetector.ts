@@ -179,9 +179,17 @@ export class VisualFatigueDetector {
 
       // 等待初始化响应
       return new Promise((resolve) => {
+        const INIT_TIMEOUT = 30000;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          this.worker?.removeEventListener('message', handler);
+        };
+
         const handler = (e: MessageEvent<WorkerResponse>) => {
           if (e.data.type === 'init-result') {
-            this.worker?.removeEventListener('message', handler);
+            cleanup();
 
             if (e.data.success) {
               console.log('[VisualFatigue] Worker initialized successfully');
@@ -197,6 +205,15 @@ export class VisualFatigueDetector {
             }
           }
         };
+
+        timeoutId = setTimeout(() => {
+          cleanup();
+          console.error('[VisualFatigue] Worker init timeout');
+          this.state.error = 'Worker initialization timeout';
+          this.state.isSupported = false;
+          resolve(false);
+        }, INIT_TIMEOUT);
+
         this.worker?.addEventListener('message', handler);
         this.worker?.postMessage({ type: 'init', config: initConfig });
       });
@@ -373,15 +390,17 @@ export class VisualFatigueDetector {
 
     // console.log('[VisualFatigue Debug] Sending frame to worker'); // 减少日志量, 仅需确认是否在跑
 
+    let bitmap: ImageBitmap | undefined;
     try {
       // 核心性能点：使用 createImageBitmap 零拷贝传输
-      const bitmap = await createImageBitmap(this.videoElement);
+      bitmap = await createImageBitmap(this.videoElement);
 
       this.worker.postMessage(
         { type: 'detect', image: bitmap, timestamp },
         [bitmap], // Transferable，移交所有権，Worker 用完需 close
       );
     } catch (error) {
+      bitmap?.close();
       console.error('[VisualFatigue] Frame capture error:', error);
     }
   }
