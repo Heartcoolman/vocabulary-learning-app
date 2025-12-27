@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -53,6 +54,7 @@ export function useMasteryLearning(
     resetDialogPausedTime,
   } = options;
   const { user } = useAuth();
+  const location = useLocation();
 
   // 状态
   const [isLoading, setIsLoading] = useState(true);
@@ -216,7 +218,7 @@ export function useMasteryLearning(
     prevUserIdRef.current = curr ?? undefined;
   }, [user?.id]);
 
-  // 初始化 effect - 只在组件挂载时执行一次
+  // 初始化 effect - 在组件挂载时和导航返回时执行
   const initSessionRef = useRef(initSession);
   initSessionRef.current = initSession;
   useEffect(() => {
@@ -225,7 +227,7 @@ export function useMasteryLearning(
     return () => {
       isMountedRef.current = false;
     };
-  }, []); // 空依赖，只在挂载时执行一次
+  }, [location.key]);
 
   useEffect(() => {
     if (isLoading || wordQueue.isCompleted || !syncRef.current) return;
@@ -292,7 +294,7 @@ export function useMasteryLearning(
 
       // 使用 React Query mutation hook 提交到服务器
       // 提供自动重试和错误回滚
-      submitAnswerMutation.mutate({
+      await submitAnswerMutation.mutateAsync({
         wordId: word.id,
         isCorrect,
         responseTime,

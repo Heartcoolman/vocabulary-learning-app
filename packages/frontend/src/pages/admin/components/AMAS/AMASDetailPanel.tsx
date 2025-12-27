@@ -277,10 +277,7 @@ function AMASDetailPanelComponent({
               {/* 解释说明 */}
               <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
                 <p className="text-sm text-blue-800">
-                  <strong>分析说明：</strong>{' '}
-                  {typeof result.explanation === 'string'
-                    ? result.explanation
-                    : result.explanation?.text || ''}
+                  <strong>分析说明：</strong> {result.explanation || ''}
                 </p>
               </div>
             </div>

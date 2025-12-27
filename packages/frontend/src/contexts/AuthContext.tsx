@@ -132,6 +132,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // 监听 auth:logout 事件（由 TokenManager 在刷新失败时触发）
+    const handleAuthLogout = () => {
+      if (mounted) {
+        setUser(null);
+        setLoading(false);
+        void StorageService.setCurrentUser(null);
+        void StorageService.clearLocalData();
+      }
+    };
+    window.addEventListener('auth:logout', handleAuthLogout);
+
     // 加载用户信息
     void loadUser(isMounted);
 
@@ -139,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
       authClient.setOnUnauthorized(null);
+      window.removeEventListener('auth:logout', handleAuthLogout);
     };
   }, [loadUser]);
 

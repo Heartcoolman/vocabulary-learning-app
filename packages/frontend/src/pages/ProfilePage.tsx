@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Database, Pulse, ArrowRight } from '../components/Icon';
+import { User, Lock, Database, Pulse, ArrowRight, Pencil } from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/client';
 import StorageService from '../services/StorageService';
@@ -11,7 +11,7 @@ import { useToast, ConfirmModal } from '../components/ui';
  */
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'cache' | 'habit'>('profile');
@@ -22,6 +22,11 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 编辑用户名状态
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [usernameLoading, setUsernameLoading] = useState(false);
 
   // 缓存/同步状态
   const [cacheError, setCacheError] = useState('');
@@ -46,8 +51,16 @@ export default function ProfilePage() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError('新密码长度至少为8个字符');
+    if (newPassword.length < 10) {
+      setError('新密码长度至少为10个字符');
+      return;
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(newPassword);
+    const hasDigit = /[0-9]/.test(newPassword);
+    const hasSpecial = /[!@#$%^&*()_\-+=\[\]{};:'",.<>/?\\|`~]/.test(newPassword);
+    if (!hasLetter || !hasDigit || !hasSpecial) {
+      setError('新密码需包含字母、数字和特殊符号');
       return;
     }
 
@@ -60,10 +73,15 @@ export default function ProfilePage() {
 
     try {
       await apiClient.updatePassword(oldPassword, newPassword);
-      setSuccess('密码修改成功！');
+      setSuccess('密码修改成功！即将退出登录...');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      // 后端已删除所有session，token已失效，强制退出登录
+      setTimeout(async () => {
+        await logout();
+        navigate('/login');
+      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : '密码修改失败');
     } finally {
@@ -77,6 +95,34 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleEditUsername = () => {
+    setEditUsername(user?.username || '');
+    setIsEditingUsername(true);
+  };
+
+  const handleSaveUsername = async () => {
+    if (!editUsername.trim() || editUsername.trim().length < 2) {
+      toast.error('用户名至少2个字符');
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      await apiClient.updateProfile({ username: editUsername.trim() });
+      await refreshUser();
+      toast.success('用户名已更新');
+      setIsEditingUsername(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '更新失败');
+    } finally {
+      setUsernameLoading(false);
+    }
+  };
+
+  const handleCancelEditUsername = () => {
+    setIsEditingUsername(false);
+    setEditUsername('');
   };
 
   /**
@@ -176,7 +222,43 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-600">用户名</label>
-                    <p className="text-base text-gray-900">{user.username}</p>
+                    {isEditingUsername ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editUsername}
+                          onChange={(e) => setEditUsername(e.target.value)}
+                          disabled={usernameLoading}
+                          className="flex-1 rounded-button border border-gray-300 px-3 py-1.5 text-base transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveUsername}
+                          disabled={usernameLoading}
+                          className="rounded-button bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+                        >
+                          {usernameLoading ? '...' : '保存'}
+                        </button>
+                        <button
+                          onClick={handleCancelEditUsername}
+                          disabled={usernameLoading}
+                          className="rounded-button bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-base text-gray-900">{user.username}</p>
+                        <button
+                          onClick={handleEditUsername}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="编辑用户名"
+                        >
+                          <Pencil size={14} weight="bold" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -274,12 +356,12 @@ export default function ProfilePage() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       disabled={loading}
                       className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="至少8个字符"
+                      placeholder="至少10个字符"
                       autoComplete="new-password"
                       aria-describedby="new-password-hint"
                     />
                     <p id="new-password-hint" className="mt-1 text-xs text-gray-500">
-                      密码长度至少8个字符
+                      密码长度至少10个字符，需包含字母、数字和特殊符号
                     </p>
                   </div>
 

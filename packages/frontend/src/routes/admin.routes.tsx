@@ -207,7 +207,7 @@ export const adminRoutes: AppRoute[] = [
   {
     path: '/admin',
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute requireAdmin>
         <LazyWrapper>
           <AdminLayout />
         </LazyWrapper>

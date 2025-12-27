@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Lightbulb } from './Icon';
 import AmasSuggestion from './AmasSuggestion';
 import { AmasProcessResult } from '../types/amas';
@@ -11,6 +11,16 @@ interface SuggestionModalProps {
 }
 
 const SuggestionModalComponent = ({ isOpen, onClose, result, onBreak }: SuggestionModalProps) => {
+  useEffect(() => {
+    if (isOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !result) return null;
 
   return (
@@ -63,7 +73,7 @@ const compareAmasResult = (
   return (
     prev.suggestion === next.suggestion &&
     prev.shouldBreak === next.shouldBreak &&
-    prev.explanation === next.explanation &&
+    prev.explanation?.text === next.explanation?.text &&
     prev.state?.fatigue === next.state?.fatigue &&
     prev.objectiveEvaluation?.metrics?.aggregatedScore ===
       next.objectiveEvaluation?.metrics?.aggregatedScore

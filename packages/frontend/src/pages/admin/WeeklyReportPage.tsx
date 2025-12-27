@@ -43,12 +43,21 @@ function getHealthColor(score: number): string {
 }
 
 /**
- * 健康度评分背景
+ * 健康度评分背景（浅色，用于标签）
  */
 function getHealthBg(score: number): string {
   if (score >= 80) return 'bg-green-100';
   if (score >= 60) return 'bg-yellow-100';
   return 'bg-red-100';
+}
+
+/**
+ * 健康度柱状图背景（深色）
+ */
+function getHealthBarBg(score: number): string {
+  if (score >= 80) return 'bg-green-500';
+  if (score >= 60) return 'bg-yellow-500';
+  return 'bg-red-500';
 }
 
 /**
@@ -269,49 +278,49 @@ function ReportDetailModal({
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="rounded-button bg-blue-50 p-4">
                 <div className="text-2xl font-bold text-blue-700">
-                  {report.keyMetrics?.totalUsers?.toLocaleString() || '-'}
+                  {report.keyMetrics?.users?.total?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-blue-600">总用户</div>
               </div>
               <div className="rounded-button bg-green-50 p-4">
                 <div className="text-2xl font-bold text-green-700">
-                  {report.keyMetrics?.activeUsers?.toLocaleString() || '-'}
+                  {report.keyMetrics?.users?.active?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-green-600">活跃用户</div>
               </div>
               <div className="rounded-button bg-purple-50 p-4">
                 <div className="text-2xl font-bold text-purple-700">
-                  {report.keyMetrics?.newUsers?.toLocaleString() || '-'}
+                  {report.keyMetrics?.users?.new?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-purple-600">新用户</div>
               </div>
               <div className="rounded-button bg-yellow-50 p-4">
                 <div className="text-2xl font-bold text-yellow-700">
-                  {report.keyMetrics?.learningRecords?.toLocaleString() || '-'}
+                  {report.keyMetrics?.learning?.totalAnswers?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-yellow-600">学习记录</div>
               </div>
               <div className="rounded-button bg-pink-50 p-4">
                 <div className="text-2xl font-bold text-pink-700">
-                  {report.keyMetrics?.wordsLearned?.toLocaleString() || '-'}
+                  {report.keyMetrics?.learning?.totalWordsLearned?.toLocaleString() || '-'}
                 </div>
                 <div className="text-sm text-pink-600">学习单词数</div>
               </div>
               <div className="rounded-button bg-indigo-50 p-4">
                 <div className="text-2xl font-bold text-indigo-700">
-                  {report.keyMetrics?.avgAccuracy
-                    ? `${(report.keyMetrics.avgAccuracy * 100).toFixed(1)}%`
+                  {report.keyMetrics?.learning?.avgAccuracy
+                    ? `${(report.keyMetrics.learning.avgAccuracy * 100).toFixed(1)}%`
                     : '-'}
                 </div>
                 <div className="text-sm text-indigo-600">平均正确率</div>
               </div>
               <div className="rounded-button bg-teal-50 p-4">
                 <div className="text-2xl font-bold text-teal-700">
-                  {report.keyMetrics?.avgSessionDuration
-                    ? `${Math.round(report.keyMetrics.avgSessionDuration / 60)}分钟`
+                  {report.keyMetrics?.learning?.avgResponseTime
+                    ? `${(report.keyMetrics.learning.avgResponseTime / 1000).toFixed(1)}秒`
                     : '-'}
                 </div>
-                <div className="text-sm text-teal-600">平均会话时长</div>
+                <div className="text-sm text-teal-600">平均响应时间</div>
               </div>
             </div>
           )}
@@ -331,12 +340,12 @@ function ReportDetailModal({
                               : 'text-gray-500'
                         }`}
                       />
-                      <h4 className="font-medium text-gray-900">{item.title}</h4>
+                      <h4 className="font-medium text-gray-900">{item.action}</h4>
                       <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                        {item.category}
+                        {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">{item.description}</p>
+                    <p className="text-sm text-gray-700">{item.reason}</p>
                   </div>
                 ))
               ) : (
@@ -560,18 +569,18 @@ export default function WeeklyReportPage() {
         ) : healthTrend && healthTrend.length > 0 ? (
           <div className="flex h-32 items-end gap-2">
             {healthTrend.map((point, idx) => {
-              const height = (point.healthScore / 100) * 100;
+              const barHeight = Math.max(point.healthScore, 5); // 最小5%保证可见
               return (
                 <div
                   key={idx}
-                  className="flex flex-1 flex-col items-center gap-1"
+                  className="flex h-full flex-1 flex-col items-center justify-end"
                   title={`${new Date(point.weekStart).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${point.healthScore.toFixed(0)}分`}
                 >
                   <div
-                    className={`w-full rounded-t transition-all ${getHealthBg(point.healthScore)}`}
-                    style={{ height: `${height}%` }}
+                    className={`w-full rounded-t transition-all ${getHealthBarBg(point.healthScore)}`}
+                    style={{ height: `${barHeight}%`, minHeight: '4px' }}
                   />
-                  <span className="text-xs text-gray-500">
+                  <span className="mt-1 text-xs text-gray-500">
                     {new Date(point.weekStart).toLocaleDateString('zh-CN', {
                       month: 'numeric',
                       day: 'numeric',

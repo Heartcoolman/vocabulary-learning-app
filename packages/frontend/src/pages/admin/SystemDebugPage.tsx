@@ -503,11 +503,7 @@ function FallbackTestPanel() {
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="font-medium">测试结果</span>
             </div>
-            <div className="mb-2 text-gray-600">
-              {typeof result.explanation === 'string'
-                ? result.explanation
-                : result.explanation?.text || ''}
-            </div>
+            <div className="mb-2 text-gray-600">{result.explanation || ''}</div>
             <details className="cursor-pointer">
               <summary className="text-xs text-gray-500 hover:text-gray-700">查看策略详情</summary>
               <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-xs text-gray-500">

@@ -9,6 +9,7 @@ import {
   CircleNotch,
   Warning,
 } from '../components/Icon';
+import LineChart from '../components/LineChart';
 import { useStatistics } from '../hooks/queries';
 
 /**
@@ -151,31 +152,23 @@ export default function StatisticsPage() {
           </div>
         </div>
 
-        {/* 每日正确率趋势（近似遗忘曲线） */}
+        {/* 每日正确率趋势 */}
         <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-8 shadow-soft backdrop-blur-sm">
           <h2 className="mb-6 text-xl font-bold text-gray-900">每日正确率趋势</h2>
-          <div className="flex h-64 items-end gap-2 overflow-x-auto pb-4">
-            {statistics.dailyAccuracy.length === 0 ? (
-              <div className="flex h-full w-full items-center justify-center text-gray-400">
-                暂无学习记录
-              </div>
-            ) : (
-              statistics.dailyAccuracy.map((point) => (
-                <div key={point.date} className="flex min-w-[40px] flex-col items-center gap-2">
-                  <div
-                    className="w-8 rounded-t bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-g3-normal hover:from-blue-600 hover:to-blue-500"
-                    style={{ height: `${Math.max(8, point.accuracy * 200)}px` }}
-                    title={`${point.date}: ${(point.accuracy * 100).toFixed(1)}%`}
-                  />
-                  <span className="whitespace-nowrap text-xs text-gray-500">
-                    {point.date.slice(5)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-          {statistics.dailyAccuracy.length > 0 && (
-            <p className="mt-2 text-center text-sm text-gray-500">最近14天每日正确率</p>
+          {statistics.dailyAccuracy.length === 0 ? (
+            <div className="flex h-64 items-center justify-center text-gray-400">暂无学习记录</div>
+          ) : (
+            <>
+              <LineChart
+                data={statistics.dailyAccuracy.map((p) => ({
+                  date: p.date.slice(5),
+                  value: p.accuracy * 100,
+                }))}
+                yAxisLabel="正确率(%)"
+                height={280}
+              />
+              <p className="mt-4 text-center text-sm text-gray-500">最近14天每日正确率</p>
+            </>
           )}
         </div>
 

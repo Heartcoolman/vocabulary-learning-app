@@ -5,6 +5,11 @@
  * 使用工厂函数模式组织查询键，支持层级结构
  */
 
+const normalizeWordIds = (wordIds: string[]) => {
+  if (wordIds.length === 0) return '';
+  return [...wordIds].sort().join(',');
+};
+
 export const queryKeys = {
   /**
    * 认证相关查询
@@ -128,10 +133,12 @@ export const queryKeys = {
     current: () => [...queryKeys.studyProgress.all, 'current'] as const,
     todayWords: () => [...queryKeys.studyProgress.all, 'todayWords'] as const,
     masteryStats: () => [...queryKeys.studyProgress.all, 'masteryStats'] as const,
-    masteryBatch: (wordIds: string[], userFatigue?: number) =>
-      userFatigue !== undefined
-        ? ([...queryKeys.studyProgress.all, 'masteryBatch', wordIds, userFatigue] as const)
-        : ([...queryKeys.studyProgress.all, 'masteryBatch', wordIds] as const),
+    masteryBatch: (wordIds: string[], userFatigue?: number) => {
+      const wordIdsKey = normalizeWordIds(wordIds);
+      return userFatigue !== undefined
+        ? ([...queryKeys.studyProgress.all, 'masteryBatch', wordIdsKey, userFatigue] as const)
+        : ([...queryKeys.studyProgress.all, 'masteryBatch', wordIdsKey] as const);
+    },
     masteryDetail: (wordId: string, userFatigue?: number) =>
       userFatigue !== undefined
         ? ([...queryKeys.studyProgress.all, 'masteryDetail', wordId, userFatigue] as const)

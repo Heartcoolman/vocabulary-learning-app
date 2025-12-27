@@ -584,6 +584,23 @@ function SuggestionDetail({
             </div>
           </div>
 
+          {/* 被跳过的建议项 */}
+          {suggestion.skippedItems && suggestion.skippedItems.length > 0 && (
+            <div className="rounded-button bg-yellow-50 p-4">
+              <h3 className="mb-2 flex items-center gap-2 font-medium text-yellow-800">
+                <Warning size={16} />
+                以下建议项未能应用（{suggestion.skippedItems.length}项）
+              </h3>
+              <ul className="space-y-1 text-sm text-yellow-700">
+                {suggestion.skippedItems.map((item, i) => (
+                  <li key={i}>
+                    <span className="font-mono">{item.target}</span>: {item.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* 下周关注 */}
           <div className="rounded-button bg-blue-50 p-4">
             <h3 className="mb-1 font-medium text-blue-800">下周关注重点</h3>

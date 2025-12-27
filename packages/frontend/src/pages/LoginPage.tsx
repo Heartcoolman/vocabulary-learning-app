@@ -91,9 +91,14 @@ export default function LoginPage() {
 
             {/* 密码输入 */}
             <div className="mb-6">
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
-                密码
-              </label>
+              <div className="mb-2 flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  密码
+                </label>
+                <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-600">
+                  忘记密码？
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"

@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult, useQueryClient } from '@tanstack/react-query';
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
 import { DATA_CACHE_CONFIG } from '../../lib/cacheConfig';
 import { apiClient, type StudyProgress } from '../../services/client';
@@ -13,25 +13,18 @@ import { apiClient, type StudyProgress } from '../../services/client';
  * - refetchOnMount: true - 组件挂载时刷新
  */
 export function useStudyProgress(): UseQueryResult<StudyProgress, Error> {
-  const queryClient = useQueryClient();
-  const defaultQueryOptions = queryClient.getDefaultOptions().queries ?? {};
-
-  return useQuery({
+  return useQuery<StudyProgress, Error>({
     queryKey: queryKeys.studyProgress.current(),
-    queryFn: async () => {
-      const data = await apiClient.getStudyProgress();
-      return data;
+    queryFn: async (): Promise<StudyProgress> => {
+      return await apiClient.getStudyProgress();
     },
-    staleTime: defaultQueryOptions.staleTime ?? DATA_CACHE_CONFIG.studyProgress.staleTime,
-    gcTime: defaultQueryOptions.gcTime ?? DATA_CACHE_CONFIG.studyProgress.gcTime,
-    retry: defaultQueryOptions.retry ?? DATA_CACHE_CONFIG.studyProgress.retry,
-    refetchOnWindowFocus:
-      defaultQueryOptions.refetchOnWindowFocus ??
-      DATA_CACHE_CONFIG.studyProgress.refetchOnWindowFocus,
-    refetchOnMount:
-      defaultQueryOptions.refetchOnMount ?? DATA_CACHE_CONFIG.studyProgress.refetchOnMount,
+    staleTime: DATA_CACHE_CONFIG.studyProgress.staleTime,
+    gcTime: DATA_CACHE_CONFIG.studyProgress.gcTime,
+    retry: DATA_CACHE_CONFIG.studyProgress.retry,
+    refetchOnWindowFocus: DATA_CACHE_CONFIG.studyProgress.refetchOnWindowFocus,
+    refetchOnMount: DATA_CACHE_CONFIG.studyProgress.refetchOnMount,
     refetchOnReconnect: true,
-  });
+  }) as UseQueryResult<StudyProgress, Error>;
 }
 
 /**
