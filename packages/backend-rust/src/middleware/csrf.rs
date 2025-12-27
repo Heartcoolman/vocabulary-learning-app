@@ -86,16 +86,19 @@ fn generate_csrf_token() -> String {
 }
 
 fn build_csrf_cookie_header(token: &str) -> String {
-    let secure = matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("production"));
+    let is_production = matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("production"));
     let mut parts = Vec::with_capacity(6);
 
     parts.push(format!("{CSRF_COOKIE_NAME}={token}"));
     parts.push("Path=/".to_string());
     parts.push("Max-Age=86400".to_string());
-    parts.push("SameSite=Strict".to_string());
 
-    if secure {
+    // 开发环境使用 Lax 以支持代理场景，生产环境使用 Strict
+    if is_production {
+        parts.push("SameSite=Strict".to_string());
         parts.push("Secure".to_string());
+    } else {
+        parts.push("SameSite=Lax".to_string());
     }
 
     parts.join("; ")
@@ -108,6 +111,9 @@ fn is_exempt_path(path: &str) -> bool {
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",
+        "/api/auth/password/request",
+        "/api/auth/password/reset",
+        "/api/v1/auth/refresh_token",
         "/auth/login",
         "/auth/register",
         "/auth/refresh",

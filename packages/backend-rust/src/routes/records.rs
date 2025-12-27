@@ -6,7 +6,6 @@ use axum::Json;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::services::record::{self, CreateRecordInput, PaginationOptions, RecordError};
 use crate::state::AppState;
@@ -83,17 +82,11 @@ async fn list_records_inner(
     let page = get_query_param(query, "page").and_then(|v| v.parse::<i64>().ok());
     let page_size = get_query_param(query, "pageSize").and_then(|v| v.parse::<i64>().ok());
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -102,8 +95,8 @@ async fn list_records_inner(
 
     let options = PaginationOptions { page, page_size };
     let result = match session_id {
-        Some(session_id) => record::get_records_by_session_id(proxy.as_ref(), request_state, &auth_user.id, session_id, options).await,
-        None => record::get_records_by_user_id(proxy.as_ref(), request_state, &auth_user.id, options).await,
+        Some(session_id) => record::get_records_by_session_id(proxy.as_ref(), &auth_user.id, session_id, options).await,
+        None => record::get_records_by_user_id(proxy.as_ref(), &auth_user.id, options).await,
     };
 
     match result {
@@ -150,17 +143,11 @@ async fn create_record_inner(state: AppState, req: Request<Body>) -> Response {
         Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -181,7 +168,7 @@ async fn create_record_inner(state: AppState, req: Request<Body>) -> Response {
         mastery_level_after: payload.mastery_level_after,
     };
 
-    match record::create_record(proxy.as_ref(), request_state, &auth_user.id, input).await {
+    match record::create_record(proxy.as_ref(), &auth_user.id, input).await {
         Ok(record) => {
             let payload = serde_json::json!({
                 "userId": auth_user.id,
@@ -244,17 +231,11 @@ async fn batch_create_records_inner(state: AppState, req: Request<Body>) -> Resp
         Err(_) => return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response(),
     };
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -279,7 +260,7 @@ async fn batch_create_records_inner(state: AppState, req: Request<Body>) -> Resp
         })
         .collect();
 
-    match record::batch_create_records(proxy.as_ref(), request_state, &auth_user.id, records).await {
+    match record::batch_create_records(proxy.as_ref(), &auth_user.id, records).await {
         Ok(result) => (StatusCode::CREATED, Json(SuccessResponse { success: true, data: result })).into_response(),
         Err(err) => match err {
             RecordError::Validation(message) => json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", message).into_response(),
@@ -317,27 +298,51 @@ async fn statistics_inner(state: AppState, req: Request<Body>) -> Response {
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    match record::get_statistics(proxy.as_ref(), request_state, &auth_user.id).await {
+    let period = get_query_param(req.uri().query().unwrap_or(""), "period");
+    match record::get_statistics_with_period(proxy.as_ref(), &auth_user.id, period.as_deref()).await {
         Ok(stats) => Json(SuccessResponse { success: true, data: stats }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "statistics query failed");
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+        }
+    }
+}
+
+pub async fn enhanced_statistics(
+    State(state): State<AppState>,
+    req: Request<Body>,
+) -> Response {
+    let token = crate::auth::extract_token(req.headers());
+    let Some(token) = token else {
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+    };
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+    };
+
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+        }
+    };
+
+    match record::get_enhanced_statistics(proxy.as_ref(), &auth_user.id).await {
+        Ok(stats) => Json(SuccessResponse { success: true, data: stats }).into_response(),
+        Err(err) => {
+            tracing::warn!(error = %err, "enhanced statistics query failed");
             json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
         }
     }

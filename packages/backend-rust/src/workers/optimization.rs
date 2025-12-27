@@ -6,25 +6,12 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, error, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 
 pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super::WorkerError> {
     let start = Instant::now();
     info!("Starting Bayesian optimization cycle");
 
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        warn!("Database degraded, skipping optimization cycle");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping optimization");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     let enabled = std::env::var("ENABLE_BAYESIAN_OPTIMIZER")
         .map(|v| v == "true" || v == "1")
@@ -82,7 +69,7 @@ async fn get_active_users(pool: &PgPool) -> Result<Vec<String>, super::WorkerErr
         r#"
         SELECT u.id FROM "user" u
         WHERE EXISTS (
-            SELECT 1 FROM "answer_record" ar
+            SELECT 1 FROM "answer_records" ar
             WHERE ar."userId" = u.id
             GROUP BY ar."userId"
             HAVING COUNT(*) >= $1
@@ -133,7 +120,7 @@ async fn get_recent_performance(pool: &PgPool, user_id: &str) -> Result<RecentPe
         SELECT COUNT(*) as total,
                AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) as correct_rate,
                AVG("responseTime") as avg_response_time
-        FROM "answer_record"
+        FROM "answer_records"
         WHERE "userId" = $1 AND "timestamp" >= $2
         "#,
     )

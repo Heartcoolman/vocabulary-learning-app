@@ -1,15 +1,15 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 
-use tokio::sync::RwLock;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
 
 use danci_backend_rust::config::Config;
-use danci_backend_rust::db::{self, state_machine::{DatabaseState, DatabaseStateMachine}};
+use danci_backend_rust::db;
 use danci_backend_rust::state::AppState;
 use danci_backend_rust::workers::WorkerManager;
 use danci_backend_rust::routes;
+use danci_backend_rust::services::quality_service;
 
 #[tokio::main]
 async fn main() {
@@ -22,17 +22,22 @@ async fn main() {
         )
         .init();
 
-    let db_state = Arc::new(RwLock::new(DatabaseStateMachine::new(DatabaseState::Normal)));
-    let db_proxy = match db::DatabaseProxy::from_env(Arc::clone(&db_state)).await {
-        Ok(proxy) => Some(Arc::new(proxy)),
+    let db_proxy = match db::DatabaseProxy::from_env().await {
+        Ok(proxy) => Some(proxy),
         Err(err) => {
             tracing::warn!(error = %err, "database proxy not initialized");
             None
         }
     };
 
+    if let Some(ref proxy) = db_proxy {
+        quality_service::cleanup_stale_tasks(proxy).await;
+    }
+
+    let amas_engine = AppState::create_amas_engine(db_proxy.clone());
+
     let worker_manager = if let Some(ref proxy) = db_proxy {
-        match WorkerManager::new(Arc::clone(proxy)).await {
+        match WorkerManager::new(Arc::clone(proxy), Arc::clone(&amas_engine)).await {
             Ok(manager) => {
                 if let Err(e) = manager.start().await {
                     tracing::error!(error = %e, "failed to start workers");
@@ -48,7 +53,7 @@ async fn main() {
         None
     };
 
-    let state = AppState::new(db_state, db_proxy.map(|p| Arc::try_unwrap(p).unwrap_or_else(|arc| (*arc).clone())));
+    let state = AppState::new(db_proxy, amas_engine);
 
     let app = routes::router(state)
         .layer(TraceLayer::new_for_http())

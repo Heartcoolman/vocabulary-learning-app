@@ -331,70 +331,18 @@ async fn database(State(state): State<AppState>) -> impl IntoResponse {
         return (StatusCode::OK, Json(response));
     };
 
-    if !proxy.sqlite_enabled() {
-        let primary = proxy.primary_status().await;
-        let response = DatabaseStatusResponse::Standalone(DatabaseStatusStandaloneResponse {
-            mode: "standalone",
-            state: "NORMAL",
-            primary: PrimaryStatus {
-                r#type: "postgresql",
-                healthy: primary.healthy,
-                latency: primary.latency_ms,
-                consecutive_failures: None,
-            },
-            fallback: None,
-            hot_standby_enabled: false,
-        });
-        return (StatusCode::OK, Json(response));
-    }
-
-    let sm = state.db_state();
-    let (current_state, last_state_change, uptime_ms, state_changes) = {
-        let guard = sm.read().await;
-        (
-            guard.state().as_str().to_string(),
-            guard.last_state_change_ms().map(unix_ms_to_iso),
-            guard.uptime_ms(),
-            guard.state_change_count(),
-        )
-    };
-
-    let sync_in_progress = current_state == "SYNCING";
-    let pending_changes = proxy.unsynced_change_count().await;
-    let sync_meta = proxy.sync_status().await;
     let primary = proxy.primary_status().await;
-    let fallback = proxy.fallback_status().await;
-
-    let response = DatabaseStatusResponse::HotStandby(DatabaseStatusHotStandbyResponse {
-        mode: "hot_standby",
-        state: current_state.clone(),
+    let response = DatabaseStatusResponse::Standalone(DatabaseStatusStandaloneResponse {
+        mode: "standalone",
+        state: "NORMAL",
         primary: PrimaryStatus {
             r#type: "postgresql",
             healthy: primary.healthy,
             latency: primary.latency_ms,
-            consecutive_failures: Some(primary.consecutive_failures),
+            consecutive_failures: None,
         },
-        fallback: FallbackStatus {
-            r#type: "sqlite",
-            healthy: fallback.healthy,
-            latency: fallback.latency_ms,
-            sync_status: SyncStatus {
-                last_sync_time: sync_meta.last_sync_time_ms,
-                pending_changes,
-                sync_in_progress,
-                last_error: sync_meta.last_error,
-            },
-        },
-        metrics: MetricsStatus {
-            total_queries: 0,
-            failed_queries: 0,
-            average_latency: 0.0,
-            state_changes,
-            pending_sync_changes: pending_changes,
-        },
-        last_state_change,
-        uptime: uptime_ms,
-        hot_standby_enabled: true,
+        fallback: None,
+        hot_standby_enabled: false,
     });
 
     (StatusCode::OK, Json(response))
@@ -411,27 +359,6 @@ async fn database_check(state: &AppState) -> DbCheckStatus {
     let Some(proxy) = state.db_proxy() else {
         return DbCheckStatus::Disconnected;
     };
-
-    let sm = state.db_state();
-    let current_state = { sm.read().await.state() };
-
-    let target_is_fallback = matches!(
-        current_state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    );
-
-    if target_is_fallback && proxy.sqlite_enabled() {
-        let fallback = proxy.fallback_status().await;
-        if fallback.healthy {
-            return DbCheckStatus::Connected {
-                latency_ms: fallback.latency_ms,
-            };
-        }
-        if fallback.error.as_deref() == Some("timeout") {
-            return DbCheckStatus::Timeout;
-        }
-        return DbCheckStatus::Disconnected;
-    }
 
     let primary = proxy.primary_status().await;
     if primary.healthy {

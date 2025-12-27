@@ -6,7 +6,6 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, error, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 
 const BATCH_SIZE: usize = 100;
 const RETENTION_THRESHOLD: f64 = 0.3;
@@ -24,19 +23,7 @@ pub async fn scan_forgetting_risks(db: Arc<DatabaseProxy>) -> Result<(), super::
     let start = Instant::now();
     info!("Starting forgetting alert scan");
 
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        warn!("Database degraded, skipping forgetting alert scan");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping forgetting alert scan");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     let mut stats = AlertStats::default();
 
@@ -70,7 +57,7 @@ async fn get_active_users(pool: &PgPool) -> Result<Vec<String>, super::WorkerErr
         r#"
         SELECT DISTINCT u.id
         FROM "user" u
-        INNER JOIN "word_learning_state" wls ON wls."userId" = u.id
+        INNER JOIN "word_learning_states" wls ON wls."userId" = u.id
         WHERE wls."lastReviewDate" IS NOT NULL
           AND wls.state IN ('LEARNING', 'REVIEWING', 'MASTERED')
         "#,
@@ -112,7 +99,7 @@ async fn get_user_learning_states(
     let rows = sqlx::query(
         r#"
         SELECT id, "wordId", "halfLife", "lastReviewDate", "nextReviewDate"
-        FROM "word_learning_state"
+        FROM "word_learning_states"
         WHERE "userId" = $1
           AND "lastReviewDate" IS NOT NULL
           AND state IN ('LEARNING', 'REVIEWING', 'MASTERED')

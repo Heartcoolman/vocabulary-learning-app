@@ -3,15 +3,12 @@ use std::sync::{Arc, OnceLock};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tokio::sync::RwLock;
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -416,9 +413,8 @@ pub fn router() -> Router<AppState> {
 
 async fn require_admin(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     if !debug_available() {
         return Err(json_error(
             StatusCode::FORBIDDEN,
@@ -430,15 +426,11 @@ async fn require_admin(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
-
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
@@ -446,22 +438,21 @@ async fn require_admin(
         return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "需要管理员权限"));
     }
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 async fn get_status(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_admin(&state, request_state, &headers).await?;
+    let (proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
     let mut guard = store.inner.write().await;
     guard.expire_simulation_if_needed(now_ms);
 
-    let db_connected = test_database_connection(proxy.as_ref(), db_state).await;
+    let db_connected = test_database_connection(proxy.as_ref()).await;
 
     let status = SystemStatus {
         debug_enabled: debug_available(),
@@ -496,12 +487,11 @@ async fn get_status(
 
 async fn get_health(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin(&state, &headers).await?;
 
-    let (db_healthy, db_latency, db_error) = test_database_health(proxy.as_ref(), db_state).await;
+    let (db_healthy, db_latency, db_error) = test_database_health(proxy.as_ref()).await;
     let result = HealthCheckResult {
         redis: HealthItem {
             healthy: false,
@@ -521,11 +511,10 @@ async fn get_health(
 
 async fn toggle_redis(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<ToggleRedisBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -547,11 +536,10 @@ async fn toggle_redis(
 
 async fn simulate_db(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<DbSimulationBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -591,11 +579,10 @@ async fn simulate_db(
 
 async fn toggle_llm(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<LlmToggleBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -623,10 +610,9 @@ async fn toggle_llm(
 
 async fn get_feature_flags(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, _user) = require_admin(&state, &headers).await?;
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
@@ -641,11 +627,10 @@ async fn get_feature_flags(
 
 async fn update_feature_flags(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let updates = payload.as_object().ok_or_else(|| {
         json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求体必须是JSON对象")
@@ -679,10 +664,9 @@ async fn update_feature_flags(
 
 async fn reset_feature_flags(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
@@ -700,10 +684,9 @@ async fn reset_feature_flags(
 
 async fn force_circuit_open(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
@@ -723,10 +706,9 @@ async fn force_circuit_open(
 
 async fn reset_circuit(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let now_ms = Utc::now().timestamp_millis();
     let store = store();
@@ -745,11 +727,10 @@ async fn reset_circuit(
 
 async fn test_fallback(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<FallbackTestBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let valid = [
         "circuit_open",
@@ -787,11 +768,10 @@ async fn test_fallback(
 
 async fn simulate_fallback(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<FallbackSimulateBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -823,10 +803,9 @@ async fn simulate_fallback(
 
 async fn get_services(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, _user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -841,11 +820,10 @@ async fn get_services(
 
 async fn toggle_services(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let updates = payload.as_object().ok_or_else(|| {
         json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求体必须是JSON对象")
@@ -898,10 +876,9 @@ async fn toggle_services(
 
 async fn reset_all(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -922,10 +899,9 @@ async fn reset_all(
 
 async fn stop_simulations(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -944,11 +920,10 @@ async fn stop_simulations(
 
 async fn get_audit_log(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<AuditLogQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, _user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
@@ -963,10 +938,9 @@ async fn get_audit_log(
 
 async fn clear_audit_log(
     axum::extract::State(state): axum::extract::State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, user, _db_state) = require_admin(&state, request_state, &headers).await?;
+    let (_proxy, user) = require_admin(&state, &headers).await?;
     let now_ms = Utc::now().timestamp_millis();
 
     let store = store();
@@ -983,25 +957,15 @@ async fn clear_audit_log(
     }))
 }
 
-async fn test_database_connection(proxy: &crate::db::DatabaseProxy, db_state: DatabaseState) -> bool {
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable)
-        || proxy.primary_pool().await.is_none();
-
-    if use_fallback {
-        let Some(pool) = proxy.fallback_pool().await else { return false };
-        sqlx::query_scalar::<_, i64>("SELECT 1").fetch_one(&pool).await.is_ok()
-    } else {
-        let Some(pool) = proxy.primary_pool().await else { return false };
-        sqlx::query_scalar::<_, i64>("SELECT 1").fetch_one(&pool).await.is_ok()
-    }
+async fn test_database_connection(proxy: &crate::db::DatabaseProxy) -> bool {
+    sqlx::query_scalar::<_, i64>("SELECT 1").fetch_one(proxy.pool()).await.is_ok()
 }
 
 async fn test_database_health(
     proxy: &crate::db::DatabaseProxy,
-    db_state: DatabaseState,
 ) -> (bool, Option<i64>, Option<String>) {
     let start = std::time::Instant::now();
-    let ok = test_database_connection(proxy, db_state).await;
+    let ok = test_database_connection(proxy).await;
     let latency = start.elapsed().as_millis().min(i64::MAX as u128) as i64;
     if ok {
         (true, Some(latency), None)
@@ -1010,26 +974,8 @@ async fn test_database_health(
     }
 }
 
-async fn apply_db_failure_simulation(state: &AppState, simulate_failure: bool) {
-    let machine = state.db_state();
-    let mut guard = machine.write().await;
-    if simulate_failure {
-        if guard.unavailable("debug simulate connection failure").is_err() {
-            let _ = guard.degraded("debug simulate connection failure");
-            let _ = guard.unavailable("debug simulate connection failure");
-        }
-    } else {
-        match guard.state() {
-            DatabaseState::Normal => {}
-            DatabaseState::Syncing | DatabaseState::Unavailable => {
-                let _ = guard.recover("debug clear connection failure");
-            }
-            DatabaseState::Degraded => {
-                let _ = guard.start_sync("debug clear connection failure");
-                let _ = guard.recover("debug clear connection failure");
-            }
-        }
-    }
+async fn apply_db_failure_simulation(_state: &AppState, _simulate_failure: bool) {
+    // Dual-write mechanism removed - db failure simulation no longer supported
 }
 
 fn safe_default_fallback(reason: &str) -> FallbackResult {

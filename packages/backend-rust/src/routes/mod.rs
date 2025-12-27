@@ -7,6 +7,7 @@ mod algorithm_config;
 mod amas;
 mod badges;
 mod debug;
+mod emergency;
 mod evaluation;
 mod experiments;
 mod habit_profile;
@@ -20,7 +21,7 @@ mod notifications;
 mod optimization;
 mod plan;
 mod preferences;
-mod realtime;
+pub mod realtime;
 mod records;
 mod study_config;
 mod tracking;
@@ -41,7 +42,6 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::Router;
 
-use crate::middleware::capture_request_db_state;
 use crate::middleware::csrf::{csrf_token_middleware, csrf_validation_middleware};
 use crate::middleware::rate_limit::{api_rate_limit_middleware, auth_rate_limit_middleware};
 use crate::response::json_error;
@@ -76,6 +76,10 @@ pub fn router(state: AppState) -> Router {
             post(v1_auth::logout).fallback(fallback_handler),
         )
         .route(
+            "/api/v1/auth/refresh_token",
+            post(v1_auth::refresh_token).fallback(fallback_handler),
+        )
+        .route(
             "/api/auth/login",
             post(v1_auth::login).fallback(fallback_handler),
         )
@@ -87,7 +91,15 @@ pub fn router(state: AppState) -> Router {
             "/api/auth/logout",
             post(v1_auth::logout).fallback(fallback_handler),
         )
-        .route("/api/users/me", get(users::me).fallback(fallback_handler))
+        .route(
+            "/api/auth/password/request",
+            post(v1_auth::request_password_reset).fallback(fallback_handler),
+        )
+        .route(
+            "/api/auth/password/reset",
+            post(v1_auth::reset_password).fallback(fallback_handler),
+        )
+        .route("/api/users/me", get(users::me).put(users::update_profile).fallback(fallback_handler))
         .route("/api/users/me/statistics", get(users::statistics).fallback(fallback_handler))
         .route("/api/users/me/password", put(users::update_password).fallback(fallback_handler))
         .route(
@@ -197,6 +209,10 @@ pub fn router(state: AppState) -> Router {
                 .fallback(fallback_handler),
         )
         .route(
+            "/api/emergency/config",
+            get(emergency::get_config).fallback(fallback_handler),
+        )
+        .route(
             "/api/learning-objectives",
             get(learning_objectives::get_objectives)
                 .put(learning_objectives::upsert_objectives)
@@ -272,6 +288,10 @@ pub fn router(state: AppState) -> Router {
             get(wordbooks::get_wordbook_words)
                 .post(wordbooks::add_word_to_wordbook)
                 .fallback(fallback_handler),
+        )
+        .route(
+            "/api/wordbooks/:id/words/batch",
+            post(wordbooks::batch_add_words_to_wordbook).fallback(fallback_handler),
         )
         .route(
             "/api/wordbooks/:wordBookId/words/:wordId",
@@ -383,6 +403,10 @@ pub fn router(state: AppState) -> Router {
                 get(records::statistics).fallback(fallback_handler),
             )
             .route(
+                "/api/records/statistics/enhanced",
+                get(records::enhanced_statistics).fallback(fallback_handler),
+            )
+            .route(
                 "/api/v1/learning/records",
                 get(records::v1_list_learning_records)
                     .post(records::v1_create_learning_record)
@@ -460,6 +484,22 @@ pub fn router(state: AppState) -> Router {
                     .fallback(fallback_handler),
             )
             .route(
+                "/api/word-states/:wordId/mark-mastered",
+                post(word_states::mark_mastered).fallback(fallback_handler),
+            )
+            .route(
+                "/api/word-states/:wordId/mark-needs-practice",
+                post(word_states::mark_needs_practice).fallback(fallback_handler),
+            )
+            .route(
+                "/api/word-states/:wordId/reset",
+                post(word_states::reset_progress).fallback(fallback_handler),
+            )
+            .route(
+                "/api/word-states/batch-update",
+                post(word_states::batch_update).fallback(fallback_handler),
+            )
+            .route(
                 "/api/word-scores/range",
                 get(word_scores::range).fallback(fallback_handler),
             )
@@ -530,7 +570,6 @@ pub fn router(state: AppState) -> Router {
     app
         .layer(middleware::from_fn(csrf_validation_middleware))
         .layer(middleware::from_fn(csrf_token_middleware))
-        .layer(middleware::from_fn_with_state(middleware_state, capture_request_db_state))
         .layer(middleware::from_fn(auth_rate_limit_middleware))
         .layer(middleware::from_fn(api_rate_limit_middleware))
         .fallback(fallback_handler)

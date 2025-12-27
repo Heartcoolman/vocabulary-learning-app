@@ -8,9 +8,7 @@ use axum::Json;
 use bytes::Bytes;
 use chrono::{NaiveDateTime, TimeZone, Utc};
 use sqlx::{QueryBuilder, Row};
-use uuid::Uuid;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -95,18 +93,12 @@ pub async fn list_notifications(
         .as_deref()
         .and_then(parse_query_datetime);
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -124,7 +116,7 @@ pub async fn list_notifications(
         end_date,
     };
 
-    match select_notifications(proxy.as_ref(), request_state, &auth_user.id, &params).await {
+    match select_notifications(proxy.as_ref(), &auth_user.id, &params).await {
         Ok(notifications) => Json(SuccessResponse {
             success: true,
             data: notifications,
@@ -147,18 +139,12 @@ pub async fn stats(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -166,7 +152,7 @@ pub async fn stats(
             }
         };
 
-    match build_stats(proxy.as_ref(), request_state, &auth_user.id).await {
+    match build_stats(proxy.as_ref(), &auth_user.id).await {
         Ok(stats) => Json(SuccessResponse {
             success: true,
             data: stats,
@@ -194,18 +180,12 @@ pub async fn get_notification(
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -213,7 +193,7 @@ pub async fn get_notification(
             }
         };
 
-    match select_notification(proxy.as_ref(), request_state, &auth_user.id, &notification_id).await {
+    match select_notification(proxy.as_ref(), &auth_user.id, &notification_id).await {
         Ok(Some(notification)) => Json(SuccessResponse {
             success: true,
             data: notification,
@@ -237,18 +217,12 @@ pub async fn read_all(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -256,7 +230,7 @@ pub async fn read_all(
             }
         };
 
-    let unread_count = match count_notifications(proxy.as_ref(), request_state, &auth_user.id, Some("UNREAD")).await {
+    let unread_count = match count_notifications(proxy.as_ref(), &auth_user.id, Some("UNREAD")).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "count unread notifications failed");
@@ -265,7 +239,7 @@ pub async fn read_all(
     };
 
     let now_iso = now_iso_millis();
-    if let Err(err) = mark_all_as_read(proxy.as_ref(), request_state, &auth_user.id, &now_iso).await {
+    if let Err(err) = mark_all_as_read(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "mark all as read failed");
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
@@ -301,22 +275,16 @@ pub async fn batch_read(
         }
     };
 
-    if payload.notification_ids.is_empty() {
+    if payload.notification_ids.is_empty() || !are_valid_notification_ids(&payload.notification_ids) {
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请提供有效的通知ID数组").into_response();
-    }
-
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
+    };
 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -325,7 +293,7 @@ pub async fn batch_read(
         };
 
     let now_iso = now_iso_millis();
-    let affected = match mark_many_as_read(proxy.as_ref(), request_state, &auth_user.id, &payload.notification_ids, &now_iso).await {
+    let affected = match mark_many_as_read(proxy.as_ref(), &auth_user.id, &payload.notification_ids, &now_iso).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "batch mark as read failed");
@@ -355,18 +323,12 @@ pub async fn mark_read(
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -377,7 +339,6 @@ pub async fn mark_read(
     let now_iso = now_iso_millis();
     if let Err(err) = update_notification_status(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         &notification_id,
         NotificationAction::MarkRead { read_at: &now_iso },
@@ -410,18 +371,12 @@ pub async fn archive(
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -432,7 +387,6 @@ pub async fn archive(
     let now_iso = now_iso_millis();
     if let Err(err) = update_notification_status(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         &notification_id,
         NotificationAction::Archive,
@@ -472,22 +426,16 @@ pub async fn batch_delete(
         }
     };
 
-    if payload.notification_ids.is_empty() {
+    if payload.notification_ids.is_empty() || !are_valid_notification_ids(&payload.notification_ids) {
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请提供有效的通知ID数组").into_response();
     }
-
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
 
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -498,7 +446,6 @@ pub async fn batch_delete(
     let now_iso = now_iso_millis();
     let affected = match mark_many_as_deleted(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         &payload.notification_ids,
         &now_iso,
@@ -534,18 +481,12 @@ pub async fn delete_notification(
         return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
     let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
             Ok(user) => user,
             Err(_) => {
                 return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
@@ -556,7 +497,6 @@ pub async fn delete_notification(
     let now_iso = now_iso_millis();
     if let Err(err) = update_notification_status(
         proxy.as_ref(),
-        request_state,
         &auth_user.id,
         &notification_id,
         NotificationAction::Delete,
@@ -587,103 +527,13 @@ struct NotificationQueryParams {
 
 async fn select_notifications(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     params: &NotificationQueryParams,
 ) -> Result<Vec<NotificationItem>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT
-              "id",
-              "userId",
-              "type",
-              "title",
-              "content",
-              "status",
-              "priority",
-              "metadata",
-              "readAt",
-              "createdAt",
-              "updatedAt"
-            FROM "notifications"
-            WHERE "userId" = 
-            "#,
-        );
-        qb.push_bind(user_id);
-
-        if let Some(status) = params.status.as_deref() {
-            qb.push(r#" AND "status" = "#);
-            qb.push_bind(status);
-        } else {
-            qb.push(r#" AND "status" != 'DELETED'"#);
-        }
-
-        if let Some(nt) = params.notification_type.as_deref() {
-            qb.push(r#" AND "type" = "#);
-            qb.push_bind(nt);
-        }
-
-        if let Some(priority) = params.priority.as_deref() {
-            qb.push(r#" AND "priority" = "#);
-            qb.push_bind(priority);
-        }
-
-        if let Some(start) = params.start_date {
-            qb.push(r#" AND datetime("createdAt") >= datetime("#);
-            qb.push_bind(format_sqlite_query_datetime(start));
-            qb.push(")");
-        }
-
-        if let Some(end) = params.end_date {
-            qb.push(r#" AND datetime("createdAt") <= datetime("#);
-            qb.push_bind(format_sqlite_query_datetime(end));
-            qb.push(")");
-        }
-
-        qb.push(
-            r#"
-            ORDER BY
-              CASE "priority"
-                WHEN 'URGENT' THEN 3
-                WHEN 'HIGH' THEN 2
-                WHEN 'NORMAL' THEN 1
-                WHEN 'LOW' THEN 0
-                ELSE -1
-              END DESC,
-              datetime("createdAt") DESC
-            "#,
-        );
-
-        qb.push(" LIMIT ");
-        qb.push_bind(params.limit);
-        qb.push(" OFFSET ");
-        qb.push_bind(params.offset);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            out.push(map_sqlite_notification_row(&row)?);
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
             SELECT
               "id",
               "userId",
@@ -699,101 +549,59 @@ async fn select_notifications(
             FROM "notifications"
             WHERE "userId" =
             "#,
-        );
-        qb.push_bind(user_id);
+    );
+    qb.push_bind(user_id);
 
-        if let Some(status) = params.status.as_deref() {
-            qb.push(r#" AND "status"::text = "#);
-            qb.push_bind(status);
-        } else {
-            qb.push(r#" AND "status"::text != 'DELETED'"#);
-        }
-
-        if let Some(nt) = params.notification_type.as_deref() {
-            qb.push(r#" AND "type"::text = "#);
-            qb.push_bind(nt);
-        }
-
-        if let Some(priority) = params.priority.as_deref() {
-            qb.push(r#" AND "priority"::text = "#);
-            qb.push_bind(priority);
-        }
-
-        if let Some(start) = params.start_date {
-            qb.push(r#" AND "createdAt" >= "#);
-            qb.push_bind(start);
-        }
-
-        if let Some(end) = params.end_date {
-            qb.push(r#" AND "createdAt" <= "#);
-            qb.push_bind(end);
-        }
-
-        qb.push(r#" ORDER BY "priority" DESC, "createdAt" DESC"#);
-        qb.push(" LIMIT ");
-        qb.push_bind(params.limit);
-        qb.push(" OFFSET ");
-        qb.push_bind(params.offset);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            out.push(map_pg_notification_row(&row)?);
-        }
-        Ok(out)
+    if let Some(status) = params.status.as_deref() {
+        qb.push(r#" AND "status"::text = "#);
+        qb.push_bind(status);
+    } else {
+        qb.push(r#" AND "status"::text != 'DELETED'"#);
     }
+
+    if let Some(nt) = params.notification_type.as_deref() {
+        qb.push(r#" AND "type"::text = "#);
+        qb.push_bind(nt);
+    }
+
+    if let Some(priority) = params.priority.as_deref() {
+        qb.push(r#" AND "priority"::text = "#);
+        qb.push_bind(priority);
+    }
+
+    if let Some(start) = params.start_date {
+        qb.push(r#" AND "createdAt" >= "#);
+        qb.push_bind(start);
+    }
+
+    if let Some(end) = params.end_date {
+        qb.push(r#" AND "createdAt" <= "#);
+        qb.push_bind(end);
+    }
+
+    qb.push(r#" ORDER BY CASE "priority"::text WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 ELSE 4 END, "createdAt" DESC"#);
+    qb.push(" LIMIT ");
+    qb.push_bind(params.limit);
+    qb.push(" OFFSET ");
+    qb.push_bind(params.offset);
+
+    let rows = qb.build().fetch_all(pool).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(map_pg_notification_row(&row)?);
+    }
+    Ok(out)
 }
 
 async fn select_notification(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     notification_id: &str,
 ) -> Result<Option<NotificationItem>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id",
-              "userId",
-              "type",
-              "title",
-              "content",
-              "status",
-              "priority",
-              "metadata",
-              "readAt",
-              "createdAt",
-              "updatedAt"
-            FROM "notifications"
-            WHERE "id" = ? AND "userId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(notification_id)
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        Ok(row.map(|row| map_sqlite_notification_row(&row)).transpose()?)
-    } else {
-        let Some(pool) = primary else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let row = sqlx::query(
-            r#"
+    let row = sqlx::query(
+        r#"
             SELECT
               "id",
               "userId",
@@ -810,27 +618,25 @@ async fn select_notification(
             WHERE "id" = $1 AND "userId" = $2
             LIMIT 1
             "#,
-        )
-        .bind(notification_id)
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
+    )
+    .bind(notification_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
 
-        Ok(row.map(|row| map_pg_notification_row(&row)).transpose()?)
-    }
+    Ok(row.map(|row| map_pg_notification_row(&row)).transpose()?)
 }
 
 async fn build_stats(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
 ) -> Result<NotificationStatsResponse, sqlx::Error> {
-    let total = count_notifications(proxy, state, user_id, None).await?;
-    let unread = count_notifications(proxy, state, user_id, Some("UNREAD")).await?;
-    let read = count_notifications(proxy, state, user_id, Some("READ")).await?;
-    let archived = count_notifications(proxy, state, user_id, Some("ARCHIVED")).await?;
-    let by_type = group_notifications(proxy, state, user_id, "type").await?;
-    let by_priority = group_notifications(proxy, state, user_id, "priority").await?;
+    let total = count_notifications(proxy, user_id, None).await?;
+    let unread = count_notifications(proxy, user_id, Some("UNREAD")).await?;
+    let read = count_notifications(proxy, user_id, Some("READ")).await?;
+    let archived = count_notifications(proxy, user_id, Some("ARCHIVED")).await?;
+    let by_type = group_notifications(proxy, user_id, "type").await?;
+    let by_priority = group_notifications(proxy, user_id, "priority").await?;
 
     Ok(NotificationStatsResponse {
         total,
@@ -844,120 +650,53 @@ async fn build_stats(
 
 async fn count_notifications(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     status: Option<&str>,
 ) -> Result<i64, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        if let Some(status) = status {
-            let count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = ? AND "status" = ?"#,
-            )
-            .bind(user_id)
-            .bind(status)
-            .fetch_one(&pool)
-            .await?;
-            Ok(count)
-        } else {
-            let count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = ? AND "status" != 'DELETED'"#,
-            )
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await?;
-            Ok(count)
-        }
+    if let Some(status) = status {
+        let count: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = $1 AND "status"::text = $2"#,
+        )
+        .bind(user_id)
+        .bind(status)
+        .fetch_one(pool)
+        .await?;
+        Ok(count)
     } else {
-        let Some(pool) = primary else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        if let Some(status) = status {
-            let count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = $1 AND "status"::text = $2"#,
-            )
-            .bind(user_id)
-            .bind(status)
-            .fetch_one(&pool)
-            .await?;
-            Ok(count)
-        } else {
-            let count: i64 = sqlx::query_scalar(
-                r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = $1 AND "status"::text != 'DELETED'"#,
-            )
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await?;
-            Ok(count)
-        }
+        let count: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM "notifications" WHERE "userId" = $1 AND "status"::text != 'DELETED'"#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+        Ok(count)
     }
 }
 
 async fn group_notifications(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     column: &'static str,
 ) -> Result<HashMap<String, i64>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(
-        state,
-        crate::db::state_machine::DatabaseState::Degraded | crate::db::state_machine::DatabaseState::Unavailable
-    ) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let sql = format!(
-            r#"SELECT "{column}" as "key", COUNT(*) as "count"
-               FROM "notifications"
-               WHERE "userId" = ? AND "status" != 'DELETED'
-               GROUP BY "{column}""#
-        );
-
-        let rows = sqlx::query(&sql).bind(user_id).fetch_all(&pool).await?;
-        let mut out = HashMap::new();
-        for row in rows {
-            let key: String = row.try_get("key")?;
-            let count: i64 = row.try_get("count")?;
-            out.insert(key, count);
-        }
-        Ok(out)
-    } else {
-        let Some(pool) = primary else {
-            return Err(sqlx::Error::PoolClosed);
-        };
-
-        let sql = format!(
-            r#"SELECT "{column}"::text as "key", COUNT(*) as "count"
+    let sql = format!(
+        r#"SELECT "{column}"::text as "key", COUNT(*) as "count"
                FROM "notifications"
                WHERE "userId" = $1 AND "status"::text != 'DELETED'
                GROUP BY "{column}""#
-        );
+    );
 
-        let rows = sqlx::query(&sql).bind(user_id).fetch_all(&pool).await?;
-        let mut out = HashMap::new();
-        for row in rows {
-            let key: String = row.try_get("key")?;
-            let count: i64 = row.try_get("count")?;
-            out.insert(key, count);
-        }
-        Ok(out)
+    let rows = sqlx::query(&sql).bind(user_id).fetch_all(pool).await?;
+    let mut out = HashMap::new();
+    for row in rows {
+        let key: String = row.try_get("key")?;
+        let count: i64 = row.try_get("count")?;
+        out.insert(key, count);
     }
+    Ok(out)
 }
 
 enum NotificationAction<'a> {
@@ -968,162 +707,93 @@ enum NotificationAction<'a> {
 
 async fn update_notification_status(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     notification_id: &str,
     action: NotificationAction<'_>,
     now_iso: &str,
 ) -> Result<(), String> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String(notification_id.to_string()));
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
+    let pool = proxy.pool();
+    let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
 
-        let mut data = serde_json::Map::new();
-        match action {
-            NotificationAction::MarkRead { read_at } => {
-                data.insert("status".to_string(), serde_json::Value::String("READ".to_string()));
-                data.insert("readAt".to_string(), serde_json::Value::String(read_at.to_string()));
-            }
-            NotificationAction::Archive => {
-                data.insert("status".to_string(), serde_json::Value::String("ARCHIVED".to_string()));
-            }
-            NotificationAction::Delete => {
-                data.insert("status".to_string(), serde_json::Value::String("DELETED".to_string()));
-            }
-        }
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "notifications".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
-
-        let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
-        match action {
-            NotificationAction::MarkRead { .. } => {
-                sqlx::query(
-                    r#"
+    match action {
+        NotificationAction::MarkRead { .. } => {
+            sqlx::query(
+                r#"
                     UPDATE "notifications"
                     SET "status" = 'READ', "readAt" = $1, "updatedAt" = $2
                     WHERE "id" = $3 AND "userId" = $4
                     "#,
-                )
-                .bind(now)
-                .bind(now)
-                .bind(notification_id)
-                .bind(user_id)
-                .execute(&primary)
-                .await
-                .map(|_| ())
-                .map_err(|err| err.to_string())
-            }
-            NotificationAction::Archive => {
-                sqlx::query(
-                    r#"
+            )
+            .bind(now)
+            .bind(now)
+            .bind(notification_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string())
+        }
+        NotificationAction::Archive => {
+            sqlx::query(
+                r#"
                     UPDATE "notifications"
                     SET "status" = 'ARCHIVED', "updatedAt" = $1
                     WHERE "id" = $2 AND "userId" = $3
                     "#,
-                )
-                .bind(now)
-                .bind(notification_id)
-                .bind(user_id)
-                .execute(&primary)
-                .await
-                .map(|_| ())
-                .map_err(|err| err.to_string())
-            }
-            NotificationAction::Delete => {
-                sqlx::query(
-                    r#"
+            )
+            .bind(now)
+            .bind(notification_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string())
+        }
+        NotificationAction::Delete => {
+            sqlx::query(
+                r#"
                     UPDATE "notifications"
                     SET "status" = 'DELETED', "updatedAt" = $1
                     WHERE "id" = $2 AND "userId" = $3
                     "#,
-                )
-                .bind(now)
-                .bind(notification_id)
-                .bind(user_id)
-                .execute(&primary)
-                .await
-                .map(|_| ())
-                .map_err(|err| err.to_string())
-            }
+            )
+            .bind(now)
+            .bind(notification_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string())
         }
     }
 }
 
 async fn mark_all_as_read(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     now_iso: &str,
 ) -> Result<(), String> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        where_clause.insert("status".to_string(), serde_json::Value::String("UNREAD".to_string()));
+    let pool = proxy.pool();
+    let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
 
-        let mut data = serde_json::Map::new();
-        data.insert("status".to_string(), serde_json::Value::String("READ".to_string()));
-        data.insert("readAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-        data.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.to_string()));
-
-        let op = crate::db::dual_write_manager::WriteOperation::Update {
-            table: "notifications".to_string(),
-            r#where: where_clause,
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
-
-        let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
-        sqlx::query(
-            r#"
+    sqlx::query(
+        r#"
             UPDATE "notifications"
             SET "status" = 'READ', "readAt" = $1, "updatedAt" = $2
             WHERE "userId" = $3 AND "status" = 'UNREAD'
             "#,
-        )
-        .bind(now)
-        .bind(now)
-        .bind(user_id)
-        .execute(&primary)
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
-    }
+    )
+    .bind(now)
+    .bind(now)
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|err| err.to_string())
 }
 
 async fn mark_many_as_read(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     ids: &[String],
     now_iso: &str,
@@ -1132,48 +802,30 @@ async fn mark_many_as_read(
         return Ok(0);
     }
 
-    if proxy.sqlite_enabled() {
-        for id in ids {
-            update_notification_status(
-                proxy,
-                state,
-                user_id,
-                id,
-                NotificationAction::MarkRead { read_at: now_iso },
-                now_iso,
-            )
-            .await?;
-        }
-        Ok(ids.len() as u64)
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
+    let pool = proxy.pool();
+    let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
 
-        let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"UPDATE "notifications" SET "status" = 'READ', "readAt" = "#,
-        );
-        qb.push_bind(now);
-        qb.push(r#", "updatedAt" = "#);
-        qb.push_bind(now);
-        qb.push(r#" WHERE "userId" = "#);
-        qb.push_bind(user_id);
-        qb.push(r#" AND "id" IN ("#);
-        let mut separated = qb.separated(", ");
-        for id in ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-
-        let result = qb.build().execute(&primary).await.map_err(|err| err.to_string())?;
-        Ok(result.rows_affected())
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"UPDATE "notifications" SET "status" = 'READ', "readAt" = "#,
+    );
+    qb.push_bind(now);
+    qb.push(r#", "updatedAt" = "#);
+    qb.push_bind(now);
+    qb.push(r#" WHERE "userId" = "#);
+    qb.push_bind(user_id);
+    qb.push(r#" AND "id" IN ("#);
+    let mut separated = qb.separated(", ");
+    for id in ids {
+        separated.push_bind(id);
     }
+    separated.push_unseparated(")");
+
+    let result = qb.build().execute(pool).await.map_err(|err| err.to_string())?;
+    Ok(result.rows_affected())
 }
 
 async fn mark_many_as_deleted(
     proxy: &crate::db::DatabaseProxy,
-    state: crate::db::state_machine::DatabaseState,
     user_id: &str,
     ids: &[String],
     now_iso: &str,
@@ -1182,32 +834,23 @@ async fn mark_many_as_deleted(
         return Ok(0);
     }
 
-    if proxy.sqlite_enabled() {
-        for id in ids {
-            update_notification_status(proxy, state, user_id, id, NotificationAction::Delete, now_iso).await?;
-        }
-        Ok(ids.len() as u64)
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err("database unavailable".to_string());
-        };
+    let pool = proxy.pool();
+    let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
 
-        let now = parse_naive_datetime(now_iso).unwrap_or_else(|| Utc::now().naive_utc());
-        let mut qb =
-            QueryBuilder::<sqlx::Postgres>::new(r#"UPDATE "notifications" SET "status" = 'DELETED', "updatedAt" = "#);
-        qb.push_bind(now);
-        qb.push(r#" WHERE "userId" = "#);
-        qb.push_bind(user_id);
-        qb.push(r#" AND "id" IN ("#);
-        let mut separated = qb.separated(", ");
-        for id in ids {
-            separated.push_bind(id);
-        }
-        separated.push_unseparated(")");
-
-        let result = qb.build().execute(&primary).await.map_err(|err| err.to_string())?;
-        Ok(result.rows_affected())
+    let mut qb =
+        QueryBuilder::<sqlx::Postgres>::new(r#"UPDATE "notifications" SET "status" = 'DELETED', "updatedAt" = "#);
+    qb.push_bind(now);
+    qb.push(r#" WHERE "userId" = "#);
+    qb.push_bind(user_id);
+    qb.push(r#" AND "id" IN ("#);
+    let mut separated = qb.separated(", ");
+    for id in ids {
+        separated.push_bind(id);
     }
+    separated.push_unseparated(")");
+
+    let result = qb.build().execute(pool).await.map_err(|err| err.to_string())?;
+    Ok(result.rows_affected())
 }
 
 fn extract_notification_id(path: &str) -> Option<String> {
@@ -1220,10 +863,16 @@ fn extract_notification_id(path: &str) -> Option<String> {
     }
     let id = segments[2].trim();
     if id.is_empty() {
-        None
-    } else {
-        Some(id.to_string())
+        return None;
     }
+    if uuid::Uuid::parse_str(id).is_err() {
+        return None;
+    }
+    Some(id.to_string())
+}
+
+fn are_valid_notification_ids(ids: &[String]) -> bool {
+    ids.iter().all(|id| uuid::Uuid::parse_str(id).is_ok())
 }
 
 fn map_pg_notification_row(row: &sqlx::postgres::PgRow) -> Result<NotificationItem, sqlx::Error> {
@@ -1254,36 +903,6 @@ fn map_pg_notification_row(row: &sqlx::postgres::PgRow) -> Result<NotificationIt
     })
 }
 
-fn map_sqlite_notification_row(row: &sqlx::sqlite::SqliteRow) -> Result<NotificationItem, sqlx::Error> {
-    let id: String = row.try_get("id")?;
-    let user_id: String = row.try_get("userId")?;
-    let notification_type: String = row.try_get("type")?;
-    let title: String = row.try_get("title")?;
-    let content: String = row.try_get("content")?;
-    let status: String = row.try_get("status")?;
-    let priority: String = row.try_get("priority")?;
-    let metadata_raw: Option<String> = row.try_get("metadata")?;
-    let read_at_raw: Option<String> = row.try_get("readAt")?;
-    let created_raw: String = row.try_get("createdAt")?;
-    let updated_raw: String = row.try_get("updatedAt")?;
-
-    let metadata = metadata_raw.map(|raw| serde_json::from_str::<serde_json::Value>(&raw).unwrap_or(serde_json::Value::String(raw)));
-    let read_at = read_at_raw.map(|raw| format_sqlite_datetime(&raw));
-
-    Ok(NotificationItem {
-        id,
-        user_id,
-        notification_type,
-        title,
-        content,
-        status,
-        priority,
-        metadata,
-        read_at,
-        created_at: format_sqlite_datetime(&created_raw),
-        updated_at: format_sqlite_datetime(&updated_raw),
-    })
-}
 
 fn now_iso_millis() -> String {
     crate::auth::format_naive_datetime_iso_millis(Utc::now().naive_utc())
@@ -1296,15 +915,6 @@ fn parse_naive_datetime(value: &str) -> Option<NaiveDateTime> {
 fn parse_query_datetime(value: &str) -> Option<NaiveDateTime> {
     let ms = crate::auth::parse_sqlite_datetime_ms(value)?;
     Utc.timestamp_millis_opt(ms).single().map(|dt| dt.naive_utc())
-}
-
-fn format_sqlite_query_datetime(value: NaiveDateTime) -> String {
-    value.format("%Y-%m-%d %H:%M:%S").to_string()
-}
-
-fn format_sqlite_datetime(raw: &str) -> String {
-    let ms = crate::auth::parse_sqlite_datetime_ms(raw).unwrap_or_else(|| Utc::now().timestamp_millis());
-    crate::auth::format_timestamp_ms_iso_millis(ms).unwrap_or_else(|| now_iso_millis())
 }
 
 fn get_query_param(query: &str, key: &str) -> Option<String> {

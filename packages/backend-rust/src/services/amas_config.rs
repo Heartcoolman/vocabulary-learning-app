@@ -6,7 +6,6 @@ use sqlx::Row;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,7 +203,7 @@ impl AMASConfigService {
         }
     }
 
-    pub async fn get_config(&self, state: DatabaseState) -> Result<AMASConfig, AMASConfigError> {
+    pub async fn get_config(&self) -> Result<AMASConfig, AMASConfigError> {
         {
             let cache = self.cache.read().await;
             if let Some(ref cached) = *cache {
@@ -214,7 +213,7 @@ impl AMASConfigService {
             }
         }
 
-        let config = self.load_config_from_db(state).await?;
+        let config = self.load_config_from_db().await?;
 
         {
             let mut cache = self.cache.write().await;
@@ -227,29 +226,28 @@ impl AMASConfigService {
         Ok(config)
     }
 
-    pub async fn get_param_bounds(&self, state: DatabaseState) -> Result<ParamBoundConfig, AMASConfigError> {
-        let config = self.get_config(state).await?;
+    pub async fn get_param_bounds(&self) -> Result<ParamBoundConfig, AMASConfigError> {
+        let config = self.get_config().await?;
         Ok(config.param_bounds)
     }
 
-    pub async fn get_thresholds(&self, state: DatabaseState) -> Result<ThresholdConfig, AMASConfigError> {
-        let config = self.get_config(state).await?;
+    pub async fn get_thresholds(&self) -> Result<ThresholdConfig, AMASConfigError> {
+        let config = self.get_config().await?;
         Ok(config.thresholds)
     }
 
-    pub async fn get_reward_weights(&self, state: DatabaseState) -> Result<RewardWeightConfig, AMASConfigError> {
-        let config = self.get_config(state).await?;
+    pub async fn get_reward_weights(&self) -> Result<RewardWeightConfig, AMASConfigError> {
+        let config = self.get_config().await?;
         Ok(config.reward_weights)
     }
 
-    pub async fn get_safety_thresholds(&self, state: DatabaseState) -> Result<SafetyThresholdConfig, AMASConfigError> {
-        let config = self.get_config(state).await?;
+    pub async fn get_safety_thresholds(&self) -> Result<SafetyThresholdConfig, AMASConfigError> {
+        let config = self.get_config().await?;
         Ok(config.safety_thresholds)
     }
 
     pub async fn update_param_bound(
         &self,
-        state: DatabaseState,
         target: &str,
         bound_type: &str,
         new_value: f64,
@@ -257,7 +255,7 @@ impl AMASConfigService {
         change_reason: &str,
         suggestion_id: Option<&str>,
     ) -> Result<(), AMASConfigError> {
-        let mut config = self.get_config(state).await?;
+        let mut config = self.get_config().await?;
         let full_target = format!("{}.{}", target, bound_type);
 
         let param_bound = match target {
@@ -295,7 +293,6 @@ impl AMASConfigService {
         config.updated_by = changed_by.to_string();
 
         self.save_config_to_db(
-            state,
             AMASConfigType::ParamBound,
             &full_target,
             prev_value,
@@ -313,14 +310,13 @@ impl AMASConfigService {
 
     pub async fn update_threshold(
         &self,
-        state: DatabaseState,
         target: &str,
         new_value: f64,
         changed_by: &str,
         change_reason: &str,
         suggestion_id: Option<&str>,
     ) -> Result<(), AMASConfigError> {
-        let mut config = self.get_config(state).await?;
+        let mut config = self.get_config().await?;
 
         let prev_value = match target {
             "highAccuracy" => std::mem::replace(&mut config.thresholds.high_accuracy, new_value),
@@ -339,7 +335,6 @@ impl AMASConfigService {
         config.updated_by = changed_by.to_string();
 
         self.save_config_to_db(
-            state,
             AMASConfigType::Threshold,
             target,
             prev_value,
@@ -357,7 +352,6 @@ impl AMASConfigService {
 
     pub async fn update_reward_weight(
         &self,
-        state: DatabaseState,
         target: &str,
         new_value: f64,
         changed_by: &str,
@@ -371,7 +365,7 @@ impl AMASConfigService {
             )));
         }
 
-        let mut config = self.get_config(state).await?;
+        let mut config = self.get_config().await?;
 
         let prev_value = match target {
             "correct" => std::mem::replace(&mut config.reward_weights.correct, new_value),
@@ -387,7 +381,6 @@ impl AMASConfigService {
         config.updated_by = changed_by.to_string();
 
         self.save_config_to_db(
-            state,
             AMASConfigType::RewardWeight,
             target,
             prev_value,
@@ -405,14 +398,13 @@ impl AMASConfigService {
 
     pub async fn update_safety_threshold(
         &self,
-        state: DatabaseState,
         target: &str,
         new_value: f64,
         changed_by: &str,
         change_reason: &str,
         suggestion_id: Option<&str>,
     ) -> Result<(), AMASConfigError> {
-        let mut config = self.get_config(state).await?;
+        let mut config = self.get_config().await?;
 
         let prev_value = match target {
             "minAttention" => std::mem::replace(&mut config.safety_thresholds.min_attention, new_value),
@@ -430,7 +422,6 @@ impl AMASConfigService {
         config.updated_by = changed_by.to_string();
 
         self.save_config_to_db(
-            state,
             AMASConfigType::SafetyThreshold,
             target,
             prev_value,
@@ -448,45 +439,13 @@ impl AMASConfigService {
 
     pub async fn get_config_history(
         &self,
-        state: DatabaseState,
         config_type: Option<AMASConfigType>,
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<ConfigUpdateRecord>, AMASConfigError> {
         let limit = limit.unwrap_or(50).min(100);
         let offset = offset.unwrap_or(0);
-
-        let primary = self.db_proxy.primary_pool().await;
-        let fallback = self.db_proxy.fallback_pool().await;
-        let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-        if use_fallback {
-            let Some(pool) = fallback else {
-                return Ok(vec![]);
-            };
-
-            let rows = sqlx::query(
-                r#"
-                SELECT "id", "configId", "changedBy", "changeReason", "previousValue", "newValue", "timestamp"
-                FROM "config_history"
-                ORDER BY "timestamp" DESC
-                LIMIT ? OFFSET ?
-                "#,
-            )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&pool)
-            .await?;
-
-            return Ok(rows
-                .into_iter()
-                .filter_map(|row| parse_config_history_row_sqlite(&row, config_type))
-                .collect());
-        }
-
-        let Some(pool) = primary else {
-            return Ok(vec![]);
-        };
+        let pool = self.db_proxy.pool();
 
         let rows = sqlx::query(
             r#"
@@ -498,7 +457,7 @@ impl AMASConfigService {
         )
         .bind(limit)
         .bind(offset)
-        .fetch_all(&pool)
+        .fetch_all(pool)
         .await?;
 
         Ok(rows
@@ -509,13 +468,11 @@ impl AMASConfigService {
 
     pub async fn reset_to_defaults(
         &self,
-        state: DatabaseState,
         changed_by: &str,
     ) -> Result<(), AMASConfigError> {
         let config = AMASConfig::default();
 
         self.save_config_to_db(
-            state,
             AMASConfigType::ParamBound,
             "all",
             0.0,
@@ -531,52 +488,22 @@ impl AMASConfigService {
         Ok(())
     }
 
-    async fn load_config_from_db(&self, state: DatabaseState) -> Result<AMASConfig, AMASConfigError> {
-        let primary = self.db_proxy.primary_pool().await;
-        let fallback = self.db_proxy.fallback_pool().await;
-        let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    async fn load_config_from_db(&self) -> Result<AMASConfig, AMASConfigError> {
+        let pool = self.db_proxy.pool();
 
-        let config_json: Option<serde_json::Value> = if use_fallback {
-            let Some(pool) = fallback else {
-                return Ok(AMASConfig::default());
-            };
+        let row = sqlx::query(
+            r#"
+            SELECT "masteryThresholds"
+            FROM "algorithm_configs"
+            WHERE "name" = 'amas_config'
+            ORDER BY "createdAt" DESC
+            LIMIT 1
+            "#,
+        )
+        .fetch_optional(pool)
+        .await?;
 
-            let row = sqlx::query(
-                r#"
-                SELECT "masteryThresholds"
-                FROM "algorithm_configs"
-                WHERE "name" = 'amas_config'
-                ORDER BY "createdAt" DESC
-                LIMIT 1
-                "#,
-            )
-            .fetch_optional(&pool)
-            .await?;
-
-            row.and_then(|r| {
-                r.try_get::<String, _>("masteryThresholds")
-                    .ok()
-                    .and_then(|s| serde_json::from_str(&s).ok())
-            })
-        } else {
-            let Some(pool) = primary else {
-                return Ok(AMASConfig::default());
-            };
-
-            let row = sqlx::query(
-                r#"
-                SELECT "masteryThresholds"
-                FROM "algorithm_configs"
-                WHERE "name" = 'amas_config'
-                ORDER BY "createdAt" DESC
-                LIMIT 1
-                "#,
-            )
-            .fetch_optional(&pool)
-            .await?;
-
-            row.and_then(|r| r.try_get::<serde_json::Value, _>("masteryThresholds").ok())
-        };
+        let config_json: Option<serde_json::Value> = row.and_then(|r| r.try_get::<serde_json::Value, _>("masteryThresholds").ok());
 
         if let Some(json) = config_json {
             if let Some(amas_config) = json.get("amasConfig") {
@@ -615,7 +542,6 @@ impl AMASConfigService {
 
     async fn save_config_to_db(
         &self,
-        _state: DatabaseState,
         config_type: AMASConfigType,
         target: &str,
         prev_value: f64,
@@ -625,10 +551,7 @@ impl AMASConfigService {
         change_reason: &str,
         suggestion_id: Option<&str>,
     ) -> Result<(), AMASConfigError> {
-        let primary = self.db_proxy.primary_pool().await;
-        let Some(pool) = primary else {
-            return Err(AMASConfigError::Database("primary pool unavailable".to_string()));
-        };
+        let pool = self.db_proxy.pool();
 
         let amas_config_json = serde_json::json!({
             "amasConfig": {
@@ -643,7 +566,7 @@ impl AMASConfigService {
         let existing: Option<(String,)> = sqlx::query_as(
             r#"SELECT "id" FROM "algorithm_configs" WHERE "name" = 'amas_config' LIMIT 1"#,
         )
-        .fetch_optional(&pool)
+        .fetch_optional(pool)
         .await?;
 
         let config_id = if let Some((id,)) = existing {
@@ -656,7 +579,7 @@ impl AMASConfigService {
             )
             .bind(&amas_config_json)
             .bind(&id)
-            .execute(&pool)
+            .execute(pool)
             .await?;
             id
         } else {
@@ -672,7 +595,7 @@ impl AMASConfigService {
             .bind(&new_id)
             .bind(&amas_config_json)
             .bind(changed_by)
-            .execute(&pool)
+            .execute(pool)
             .await?;
             new_id
         };
@@ -704,7 +627,7 @@ impl AMASConfigService {
         .bind(change_reason)
         .bind(&prev_json)
         .bind(&new_json)
-        .execute(&pool)
+        .execute(pool)
         .await?;
 
         Ok(())
@@ -740,27 +663,6 @@ fn parse_config_history_row_pg(
     let prev_json: serde_json::Value = row.try_get("previousValue").ok()?;
     let new_json: serde_json::Value = row.try_get("newValue").ok()?;
     let timestamp: chrono::DateTime<chrono::Utc> = row.try_get("timestamp").ok()?;
-
-    parse_config_json(id, changed_by, change_reason, prev_json, new_json, timestamp, filter_type)
-}
-
-fn parse_config_history_row_sqlite(
-    row: &sqlx::sqlite::SqliteRow,
-    filter_type: Option<AMASConfigType>,
-) -> Option<ConfigUpdateRecord> {
-    use sqlx::Row;
-    let id: String = row.try_get("id").ok()?;
-    let changed_by: String = row.try_get("changedBy").ok()?;
-    let change_reason: Option<String> = row.try_get("changeReason").ok();
-    let prev_str: String = row.try_get("previousValue").ok()?;
-    let new_str: String = row.try_get("newValue").ok()?;
-    let timestamp_str: String = row.try_get("timestamp").ok()?;
-
-    let prev_json: serde_json::Value = serde_json::from_str(&prev_str).ok()?;
-    let new_json: serde_json::Value = serde_json::from_str(&new_str).ok()?;
-    let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
-        .ok()
-        .map(|dt| dt.with_timezone(&chrono::Utc))?;
 
     parse_config_json(id, changed_by, change_reason, prev_json, new_json, timestamp, filter_type)
 }

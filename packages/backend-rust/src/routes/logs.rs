@@ -8,7 +8,6 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -68,14 +67,8 @@ pub async fn ingest(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> Response {
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let user = if let (Some(token), Some(proxy)) = (crate::auth::extract_token(req.headers()), state.db_proxy()) {
-        crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await.ok()
+        crate::auth::verify_request_token(proxy.as_ref(), &token).await.ok()
     } else {
         None
     };

@@ -4,7 +4,6 @@ use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::{QueryBuilder, Row};
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 use crate::services::amas::{compute_new_word_difficulty, map_difficulty_level, StrategyParams};
 
@@ -81,26 +80,24 @@ pub struct UpdateStudyConfigInput {
 
 pub async fn get_or_create_user_study_config(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<UserStudyConfig, sqlx::Error> {
-    if let Some(existing) = select_user_study_config(proxy, state, user_id).await? {
+    if let Some(existing) = select_user_study_config(proxy, user_id).await? {
         return Ok(existing);
     }
 
-    create_default_study_config(proxy, state, user_id).await?;
-    Ok(select_user_study_config(proxy, state, user_id)
+    create_default_study_config(proxy, user_id).await?;
+    Ok(select_user_study_config(proxy, user_id)
         .await?
         .unwrap_or_else(|| default_config_value(user_id)))
 }
 
 pub async fn update_user_study_config(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     input: UpdateStudyConfigInput,
 ) -> Result<UserStudyConfig, StudyConfigUpdateError> {
-    let accessible = select_accessible_word_book_ids(proxy, state, user_id, &input.selected_word_book_ids)
+    let accessible = select_accessible_word_book_ids(proxy, user_id, &input.selected_word_book_ids)
         .await
         .map_err(StudyConfigUpdateError::Sql)?;
 
@@ -115,91 +112,33 @@ pub async fn update_user_study_config(
         return Err(StudyConfigUpdateError::UnauthorizedWordBooks(unauthorized));
     }
 
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert(
-            "userId".to_string(),
-            serde_json::Value::String(user_id.to_string()),
-        );
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "user_study_configs"
+          ("id","userId","selectedWordBookIds","dailyWordCount","studyMode","dailyMasteryTarget","createdAt","updatedAt")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT ("userId") DO UPDATE SET
+          "selectedWordBookIds" = EXCLUDED."selectedWordBookIds",
+          "dailyWordCount" = EXCLUDED."dailyWordCount",
+          "studyMode" = EXCLUDED."studyMode",
+          "updatedAt" = EXCLUDED."updatedAt"
+        "#,
+    )
+    .bind(uuid::Uuid::new_v4().to_string())
+    .bind(user_id)
+    .bind(&input.selected_word_book_ids)
+    .bind(input.daily_word_count as i32)
+    .bind(&input.study_mode)
+    .bind(20_i32)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
+    .await
+    .map_err(StudyConfigUpdateError::Sql)?;
 
-        let mut create = serde_json::Map::new();
-        create.insert(
-            "selectedWordBookIds".to_string(),
-            serde_json::Value::String(serde_json::to_string(&input.selected_word_book_ids).unwrap_or_else(|_| "[]".to_string())),
-        );
-        create.insert(
-            "dailyWordCount".to_string(),
-            serde_json::Value::Number(input.daily_word_count.into()),
-        );
-        create.insert(
-            "studyMode".to_string(),
-            serde_json::Value::String(input.study_mode.clone()),
-        );
-        create.insert(
-            "dailyMasteryTarget".to_string(),
-            serde_json::Value::Number(20.into()),
-        );
-
-        let mut update = serde_json::Map::new();
-        update.insert(
-            "selectedWordBookIds".to_string(),
-            serde_json::Value::String(serde_json::to_string(&input.selected_word_book_ids).unwrap_or_else(|_| "[]".to_string())),
-        );
-        update.insert(
-            "dailyWordCount".to_string(),
-            serde_json::Value::Number(input.daily_word_count.into()),
-        );
-        update.insert(
-            "studyMode".to_string(),
-            serde_json::Value::String(input.study_mode.clone()),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "user_study_configs".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| StudyConfigUpdateError::Sql(sqlx::Error::Protocol(err.to_string())))?;
-    } else {
-        let Some(primary) = proxy.primary_pool().await else {
-            return Err(StudyConfigUpdateError::Sql(sqlx::Error::PoolClosed));
-        };
-
-        let now = Utc::now().naive_utc();
-        sqlx::query(
-            r#"
-            INSERT INTO "user_study_configs"
-              ("id","userId","selectedWordBookIds","dailyWordCount","studyMode","dailyMasteryTarget","createdAt","updatedAt")
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-            ON CONFLICT ("userId") DO UPDATE SET
-              "selectedWordBookIds" = EXCLUDED."selectedWordBookIds",
-              "dailyWordCount" = EXCLUDED."dailyWordCount",
-              "studyMode" = EXCLUDED."studyMode",
-              "updatedAt" = EXCLUDED."updatedAt"
-            "#,
-        )
-        .bind(uuid::Uuid::new_v4().to_string())
-        .bind(user_id)
-        .bind(&input.selected_word_book_ids)
-        .bind(input.daily_word_count as i32)
-        .bind(&input.study_mode)
-        .bind(20_i32)
-        .bind(now)
-        .bind(now)
-        .execute(&primary)
-        .await
-        .map_err(StudyConfigUpdateError::Sql)?;
-    }
-
-    select_user_study_config(proxy, state, user_id)
+    select_user_study_config(proxy, user_id)
         .await
         .map_err(StudyConfigUpdateError::Sql)?
         .ok_or_else(|| StudyConfigUpdateError::Sql(sqlx::Error::RowNotFound))
@@ -207,10 +146,9 @@ pub async fn update_user_study_config(
 
 pub async fn get_today_words(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<TodayWordsResponse, sqlx::Error> {
-    let config = get_or_create_user_study_config(proxy, state, user_id).await?;
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
 
     let strategy = StrategyParams::default_strategy();
     let range = map_difficulty_level(&strategy.difficulty);
@@ -234,7 +172,7 @@ pub async fn get_today_words(
     }
 
     let accessible_ids =
-        select_accessible_word_book_ids(proxy, state, user_id, &config.selected_word_book_ids).await?;
+        select_accessible_word_book_ids(proxy, user_id, &config.selected_word_book_ids).await?;
     if accessible_ids.is_empty() {
         return Ok(TodayWordsResponse {
             words: Vec::new(),
@@ -246,13 +184,13 @@ pub async fn get_today_words(
         });
     }
 
-    let learning_states = select_word_learning_states(proxy, state, user_id).await?;
+    let learning_states = select_word_learning_states(proxy, user_id).await?;
     let state_word_ids: Vec<String> = learning_states.iter().map(|s| s.word_id.clone()).collect();
 
     let learned_words = if state_word_ids.is_empty() {
         Vec::new()
     } else {
-        select_words_by_ids_and_word_books(proxy, state, &state_word_ids, &accessible_ids).await?
+        select_words_by_ids_and_word_books(proxy, &state_word_ids, &accessible_ids).await?
     };
 
     let mut word_by_id: HashMap<String, StudyWordBase> = HashMap::with_capacity(learned_words.len());
@@ -272,7 +210,7 @@ pub async fn get_today_words(
     }
 
     let learned_word_ids: Vec<String> = learned_states.iter().map(|s| s.state.word_id.clone()).collect();
-    let score_map = select_word_score_map(proxy, state, user_id, &learned_word_ids).await?;
+    let score_map = select_word_score_map(proxy, user_id, &learned_word_ids).await?;
 
     let now_ms = Utc::now().timestamp_millis();
     let mut due_candidates: Vec<DueCandidate> = learned_states
@@ -356,7 +294,6 @@ pub async fn get_today_words(
         let candidate_count = actual_new * 2;
         let candidates = select_candidate_new_words(
             proxy,
-            state,
             &accessible_ids,
             &learned_word_ids,
             &config.study_mode,
@@ -375,7 +312,7 @@ pub async fn get_today_words(
     }
 
     let (today_studied, total_studied, correct_rate) =
-        compute_progress_counts(proxy, state, user_id, &accessible_ids).await?;
+        compute_progress_counts(proxy, user_id, &accessible_ids).await?;
 
     Ok(TodayWordsResponse {
         words,
@@ -394,10 +331,9 @@ pub async fn get_today_words(
 
 pub async fn get_study_progress(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<StudyProgress, sqlx::Error> {
-    let config = get_or_create_user_study_config(proxy, state, user_id).await?;
+    let config = get_or_create_user_study_config(proxy, user_id).await?;
 
     let empty = StudyProgress {
         today_studied: 0,
@@ -412,15 +348,15 @@ pub async fn get_study_progress(
     }
 
     let accessible_ids =
-        select_accessible_word_book_ids(proxy, state, user_id, &config.selected_word_book_ids).await?;
+        select_accessible_word_book_ids(proxy, user_id, &config.selected_word_book_ids).await?;
     if accessible_ids.is_empty() {
         return Ok(empty);
     }
 
     let (today_studied, total_studied, correct_rate) =
-        compute_progress_counts(proxy, state, user_id, &accessible_ids).await?;
+        compute_progress_counts(proxy, user_id, &accessible_ids).await?;
 
-    let weekly_trend = compute_weekly_trend(proxy, state, user_id, &accessible_ids).await?;
+    let weekly_trend = compute_weekly_trend(proxy, user_id, &accessible_ids).await?;
 
     Ok(StudyProgress {
         today_studied,
@@ -513,52 +449,9 @@ fn default_config_value(user_id: &str) -> UserStudyConfig {
 
 async fn create_default_study_config(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<(), sqlx::Error> {
-    if proxy.sqlite_enabled() {
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert(
-            "userId".to_string(),
-            serde_json::Value::String(user_id.to_string()),
-        );
-
-        let mut create = serde_json::Map::new();
-        create.insert(
-            "selectedWordBookIds".to_string(),
-            serde_json::Value::String("[]".to_string()),
-        );
-        create.insert("dailyWordCount".to_string(), serde_json::Value::Number(20.into()));
-        create.insert(
-            "studyMode".to_string(),
-            serde_json::Value::String("sequential".to_string()),
-        );
-        create.insert(
-            "dailyMasteryTarget".to_string(),
-            serde_json::Value::Number(20.into()),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "user_study_configs".to_string(),
-            r#where: where_clause,
-            create,
-            update: serde_json::Map::new(),
-            operation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(true),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map_err(|err| sqlx::Error::Protocol(err.to_string()))?;
-        return Ok(());
-    }
-
-    let Some(primary) = proxy.primary_pool().await else {
-        return Err(sqlx::Error::PoolClosed);
-    };
-
+    let pool = proxy.pool();
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -576,7 +469,7 @@ async fn create_default_study_config(
     .bind(20_i32)
     .bind(now)
     .bind(now)
-    .execute(&primary)
+    .execute(pool)
     .await?;
 
     Ok(())
@@ -584,86 +477,43 @@ async fn create_default_study_config(
 
 async fn select_user_study_config(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<UserStudyConfig>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT
+          "id","userId","selectedWordBookIds","dailyWordCount","studyMode","dailyMasteryTarget","createdAt","updatedAt"
+        FROM "user_study_configs"
+        WHERE "userId" = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","selectedWordBookIds","dailyWordCount","studyMode","dailyMasteryTarget","createdAt","updatedAt"
-            FROM "user_study_configs"
-            WHERE "userId" = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
 
-        let Some(row) = row else {
-            return Ok(None);
-        };
+    let created_at: NaiveDateTime = row.try_get("createdAt")?;
+    let updated_at: NaiveDateTime = row.try_get("updatedAt")?;
 
-        let selected_raw: String = row.try_get("selectedWordBookIds").unwrap_or_else(|_| "[]".to_string());
-
-        Ok(Some(UserStudyConfig {
-            id: row.try_get("id").unwrap_or_default(),
-            user_id: row.try_get("userId").unwrap_or_default(),
-            selected_word_book_ids: parse_json_string_array(&selected_raw),
-            daily_word_count: row.try_get::<i64, _>("dailyWordCount").unwrap_or(20),
-            study_mode: row.try_get("studyMode").unwrap_or_else(|_| "sequential".to_string()),
-            daily_mastery_target: row.try_get::<i64, _>("dailyMasteryTarget").unwrap_or(20),
-            created_at: format_sqlite_datetime(&row.try_get::<String, _>("createdAt").unwrap_or_default()),
-            updated_at: format_sqlite_datetime(&row.try_get::<String, _>("updatedAt").unwrap_or_default()),
-        }))
-    } else {
-        let Some(pool) = primary else {
-            return Ok(None);
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT
-              "id","userId","selectedWordBookIds","dailyWordCount","studyMode","dailyMasteryTarget","createdAt","updatedAt"
-            FROM "user_study_configs"
-            WHERE "userId" = $1
-            LIMIT 1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_optional(&pool)
-        .await?;
-
-        let Some(row) = row else {
-            return Ok(None);
-        };
-
-        let created_at: NaiveDateTime = row.try_get("createdAt")?;
-        let updated_at: NaiveDateTime = row.try_get("updatedAt")?;
-
-        Ok(Some(UserStudyConfig {
-            id: row.try_get("id")?,
-            user_id: row.try_get("userId")?,
-            selected_word_book_ids: row.try_get("selectedWordBookIds")?,
-            daily_word_count: row.try_get::<i32, _>("dailyWordCount").unwrap_or(20) as i64,
-            study_mode: row.try_get::<String, _>("studyMode").unwrap_or_else(|_| "sequential".to_string()),
-            daily_mastery_target: row.try_get::<i32, _>("dailyMasteryTarget").unwrap_or(20) as i64,
-            created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
-            updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
-        }))
-    }
+    Ok(Some(UserStudyConfig {
+        id: row.try_get("id")?,
+        user_id: row.try_get("userId")?,
+        selected_word_book_ids: row.try_get("selectedWordBookIds")?,
+        daily_word_count: row.try_get::<i32, _>("dailyWordCount").unwrap_or(20) as i64,
+        study_mode: row.try_get::<String, _>("studyMode").unwrap_or_else(|_| "sequential".to_string()),
+        daily_mastery_target: row.try_get::<i32, _>("dailyMasteryTarget").unwrap_or(20) as i64,
+        created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
+        updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
+    }))
 }
 
 async fn select_accessible_word_book_ids(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_book_ids: &[String],
 ) -> Result<Vec<String>, sqlx::Error> {
@@ -671,144 +521,66 @@ async fn select_accessible_word_book_ids(
         return Ok(Vec::new());
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "id"
-            FROM "word_books"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut separated = qb.separated(", ");
-            for id in word_book_ids {
-                separated.push_bind(id);
-            }
-            separated.push_unseparated(")");
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "id"
+        FROM "word_books"
+        WHERE "id" IN (
+        "#,
+    );
+    {
+        let mut separated = qb.separated(", ");
+        for id in word_book_ids {
+            separated.push_bind(id);
         }
-
-        qb.push(" AND (\"type\" = 'SYSTEM' OR (\"type\" = 'USER' AND \"userId\" = ");
-        qb.push_bind(user_id);
-        qb.push("))");
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("id").ok())
-            .collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "id"
-            FROM "word_books"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut separated = qb.separated(", ");
-            for id in word_book_ids {
-                separated.push_bind(id);
-            }
-            separated.push_unseparated(")");
-        }
-
-        qb.push(" AND (\"type\"::text = 'SYSTEM' OR (\"type\"::text = 'USER' AND \"userId\" = ");
-        qb.push_bind(user_id);
-        qb.push("))");
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("id").ok())
-            .collect())
+        separated.push_unseparated(")");
     }
+
+    qb.push(" AND (\"type\"::text = 'SYSTEM' OR (\"type\"::text = 'USER' AND \"userId\" = ");
+    qb.push_bind(user_id);
+    qb.push("))");
+
+    let rows = qb.build().fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| row.try_get::<String, _>("id").ok())
+        .collect())
 }
 
 async fn select_word_learning_states(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Vec<WordLearningStateRow>, sqlx::Error> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "wordId","state"::text as "state","reviewCount","nextReviewDate"
+        FROM "word_learning_states"
+        WHERE "userId" = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId","state","reviewCount","nextReviewDate"
-            FROM "word_learning_states"
-            WHERE "userId" = ?
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(|row| {
-                let next_raw: Option<String> = row.try_get("nextReviewDate").ok();
-                let next_review_ms = next_raw
-                    .as_deref()
-                    .and_then(crate::auth::parse_sqlite_datetime_ms);
-                WordLearningStateRow {
-                    word_id: row.try_get("wordId").unwrap_or_default(),
-                    state: row.try_get("state").unwrap_or_else(|_| "NEW".to_string()),
-                    review_count: row.try_get::<i64, _>("reviewCount").unwrap_or(0),
-                    next_review_ms,
-                }
-            })
-            .collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId","state"::text as "state","reviewCount","nextReviewDate"
-            FROM "word_learning_states"
-            WHERE "userId" = $1
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(&pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(|row| {
-                let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-                let next_review_ms = next_dt.map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
-                WordLearningStateRow {
-                    word_id: row.try_get("wordId").unwrap_or_default(),
-                    state: row.try_get("state").unwrap_or_else(|_| "NEW".to_string()),
-                    review_count: row.try_get::<i32, _>("reviewCount").unwrap_or(0) as i64,
-                    next_review_ms,
-                }
-            })
-            .collect())
-    }
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
+            let next_review_ms = next_dt.map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
+            WordLearningStateRow {
+                word_id: row.try_get("wordId").unwrap_or_default(),
+                state: row.try_get("state").unwrap_or_else(|_| "NEW".to_string()),
+                review_count: row.try_get::<i32, _>("reviewCount").unwrap_or(0) as i64,
+                next_review_ms,
+            }
+        })
+        .collect())
 }
 
 async fn select_words_by_ids_and_word_books(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     word_ids: &[String],
     word_book_ids: &[String],
 ) -> Result<Vec<StudyWordBase>, sqlx::Error> {
@@ -816,78 +588,37 @@ async fn select_words_by_ids_and_word_books(
         return Ok(Vec::new());
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT
-              "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT
+          "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "id" IN (
+        "#,
+    );
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_ids {
+            sep.push_bind(id);
         }
-        qb.push(" AND \"wordBookId\" IN (");
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows.iter().map(map_sqlite_word_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT
-              "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        qb.push(" AND \"wordBookId\" IN (");
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows.iter().map(map_postgres_word_row).collect())
+        sep.push_unseparated(")");
     }
+    qb.push(" AND \"wordBookId\" IN (");
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_book_ids {
+            sep.push_bind(id);
+        }
+        sep.push_unseparated(")");
+    }
+
+    let rows = qb.build().fetch_all(pool).await?;
+    Ok(rows.iter().map(map_postgres_word_row).collect())
 }
 
 async fn select_word_score_map(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     word_ids: &[String],
 ) -> Result<HashMap<String, WordScoreRow>, sqlx::Error> {
@@ -895,88 +626,42 @@ async fn select_word_score_map(
         return Ok(HashMap::new());
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "wordId","totalScore","correctAttempts","totalAttempts"
-            FROM "word_scores"
-            WHERE "userId" = ?
-              AND "wordId" IN (
-            "#,
-        );
-        qb.push_bind(user_id);
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "wordId","totalScore","correctAttempts","totalAttempts"
+        FROM "word_scores"
+        WHERE "userId" =
+        "#,
+    );
+    qb.push_bind(user_id);
+    qb.push(" AND \"wordId\" IN (");
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_ids {
+            sep.push_bind(id);
         }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut map = HashMap::with_capacity(rows.len());
-        for row in rows {
-            let word_id: String = row.try_get("wordId").unwrap_or_default();
-            map.insert(
-                word_id,
-                WordScoreRow {
-                    total_score: row.try_get::<f64, _>("totalScore").unwrap_or(0.0),
-                    correct_attempts: row.try_get::<i64, _>("correctAttempts").unwrap_or(0),
-                    total_attempts: row.try_get::<i64, _>("totalAttempts").unwrap_or(0),
-                },
-            );
-        }
-        Ok(map)
-    } else {
-        let Some(pool) = primary else {
-            return Ok(HashMap::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "wordId","totalScore","correctAttempts","totalAttempts"
-            FROM "word_scores"
-            WHERE "userId" = 
-            "#,
-        );
-        qb.push_bind(user_id);
-        qb.push(" AND \"wordId\" IN (");
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        let mut map = HashMap::with_capacity(rows.len());
-        for row in rows {
-            let word_id: String = row.try_get("wordId").unwrap_or_default();
-            map.insert(
-                word_id,
-                WordScoreRow {
-                    total_score: row.try_get::<f64, _>("totalScore").unwrap_or(0.0),
-                    correct_attempts: row.try_get::<i32, _>("correctAttempts").unwrap_or(0) as i64,
-                    total_attempts: row.try_get::<i32, _>("totalAttempts").unwrap_or(0) as i64,
-                },
-            );
-        }
-        Ok(map)
+        sep.push_unseparated(")");
     }
+
+    let rows = qb.build().fetch_all(pool).await?;
+    let mut map = HashMap::with_capacity(rows.len());
+    for row in rows {
+        let word_id: String = row.try_get("wordId").unwrap_or_default();
+        map.insert(
+            word_id,
+            WordScoreRow {
+                total_score: row.try_get::<f64, _>("totalScore").unwrap_or(0.0),
+                correct_attempts: row.try_get::<i32, _>("correctAttempts").unwrap_or(0) as i64,
+                total_attempts: row.try_get::<i32, _>("totalAttempts").unwrap_or(0) as i64,
+            },
+        );
+    }
+    Ok(map)
 }
 
 async fn select_candidate_new_words(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     word_book_ids: &[String],
     exclude_word_ids: &[String],
     study_mode: &str,
@@ -986,97 +671,45 @@ async fn select_candidate_new_words(
         return Ok(Vec::new());
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
+    let pool = proxy.pool();
     let random = study_mode == "random";
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT
-              "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "wordBookId" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT
+          "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
+        FROM "words"
+        WHERE "wordBookId" IN (
+        "#,
+    );
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_book_ids {
+            sep.push_bind(id);
         }
-
-        if !exclude_word_ids.is_empty() {
-            qb.push(" AND \"id\" NOT IN (");
-            {
-                let mut sep = qb.separated(", ");
-                for id in exclude_word_ids {
-                    sep.push_bind(id);
-                }
-                sep.push_unseparated(")");
-            }
-        }
-
-        if random {
-            qb.push(" ORDER BY RANDOM()");
-        } else {
-            qb.push(" ORDER BY \"createdAt\" ASC");
-        }
-        qb.push(" LIMIT ");
-        qb.push_bind(take as i64);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows.iter().map(map_sqlite_word_row).collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT
-              "id","spelling","phonetic","meanings","examples","audioUrl","wordBookId","createdAt","updatedAt"
-            FROM "words"
-            WHERE "wordBookId" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        if !exclude_word_ids.is_empty() {
-            qb.push(" AND \"id\" NOT IN (");
-            {
-                let mut sep = qb.separated(", ");
-                for id in exclude_word_ids {
-                    sep.push_bind(id);
-                }
-                sep.push_unseparated(")");
-            }
-        }
-
-        if random {
-            qb.push(" ORDER BY RANDOM()");
-        } else {
-            qb.push(" ORDER BY \"createdAt\" ASC");
-        }
-        qb.push(" LIMIT ");
-        qb.push_bind(take as i64);
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows.iter().map(map_postgres_word_row).collect())
+        sep.push_unseparated(")");
     }
+
+    if !exclude_word_ids.is_empty() {
+        qb.push(" AND \"id\" NOT IN (");
+        {
+            let mut sep = qb.separated(", ");
+            for id in exclude_word_ids {
+                sep.push_bind(id);
+            }
+            sep.push_unseparated(")");
+        }
+    }
+
+    if random {
+        qb.push(" ORDER BY RANDOM()");
+    } else {
+        qb.push(" ORDER BY \"createdAt\" ASC");
+    }
+    qb.push(" LIMIT ");
+    qb.push_bind(take as i64);
+
+    let rows = qb.build().fetch_all(pool).await?;
+    Ok(rows.iter().map(map_postgres_word_row).collect())
 }
 
 fn choose_new_words(mut candidates: Vec<StudyWordBase>, range: crate::services::amas::DifficultyRange, target: usize) -> Vec<StudyWordBase> {
@@ -1122,7 +755,6 @@ fn choose_new_words(mut candidates: Vec<StudyWordBase>, range: crate::services::
 
 async fn compute_progress_counts(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     accessible_word_book_ids: &[String],
 ) -> Result<(i64, i64, i64), sqlx::Error> {
@@ -1135,123 +767,9 @@ async fn compute_progress_counts(
         .and_hms_opt(0, 0, 0)
         .unwrap_or_else(|| Utc::now().naive_utc());
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok((0, 0, 0));
-        };
-        let boundary = crate::auth::format_timestamp_ms_iso_millis(
-            DateTime::<Utc>::from_naive_utc_and_offset(today_start, Utc).timestamp_millis(),
-        )
-        .unwrap_or_else(|| Utc::now().to_rfc3339());
-
-        let mut qb_today = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT DISTINCT ar."wordId" as "wordId"
-            FROM "answer_records" ar
-            JOIN "words" w ON w."id" = ar."wordId"
-            WHERE ar."userId" = ?
-              AND ar."timestamp" >= ?
-              AND w."wordBookId" IN (
-            "#,
-        );
-        qb_today.push_bind(user_id);
-        qb_today.push_bind(boundary);
-        {
-            let mut sep = qb_today.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        let today_rows = qb_today.build().fetch_all(&pool).await?;
-        let today_studied = today_rows.len() as i64;
-
-        let mut qb_total = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT DISTINCT ar."wordId" as "wordId"
-            FROM "answer_records" ar
-            JOIN "words" w ON w."id" = ar."wordId"
-            WHERE ar."userId" = ?
-              AND w."wordBookId" IN (
-            "#,
-        );
-        qb_total.push_bind(user_id);
-        {
-            let mut sep = qb_total.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        let total_rows = qb_total.build().fetch_all(&pool).await?;
-        let total_studied = total_rows.len() as i64;
-
-        let mut qb_count = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT COUNT(*) as "count"
-            FROM "answer_records" ar
-            JOIN "words" w ON w."id" = ar."wordId"
-            WHERE ar."userId" = ?
-              AND w."wordBookId" IN (
-            "#,
-        );
-        qb_count.push_bind(user_id);
-        {
-            let mut sep = qb_count.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        let total_count: i64 = qb_count
-            .build()
-            .fetch_one(&pool)
-            .await?
-            .try_get("count")
-            .unwrap_or(0);
-
-        let mut qb_correct = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT COUNT(*) as "count"
-            FROM "answer_records" ar
-            JOIN "words" w ON w."id" = ar."wordId"
-            WHERE ar."userId" = ?
-              AND ar."isCorrect" = 1
-              AND w."wordBookId" IN (
-            "#,
-        );
-        qb_correct.push_bind(user_id);
-        {
-            let mut sep = qb_correct.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        let correct_count: i64 = qb_correct
-            .build()
-            .fetch_one(&pool)
-            .await?
-            .try_get("count")
-            .unwrap_or(0);
-
-        let correct_rate = if total_count > 0 {
-            ((correct_count as f64 / total_count as f64) * 100.0).round() as i64
-        } else {
-            0
-        };
-
-        Ok((today_studied, total_studied, correct_rate))
-    } else {
-        let Some(pool) = primary else {
-            return Ok((0, 0, 0));
-        };
-
-        let mut qb_today = QueryBuilder::<sqlx::Postgres>::new(
+    let mut qb_today = QueryBuilder::<sqlx::Postgres>::new(
             r#"
             SELECT DISTINCT ar."wordId" as "wordId"
             FROM "answer_records" ar
@@ -1270,7 +788,7 @@ async fn compute_progress_counts(
             }
             sep.push_unseparated(")");
         }
-        let today_rows = qb_today.build().fetch_all(&pool).await?;
+        let today_rows = qb_today.build().fetch_all(pool).await?;
         let today_studied = today_rows.len() as i64;
 
         let mut qb_total = QueryBuilder::<sqlx::Postgres>::new(
@@ -1290,7 +808,7 @@ async fn compute_progress_counts(
             }
             sep.push_unseparated(")");
         }
-        let total_rows = qb_total.build().fetch_all(&pool).await?;
+        let total_rows = qb_total.build().fetch_all(pool).await?;
         let total_studied = total_rows.len() as i64;
 
         let mut qb_count = QueryBuilder::<sqlx::Postgres>::new(
@@ -1312,7 +830,7 @@ async fn compute_progress_counts(
         }
         let total_count: i64 = qb_count
             .build()
-            .fetch_one(&pool)
+            .fetch_one(pool)
             .await?
             .try_get("count")
             .unwrap_or(0);
@@ -1336,7 +854,7 @@ async fn compute_progress_counts(
         }
         let correct_count: i64 = qb_correct
             .build()
-            .fetch_one(&pool)
+            .fetch_one(pool)
             .await?
             .try_get("count")
             .unwrap_or(0);
@@ -1347,13 +865,11 @@ async fn compute_progress_counts(
             0
         };
 
-        Ok((today_studied, total_studied, correct_rate))
-    }
+    Ok((today_studied, total_studied, correct_rate))
 }
 
 async fn compute_weekly_trend(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     accessible_word_book_ids: &[String],
 ) -> Result<Vec<i64>, sqlx::Error> {
@@ -1367,66 +883,29 @@ async fn compute_weekly_trend(
         .and_hms_opt(0, 0, 0)
         .unwrap_or_else(|| now.naive_utc());
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
+    let rows = sqlx::query(
+        r#"
+        SELECT "wordId","timestamp"
+        FROM "answer_records"
+        WHERE "userId" = $1
+          AND "timestamp" >= $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(week_start)
+    .fetch_all(pool)
+    .await?;
 
-    let records: Vec<(String, i64)> = if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(vec![0, 0, 0, 0, 0, 0, 0]);
-        };
-        let boundary = crate::auth::format_timestamp_ms_iso_millis(
-            DateTime::<Utc>::from_naive_utc_and_offset(week_start, Utc).timestamp_millis(),
-        )
-        .unwrap_or_else(|| Utc::now().to_rfc3339());
-
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId","timestamp"
-            FROM "answer_records"
-            WHERE "userId" = ?
-              AND "timestamp" >= ?
-            "#,
-        )
-        .bind(user_id)
-        .bind(boundary)
-        .fetch_all(&pool)
-        .await?;
-
-        rows.into_iter()
-            .filter_map(|row| {
-                let word_id: String = row.try_get("wordId").ok()?;
-                let ts_raw: String = row.try_get("timestamp").ok()?;
-                let ts_ms = crate::auth::parse_sqlite_datetime_ms(&ts_raw)?;
-                Some((word_id, ts_ms))
-            })
-            .collect()
-    } else {
-        let Some(pool) = primary else {
-            return Ok(vec![0, 0, 0, 0, 0, 0, 0]);
-        };
-        let rows = sqlx::query(
-            r#"
-            SELECT "wordId","timestamp"
-            FROM "answer_records"
-            WHERE "userId" = $1
-              AND "timestamp" >= $2
-            "#,
-        )
-        .bind(user_id)
-        .bind(week_start)
-        .fetch_all(&pool)
-        .await?;
-
-        rows.into_iter()
-            .filter_map(|row| {
-                let word_id: String = row.try_get("wordId").ok()?;
-                let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
-                let ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
-                Some((word_id, ms))
-            })
-            .collect()
-    };
+    let records: Vec<(String, i64)> = rows
+        .into_iter()
+        .filter_map(|row| {
+            let word_id: String = row.try_get("wordId").ok()?;
+            let ts: NaiveDateTime = row.try_get("timestamp").ok()?;
+            let ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
+            Some((word_id, ms))
+        })
+        .collect();
 
     if records.is_empty() {
         return Ok(vec![0, 0, 0, 0, 0, 0, 0]);
@@ -1439,7 +918,7 @@ async fn compute_weekly_trend(
         .into_iter()
         .collect();
 
-    let allowed_ids = select_word_ids_in_word_books(proxy, state, &unique_word_ids, accessible_word_book_ids).await?;
+    let allowed_ids = select_word_ids_in_word_books(proxy, &unique_word_ids, accessible_word_book_ids).await?;
     if allowed_ids.is_empty() {
         return Ok(vec![0, 0, 0, 0, 0, 0, 0]);
     }
@@ -1477,7 +956,6 @@ async fn compute_weekly_trend(
 
 async fn select_word_ids_in_word_books(
     proxy: &DatabaseProxy,
-    state: DatabaseState,
     word_ids: &[String],
     word_book_ids: &[String],
 ) -> Result<Vec<String>, sqlx::Error> {
@@ -1485,77 +963,35 @@ async fn select_word_ids_in_word_books(
         return Ok(Vec::new());
     }
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Sqlite>::new(
-            r#"
-            SELECT "id"
-            FROM "words"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    let pool = proxy.pool();
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
+        SELECT "id"
+        FROM "words"
+        WHERE "id" IN (
+        "#,
+    );
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_ids {
+            sep.push_bind(id);
         }
-        qb.push(" AND \"wordBookId\" IN (");
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("id").ok())
-            .collect())
-    } else {
-        let Some(pool) = primary else {
-            return Ok(Vec::new());
-        };
-
-        let mut qb = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
-            SELECT "id"
-            FROM "words"
-            WHERE "id" IN (
-            "#,
-        );
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-        qb.push(" AND \"wordBookId\" IN (");
-        {
-            let mut sep = qb.separated(", ");
-            for id in word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
-        }
-
-        let rows = qb.build().fetch_all(&pool).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("id").ok())
-            .collect())
+        sep.push_unseparated(")");
     }
+    qb.push(" AND \"wordBookId\" IN (");
+    {
+        let mut sep = qb.separated(", ");
+        for id in word_book_ids {
+            sep.push_bind(id);
+        }
+        sep.push_unseparated(")");
+    }
+
+    let rows = qb.build().fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| row.try_get::<String, _>("id").ok())
+        .collect())
 }
 
 fn compute_word_difficulty_from_score(total_score: Option<f64>, total_attempts: i64, error_rate: f64) -> f64 {
@@ -1569,26 +1005,6 @@ fn compute_word_difficulty_from_score(total_score: Option<f64>, total_attempts: 
 fn difficulty_distance(value: f64, range: crate::services::amas::DifficultyRange) -> f64 {
     let center = (range.min + range.max) / 2.0;
     (value - center).abs()
-}
-
-fn parse_json_string_array(raw: &str) -> Vec<String> {
-    match serde_json::from_str::<serde_json::Value>(raw) {
-        Ok(serde_json::Value::Array(items)) => items
-            .into_iter()
-            .filter_map(|item| match item {
-                serde_json::Value::String(v) => Some(v),
-                other => Some(other.to_string()),
-            })
-            .collect(),
-        Ok(serde_json::Value::String(v)) => vec![v],
-        _ => Vec::new(),
-    }
-}
-
-fn format_sqlite_datetime(raw: &str) -> String {
-    let ms = crate::auth::parse_sqlite_datetime_ms(raw)
-        .unwrap_or_else(|| Utc::now().timestamp_millis());
-    crate::auth::format_timestamp_ms_iso_millis(ms).unwrap_or_else(|| Utc::now().to_rfc3339())
 }
 
 fn map_postgres_word_row(row: &sqlx::postgres::PgRow) -> StudyWordBase {
@@ -1605,24 +1021,5 @@ fn map_postgres_word_row(row: &sqlx::postgres::PgRow) -> StudyWordBase {
         word_book_id: row.try_get("wordBookId").unwrap_or_default(),
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
         updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
-    }
-}
-
-fn map_sqlite_word_row(row: &sqlx::sqlite::SqliteRow) -> StudyWordBase {
-    let created_raw: String = row.try_get("createdAt").unwrap_or_default();
-    let updated_raw: String = row.try_get("updatedAt").unwrap_or_default();
-    let meanings_raw: String = row.try_get("meanings").unwrap_or_else(|_| "[]".to_string());
-    let examples_raw: String = row.try_get("examples").unwrap_or_else(|_| "[]".to_string());
-
-    StudyWordBase {
-        id: row.try_get("id").unwrap_or_default(),
-        spelling: row.try_get("spelling").unwrap_or_default(),
-        phonetic: row.try_get("phonetic").unwrap_or_default(),
-        meanings: parse_json_string_array(&meanings_raw),
-        examples: parse_json_string_array(&examples_raw),
-        audio_url: row.try_get::<Option<String>, _>("audioUrl").ok().flatten(),
-        word_book_id: row.try_get("wordBookId").unwrap_or_default(),
-        created_at: format_sqlite_datetime(&created_raw),
-        updated_at: format_sqlite_datetime(&updated_raw),
     }
 }

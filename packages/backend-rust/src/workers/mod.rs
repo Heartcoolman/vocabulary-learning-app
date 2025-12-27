@@ -12,6 +12,7 @@ use tokio::sync::{broadcast, Mutex};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info, warn};
 
+use crate::amas::AMASEngine;
 use crate::db::DatabaseProxy;
 
 static WORKER_LEADER: AtomicBool = AtomicBool::new(false);
@@ -28,16 +29,18 @@ pub struct WorkerManager {
     scheduler: Mutex<JobScheduler>,
     shutdown_tx: broadcast::Sender<()>,
     db_proxy: Arc<DatabaseProxy>,
+    amas_engine: Arc<AMASEngine>,
 }
 
 impl WorkerManager {
-    pub async fn new(db_proxy: Arc<DatabaseProxy>) -> Result<Self, WorkerError> {
+    pub async fn new(db_proxy: Arc<DatabaseProxy>, amas_engine: Arc<AMASEngine>) -> Result<Self, WorkerError> {
         let scheduler = JobScheduler::new().await.map_err(WorkerError::Scheduler)?;
         let (shutdown_tx, _) = broadcast::channel(1);
         Ok(Self {
             scheduler: Mutex::new(scheduler),
             shutdown_tx,
             db_proxy,
+            amas_engine,
         })
     }
 
@@ -164,6 +167,35 @@ impl WorkerManager {
             .map_err(WorkerError::Scheduler)?;
             scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
             info!(schedule = %schedule, "Forgetting alert worker scheduled");
+        }
+
+        // AMAS cache cleanup - runs every 10 minutes
+        {
+            let amas = Arc::clone(&self.amas_engine);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let max_age_ms = std::env::var("AMAS_CACHE_MAX_AGE_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30 * 60 * 1000); // 30 minutes default
+            let job = Job::new_async("0 */10 * * * *", move |_uuid, _lock| {
+                let amas = Arc::clone(&amas);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        _ = async {
+                            let cleaned = amas.cleanup_stale_users(max_age_ms).await;
+                            if cleaned > 0 {
+                                let (states, models) = amas.get_cache_stats().await;
+                                info!(cleaned = cleaned, states = states, models = models, "AMAS cache cleanup");
+                            }
+                        } => {}
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!("AMAS cache cleanup worker scheduled (every 10 minutes)");
         }
 
         scheduler.start().await.map_err(WorkerError::Scheduler)?;

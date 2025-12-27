@@ -1,14 +1,11 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Extension;
 use axum::Json;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row, SqlitePool};
+use sqlx::{PgPool, Row};
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::services::{mastery_learning, record};
 use crate::state::AppState;
@@ -91,11 +88,10 @@ struct SessionStats {
 
 pub(super) async fn create(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<CreateSessionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     if payload.target_mastery_count <= 0 {
         return Err(json_error(
@@ -114,7 +110,6 @@ pub(super) async fn create(
 
     let session_id = mastery_learning::ensure_learning_session(
         proxy.as_ref(),
-        db_state,
         &user.id,
         payload.target_mastery_count,
         payload.session_id,
@@ -146,11 +141,10 @@ pub(super) async fn create(
 
 pub(super) async fn get(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     if session_id.trim().is_empty() {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -159,7 +153,7 @@ pub(super) async fn get(
         ));
     }
 
-    let progress = mastery_learning::get_session_progress(proxy.as_ref(), db_state, &session_id, &user.id)
+    let progress = mastery_learning::get_session_progress(proxy.as_ref(), &session_id, &user.id)
         .await
         .map_err(|err| match err {
             mastery_learning::SessionError::NotFound => {
@@ -178,12 +172,11 @@ pub(super) async fn get(
 
 pub(super) async fn sync_progress(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Json(payload): Json<SyncProgressRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     if session_id.trim().is_empty() {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -202,7 +195,6 @@ pub(super) async fn sync_progress(
 
     mastery_learning::sync_session_progress(
         proxy.as_ref(),
-        db_state,
         &session_id,
         &user.id,
         payload.actual_mastery_count,
@@ -233,12 +225,11 @@ pub(super) async fn sync_progress(
 
 pub(super) async fn records(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Path(session_id): Path<String>,
     Query(query): Query<RecordsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
     if session_id.trim().is_empty() {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -252,7 +243,7 @@ pub(super) async fn records(
         page_size: query.page_size,
     };
 
-    let result = record::get_records_by_session_id(proxy.as_ref(), db_state, &user.id, &session_id, options)
+    let result = record::get_records_by_session_id(proxy.as_ref(), &user.id, &session_id, options)
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
@@ -265,11 +256,10 @@ pub(super) async fn records(
 
 pub(super) async fn list(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Query(query): Query<ListSessionsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user, db_state) = require_user(&state, request_state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
@@ -277,7 +267,7 @@ pub(super) async fn list(
     let active_only = query.active.unwrap_or(false);
 
     if active_only {
-        let active = select_active_session(proxy.as_ref(), db_state, &user.id).await?;
+        let active = select_active_session(proxy.as_ref(), &user.id).await?;
         let mut data: Vec<SessionStats> = active.into_iter().collect();
         let total = data.len() as i64;
         let start = offset.min(total) as usize;
@@ -295,8 +285,8 @@ pub(super) async fn list(
         }));
     }
 
-    let total = count_user_sessions(proxy.as_ref(), db_state, &user.id).await?;
-    let sessions = select_user_sessions(proxy.as_ref(), db_state, &user.id, page_size, offset).await?;
+    let total = count_user_sessions(proxy.as_ref(), &user.id).await?;
+    let sessions = select_user_sessions(proxy.as_ref(), &user.id, page_size, offset).await?;
     Ok(Json(SuccessResponseWithPagination {
         success: true,
         data: sessions,
@@ -311,26 +301,21 @@ pub(super) async fn list(
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers).ok_or_else(|| {
         json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
     })?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn format_naive_datetime(value: NaiveDateTime) -> String {
@@ -348,15 +333,6 @@ fn parse_datetime_millis(value: &str) -> Option<i64> {
     None
 }
 
-fn normalize_datetime_str(value: &str) -> String {
-    if let Some(ms) = parse_datetime_millis(value) {
-        if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(ms) {
-            return dt.to_rfc3339_opts(SecondsFormat::Millis, true);
-        }
-    }
-    value.to_string()
-}
-
 fn duration_seconds(started_at: &str, ended_at: Option<&str>) -> i64 {
     let now_ms = Utc::now().timestamp_millis();
     let start_ms = parse_datetime_millis(started_at).unwrap_or(now_ms);
@@ -366,82 +342,44 @@ fn duration_seconds(started_at: &str, ended_at: Option<&str>) -> i64 {
 
 async fn select_user_sessions(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
     limit: i64,
     offset: i64,
 ) -> Result<Vec<SessionStats>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => select_user_sessions_pg(&pool, user_id, limit, offset).await,
-        SelectedReadPool::Fallback(pool) => select_user_sessions_sqlite(&pool, user_id, limit, offset).await,
-    }
+    select_user_sessions_pg(proxy.pool(), user_id, limit, offset).await
 }
 
 async fn count_user_sessions(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<i64, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => sqlx::query_scalar(r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1"#)
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")),
-        SelectedReadPool::Fallback(pool) => sqlx::query_scalar(r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = ?"#)
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")),
-    }
+    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "learning_sessions" WHERE "userId" = $1"#)
+        .bind(user_id)
+        .fetch_one(proxy.pool())
+        .await
+        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))
 }
 
 async fn select_active_session(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     user_id: &str,
 ) -> Result<Option<SessionStats>, AppError> {
-    let selected = select_read_pool(proxy, state).await?;
-    match selected {
-        SelectedReadPool::Primary(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT ls."id", ls."userId", ls."startedAt", ls."endedAt", ls."totalQuestions", ls."actualMasteryCount",
-                       ls."targetMasteryCount", ls."sessionType", ls."flowPeakScore", ls."avgCognitiveLoad", ls."contextShifts",
-                       (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-                FROM "learning_sessions" ls
-                WHERE ls."userId" = $1 AND ls."endedAt" IS NULL
-                ORDER BY ls."startedAt" DESC
-                LIMIT 1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row.map(map_session_row_pg))
-        }
-        SelectedReadPool::Fallback(pool) => {
-            let row = sqlx::query(
-                r#"
-                SELECT ls."id", ls."userId", ls."startedAt", ls."endedAt", ls."totalQuestions", ls."actualMasteryCount",
-                       ls."targetMasteryCount", ls."sessionType", ls."flowPeakScore", ls."avgCognitiveLoad", ls."contextShifts",
-                       (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-                FROM "learning_sessions" ls
-                WHERE ls."userId" = ? AND ls."endedAt" IS NULL
-                ORDER BY ls."startedAt" DESC
-                LIMIT 1
-                "#,
-            )
-            .bind(user_id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-            Ok(row.map(map_session_row_sqlite))
-        }
-    }
+    let row = sqlx::query(
+        r#"
+        SELECT ls."id", ls."userId", ls."startedAt", ls."endedAt", ls."totalQuestions", ls."actualMasteryCount",
+               ls."targetMasteryCount", ls."sessionType", ls."flowPeakScore", ls."avgCognitiveLoad", ls."contextShifts",
+               (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
+        FROM "learning_sessions" ls
+        WHERE ls."userId" = $1 AND ls."endedAt" IS NULL
+        ORDER BY ls."startedAt" DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(proxy.pool())
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    Ok(row.map(map_session_row_pg))
 }
 
 async fn select_user_sessions_pg(
@@ -470,32 +408,6 @@ async fn select_user_sessions_pg(
     Ok(rows.into_iter().map(map_session_row_pg).collect())
 }
 
-async fn select_user_sessions_sqlite(
-    pool: &SqlitePool,
-    user_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<SessionStats>, AppError> {
-    let rows = sqlx::query(
-        r#"
-        SELECT ls."id", ls."userId", ls."startedAt", ls."endedAt", ls."totalQuestions", ls."actualMasteryCount",
-               ls."targetMasteryCount", ls."sessionType", ls."flowPeakScore", ls."avgCognitiveLoad", ls."contextShifts",
-               (SELECT COUNT(*) FROM "answer_records" ar WHERE ar."sessionId" = ls."id") as "answerRecordCount"
-        FROM "learning_sessions" ls
-        WHERE ls."userId" = ?
-        ORDER BY ls."startedAt" DESC
-        LIMIT ? OFFSET ?
-        "#,
-    )
-    .bind(user_id)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-    Ok(rows.into_iter().map(map_session_row_sqlite).collect())
-}
-
 fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
     let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
     let ended_at: Option<NaiveDateTime> = row.try_get("endedAt").ok().flatten();
@@ -520,52 +432,3 @@ fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
     }
 }
 
-fn map_session_row_sqlite(row: sqlx::sqlite::SqliteRow) -> SessionStats {
-    let started_at_raw: String = row.try_get("startedAt").unwrap_or_default();
-    let ended_at_raw: Option<String> = row.try_get("endedAt").ok().flatten();
-    let started_at = normalize_datetime_str(&started_at_raw);
-    let ended_at = ended_at_raw.as_deref().map(normalize_datetime_str);
-    let duration = duration_seconds(&started_at, ended_at.as_deref());
-
-    SessionStats {
-        id: row.try_get("id").unwrap_or_default(),
-        user_id: row.try_get("userId").unwrap_or_default(),
-        started_at,
-        ended_at,
-        duration,
-        total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-        actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-        target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-        session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-        flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-        avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-        context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
-        answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
-    }
-}
-
-enum SelectedReadPool {
-    Primary(PgPool),
-    Fallback(SqlitePool),
-}
-
-async fn select_read_pool(
-    proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
-) -> Result<SelectedReadPool, AppError> {
-    match state {
-        DatabaseState::Degraded | DatabaseState::Unavailable => proxy
-            .fallback_pool()
-            .await
-            .map(SelectedReadPool::Fallback)
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        DatabaseState::Normal | DatabaseState::Syncing => match proxy.primary_pool().await {
-            Some(pool) => Ok(SelectedReadPool::Primary(pool)),
-            None => proxy
-                .fallback_pool()
-                .await
-                .map(SelectedReadPool::Fallback)
-                .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用")),
-        },
-    }
-}

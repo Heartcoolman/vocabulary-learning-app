@@ -4,7 +4,6 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Extension;
 use axum::{Json, Router};
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -12,8 +11,6 @@ use sqlx::Row;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
-use crate::middleware::RequestDbState;
 use crate::response::{json_error, AppError};
 use crate::state::AppState;
 
@@ -213,37 +210,31 @@ pub fn router() -> Router<AppState> {
 
 async fn require_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
-
-    let db_state = request_state
-        .map(|Extension(value)| value.0)
-        .unwrap_or(DatabaseState::Normal);
 
     let proxy = state
         .db_proxy()
         .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
 
-    let user = crate::auth::verify_request_token(proxy.as_ref(), db_state, &token)
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
         .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 async fn require_admin_user(
     state: &AppState,
-    request_state: Option<Extension<RequestDbState>>,
     headers: &HeaderMap,
-) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser, DatabaseState), AppError> {
-    let (proxy, user, db_state) = require_user(state, request_state, headers).await?;
+) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
+    let (proxy, user) = require_user(state, headers).await?;
     if user.role != "ADMIN" {
         return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限"));
     }
-    Ok((proxy, user, db_state))
+    Ok((proxy, user))
 }
 
 fn clamp(value: f64, bounds: Bounds) -> f64 {
@@ -366,16 +357,6 @@ fn parse_named_params(value: &serde_json::Value) -> Result<OptimizationParams, A
     })
 }
 
-fn json_from_sqlite(raw: Option<String>) -> serde_json::Value {
-    let Some(raw) = raw else {
-        return serde_json::Value::Null;
-    };
-    if raw.trim().is_empty() {
-        return serde_json::Value::Null;
-    }
-    serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw))
-}
-
 fn parse_observations(value: serde_json::Value) -> Vec<OptimizerObservation> {
     let array = value.as_array().cloned().unwrap_or_default();
     let mut out = Vec::with_capacity(array.len());
@@ -410,81 +391,38 @@ fn parse_best(best_params: Option<serde_json::Value>, best_value: Option<f64>) -
     }
 }
 
-async fn load_state(proxy: &crate::db::DatabaseProxy, state: DatabaseState) -> Result<OptimizerState, AppError> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+async fn load_state(proxy: &crate::db::DatabaseProxy) -> Result<OptimizerState, AppError> {
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "observations" as "observations", "bestParams" as "bestParams", "bestValue" as "bestValue"
+        FROM "bayesian_optimizer_state"
+        WHERE "id" = $1
+        "#,
+    )
+    .bind("global")
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
-    if use_fallback {
-        let Some(pool) = fallback else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT "observations" as "observations", "bestParams" as "bestParams", "bestValue" as "bestValue"
-            FROM "bayesian_optimizer_state"
-            WHERE "id" = ?
-            "#,
-        )
-        .bind("global")
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
+    let Some(row) = row else {
+        return Ok(OptimizerState { observations: Vec::new(), best: None });
+    };
 
-        let Some(row) = row else {
-            return Ok(OptimizerState { observations: Vec::new(), best: None });
-        };
+    let observations_val: serde_json::Value = row
+        .try_get("observations")
+        .unwrap_or_else(|_| serde_json::Value::Array(Vec::new()));
+    let best_params_val: Option<serde_json::Value> = row.try_get("bestParams").ok();
+    let best_value: Option<f64> = row.try_get("bestValue").ok();
 
-        let observations_raw: Option<String> = row.try_get("observations").ok();
-        let best_params_raw: Option<String> = row.try_get("bestParams").ok();
-        let best_value: Option<f64> = row.try_get("bestValue").ok();
-
-        let observations_val = json_from_sqlite(observations_raw);
-        let best_params_val = match best_params_raw {
-            Some(raw) if !raw.trim().is_empty() => Some(json_from_sqlite(Some(raw))),
-            _ => None,
-        };
-
-        Ok(OptimizerState {
-            observations: parse_observations(observations_val),
-            best: parse_best(best_params_val, best_value),
-        })
-    } else {
-        let Some(pool) = primary else {
-            return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
-        };
-        let row = sqlx::query(
-            r#"
-            SELECT "observations" as "observations", "bestParams" as "bestParams", "bestValue" as "bestValue"
-            FROM "bayesian_optimizer_state"
-            WHERE "id" = $1
-            "#,
-        )
-        .bind("global")
-        .fetch_optional(&pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-        let Some(row) = row else {
-            return Ok(OptimizerState { observations: Vec::new(), best: None });
-        };
-
-        let observations_val: serde_json::Value = row
-            .try_get("observations")
-            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new()));
-        let best_params_val: Option<serde_json::Value> = row.try_get("bestParams").ok();
-        let best_value: Option<f64> = row.try_get("bestValue").ok();
-
-        Ok(OptimizerState {
-            observations: parse_observations(observations_val),
-            best: parse_best(best_params_val, best_value),
-        })
-    }
+    Ok(OptimizerState {
+        observations: parse_observations(observations_val),
+        best: parse_best(best_params_val, best_value),
+    })
 }
 
 async fn persist_state(
     proxy: &crate::db::DatabaseProxy,
-    state: DatabaseState,
     optimizer_state: &OptimizerState,
 ) -> Result<(), AppError> {
     let observations_json = serde_json::Value::Array(
@@ -506,104 +444,40 @@ async fn persist_state(
         None => (None, None),
     };
 
-    if proxy.sqlite_enabled() {
-        let now_iso = crate::auth::format_naive_datetime_iso_millis(Utc::now().naive_utc());
-
-        let mut where_clause = serde_json::Map::new();
-        where_clause.insert("id".to_string(), serde_json::Value::String("global".to_string()));
-
-        let mut create = serde_json::Map::new();
-        create.insert("id".to_string(), serde_json::Value::String("global".to_string()));
-        create.insert("observations".to_string(), observations_json.clone());
-        if let Some(best_params) = best_params.clone() {
-            create.insert("bestParams".to_string(), best_params);
-        }
-        if let Some(best_value) = best_value {
-            create.insert(
-                "bestValue".to_string(),
-                serde_json::Value::Number(serde_json::Number::from_f64(best_value).unwrap_or_else(|| serde_json::Number::from(0))),
-            );
-        }
-        create.insert(
-            "evaluationCount".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(optimizer_state.evaluation_count())),
-        );
-        create.insert("updatedAt".to_string(), serde_json::Value::String(now_iso.clone()));
-
-        let mut update = serde_json::Map::new();
-        update.insert("observations".to_string(), observations_json);
-        update.insert(
-            "evaluationCount".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(optimizer_state.evaluation_count())),
-        );
-        update.insert("updatedAt".to_string(), serde_json::Value::String(now_iso));
-        update.insert(
-            "bestParams".to_string(),
-            best_params.unwrap_or(serde_json::Value::Null),
-        );
-        update.insert(
-            "bestValue".to_string(),
-            best_value
-                .and_then(serde_json::Number::from_f64)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null),
-        );
-
-        let op = crate::db::dual_write_manager::WriteOperation::Upsert {
-            table: "bayesian_optimizer_state".to_string(),
-            r#where: where_clause,
-            create,
-            update,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy
-            .write_operation(state, op)
-            .await
-            .map(|_| ())
-            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))
-    } else {
-        let pool = proxy
-            .primary_pool()
-            .await
-            .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"))?;
-        let now = Utc::now().naive_utc();
-        sqlx::query(
-            r#"
-            INSERT INTO "bayesian_optimizer_state" ("id", "observations", "bestParams", "bestValue", "evaluationCount", "updatedAt")
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT ("id") DO UPDATE SET
-                "observations" = EXCLUDED."observations",
-                "bestParams" = EXCLUDED."bestParams",
-                "bestValue" = EXCLUDED."bestValue",
-                "evaluationCount" = EXCLUDED."evaluationCount",
-                "updatedAt" = EXCLUDED."updatedAt"
-            "#,
-        )
-        .bind("global")
-        .bind(observations_json)
-        .bind(best_params)
-        .bind(best_value)
-        .bind(optimizer_state.evaluation_count() as i64)
-        .bind(now)
-        .execute(&pool)
-        .await
-        .map(|_| ())
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))
-    }
+    let pool = proxy.pool();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "bayesian_optimizer_state" ("id", "observations", "bestParams", "bestValue", "evaluationCount", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT ("id") DO UPDATE SET
+            "observations" = EXCLUDED."observations",
+            "bestParams" = EXCLUDED."bestParams",
+            "bestValue" = EXCLUDED."bestValue",
+            "evaluationCount" = EXCLUDED."evaluationCount",
+            "updatedAt" = EXCLUDED."updatedAt"
+        "#,
+    )
+    .bind("global")
+    .bind(observations_json)
+    .bind(best_params)
+    .bind(best_value)
+    .bind(optimizer_state.evaluation_count() as i64)
+    .bind(now)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))
 }
 
 async fn suggest_next(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     let params = if bayesian_optimizer_enabled() {
-        let state = load_state(proxy.as_ref(), db_state).await?;
+        let state = load_state(proxy.as_ref()).await?;
         Some(sample_params(&state))
     } else {
         None
@@ -620,11 +494,10 @@ async fn suggest_next(
 
 async fn evaluate_params(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
     Json(payload): Json<EvaluateBody>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
         return Ok(Json(SuccessResponse {
@@ -639,7 +512,7 @@ async fn evaluate_params(
 
     let params = parse_named_params(&payload.params)?;
 
-    let mut state = load_state(proxy.as_ref(), db_state).await?;
+    let mut state = load_state(proxy.as_ref()).await?;
     let now = Utc::now().timestamp_millis();
     let obs = OptimizerObservation {
         params: params_to_vec(&params),
@@ -663,7 +536,7 @@ async fn evaluate_params(
         _ => {}
     }
 
-    persist_state(proxy.as_ref(), db_state, &state).await?;
+    persist_state(proxy.as_ref(), &state).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -673,16 +546,15 @@ async fn evaluate_params(
 
 async fn get_best(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
         return Ok(Json(SuccessResponse::<Option<BestData>> { success: true, data: None }));
     }
 
-    let state = load_state(proxy.as_ref(), db_state).await?;
+    let state = load_state(proxy.as_ref()).await?;
     let best = state.best.map(|best| BestData {
         params: vec_to_params(&best.params),
         value: best.value,
@@ -693,10 +565,9 @@ async fn get_best(
 
 async fn get_history(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
         return Ok(Json(SuccessResponse {
@@ -710,7 +581,7 @@ async fn get_history(
         }));
     }
 
-    let state = load_state(proxy.as_ref(), db_state).await?;
+    let state = load_state(proxy.as_ref()).await?;
     let observations = state
         .observations
         .iter()
@@ -765,45 +636,11 @@ async fn evaluate_recent_learning_effect_pg(pool: &sqlx::PgPool) -> Result<Optio
     Ok(Some(accuracy * 0.6 + speed_score * 0.4))
 }
 
-async fn evaluate_recent_learning_effect_sqlite(pool: &sqlx::SqlitePool) -> Result<Option<f64>, AppError> {
-    let boundary = (Utc::now() - Duration::hours(24)).format("%Y-%m-%d %H:%M:%S").to_string();
-    let row = sqlx::query(
-        r#"
-        SELECT
-            COUNT(*) as "total",
-            SUM(CASE WHEN "isCorrect" != 0 THEN 1 ELSE 0 END) as "correct",
-            AVG(CASE WHEN "responseTime" IS NOT NULL AND "responseTime" > 0 THEN "responseTime" END) as "avg_response_time"
-        FROM "answer_records"
-        WHERE "timestamp" >= ?
-        "#,
-    )
-    .bind(boundary)
-    .fetch_one(pool)
-    .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
-
-    let total: i64 = row.try_get("total").unwrap_or(0);
-    let correct: i64 = row.try_get("correct").unwrap_or(0);
-    let avg_rt: Option<f64> = row.try_get("avg_response_time").ok();
-
-    if total < 10 {
-        return Ok(None);
-    }
-
-    let accuracy = (correct.max(0) as f64) / (total as f64);
-    let speed_score = match avg_rt {
-        Some(rt) if rt.is_finite() && rt > 0.0 => (1.0 - (rt - 3000.0) / 7000.0).clamp(0.0, 1.0),
-        _ => 0.5,
-    };
-    Ok(Some(accuracy * 0.6 + speed_score * 0.4))
-}
-
 async fn trigger_cycle(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
         return Ok(Json(SuccessResponse {
@@ -830,7 +667,7 @@ async fn trigger_cycle(
         *guard = true;
     }
 
-    let result = trigger_cycle_inner(proxy.as_ref(), db_state).await;
+    let result = trigger_cycle_inner(proxy.as_ref()).await;
 
     {
         let store = store();
@@ -843,26 +680,12 @@ async fn trigger_cycle(
 
 async fn trigger_cycle_inner(
     proxy: &crate::db::DatabaseProxy,
-    db_state: DatabaseState,
 ) -> Result<Json<SuccessResponse<TriggerResultDto>>, AppError> {
-    let mut state = load_state(proxy, db_state).await?;
+    let mut state = load_state(proxy).await?;
     let suggested_params = sample_params(&state);
 
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    let evaluation_value = if use_fallback {
-        match fallback {
-            Some(pool) => evaluate_recent_learning_effect_sqlite(&pool).await?,
-            None => None,
-        }
-    } else {
-        match primary {
-            Some(pool) => evaluate_recent_learning_effect_pg(&pool).await?,
-            None => None,
-        }
-    };
+    let pool = proxy.pool();
+    let evaluation_value = evaluate_recent_learning_effect_pg(&pool).await?;
 
     let mut evaluated = false;
     if let Some(value) = evaluation_value {
@@ -888,7 +711,7 @@ async fn trigger_cycle_inner(
             }
             _ => {}
         }
-        persist_state(proxy, db_state, &state).await?;
+        persist_state(proxy, &state).await?;
     }
 
     Ok(Json(SuccessResponse {
@@ -902,10 +725,9 @@ async fn trigger_cycle_inner(
 
 async fn reset_optimizer(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
         return Ok(Json(SuccessResponse {
@@ -918,7 +740,7 @@ async fn reset_optimizer(
         observations: Vec::new(),
         best: None,
     };
-    persist_state(proxy.as_ref(), db_state, &state).await?;
+    persist_state(proxy.as_ref(), &state).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -928,14 +750,13 @@ async fn reset_optimizer(
 
 async fn get_diagnostics(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, _user, db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     let enabled = bayesian_optimizer_enabled();
     let state = if enabled {
-        load_state(proxy.as_ref(), db_state).await?
+        load_state(proxy.as_ref()).await?
     } else {
         OptimizerState {
             observations: Vec::new(),
@@ -960,10 +781,9 @@ async fn get_diagnostics(
 
 async fn get_param_space(
     State(state): State<AppState>,
-    request_state: Option<Extension<RequestDbState>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_proxy, _user, _db_state) = require_admin_user(&state, request_state, &headers).await?;
+    let (_proxy, _user) = require_admin_user(&state, &headers).await?;
     Ok(Json(SuccessResponse {
         success: true,
         data: default_param_space(),

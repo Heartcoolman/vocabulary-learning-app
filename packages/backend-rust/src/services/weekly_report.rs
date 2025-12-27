@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::db::state_machine::DatabaseState;
 use crate::db::DatabaseProxy;
 use crate::services::llm_provider::{ChatMessage, LLMProvider};
 
@@ -85,14 +84,13 @@ pub struct HealthTrendPoint {
 
 pub async fn generate_report(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
 ) -> Result<WeeklyReport, String> {
     let end = Utc::now();
     let start = end - Duration::days(7);
     let start_iso = start.to_rfc3339();
     let end_iso = end.to_rfc3339();
 
-    let metrics = collect_metrics(proxy, db_state, start, end).await?;
+    let metrics = collect_metrics(proxy, start, end).await?;
     let (summary, health_score, highlights, concerns, recommendations) =
         generate_analysis(&metrics).await;
 
@@ -109,90 +107,67 @@ pub async fn generate_report(
         created_at: Utc::now().to_rfc3339(),
     };
 
-    store_report(proxy, db_state, &report).await?;
+    store_report(proxy, &report).await?;
     Ok(report)
 }
 
 async fn collect_metrics(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<KeyMetrics, String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    let (total_users, active_users, new_users, total_answers, avg_accuracy, avg_rt, words_learned) =
-        if use_fallback {
-            let Some(pool) = fallback else { return Ok(default_metrics()); };
-            let start_s = start.format("%Y-%m-%d %H:%M:%S").to_string();
-            let end_s = end.format("%Y-%m-%d %H:%M:%S").to_string();
+    tracing::info!(
+        start = %start.to_rfc3339(),
+        end = %end.to_rfc3339(),
+        "Collecting weekly report metrics"
+    );
 
-            let user_row = sqlx::query(r#"
-                SELECT
-                    (SELECT COUNT(*) FROM "users") as total,
-                    (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= ? AND "timestamp" <= ?) as active,
-                    (SELECT COUNT(*) FROM "users" WHERE "createdAt" >= ?) as new
-            "#)
-            .bind(&start_s).bind(&end_s).bind(&start_s)
-            .fetch_one(&pool).await.map_err(|e| e.to_string())?;
+    let user_row = sqlx::query(r#"
+        SELECT
+            (SELECT COUNT(*) FROM "users") as total,
+            (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= $1 AND "timestamp" <= $2) as active,
+            (SELECT COUNT(*) FROM "users" WHERE "createdAt" >= $1) as new
+    "#)
+    .bind(start).bind(end)
+    .fetch_one(pool).await.map_err(|e| e.to_string())?;
 
-            let learning_row = sqlx::query(r#"
-                SELECT
-                    COUNT(*) as total,
-                    AVG(CASE WHEN "isCorrect" != 0 THEN 1.0 ELSE 0.0 END) as accuracy,
-                    AVG("responseTime") as avg_rt,
-                    COUNT(DISTINCT "wordId") as words
-                FROM "answer_records"
-                WHERE "timestamp" >= ? AND "timestamp" <= ?
-            "#)
-            .bind(&start_s).bind(&end_s)
-            .fetch_one(&pool).await.map_err(|e| e.to_string())?;
+    let learning_row = sqlx::query(r#"
+        SELECT
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END), 0) as correct,
+            COALESCE(AVG(NULLIF("responseTime", 0))::double precision, 0) as avg_rt,
+            COUNT(NULLIF("responseTime", 0)) as rt_non_zero,
+            COUNT(DISTINCT "wordId") as words
+        FROM "answer_records"
+        WHERE "timestamp" >= $1 AND "timestamp" <= $2
+    "#)
+    .bind(start).bind(end)
+    .fetch_one(pool).await.map_err(|e| e.to_string())?;
 
-            (
-                user_row.try_get::<i64, _>("total").unwrap_or(0),
-                user_row.try_get::<i64, _>("active").unwrap_or(0),
-                user_row.try_get::<i64, _>("new").unwrap_or(0),
-                learning_row.try_get::<i64, _>("total").unwrap_or(0),
-                learning_row.try_get::<f64, _>("accuracy").unwrap_or(0.0),
-                learning_row.try_get::<f64, _>("avg_rt").unwrap_or(0.0),
-                learning_row.try_get::<i64, _>("words").unwrap_or(0),
-            )
-        } else {
-            let Some(pool) = primary else { return Ok(default_metrics()); };
+    let total_users = user_row.try_get::<i64, _>("total").unwrap_or(0);
+    let active_users = user_row.try_get::<i64, _>("active").unwrap_or(0);
+    let new_users = user_row.try_get::<i64, _>("new").unwrap_or(0);
+    let total_answers = learning_row.try_get::<i64, _>("total").unwrap_or(0);
+    let correct_count = learning_row.try_get::<i64, _>("correct").unwrap_or(0);
+    let avg_accuracy = if total_answers > 0 { correct_count as f64 / total_answers as f64 } else { 0.0 };
+    let avg_rt = learning_row.try_get::<f64, _>("avg_rt").unwrap_or(0.0);
+    let rt_non_zero = learning_row.try_get::<i64, _>("rt_non_zero").unwrap_or(0);
+    let words_learned = learning_row.try_get::<i64, _>("words").unwrap_or(0);
 
-            let user_row = sqlx::query(r#"
-                SELECT
-                    (SELECT COUNT(*) FROM "users") as total,
-                    (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= $1 AND "timestamp" <= $2) as active,
-                    (SELECT COUNT(*) FROM "users" WHERE "createdAt" >= $1) as new
-            "#)
-            .bind(start.naive_utc()).bind(end.naive_utc())
-            .fetch_one(&pool).await.map_err(|e| e.to_string())?;
-
-            let learning_row = sqlx::query(r#"
-                SELECT
-                    COUNT(*) as total,
-                    AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) as accuracy,
-                    AVG(NULLIF("responseTime", 0)) as avg_rt,
-                    COUNT(DISTINCT "wordId") as words
-                FROM "answer_records"
-                WHERE "timestamp" >= $1 AND "timestamp" <= $2
-            "#)
-            .bind(start.naive_utc()).bind(end.naive_utc())
-            .fetch_one(&pool).await.map_err(|e| e.to_string())?;
-
-            (
-                user_row.try_get::<i64, _>("total").unwrap_or(0),
-                user_row.try_get::<i64, _>("active").unwrap_or(0),
-                user_row.try_get::<i64, _>("new").unwrap_or(0),
-                learning_row.try_get::<i64, _>("total").unwrap_or(0),
-                learning_row.try_get::<Option<f64>, _>("accuracy").ok().flatten().unwrap_or(0.0),
-                learning_row.try_get::<Option<f64>, _>("avg_rt").ok().flatten().unwrap_or(0.0),
-                learning_row.try_get::<i64, _>("words").unwrap_or(0),
-            )
-        };
+    tracing::info!(
+        total_users = total_users,
+        active_users = active_users,
+        new_users = new_users,
+        total_answers = total_answers,
+        correct_count = correct_count,
+        avg_accuracy = avg_accuracy,
+        avg_response_time = avg_rt,
+        rt_non_zero_count = rt_non_zero,
+        words_learned = words_learned,
+        "Weekly report metrics collected"
+    );
 
     Ok(KeyMetrics {
         users: UserMetrics { total: total_users, active: active_users, new: new_users },
@@ -217,9 +192,12 @@ fn default_metrics() -> KeyMetrics {
 async fn generate_analysis(metrics: &KeyMetrics) -> (String, i32, Vec<Highlight>, Vec<Concern>, Vec<Recommendation>) {
     let llm = LLMProvider::from_env();
     if llm.is_available() {
-        if let Ok(result) = generate_llm_analysis(&llm, metrics).await {
-            return result;
+        match generate_llm_analysis(&llm, metrics).await {
+            Ok(result) => return result,
+            Err(e) => tracing::warn!("LLM analysis failed, falling back to heuristic: {}", e),
         }
+    } else {
+        tracing::debug!("LLM not available, using heuristic analysis");
     }
     generate_heuristic_analysis(metrics)
 }
@@ -230,12 +208,21 @@ async fn generate_llm_analysis(
 ) -> Result<(String, i32, Vec<Highlight>, Vec<Concern>, Vec<Recommendation>), crate::services::llm_provider::LLMError> {
     let system_prompt = r#"基于周度数据生成分析报告，JSON输出：{"summary":"总结","healthScore":0-100,"highlights":[{"title":"","description":""}],"concerns":[{"title":"","description":"","severity":"low/medium/high"}],"recommendations":[{"action":"","reason":"","priority":"low/medium/high"}]}"#;
 
+    let data_status = if metrics.learning.total_answers == 0 {
+        "（注意：本周无学习数据，可能是新系统或数据采集问题）"
+    } else {
+        ""
+    };
+
     let user_prompt = format!(
-        "用户: 总{}人, 活跃{}人, 新增{}人\n学习: 答题{}次, 正确率{:.1}%, 响应{:.0}ms, 单词{}个",
+        "用户: 总{}人, 活跃{}人, 新增{}人\n学习: 答题{}次, 正确率{:.1}%, 响应{:.0}ms, 单词{}个{}",
         metrics.users.total, metrics.users.active, metrics.users.new,
         metrics.learning.total_answers, metrics.learning.avg_accuracy * 100.0,
-        metrics.learning.avg_response_time, metrics.learning.total_words_learned
+        metrics.learning.avg_response_time, metrics.learning.total_words_learned,
+        data_status
     );
+
+    tracing::info!(prompt = %user_prompt, "Sending to LLM for weekly analysis");
 
     let messages = [
         ChatMessage { role: "system".into(), content: system_prompt.into() },
@@ -253,20 +240,64 @@ fn parse_llm_analysis(raw: &str) -> Result<(String, i32, Vec<Highlight>, Vec<Con
         summary: String,
         #[serde(rename = "healthScore")]
         health_score: i32,
+        #[serde(default)]
         highlights: Vec<Highlight>,
+        #[serde(default)]
         concerns: Vec<Concern>,
+        #[serde(default)]
         recommendations: Vec<Recommendation>,
     }
 
     let trimmed = raw.trim();
-    let json_str = trimmed.strip_prefix("```json").and_then(|s| s.strip_suffix("```"))
-        .or_else(|| trimmed.strip_prefix("```").and_then(|s| s.strip_suffix("```")))
-        .unwrap_or(trimmed);
 
-    let parsed: R = serde_json::from_str(json_str.trim())
-        .map_err(crate::services::llm_provider::LLMError::Json)?;
+    // 提取 JSON：支持 ```json\n...\n``` 或 ```\n...\n``` 或裸 JSON
+    let json_str = if let Some(start) = trimmed.find("```") {
+        let after_fence = &trimmed[start + 3..];
+        let content_start = after_fence.find('\n').map(|i| i + 1).unwrap_or(0);
+        let content = &after_fence[content_start..];
+        content.find("```").map(|end| &content[..end]).unwrap_or(content)
+    } else {
+        trimmed
+    };
 
-    Ok((parsed.summary, parsed.health_score, parsed.highlights, parsed.concerns, parsed.recommendations))
+    let parsed: R = serde_json::from_str(json_str.trim()).map_err(|e| {
+        tracing::warn!("Failed to parse LLM response: {}. Raw: {}", e, raw);
+        crate::services::llm_provider::LLMError::Json(e)
+    })?;
+
+    let normalized_recommendations: Vec<Recommendation> = parsed.recommendations
+        .into_iter()
+        .map(|r| Recommendation {
+            action: r.action,
+            reason: r.reason,
+            priority: normalize_priority(&r.priority),
+        })
+        .collect();
+
+    let normalized_concerns: Vec<Concern> = parsed.concerns
+        .into_iter()
+        .map(|c| Concern {
+            title: c.title,
+            description: c.description,
+            severity: normalize_priority(&c.severity),
+        })
+        .collect();
+
+    Ok((
+        parsed.summary,
+        parsed.health_score.clamp(0, 100),
+        parsed.highlights,
+        normalized_concerns,
+        normalized_recommendations,
+    ))
+}
+
+fn normalize_priority(p: &str) -> String {
+    match p.to_lowercase().as_str() {
+        "high" | "高" => "high".into(),
+        "medium" | "中" | "med" => "medium".into(),
+        _ => "low".into(),
+    }
 }
 
 fn generate_heuristic_analysis(metrics: &KeyMetrics) -> (String, i32, Vec<Highlight>, Vec<Concern>, Vec<Recommendation>) {
@@ -320,191 +351,99 @@ fn generate_heuristic_analysis(metrics: &KeyMetrics) -> (String, i32, Vec<Highli
     (summary, health_score.clamp(0, 100), highlights, concerns, recommendations)
 }
 
-async fn store_report(proxy: &DatabaseProxy, db_state: DatabaseState, report: &WeeklyReport) -> Result<(), String> {
-    let key_metrics_json = serde_json::to_string(&report.key_metrics).unwrap_or_default();
-    let user_metrics_json = serde_json::to_string(&report.key_metrics.users).unwrap_or_default();
-    let learning_metrics_json = serde_json::to_string(&report.key_metrics.learning).unwrap_or_default();
-    let system_metrics_json = serde_json::to_string(&report.key_metrics.system).unwrap_or_default();
-    let highlights_json = serde_json::to_string(&report.highlights).unwrap_or_default();
-    let concerns_json = serde_json::to_string(&report.concerns).unwrap_or_default();
-    let recommendations_json = serde_json::to_string(&report.recommendations).unwrap_or_default();
+async fn store_report(proxy: &DatabaseProxy, report: &WeeklyReport) -> Result<(), String> {
+    let pool = proxy.pool();
 
-    if proxy.sqlite_enabled() {
-        let mut data = serde_json::Map::new();
-        data.insert("id".into(), report.id.clone().into());
-        data.insert("weekStart".into(), report.week_start.clone().into());
-        data.insert("weekEnd".into(), report.week_end.clone().into());
-        data.insert("summary".into(), report.summary.clone().into());
-        data.insert("healthScore".into(), (report.health_score as f64).into());
-        data.insert("keyMetrics".into(), key_metrics_json.clone().into());
-        data.insert("userMetrics".into(), user_metrics_json.clone().into());
-        data.insert("learningMetrics".into(), learning_metrics_json.clone().into());
-        data.insert("systemMetrics".into(), system_metrics_json.clone().into());
-        data.insert("highlights".into(), highlights_json.clone().into());
-        data.insert("concerns".into(), concerns_json.clone().into());
-        data.insert("recommendations".into(), recommendations_json.clone().into());
+    let key_metrics_value = serde_json::to_value(&report.key_metrics).unwrap_or_default();
+    let user_metrics_value = serde_json::to_value(&report.key_metrics.users).unwrap_or_default();
+    let learning_metrics_value = serde_json::to_value(&report.key_metrics.learning).unwrap_or_default();
+    let system_metrics_value = serde_json::to_value(&report.key_metrics.system).unwrap_or_default();
+    let highlights_value = serde_json::to_value(&report.highlights).unwrap_or_default();
+    let concerns_value = serde_json::to_value(&report.concerns).unwrap_or_default();
+    let recommendations_value = serde_json::to_value(&report.recommendations).unwrap_or_default();
 
-        let op = crate::db::dual_write_manager::WriteOperation::Insert {
-            table: "system_weekly_reports".into(),
-            data,
-            operation_id: Uuid::new_v4().to_string(),
-            timestamp_ms: None,
-            critical: Some(false),
-        };
-
-        proxy.write_operation(db_state, op).await.map_err(|e| e.to_string())?;
-    } else {
-        let Some(pool) = proxy.primary_pool().await else {
-            return Err("Database unavailable".into());
-        };
-
-        let key_metrics_value = serde_json::to_value(&report.key_metrics).unwrap_or_default();
-        let user_metrics_value = serde_json::to_value(&report.key_metrics.users).unwrap_or_default();
-        let learning_metrics_value = serde_json::to_value(&report.key_metrics.learning).unwrap_or_default();
-        let system_metrics_value = serde_json::to_value(&report.key_metrics.system).unwrap_or_default();
-        let highlights_value = serde_json::to_value(&report.highlights).unwrap_or_default();
-        let concerns_value = serde_json::to_value(&report.concerns).unwrap_or_default();
-        let recommendations_value = serde_json::to_value(&report.recommendations).unwrap_or_default();
-
-        sqlx::query(r#"
-            INSERT INTO "system_weekly_reports" ("id", "weekStart", "weekEnd", "summary", "healthScore", "keyMetrics", "userMetrics", "learningMetrics", "systemMetrics", "highlights", "concerns", "recommendations")
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        "#)
-        .bind(&report.id)
-        .bind(DateTime::parse_from_rfc3339(&report.week_start).map(|d| d.naive_utc()).ok())
-        .bind(DateTime::parse_from_rfc3339(&report.week_end).map(|d| d.naive_utc()).ok())
-        .bind(&report.summary)
-        .bind(report.health_score as f64)
-        .bind(&key_metrics_value)
-        .bind(&user_metrics_value)
-        .bind(&learning_metrics_value)
-        .bind(&system_metrics_value)
-        .bind(&highlights_value)
-        .bind(&concerns_value)
-        .bind(&recommendations_value)
-        .execute(&pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    }
+    sqlx::query(r#"
+        INSERT INTO "system_weekly_reports" ("id", "weekStart", "weekEnd", "summary", "healthScore", "keyMetrics", "userMetrics", "learningMetrics", "systemMetrics", "highlights", "concerns", "recommendations")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    "#)
+    .bind(&report.id)
+    .bind(DateTime::parse_from_rfc3339(&report.week_start).map(|d| d.naive_utc()).ok())
+    .bind(DateTime::parse_from_rfc3339(&report.week_end).map(|d| d.naive_utc()).ok())
+    .bind(&report.summary)
+    .bind(report.health_score as f64)
+    .bind(&key_metrics_value)
+    .bind(&user_metrics_value)
+    .bind(&learning_metrics_value)
+    .bind(&system_metrics_value)
+    .bind(&highlights_value)
+    .bind(&concerns_value)
+    .bind(&recommendations_value)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 pub async fn get_reports(
     proxy: &DatabaseProxy,
-    db_state: DatabaseState,
     limit: i64,
     offset: i64,
 ) -> Result<(Vec<WeeklyReport>, i64), String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+    let pool = proxy.pool();
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok((vec![], 0)); };
+    let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "system_weekly_reports""#)
+        .fetch_one(pool).await.unwrap_or(0);
 
-        let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "system_weekly_reports""#)
-            .fetch_one(&pool).await.unwrap_or(0);
+    let rows = sqlx::query(r#"
+        SELECT * FROM "system_weekly_reports" ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2
+    "#).bind(limit).bind(offset).fetch_all(pool).await.map_err(|e| e.to_string())?;
 
-        let rows = sqlx::query(r#"
-            SELECT * FROM "system_weekly_reports" ORDER BY "createdAt" DESC LIMIT ? OFFSET ?
-        "#).bind(limit).bind(offset).fetch_all(&pool).await.map_err(|e| e.to_string())?;
-
-        let reports = rows.into_iter().map(|r| parse_report_sqlite(&r)).collect();
-        Ok((reports, total))
-    } else {
-        let Some(pool) = primary else { return Ok((vec![], 0)); };
-
-        let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "system_weekly_reports""#)
-            .fetch_one(&pool).await.unwrap_or(0);
-
-        let rows = sqlx::query(r#"
-            SELECT * FROM "system_weekly_reports" ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2
-        "#).bind(limit).bind(offset).fetch_all(&pool).await.map_err(|e| e.to_string())?;
-
-        let reports = rows.into_iter().map(|r| parse_report_pg(&r)).collect();
-        Ok((reports, total))
-    }
+    let reports = rows.into_iter().map(|r| parse_report_pg(&r)).collect();
+    Ok((reports, total))
 }
 
-pub async fn get_latest_report(proxy: &DatabaseProxy, db_state: DatabaseState) -> Result<Option<WeeklyReport>, String> {
-    let (reports, _) = get_reports(proxy, db_state, 1, 0).await?;
+pub async fn get_latest_report(proxy: &DatabaseProxy) -> Result<Option<WeeklyReport>, String> {
+    let (reports, _) = get_reports(proxy, 1, 0).await?;
     Ok(reports.into_iter().next())
 }
 
-pub async fn get_report_by_id(proxy: &DatabaseProxy, db_state: DatabaseState, id: &str) -> Result<Option<WeeklyReport>, String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
-
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(None); };
-        let row = sqlx::query(r#"SELECT * FROM "system_weekly_reports" WHERE "id" = ?"#)
-            .bind(id).fetch_optional(&pool).await.map_err(|e| e.to_string())?;
-        Ok(row.map(|r| parse_report_sqlite(&r)))
-    } else {
-        let Some(pool) = primary else { return Ok(None); };
-        let row = sqlx::query(r#"SELECT * FROM "system_weekly_reports" WHERE "id" = $1"#)
-            .bind(id).fetch_optional(&pool).await.map_err(|e| e.to_string())?;
-        Ok(row.map(|r| parse_report_pg(&r)))
-    }
+pub async fn get_report_by_id(proxy: &DatabaseProxy, id: &str) -> Result<Option<WeeklyReport>, String> {
+    let pool = proxy.pool();
+    let row = sqlx::query(r#"SELECT * FROM "system_weekly_reports" WHERE "id" = $1"#)
+        .bind(id).fetch_optional(pool).await.map_err(|e| e.to_string())?;
+    Ok(row.map(|r| parse_report_pg(&r)))
 }
 
-pub async fn get_health_trend(proxy: &DatabaseProxy, db_state: DatabaseState, weeks: i32) -> Result<Vec<HealthTrendPoint>, String> {
-    let primary = proxy.primary_pool().await;
-    let fallback = proxy.fallback_pool().await;
-    let use_fallback = matches!(db_state, DatabaseState::Degraded | DatabaseState::Unavailable) || primary.is_none();
+pub async fn get_health_trend(proxy: &DatabaseProxy, weeks: i32) -> Result<Vec<HealthTrendPoint>, String> {
+    let pool = proxy.pool();
+    // 按 weekStart 分组，每周只取最新生成的一份（按 createdAt 降序）
+    let rows = sqlx::query(r#"
+        SELECT DISTINCT ON (DATE_TRUNC('week', "weekStart"))
+            "weekStart", "healthScore"::double precision as "healthScore"
+        FROM "system_weekly_reports"
+        ORDER BY DATE_TRUNC('week', "weekStart") DESC, "createdAt" DESC
+        LIMIT $1
+    "#).bind(weeks as i64).fetch_all(pool).await.map_err(|e| e.to_string())?;
 
-    if use_fallback {
-        let Some(pool) = fallback else { return Ok(vec![]); };
-        let rows = sqlx::query(r#"
-            SELECT "weekStart", "healthScore" FROM "system_weekly_reports"
-            ORDER BY "weekStart" DESC LIMIT ?
-        "#).bind(weeks as i64).fetch_all(&pool).await.map_err(|e| e.to_string())?;
+    let result: Vec<HealthTrendPoint> = rows.into_iter().map(|r| {
+        let ws: chrono::NaiveDateTime = r.try_get("weekStart").unwrap_or_else(|_| Utc::now().naive_utc());
+        let health_score = r.try_get::<f64, _>("healthScore")
+            .map(|v| v.round() as i32)
+            .unwrap_or(0)
+            .clamp(0, 100);
+        HealthTrendPoint {
+            week_start: ws.and_utc().to_rfc3339(),
+            health_score,
+        }
+    }).collect();
 
-        Ok(rows.into_iter().map(|r| HealthTrendPoint {
-            week_start: r.try_get::<String, _>("weekStart").unwrap_or_default(),
-            health_score: r.try_get::<i32, _>("healthScore").unwrap_or(0),
-        }).collect())
-    } else {
-        let Some(pool) = primary else { return Ok(vec![]); };
-        let rows = sqlx::query(r#"
-            SELECT "weekStart", "healthScore" FROM "system_weekly_reports"
-            ORDER BY "weekStart" DESC LIMIT $1
-        "#).bind(weeks as i64).fetch_all(&pool).await.map_err(|e| e.to_string())?;
-
-        Ok(rows.into_iter().map(|r| {
-            let ws: chrono::NaiveDateTime = r.try_get("weekStart").unwrap_or_else(|_| Utc::now().naive_utc());
-            HealthTrendPoint {
-                week_start: ws.and_utc().to_rfc3339(),
-                health_score: r.try_get::<i32, _>("healthScore").unwrap_or(0),
-            }
-        }).collect())
+    tracing::info!(count = result.len(), "Health trend data retrieved");
+    for (i, p) in result.iter().enumerate() {
+        tracing::info!(idx = i, week_start = %p.week_start, health_score = p.health_score, "Trend point");
     }
-}
 
-fn parse_report_sqlite(row: &sqlx::sqlite::SqliteRow) -> WeeklyReport {
-    let key_metrics: KeyMetrics = row.try_get::<String, _>("keyMetrics")
-        .ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_else(default_metrics);
-    let highlights: Vec<Highlight> = row.try_get::<String, _>("highlights")
-        .ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-    let concerns: Vec<Concern> = row.try_get::<String, _>("concerns")
-        .ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-    let recommendations: Vec<Recommendation> = row.try_get::<String, _>("recommendations")
-        .ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-
-    WeeklyReport {
-        id: row.try_get("id").unwrap_or_default(),
-        week_start: row.try_get("weekStart").unwrap_or_default(),
-        week_end: row.try_get("weekEnd").unwrap_or_default(),
-        summary: row.try_get("summary").unwrap_or_default(),
-        health_score: row.try_get("healthScore").unwrap_or(0),
-        key_metrics,
-        highlights,
-        concerns,
-        recommendations,
-        created_at: row.try_get("createdAt").unwrap_or_default(),
-    }
+    Ok(result)
 }
 
 fn parse_report_pg(row: &sqlx::postgres::PgRow) -> WeeklyReport {
@@ -521,12 +460,17 @@ fn parse_report_pg(row: &sqlx::postgres::PgRow) -> WeeklyReport {
     let week_end: chrono::NaiveDateTime = row.try_get("weekEnd").unwrap_or_else(|_| Utc::now().naive_utc());
     let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
 
+    let health_score = row.try_get::<i32, _>("healthScore")
+        .or_else(|_| row.try_get::<f64, _>("healthScore").map(|v| v.round() as i32))
+        .unwrap_or(0)
+        .clamp(0, 100);
+
     WeeklyReport {
         id: row.try_get("id").unwrap_or_default(),
         week_start: week_start.and_utc().to_rfc3339(),
         week_end: week_end.and_utc().to_rfc3339(),
         summary: row.try_get("summary").unwrap_or_default(),
-        health_score: row.try_get("healthScore").unwrap_or(0),
+        health_score,
         key_metrics,
         highlights,
         concerns,

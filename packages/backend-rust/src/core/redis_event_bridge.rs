@@ -6,7 +6,7 @@ use redis::AsyncCommands;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use super::{EventBus, EventEnvelope, LearningEvent};
+use super::{EventBus, LearningEvent};
 
 const CHANNEL_PREFIX: &str = "learning:events:";
 const RECONNECT_DELAY: Duration = Duration::from_secs(5);

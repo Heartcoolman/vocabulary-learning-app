@@ -6,26 +6,13 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, info, warn};
 
 use crate::db::DatabaseProxy;
-use crate::db::state_machine::DatabaseState;
 use crate::services::llm_provider::{ChatMessage, LLMProvider};
 
 pub async fn run_weekly_analysis(db: Arc<DatabaseProxy>) -> Result<(), super::WorkerError> {
     let start = Instant::now();
     info!("Starting weekly LLM analysis");
 
-    let state = db.state_machine().read().await.state();
-    if state == DatabaseState::Degraded || state == DatabaseState::Unavailable {
-        warn!("Database degraded, skipping LLM analysis");
-        return Ok(());
-    }
-
-    let pool = match db.primary_pool().await {
-        Some(p) => p,
-        None => {
-            debug!("Primary pool not available, skipping LLM analysis");
-            return Ok(());
-        }
-    };
+    let pool = db.pool();
 
     let llm_enabled = std::env::var("LLM_ADVISOR_ENABLED")
         .map(|v| v == "true" || v == "1")
@@ -74,9 +61,9 @@ async fn collect_system_stats(pool: &PgPool) -> Result<SystemStats, super::Worke
         r#"
         SELECT
             (SELECT COUNT(*) FROM "user") as total_users,
-            (SELECT COUNT(DISTINCT "userId") FROM "answer_record" WHERE "timestamp" >= $1) as active_users,
-            (SELECT COUNT(*) FROM "answer_record" WHERE "timestamp" >= $1) as total_answers,
-            (SELECT AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) FROM "answer_record" WHERE "timestamp" >= $1) as avg_correct
+            (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= $1) as active_users,
+            (SELECT COUNT(*) FROM "answer_records" WHERE "timestamp" >= $1) as total_answers,
+            (SELECT AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) FROM "answer_records" WHERE "timestamp" >= $1) as avg_correct
         "#,
     )
     .bind(since_7d)
@@ -104,7 +91,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let struggling_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "userId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "userId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "userId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) < 0.5 AND COUNT(*) >= 20
         ) sub
@@ -117,7 +104,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let high_performers_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "userId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "userId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "userId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) > 0.9 AND COUNT(*) >= 50
         ) sub
@@ -130,7 +117,7 @@ async fn analyze_user_patterns(pool: &PgPool) -> Result<UserPatterns, super::Wor
     let difficult_words_count: i64 = sqlx::query_scalar(
         r#"
         SELECT COUNT(*) FROM (
-            SELECT "wordId" FROM "answer_record" WHERE "timestamp" >= $1
+            SELECT "wordId" FROM "answer_records" WHERE "timestamp" >= $1
             GROUP BY "wordId"
             HAVING AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) < 0.4 AND COUNT(*) >= 10
         ) sub

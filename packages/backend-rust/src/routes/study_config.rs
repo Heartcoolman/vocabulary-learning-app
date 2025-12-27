@@ -6,7 +6,6 @@ use axum::Json;
 use bytes::Bytes;
 use serde::Serialize;
 
-use crate::middleware::RequestDbState;
 use crate::response::json_error;
 use crate::services::study_config::{self, StudyConfigUpdateError, UpdateStudyConfigInput};
 use crate::state::AppState;
@@ -26,24 +25,18 @@ pub async fn get_config(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    match study_config::get_or_create_user_study_config(proxy.as_ref(), request_state, &auth_user.id).await {
+    match study_config::get_or_create_user_study_config(proxy.as_ref(), &auth_user.id).await {
         Ok(config) => Json(SuccessResponse { success: true, data: config }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "study config lookup failed");
@@ -114,17 +107,11 @@ pub async fn update_config(
         }
     }
 
-    let request_state = parts
-        .extensions
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -137,7 +124,7 @@ pub async fn update_config(
         study_mode,
     };
 
-    match study_config::update_user_study_config(proxy.as_ref(), request_state, &auth_user.id, input).await {
+    match study_config::update_user_study_config(proxy.as_ref(), &auth_user.id, input).await {
         Ok(config) => Json(SuccessResponse { success: true, data: config }).into_response(),
         Err(err) => match err {
             StudyConfigUpdateError::UnauthorizedWordBooks(ids) => json_error(
@@ -163,24 +150,18 @@ pub async fn today_words(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    match study_config::get_today_words(proxy.as_ref(), request_state, &auth_user.id).await {
+    match study_config::get_today_words(proxy.as_ref(), &auth_user.id).await {
         Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "today words query failed");
@@ -198,24 +179,18 @@ pub async fn progress(
         return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
     };
 
-    let request_state = req
-        .extensions()
-        .get::<RequestDbState>()
-        .map(|value| value.0)
-        .unwrap_or(crate::db::state_machine::DatabaseState::Normal);
-
     let Some(proxy) = state.db_proxy() else {
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), request_state, &token).await {
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
 
-    match study_config::get_study_progress(proxy.as_ref(), request_state, &auth_user.id).await {
+    match study_config::get_study_progress(proxy.as_ref(), &auth_user.id).await {
         Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "study progress query failed");
