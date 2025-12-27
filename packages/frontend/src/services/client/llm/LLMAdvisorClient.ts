@@ -55,6 +55,12 @@ export interface LLMWeeklyStats {
   };
 }
 
+export interface LLMSkippedItem {
+  id: string;
+  target: string;
+  reason: string;
+}
+
 export interface LLMStoredSuggestion {
   id: string;
   weekStart: string;
@@ -67,6 +73,7 @@ export interface LLMStoredSuggestion {
   reviewedAt: string | null;
   reviewNotes: string | null;
   appliedItems: string[] | null;
+  skippedItems: LLMSkippedItem[] | null;
   createdAt: string;
 }
 

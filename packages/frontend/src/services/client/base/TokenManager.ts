@@ -69,7 +69,10 @@ function isTokenExpired(token: string): boolean {
 class TokenManager {
   private static instance: TokenManager;
   private token: string | null = null;
+  private refreshTimer: number | null = null;
+  private refreshPromise: Promise<string> | null = null;
   private readonly STORAGE_KEY = STORAGE_KEYS.AUTH_TOKEN;
+  private readonly REFRESH_THRESHOLD = 5 * 60 * 1000;
 
   private constructor() {
     this.loadToken();
@@ -96,6 +99,7 @@ class TokenManager {
         this.clearToken();
       } else {
         this.token = storedToken;
+        this.setupRefreshTimer(storedToken);
       }
     }
   }
@@ -106,6 +110,7 @@ class TokenManager {
   setToken(token: string): void {
     this.token = token;
     localStorage.setItem(this.STORAGE_KEY, token);
+    this.setupRefreshTimer(token);
   }
 
   /**
@@ -121,6 +126,11 @@ class TokenManager {
   clearToken(): void {
     this.token = null;
     localStorage.removeItem(this.STORAGE_KEY);
+    if (this.refreshTimer) {
+      window.clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    this.refreshPromise = null;
   }
 
   /**
@@ -129,6 +139,70 @@ class TokenManager {
   hasValidToken(): boolean {
     if (!this.token) return false;
     return !isTokenExpired(this.token);
+  }
+
+  private setupRefreshTimer(token: string): void {
+    if (this.refreshTimer) {
+      window.clearTimeout(this.refreshTimer);
+    }
+
+    const payload = decodeJwt(token);
+    if (!payload || !payload.exp) return;
+
+    const expiresAt = payload.exp * 1000;
+    const now = Date.now();
+    const timeUntilRefresh = expiresAt - now - this.REFRESH_THRESHOLD;
+
+    if (timeUntilRefresh > 0) {
+      this.refreshTimer = window.setTimeout(() => {
+        this.refreshToken();
+      }, timeUntilRefresh);
+    } else if (expiresAt > now) {
+      this.refreshToken();
+    }
+  }
+
+  private async refreshToken(): Promise<string> {
+    if (this.refreshPromise) return this.refreshPromise;
+
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch('/api/v1/auth/refresh_token', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.token) {
+            this.setToken(data.data.token);
+            return data.data.token;
+          }
+        }
+
+        if (response.status === 401) {
+          this.clearToken();
+          window.dispatchEvent(
+            new CustomEvent('auth:logout', { detail: { reason: 'refresh_failed' } }),
+          );
+        }
+        throw new Error('Refresh failed');
+      } catch (err) {
+        apiLogger.error('Token refresh failed:', err instanceof Error ? err.message : String(err));
+        this.clearToken();
+        window.dispatchEvent(
+          new CustomEvent('auth:logout', { detail: { reason: 'refresh_error' } }),
+        );
+        return '';
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 }
 

@@ -8,12 +8,13 @@
  * 4. 进度追踪 - 获取学习进度
  * 5. 测试选项生成 - 生成选择题选项
  * 6. 单词状态管理 - 标记已掌握、需要练习、重置进度
+ *
+ * 注意：核心算法已迁移至Rust后端，前端通过API调用后端服务
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Word, AlgorithmConfig } from '../../types/models';
+import type { Word } from '../../types/models';
 
-// Mock dependencies
 vi.mock('../StorageService', () => ({
   default: {
     getWords: vi.fn(),
@@ -33,42 +34,15 @@ vi.mock('../client', () => ({
   default: {
     getUserStatistics: vi.fn(),
     deleteWordLearningState: vi.fn(),
+    processLearningEvent: vi.fn(),
+    getDueWords: vi.fn(),
+    getCurrentTrend: vi.fn(),
+    markWordAsMastered: vi.fn(),
+    markWordAsNeedsPractice: vi.fn(),
+    resetWordProgress: vi.fn(),
+    batchUpdateWordStates: vi.fn(),
   },
 }));
-
-// 创建一个可以被测试访问和修改的 mock 实例对象
-const createMockSRServiceInstance = () => ({
-  startSession: vi.fn().mockResolvedValue(undefined),
-  endSession: vi.fn().mockResolvedValue(undefined),
-  submitAnswer: vi.fn().mockResolvedValue(undefined),
-  getWordState: vi.fn().mockResolvedValue(null),
-  getWordScore: vi.fn().mockResolvedValue(null),
-  getDueWords: vi.fn().mockResolvedValue([]),
-  getTrendAnalysis: vi.fn().mockReturnValue(null),
-  getRecommendedWordCount: vi.fn().mockImplementation((count: number) => count),
-  markAsMastered: vi.fn().mockResolvedValue(undefined),
-  markAsNeedsPractice: vi.fn().mockResolvedValue(undefined),
-  resetProgress: vi.fn().mockResolvedValue(undefined),
-  batchUpdateWords: vi.fn().mockResolvedValue(undefined),
-  clearUserCache: vi.fn(),
-});
-
-// 使用可变引用，这样可以在 beforeEach 中更新
-let currentMockSRInstance = createMockSRServiceInstance();
-
-// 创建一个 mock class - 使用 vi.fn() 返回的构造函数不能与 new 一起使用
-// 所以我们需要在 vi.mock 工厂中直接返回一个可构造的类
-vi.mock('../algorithms/SpacedRepetitionService', () => {
-  // 这个工厂函数只执行一次，所以我们需要创建一个动态引用的类
-  return {
-    SpacedRepetitionService: class MockSpacedRepetitionService {
-      constructor() {
-        // 构造函数返回当前的 mock 实例
-        return currentMockSRInstance;
-      }
-    },
-  };
-});
 
 vi.mock('../../utils/logger', () => ({
   learningLogger: {
@@ -99,6 +73,13 @@ type MockStorageService = {
 type MockApiClient = {
   getUserStatistics: ReturnType<typeof vi.fn>;
   deleteWordLearningState: ReturnType<typeof vi.fn>;
+  processLearningEvent: ReturnType<typeof vi.fn>;
+  getDueWords: ReturnType<typeof vi.fn>;
+  getCurrentTrend: ReturnType<typeof vi.fn>;
+  markWordAsMastered: ReturnType<typeof vi.fn>;
+  markWordAsNeedsPractice: ReturnType<typeof vi.fn>;
+  resetWordProgress: ReturnType<typeof vi.fn>;
+  batchUpdateWordStates: ReturnType<typeof vi.fn>;
 };
 
 describe('LearningService', () => {
@@ -137,20 +118,13 @@ describe('LearningService', () => {
   ];
 
   beforeEach(async () => {
-    // 获取 mock 引用
     const StorageServiceModule = await import('../StorageService');
     const ApiClientModule = await import('../client');
     mockStorageService = StorageServiceModule.default as unknown as MockStorageService;
     mockApiClient = ApiClientModule.default as unknown as MockApiClient;
 
-    // 创建新的 SR service mock 实例
-    currentMockSRInstance = createMockSRServiceInstance();
-
-    // 清除调用历史（注意：这会清除 mockImplementation，但由于我们使用的是 function + vi.fn 包装，
-    // 底层的 MockSpacedRepetitionServiceClass 仍然引用 currentMockSRInstance）
     vi.clearAllMocks();
 
-    // Reset mocks with implementations
     mockStorageService.getWords.mockResolvedValue(mockWords);
     mockStorageService.getAlgorithmConfig.mockResolvedValue(null);
     mockStorageService.getWordLearningState.mockResolvedValue(null);
@@ -164,19 +138,23 @@ describe('LearningService', () => {
 
     mockApiClient.getUserStatistics.mockResolvedValue({ correctRate: 0.75 });
     mockApiClient.deleteWordLearningState.mockResolvedValue(undefined);
+    mockApiClient.processLearningEvent.mockResolvedValue({
+      decision: { masteryChange: 1, score: 80 },
+    });
+    mockApiClient.getDueWords.mockResolvedValue([]);
+    mockApiClient.getCurrentTrend.mockResolvedValue({
+      trend: 'improving',
+      recommendedSessionLength: 20,
+    });
 
-    // 导入 LearningService（单例模式，每次测试前需要先结束之前的会话）
     const module = await import('../LearningService');
     LearningService = module.default;
-    // 结束之前的会话，确保每个测试都从干净状态开始
     await LearningService.endSession();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
-
-  // ==================== 会话管理测试 ====================
 
   describe('会话管理', () => {
     it('should start a new session with valid word IDs', async () => {
@@ -204,15 +182,14 @@ describe('LearningService', () => {
       );
     });
 
-    it('should initialize SR service when userId is provided', async () => {
+    it('should start session with userId', async () => {
       const wordIds = ['word-1', 'word-2'];
       const userId = 'user-123';
 
       const session = await LearningService.startSession(wordIds, userId);
 
       expect(session).toBeDefined();
-      // 验证 SR 服务的 startSession 方法被调用（表示 SR 服务已初始化）
-      expect(currentMockSRInstance.startSession).toHaveBeenCalled();
+      expect(session.userId).toBe(userId);
     });
 
     it('should end session successfully', async () => {
@@ -221,7 +198,6 @@ describe('LearningService', () => {
       const result = await LearningService.endSession();
 
       expect(result).toBe(true);
-      expect(LearningService.getCurrentSession()).toBeNull();
     });
 
     it('should return true when ending a non-existent session', async () => {
@@ -229,18 +205,12 @@ describe('LearningService', () => {
       expect(result).toBe(true);
     });
 
-    it('should get current session', async () => {
-      const wordIds = ['word-1', 'word-2'];
-      await LearningService.startSession(wordIds);
-
+    it('should return null for getCurrentSession (session not persisted)', async () => {
+      await LearningService.startSession(['word-1', 'word-2']);
       const session = LearningService.getCurrentSession();
-
-      expect(session).not.toBeNull();
-      expect(session?.wordIds).toEqual(wordIds);
+      expect(session).toBeNull();
     });
   });
-
-  // ==================== 单词导航测试 ====================
 
   describe('单词导航', () => {
     it('should get current word', async () => {
@@ -258,15 +228,14 @@ describe('LearningService', () => {
       expect(word).toBeNull();
     });
 
-    it('should move to next word', async () => {
+    it('should increment progress when calling nextWord', async () => {
       await LearningService.startSession(['word-1', 'word-2', 'word-3']);
 
-      expect(LearningService.getCurrentWord()?.id).toBe('word-1');
+      expect(LearningService.getProgress().current).toBe(1);
 
-      const nextWord = await LearningService.nextWord();
+      await LearningService.nextWord();
 
-      expect(nextWord?.id).toBe('word-2');
-      expect(LearningService.getCurrentWord()?.id).toBe('word-2');
+      expect(LearningService.getProgress().current).toBe(2);
     });
 
     it('should return null when reaching end of words', async () => {
@@ -277,22 +246,11 @@ describe('LearningService', () => {
       expect(nextWord).toBeNull();
     });
 
-    it('should set endTime when reaching end of words', async () => {
-      await LearningService.startSession(['word-1']);
-
-      await LearningService.nextWord();
-
-      const session = LearningService.getCurrentSession();
-      expect(session?.endTime).toBeDefined();
-    });
-
     it('should return null when calling nextWord without session', async () => {
       const nextWord = await LearningService.nextWord();
       expect(nextWord).toBeNull();
     });
   });
-
-  // ==================== 进度追踪测试 ====================
 
   describe('进度追踪', () => {
     it('should get progress correctly', async () => {
@@ -320,22 +278,10 @@ describe('LearningService', () => {
       expect(progress.current).toBe(0);
       expect(progress.total).toBe(0);
     });
-
-    it('should not exceed total in progress', async () => {
-      await LearningService.startSession(['word-1']);
-
-      await LearningService.nextWord();
-      await LearningService.nextWord();
-
-      const progress = LearningService.getProgress();
-      expect(progress.current).toBeLessThanOrEqual(progress.total);
-    });
   });
 
-  // ==================== 测试选项生成 ====================
-
   describe('测试选项生成', () => {
-    it('should generate test options with correct answer', async () => {
+    it('should generate test options with correct answer', () => {
       const correctWord = mockWords[0];
 
       const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
@@ -345,7 +291,7 @@ describe('LearningService', () => {
       expect(result.options.length).toBeLessThanOrEqual(4);
     });
 
-    it('should generate options with minimum 2 options', async () => {
+    it('should generate options with minimum 2 options', () => {
       const correctWord = mockWords[0];
 
       const result = LearningService.generateTestOptions(correctWord, mockWords, 2);
@@ -353,23 +299,21 @@ describe('LearningService', () => {
       expect(result.options.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should shuffle options', async () => {
+    it('should shuffle options', () => {
       const correctWord = mockWords[0];
       const results: string[][] = [];
 
-      // 多次生成，检查是否有不同的顺序
       for (let i = 0; i < 10; i++) {
         const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
         results.push(result.options);
       }
 
-      // 所有结果应包含正确答案
       results.forEach((options) => {
         expect(options).toContain('你好');
       });
     });
 
-    it('should throw error when word has no meanings', async () => {
+    it('should throw error when word has no meanings', () => {
       const wordWithoutMeaning: Word = {
         ...mockWords[0],
         meanings: [],
@@ -380,7 +324,7 @@ describe('LearningService', () => {
       );
     });
 
-    it('should handle option count limits', async () => {
+    it('should handle option count limits', () => {
       const correctWord = mockWords[0];
 
       const result1 = LearningService.generateTestOptions(correctWord, mockWords, 1);
@@ -390,7 +334,7 @@ describe('LearningService', () => {
       expect(result2.options.length).toBeLessThanOrEqual(4);
     });
 
-    it('should not include duplicate meanings', async () => {
+    it('should not include duplicate meanings', () => {
       const correctWord = mockWords[0];
 
       const result = LearningService.generateTestOptions(correctWord, mockWords, 4);
@@ -399,8 +343,6 @@ describe('LearningService', () => {
       expect(uniqueOptions.size).toBe(result.options.length);
     });
   });
-
-  // ==================== 答案检查测试 ====================
 
   describe('答案检查', () => {
     it('should return true for correct answer', () => {
@@ -424,42 +366,37 @@ describe('LearningService', () => {
     });
   });
 
-  // ==================== 答题提交测试 ====================
-
   describe('答题提交', () => {
-    it('should submit answer and save record', async () => {
+    it('should submit answer via API', async () => {
       await LearningService.startSession(['word-1', 'word-2']);
 
       const result = await LearningService.submitAnswer('word-1', '你好', true, 2000, 5000);
 
-      expect(mockStorageService.saveAnswerRecordExtended).toHaveBeenCalled();
+      expect(mockApiClient.processLearningEvent).toHaveBeenCalledWith({
+        wordId: 'word-1',
+        isCorrect: true,
+        responseTime: 2000,
+        dwellTime: 5000,
+      });
+      expect(result).not.toBeNull();
     });
 
-    it('should throw error for non-existent word', async () => {
+    it('should return null when API fails', async () => {
+      mockApiClient.processLearningEvent.mockRejectedValue(new Error('API Error'));
       await LearningService.startSession(['word-1']);
 
-      await expect(
-        LearningService.submitAnswer('non-existent', '答案', true, 2000, 5000),
-      ).rejects.toThrow('单词不存在');
+      const result = await LearningService.submitAnswer('word-1', '你好', true, 2000, 5000);
+
+      expect(result).toBeNull();
     });
 
-    it('should return feedback info when userId is provided', async () => {
-      // 设置 submitAnswer mock 返回反馈信息
-      currentMockSRInstance.submitAnswer.mockResolvedValue({
-        wordState: {
-          masteryLevel: 2,
-          nextReviewDate: Date.now() + 86400000,
-        },
-        wordScore: {
-          totalScore: 80,
-        },
-        masteryLevelChange: 1,
-        nextReviewDate: Date.now() + 86400000,
+    it('should return feedback info from API', async () => {
+      mockApiClient.processLearningEvent.mockResolvedValue({
+        decision: { masteryChange: 2, score: 90 },
       });
 
       await LearningService.startSession(['word-1', 'word-2'], 'user-123');
 
-      // 提交答案 - 主要验证流程不会抛出错误
       const result = await LearningService.submitAnswer(
         'word-1',
         '你好',
@@ -469,104 +406,152 @@ describe('LearningService', () => {
         'user-123',
       );
 
-      // 由于 LearningService 是单例模式，srService 可能引用的是之前测试创建的 mock 实例
-      // 所以我们只验证 submitAnswer 方法可以正常调用，不会抛出错误
-      // 结果可能为 null（如果 SR service 没有正确响应）或包含反馈信息
-      expect(result === null || typeof result === 'object').toBe(true);
+      expect(result).not.toBeNull();
+      expect(result?.masteryLevelAfter).toBe(2);
+      expect(result?.score).toBe(90);
     });
   });
-
-  // ==================== 停留时间记录测试 ====================
 
   describe('停留时间记录', () => {
-    it('should record dwell time', async () => {
+    it('should record dwell time without error', async () => {
       await LearningService.startSession(['word-1']);
 
-      LearningService.recordDwellTime(1000);
-      LearningService.recordDwellTime(2000);
-
-      // 停留时间累计应该正确
-      // 由于 wordDwellTime 是私有属性，我们通过 submitAnswer 间接验证
+      expect(() => {
+        LearningService.recordDwellTime(1000);
+        LearningService.recordDwellTime(2000);
+      }).not.toThrow();
     });
   });
-
-  // ==================== 单词状态管理测试 ====================
 
   describe('单词状态管理', () => {
     it('should get word state', async () => {
       const userId = 'user-123';
       const wordId = 'word-1';
 
-      // 先通过 startSession 初始化 SR 服务
-      await LearningService.startSession(['word-1'], userId);
+      mockStorageService.getWordLearningState.mockResolvedValue({
+        masteryLevel: 3,
+        nextReviewDate: Date.now() + 86400000,
+      });
+      mockStorageService.getWordScore.mockResolvedValue({ totalScore: 75 });
 
       const result = await LearningService.getWordState(userId, wordId);
 
-      // 可能返回 null，因为 SR 服务 mock 返回 null
-      expect(result === null || typeof result === 'object').toBe(true);
+      expect(result).not.toBeNull();
+      expect(result?.masteryLevel).toBe(3);
+      expect(result?.score).toBe(75);
+    });
+
+    it('should return null when word state not found', async () => {
+      mockStorageService.getWordLearningState.mockResolvedValue(null);
+
+      const result = await LearningService.getWordState('user-123', 'word-1');
+
+      expect(result).toBeNull();
     });
 
     it('should get word score', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-1';
+      mockStorageService.getWordScore.mockResolvedValue({ totalScore: 80 });
 
-      // 先通过 startSession 初始化 SR 服务
-      await LearningService.startSession(['word-1'], userId);
+      const result = await LearningService.getWordScore('user-123', 'word-1');
 
-      const result = await LearningService.getWordScore(userId, wordId);
-
-      expect(result === null || typeof result === 'object').toBe(true);
+      expect(result).not.toBeNull();
     });
 
-    it('should get due words', async () => {
-      const userId = 'user-123';
+    it('should get due words from API', async () => {
+      mockApiClient.getDueWords.mockResolvedValue([{ wordId: 'word-1' }, { wordId: 'word-2' }]);
 
-      // 先通过 startSession 初始化 SR 服务
-      await LearningService.startSession(['word-1'], userId);
-
-      const result = await LearningService.getDueWords(userId);
+      const result = await LearningService.getDueWords('user-123');
 
       expect(Array.isArray(result)).toBe(true);
+      expect(result).toEqual(['word-1', 'word-2']);
     });
 
-    it('should get trend analysis', async () => {
-      // 需要先初始化 SR 服务
-      await LearningService.startSession(['word-1'], 'user-123');
+    it('should get trend analysis from API', async () => {
+      mockApiClient.getCurrentTrend.mockResolvedValue({
+        trend: 'improving',
+        recommendedSessionLength: 25,
+      });
 
-      const result = LearningService.getTrendAnalysis();
+      const result = await LearningService.getTrendAnalysis();
 
-      // 可能返回 null 或对象
-      expect(result === null || typeof result === 'object').toBe(true);
+      expect(result).not.toBeNull();
+      expect(result?.isImproving).toBe(true);
     });
 
-    it('should get recommended word count', async () => {
+    it('should get recommended word count', () => {
       const baseCount = 20;
 
       const result = LearningService.getRecommendedWordCount(baseCount);
 
-      // 没有 SR 服务时应返回原始数量
       expect(result).toBe(baseCount);
+    });
+
+    it('should return null when getTrendAnalysis API fails', async () => {
+      mockApiClient.getCurrentTrend.mockRejectedValue(new Error('API Error'));
+
+      const result = await LearningService.getTrendAnalysis();
+
+      expect(result).toBeNull();
     });
   });
 
-  // ==================== 手动调整功能测试 ====================
+  describe('反向测试选项生成', () => {
+    it('should generate reverse test options with correct answer', () => {
+      const word = mockWords[0];
 
-  describe('手动调整功能', () => {
-    it('should delete word learning state', async () => {
-      const userId = 'user-123';
-      const wordId = 'word-1';
+      const result = LearningService.generateReverseTestOptions(word, mockWords, 4);
 
-      await LearningService.deleteState(userId, wordId);
-
-      expect(mockApiClient.deleteWordLearningState).toHaveBeenCalledWith(wordId);
+      expect(result.options).toContain(result.correctAnswer);
+      expect(result.correctAnswer).toBe('hello');
+      expect(result.options.length).toBeLessThanOrEqual(4);
     });
 
-    it('should handle delete state error', async () => {
+    it('should shuffle reverse options', () => {
+      const word = mockWords[0];
+
+      const result = LearningService.generateReverseTestOptions(word, mockWords, 4);
+
+      expect(result.options).toContain('hello');
+    });
+  });
+
+  describe('手动调整功能', () => {
+    it('should mark word as mastered via API', async () => {
+      await LearningService.markAsMastered('user-123', 'word-1');
+
+      expect(mockApiClient.markWordAsMastered).toHaveBeenCalledWith('word-1');
+    });
+
+    it('should mark word as needs practice via API', async () => {
+      await LearningService.markAsNeedsPractice('user-123', 'word-1');
+
+      expect(mockApiClient.markWordAsNeedsPractice).toHaveBeenCalledWith('word-1');
+    });
+
+    it('should reset word progress via API', async () => {
+      await LearningService.resetProgress('user-123', 'word-1');
+
+      expect(mockApiClient.resetWordProgress).toHaveBeenCalledWith('word-1');
+    });
+
+    it('should batch update words via API', async () => {
+      const wordIds = ['word-1', 'word-2'];
+
+      await LearningService.batchUpdateWords('user-123', wordIds, 'mastered');
+
+      expect(mockApiClient.batchUpdateWordStates).toHaveBeenCalledWith(wordIds, 'mastered');
+    });
+
+    it('should delete word learning state via API', async () => {
+      await LearningService.deleteState('user-123', 'word-1');
+
+      expect(mockApiClient.deleteWordLearningState).toHaveBeenCalledWith('word-1');
+    });
+
+    it('should propagate API errors', async () => {
       mockApiClient.deleteWordLearningState.mockRejectedValue(new Error('Delete failed'));
 
-      await expect(LearningService.deleteState('user-123', 'word-1')).rejects.toThrow(
-        '删除单词学习状态失败',
-      );
+      await expect(LearningService.deleteState('user-123', 'word-1')).rejects.toThrow();
     });
   });
 });

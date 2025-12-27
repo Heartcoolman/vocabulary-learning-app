@@ -151,6 +151,22 @@ export class LearningClient extends BaseClient {
   }
 
   /**
+   * 获取增强统计数据（后端统一计算）
+   */
+  async getEnhancedStatistics(): Promise<{
+    totalWords: number;
+    totalRecords: number;
+    correctRate: number;
+    studyDays: number;
+    consecutiveDays: number;
+    dailyAccuracy: Array<{ date: string; accuracy: number }>;
+    weekdayHeat: number[];
+    masteryDistribution: Array<{ level: number; count: number }>;
+  }> {
+    return this.request('/api/records/statistics/enhanced');
+  }
+
+  /**
    * 获取单词学习状态
    * 返回null表示数据不存在（404）
    */
@@ -433,4 +449,104 @@ export class LearningClient extends BaseClient {
       },
     );
   }
+
+  /**
+   * 标记单词为已掌握
+   */
+  async markWordAsMastered(wordId: string): Promise<WordLearningState> {
+    const response = await this.request<ApiWordLearningState>(
+      `/api/word-states/${wordId}/mark-mastered`,
+      { method: 'POST' },
+    );
+    return convertLearningStateDates(response);
+  }
+
+  /**
+   * 标记单词为需要重点学习
+   */
+  async markWordAsNeedsPractice(wordId: string): Promise<WordLearningState> {
+    const response = await this.request<ApiWordLearningState>(
+      `/api/word-states/${wordId}/mark-needs-practice`,
+      { method: 'POST' },
+    );
+    return convertLearningStateDates(response);
+  }
+
+  /**
+   * 重置单词学习进度
+   */
+  async resetWordProgress(wordId: string): Promise<WordLearningState> {
+    const response = await this.request<ApiWordLearningState>(`/api/word-states/${wordId}/reset`, {
+      method: 'POST',
+    });
+    return convertLearningStateDates(response);
+  }
+
+  /**
+   * 批量更新单词状态
+   */
+  async batchUpdateWordStates(
+    wordIds: string[],
+    operation: 'mastered' | 'needsPractice' | 'reset',
+  ): Promise<WordLearningState[]> {
+    const response = await this.request<ApiWordLearningState[]>('/api/word-states/batch-update', {
+      method: 'POST',
+      body: JSON.stringify({ wordIds, operation }),
+    });
+    return response.map(convertLearningStateDates);
+  }
+
+  /**
+   * 获取学习会话列表
+   */
+  async listSessions(options?: {
+    limit?: number;
+    offset?: number;
+    includeActive?: boolean;
+  }): Promise<{
+    data: SessionStats[];
+    pagination: { limit: number; offset: number; total: number };
+  }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.offset) params.set('offset', String(options.offset));
+    if (options?.includeActive) params.set('include_active', 'true');
+    const query = params.toString();
+    return this.requestFull(`/api/learning-sessions${query ? `?${query}` : ''}`);
+  }
+
+  /**
+   * 获取会话详情（含答题记录）
+   */
+  async getSessionDetail(sessionId: string): Promise<{
+    stats: SessionStats;
+    records: SessionAnswerRecord[];
+  }> {
+    return this.request(`/api/learning-sessions/${sessionId}/detail`);
+  }
+}
+
+export interface SessionStats {
+  id: string;
+  userId: string;
+  startedAt: string;
+  endedAt?: string;
+  duration: number;
+  totalQuestions: number;
+  actualMasteryCount: number;
+  targetMasteryCount?: number;
+  sessionType: string;
+  flowPeakScore?: number;
+  avgCognitiveLoad?: number;
+  contextShifts: number;
+  answerRecordCount: number;
+}
+
+export interface SessionAnswerRecord {
+  id: string;
+  wordId: string;
+  isCorrect: boolean;
+  responseTime?: number;
+  dwellTime?: number;
+  timestamp: string;
 }
