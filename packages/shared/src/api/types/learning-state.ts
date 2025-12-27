@@ -45,14 +45,13 @@ export interface MasteryEvaluation {
   confidence: number;
   isLearned: boolean;
   factors: {
-    reviewCount: number;
-    correctRate: number;
-    avgResponseTime: number;
+    srsLevel: number;
     actrRecall: number;
-    intervalStability: number;
-    recentPerformance: number;
+    recentAccuracy: number;
+    userFatigue: number;
   };
-  recommendation: string;
+  suggestion?: string;
+  fatigueWarning?: string;
 }
 
 /**
