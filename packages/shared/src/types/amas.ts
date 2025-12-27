@@ -256,6 +256,8 @@ export interface LearningEventInput {
   timestamp?: Timestamp;
   /** 对话框暂停时间（毫秒） */
   pausedTimeMs?: number;
+  /** 是否使用了提示 */
+  hintUsed?: boolean;
 }
 
 // ============================================
@@ -266,6 +268,18 @@ export interface LearningEventInput {
  * 单词掌握判定结果
  */
 export interface WordMasteryDecision {
+  /** 单词ID */
+  wordId?: ID;
+  /** 之前的掌握度 (0-1) */
+  prevMastery?: number;
+  /** 新的掌握度 (0-1) */
+  newMastery?: number;
+  /** 之前的复习间隔 (天) */
+  prevInterval?: number;
+  /** 新的复习间隔 (天) */
+  newInterval?: number;
+  /** 答题质量 (0-5) */
+  quality?: number;
   /** 是否已掌握 */
   isMastered: boolean;
   /** 判定置信度 (0-1) */
@@ -301,6 +315,25 @@ export interface MasteryEvaluation {
 // ============================================
 
 /**
+ * 决策影响因素
+ */
+export interface DecisionFactor {
+  name: string;
+  value: number;
+  impact: string;
+  percentage: number;
+}
+
+/**
+ * 决策解释
+ */
+export interface DecisionExplanation {
+  factors: DecisionFactor[];
+  changes: string[];
+  text: string;
+}
+
+/**
  * 目标评估结果
  */
 export interface ObjectiveEvaluation {
@@ -329,7 +362,7 @@ export interface AmasProcessResult {
   /** 当前用户状态 */
   state: UserStateFrontend;
   /** 解释说明 */
-  explanation: string;
+  explanation: DecisionExplanation;
   /** 建议 */
   suggestion?: string;
   /** 是否建议休息 */

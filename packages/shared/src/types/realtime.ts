@@ -118,6 +118,17 @@ export interface ForgettingAlertPayload {
   timestamp: string;
 }
 
+export interface QualityTaskProgressPayload {
+  taskId: string;
+  wordbookId: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  totalItems: number;
+  processedItems: number;
+  issuesFound: number;
+  currentItem: string | null;
+  percentage: number;
+}
+
 /**
  * 实时事件联合类型
  * 所有可能的实时事件类型
@@ -127,9 +138,10 @@ export type RealtimeEvent =
   | { type: 'alert'; payload: AlertPayload }
   | { type: 'flow-update'; payload: FlowUpdatePayload }
   | { type: 'next-suggestion'; payload: NextSuggestionPayload }
-  | { type: 'forgetting-alert'; payload: ForgettingAlertPayload } // 遗忘预警事件
-  | { type: 'ping'; payload: { timestamp: string } } // 心跳事件
-  | { type: 'error'; payload: { message: string; code?: string } }; // 错误事件
+  | { type: 'forgetting-alert'; payload: ForgettingAlertPayload }
+  | { type: 'quality-task-progress'; payload: QualityTaskProgressPayload }
+  | { type: 'ping'; payload: { timestamp: string } }
+  | { type: 'error'; payload: { message: string; code?: string } };
 
 /**
  * SSE 消息格式
