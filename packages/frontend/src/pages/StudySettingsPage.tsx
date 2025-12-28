@@ -95,7 +95,7 @@ export default function StudySettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
           <CircleNotch
             className="mx-auto mb-4 animate-spin"
@@ -103,7 +103,7 @@ export default function StudySettingsPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600" role="status" aria-live="polite">
+          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
         </div>
@@ -112,9 +112,9 @@ export default function StudySettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto max-w-7xl animate-g3-fade-in px-4 py-8">
-        <h1 className="mb-8 text-3xl font-bold text-gray-900">学习设置</h1>
+        <h1 className="mb-8 text-3xl font-bold text-gray-900 dark:text-white">学习设置</h1>
 
         {error && (
           <div className="mb-6 rounded-button border border-red-200 bg-red-50 p-4 text-red-600">
@@ -125,12 +125,16 @@ export default function StudySettingsPage() {
         {/* 左右分栏布局 */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* 左侧 - 词书选择 */}
-          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-            <h2 className="mb-4 text-xl font-bold text-gray-900">选择学习词书</h2>
-            <p className="mb-4 text-sm text-gray-600">选中的词书将用于每日学习，支持多选</p>
+          <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+            <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">选择学习词书</h2>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              选中的词书将用于每日学习，支持多选
+            </p>
 
             {wordBooks.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">暂无可用词书，请先创建或添加词书</div>
+              <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                暂无可用词书，请先创建或添加词书
+              </div>
             ) : (
               <div className="max-h-[500px] space-y-3 overflow-y-auto pr-2">
                 {wordBooks.map((book) => (
@@ -138,8 +142,8 @@ export default function StudySettingsPage() {
                     key={book.id}
                     className={`flex cursor-pointer items-center rounded-button border p-4 transition-all duration-g3-fast ${
                       selectedBookIds.includes(book.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:bg-gray-50'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                        : 'border-gray-200 hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-700'
                     } `}
                   >
                     <input
@@ -150,17 +154,21 @@ export default function StudySettingsPage() {
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center gap-2">
-                        <div className="font-medium text-gray-900">{book.name}</div>
+                        <div className="font-medium text-gray-900 dark:text-white">{book.name}</div>
                         {book.type === 'SYSTEM' && (
-                          <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600">
+                          <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
                             系统词库
                           </span>
                         )}
                       </div>
                       {book.description && (
-                        <div className="mt-1 text-sm text-gray-600">{book.description}</div>
+                        <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          {book.description}
+                        </div>
                       )}
-                      <div className="mt-1 text-sm text-gray-500">{book.wordCount} 个单词</div>
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {book.wordCount} 个单词
+                      </div>
                     </div>
                   </label>
                 ))}
@@ -171,8 +179,8 @@ export default function StudySettingsPage() {
           {/* 右侧 - 设置选项 */}
           <div className="space-y-6">
             {/* 每日学习量 */}
-            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h2 className="mb-4 text-xl font-bold text-gray-900">每日学习量</h2>
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">每日学习量</h2>
               <div className="flex items-center gap-4">
                 <input
                   type="range"
@@ -181,23 +189,27 @@ export default function StudySettingsPage() {
                   step="5"
                   value={dailyCount}
                   onChange={(e) => setDailyCount(Number(e.target.value))}
-                  className="h-2 flex-1 cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500"
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-button bg-gray-200 accent-blue-500 dark:bg-slate-700"
                 />
                 <div className="w-20 text-right text-2xl font-bold text-blue-500">{dailyCount}</div>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 预计学习时长：约 {Math.ceil(dailyCount * 0.5)} 分钟
               </p>
             </div>
 
             {/* 视觉疲劳检测 */}
-            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+            <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Camera size={24} className="text-gray-600" />
+                  <Camera size={24} className="text-gray-600 dark:text-gray-400" />
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">视觉疲劳检测</h2>
-                    <p className="text-sm text-gray-600">使用摄像头检测眼睛疲劳，智能提醒休息</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      视觉疲劳检测
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      使用摄像头检测眼睛疲劳，智能提醒休息
+                    </p>
                   </div>
                 </div>
                 <button
@@ -226,16 +238,16 @@ export default function StudySettingsPage() {
                 {visualFatigueEnabled ? (
                   <>
                     <Eye size={16} className="text-green-500" />
-                    <span className="text-green-600">检测已开启</span>
+                    <span className="text-green-600 dark:text-green-400">检测已开启</span>
                   </>
                 ) : (
                   <>
                     <EyeSlash size={16} className="text-gray-400" />
-                    <span className="text-gray-500">检测已关闭</span>
+                    <span className="text-gray-500 dark:text-gray-400">检测已关闭</span>
                   </>
                 )}
                 {cameraPermission === 'denied' && (
-                  <span className="ml-2 flex items-center gap-1 text-amber-600">
+                  <span className="ml-2 flex items-center gap-1 text-amber-600 dark:text-amber-400">
                     <Warning size={14} />
                     摄像头权限被拒绝
                   </span>
@@ -243,33 +255,33 @@ export default function StudySettingsPage() {
               </div>
 
               {/* 隐私说明 */}
-              <div className="mt-3 rounded-button bg-gray-50 p-3 text-xs text-gray-500">
+              <div className="mt-3 rounded-button bg-gray-50 p-3 text-xs text-gray-500 dark:bg-slate-700 dark:text-gray-400">
                 <p>所有检测在本地完成，视频数据不会上传到服务器。</p>
               </div>
             </div>
 
             {/* 学习统计 */}
             {selectedBookIds.length > 0 && (
-              <div className="rounded-card border border-blue-200 bg-blue-50 p-6 shadow-soft">
-                <h3 className="mb-4 text-lg font-bold text-gray-900">当前选择</h3>
+              <div className="rounded-card border border-blue-200 bg-blue-50 p-6 shadow-soft dark:border-blue-800 dark:bg-blue-900/30">
+                <h3 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">当前选择</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-700">已选择词书</span>
-                    <span className="text-2xl font-bold text-blue-600">
+                    <span className="text-gray-700 dark:text-gray-300">已选择词书</span>
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {selectedBookIds.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-700">总单词数</span>
-                    <span className="text-2xl font-bold text-blue-600">
+                    <span className="text-gray-700 dark:text-gray-300">总单词数</span>
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {wordBooks
                         .filter((b) => selectedBookIds.includes(b.id))
                         .reduce((sum, b) => sum + b.wordCount, 0)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between border-t border-blue-200 pt-3">
-                    <span className="text-gray-700">预计学习天数</span>
-                    <span className="text-lg font-semibold text-blue-600">
+                  <div className="flex items-center justify-between border-t border-blue-200 pt-3 dark:border-blue-800">
+                    <span className="text-gray-700 dark:text-gray-300">预计学习天数</span>
+                    <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                       {Math.ceil(
                         wordBooks
                           .filter((b) => selectedBookIds.includes(b.id))
@@ -287,14 +299,14 @@ export default function StudySettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={isSaving || selectedBookIds.length === 0}
-                className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300"
+                className="w-full rounded-button bg-blue-500 px-6 py-3 font-medium text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-slate-700"
               >
                 {isSaving ? '保存中...' : '保存设置'}
               </button>
 
               <button
                 onClick={() => navigate(-1)}
-                className="w-full rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95"
+                className="w-full rounded-button bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
               >
                 取消
               </button>

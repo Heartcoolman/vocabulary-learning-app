@@ -67,15 +67,15 @@ function SystemVitality({
 }) {
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Target size={80} weight="fill" className="text-emerald-500" />
         </div>
         <div className="relative z-10">
-          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
             <TrendUp className="text-emerald-500" /> 全局准确率 (vs Baseline)
           </p>
-          <div className="text-3xl font-bold text-gray-900">
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
             {performance ? `${performance.globalAccuracy.toFixed(1)}%` : '-'}
           </div>
           <div className="mt-2 font-mono text-xs text-emerald-500">
@@ -86,15 +86,15 @@ function SystemVitality({
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Atom size={80} weight="fill" className="text-blue-500" />
         </div>
         <div className="relative z-10">
-          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
             <Atom className="text-blue-500" /> 集成因果效应 (ATE)
           </p>
-          <div className="text-3xl font-bold text-gray-900">
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
             {performance ? `+${performance.causalATE.toFixed(2)}` : '-'}
           </div>
           <div className="mt-2 font-mono text-xs text-blue-400">
@@ -103,32 +103,32 @@ function SystemVitality({
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Lightning size={80} weight="fill" className="text-amber-500" />
         </div>
         <div className="relative z-10">
-          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
             <Lightning className="text-amber-500" /> 今日决策总量
           </p>
-          <div className="text-3xl font-bold text-gray-900">
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
             {overview?.todayDecisions.toLocaleString() ?? '0'}
           </div>
-          <div className="mt-2 font-mono text-xs text-gray-500">
+          <div className="mt-2 font-mono text-xs text-gray-500 dark:text-gray-400">
             活跃用户: {overview?.activeUsers ?? 0}
           </div>
         </div>
       </div>
 
-      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+      <div className="group relative animate-g3-fade-in overflow-hidden rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
           <Timer size={80} weight="fill" className="text-purple-500" />
         </div>
         <div className="relative z-10">
-          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
             <Timer className="text-purple-500" /> 平均推理耗时
           </p>
-          <div className="text-3xl font-bold text-gray-900">
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
             {performance?.avgInferenceMs ?? 0}
             <span className="text-lg font-normal text-gray-500">ms</span>
           </div>
@@ -161,22 +161,24 @@ function MemberCard({
   const displayTrend = trend || Array(10).fill(50);
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-5 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-5 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-4 flex items-start justify-between">
         <div
           className={`rounded-button bg-current bg-opacity-10 p-2.5 ${config.color.replace('text-', 'bg-')}`}
         >
           <Icon size={24} className={config.color} />
         </div>
-        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-400">
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-400 dark:bg-slate-700 dark:text-gray-400">
           {(percentage * 100).toFixed(1)}% 权重
         </span>
       </div>
 
-      <h3 className="mb-1 truncate font-bold text-gray-800">{config.name}</h3>
+      <h3 className="mb-1 truncate font-bold text-gray-800 dark:text-white">{config.name}</h3>
       <div className="mb-4 flex items-baseline gap-2">
-        <span className="text-2xl font-bold text-gray-900">{decisions.toLocaleString()}</span>
-        <span className="text-xs text-gray-500">决策</span>
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          {decisions.toLocaleString()}
+        </span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">决策</span>
       </div>
 
       {/* Sparkline Visualization */}
@@ -208,8 +210,8 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
     .join(' ');
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
         <Brain className="text-rose-500" />
         群体掌握度评估
       </h3>
@@ -243,16 +245,36 @@ function WordMasteryRadar({ radarData }: { radarData: MasteryRadarData | null })
           <polygon points={points} fill="rgba(244, 63, 94, 0.2)" stroke="#fb7185" strokeWidth="2" />
 
           {/* Labels with values */}
-          <text x="100" y="10" textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text
+            x="100"
+            y="10"
+            textAnchor="middle"
+            className="fill-gray-500 text-[10px] dark:fill-gray-400"
+          >
             速度 ({(data.speed * 100).toFixed(0)}%)
           </text>
-          <text x="190" y="100" textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text
+            x="190"
+            y="100"
+            textAnchor="middle"
+            className="fill-gray-500 text-[10px] dark:fill-gray-400"
+          >
             稳定性 ({(data.stability * 100).toFixed(0)}%)
           </text>
-          <text x="100" y="195" textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text
+            x="100"
+            y="195"
+            textAnchor="middle"
+            className="fill-gray-500 text-[10px] dark:fill-gray-400"
+          >
             复杂度 ({(data.complexity * 100).toFixed(0)}%)
           </text>
-          <text x="10" y="100" textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text
+            x="10"
+            y="100"
+            textAnchor="middle"
+            className="fill-gray-500 text-[10px] dark:fill-gray-400"
+          >
             一致性 ({(data.consistency * 100).toFixed(0)}%)
           </text>
         </svg>
@@ -281,8 +303,8 @@ function LearningModeDistribution({ data }: { data: LearningModeDistributionResp
   };
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
         <Target className="text-blue-500" />
         学习模式分布
       </h3>
@@ -292,16 +314,20 @@ function LearningModeDistribution({ data }: { data: LearningModeDistributionResp
           return (
             <div key={id}>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">{config.name}</span>
-                <span className="font-mono text-sm text-gray-500">{(value * 100).toFixed(0)}%</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {config.name}
+                </span>
+                <span className="font-mono text-sm text-gray-500 dark:text-gray-400">
+                  {(value * 100).toFixed(0)}%
+                </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                 <div
                   style={{ width: `${value * 100}%`, transitionDelay: `${idx * 100}ms` }}
                   className={`h-full ${config.color} rounded-full transition-all duration-g3-slower ease-g3`}
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">{config.desc}</p>
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-400">{config.desc}</p>
             </div>
           );
         })}
@@ -323,26 +349,28 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
   const totalWords = data?.totalWords ?? 0;
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
         <Timer className="text-purple-500" />
         半衰期分布
       </h3>
       <div className="mb-4 text-center">
         <div className="text-3xl font-bold text-purple-600">{avgHalfLife}</div>
-        <div className="text-sm text-gray-500">平均半衰期（天）</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">平均半衰期（天）</div>
       </div>
       <div className="space-y-2">
         {halfLifeData.map((item, idx) => (
           <div key={item.range} className="flex items-center gap-2">
-            <span className="w-16 text-xs text-gray-500">{item.range}</span>
-            <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <span className="w-16 text-xs text-gray-500 dark:text-gray-400">{item.range}</span>
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
               <div
                 style={{ width: `${item.percentage}%`, transitionDelay: `${idx * 100}ms` }}
                 className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-g3-slower ease-g3"
               />
             </div>
-            <span className="w-10 text-right text-xs text-gray-600">{item.percentage}%</span>
+            <span className="w-10 text-right text-xs text-gray-600 dark:text-gray-400">
+              {item.percentage}%
+            </span>
           </div>
         ))}
       </div>
@@ -353,22 +381,22 @@ function HalfLifeDistribution({ data }: { data: HalfLifeDistributionResponse | n
 // 6. 优化事件时间轴 (OptimizationTimeline)
 function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
   return (
-    <div className="col-span-1 animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm md:col-span-2">
-      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800">
+    <div className="col-span-1 animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80 md:col-span-2">
+      <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
         <Flask className="text-amber-500" />
         自进化事件日志
       </h3>
       {events.length === 0 ? (
-        <div className="py-8 text-center text-gray-400">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">
           <Flask size={32} className="mx-auto mb-2 opacity-50" />
           <p>暂无优化事件</p>
         </div>
       ) : (
-        <div className="relative space-y-6 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-0.5 before:bg-gray-200">
+        <div className="relative space-y-6 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-0.5 before:bg-gray-200 dark:before:bg-slate-700">
           {events.map((event) => (
             <div key={event.id} className="relative pl-12">
               <div
-                className={`absolute left-2 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white ${
+                className={`absolute left-2 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white dark:border-slate-800 ${
                   event.type === 'bayesian'
                     ? 'bg-blue-500'
                     : event.type === 'ab_test'
@@ -378,11 +406,13 @@ function OptimizationTimeline({ events }: { events: OptimizationEvent[] }) {
               />
               <div className="flex items-start justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-gray-800">{event.title}</h4>
-                  <p className="mt-1 text-xs text-gray-500">{event.description}</p>
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-white">{event.title}</h4>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {event.description}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <span className="block font-mono text-xs text-gray-400">
+                  <span className="block font-mono text-xs text-gray-400 dark:text-gray-400">
                     {new Date(event.timestamp).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -460,13 +490,13 @@ export default function StatsPage() {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors md:p-10">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 md:p-10">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <header className="mb-10 flex items-end justify-between">
           <div>
             <div className="mb-2 flex items-center gap-3">
-              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 md:text-4xl">
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
                 <ShareNetwork className="text-blue-600" weight="duotone" />
                 AMAS 神经网络监控
               </h1>
@@ -487,13 +517,15 @@ export default function StatsPage() {
                     : '模拟数据'}
               </span>
             </div>
-            <p className="text-gray-500">Ensemble Learning Framework 实时性能遥测</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              Ensemble Learning Framework 实时性能遥测
+            </p>
           </div>
           <div className="hidden text-right md:block">
-            <div className="font-mono text-3xl font-light text-gray-800">
+            <div className="font-mono text-3xl font-light text-gray-800 dark:text-white">
               {time.toLocaleTimeString('zh-CN', { hour12: false })}
             </div>
-            <div className="flex items-center justify-end gap-2 text-xs text-gray-400">
+            <div className="flex items-center justify-end gap-2 text-xs text-gray-400 dark:text-gray-400">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               系统在线
             </div>
@@ -507,7 +539,7 @@ export default function StatsPage() {
           {/* 2. Member Leaderboard (Takes up full width of its row) */}
           <div className="lg:col-span-3">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
                 <Brain className="text-indigo-500" />
                 专家成员贡献榜 (Expert Members)
               </h2>

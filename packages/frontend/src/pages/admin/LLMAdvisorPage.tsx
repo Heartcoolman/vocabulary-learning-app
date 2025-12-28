@@ -184,8 +184,8 @@ export default function LLMAdvisorPage() {
         <div className="flex items-center gap-3">
           <Robot size={32} weight="duotone" className="text-purple-500" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">LLM 顾问</h1>
-            <p className="text-sm text-gray-500">AI 驱动的参数优化建议</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">LLM 顾问</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">AI 驱动的参数优化建议</p>
           </div>
         </div>
         <button
@@ -205,42 +205,42 @@ export default function LLMAdvisorPage() {
       {/* 状态卡片 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* 配置状态 */}
-        <div className="rounded-card border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-3 flex items-center gap-2">
-            <Gear size={20} className="text-gray-500" />
-            <span className="font-medium">配置状态</span>
+            <Gear size={20} className="text-gray-500 dark:text-gray-400" />
+            <span className="font-medium dark:text-white">配置状态</span>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">状态</span>
+              <span className="text-gray-500 dark:text-gray-400">状态</span>
               <span className={config?.enabled ? 'text-green-600' : 'text-gray-400'}>
                 {config?.enabled ? '已启用' : '未启用'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">提供者</span>
-              <span>{config?.provider || '-'}</span>
+              <span className="text-gray-500 dark:text-gray-400">提供者</span>
+              <span className="dark:text-gray-300">{config?.provider || '-'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">模型</span>
-              <span>{config?.model || '-'}</span>
+              <span className="text-gray-500 dark:text-gray-400">模型</span>
+              <span className="dark:text-gray-300">{config?.model || '-'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">API Key</span>
-              <span>{config?.apiKeySet ? '已设置' : '未设置'}</span>
+              <span className="text-gray-500 dark:text-gray-400">API Key</span>
+              <span className="dark:text-gray-300">{config?.apiKeySet ? '已设置' : '未设置'}</span>
             </div>
           </div>
         </div>
 
         {/* Worker 状态 */}
-        <div className="rounded-card border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-3 flex items-center gap-2">
-            <ArrowsClockwise size={20} className="text-gray-500" />
-            <span className="font-medium">Worker 状态</span>
+            <ArrowsClockwise size={20} className="text-gray-500 dark:text-gray-400" />
+            <span className="font-medium dark:text-white">Worker 状态</span>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">自动分析</span>
+              <span className="text-gray-500 dark:text-gray-400">自动分析</span>
               <span
                 className={workerStatus?.autoAnalysisEnabled ? 'text-green-600' : 'text-gray-400'}
               >
@@ -248,25 +248,25 @@ export default function LLMAdvisorPage() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">调度</span>
-              <span>{workerStatus?.schedule || '-'}</span>
+              <span className="text-gray-500 dark:text-gray-400">调度</span>
+              <span className="dark:text-gray-300">{workerStatus?.schedule || '-'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">运行中</span>
-              <span>{workerStatus?.isRunning ? '是' : '否'}</span>
+              <span className="text-gray-500 dark:text-gray-400">运行中</span>
+              <span className="dark:text-gray-300">{workerStatus?.isRunning ? '是' : '否'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">待审核</span>
+              <span className="text-gray-500 dark:text-gray-400">待审核</span>
               <span className="font-medium text-orange-600">{workerStatus?.pendingCount || 0}</span>
             </div>
           </div>
         </div>
 
         {/* 健康状态 */}
-        <div className="rounded-card border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-3 flex items-center gap-2">
-            <Brain size={20} className="text-gray-500" />
-            <span className="font-medium">LLM 服务</span>
+            <Brain size={20} className="text-gray-500 dark:text-gray-400" />
+            <span className="font-medium dark:text-white">LLM 服务</span>
           </div>
           <div className="flex items-center gap-2">
             {!health ? (
@@ -296,17 +296,21 @@ export default function LLMAdvisorPage() {
       </div>
 
       {/* 建议列表 */}
-      <div className="rounded-card border border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="font-semibold text-gray-900">
+      <div className="rounded-card border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-slate-700">
+          <h2 className="font-semibold text-gray-900 dark:text-white">
             建议列表{' '}
-            {total > 0 && <span className="text-sm font-normal text-gray-500">({total})</span>}
+            {total > 0 && (
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({total})
+              </span>
+            )}
           </h2>
           <div className="flex items-center gap-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
             >
               <option value="all">全部</option>
               <option value="pending">待审核</option>
@@ -314,15 +318,18 @@ export default function LLMAdvisorPage() {
               <option value="rejected">已拒绝</option>
               <option value="partial">部分采纳</option>
             </select>
-            <button onClick={loadData} className="rounded-button p-2 hover:bg-gray-100">
+            <button
+              onClick={loadData}
+              className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-700"
+            >
               <ArrowsClockwise size={18} />
             </button>
           </div>
         </div>
 
         {suggestions.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Robot size={48} className="mx-auto mb-2 text-gray-300" />
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <Robot size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
             <p>暂无建议记录</p>
           </div>
         ) : (
@@ -385,7 +392,7 @@ function SuggestionRow({
   };
 
   return (
-    <div className="p-4 transition-colors hover:bg-gray-50">
+    <div className="p-4 transition-colors hover:bg-gray-50 dark:hover:bg-slate-700">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="mb-1 flex items-center gap-3">
@@ -394,21 +401,24 @@ function SuggestionRow({
             >
               {statusLabels[suggestion.status]}
             </span>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               {new Date(suggestion.weekStart).toLocaleDateString()} -{' '}
               {new Date(suggestion.weekEnd).toLocaleDateString()}
             </span>
           </div>
-          <p className="font-medium text-gray-900">
+          <p className="font-medium text-gray-900 dark:text-white">
             {suggestion.parsedSuggestion.analysis.summary}
           </p>
-          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
             <span>建议项: {suggestion.parsedSuggestion.suggestions.length}</span>
             <span>置信度: {(suggestion.parsedSuggestion.confidence * 100).toFixed(0)}%</span>
             <span>数据质量: {suggestion.parsedSuggestion.dataQuality}</span>
           </div>
         </div>
-        <button onClick={onView} className="rounded-button p-2 hover:bg-gray-100">
+        <button
+          onClick={onView}
+          className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-600"
+        >
           <Eye size={20} />
         </button>
       </div>
@@ -463,16 +473,21 @@ function SuggestionDetail({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-card bg-white">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-card bg-white dark:bg-slate-800">
         {/* 头部 */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 p-6 dark:border-slate-700">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">建议详情</h2>
-            <button onClick={onClose} className="rounded-button p-2 hover:bg-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">建议详情</h2>
+            <button
+              onClick={onClose}
+              className="rounded-button p-2 hover:bg-gray-100 dark:hover:bg-slate-700"
+            >
               <XCircle size={24} />
             </button>
           </div>
-          <p className="text-gray-600">{suggestion.parsedSuggestion.analysis.summary}</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {suggestion.parsedSuggestion.analysis.summary}
+          </p>
         </div>
 
         {/* 内容 */}
@@ -500,7 +515,7 @@ function SuggestionDetail({
           {/* 建议项列表 */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">
+              <h3 className="font-medium text-gray-900 dark:text-white">
                 建议项 ({suggestion.parsedSuggestion.suggestions.length})
               </h3>
               {isPending && (
@@ -566,15 +581,15 @@ function SuggestionDetail({
                     </button>
                   </div>
                   {expanded === item.id && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-4 pb-4 pt-2">
+                    <div className="border-t border-gray-100 bg-gray-50 px-4 pb-4 pt-2 dark:border-slate-700 dark:bg-slate-700/50">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="mb-1 text-gray-500">调整原因</p>
-                          <p className="text-gray-900">{item.reason}</p>
+                          <p className="mb-1 text-gray-500 dark:text-gray-400">调整原因</p>
+                          <p className="text-gray-900 dark:text-gray-200">{item.reason}</p>
                         </div>
                         <div>
-                          <p className="mb-1 text-gray-500">预期影响</p>
-                          <p className="text-gray-900">{item.expectedImpact}</p>
+                          <p className="mb-1 text-gray-500 dark:text-gray-400">预期影响</p>
+                          <p className="text-gray-900 dark:text-gray-200">{item.expectedImpact}</p>
                         </div>
                       </div>
                     </div>
@@ -610,8 +625,8 @@ function SuggestionDetail({
 
         {/* 底部操作 */}
         {isPending && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 p-6">
-            <span className="text-sm text-gray-500">
+          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 p-6 dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               已选择 {selectedItems.size} / {suggestion.parsedSuggestion.suggestions.length} 项
             </span>
             <div className="flex items-center gap-3">

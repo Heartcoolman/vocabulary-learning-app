@@ -106,7 +106,7 @@ const HabitProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-indigo-500"></div>
       </div>
     );
@@ -114,10 +114,10 @@ const HabitProfilePage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-8">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-8 dark:bg-slate-900">
         <div className="text-center">
           <Warning size={48} className="mx-auto mb-4 text-red-400" />
-          <p className="text-gray-600">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={fetchData}
             className="mt-4 rounded-button bg-indigo-500 px-4 py-2 text-white"
@@ -134,23 +134,25 @@ const HabitProfilePage: React.FC = () => {
   const hasData = (samples?.sessions || 0) > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 md:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Header */}
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-800 dark:text-white">
               <ChartBar className="text-indigo-500" weight="duotone" />
               我的学习习惯画像
             </h1>
-            <p className="mt-1 text-sm text-gray-500">基于您的历史学习行为分析生成的个性化报告</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              基于您的历史学习行为分析生成的个性化报告
+            </p>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={handleInitialize}
               disabled={isRefetching}
-              className="flex items-center gap-2 rounded-button border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-button border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               <ArrowsClockwise className={isRefetching ? 'animate-spin' : ''} />
               重新计算
@@ -167,12 +169,14 @@ const HabitProfilePage: React.FC = () => {
         </div>
 
         {!hasData ? (
-          <div className="rounded-card bg-white p-12 text-center shadow-soft">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+          <div className="rounded-card bg-white p-12 text-center shadow-soft dark:bg-slate-800">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-900/30">
               <ChartBar size={32} className="text-indigo-400" />
             </div>
-            <h3 className="mb-2 text-lg font-medium text-gray-800">暂无画像数据</h3>
-            <p className="mb-6 text-gray-500">点击"重新计算"从您的历史学习记录中初始化分析。</p>
+            <h3 className="mb-2 text-lg font-medium text-gray-800 dark:text-white">暂无画像数据</h3>
+            <p className="mb-6 text-gray-500 dark:text-gray-400">
+              点击"重新计算"从您的历史学习记录中初始化分析。
+            </p>
             <button
               onClick={handleInitialize}
               className="rounded-button bg-indigo-500 px-6 py-2 text-white hover:bg-indigo-600"
@@ -203,19 +207,23 @@ const HabitProfilePage: React.FC = () => {
             <HabitHeatmap data={activeProfile?.timePref || []} />
 
             {/* Stats Footer */}
-            <div className="flex flex-wrap gap-6 border-t border-gray-200 pt-6 text-sm text-gray-400">
+            <div className="flex flex-wrap gap-6 border-t border-gray-200 pt-6 text-sm text-gray-400 dark:border-slate-700">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-gray-300"></span>
+                <span className="h-2 w-2 rounded-full bg-gray-300 dark:bg-slate-600"></span>
                 <span>
                   已分析会话:{' '}
-                  <span className="font-mono text-gray-600">{samples?.sessions || 0}</span>
+                  <span className="font-mono text-gray-600 dark:text-gray-300">
+                    {samples?.sessions || 0}
+                  </span>
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-gray-300"></span>
+                <span className="h-2 w-2 rounded-full bg-gray-300 dark:bg-slate-600"></span>
                 <span>
                   数据采样点:{' '}
-                  <span className="font-mono text-gray-600">{samples?.timeEvents || 0}</span>
+                  <span className="font-mono text-gray-600 dark:text-gray-300">
+                    {samples?.timeEvents || 0}
+                  </span>
                 </span>
               </div>
               <div className="ml-auto flex items-center gap-2">

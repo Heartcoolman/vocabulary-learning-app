@@ -143,7 +143,7 @@ export default function AdminDashboard() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600" role="status" aria-live="polite">
+          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
         </div>
@@ -156,8 +156,8 @@ export default function AdminDashboard() {
       <div className="flex min-h-[400px] animate-g3-fade-in items-center justify-center p-8">
         <div className="max-w-md text-center" role="alert" aria-live="assertive">
           <Warning size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
             {statsError instanceof Error ? statsError.message : '无法加载统计数据'}
           </p>
           <button
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900">系统概览</h1>
+      <h1 className="mb-8 text-3xl font-bold text-gray-900 dark:text-white">系统概览</h1>
 
       <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => {
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
           return (
             <div
               key={card.label}
-              className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated"
+              className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
             >
               <div
                 className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-button ${getColorClasses(
@@ -259,8 +259,8 @@ export default function AdminDashboard() {
               >
                 <IconComponent size={28} weight="duotone" />
               </div>
-              <div className="mb-1 text-sm text-gray-600">{card.label}</div>
-              <div className="text-3xl font-bold text-gray-900">{card.value}</div>
+              <div className="mb-1 text-sm text-gray-600 dark:text-gray-400">{card.label}</div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{card.value}</div>
             </div>
           );
         })}
@@ -268,11 +268,11 @@ export default function AdminDashboard() {
 
       {/* 系统健康度监控 */}
       <div className="mb-8">
-        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
           <Pulse size={28} weight="duotone" className="text-blue-500" />
           系统健康度
         </h2>
-        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {(() => {
             const statusConfig: Record<
               string,
@@ -298,8 +298,8 @@ export default function AdminDashboard() {
               },
               error: { color: 'text-red-600', bgColor: 'bg-red-50', icon: Warning, label: '异常' },
               unknown: {
-                color: 'text-gray-600',
-                bgColor: 'bg-gray-50',
+                color: 'text-gray-600 dark:text-gray-400',
+                bgColor: 'bg-gray-50 dark:bg-slate-700',
                 icon: Pulse,
                 label: '未知',
               },
@@ -316,21 +316,25 @@ export default function AdminDashboard() {
                       <Icon size={32} weight="bold" className={config.color} />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">系统状态：{config.label}</h3>
-                      <p className="text-sm text-gray-600">健康度评分：{systemHealth.score}/100</p>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        系统状态：{config.label}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        健康度评分：{systemHealth.score}/100
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className={`text-3xl font-bold ${getScoreColorClass(systemHealth.score)}`}>
                       {systemHealth.score}
                     </div>
-                    <div className="text-xs text-gray-500">健康分</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">健康分</div>
                   </div>
                 </div>
 
                 {/* 健康度进度条 */}
                 <div className="mb-4">
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
                       className={`h-full transition-all duration-g3-slow ${getScoreBarColorClass(systemHealth.score)}`}
                       style={{ width: `${systemHealth.score}%` }}
@@ -341,11 +345,13 @@ export default function AdminDashboard() {
                 {/* 问题列表 */}
                 {systemHealth.issues.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-900">需要关注的问题：</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      需要关注的问题：
+                    </h4>
                     {systemHealth.issues.map((issue, index) => (
                       <div
                         key={index}
-                        className="flex items-center gap-2 rounded bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                        className="flex items-center gap-2 rounded bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-slate-900 dark:text-gray-300"
                       >
                         <Warning
                           size={16}
@@ -365,72 +371,84 @@ export default function AdminDashboard() {
 
       {/* 快捷操作面板 */}
       <div className="mb-8">
-        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
           <Gear size={28} weight="duotone" className="text-purple-500" />
           快捷操作
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <button
             onClick={() => navigate('/admin/users')}
-            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-button bg-blue-50 p-2">
-                <UsersThree size={24} weight="duotone" className="text-blue-600" />
+              <div className="rounded-button bg-blue-50 p-2 dark:bg-blue-900/30">
+                <UsersThree
+                  size={24}
+                  weight="duotone"
+                  className="text-blue-600 dark:text-blue-400"
+                />
               </div>
-              <h3 className="font-semibold text-gray-900">用户管理</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">用户管理</h3>
             </div>
-            <p className="text-sm text-gray-600">查看和管理系统用户</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">查看和管理系统用户</p>
           </button>
 
           <button
             onClick={() => navigate('/admin/wordbooks')}
-            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-button bg-purple-50 p-2">
-                <Books size={24} weight="duotone" className="text-purple-600" />
+              <div className="rounded-button bg-purple-50 p-2 dark:bg-purple-900/30">
+                <Books
+                  size={24}
+                  weight="duotone"
+                  className="text-purple-600 dark:text-purple-400"
+                />
               </div>
-              <h3 className="font-semibold text-gray-900">词库管理</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">词库管理</h3>
             </div>
-            <p className="text-sm text-gray-600">管理系统词库和单词</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">管理系统词库和单词</p>
           </button>
 
           <button
             onClick={() => navigate('/admin/algorithm-config')}
-            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-button bg-indigo-50 p-2">
-                <Gear size={24} weight="duotone" className="text-indigo-600" />
+              <div className="rounded-button bg-indigo-50 p-2 dark:bg-indigo-900/30">
+                <Gear size={24} weight="duotone" className="text-indigo-600 dark:text-indigo-400" />
               </div>
-              <h3 className="font-semibold text-gray-900">算法配置</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">算法配置</h3>
             </div>
-            <p className="text-sm text-gray-600">调整学习算法参数</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">调整学习算法参数</p>
           </button>
 
           <button
             onClick={() => navigate('/admin/experiments')}
-            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated"
+            className="rounded-card border border-gray-200/60 bg-white/80 p-4 text-left shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
           >
             <div className="mb-2 flex items-center gap-3">
-              <div className="rounded-button bg-green-50 p-2">
-                <ChartBar size={24} weight="duotone" className="text-green-600" />
+              <div className="rounded-button bg-green-50 p-2 dark:bg-green-900/30">
+                <ChartBar
+                  size={24}
+                  weight="duotone"
+                  className="text-green-600 dark:text-green-400"
+                />
               </div>
-              <h3 className="font-semibold text-gray-900">实验管理</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">实验管理</h3>
             </div>
-            <p className="text-sm text-gray-600">A/B 测试和实验控制</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">A/B 测试和实验控制</p>
           </button>
         </div>
       </div>
 
       {/* AMAS 管理面板 */}
       <div className="mb-8">
-        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
           <Brain size={28} weight="duotone" className="text-purple-500" />
           AMAS 管理面板
         </h2>
-        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {isAmasLoading ? (
             <div className="flex items-center justify-center py-8">
               <CircleNotch className="animate-spin" size={32} weight="bold" color="#3b82f6" />
@@ -438,7 +456,7 @@ export default function AdminDashboard() {
           ) : amasError ? (
             <div className="py-8 text-center">
               <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
-              <p className="mb-4 text-gray-600">{amasError}</p>
+              <p className="mb-4 text-gray-600 dark:text-gray-400">{amasError}</p>
               <button
                 onClick={loadAmasStrategy}
                 className="rounded-button bg-blue-500 px-4 py-2 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
@@ -449,30 +467,42 @@ export default function AdminDashboard() {
           ) : amasStrategy ? (
             <div>
               <div className="mb-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-button bg-blue-50 p-4">
+                <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Lightning size={20} weight="duotone" className="text-blue-600" />
-                    <span className="text-sm text-gray-600">新单词比例</span>
+                    <Lightning
+                      size={20}
+                      weight="duotone"
+                      className="text-blue-600 dark:text-blue-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">新单词比例</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {Math.round((amasStrategy.new_ratio || 0) * 100)}%
                   </p>
                 </div>
-                <div className="rounded-button bg-green-50 p-4">
+                <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Pulse size={20} weight="duotone" className="text-green-600" />
-                    <span className="text-sm text-gray-600">难度级别</span>
+                    <Pulse
+                      size={20}
+                      weight="duotone"
+                      className="text-green-600 dark:text-green-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">难度级别</span>
                   </div>
-                  <p className="text-2xl font-bold capitalize text-gray-900">
+                  <p className="text-2xl font-bold capitalize text-gray-900 dark:text-white">
                     {amasStrategy.difficulty || 'mid'}
                   </p>
                 </div>
-                <div className="rounded-button bg-purple-50 p-4">
+                <div className="rounded-button bg-purple-50 p-4 dark:bg-purple-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <ChartBar size={20} weight="duotone" className="text-purple-600" />
-                    <span className="text-sm text-gray-600">批次大小</span>
+                    <ChartBar
+                      size={20}
+                      weight="duotone"
+                      className="text-purple-600 dark:text-purple-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">批次大小</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {amasStrategy.batch_size || 'N/A'}
                   </p>
                 </div>
@@ -507,18 +537,20 @@ export default function AdminDashboard() {
               </div>
             </div>
           ) : (
-            <div className="py-8 text-center text-gray-500">暂无AMAS策略数据</div>
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+              暂无AMAS策略数据
+            </div>
           )}
         </div>
       </div>
 
       {/* 视觉疲劳检测统计 */}
       <div className="mb-8">
-        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900">
+        <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
           <Eye size={28} weight="duotone" className="text-cyan-500" />
           视觉疲劳检测统计
         </h2>
-        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
           {isVfLoading ? (
             <div className="flex items-center justify-center py-8">
               <CircleNotch className="animate-spin" size={32} weight="bold" color="#06b6d4" />
@@ -527,71 +559,91 @@ export default function AdminDashboard() {
             <div className="py-8 text-center text-red-500">
               <Warning size={48} weight="duotone" className="mx-auto mb-4 text-red-400" />
               <p>加载视觉疲劳数据失败</p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {vfError instanceof Error ? vfError.message : '请检查后端服务是否正常'}
               </p>
             </div>
           ) : visualFatigueStats ? (
             <div>
-              {/* 主要���标卡片 */}
+              {/* 主要指标卡片 */}
               <div className="mb-6 grid gap-4 md:grid-cols-4">
-                <div className="rounded-button bg-cyan-50 p-4">
+                <div className="rounded-button bg-cyan-50 p-4 dark:bg-cyan-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <ChartBar size={20} weight="duotone" className="text-cyan-600" />
-                    <span className="text-sm text-gray-600">数据量</span>
+                    <ChartBar
+                      size={20}
+                      weight="duotone"
+                      className="text-cyan-600 dark:text-cyan-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">数据量</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {visualFatigueStats.dataVolume.totalRecords.toLocaleString()}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     今日 +{visualFatigueStats.dataVolume.recordsToday}
                   </p>
                 </div>
-                <div className="rounded-button bg-blue-50 p-4">
+                <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <UsersThree size={20} weight="duotone" className="text-blue-600" />
-                    <span className="text-sm text-gray-600">启用率</span>
+                    <UsersThree
+                      size={20}
+                      weight="duotone"
+                      className="text-blue-600 dark:text-blue-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">启用率</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {Math.round(visualFatigueStats.usage.enableRate)}%
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     {visualFatigueStats.usage.enabledUsers}/{visualFatigueStats.usage.totalUsers}{' '}
                     用户
                   </p>
                 </div>
-                <div className="rounded-button bg-amber-50 p-4">
+                <div className="rounded-button bg-amber-50 p-4 dark:bg-amber-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Pulse size={20} weight="duotone" className="text-amber-600" />
-                    <span className="text-sm text-gray-600">平均疲劳度</span>
+                    <Pulse
+                      size={20}
+                      weight="duotone"
+                      className="text-amber-600 dark:text-amber-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">平均疲劳度</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {(visualFatigueStats.fatigue.avgVisualFatigue * 100).toFixed(0)}%
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     融合后 {(visualFatigueStats.fatigue.avgFusedFatigue * 100).toFixed(0)}%
                   </p>
                 </div>
-                <div className="rounded-button bg-red-50 p-4">
+                <div className="rounded-button bg-red-50 p-4 dark:bg-red-900/30">
                   <div className="mb-2 flex items-center gap-2">
-                    <Warning size={20} weight="duotone" className="text-red-600" />
-                    <span className="text-sm text-gray-600">高疲劳用户</span>
+                    <Warning
+                      size={20}
+                      weight="duotone"
+                      className="text-red-600 dark:text-red-400"
+                    />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">高疲劳用户</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {visualFatigueStats.fatigue.highFatigueUsers}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">疲劳度 &gt;60%</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">疲劳度 &gt;60%</p>
                 </div>
               </div>
 
               {/* 疲劳度分布 */}
-              <div className="rounded-button bg-gray-50 p-4">
-                <h4 className="mb-3 text-sm font-semibold text-gray-700">疲劳度分布</h4>
+              <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  疲劳度分布
+                </h4>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <span className="w-24 text-sm text-gray-600">低 (0-30%)</span>
+                    <span className="w-24 text-sm text-gray-600 dark:text-gray-400">
+                      低 (0-30%)
+                    </span>
                     <div className="flex-1">
-                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                         <div
                           className="h-full bg-green-500 transition-all duration-g3-slow"
                           style={{
@@ -600,14 +652,16 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
-                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                    <span className="w-12 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                       {visualFatigueStats.fatigue.fatigueDistribution.low}%
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-24 text-sm text-gray-600">中 (30-60%)</span>
+                    <span className="w-24 text-sm text-gray-600 dark:text-gray-400">
+                      中 (30-60%)
+                    </span>
                     <div className="flex-1">
-                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                         <div
                           className="h-full bg-yellow-500 transition-all duration-g3-slow"
                           style={{
@@ -616,14 +670,16 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
-                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                    <span className="w-12 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                       {visualFatigueStats.fatigue.fatigueDistribution.medium}%
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-24 text-sm text-gray-600">高 (60-100%)</span>
+                    <span className="w-24 text-sm text-gray-600 dark:text-gray-400">
+                      高 (60-100%)
+                    </span>
                     <div className="flex-1">
-                      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                      <div className="h-4 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                         <div
                           className="h-full bg-red-500 transition-all duration-g3-slow"
                           style={{
@@ -632,7 +688,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
-                    <span className="w-12 text-right text-sm font-medium text-gray-700">
+                    <span className="w-12 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
                       {visualFatigueStats.fatigue.fatigueDistribution.high}%
                     </span>
                   </div>
@@ -640,8 +696,12 @@ export default function AdminDashboard() {
               </div>
             </div>
           ) : (
-            <div className="py-8 text-center text-gray-500">
-              <Eye size={48} weight="duotone" className="mx-auto mb-4 text-gray-300" />
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+              <Eye
+                size={48}
+                weight="duotone"
+                className="mx-auto mb-4 text-gray-300 dark:text-gray-600"
+              />
               <p>暂无视觉疲劳检测数据</p>
               <p className="mt-1 text-sm">用户启用摄像头检测后，数据将在此显示</p>
             </div>
@@ -651,20 +711,20 @@ export default function AdminDashboard() {
 
       {/* 额外信息 */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">用户活跃度</h2>
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">用户活跃度</h2>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">总用户数</span>
-              <span className="font-medium">{stats.totalUsers}</span>
+              <span className="text-gray-600 dark:text-gray-400">总用户数</span>
+              <span className="font-medium dark:text-white">{stats.totalUsers}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">活跃用户（7天内）</span>
-              <span className="font-medium">{stats.activeUsers}</span>
+              <span className="text-gray-600 dark:text-gray-400">活跃用户（7天内）</span>
+              <span className="font-medium dark:text-white">{stats.activeUsers}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">活跃率</span>
-              <span className="font-medium">
+              <span className="text-gray-600 dark:text-gray-400">活跃率</span>
+              <span className="font-medium dark:text-white">
                 {stats.totalUsers > 0
                   ? Math.round((stats.activeUsers / stats.totalUsers) * 100)
                   : 0}
@@ -674,20 +734,20 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">词库统计</h2>
+        <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">词库统计</h2>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">系统词库</span>
-              <span className="font-medium">{stats.systemWordBooks}</span>
+              <span className="text-gray-600 dark:text-gray-400">系统词库</span>
+              <span className="font-medium dark:text-white">{stats.systemWordBooks}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">用户词库</span>
-              <span className="font-medium">{stats.userWordBooks}</span>
+              <span className="text-gray-600 dark:text-gray-400">用户词库</span>
+              <span className="font-medium dark:text-white">{stats.userWordBooks}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">平均每词库单词数</span>
-              <span className="font-medium">
+              <span className="text-gray-600 dark:text-gray-400">平均每词库单词数</span>
+              <span className="font-medium dark:text-white">
                 {stats.totalWordBooks > 0 ? Math.round(stats.totalWords / stats.totalWordBooks) : 0}
               </span>
             </div>

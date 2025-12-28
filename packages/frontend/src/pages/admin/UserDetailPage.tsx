@@ -254,7 +254,7 @@ export default function UserDetailPage() {
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-            <p className="text-gray-600">加载中...</p>
+            <p className="text-gray-600 dark:text-gray-400">加载中...</p>
           </div>
         </div>
       </div>
@@ -267,8 +267,8 @@ export default function UserDetailPage() {
       <div className="p-8">
         <div className="py-12 text-center">
           <WarningCircle size={64} weight="fill" className="mx-auto mb-4 text-red-500" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
             {error instanceof Error ? error.message : String(error)}
           </p>
           <button
@@ -287,7 +287,7 @@ export default function UserDetailPage() {
       {/* 返回按钮 */}
       <button
         onClick={() => navigate('/admin/users')}
-        className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900"
+        className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
       >
         <ArrowLeft size={20} weight="bold" />
         <span>返回用户列表</span>
@@ -297,10 +297,12 @@ export default function UserDetailPage() {
       {statistics && <UserBasicInfo statistics={statistics} />}
 
       {/* 标签页导航 */}
-      <div className="mb-6 flex border-b border-gray-200">
+      <div className="mb-6 flex border-b border-gray-200 dark:border-slate-700">
         <button
           className={`relative px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            activeTab === 'overview'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           }`}
           onClick={() => setActiveTab('overview')}
         >
@@ -314,7 +316,9 @@ export default function UserDetailPage() {
         </button>
         <button
           className={`relative px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'records' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            activeTab === 'records'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           }`}
           onClick={() => setActiveTab('records')}
         >
@@ -328,7 +332,9 @@ export default function UserDetailPage() {
         </button>
         <button
           className={`relative px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'decisions' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            activeTab === 'decisions'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           }`}
           onClick={() => setActiveTab('decisions')}
         >
@@ -342,7 +348,9 @@ export default function UserDetailPage() {
         </button>
         <button
           className={`relative px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'analytics' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            activeTab === 'analytics'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           }`}
           onClick={() => setActiveTab('analytics')}
         >

@@ -41,13 +41,29 @@ const getTrendIcon = (state: TrendState) => {
 const getTrendColor = (state: TrendState) => {
   switch (state) {
     case 'up':
-      return { bg: 'bg-green-100', text: 'text-green-700', icon: '#16a34a' };
+      return {
+        bg: 'bg-green-100 dark:bg-green-900/30',
+        text: 'text-green-700 dark:text-green-400',
+        icon: '#16a34a',
+      };
     case 'down':
-      return { bg: 'bg-red-100', text: 'text-red-700', icon: '#dc2626' };
+      return {
+        bg: 'bg-red-100 dark:bg-red-900/30',
+        text: 'text-red-700 dark:text-red-400',
+        icon: '#dc2626',
+      };
     case 'stuck':
-      return { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '#ca8a04' };
+      return {
+        bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+        text: 'text-yellow-700 dark:text-yellow-400',
+        icon: '#ca8a04',
+      };
     default:
-      return { bg: 'bg-gray-100', text: 'text-gray-700', icon: '#6b7280' };
+      return {
+        bg: 'bg-gray-100 dark:bg-slate-700',
+        text: 'text-gray-700 dark:text-gray-300',
+        icon: '#6b7280',
+      };
   }
 };
 
@@ -117,7 +133,7 @@ const DaysSelector = memo(({ selectedDays, onSelect }: DaysSelectorProps) => {
           className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
             selectedDays === days
               ? 'bg-blue-500 text-white shadow-soft'
-              : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
+              : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
           }`}
         >
           {days === 7 ? '最近 7 天' : days === 28 ? '最近 28 天' : '最近 90 天'}
@@ -157,7 +173,9 @@ const TrendCard = memo(({ trendInfo }: TrendCardProps) => {
         <div className="flex-1">
           <h2 className={`text-xl font-bold ${colors.text}`}>{getTrendName(trendInfo.state)}</h2>
           <p className={colors.text}>{trendInfo.stateDescription}</p>
-          <p className="mt-1 text-sm text-gray-500">连续 {trendInfo.consecutiveDays} 天</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            连续 {trendInfo.consecutiveDays} 天
+          </p>
         </div>
       </div>
     </div>
@@ -236,19 +254,19 @@ const TrendChartCard = memo(
     const shouldShowRed = isResponseTime ? direction === 'up' : direction === 'down';
 
     return (
-      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
             <Icon size={20} weight="duotone" color={iconColor} />
             {title}
           </h3>
           <span
             className={`rounded-full px-2 py-1 text-xs font-medium ${
               shouldShowGreen
-                ? 'bg-green-100 text-green-700'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                 : shouldShowRed
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300'
             } `}
           >
             {direction === 'up' ? '+' : direction === 'down' ? '' : ''}
@@ -256,7 +274,7 @@ const TrendChartCard = memo(
           </span>
         </div>
         {chartData.length === 0 ? (
-          <div className="py-8 text-center text-gray-500">暂无数据</div>
+          <div className="py-8 text-center text-gray-500 dark:text-gray-400">暂无数据</div>
         ) : (
           <LineChart data={chartData} height={160} />
         )}
@@ -275,8 +293,10 @@ const HistoryTableRow = memo(({ item }: HistoryTableRowProps) => {
   const TrendIcon = getTrendIcon(item.state);
 
   return (
-    <tr className="border-b border-gray-100 transition-colors hover:bg-gray-50">
-      <td className="px-4 py-3 text-sm text-gray-700">{formatDate(item.date)}</td>
+    <tr className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800">
+      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+        {formatDate(item.date)}
+      </td>
       <td className="px-4 py-3 text-center">
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${colors.bg} ${colors.text} `}
@@ -285,10 +305,10 @@ const HistoryTableRow = memo(({ item }: HistoryTableRowProps) => {
           {getTrendName(item.state)}
         </span>
       </td>
-      <td className="px-4 py-3 text-right text-sm text-gray-700">
+      <td className="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-300">
         {(item.accuracy * 100).toFixed(1)}%
       </td>
-      <td className="px-4 py-3 text-right text-sm text-gray-700">
+      <td className="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-300">
         {item.avgResponseTime.toFixed(0)}ms
       </td>
       <td className="px-4 py-3 text-right">
@@ -318,10 +338,10 @@ interface RecommendationItemProps {
 const RecommendationItem = memo(({ recommendation, index }: RecommendationItemProps) => {
   return (
     <li className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
-        <span className="text-xs font-bold text-blue-700">{index + 1}</span>
+      <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+        <span className="text-xs font-bold text-blue-700 dark:text-blue-400">{index + 1}</span>
       </div>
-      <span className="text-gray-700">{recommendation}</span>
+      <span className="text-gray-700 dark:text-gray-300">{recommendation}</span>
     </li>
   );
 });
@@ -386,7 +406,7 @@ export default function TrendReportPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在分析学习趋势...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在分析学习趋势...</p>
         </div>
       </div>
     );
@@ -397,8 +417,8 @@ export default function TrendReportPage() {
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">错误</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">错误</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={loadData}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -411,14 +431,14 @@ export default function TrendReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
       <div className="mx-auto max-w-6xl animate-g3-fade-in px-4 py-8">
         <header className="mb-8">
-          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900">
+          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
             <ChartLine size={32} weight="duotone" color="#3b82f6" />
             趋势分析
           </h1>
-          <p className="text-gray-600">追踪你的学习进度，发现改进机会</p>
+          <p className="text-gray-600 dark:text-gray-400">追踪你的学习进度，发现改进机会</p>
         </header>
 
         <DaysSelector selectedDays={selectedDays} onSelect={setSelectedDays} />
@@ -461,18 +481,18 @@ export default function TrendReportPage() {
 
         {trendReport && (
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <Info size={24} weight="duotone" color="#3b82f6" />
                 总结
               </h3>
-              <p className="leading-relaxed text-gray-700">
+              <p className="leading-relaxed text-gray-700 dark:text-gray-300">
                 {trendReport.summary || '继续学习，我们将提供更准确的分析。'}
               </p>
             </div>
 
-            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+            <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <Lightbulb size={24} weight="duotone" color="#f59e0b" />
                 建议
               </h3>
@@ -483,33 +503,35 @@ export default function TrendReportPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500">暂无建议，继续保持！</p>
+                <p className="text-gray-500 dark:text-gray-400">暂无建议，继续保持！</p>
               )}
             </div>
           </div>
         )}
 
         {trendHistory.length > 0 && (
-          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-            <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+          <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
               <Calendar size={24} weight="duotone" color="#6b7280" />
               历史记录
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">日期</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">
+                  <tr className="border-b border-gray-200 dark:border-slate-700">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
+                      日期
+                    </th>
+                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
                       趋势
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                       准确率
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                       响应时间
                     </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                       学习动力
                     </th>
                   </tr>
@@ -522,7 +544,7 @@ export default function TrendReportPage() {
               </table>
             </div>
             {trendHistory.length > 10 && (
-              <p className="mt-4 text-center text-sm text-gray-500">
+              <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 显示最近 10 条记录，共 {trendHistory.length} 条
               </p>
             )}

@@ -120,7 +120,7 @@ export default function WordDetailPage() {
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-            <p className="text-gray-600">加载中...</p>
+            <p className="text-gray-600 dark:text-gray-400">加载中...</p>
           </div>
         </div>
       </div>
@@ -132,8 +132,8 @@ export default function WordDetailPage() {
       <div className="p-8">
         <div className="py-12 text-center">
           <WarningCircle size={64} weight="fill" className="mx-auto mb-4 text-red-500" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载失败</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">加载失败</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={() => navigate(`/admin/users/${userId}`)}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all hover:bg-blue-600"
@@ -150,7 +150,7 @@ export default function WordDetailPage() {
       {/* 返回按钮 */}
       <button
         onClick={() => navigate(`/admin/users/${userId}`)}
-        className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900"
+        className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
       >
         <ArrowLeft size={20} weight="bold" />
         <span>返回用户详情</span>
@@ -158,25 +158,27 @@ export default function WordDetailPage() {
 
       {/* 单词信息头部 */}
       {history && (
-        <div className="mb-8 rounded-card border border-gray-200 bg-white p-8 shadow-soft">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-8 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-6 text-center">
-            <h1 className="mb-2 text-6xl font-bold text-gray-900">{history.word.spelling}</h1>
+            <h1 className="mb-2 text-6xl font-bold text-gray-900 dark:text-white">
+              {history.word.spelling}
+            </h1>
             <p className="text-2xl text-gray-400">{history.word.phonetic}</p>
           </div>
 
-          <div className="mb-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+          <div className="mb-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent dark:via-slate-700"></div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {/* 释义 */}
             <div>
-              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 释义
               </h4>
               <div className="space-y-3">
                 {history.word.meanings.map((meaning, index) => (
                   <div key={index} className="flex items-baseline">
                     <span className="mr-4 text-lg font-bold text-blue-500">{index + 1}.</span>
-                    <span className="text-lg text-gray-900">{meaning}</span>
+                    <span className="text-lg text-gray-900 dark:text-white">{meaning}</span>
                   </div>
                 ))}
               </div>
@@ -184,14 +186,14 @@ export default function WordDetailPage() {
 
             {/* 例句 */}
             <div>
-              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 例句
               </h4>
               <div className="space-y-3">
                 {history.word.examples.map((example, index) => (
                   <blockquote
                     key={index}
-                    className="border-l-4 border-blue-500 py-2 pl-6 italic text-gray-700"
+                    className="border-l-4 border-blue-500 py-2 pl-6 italic text-gray-700 dark:text-gray-300"
                   >
                     {example}
                   </blockquote>
@@ -202,34 +204,34 @@ export default function WordDetailPage() {
 
           {/* 当前状态 */}
           {history.wordState && (
-            <div className="mt-8 border-t border-gray-200 pt-6">
-              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+            <div className="mt-8 border-t border-gray-200 pt-6 dark:border-slate-700">
+              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 当前学习状态
               </h4>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-2xl font-bold text-blue-600">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {history.wordState.masteryLevel}
                   </div>
-                  <div className="text-sm text-gray-600">掌握程度</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">掌握程度</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-2xl font-bold text-purple-600">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-2xl font-bold text-purple-600 dark:text-purple-400">
                     {history.wordState.reviewCount}
                   </div>
-                  <div className="text-sm text-gray-600">复习次数</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">复习次数</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-2xl font-bold text-green-600">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-2xl font-bold text-green-600 dark:text-green-400">
                     {history.wordState.easeFactor.toFixed(2)}
                   </div>
-                  <div className="text-sm text-gray-600">难度因子</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">难度因子</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-sm font-medium text-gray-900">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
                     {history.wordState.state}
                   </div>
-                  <div className="text-sm text-gray-600">学习状态</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">学习状态</div>
                 </div>
               </div>
             </div>
@@ -237,40 +239,40 @@ export default function WordDetailPage() {
 
           {/* 当前得分 */}
           {history.wordScore && (
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+            <div className="mt-6 border-t border-gray-200 pt-6 dark:border-slate-700">
+              <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 当前得分详情
               </h4>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                <div className="rounded-button bg-blue-50 p-4">
-                  <div className="mb-1 text-2xl font-bold text-blue-600">
+                <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/30">
+                  <div className="mb-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {history.wordScore.totalScore.toFixed(0)}
                   </div>
-                  <div className="text-sm text-gray-600">总分</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">总分</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-xl font-bold text-gray-700">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-xl font-bold text-gray-700 dark:text-gray-300">
                     {history.wordScore.accuracyScore.toFixed(0)}
                   </div>
-                  <div className="text-sm text-gray-600">正确率分</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">正确率分</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-xl font-bold text-gray-700">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-xl font-bold text-gray-700 dark:text-gray-300">
                     {history.wordScore.speedScore.toFixed(0)}
                   </div>
-                  <div className="text-sm text-gray-600">速度分</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">速度分</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-xl font-bold text-gray-700">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-xl font-bold text-gray-700 dark:text-gray-300">
                     {history.wordScore.stabilityScore.toFixed(0)}
                   </div>
-                  <div className="text-sm text-gray-600">稳定性分</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">稳定性分</div>
                 </div>
-                <div className="rounded-button bg-gray-50 p-4">
-                  <div className="mb-1 text-xl font-bold text-gray-700">
+                <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+                  <div className="mb-1 text-xl font-bold text-gray-700 dark:text-gray-300">
                     {history.wordScore.proficiencyScore.toFixed(0)}
                   </div>
-                  <div className="text-sm text-gray-600">熟练度分</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">熟练度分</div>
                 </div>
               </div>
             </div>
@@ -280,22 +282,22 @@ export default function WordDetailPage() {
 
       {/* 单词得分曲线图 */}
       {scoreHistory && scoreHistory.scoreHistory.length > 0 && (
-        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
               <ChartBar size={24} weight="duotone" className="text-blue-500" />
               单词得分变化曲线
             </h2>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               当前得分:{' '}
-              <span className="font-bold text-blue-600">
+              <span className="font-bold text-blue-600 dark:text-blue-400">
                 {scoreHistory.currentScore.toFixed(0)}
               </span>
             </div>
           </div>
 
           {/* 简化的曲线图 - 使用SVG */}
-          <div className="relative h-64 rounded-button bg-gray-50 p-4">
+          <div className="relative h-64 rounded-button bg-gray-50 p-4 dark:bg-slate-900">
             <svg className="h-full w-full" viewBox="0 0 800 200">
               {/* 网格线 */}
               {[0, 25, 50, 75, 100].map((y) => (
@@ -353,11 +355,11 @@ export default function WordDetailPage() {
           <div className="mt-4 flex items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-green-500"></div>
-              <span className="text-gray-600">答对</span>
+              <span className="text-gray-600 dark:text-gray-400">答对</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-red-500"></div>
-              <span className="text-gray-600">答错</span>
+              <span className="text-gray-600 dark:text-gray-400">答错</span>
             </div>
           </div>
         </div>
@@ -365,8 +367,8 @@ export default function WordDetailPage() {
 
       {/* 用户学习热力图 */}
       {heatmap.length > 0 && (
-        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
+        <div className="mb-8 rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
             <Clock size={24} weight="duotone" className="text-orange-500" />
             学习热力图（最近90天）
           </h2>
@@ -406,10 +408,10 @@ export default function WordDetailPage() {
             })}
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600">
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
             <span>活跃度:</span>
             <div className="flex items-center gap-1">
-              <div className="h-4 w-4 rounded bg-gray-100"></div>
+              <div className="h-4 w-4 rounded bg-gray-100 dark:bg-slate-700"></div>
               <span>低</span>
             </div>
             <div className="flex items-center gap-1">
@@ -428,15 +430,15 @@ export default function WordDetailPage() {
 
       {/* 完整学习历史 */}
       {history && history.records.length > 0 && (
-        <div className="rounded-card border border-gray-200 bg-white shadow-soft">
-          <div className="flex items-center justify-between border-b border-gray-200 p-6">
-            <h2 className="text-xl font-bold text-gray-900">完整学习历史</h2>
+        <div className="rounded-card border border-gray-200 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between border-b border-gray-200 p-6 dark:border-slate-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">完整学习历史</h2>
             <button
               onClick={() => {
                 setFlagRecordId(undefined);
                 setShowFlagDialog(true);
               }}
-              className="flex items-center gap-2 rounded-button bg-yellow-100 px-4 py-2 text-yellow-700 transition-colors hover:bg-yellow-200"
+              className="flex items-center gap-2 rounded-button bg-yellow-100 px-4 py-2 text-yellow-700 transition-colors hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
             >
               <Flag size={16} weight="bold" />
               <span>标记异常</span>
@@ -445,36 +447,41 @@ export default function WordDetailPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="border-b border-gray-200 bg-gray-50">
+              <thead className="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-900">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">时间</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    时间
+                  </th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     结果
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                     选择的答案
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                     正确答案
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     响应时间
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     停留时长
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     掌握程度变化
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     操作
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {history.records.map((record) => (
-                  <tr key={record.id} className="transition-colors hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                  <tr
+                    key={record.id}
+                    className="transition-colors hover:bg-gray-50 dark:hover:bg-slate-700"
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       {formatDate(record.timestamp)}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -484,12 +491,16 @@ export default function WordDetailPage() {
                         <XCircle size={24} weight="fill" className="mx-auto text-red-500" />
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{record.selectedAnswer}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{record.correctAnswer}</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                      {record.selectedAnswer}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                      {record.correctAnswer}
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-gray-400">
                       {formatTime(record.responseTime)}
                     </td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">
+                    <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-gray-400">
                       {formatTime(record.dwellTime)}
                     </td>
                     <td className="px-6 py-4 text-center text-sm">
@@ -497,10 +508,10 @@ export default function WordDetailPage() {
                         <span
                           className={`font-medium ${
                             record.masteryLevelAfter > record.masteryLevelBefore
-                              ? 'text-green-600'
+                              ? 'text-green-600 dark:text-green-400'
                               : record.masteryLevelAfter < record.masteryLevelBefore
-                                ? 'text-red-600'
-                                : 'text-gray-600'
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-gray-600 dark:text-gray-400'
                           }`}
                         >
                           {record.masteryLevelBefore} → {record.masteryLevelAfter}
@@ -532,19 +543,21 @@ export default function WordDetailPage() {
       {/* 异常标记对话框 */}
       {showFlagDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-          <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating">
+          <div className="w-full max-w-md animate-g3-slide-up rounded-card bg-white p-8 shadow-floating dark:bg-slate-800">
             <div className="mb-6 flex items-center gap-3">
               <Warning size={32} weight="duotone" className="text-yellow-500" />
-              <h3 className="text-2xl font-bold text-gray-900">标记异常</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">标记异常</h3>
             </div>
 
             <div className="mb-6 space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">标记原因 *</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  标记原因 *
+                </label>
                 <select
                   value={flagReason}
                   onChange={(e) => setFlagReason(e.target.value)}
-                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   <option value="">请选择原因</option>
                   <option value="异常响应时间">异常响应时间</option>
@@ -557,13 +570,15 @@ export default function WordDetailPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">备注</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  备注
+                </label>
                 <textarea
                   value={flagNotes}
                   onChange={(e) => setFlagNotes(e.target.value)}
                   placeholder="请输入详细说明..."
                   rows={4}
-                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500"
+                  className="w-full resize-none rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-yellow-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-gray-400"
                 />
               </div>
             </div>
@@ -576,7 +591,7 @@ export default function WordDetailPage() {
                   setFlagReason('');
                   setFlagNotes('');
                 }}
-                className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all hover:bg-gray-200"
+                className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
                 disabled={isFlagging}
               >
                 取消

@@ -308,7 +308,7 @@ export default function LogAlertsPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600" role="status" aria-live="polite">
+          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             加载告警规则中...
           </p>
         </div>
@@ -324,8 +324,8 @@ export default function LogAlertsPage() {
           <div className="flex items-center gap-3">
             <Bell size={32} weight="duotone" className="text-blue-500" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">日志告警规则</h1>
-              <p className="mt-1 text-gray-600">配置和管理日志监控告警规则</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">日志告警规则</h1>
+              <p className="mt-1 text-gray-600 dark:text-gray-400">配置和管理日志监控告警规则</p>
             </div>
           </div>
           <button
@@ -340,29 +340,35 @@ export default function LogAlertsPage() {
 
       {/* 规则列表 */}
       {rules.length === 0 ? (
-        <div className="rounded-card border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm">
-          <Bell size={64} weight="duotone" className="mx-auto mb-4 text-gray-300" />
-          <h3 className="mb-2 text-xl font-bold text-gray-900">暂无告警规则</h3>
-          <p className="mb-6 text-gray-600">点击上方"创建规则"按钮添加第一个告警规则</p>
+        <div className="rounded-card border border-gray-200/60 bg-white/80 py-16 text-center backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+          <Bell
+            size={64}
+            weight="duotone"
+            className="mx-auto mb-4 text-gray-300 dark:text-gray-600"
+          />
+          <h3 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">暂无告警规则</h3>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
+            点击上方"创建规则"按钮添加第一个告警规则
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated"
+              className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm transition-all duration-g3-fast hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="mb-2 flex items-center gap-3">
-                    <h3 className="text-xl font-bold text-gray-900">{rule.name}</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{rule.name}</h3>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleRuleEnabled(rule)}
                         className={`rounded-full px-3 py-1 text-sm font-medium transition-all ${
                           rule.enabled
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                         }`}
                       >
                         {rule.enabled ? '已启用' : '已禁用'}
@@ -370,12 +376,16 @@ export default function LogAlertsPage() {
                     </div>
                   </div>
 
-                  {rule.description && <p className="mb-4 text-gray-600">{rule.description}</p>}
+                  {rule.description && (
+                    <p className="mb-4 text-gray-600 dark:text-gray-400">{rule.description}</p>
+                  )}
 
                   <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {/* 触发级别 */}
                     <div>
-                      <span className="text-sm font-medium text-gray-700">触发级别</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        触发级别
+                      </span>
                       <div className="mt-1 flex flex-wrap gap-2">
                         {rule.levels.map((level) => (
                           <span
@@ -391,16 +401,22 @@ export default function LogAlertsPage() {
                     {/* 模块匹配 */}
                     {rule.module && (
                       <div>
-                        <span className="text-sm font-medium text-gray-700">模块匹配</span>
-                        <p className="mt-1 font-mono text-sm text-gray-600">{rule.module}</p>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          模块匹配
+                        </span>
+                        <p className="mt-1 font-mono text-sm text-gray-600 dark:text-gray-400">
+                          {rule.module}
+                        </p>
                       </div>
                     )}
 
                     {/* 消息匹配 */}
                     {rule.messagePattern && (
                       <div>
-                        <span className="text-sm font-medium text-gray-700">消息匹配</span>
-                        <p className="mt-1 font-mono text-sm text-gray-600">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          消息匹配
+                        </span>
+                        <p className="mt-1 font-mono text-sm text-gray-600 dark:text-gray-400">
                           {rule.messagePattern}
                         </p>
                       </div>
@@ -408,23 +424,31 @@ export default function LogAlertsPage() {
 
                     {/* 阈值 */}
                     <div>
-                      <span className="text-sm font-medium text-gray-700">触发阈值</span>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        触发阈值
+                      </span>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                         {rule.threshold} 次 / {rule.windowMinutes} 分钟
                       </p>
                     </div>
 
                     {/* 冷却时间 */}
                     <div>
-                      <span className="text-sm font-medium text-gray-700">冷却时间</span>
-                      <p className="mt-1 text-sm text-gray-600">{rule.cooldownMinutes} 分钟</p>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        冷却时间
+                      </span>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                        {rule.cooldownMinutes} 分钟
+                      </p>
                     </div>
 
                     {/* Webhook */}
                     <div>
-                      <span className="text-sm font-medium text-gray-700">Webhook URL</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Webhook URL
+                      </span>
                       <p
-                        className="mt-1 truncate font-mono text-sm text-gray-600"
+                        className="mt-1 truncate font-mono text-sm text-gray-600 dark:text-gray-400"
                         title={rule.webhookUrl}
                       >
                         {rule.webhookUrl}
@@ -432,7 +456,7 @@ export default function LogAlertsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <span>创建于: {new Date(rule.createdAt).toLocaleString('zh-CN')}</span>
                     <span>更新于: {new Date(rule.updatedAt).toLocaleString('zh-CN')}</span>
                   </div>
@@ -497,11 +521,13 @@ export default function LogAlertsPage() {
       {showDeleteConfirm &&
         createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-6">
-            <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating">
+            <div className="w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800">
               <div className="mb-6 text-center">
                 <Warning size={64} weight="duotone" className="mx-auto mb-4 text-red-500" />
-                <h3 className="mb-2 text-2xl font-bold text-gray-900">确认删除</h3>
-                <p className="text-gray-600">确定要删除这个告警规则吗？此操作不可撤销。</p>
+                <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">确认删除</h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  确定要删除这个告警规则吗？此操作不可撤销。
+                </p>
               </div>
 
               <div className="flex gap-4">
@@ -511,7 +537,7 @@ export default function LogAlertsPage() {
                     setDeletingRuleId(null);
                   }}
                   disabled={isSaving}
-                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
                 >
                   取消
                 </button>
@@ -557,13 +583,13 @@ function RuleFormModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-floating">
+      <div className="flex max-h-[90vh] w-full max-w-2xl animate-g3-slide-up flex-col rounded-3xl bg-white shadow-floating dark:bg-slate-800">
         {/* 固定头部 */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
-          <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
+        <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6 dark:border-slate-700">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h3>
           <button
             onClick={onCancel}
-            className="rounded-button p-2 transition-all hover:bg-gray-100"
+            className="rounded-button p-2 transition-all hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             <X size={24} weight="bold" />
           </button>
@@ -574,33 +600,35 @@ function RuleFormModal({
           <div className="space-y-6">
             {/* 规则名称 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 规则名称 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 placeholder="例如：高频错误日志告警"
               />
             </div>
 
             {/* 规则描述 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">规则描述</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                规则描述
+              </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={2}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 placeholder="简要描述此规则的用途"
               />
             </div>
 
             {/* 触发级别 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 触发级别（多选） <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
@@ -612,7 +640,7 @@ function RuleFormModal({
                     className={`rounded-button px-4 py-2 text-sm font-medium transition-all ${
                       formData.levels.includes(level)
                         ? `${getLevelColor(level)} ring-2 ring-offset-2`
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                     }`}
                   >
                     {level}
@@ -623,38 +651,38 @@ function RuleFormModal({
 
             {/* 模块匹配 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 模块匹配（可选）
               </label>
               <input
                 type="text"
                 value={formData.module}
                 onChange={(e) => setFormData({ ...formData, module: e.target.value })}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 placeholder="例如：amas.*（留空表示匹配所有模块）"
               />
-              <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">支持正则表达式</p>
             </div>
 
             {/* 消息正则匹配 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 消息正则匹配（可选）
               </label>
               <input
                 type="text"
                 value={formData.messagePattern}
                 onChange={(e) => setFormData({ ...formData, messagePattern: e.target.value })}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 placeholder="例如：database.*error（留空表示匹配所有消息）"
               />
-              <p className="mt-1 text-xs text-gray-500">支持正则表达式</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">支持正则表达式</p>
             </div>
 
             {/* 阈值和时间窗口 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   阈值（次数） <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -664,11 +692,11 @@ function RuleFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, threshold: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   时间窗口（分钟） <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -678,29 +706,31 @@ function RuleFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, windowMinutes: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
             </div>
 
             {/* Webhook URL */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Webhook URL <span className="text-red-500">*</span>
               </label>
               <input
                 type="url"
                 value={formData.webhookUrl}
                 onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 placeholder="https://example.com/webhook"
               />
-              <p className="mt-1 text-xs text-gray-500">告警触发时将发送 POST 请求到此 URL</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                告警触发时将发送 POST 请求到此 URL
+              </p>
             </div>
 
             {/* 冷却时间 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 冷却时间（分钟） <span className="text-red-500">*</span>
               </label>
               <input
@@ -710,9 +740,11 @@ function RuleFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })
                 }
-                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
-              <p className="mt-1 text-xs text-gray-500">同一规则在冷却时间内不会重复发送告警</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                同一规则在冷却时间内不会重复发送告警
+              </p>
             </div>
 
             {/* 启用状态 */}
@@ -724,7 +756,10 @@ function RuleFormModal({
                 onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
                 className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500"
               />
-              <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="enabled"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 创建后立即启用
               </label>
             </div>
@@ -732,11 +767,11 @@ function RuleFormModal({
         </div>
 
         {/* 固定底部按钮 */}
-        <div className="flex gap-4 border-t border-gray-200 px-8 py-6">
+        <div className="flex gap-4 border-t border-gray-200 px-8 py-6 dark:border-slate-700">
           <button
             onClick={onCancel}
             disabled={isSaving}
-            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50"
+            className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 disabled:opacity-50 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
           >
             取消
           </button>

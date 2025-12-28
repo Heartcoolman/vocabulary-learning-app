@@ -139,24 +139,26 @@ export default function WordQualityPage() {
   }
 
   return (
-    <div className="min-h-screen space-y-6 bg-gray-50/50 p-6 md:p-8">
+    <div className="min-h-screen space-y-6 bg-gray-50/50 p-6 dark:bg-slate-900 md:p-8">
       {/* Header */}
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">词库质量管理</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            词库质量管理
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             监控并修复词库中的数据质量问题，提升学习体验。
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm">
-          <div className="px-2 text-gray-400">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="px-2 text-gray-400 dark:text-gray-500">
             <Books className="h-5 w-5" />
           </div>
           <select
             value={selectedWordbook}
             onChange={(e) => setSelectedWordbook(e.target.value)}
-            className="min-w-[150px] cursor-pointer border-none bg-transparent text-sm font-medium text-gray-700 outline-none"
+            className="min-w-[150px] cursor-pointer border-none bg-transparent text-sm font-medium text-gray-700 outline-none dark:text-gray-300"
           >
             <option value="" disabled>
               选择词书...
@@ -197,7 +199,7 @@ export default function WordQualityPage() {
           />
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
           <Books className="mb-4 h-16 w-16 opacity-20" />
           <p>请选择一个词书开始管理</p>
         </div>

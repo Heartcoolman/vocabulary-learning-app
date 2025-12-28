@@ -90,15 +90,15 @@ function PipelineLayerCard({
   };
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm transition-shadow hover:shadow-elevated">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="rounded-button bg-blue-50 p-2 text-blue-600">
             {iconMap[layer.id] || <Activity size={20} />}
           </div>
           <div>
-            <div className="font-medium text-gray-800">{layer.nameCn}</div>
-            <div className="text-xs text-gray-400">{layer.name}</div>
+            <div className="font-medium text-gray-800 dark:text-white">{layer.nameCn}</div>
+            <div className="text-xs text-gray-400 dark:text-gray-400">{layer.name}</div>
           </div>
         </div>
         <StatusIndicator status={layer.status} />
@@ -106,22 +106,24 @@ function PipelineLayerCard({
 
       <div className="mt-2 flex justify-between text-center">
         <div className="flex-1">
-          <div className="text-base font-bold text-gray-900">{layer.processedCount}</div>
-          <div className="text-xs text-gray-500">处理数</div>
+          <div className="text-base font-bold text-gray-900 dark:text-white">
+            {layer.processedCount}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">处理数</div>
         </div>
         <div className="flex-1">
-          <div className="text-base font-bold text-gray-900">
+          <div className="text-base font-bold text-gray-900 dark:text-white">
             {layer.avgLatencyMs}
             <span className="text-sm font-medium">ms</span>
           </div>
-          <div className="text-xs text-gray-500">延迟</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">延迟</div>
         </div>
         <div className="flex-1">
           <div className="text-base font-bold text-emerald-600">
             {(layer.successRate * 100).toFixed(1)}
             <span className="text-sm font-medium">%</span>
           </div>
-          <div className="text-xs text-gray-500">成功率</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">成功率</div>
         </div>
       </div>
     </div>
@@ -132,16 +134,16 @@ function PipelineLayerCard({
 function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-        <div className="py-8 text-center text-gray-400">加载中...</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Activity className="text-blue-500" />
           Pipeline 实时状态
         </h2>
@@ -155,7 +157,7 @@ function PipelineStatusPanel({ data }: { data: PipelineStatusResponse | null }) 
                 : '异常'}
           </span>
           <span className="ml-2 text-gray-400">|</span>
-          <span className="text-gray-500">吞吐量: {data.totalThroughput}/s</span>
+          <span className="text-gray-500 dark:text-gray-400">吞吐量: {data.totalThroughput}/s</span>
         </div>
       </div>
 
@@ -189,16 +191,16 @@ function AlgorithmCard({
   };
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="font-medium text-gray-800">{algo.name}</h4>
-        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs">
+        <h4 className="font-medium text-gray-800 dark:text-white">{algo.name}</h4>
+        <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs dark:bg-slate-700">
           {(algo.weight * 100).toFixed(1)}%
         </span>
       </div>
 
       {/* 权重进度条 */}
-      <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-200">
+      <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
         <div
           className={`h-full bg-gradient-to-r ${colorMap[algo.id] || 'from-gray-400 to-gray-500'} transition-all duration-g3-slow`}
           style={{ width: `${algo.weight * 100}%` }}
@@ -207,16 +209,18 @@ function AlgorithmCard({
 
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <div>
-          <div className="font-bold text-gray-800">{algo.callCount}</div>
-          <div className="text-xs text-gray-500">调用</div>
+          <div className="font-bold text-gray-800 dark:text-white">{algo.callCount}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">调用</div>
         </div>
         <div>
-          <div className="font-bold text-gray-800">{algo.avgLatencyMs}ms</div>
-          <div className="text-xs text-gray-500">延迟</div>
+          <div className="font-bold text-gray-800 dark:text-white">{algo.avgLatencyMs}ms</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">延迟</div>
         </div>
         <div>
-          <div className="font-bold text-gray-800">{(algo.explorationRate * 100).toFixed(0)}%</div>
-          <div className="text-xs text-gray-500">探索率</div>
+          <div className="font-bold text-gray-800 dark:text-white">
+            {(algo.explorationRate * 100).toFixed(0)}%
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">探索率</div>
         </div>
       </div>
     </div>
@@ -227,20 +231,20 @@ function AlgorithmCard({
 function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-        <div className="py-8 text-center text-gray-400">加载中...</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Brain className="text-purple-500" />
           算法运行状态
         </h2>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           集成共识率:{' '}
           <span className="font-bold text-purple-600">
             {(data.ensembleConsensusRate * 100).toFixed(0)}%
@@ -255,32 +259,32 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
       </div>
 
       {/* 冷启动统计 */}
-      <div className="rounded-card bg-gray-50 p-4">
-        <h3 className="mb-3 flex items-center gap-2 font-medium text-gray-700">
+      <div className="rounded-card bg-gray-50 p-4 dark:bg-slate-900">
+        <h3 className="mb-3 flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
           <Lightning className="text-amber-500" size={18} />
           冷启动管理器
         </h3>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">
+            <div className="text-2xl font-bold text-gray-800 dark:text-white">
               {data.coldstartStats.classifyCount}
             </div>
-            <div className="text-xs text-gray-500">分类阶段</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">分类阶段</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">
+            <div className="text-2xl font-bold text-gray-800 dark:text-white">
               {data.coldstartStats.exploreCount}
             </div>
-            <div className="text-xs text-gray-500">探索阶段</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">探索阶段</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">
+            <div className="text-2xl font-bold text-gray-800 dark:text-white">
               {data.coldstartStats.normalCount}
             </div>
-            <div className="text-xs text-gray-500">正常阶段</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">正常阶段</div>
           </div>
           <div>
-            <div className="mb-1 text-xs text-gray-500">用户类型分布</div>
+            <div className="mb-1 text-xs text-gray-500 dark:text-gray-400">用户类型分布</div>
             <div className="flex gap-1">
               <div
                 className="h-3 rounded-l bg-blue-500"
@@ -314,8 +318,8 @@ function AlgorithmStatusPanel({ data }: { data: AlgorithmStatusResponse | null }
 function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-        <div className="py-8 text-center text-gray-400">加载中...</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">加载中...</div>
       </div>
     );
   }
@@ -323,9 +327,9 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
   const { distributions } = data;
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <Users className="text-emerald-500" />
           用户状态监控
         </h2>
@@ -366,7 +370,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
               title="高"
             />
           </div>
-          <div className="mt-1 flex justify-between text-xs text-gray-500">
+          <div className="mt-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>低 {(distributions.attention.low * 100).toFixed(0)}%</span>
             <span>中 {(distributions.attention.medium * 100).toFixed(0)}%</span>
             <span>高 {(distributions.attention.high * 100).toFixed(0)}%</span>
@@ -407,7 +411,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
               title="疲劳"
             />
           </div>
-          <div className="mt-1 flex justify-between text-xs text-gray-500">
+          <div className="mt-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>清醒 {(distributions.fatigue.fresh * 100).toFixed(0)}%</span>
             <span>正常 {(distributions.fatigue.normal * 100).toFixed(0)}%</span>
             <span>疲劳 {(distributions.fatigue.tired * 100).toFixed(0)}%</span>
@@ -449,7 +453,7 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
               title="积极"
             />
           </div>
-          <div className="mt-1 flex justify-between text-xs text-gray-500">
+          <div className="mt-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>受挫 {(distributions.motivation.frustrated * 100).toFixed(0)}%</span>
             <span>中性 {(distributions.motivation.neutral * 100).toFixed(0)}%</span>
             <span>积极 {(distributions.motivation.motivated * 100).toFixed(0)}%</span>
@@ -460,11 +464,11 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
       {/* 最近推断记录 */}
       {data.recentInferences.length > 0 && (
         <div className="mt-6">
-          <h4 className="mb-3 font-medium text-gray-700">最近状态推断</h4>
+          <h4 className="mb-3 font-medium text-gray-700 dark:text-gray-300">最近状态推断</h4>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-gray-500 dark:text-gray-400">
                   <th className="pb-2 font-medium">用户ID</th>
                   <th className="pb-2 font-medium">时间</th>
                   <th className="pb-2 font-medium">注意力</th>
@@ -475,9 +479,9 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
               </thead>
               <tbody>
                 {data.recentInferences.slice(0, 5).map((inf) => (
-                  <tr key={inf.id} className="border-t border-gray-100">
-                    <td className="py-2 font-mono text-gray-600">{inf.id}</td>
-                    <td className="py-2 text-gray-500">
+                  <tr key={inf.id} className="border-t border-gray-100 dark:border-slate-700">
+                    <td className="py-2 font-mono text-gray-600 dark:text-gray-400">{inf.id}</td>
+                    <td className="py-2 text-gray-500 dark:text-gray-400">
                       {new Date(inf.timestamp).toLocaleTimeString('zh-CN', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -506,15 +510,15 @@ function UserStatePanel({ data }: { data: UserStateStatusResponse | null }) {
 function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
   if (!data) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-        <div className="py-8 text-center text-gray-400">加载中...</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-      <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
         <Brain className="text-rose-500" />
         记忆状态分布
       </h2>
@@ -522,12 +526,12 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* 强度分布直方图 */}
         <div>
-          <h4 className="mb-3 font-medium text-gray-700">记忆强度分布</h4>
+          <h4 className="mb-3 font-medium text-gray-700 dark:text-gray-300">记忆强度分布</h4>
           <div className="space-y-2">
             {data.strengthDistribution.map((range) => (
               <div key={range.range} className="flex items-center gap-2">
-                <span className="w-16 text-xs text-gray-500">{range.range}</span>
-                <div className="h-4 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <span className="w-16 text-xs text-gray-500 dark:text-gray-400">{range.range}</span>
+                <div className="h-4 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                   <div
                     className="h-full bg-gradient-to-r from-rose-400 to-rose-500"
                     style={{ width: `${range.percentage}%` }}
@@ -543,36 +547,36 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
 
         {/* 复习状态 */}
         <div>
-          <h4 className="mb-3 font-medium text-gray-700">复习状态</h4>
+          <h4 className="mb-3 font-medium text-gray-700 dark:text-gray-300">复习状态</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-button bg-red-50 p-3 text-center">
               <div className="text-2xl font-bold text-red-600">{data.urgentReviewCount}</div>
-              <div className="text-xs text-gray-500">急需复习</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">急需复习</div>
             </div>
             <div className="rounded-button bg-amber-50 p-3 text-center">
               <div className="text-2xl font-bold text-amber-600">{data.soonReviewCount}</div>
-              <div className="text-xs text-gray-500">即将复习</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">即将复习</div>
             </div>
             <div className="rounded-button bg-emerald-50 p-3 text-center">
               <div className="text-2xl font-bold text-emerald-600">{data.stableCount}</div>
-              <div className="text-xs text-gray-500">状态稳定</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">状态稳定</div>
             </div>
             <div className="rounded-button bg-blue-50 p-3 text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {data.avgHalfLifeDays.toFixed(1)}天
               </div>
-              <div className="text-xs text-gray-500">平均半衰期</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">平均半衰期</div>
             </div>
           </div>
 
-          <div className="mt-4 rounded-button bg-gray-50 p-3">
+          <div className="mt-4 rounded-button bg-gray-50 p-3 dark:bg-slate-800">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">今日巩固率</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">今日巩固率</span>
               <span className="text-lg font-bold text-emerald-600">
                 {data.todayConsolidationRate.toFixed(1)}%
               </span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
               <div
                 className="h-full bg-emerald-500"
                 style={{ width: `${data.todayConsolidationRate}%` }}
@@ -583,8 +587,8 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
       </div>
 
       {/* ACT-R 记忆追踪 */}
-      <div className="mt-6 border-t border-gray-100 pt-6">
-        <h4 className="mb-3 flex items-center gap-2 font-medium text-gray-700">
+      <div className="mt-6 border-t border-gray-100 pt-6 dark:border-slate-700">
+        <h4 className="mb-3 flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
           <Brain className="text-purple-500" size={18} />
           ACT-R 记忆追踪
         </h4>
@@ -593,19 +597,19 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
             <div className="text-xl font-bold text-purple-600">
               {data.actrConfig?.maxTraceRecords ?? 20}
             </div>
-            <div className="text-xs text-gray-500">最大追踪记录</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">最大追踪记录</div>
           </div>
           <div className="rounded-button bg-indigo-50 p-3 text-center">
             <div className="text-xl font-bold text-indigo-600">
               {data.actrConfig?.errorPenalty ?? 0.3}
             </div>
-            <div className="text-xs text-gray-500">错误惩罚因子</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">错误惩罚因子</div>
           </div>
           <div className="rounded-button bg-rose-50 p-3 text-center">
             <div className="text-xl font-bold text-rose-600">
               {data.actrConfig?.defaultDecay ?? 0.5}
             </div>
-            <div className="text-xs text-gray-500">默认衰减率</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">默认衰减率</div>
           </div>
         </div>
       </div>
@@ -617,8 +621,8 @@ function MemoryStatusPanel({ data }: { data: MemoryStatusResponse | null }) {
 function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   if (!data) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
-        <div className="py-8 text-center text-gray-400">加载中...</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+        <div className="py-8 text-center text-gray-400 dark:text-gray-400">加载中...</div>
       </div>
     );
   }
@@ -690,7 +694,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
     },
     disabled: {
       dot: 'bg-gray-300',
-      text: 'text-gray-500',
+      text: 'text-gray-500 dark:text-gray-400',
       bg: 'opacity-50',
     },
   };
@@ -708,10 +712,10 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
   const totalCount = Object.keys(data.flags || {}).length;
 
   return (
-    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-soft backdrop-blur-sm">
+    <div className="animate-g3-fade-in rounded-card border border-gray-200/60 bg-gradient-to-br from-white via-white to-indigo-50/30 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800">
       {/* 标题栏 */}
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-white">
           <div className="rounded-button bg-gradient-to-br from-indigo-500 to-purple-600 p-2 text-white shadow-elevated">
             <Timer size={18} />
           </div>
@@ -757,23 +761,25 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
               <div className="flex items-center justify-between border-b border-gray-100/50 px-4 py-2.5">
                 <div className="flex items-center gap-2">
                   {group.icon}
-                  <span className="text-sm font-semibold text-gray-700">{group.title}</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    {group.title}
+                  </span>
                   {hasIssue && <Warning size={14} className="text-amber-500" />}
                 </div>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {groupHealthyCount}/{groupFlags.length} 正常
                 </span>
               </div>
 
               {/* 功能列表 */}
-              <div className="grid grid-cols-3 gap-px bg-gray-100/30 p-0.5">
+              <div className="grid grid-cols-3 gap-px bg-gray-100/30 p-0.5 dark:bg-slate-700/30">
                 {groupFlags.map(({ key, module }) => {
                   const styles = statusStyles[module.status] || statusStyles.disabled;
 
                   return (
                     <div
                       key={key}
-                      className={`flex items-center justify-between bg-white/80 px-3 py-2.5 ${styles.bg}`}
+                      className={`flex items-center justify-between bg-white/80 px-3 py-2.5 dark:bg-slate-800/80 ${styles.bg}`}
                       title={
                         module.latencyMs || module.callCount || module.errorRate
                           ? `延迟: ${module.latencyMs ?? '-'}ms | 调用: ${module.callCount ?? '-'} | 错误率: ${module.errorRate ? (module.errorRate * 100).toFixed(1) + '%' : '-'}`
@@ -803,7 +809,7 @@ function FeatureFlagsPanel({ data }: { data: FeatureFlagsStatus | null }) {
       </div>
 
       {/* 底部说明 */}
-      <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">
+      <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-400">
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
           <span>正常</span>
@@ -909,13 +915,13 @@ export default function SystemStatusPage() {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-6 md:p-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-6 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 md:p-10">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* 页面标题 */}
         <header className="mb-8 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
                 <Activity className="text-blue-600" weight="duotone" />
                 AMAS 系统状态
               </h1>
@@ -936,9 +942,9 @@ export default function SystemStatusPage() {
                     : '模拟数据'}
               </span>
             </div>
-            <p className="mt-1 text-gray-500">实时监控系统运行状态和性能指标</p>
+            <p className="mt-1 text-gray-500 dark:text-gray-400">实时监控系统运行状态和性能指标</p>
           </div>
-          <div className="text-right text-sm text-gray-400">
+          <div className="text-right text-sm text-gray-400 dark:text-gray-400">
             <div>最后更新</div>
             <div className="font-mono">{lastUpdated.toLocaleTimeString('zh-CN')}</div>
           </div>

@@ -37,18 +37,18 @@ import type { WeeklyReportDetail, UserBehaviorInsight, UserSegment } from '../..
  * 健康度评分颜色
  */
 function getHealthColor(score: number): string {
-  if (score >= 80) return 'text-green-600';
-  if (score >= 60) return 'text-yellow-600';
-  return 'text-red-600';
+  if (score >= 80) return 'text-green-600 dark:text-green-400';
+  if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-red-600 dark:text-red-400';
 }
 
 /**
  * 健康度评分背景（浅色，用于标签）
  */
 function getHealthBg(score: number): string {
-  if (score >= 80) return 'bg-green-100';
-  if (score >= 60) return 'bg-yellow-100';
-  return 'bg-red-100';
+  if (score >= 80) return 'bg-green-100 dark:bg-green-900/30';
+  if (score >= 60) return 'bg-yellow-100 dark:bg-yellow-900/30';
+  return 'bg-red-100 dark:bg-red-900/30';
 }
 
 /**
@@ -73,13 +73,13 @@ function ReportCard({ report, onClick }: { report: WeeklyReportDetail; onClick: 
 
   return (
     <div
-      className="cursor-pointer rounded-button border border-gray-200 bg-white p-4 transition-shadow hover:shadow-elevated"
+      className="cursor-pointer rounded-button border border-gray-200 bg-white p-4 transition-shadow hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800"
       onClick={onClick}
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-blue-500" />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-slate-400">
             {formatDate(report.weekStart)} - {formatDate(report.weekEnd)}
           </span>
         </div>
@@ -89,8 +89,8 @@ function ReportCard({ report, onClick }: { report: WeeklyReportDetail; onClick: 
           {report.healthScore.toFixed(0)}分
         </div>
       </div>
-      <p className="line-clamp-2 text-sm text-gray-700">{report.summary}</p>
-      <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+      <p className="line-clamp-2 text-sm text-gray-700 dark:text-slate-300">{report.summary}</p>
+      <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
         {report.highlights && (
           <span className="flex items-center gap-1">
             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -132,13 +132,13 @@ function ReportDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-button bg-white">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-button bg-white dark:bg-slate-800">
         {/* 头部 */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 p-6 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">系统周报</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">系统周报</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 {formatDate(report.weekStart)} - {formatDate(report.weekEnd)}
               </p>
             </div>
@@ -148,7 +148,10 @@ function ReportDetailModal({
               >
                 健康度 {report.healthScore.toFixed(0)}
               </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200"
+              >
                 ✕
               </button>
             </div>
@@ -162,8 +165,8 @@ function ReportDetailModal({
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-button px-4 py-2 text-sm transition-colors ${
                   activeTab === tab
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
               >
                 {tab === 'overview' && '概览'}
@@ -180,22 +183,29 @@ function ReportDetailModal({
             <div className="space-y-6">
               {/* 摘要 */}
               <div>
-                <h3 className="mb-2 text-lg font-medium text-gray-900">执行摘要</h3>
-                <p className="text-gray-700">{report.summary}</p>
+                <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">执行摘要</h3>
+                <p className="text-gray-700 dark:text-slate-300">{report.summary}</p>
               </div>
 
               {/* 亮点 */}
               {report.highlights && report.highlights.length > 0 && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900">
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
                     <CheckCircle className="h-5 w-5 text-green-500" />
                     亮点
                   </h3>
                   <div className="space-y-3">
                     {report.highlights.map((item, idx) => (
-                      <div key={idx} className="rounded-button bg-green-50 p-4">
-                        <h4 className="font-medium text-green-800">{item.title}</h4>
-                        <p className="mt-1 text-sm text-green-700">{item.description}</p>
+                      <div
+                        key={idx}
+                        className="rounded-button bg-green-50 p-4 dark:bg-green-900/20"
+                      >
+                        <h4 className="font-medium text-green-800 dark:text-green-300">
+                          {item.title}
+                        </h4>
+                        <p className="mt-1 text-sm text-green-700 dark:text-green-400">
+                          {item.description}
+                        </p>
                         {item.change !== undefined && (
                           <div className="mt-2 flex items-center gap-1 text-sm">
                             {item.change >= 0 ? (
@@ -218,7 +228,7 @@ function ReportDetailModal({
               {/* 关注点 */}
               {report.concerns && report.concerns.length > 0 && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900">
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
                     <Warning className="h-5 w-5 text-yellow-500" />
                     关注点
                   </h3>
@@ -228,20 +238,20 @@ function ReportDetailModal({
                         key={idx}
                         className={`rounded-button p-4 ${
                           item.severity === 'high'
-                            ? 'bg-red-50'
+                            ? 'bg-red-50 dark:bg-red-900/20'
                             : item.severity === 'medium'
-                              ? 'bg-yellow-50'
-                              : 'bg-gray-50'
+                              ? 'bg-yellow-50 dark:bg-yellow-900/20'
+                              : 'bg-gray-50 dark:bg-slate-700'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <h4
                             className={`font-medium ${
                               item.severity === 'high'
-                                ? 'text-red-800'
+                                ? 'text-red-800 dark:text-red-300'
                                 : item.severity === 'medium'
-                                  ? 'text-yellow-800'
-                                  : 'text-gray-800'
+                                  ? 'text-yellow-800 dark:text-yellow-300'
+                                  : 'text-gray-800 dark:text-slate-200'
                             }`}
                           >
                             {item.title}
@@ -249,10 +259,10 @@ function ReportDetailModal({
                           <span
                             className={`rounded px-2 py-0.5 text-xs ${
                               item.severity === 'high'
-                                ? 'bg-red-200 text-red-700'
+                                ? 'bg-red-200 text-red-700 dark:bg-red-800/50 dark:text-red-300'
                                 : item.severity === 'medium'
-                                  ? 'bg-yellow-200 text-yellow-700'
-                                  : 'bg-gray-200 text-gray-700'
+                                  ? 'bg-yellow-200 text-yellow-700 dark:bg-yellow-800/50 dark:text-yellow-300'
+                                  : 'bg-gray-200 text-gray-700 dark:bg-slate-600 dark:text-slate-300'
                             }`}
                           >
                             {item.severity === 'high'
@@ -262,9 +272,13 @@ function ReportDetailModal({
                                 : '低'}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-700">{item.description}</p>
+                        <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
+                          {item.description}
+                        </p>
                         {item.suggestedAction && (
-                          <p className="mt-2 text-sm text-blue-600">建议: {item.suggestedAction}</p>
+                          <p className="mt-2 text-sm text-blue-600 dark:text-blue-400">
+                            建议: {item.suggestedAction}
+                          </p>
                         )}
                       </div>
                     ))}
@@ -276,51 +290,51 @@ function ReportDetailModal({
 
           {activeTab === 'metrics' && (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="rounded-button bg-blue-50 p-4">
-                <div className="text-2xl font-bold text-blue-700">
+              <div className="rounded-button bg-blue-50 p-4 dark:bg-blue-900/20">
+                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                   {report.keyMetrics?.users?.total?.toLocaleString() || '-'}
                 </div>
-                <div className="text-sm text-blue-600">总用户</div>
+                <div className="text-sm text-blue-600 dark:text-blue-400">总用户</div>
               </div>
-              <div className="rounded-button bg-green-50 p-4">
-                <div className="text-2xl font-bold text-green-700">
+              <div className="rounded-button bg-green-50 p-4 dark:bg-green-900/20">
+                <div className="text-2xl font-bold text-green-700 dark:text-green-300">
                   {report.keyMetrics?.users?.active?.toLocaleString() || '-'}
                 </div>
-                <div className="text-sm text-green-600">活跃用户</div>
+                <div className="text-sm text-green-600 dark:text-green-400">活跃用户</div>
               </div>
-              <div className="rounded-button bg-purple-50 p-4">
-                <div className="text-2xl font-bold text-purple-700">
+              <div className="rounded-button bg-purple-50 p-4 dark:bg-purple-900/20">
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                   {report.keyMetrics?.users?.new?.toLocaleString() || '-'}
                 </div>
-                <div className="text-sm text-purple-600">新用户</div>
+                <div className="text-sm text-purple-600 dark:text-purple-400">新用户</div>
               </div>
-              <div className="rounded-button bg-yellow-50 p-4">
-                <div className="text-2xl font-bold text-yellow-700">
+              <div className="rounded-button bg-yellow-50 p-4 dark:bg-yellow-900/20">
+                <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
                   {report.keyMetrics?.learning?.totalAnswers?.toLocaleString() || '-'}
                 </div>
-                <div className="text-sm text-yellow-600">学习记录</div>
+                <div className="text-sm text-yellow-600 dark:text-yellow-400">学习记录</div>
               </div>
-              <div className="rounded-button bg-pink-50 p-4">
-                <div className="text-2xl font-bold text-pink-700">
+              <div className="rounded-button bg-pink-50 p-4 dark:bg-pink-900/20">
+                <div className="text-2xl font-bold text-pink-700 dark:text-pink-300">
                   {report.keyMetrics?.learning?.totalWordsLearned?.toLocaleString() || '-'}
                 </div>
-                <div className="text-sm text-pink-600">学习单词数</div>
+                <div className="text-sm text-pink-600 dark:text-pink-400">学习单词数</div>
               </div>
-              <div className="rounded-button bg-indigo-50 p-4">
-                <div className="text-2xl font-bold text-indigo-700">
+              <div className="rounded-button bg-indigo-50 p-4 dark:bg-indigo-900/20">
+                <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
                   {report.keyMetrics?.learning?.avgAccuracy
                     ? `${(report.keyMetrics.learning.avgAccuracy * 100).toFixed(1)}%`
                     : '-'}
                 </div>
-                <div className="text-sm text-indigo-600">平均正确率</div>
+                <div className="text-sm text-indigo-600 dark:text-indigo-400">平均正确率</div>
               </div>
-              <div className="rounded-button bg-teal-50 p-4">
-                <div className="text-2xl font-bold text-teal-700">
+              <div className="rounded-button bg-teal-50 p-4 dark:bg-teal-900/20">
+                <div className="text-2xl font-bold text-teal-700 dark:text-teal-300">
                   {report.keyMetrics?.learning?.avgResponseTime
                     ? `${(report.keyMetrics.learning.avgResponseTime / 1000).toFixed(1)}秒`
                     : '-'}
                 </div>
-                <div className="text-sm text-teal-600">平均响应时间</div>
+                <div className="text-sm text-teal-600 dark:text-teal-400">平均响应时间</div>
               </div>
             </div>
           )}
@@ -329,7 +343,10 @@ function ReportDetailModal({
             <div className="space-y-4">
               {report.recommendations && report.recommendations.length > 0 ? (
                 report.recommendations.map((item, idx) => (
-                  <div key={idx} className="rounded-button border border-gray-200 bg-white p-4">
+                  <div
+                    key={idx}
+                    className="rounded-button border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-700"
+                  >
                     <div className="mb-2 flex items-center gap-2">
                       <Lightning
                         className={`h-5 w-5 ${
@@ -340,16 +357,16 @@ function ReportDetailModal({
                               : 'text-gray-500'
                         }`}
                       />
-                      <h4 className="font-medium text-gray-900">{item.action}</h4>
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      <h4 className="font-medium text-gray-900 dark:text-white">{item.action}</h4>
+                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-slate-600 dark:text-slate-300">
                         {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">{item.reason}</p>
+                    <p className="text-sm text-gray-700 dark:text-slate-300">{item.reason}</p>
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-gray-500">暂无建议</div>
+                <div className="py-8 text-center text-gray-500 dark:text-slate-400">暂无建议</div>
               )}
             </div>
           )}
@@ -376,22 +393,22 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
   };
 
   return (
-    <div className="rounded-button border border-gray-200 bg-white p-4">
+    <div className="rounded-button border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Brain className="h-5 w-5 text-purple-500" />
           <div>
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-gray-900 dark:text-white">
               {segmentNames[insight.userSegment] || insight.userSegment}
             </span>
-            <span className="ml-2 text-sm text-gray-500">
+            <span className="ml-2 text-sm text-gray-500 dark:text-slate-400">
               {insight.userCount} 用户 · {insight.dataPoints} 数据点
             </span>
           </div>
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200"
         >
           {expanded ? <CaretUp className="h-5 w-5" /> : <CaretDown className="h-5 w-5" />}
         </button>
@@ -402,17 +419,23 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
           {/* 行为模式 */}
           {insight.patterns && insight.patterns.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-medium text-gray-700">行为模式</h4>
+              <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                行为模式
+              </h4>
               <div className="space-y-2">
                 {insight.patterns.map((pattern, idx) => (
-                  <div key={idx} className="rounded bg-gray-50 p-3">
+                  <div key={idx} className="rounded bg-gray-50 p-3 dark:bg-slate-700">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{pattern.name}</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-sm font-medium dark:text-slate-200">
+                        {pattern.name}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
                         {(pattern.prevalence * 100).toFixed(0)}% 用户
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-600">{pattern.description}</p>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                      {pattern.description}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -422,13 +445,21 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
           {/* 洞察 */}
           {insight.insights && insight.insights.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-medium text-gray-700">关键洞察</h4>
+              <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                关键洞察
+              </h4>
               <div className="space-y-2">
                 {insight.insights.map((item, idx) => (
-                  <div key={idx} className="rounded bg-purple-50 p-3">
-                    <h5 className="text-sm font-medium text-purple-800">{item.title}</h5>
-                    <p className="mt-1 text-sm text-purple-700">{item.description}</p>
-                    <p className="mt-1 text-xs text-purple-600">数据支撑: {item.dataSupport}</p>
+                  <div key={idx} className="rounded bg-purple-50 p-3 dark:bg-purple-900/20">
+                    <h5 className="text-sm font-medium text-purple-800 dark:text-purple-300">
+                      {item.title}
+                    </h5>
+                    <p className="mt-1 text-sm text-purple-700 dark:text-purple-400">
+                      {item.description}
+                    </p>
+                    <p className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                      数据支撑: {item.dataSupport}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -438,13 +469,21 @@ function InsightCard({ insight }: { insight: UserBehaviorInsight }) {
           {/* 建议 */}
           {insight.recommendations && insight.recommendations.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-medium text-gray-700">运营建议</h4>
+              <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                运营建议
+              </h4>
               <div className="space-y-2">
                 {insight.recommendations.map((rec, idx) => (
-                  <div key={idx} className="rounded bg-blue-50 p-3">
-                    <h5 className="text-sm font-medium text-blue-800">{rec.title}</h5>
-                    <p className="mt-1 text-sm text-blue-700">{rec.description}</p>
-                    <p className="mt-1 text-xs text-blue-600">预期影响: {rec.expectedImpact}</p>
+                  <div key={idx} className="rounded bg-blue-50 p-3 dark:bg-blue-900/20">
+                    <h5 className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                      {rec.title}
+                    </h5>
+                    <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+                      {rec.description}
+                    </p>
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      预期影响: {rec.expectedImpact}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -503,8 +542,10 @@ export default function WeeklyReportPage() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">运营周报</h1>
-          <p className="mt-1 text-sm text-gray-500">系统运行状态、健康度趋势和用户行为洞察</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">运营周报</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+            系统运行状态、健康度趋势和用户行为洞察
+          </p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -556,10 +597,10 @@ export default function WeeklyReportPage() {
       </div>
 
       {/* 健康度趋势 */}
-      <div className="rounded-button border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center gap-2">
           <ChartLine className="h-5 w-5 text-blue-500" />
-          <h2 className="text-lg font-medium text-gray-900">健康度趋势</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">健康度趋势</h2>
         </div>
 
         {loadingTrend ? (
@@ -580,7 +621,7 @@ export default function WeeklyReportPage() {
                     className={`w-full rounded-t transition-all ${getHealthBarBg(point.healthScore)}`}
                     style={{ height: `${barHeight}%`, minHeight: '4px' }}
                   />
-                  <span className="mt-1 text-xs text-gray-500">
+                  <span className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                     {new Date(point.weekStart).toLocaleDateString('zh-CN', {
                       month: 'numeric',
                       day: 'numeric',
@@ -591,16 +632,22 @@ export default function WeeklyReportPage() {
             })}
           </div>
         ) : (
-          <div className="flex h-32 items-center justify-center text-gray-500">暂无趋势数据</div>
+          <div className="flex h-32 items-center justify-center text-gray-500 dark:text-slate-400">
+            暂无趋势数据
+          </div>
         )}
       </div>
 
       {/* 周报历史 */}
-      <div className="rounded-button border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-blue-500" />
-          <h2 className="text-lg font-medium text-gray-900">历史周报</h2>
-          {reportsData && <span className="text-sm text-gray-500">共 {reportsData.total} 份</span>}
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">历史周报</h2>
+          {reportsData && (
+            <span className="text-sm text-gray-500 dark:text-slate-400">
+              共 {reportsData.total} 份
+            </span>
+          )}
         </div>
 
         {loadingReports ? (
@@ -620,22 +667,22 @@ export default function WeeklyReportPage() {
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center text-gray-500">暂无周报记录</div>
+          <div className="py-8 text-center text-gray-500 dark:text-slate-400">暂无周报记录</div>
         )}
       </div>
 
       {/* 用户行为洞察 */}
-      <div className="rounded-button border border-gray-200 bg-white p-6">
+      <div className="rounded-button border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-purple-500" />
-            <h2 className="text-lg font-medium text-gray-900">用户行为洞察</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">用户行为洞察</h2>
           </div>
           <div className="flex items-center gap-3">
             <select
               value={selectedSegment || ''}
               onChange={(e) => setSelectedSegment((e.target.value as UserSegment) || undefined)}
-              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-button border border-gray-300 px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             >
               <option value="">全部分群</option>
               {segments?.map((seg) => (
@@ -673,7 +720,7 @@ export default function WeeklyReportPage() {
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center text-gray-500">
+          <div className="py-8 text-center text-gray-500 dark:text-slate-400">
             <p>暂无洞察数据</p>
             <p className="mt-1 text-sm">点击"生成洞察"按钮创建用户行为分析</p>
           </div>

@@ -300,10 +300,9 @@ export default function HistoryPage() {
     }
 
     return (
-      <div className="rounded-card border border-gray-200 bg-white p-5 transition-all hover:shadow-elevated">
-        {/* 标题和趋势箭头 */}
+      <div className="rounded-card border border-gray-200 bg-white p-5 transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-500">{label}</span>
+          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</span>
           {hasChange && (
             <span
               className={`text-sm font-semibold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}
@@ -313,7 +312,6 @@ export default function HistoryPage() {
           )}
         </div>
 
-        {/* 主数值 - 大号显示 */}
         <div className="mb-3 text-center">
           <span className="text-4xl font-bold" style={{ color }}>
             {displayValue}
@@ -321,7 +319,6 @@ export default function HistoryPage() {
           <span className="ml-1 text-lg text-gray-400">%</span>
         </div>
 
-        {/* 迷你折线图（仅当数据>=3天时显示） */}
         {showMiniChart && (
           <div className="mb-3">
             <svg
@@ -338,7 +335,6 @@ export default function HistoryPage() {
                 strokeLinejoin="round"
                 opacity="0.8"
               />
-              {/* 起点和终点圆点 */}
               {values.length > 0 &&
                 (() => {
                   const minVal = Math.min(...values);
@@ -370,8 +366,7 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* 简洁的进度条 */}
-        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
           <div
             className="h-full rounded-full transition-all duration-g3-slower ease-g3"
             style={{
@@ -437,7 +432,7 @@ export default function HistoryPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center dark:bg-slate-900">
         <div className="text-center">
           <CircleNotch
             className="mx-auto mb-4 animate-spin"
@@ -445,7 +440,7 @@ export default function HistoryPage() {
             weight="bold"
             color={IconColor.primary}
           />
-          <p className="text-gray-600" role="status" aria-live="polite">
+          <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
             正在加载...
           </p>
         </div>
@@ -455,7 +450,7 @@ export default function HistoryPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
+      <div className="flex min-h-screen animate-g3-fade-in items-center justify-center dark:bg-slate-900">
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning
             className="mx-auto mb-4"
@@ -464,8 +459,8 @@ export default function HistoryPage() {
             color={IconColor.danger}
             aria-hidden="true"
           />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">出错了</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
@@ -478,11 +473,11 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
       <div className="mx-auto max-w-7xl animate-g3-fade-in px-4 py-8">
         <header className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">学习历史</h1>
-          <p className="text-gray-600">追踪你的学习进度，掌握每个单词</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">学习历史</h1>
+          <p className="text-gray-600 dark:text-gray-400">追踪你的学习进度，掌握每个单词</p>
         </header>
 
         {/* 视图切换 */}
@@ -492,7 +487,7 @@ export default function HistoryPage() {
             className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
               viewMode === 'words'
                 ? 'bg-blue-500 text-white shadow-soft'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
             <BookOpen size={18} weight="bold" />
@@ -503,7 +498,7 @@ export default function HistoryPage() {
             className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
               viewMode === 'state'
                 ? 'bg-blue-500 text-white shadow-soft'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
             <ChartLine size={18} weight="bold" />
@@ -514,7 +509,7 @@ export default function HistoryPage() {
             className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
               viewMode === 'sessions'
                 ? 'bg-blue-500 text-white shadow-soft'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700'
             }`}
           >
             <Play size={18} weight="bold" />
@@ -533,18 +528,22 @@ export default function HistoryPage() {
                   weight="bold"
                   color={IconColor.primary}
                 />
-                <p className="text-gray-600">正在加载会话列表...</p>
+                <p className="text-gray-600 dark:text-gray-400">正在加载会话列表...</p>
               </div>
             ) : sessions.length === 0 ? (
-              <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
+              <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
                 <Play
                   size={64}
                   weight="duotone"
                   color={IconColor.primary}
                   className="mx-auto mb-4"
                 />
-                <h2 className="mb-2 text-xl font-bold text-blue-800">暂无学习会话</h2>
-                <p className="mb-4 text-blue-600">开始学习后会自动创建学习会话</p>
+                <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
+                  暂无学习会话
+                </h2>
+                <p className="mb-4 text-blue-600 dark:text-blue-300">
+                  开始学习后会自动创建学习会话
+                </p>
                 <button
                   onClick={() => navigate('/learning')}
                   className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -568,7 +567,7 @@ export default function HistoryPage() {
                     return (
                       <div
                         key={session.id}
-                        className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated"
+                        className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800/80"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -576,17 +575,17 @@ export default function HistoryPage() {
                               <span
                                 className={`rounded-full px-3 py-1 text-xs font-bold ${
                                   session.endedAt
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-yellow-100 text-yellow-700'
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
                                 }`}
                               >
                                 {session.endedAt ? '已完成' : '进行中'}
                               </span>
-                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                                 {session.sessionType}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                               {startDate.toLocaleDateString('zh-CN')}{' '}
                               {startDate.toLocaleTimeString('zh-CN', {
                                 hour: '2-digit',
@@ -596,7 +595,7 @@ export default function HistoryPage() {
                           </div>
                           <button
                             onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
-                            className="rounded-button border border-gray-200 px-3 py-1 text-sm text-gray-600 transition-all hover:bg-gray-50"
+                            className="rounded-button border border-gray-200 px-3 py-1 text-sm text-gray-600 transition-all hover:bg-gray-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
                           >
                             {isExpanded ? '收起' : '详情'}
                           </button>
@@ -604,16 +603,16 @@ export default function HistoryPage() {
 
                         <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
                               <Hash size={14} />
                               <span className="text-xs">题目数</span>
                             </div>
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
                               {session.totalQuestions}
                             </p>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
                               <CheckCircle size={14} />
                               <span className="text-xs">掌握数</span>
                             </div>
@@ -622,18 +621,18 @@ export default function HistoryPage() {
                             </p>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-gray-500">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
                               <Timer size={14} />
                               <span className="text-xs">时长</span>
                             </div>
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
                               {Math.floor(session.duration / 60)}分{session.duration % 60}秒
                             </p>
                           </div>
                           {session.flowPeakScore !== undefined &&
                             session.flowPeakScore !== null && (
                               <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 text-gray-500">
+                                <div className="flex items-center justify-center gap-1 text-gray-500 dark:text-gray-400">
                                   <Brain size={14} />
                                   <span className="text-xs">心流峰值</span>
                                 </div>
@@ -646,11 +645,11 @@ export default function HistoryPage() {
 
                         {completionRate !== null && (
                           <div className="mt-4">
-                            <div className="mb-1 flex justify-between text-xs text-gray-500">
+                            <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
                               <span>目标完成度</span>
                               <span>{completionRate.toFixed(0)}%</span>
                             </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                            <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
                                 style={{ width: `${completionRate}%` }}
@@ -660,14 +659,14 @@ export default function HistoryPage() {
                         )}
 
                         {isExpanded && (
-                          <div className="mt-4 border-t border-gray-100 pt-4">
-                            <p className="text-sm text-gray-500">
+                          <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                               会话ID:{' '}
-                              <code className="rounded bg-gray-100 px-2 py-0.5 text-xs">
+                              <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-slate-700">
                                 {session.id}
                               </code>
                             </p>
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                               答题记录数: {session.answerRecordCount} | 上下文切换:{' '}
                               {session.contextShifts}
                             </p>
@@ -688,11 +687,11 @@ export default function HistoryPage() {
                         }))
                       }
                       disabled={sessionsPagination.offset === 0}
-                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50"
+                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
                     >
                       上一页
                     </button>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {Math.floor(sessionsPagination.offset / sessionsPagination.limit) + 1} /{' '}
                       {Math.ceil(sessionsPagination.total / sessionsPagination.limit)}
                     </span>
@@ -704,7 +703,7 @@ export default function HistoryPage() {
                         sessionsPagination.offset + sessionsPagination.limit >=
                         sessionsPagination.total
                       }
-                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50"
+                      className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
                     >
                       下一页
                     </button>
@@ -719,10 +718,12 @@ export default function HistoryPage() {
         {viewMode === 'state' && (
           <>
             {/* 日期范围选择器 */}
-            <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
+            <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-4 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
               <div className="flex items-center gap-4">
                 <Calendar size={20} weight="duotone" color={IconColor.primary} />
-                <span className="text-sm font-medium text-gray-700">时间范围:</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  时间范围:
+                </span>
                 <div className="flex gap-2">
                   {([7, 30, 90] as DateRangeOption[]).map((range) => (
                     <button
@@ -731,7 +732,7 @@ export default function HistoryPage() {
                       className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast ${
                         dateRange === range
                           ? 'bg-blue-500 text-white shadow-soft'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                       }`}
                     >
                       {range} 天
@@ -749,22 +750,23 @@ export default function HistoryPage() {
                   weight="bold"
                   color={IconColor.primary}
                 />
-                <p className="text-gray-600">正在加载状态历史...</p>
+                <p className="text-gray-600 dark:text-gray-400">正在加载状态历史...</p>
               </div>
             ) : (
               <>
                 {/* 认知成长对比卡片 */}
                 {cognitiveGrowth && (
-                  <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+                  <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                       <Brain size={24} weight="duotone" color={chartColors.memory} />
                       认知成长对比（{cognitiveGrowth.period} 天）
                     </h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      {/* 记忆力 */}
-                      <div className="rounded-card bg-purple-50 p-4">
+                      <div className="rounded-card bg-purple-50 p-4 dark:bg-purple-900/30">
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-purple-700">记忆力</span>
+                          <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                            记忆力
+                          </span>
                           <div
                             className={`flex items-center gap-1 ${
                               cognitiveGrowth.changes.memory.direction === 'up'
@@ -783,20 +785,21 @@ export default function HistoryPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {(cognitiveGrowth.past.memory * 100).toFixed(0)}%
                           </span>
                           <span className="text-gray-400">→</span>
-                          <span className="font-bold text-purple-700">
+                          <span className="font-bold text-purple-700 dark:text-purple-300">
                             {(cognitiveGrowth.current.memory * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
 
-                      {/* 速度 */}
-                      <div className="rounded-card bg-blue-50 p-4">
+                      <div className="rounded-card bg-blue-50 p-4 dark:bg-blue-900/30">
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-blue-700">速度</span>
+                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            速度
+                          </span>
                           <div
                             className={`flex items-center gap-1 ${
                               cognitiveGrowth.changes.speed.direction === 'up'
@@ -815,20 +818,21 @@ export default function HistoryPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {(cognitiveGrowth.past.speed * 100).toFixed(0)}%
                           </span>
                           <span className="text-gray-400">→</span>
-                          <span className="font-bold text-blue-700">
+                          <span className="font-bold text-blue-700 dark:text-blue-300">
                             {(cognitiveGrowth.current.speed * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
 
-                      {/* 稳定性 */}
-                      <div className="rounded-card bg-green-50 p-4">
+                      <div className="rounded-card bg-green-50 p-4 dark:bg-green-900/30">
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-green-700">稳定性</span>
+                          <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                            稳定性
+                          </span>
                           <div
                             className={`flex items-center gap-1 ${
                               cognitiveGrowth.changes.stability.direction === 'up'
@@ -847,11 +851,11 @@ export default function HistoryPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {(cognitiveGrowth.past.stability * 100).toFixed(0)}%
                           </span>
                           <span className="text-gray-400">→</span>
-                          <span className="font-bold text-green-700">
+                          <span className="font-bold text-green-700 dark:text-green-300">
                             {(cognitiveGrowth.current.stability * 100).toFixed(0)}%
                           </span>
                         </div>
@@ -862,9 +866,9 @@ export default function HistoryPage() {
 
                 {/* 状态历史折线图 */}
                 {stateHistory.length > 0 && (
-                  <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+                  <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-5 flex items-center justify-between">
-                      <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                      <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                         <ChartLine size={24} weight="duotone" color={IconColor.primary} />
                         状态历史趋势
                       </h2>
@@ -886,8 +890,8 @@ export default function HistoryPage() {
 
                 {/* 显著变化标记 */}
                 {significantChanges.length > 0 && (
-                  <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+                  <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                       <Target size={24} weight="duotone" color={IconColor.warning} />
                       显著变化
                     </h2>
@@ -897,8 +901,8 @@ export default function HistoryPage() {
                           key={index}
                           className={`flex items-center gap-4 rounded-card border-2 p-4 transition-all ${
                             change.isPositive
-                              ? 'border-green-300 bg-green-50'
-                              : 'border-red-300 bg-red-50'
+                              ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/30'
+                              : 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30'
                           } `}
                         >
                           <div
@@ -912,11 +916,13 @@ export default function HistoryPage() {
                           </div>
                           <div className="flex-1">
                             <p
-                              className={`font-medium ${change.isPositive ? 'text-green-700' : 'text-red-700'}`}
+                              className={`font-medium ${change.isPositive ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}
                             >
                               {change.metricLabel}
                             </p>
-                            <p className="text-sm text-gray-600">{change.description}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {change.description}
+                            </p>
                           </div>
                           <div
                             className={`text-right ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}
@@ -925,7 +931,7 @@ export default function HistoryPage() {
                               {change.changePercent > 0 ? '+' : ''}
                               {change.changePercent.toFixed(1)}%
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               {formatShortDate(change.startDate)} -{' '}
                               {formatShortDate(change.endDate)}
                             </p>
@@ -939,15 +945,19 @@ export default function HistoryPage() {
                 {stateHistory.length === 0 &&
                   !cognitiveGrowth &&
                   significantChanges.length === 0 && (
-                    <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
+                    <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
                       <ChartLine
                         size={64}
                         weight="duotone"
                         color={IconColor.primary}
                         className="mx-auto mb-4"
                       />
-                      <h2 className="mb-2 text-xl font-bold text-blue-800">暂无状态历史数据</h2>
-                      <p className="mb-4 text-blue-600">继续学习，系统会自动记录你的学习状态</p>
+                      <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
+                        暂无状态历史数据
+                      </h2>
+                      <p className="mb-4 text-blue-600 dark:text-blue-300">
+                        继续学习，系统会自动记录你的学习状态
+                      </p>
                       <button
                         onClick={() => navigate('/learning')}
                         className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -972,8 +982,12 @@ export default function HistoryPage() {
                   weight="thin"
                   color={IconColor.muted}
                 />
-                <h2 className="mb-3 text-2xl font-bold text-gray-900">还没有学习记录</h2>
-                <p className="mb-8 text-gray-600">开始学习单词后，这里会显示你的学习统计</p>
+                <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
+                  还没有学习记录
+                </h2>
+                <p className="mb-8 text-gray-600 dark:text-gray-400">
+                  开始学习单词后，这里会显示你的学习统计
+                </p>
                 <button
                   onClick={() => navigate('/')}
                   className="rounded-button bg-blue-500 px-8 py-4 font-medium text-white shadow-elevated transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 hover:shadow-floating focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
@@ -983,20 +997,25 @@ export default function HistoryPage() {
               </div>
             ) : (
               <>
-                {/* 统计面板 */}
                 <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+                  <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-2 flex items-center gap-3">
                       <ChartBar size={32} weight="duotone" color={IconColor.primary} />
-                      <span className="text-sm font-medium text-gray-600">总学习单词</span>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        总学习单词
+                      </span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900">{statistics.total}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                      {statistics.total}
+                    </p>
                   </div>
 
-                  <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+                  <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                     <div className="mb-2 flex items-center gap-3">
                       <Target size={32} weight="duotone" color={chartColors.memory} />
-                      <span className="text-sm font-medium text-gray-600">平均正确率</span>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        平均正确率
+                      </span>
                     </div>
                     <p
                       className={`text-3xl font-bold ${getCorrectRateColor(statistics.avgCorrectRate)}`}
@@ -1005,18 +1024,22 @@ export default function HistoryPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-card border border-green-200 bg-green-50 p-6 shadow-soft">
+                  <div className="rounded-card border border-green-200 bg-green-50 p-6 shadow-soft dark:border-green-800 dark:bg-green-900/30">
                     <div className="mb-2 flex items-center gap-3">
                       <CheckCircle size={32} weight="duotone" color={IconColor.success} />
-                      <span className="text-sm font-medium text-green-700">已掌握</span>
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                        已掌握
+                      </span>
                     </div>
                     <p className="text-3xl font-bold text-green-600">{statistics.mastered}</p>
                   </div>
 
-                  <div className="rounded-card border border-red-200 bg-red-50 p-6 shadow-soft">
+                  <div className="rounded-card border border-red-200 bg-red-50 p-6 shadow-soft dark:border-red-800 dark:bg-red-900/30">
                     <div className="mb-2 flex items-center gap-3">
                       <Warning size={32} weight="duotone" color={IconColor.danger} />
-                      <span className="text-sm font-medium text-red-700">需复习</span>
+                      <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                        需复习
+                      </span>
                     </div>
                     <p className="text-3xl font-bold text-red-600">
                       {statistics.reviewing + statistics.struggling}
@@ -1025,17 +1048,19 @@ export default function HistoryPage() {
                 </div>
 
                 {/* 筛选和排序 */}
-                <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+                <div className="mb-8 rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                   <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                     <div>
-                      <h3 className="mb-3 text-sm font-medium text-gray-700">筛选</h3>
+                      <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        筛选
+                      </h3>
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setFilterBy('all')}
                           className={`rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             filterBy === 'all'
                               ? 'bg-blue-500 text-white shadow-elevated'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
                           全部 ({stats.length})
@@ -1045,7 +1070,7 @@ export default function HistoryPage() {
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             filterBy === 'mastered'
                               ? 'bg-green-500 text-white shadow-elevated'
-                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300 dark:hover:bg-green-900/70'
                           }`}
                         >
                           <CheckCircle size={16} weight="bold" />
@@ -1056,7 +1081,7 @@ export default function HistoryPage() {
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             filterBy === 'reviewing'
                               ? 'bg-yellow-500 text-white shadow-elevated'
-                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:hover:bg-yellow-900/70'
                           }`}
                         >
                           <Warning size={16} weight="bold" />
@@ -1067,7 +1092,7 @@ export default function HistoryPage() {
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             filterBy === 'struggling'
                               ? 'bg-red-500 text-white shadow-elevated'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900/70'
                           }`}
                         >
                           <Warning size={16} weight="bold" />
@@ -1077,14 +1102,16 @@ export default function HistoryPage() {
                     </div>
 
                     <div>
-                      <h3 className="mb-3 text-sm font-medium text-gray-700">排序</h3>
+                      <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        排序
+                      </h3>
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setSortBy('time')}
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             sortBy === 'time'
-                              ? 'bg-gray-900 text-white shadow-elevated'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-gray-900 text-white shadow-elevated dark:bg-white dark:text-gray-900'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
                           <Clock size={16} weight="bold" />
@@ -1094,8 +1121,8 @@ export default function HistoryPage() {
                           onClick={() => setSortBy('correctRate')}
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             sortBy === 'correctRate'
-                              ? 'bg-gray-900 text-white shadow-elevated'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-gray-900 text-white shadow-elevated dark:bg-white dark:text-gray-900'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
                           <TrendUp size={16} weight="bold" />
@@ -1105,8 +1132,8 @@ export default function HistoryPage() {
                           onClick={() => setSortBy('attempts')}
                           className={`flex items-center gap-2 rounded-button px-4 py-2 font-medium transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                             sortBy === 'attempts'
-                              ? 'bg-gray-900 text-white shadow-elevated'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-gray-900 text-white shadow-elevated dark:bg-white dark:text-gray-900'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
                           }`}
                         >
                           <Hash size={16} weight="bold" />
@@ -1117,7 +1144,6 @@ export default function HistoryPage() {
                   </div>
                 </div>
 
-                {/* 单词卡片网格 */}
                 {currentStats.length === 0 ? (
                   <div className="animate-g3-fade-in py-12 text-center">
                     <MagnifyingGlass
@@ -1126,7 +1152,9 @@ export default function HistoryPage() {
                       weight="thin"
                       color={IconColor.muted}
                     />
-                    <p className="text-lg text-gray-600">没有找到符合条件的单词</p>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">
+                      没有找到符合条件的单词
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -1136,10 +1164,9 @@ export default function HistoryPage() {
                         return (
                           <div
                             key={stat.wordId}
-                            className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated ${mastery.border}`}
+                            className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:bg-slate-800/80 ${mastery.border}`}
                             style={{ animationDelay: `${index * 30}ms` }}
                           >
-                            {/* 掌握程度标签 */}
                             <div
                               className={`absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${mastery.bg} ${mastery.color}`}
                             >
@@ -1147,20 +1174,18 @@ export default function HistoryPage() {
                               {mastery.label}
                             </div>
 
-                            {/* 单词名称 */}
                             <div className="mb-4">
                               <h3
-                                className="mb-0.5 truncate text-xl font-bold text-gray-900"
+                                className="mb-0.5 truncate text-xl font-bold text-gray-900 dark:text-white"
                                 title={stat.spelling}
                               >
                                 {stat.spelling}
                               </h3>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatDate(stat.lastStudied)}
                               </p>
                             </div>
 
-                            {/* 圆形进度条 - 缩小尺寸 */}
                             <div className="mb-4 flex items-center justify-center">
                               <div className="relative h-20 w-20">
                                 <svg className="h-20 w-20 -rotate-90 transform">
@@ -1171,7 +1196,7 @@ export default function HistoryPage() {
                                     stroke="currentColor"
                                     strokeWidth="6"
                                     fill="none"
-                                    className="text-gray-200"
+                                    className="text-gray-200 dark:text-slate-700"
                                   />
                                   <circle
                                     cx="40"
@@ -1202,14 +1227,19 @@ export default function HistoryPage() {
                               </div>
                             </div>
 
-                            {/* 统计信息 - 紧凑布局 */}
-                            <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+                            <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
                               <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500">次数</p>
-                                <p className="text-sm font-bold text-gray-900">{stat.attempts}</p>
+                                <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                  次数
+                                </p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {stat.attempts}
+                                </p>
                               </div>
                               <div className="text-center">
-                                <p className="mb-0.5 text-xs text-gray-500">正确</p>
+                                <p className="mb-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                  正确
+                                </p>
                                 <p className="text-sm font-bold text-green-600">{stat.correct}</p>
                               </div>
                             </div>
@@ -1224,17 +1254,17 @@ export default function HistoryPage() {
                         <button
                           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
-                          className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
                         >
                           上一页
                         </button>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
                           {currentPage} / {totalPages}
                         </span>
                         <button
                           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
-                          className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700"
                         >
                           下一页
                         </button>

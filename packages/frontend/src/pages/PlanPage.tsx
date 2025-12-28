@@ -173,16 +173,21 @@ export default function PlanPage() {
       <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto h-full w-full max-w-[200px]">
         {slices}
         {/* 中心圆 */}
-        <circle cx={center} cy={center} r={40} fill="white" />
+        <circle cx={center} cy={center} r={40} className="fill-white dark:fill-slate-800" />
         <text
           x={center}
           y={center - 5}
           textAnchor="middle"
-          className="fill-gray-700 text-sm font-bold"
+          className="fill-gray-700 text-sm font-bold dark:fill-gray-200"
         >
           {distribution.length}
         </text>
-        <text x={center} y={center + 15} textAnchor="middle" className="fill-gray-500 text-xs">
+        <text
+          x={center}
+          y={center + 15}
+          textAnchor="middle"
+          className="fill-gray-500 text-xs dark:fill-gray-400"
+        >
           词书
         </text>
       </svg>
@@ -199,7 +204,7 @@ export default function PlanPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">正在加载学习计划...</p>
+          <p className="text-gray-600 dark:text-gray-400">正在加载学习计划...</p>
         </div>
       </div>
     );
@@ -210,8 +215,8 @@ export default function PlanPage() {
       <div className="flex min-h-screen animate-g3-fade-in items-center justify-center">
         <div className="max-w-md px-4 text-center" role="alert">
           <Warning className="mx-auto mb-4" size={64} weight="fill" color="#ef4444" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">出错了</h2>
-          <p className="mb-6 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">出错了</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={loadData}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -224,23 +229,27 @@ export default function PlanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto max-w-6xl animate-g3-fade-in px-4 py-8">
         {/* 页面标题 */}
         <header className="mb-8">
-          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900">
+          <h1 className="mb-2 flex items-center gap-3 text-3xl font-bold text-gray-900 dark:text-white">
             <Target size={32} weight="duotone" color="#3b82f6" />
             学习计划
           </h1>
-          <p className="text-gray-600">智能规划你的学习目标，高效完成词汇学习</p>
+          <p className="text-gray-600 dark:text-gray-400">智能规划你的学习目标，高效完成词汇学习</p>
         </header>
 
         {/* 无计划时显示创建按钮 */}
         {!plan ? (
-          <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center">
+          <div className="rounded-card border-2 border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/20">
             <Calendar size={64} weight="duotone" color="#3b82f6" className="mx-auto mb-4" />
-            <h2 className="mb-2 text-xl font-bold text-blue-800">还没有学习计划</h2>
-            <p className="mb-6 text-blue-600">创建一个智能学习计划，让学习更有目标</p>
+            <h2 className="mb-2 text-xl font-bold text-blue-800 dark:text-blue-200">
+              还没有学习计划
+            </h2>
+            <p className="mb-6 text-blue-600 dark:text-blue-300">
+              创建一个智能学习计划，让学习更有目标
+            </p>
             <button
               onClick={() => setShowGenerateModal(true)}
               className="mx-auto flex items-center gap-2 rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:scale-105 hover:bg-blue-600 active:scale-95"
@@ -254,25 +263,27 @@ export default function PlanPage() {
             {/* 每日目标卡片 */}
             <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {/* 今日目标 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                     <Target size={24} weight="duotone" color="#2563eb" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">今日目标</p>
-                    <p className="text-2xl font-bold text-gray-900">{plan.dailyTarget} 词</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">今日目标</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {plan.dailyTarget} 词
+                    </p>
                   </div>
                 </div>
                 {progress && (
                   <div>
                     <div className="mb-1 flex justify-between text-sm">
-                      <span className="text-gray-600">已完成</span>
+                      <span className="text-gray-600 dark:text-gray-400">已完成</span>
                       <span className="font-medium text-blue-600">
                         {progress.completedToday} / {progress.targetToday}
                       </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
+                    <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-slate-700">
                       <div
                         className="h-2 rounded-full bg-blue-500 transition-all duration-g3-slow"
                         style={{
@@ -285,20 +296,20 @@ export default function PlanPage() {
               </div>
 
               {/* 本周进度 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
                     <CheckCircle size={24} weight="duotone" color="#16a34a" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">本周进度</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">本周进度</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {progress ? Math.round(progress.weeklyProgress) : 0}%
                     </p>
                   </div>
                 </div>
                 {progress && (
-                  <div className="h-2 w-full rounded-full bg-gray-200">
+                  <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
                       className="h-2 rounded-full bg-green-500 transition-all duration-g3-slow"
                       style={{ width: `${progress.weeklyProgress}%` }}
@@ -308,20 +319,20 @@ export default function PlanPage() {
               </div>
 
               {/* 总体进度 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
                     <ChartBar size={24} weight="duotone" color="#9333ea" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">总体进度</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">总体进度</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {progress ? Math.round(progress.overallProgress) : 0}%
                     </p>
                   </div>
                 </div>
                 {progress && (
-                  <div className="h-2 w-full rounded-full bg-gray-200">
+                  <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
                       className="h-2 rounded-full bg-purple-500 transition-all duration-g3-slow"
                       style={{ width: `${progress.overallProgress}%` }}
@@ -331,11 +342,13 @@ export default function PlanPage() {
               </div>
 
               {/* 计划状态 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
                 <div className="mb-4 flex items-center gap-3">
                   <div
                     className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                      progress?.onTrack ? 'bg-green-100' : 'bg-yellow-100'
+                      progress?.onTrack
+                        ? 'bg-green-100 dark:bg-green-900/30'
+                        : 'bg-yellow-100 dark:bg-yellow-900/30'
                     }`}
                   >
                     {progress?.onTrack ? (
@@ -345,7 +358,7 @@ export default function PlanPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">计划状态</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">计划状态</p>
                     <p
                       className={`text-lg font-bold ${progress?.onTrack ? 'text-green-600' : 'text-yellow-600'}`}
                     >
@@ -367,8 +380,8 @@ export default function PlanPage() {
             {/* 预计完成日期和词书分配 */}
             <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* 预计完成日期 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                   <Calendar size={24} weight="duotone" color="#3b82f6" />
                   预计完成日期
                 </h2>
@@ -376,23 +389,23 @@ export default function PlanPage() {
                   <p className="mb-2 text-4xl font-bold text-blue-600">
                     {formatDate(plan.estimatedCompletionDate)}
                   </p>
-                  <p className="text-gray-500">
+                  <p className="text-gray-500 dark:text-gray-400">
                     还剩{' '}
-                    <span className="font-bold text-gray-700">
+                    <span className="font-bold text-gray-700 dark:text-gray-300">
                       {getDaysRemaining(plan.estimatedCompletionDate)}
                     </span>{' '}
                     天
                   </p>
                 </div>
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <Clock size={16} weight="regular" />
                   <span>按当前进度计算</span>
                 </div>
               </div>
 
               {/* 词书分配饼图 */}
-              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+              <div className="rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                   <Books size={24} weight="duotone" color="#a855f7" />
                   词书分配
                 </h2>
@@ -414,10 +427,10 @@ export default function PlanPage() {
                             <div
                               className={`h-3 w-3 rounded-full ${colors[index % colors.length]}`}
                             />
-                            <span className="flex-1 text-sm text-gray-700">
+                            <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
                               {item.wordbookName || `词书 ${index + 1}`}
                             </span>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
                               {item.percentage}%
                             </span>
                           </div>
@@ -426,15 +439,17 @@ export default function PlanPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="py-8 text-center text-gray-500">暂无词书分配数据</p>
+                  <p className="py-8 text-center text-gray-500 dark:text-gray-400">
+                    暂无词书分配数据
+                  </p>
                 )}
               </div>
             </div>
 
             {/* 周里程碑 */}
             {plan.weeklyMilestones && plan.weeklyMilestones.length > 0 && (
-              <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+              <div className="mb-8 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
+                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                   <Target size={24} weight="duotone" color="#f59e0b" />
                   周里程碑
                 </h2>
@@ -444,8 +459,8 @@ export default function PlanPage() {
                       key={index}
                       className={`flex items-center gap-4 rounded-card border-2 p-4 transition-all ${
                         milestone.completed
-                          ? 'border-green-300 bg-green-50'
-                          : 'border-gray-200 bg-gray-50'
+                          ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950'
+                          : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'
                       } `}
                     >
                       <div
@@ -459,15 +474,17 @@ export default function PlanPage() {
                       </div>
                       <div className="flex-1">
                         <p
-                          className={`font-medium ${milestone.completed ? 'text-green-700' : 'text-gray-700'}`}
+                          className={`font-medium ${milestone.completed ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}
                         >
                           第 {milestone.week} 周
                         </p>
-                        <p className="text-sm text-gray-500">{milestone.description}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {milestone.description}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p
-                          className={`font-bold ${milestone.completed ? 'text-green-600' : 'text-gray-600'}`}
+                          className={`font-bold ${milestone.completed ? 'text-green-600' : 'text-gray-600 dark:text-gray-400'}`}
                         >
                           {milestone.target} 词
                         </p>
@@ -490,7 +507,7 @@ export default function PlanPage() {
               <button
                 onClick={handleAdjustPlan}
                 disabled={isAdjusting}
-                className="flex items-center gap-2 rounded-button bg-gray-100 px-6 py-3 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-button bg-gray-100 px-6 py-3 text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 disabled:opacity-50 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
               >
                 {isAdjusting ? (
                   <CircleNotch className="animate-spin" size={20} weight="bold" />
@@ -517,10 +534,10 @@ export default function PlanPage() {
             onClick={() => setShowGenerateModal(false)}
           >
             <div
-              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating"
+              className="mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900">
+              <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
                 <Target size={28} weight="duotone" color="#3b82f6" />
                 创建学习计划
               </h2>
@@ -528,7 +545,7 @@ export default function PlanPage() {
               <div className="space-y-6">
                 {/* 每日目标 */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     每日学习目标（单词数）
                   </label>
                   <input
@@ -542,14 +559,16 @@ export default function PlanPage() {
                         dailyTarget: parseInt(e.target.value) || 20,
                       }))
                     }
-                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-gray-500">建议范围：10-50 词/天</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    建议范围：10-50 词/天
+                  </p>
                 </div>
 
                 {/* 目标天数 */}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     计划周期（天）
                   </label>
                   <input
@@ -563,16 +582,16 @@ export default function PlanPage() {
                         targetDays: parseInt(e.target.value) || 30,
                       }))
                     }
-                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-card border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-gray-500">建议范围：7-90 天</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">建议范围：7-90 天</p>
                 </div>
               </div>
 
               <div className="mt-8 flex gap-4">
                 <button
                   onClick={() => setShowGenerateModal(false)}
-                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200"
+                  className="flex-1 rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
                 >
                   取消
                 </button>

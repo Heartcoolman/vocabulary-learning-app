@@ -21,18 +21,18 @@ export default function AboutLayout() {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* 侧边栏 */}
-      <aside className="flex w-64 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-sm">
+      <aside className="flex w-64 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80">
         {/* 标题区 */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 p-6 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-card bg-gradient-to-br from-blue-500 to-indigo-600 shadow-elevated shadow-blue-500/25">
               <Sparkle size={24} weight="fill" className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">AMAS</h1>
-              <p className="text-xs text-gray-500">智能学习引擎</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">AMAS</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">智能学习引擎</p>
             </div>
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function AboutLayout() {
                 className={`flex items-center gap-3 rounded-card px-4 py-3 transition-all duration-g3-fast hover:scale-[1.02] active:scale-[0.98] ${
                   finalActive
                     ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-elevated shadow-blue-500/25'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800'
                 } `}
               >
                 <IconComponent size={20} weight={finalActive ? 'fill' : 'regular'} />
@@ -65,7 +65,7 @@ export default function AboutLayout() {
         </nav>
 
         {/* 底部登录按钮 */}
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-4 dark:border-slate-700">
           <Link
             to="/login"
             className="flex w-full items-center justify-center gap-2 rounded-card bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 font-medium text-white shadow-elevated shadow-green-500/25 transition-all duration-g3-fast hover:scale-[1.02] hover:shadow-floating hover:shadow-green-500/30 active:scale-[0.98]"

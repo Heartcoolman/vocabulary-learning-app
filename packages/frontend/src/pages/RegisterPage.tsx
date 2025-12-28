@@ -86,16 +86,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen animate-g3-fade-in items-center justify-center bg-gray-50 px-4 py-8">
+    <div className="flex min-h-screen animate-g3-fade-in items-center justify-center bg-gray-50 px-4 py-8 dark:bg-slate-900">
       <div className="w-full max-w-md">
         {/* 标题 */}
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">创建账号</h1>
-          <p className="text-gray-600">注册后即可开始您的学习之旅</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">创建账号</h1>
+          <p className="text-gray-600 dark:text-gray-400">注册后即可开始您的学习之旅</p>
         </div>
 
         {/* 注册表单 */}
-        <div className="rounded-button border border-gray-200 bg-white p-6 shadow-soft md:p-8">
+        <div className="rounded-button border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800 md:p-8">
           <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
             {/* 错误提示 */}
             {error && (
@@ -110,7 +110,10 @@ export default function RegisterPage() {
 
             {/* 用户名输入 */}
             <div className="mb-4">
-              <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="username"
+                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 用户名
               </label>
               <input
@@ -119,7 +122,7 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="您的昵称"
                 autoComplete="name"
                 aria-required="true"
@@ -129,7 +132,10 @@ export default function RegisterPage() {
 
             {/* 邮箱输入 */}
             <div className="mb-4">
-              <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 邮箱地址
               </label>
               <input
@@ -138,7 +144,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="your@email.com"
                 autoComplete="email"
                 aria-required="true"
@@ -148,7 +154,10 @@ export default function RegisterPage() {
 
             {/* 密码输入 */}
             <div className="mb-4">
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 密码
               </label>
               <input
@@ -157,14 +166,14 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="至少10个字符"
                 autoComplete="new-password"
                 aria-required="true"
                 aria-invalid={!!error}
                 aria-describedby="password-hint"
               />
-              <p id="password-hint" className="mt-1 text-xs text-gray-500">
+              <p id="password-hint" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 密码长度至少10个字符，需包含字母、数字和特殊符号
               </p>
             </div>
@@ -173,7 +182,7 @@ export default function RegisterPage() {
             <div className="mb-6">
               <label
                 htmlFor="confirmPassword"
-                className="mb-2 block text-sm font-medium text-gray-700"
+                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 确认密码
               </label>
@@ -183,7 +192,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
-                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-button border border-gray-300 px-4 py-2 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 placeholder="再次输入密码"
                 autoComplete="new-password"
                 aria-required="true"
@@ -211,7 +220,7 @@ export default function RegisterPage() {
 
           {/* 登录链接 */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               已有账号？{' '}
               <Link
                 to="/login"
@@ -227,7 +236,7 @@ export default function RegisterPage() {
         <div className="mt-4 text-center">
           <Link
             to="/about"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-white"
           >
             <ArrowLeft size={14} weight="bold" />
             了解更多

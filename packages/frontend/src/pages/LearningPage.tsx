@@ -254,7 +254,7 @@ export default function LearningPage() {
             weight="bold"
             color="#3b82f6"
           />
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {hasRestoredSession ? '恢复学习会话中...' : '加载单词中...'}
           </p>
         </div>
@@ -267,8 +267,10 @@ export default function LearningPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="max-w-md px-4 text-center">
           <WarningCircle size={64} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">加载学习数据失败</h2>
-          <p className="mb-4 text-gray-600">{error}</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+            加载学习数据失败
+          </h2>
+          <p className="mb-4 text-gray-600 dark:text-gray-400">{error}</p>
           <button
             onClick={handleRestart}
             className="rounded-button bg-blue-500 px-6 py-3 text-white transition-all duration-g3-fast hover:bg-blue-600"
@@ -288,8 +290,10 @@ export default function LearningPage() {
           <div className="mb-4 animate-bounce">
             <Books size={96} weight="duotone" color="#3b82f6" className="mx-auto" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">暂无单词</h2>
-          <p className="mb-6 text-gray-600">你还没有添加任何单词，请先选择词书或添加单词</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">暂无单词</h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
+            你还没有添加任何单词，请先选择词书或添加单词
+          </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
               onClick={() => navigate('/study-settings')}
@@ -299,7 +303,7 @@ export default function LearningPage() {
             </button>
             <button
               onClick={() => navigate('/profile')}
-              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:bg-gray-200"
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
             >
               添加单词
             </button>
@@ -323,15 +327,19 @@ export default function LearningPage() {
               <Clock size={96} weight="duotone" color="#f59e0b" className="mx-auto" />
             )}
           </div>
-          <h2 className="mb-2 text-3xl font-bold text-gray-900">
+          <h2 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
             {isMasteryAchieved ? '掌握目标达成！' : '今日学习结束'}
           </h2>
-          <p className="mb-2 text-gray-600">
+          <p className="mb-2 text-gray-600 dark:text-gray-400">
             已掌握 {progress.masteredCount}/{progress.targetCount} 个单词
           </p>
-          <p className="mb-4 text-gray-500">本次答题 {progress.totalQuestions} 题</p>
+          <p className="mb-4 text-gray-500 dark:text-gray-500">
+            本次答题 {progress.totalQuestions} 题
+          </p>
           {isQuestionLimit && (
-            <p className="mb-4 text-sm text-amber-600">已达到今日题目上限，建议明天继续学习</p>
+            <p className="mb-4 text-sm text-amber-600 dark:text-amber-500">
+              已达到今日题目上限，建议明天继续学习
+            </p>
           )}
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
@@ -342,7 +350,7 @@ export default function LearningPage() {
             </button>
             <button
               onClick={() => navigate('/statistics')}
-              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95"
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 active:scale-95 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
             >
               查看统计
             </button>
@@ -357,8 +365,10 @@ export default function LearningPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="max-w-md px-4 text-center">
           <Books size={80} weight="thin" color="#eab308" className="mx-auto mb-4" />
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">没有可学习的单词</h2>
-          <p className="mb-6 text-gray-600">请先配置学习计划或添加词书</p>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+            没有可学习的单词
+          </h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">请先配置学习计划或添加词书</p>
           <button
             onClick={() => navigate('/study-settings')}
             className="rounded-button bg-blue-500 px-6 py-3 text-white hover:bg-blue-600"
@@ -371,7 +381,7 @@ export default function LearningPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center p-3">
         <div className="w-full space-y-3">
           {/* 学习进度面板 - 集成工具栏 */}
@@ -380,7 +390,7 @@ export default function LearningPage() {
             isCompleted={isCompleted}
             headerActions={
               <>
-                <div className="mx-1 h-4 w-px bg-gray-200" />
+                <div className="mx-1 h-4 w-px bg-gray-200 dark:bg-slate-600" />
                 <LearningModeSelector
                   minimal
                   learningType={learningType}
@@ -388,7 +398,7 @@ export default function LearningPage() {
                 />
                 <button
                   onClick={() => setIsStatusOpen(true)}
-                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/30"
                   title="状态监控"
                 >
                   <ChartPie size={20} />
@@ -396,7 +406,7 @@ export default function LearningPage() {
                 <button
                   onClick={() => setIsSuggestionOpen(true)}
                   disabled={!latestAmasResult}
-                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-500 disabled:opacity-30"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-500 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-amber-900/30"
                   title={!latestAmasResult ? '暂无建议' : 'AI 建议'}
                 >
                   <Lightbulb size={20} weight={latestAmasResult ? 'fill' : 'regular'} />
@@ -404,7 +414,7 @@ export default function LearningPage() {
                 <button
                   onClick={() => setIsExplainabilityOpen(true)}
                   disabled={!latestAmasResult}
-                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30"
+                  className="rounded-button p-2 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-indigo-900/30"
                   title="决策透视"
                 >
                   <Brain size={20} />
@@ -448,10 +458,10 @@ export default function LearningPage() {
           showResult ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
         }`}
       >
-        <div className="rounded-button border border-blue-200 bg-white/95 p-3 shadow-elevated backdrop-blur-sm">
+        <div className="rounded-button border border-blue-200 bg-white/95 p-3 shadow-elevated backdrop-blur-sm dark:border-blue-800 dark:bg-slate-800/95">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">当前学习策略</span>
-            <p className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700 dark:text-gray-300">当前学习策略</span>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               {latestAmasResult?.explanation?.text || '分析中...'}
             </p>
           </div>

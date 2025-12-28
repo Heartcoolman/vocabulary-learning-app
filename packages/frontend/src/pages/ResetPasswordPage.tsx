@@ -27,7 +27,7 @@ export const ResetPasswordPage: React.FC = () => {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-red-500">无效的重置链接</div>
       </div>
     );
@@ -63,34 +63,42 @@ export const ResetPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">重置密码</h2>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 dark:bg-slate-900">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md dark:bg-slate-800">
+        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800 dark:text-white">
+          重置密码
+        </h2>
         {status === 'success' ? (
-          <div className="mb-4 text-center text-green-600">密码重置成功！即将跳转到登录页...</div>
+          <div className="mb-4 text-center text-green-600 dark:text-green-400">
+            密码重置成功！即将跳转到登录页...
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">新密码</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">
+                新密码
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 密码长度至少10个字符，需包含字母、数字和特殊符号
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">确认新密码</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">
+                确认新密码
+              </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
             {status === 'error' && <div className="text-sm text-red-500">{errorMessage}</div>}

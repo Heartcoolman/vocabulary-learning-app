@@ -57,7 +57,7 @@ export default function FlashcardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-slate-800">
         <CircleNotch className="animate-spin" size={48} color="#3b82f6" />
       </div>
     );
@@ -65,11 +65,11 @@ export default function FlashcardPage() {
 
   if (isCompleted) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-slate-800">
         <div className="text-center">
           <Confetti size={96} weight="duotone" color="#22c55e" className="mx-auto mb-4" />
-          <h2 className="mb-2 text-3xl font-bold">学习完成！</h2>
-          <p className="mb-4 text-gray-600">
+          <h2 className="mb-2 text-3xl font-bold dark:text-white">学习完成！</h2>
+          <p className="mb-4 text-gray-600 dark:text-gray-400">
             已掌握 {progress.masteredCount}/{progress.targetCount} 个单词
           </p>
           <div className="flex justify-center gap-4">
@@ -81,7 +81,7 @@ export default function FlashcardPage() {
             </button>
             <button
               onClick={() => navigate('/learn')}
-              className="rounded-button bg-gray-100 px-6 py-3 hover:bg-gray-200"
+              className="rounded-button bg-gray-100 px-6 py-3 text-gray-900 hover:bg-gray-200 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
             >
               返回学习
             </button>
@@ -93,24 +93,24 @@ export default function FlashcardPage() {
 
   if (!currentWord) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-slate-800">
         <Books size={80} color="#eab308" className="mx-auto mb-4" />
-        <p>没有可学习的单词</p>
+        <p className="dark:text-white">没有可学习的单词</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="mx-auto w-full max-w-4xl p-4">
         <div className="mb-4 flex items-center gap-4">
           <button
             onClick={() => navigate('/learn')}
-            className="rounded-button p-2 hover:bg-gray-100"
+            className="rounded-button p-2 hover:bg-gray-100 dark:text-white dark:hover:bg-slate-700"
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-xl font-bold">闪记模式</h1>
+          <h1 className="text-xl font-bold dark:text-white">闪记模式</h1>
         </div>
         <MasteryProgress progress={progress} isCompleted={isCompleted} />
         <div className="mt-6">
