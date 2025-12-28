@@ -32,19 +32,21 @@ export function FatigueAlertModal({
         </div>
 
         <div>
-          <h3 className="text-xl font-bold text-gray-900">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
             检测到您当前疲劳度：
             <span className={`ml-1 ${severity.color}`}>
               {severity.label} ({fatigueLevel})
             </span>
           </h3>
-          <p className="mt-2 text-gray-500">为了保证学习效率和用眼健康，建议您适当休息。</p>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">
+            为了保证学习效率和用眼健康，建议您适当休息。
+          </p>
         </div>
 
         {recommendations.length > 0 && (
-          <div className="w-full rounded-lg bg-gray-50 p-4 text-left">
-            <p className="mb-2 font-medium text-gray-700">建议：</p>
-            <ul className="list-inside list-disc space-y-1 text-sm text-gray-600">
+          <div className="w-full rounded-lg bg-gray-50 p-4 text-left dark:bg-slate-700">
+            <p className="mb-2 font-medium text-gray-700 dark:text-gray-300">建议：</p>
+            <ul className="list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
               {recommendations.map((rec, index) => (
                 <li key={index}>{rec}</li>
               ))}

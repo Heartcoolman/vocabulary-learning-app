@@ -24,20 +24,20 @@ interface FatigueIndicatorProps {
  * 获取疲劳等级颜色
  */
 function getFatigueColor(score: number): string {
-  if (score < 0.25) return 'text-green-600';
-  if (score < 0.5) return 'text-yellow-600';
-  if (score < 0.75) return 'text-orange-600';
-  return 'text-red-600';
+  if (score < 0.25) return 'text-green-600 dark:text-green-400';
+  if (score < 0.5) return 'text-yellow-600 dark:text-yellow-400';
+  if (score < 0.75) return 'text-orange-600 dark:text-orange-400';
+  return 'text-red-600 dark:text-red-400';
 }
 
 /**
  * 获取疲劳等级背景色
  */
 function getFatigueBgColor(score: number): string {
-  if (score < 0.25) return 'bg-green-100';
-  if (score < 0.5) return 'bg-yellow-100';
-  if (score < 0.75) return 'bg-orange-100';
-  return 'bg-red-100';
+  if (score < 0.25) return 'bg-green-100 dark:bg-green-900/30';
+  if (score < 0.5) return 'bg-yellow-100 dark:bg-yellow-900/30';
+  if (score < 0.75) return 'bg-orange-100 dark:bg-orange-900/30';
+  return 'bg-red-100 dark:bg-red-900/30';
 }
 
 /**
@@ -153,10 +153,12 @@ function FatigueIndicatorComponent({
 
   // 详细版本
   return (
-    <div className={`rounded-button border border-gray-200 bg-white p-4 ${className}`}>
+    <div
+      className={`rounded-button border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 ${className}`}
+    >
       {/* 标题 */}
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700">疲劳状态</h3>
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">疲劳状态</h3>
         {enabled && detectorState.isDetecting && (
           <span className="flex items-center gap-1 text-xs text-green-600">
             <span className="h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
@@ -174,13 +176,15 @@ function FatigueIndicatorComponent({
         </div>
         <div>
           <div className={`text-lg font-semibold ${colorClass}`}>{label}</div>
-          <div className="text-sm text-gray-500">综合疲劳度 {fatiguePercent}%</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            综合疲劳度 {fatiguePercent}%
+          </div>
         </div>
       </div>
 
       {/* 进度条 */}
       <div className="mb-4">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
           <div
             className={`h-full transition-all duration-g3-normal ${
               fusedFatigue < 0.25
@@ -198,15 +202,15 @@ function FatigueIndicatorComponent({
 
       {/* 分解显示 */}
       {enabled && (
-        <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
+        <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 dark:border-slate-700">
           <div className="text-center">
-            <div className="text-xs text-gray-500">视觉疲劳</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">视觉疲劳</div>
             <div className={`text-sm font-medium ${getFatigueColor(metrics.visualFatigueScore)}`}>
               {Math.round(metrics.visualFatigueScore * 100)}%
             </div>
           </div>
           <div className="text-center">
-            <div className="text-xs text-gray-500">行为疲劳</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">行为疲劳</div>
             <div className={`text-sm font-medium ${getFatigueColor(behaviorFatigue)}`}>
               {Math.round(behaviorFatigue * 100)}%
             </div>
@@ -216,18 +220,18 @@ function FatigueIndicatorComponent({
 
       {/* 视觉指标详情 */}
       {enabled && detectorState.isDetecting && metrics.confidence > 0.3 && (
-        <div className="mt-3 border-t border-gray-100 pt-3">
+        <div className="mt-3 border-t border-gray-100 pt-3 dark:border-slate-700">
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <div>
-              <div className="text-gray-500">PERCLOS</div>
+              <div className="text-gray-500 dark:text-gray-400">PERCLOS</div>
               <div className="font-medium">{(metrics.perclos * 100).toFixed(1)}%</div>
             </div>
             <div>
-              <div className="text-gray-500">眨眼率</div>
+              <div className="text-gray-500 dark:text-gray-400">眨眼率</div>
               <div className="font-medium">{metrics.blinkRate.toFixed(1)}/分</div>
             </div>
             <div>
-              <div className="text-gray-500">打哈欠</div>
+              <div className="text-gray-500 dark:text-gray-400">打哈欠</div>
               <div className="font-medium">{metrics.yawnCount} 次</div>
             </div>
           </div>
@@ -236,7 +240,7 @@ function FatigueIndicatorComponent({
 
       {/* 休息建议 */}
       {fusedFatigue > 0.6 && (
-        <div className="mt-3 rounded-md bg-orange-50 p-2 text-xs text-orange-700">
+        <div className="mt-3 rounded-md bg-orange-50 p-2 text-xs text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
           建议休息一下，远眺放松眼睛
         </div>
       )}

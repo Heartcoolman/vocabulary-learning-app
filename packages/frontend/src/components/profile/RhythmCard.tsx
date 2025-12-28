@@ -40,30 +40,32 @@ export const RhythmCard: React.FC<RhythmCardProps> = ({ type, avgDuration, prefe
   const meta = getMeta();
 
   return (
-    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated">
+    <div className="group relative overflow-hidden rounded-card border border-gray-100 bg-white p-6 shadow-soft transition-all duration-g3-normal hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800">
       <div
         className={`absolute right-0 top-0 -mr-10 -mt-10 h-32 w-32 rounded-full opacity-10 blur-3xl transition-colors duration-g3-slow ${meta.bg}`}
       />
 
       <div className="relative z-10">
         <div className="mb-4 flex items-start justify-between">
-          <div className="rounded-card bg-gray-50 p-3 transition-transform duration-g3-normal group-hover:scale-110">
+          <div className="rounded-card bg-gray-50 p-3 transition-transform duration-g3-normal group-hover:scale-110 dark:bg-slate-700">
             {meta.icon}
           </div>
         </div>
 
-        <h3 className="mb-1 text-lg font-bold text-gray-800">{meta.title}</h3>
-        <p className="mb-4 h-10 text-sm leading-relaxed text-gray-500">{meta.desc}</p>
+        <h3 className="mb-1 text-lg font-bold text-gray-800 dark:text-white">{meta.title}</h3>
+        <p className="mb-4 h-10 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+          {meta.desc}
+        </p>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-gray-50 pt-4">
+        <div className="grid grid-cols-2 gap-3 border-t border-gray-50 pt-4 dark:border-slate-700">
           <div>
-            <span className="mb-1 block text-xs text-gray-400">平均时长</span>
-            <span className="text-sm font-semibold text-gray-700">
+            <span className="mb-1 block text-xs text-gray-400 dark:text-gray-500">平均时长</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               {Math.round(avgDuration)} 分钟
             </span>
           </div>
           <div>
-            <span className="mb-1 block text-xs text-gray-400">学习配速</span>
+            <span className="mb-1 block text-xs text-gray-400 dark:text-gray-500">学习配速</span>
             <span className={`text-sm font-semibold ${meta.color}`}>
               {preferredPace > 0 ? preferredPace : '--'} 词/分
             </span>

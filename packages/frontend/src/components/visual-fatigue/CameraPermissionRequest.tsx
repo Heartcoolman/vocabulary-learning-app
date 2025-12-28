@@ -116,11 +116,11 @@ function CameraPermissionRequestComponent({
   if (permissionStatus === 'granted') {
     return (
       <div
-        className={`rounded-button border border-green-200 bg-green-50 p-4 text-center ${className}`}
+        className={`rounded-button border border-green-200 bg-green-50 p-4 text-center dark:border-green-800 dark:bg-green-900/20 ${className}`}
       >
         <PermissionIcon status="granted" />
-        <p className="mt-2 font-medium text-green-700">摄像头权限已授予</p>
-        <p className="mt-1 text-sm text-green-600">视觉疲劳检测已启用</p>
+        <p className="mt-2 font-medium text-green-700 dark:text-green-400">摄像头权限已授予</p>
+        <p className="mt-1 text-sm text-green-600 dark:text-green-500">视觉疲劳检测已启用</p>
       </div>
     );
   }
@@ -128,11 +128,13 @@ function CameraPermissionRequestComponent({
   // 已拒绝
   if (permissionStatus === 'denied') {
     return (
-      <div className={`rounded-button border border-red-200 bg-red-50 p-4 ${className}`}>
+      <div
+        className={`rounded-button border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20 ${className}`}
+      >
         <div className="flex flex-col items-center text-center">
           <PermissionIcon status="denied" />
-          <p className="mt-2 font-medium text-red-700">摄像头权限被拒绝</p>
-          <p className="mt-1 text-sm text-red-600">
+          <p className="mt-2 font-medium text-red-700 dark:text-red-400">摄像头权限被拒绝</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-500">
             请在浏览器设置中允许访问摄像头，然后刷新页面重试
           </p>
           <div className="mt-4 flex gap-2">
@@ -146,7 +148,7 @@ function CameraPermissionRequestComponent({
             {onSkip && (
               <button
                 onClick={onSkip}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
               >
                 跳过
               </button>
@@ -160,15 +162,19 @@ function CameraPermissionRequestComponent({
   // 不可用
   if (permissionStatus === 'unavailable') {
     return (
-      <div className={`rounded-button border border-gray-200 bg-gray-50 p-4 ${className}`}>
+      <div
+        className={`rounded-button border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800 ${className}`}
+      >
         <div className="flex flex-col items-center text-center">
           <PermissionIcon status="unavailable" />
-          <p className="mt-2 font-medium text-gray-700">摄像头不可用</p>
-          <p className="mt-1 text-sm text-gray-600">您的设备没有摄像头或浏览器不支持摄像头访问</p>
+          <p className="mt-2 font-medium text-gray-700 dark:text-gray-300">摄像头不可用</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            您的设备没有摄像头或浏览器不支持摄像头访问
+          </p>
           {onSkip && (
             <button
               onClick={onSkip}
-              className="mt-4 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="mt-4 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               继续使用行为检测
             </button>
@@ -180,18 +186,22 @@ function CameraPermissionRequestComponent({
 
   // 未请求（默认状态）
   return (
-    <div className={`rounded-button border border-blue-200 bg-blue-50 p-4 ${className}`}>
+    <div
+      className={`rounded-button border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20 ${className}`}
+    >
       <div className="flex flex-col items-center text-center">
         <PermissionIcon status="not_requested" />
-        <h3 className="mt-2 font-medium text-blue-800">启用视觉疲劳检测</h3>
-        <p className="mt-1 text-sm text-blue-700">使用摄像头检测眼睛状态，更准确地评估疲劳程度</p>
+        <h3 className="mt-2 font-medium text-blue-800 dark:text-blue-300">启用视觉疲劳检测</h3>
+        <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+          使用摄像头检测眼睛状态，更准确地评估疲劳程度
+        </p>
 
         {/* 隐私说明 */}
         {showPrivacyDetails && (
           <div className="mt-3 w-full">
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="flex w-full items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+              className="flex w-full items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
               <svg
                 className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`}
@@ -210,7 +220,7 @@ function CameraPermissionRequestComponent({
             </button>
 
             {showDetails && (
-              <div className="mt-2 rounded-md bg-white p-3 text-left text-xs text-gray-600">
+              <div className="mt-2 rounded-md bg-white p-3 text-left text-xs text-gray-600 dark:bg-slate-700 dark:text-gray-400">
                 <ul className="list-inside list-disc space-y-1">
                   <li>所有视觉处理在您的设备本地进行</li>
                   <li>视频画面不会上传到服务器</li>
@@ -266,7 +276,7 @@ function CameraPermissionRequestComponent({
           {onSkip && (
             <button
               onClick={onSkip}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
             >
               暂不启用
             </button>

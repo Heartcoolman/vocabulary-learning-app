@@ -31,7 +31,7 @@ function ReverseWordCard({
       initial="hidden"
       animate="visible"
       variants={slideUpVariants}
-      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm md:px-16 md:py-14"
+      className="flex min-h-[440px] flex-col items-center justify-center space-y-5 rounded-card border border-gray-200/60 bg-white/80 px-10 py-10 shadow-soft backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80 md:px-16 md:py-14"
       role="article"
       aria-label="中译英单词卡片"
       data-testid="reverse-word-card"
@@ -43,7 +43,10 @@ function ReverseWordCard({
         role="region"
         aria-label="中文释义"
       >
-        <p className="text-3xl font-bold text-gray-900 md:text-4xl" data-testid="word-meaning">
+        <p
+          className="text-3xl font-bold text-gray-900 dark:text-white md:text-4xl"
+          data-testid="word-meaning"
+        >
           {word.meanings.join('；')}
         </p>
       </motion.div>
@@ -52,7 +55,7 @@ function ReverseWordCard({
       {word.examples && word.examples.length > 0 && (
         <motion.p
           variants={fadeInVariants}
-          className="mt-3 max-w-4xl text-center text-lg text-gray-700 md:text-xl"
+          className="mt-3 max-w-4xl text-center text-lg text-gray-700 dark:text-gray-300 md:text-xl"
           role="region"
           aria-label="例句"
           data-testid="word-example"
@@ -76,7 +79,7 @@ function ReverseWordCard({
 
           {/* 音标 */}
           <span
-            className="rounded-full bg-gray-100 px-4 py-1.5 text-xl text-gray-600 md:text-2xl"
+            className="rounded-full bg-gray-100 px-4 py-1.5 text-xl text-gray-600 dark:bg-slate-700 dark:text-gray-300 md:text-2xl"
             aria-label={`音标: ${word.phonetic}`}
           >
             /{word.phonetic}/

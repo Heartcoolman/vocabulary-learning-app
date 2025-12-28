@@ -13,6 +13,7 @@ import {
   List,
   X,
 } from './Icon';
+import { ThemeToggle } from './ThemeToggle';
 import { prefetchAll } from '../routes/prefetch';
 
 /**
@@ -94,7 +95,7 @@ function NavigationComponent() {
       'px-4 py-2 rounded-button text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
       ? `${base} bg-blue-500 text-white shadow-soft`
-      : `${base} text-gray-700 hover:bg-gray-100 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`;
+      : `${base} text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 hover:scale-105 active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`;
   };
 
   const mobileLinkClass = (path: string) => {
@@ -102,15 +103,15 @@ function NavigationComponent() {
       'block px-4 py-3 rounded-button text-base font-medium transition-all duration-g3-fast ease-g3';
     return isActive(path)
       ? `${base} bg-blue-500 text-white shadow-soft`
-      : `${base} text-gray-700 hover:bg-gray-100`;
+      : `${base} text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700`;
   };
 
   const dropdownLinkClass = (path: string) => {
     const base =
       'flex items-center gap-2 px-4 py-2 text-sm transition-colors duration-g3-fast ease-g3';
     return isActive(path)
-      ? `${base} bg-blue-50 text-blue-600`
-      : `${base} text-gray-700 hover:bg-gray-100`;
+      ? `${base} bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400`
+      : `${base} text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700`;
   };
 
   const insightsLinks = [
@@ -125,7 +126,7 @@ function NavigationComponent() {
 
   return (
     <header
-      className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md"
+      className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-white/80 shadow-soft backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-800/80"
       role="banner"
     >
       <div className="mx-auto max-w-7xl px-4 py-4">
@@ -135,7 +136,7 @@ function NavigationComponent() {
             className="flex items-center space-x-2 rounded-button focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="返回首页"
           >
-            <h1 className="text-2xl font-bold text-gray-900">词汇学习</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">词汇学习</h1>
           </Link>
 
           {/* 桌面端导航 */}
@@ -184,7 +185,7 @@ function NavigationComponent() {
                   className={`flex items-center gap-1 rounded-button px-4 py-2 text-base font-medium transition-all duration-g3-fast ${
                     isInsightsActive()
                       ? 'bg-blue-500 text-white shadow-soft'
-                      : 'text-gray-700 hover:scale-105 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95'
+                      : 'text-gray-700 hover:scale-105 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 dark:text-gray-200 dark:hover:bg-slate-700'
                   }`}
                   aria-expanded={isInsightsOpen}
                   aria-haspopup="true"
@@ -198,7 +199,7 @@ function NavigationComponent() {
                 </button>
 
                 {isInsightsOpen && (
-                  <div className="animate-fade-in-down absolute right-0 top-full z-50 mt-2 w-48 rounded-button border border-gray-200 bg-white py-1 shadow-elevated">
+                  <div className="animate-fade-in-down absolute right-0 top-full z-50 mt-2 w-48 rounded-button border border-gray-200 bg-white py-1 shadow-elevated dark:border-slate-700 dark:bg-slate-800">
                     {insightsLinks.map(({ path, icon: Icon, label }) => (
                       <Link
                         key={path}
@@ -248,12 +249,15 @@ function NavigationComponent() {
                 登录
               </Link>
             )}
+
+            {/* 主题切换按钮 */}
+            <ThemeToggle />
           </nav>
 
           {/* 移动端汉堡菜单按钮 */}
           <button
             ref={hamburgerRef}
-            className="rounded-button p-2 text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 lg:hidden"
+            className="rounded-button p-2 text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-gray-200 dark:hover:bg-slate-700 lg:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-expanded={isMobileMenuOpen}
             aria-label={isMobileMenuOpen ? '关闭菜单' : '打开菜单'}
@@ -266,7 +270,7 @@ function NavigationComponent() {
         {isMobileMenuOpen && (
           <div
             ref={mobileMenuRef}
-            className="animate-expand mt-4 border-t border-gray-200 pb-4 pt-4 lg:hidden"
+            className="animate-expand mt-4 border-t border-gray-200 pb-4 pt-4 dark:border-slate-700 lg:hidden"
           >
             <nav className="flex flex-col space-y-2" role="navigation" aria-label="移动端导航">
               <Link to="/" className={mobileLinkClass('/')}>
@@ -297,7 +301,7 @@ function NavigationComponent() {
               {/* 学习洞察子菜单 */}
               {isAuthenticated && (
                 <>
-                  <div className="px-4 py-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                  <div className="px-4 py-2 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     学习洞察
                   </div>
                   {insightsLinks.map(({ path, icon: Icon, label }) => (
@@ -326,7 +330,7 @@ function NavigationComponent() {
               )}
 
               {/* 分隔线 */}
-              <div className="my-2 border-t border-gray-200" />
+              <div className="my-2 border-t border-gray-200 dark:border-slate-700" />
 
               {/* 认证相关 */}
               {isAuthenticated ? (

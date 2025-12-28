@@ -78,11 +78,11 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (loading) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80">
         <div className="animate-pulse space-y-3">
-          <div className="h-4 w-2/3 rounded bg-gray-200"></div>
-          <div className="h-2 w-full rounded bg-gray-200"></div>
-          <div className="h-2 w-full rounded bg-gray-200"></div>
+          <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-slate-700"></div>
+          <div className="h-2 w-full rounded bg-gray-200 dark:bg-slate-700"></div>
+          <div className="h-2 w-full rounded bg-gray-200 dark:bg-slate-700"></div>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (error) {
     return (
-      <div className="rounded-card border border-red-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="rounded-card border border-red-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm dark:border-red-800/60 dark:bg-slate-800/80">
         <div className="flex items-center gap-2 text-red-600">
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -108,8 +108,8 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   if (!state || !phase) {
     return (
-      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm">
-        <div className="text-center text-sm text-gray-500">暂无学习状态数据</div>
+      <div className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+        <div className="text-center text-sm text-gray-500 dark:text-gray-400">暂无学习状态数据</div>
       </div>
     );
   }
@@ -132,30 +132,46 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
     switch (currentPhase) {
       case 'classify':
         return {
-          color: 'text-blue-600',
-          bg: 'bg-blue-50',
-          icon: <MagnifyingGlass size={16} weight="duotone" className="text-blue-600" />,
+          color: 'text-blue-600 dark:text-blue-400',
+          bg: 'bg-blue-50 dark:bg-blue-900/30',
+          icon: (
+            <MagnifyingGlass
+              size={16}
+              weight="duotone"
+              className="text-blue-600 dark:text-blue-400"
+            />
+          ),
           label: '分类中',
         };
       case 'explore':
         return {
-          color: 'text-purple-600',
-          bg: 'bg-purple-50',
-          icon: <Compass size={16} weight="duotone" className="text-purple-600" />,
+          color: 'text-purple-600 dark:text-purple-400',
+          bg: 'bg-purple-50 dark:bg-purple-900/30',
+          icon: (
+            <Compass size={16} weight="duotone" className="text-purple-600 dark:text-purple-400" />
+          ),
           label: '探索中',
         };
       case 'normal':
         return {
-          color: 'text-green-600',
-          bg: 'bg-green-50',
-          icon: <CheckCircle size={16} weight="duotone" className="text-green-600" />,
+          color: 'text-green-600 dark:text-green-400',
+          bg: 'bg-green-50 dark:bg-green-900/30',
+          icon: (
+            <CheckCircle
+              size={16}
+              weight="duotone"
+              className="text-green-600 dark:text-green-400"
+            />
+          ),
           label: '正常',
         };
       default:
         return {
-          color: 'text-gray-600',
-          bg: 'bg-gray-50',
-          icon: <Question size={16} weight="duotone" className="text-gray-600" />,
+          color: 'text-gray-600 dark:text-gray-400',
+          bg: 'bg-gray-50 dark:bg-slate-700',
+          icon: (
+            <Question size={16} weight="duotone" className="text-gray-600 dark:text-gray-400" />
+          ),
           label: '未知',
         };
     }
@@ -165,13 +181,13 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
   return (
     <div
-      className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast"
+      className="rounded-card border border-gray-200/60 bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast dark:border-slate-700/60 dark:bg-slate-800/80"
       role="region"
       aria-label="学习状态监控"
     >
       {/* 标题和阶段 */}
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">学习状态</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">学习状态</h3>
         <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${phaseStyle.bg}`}>
           {phaseStyle.icon}
           <span className={`text-xs font-medium ${phaseStyle.color}`}>{phaseStyle.label}</span>
@@ -183,12 +199,12 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
         {/* 注意力 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-gray-600">注意力</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">注意力</span>
             <span className={`text-xs font-medium ${getStateColor(state.attention)}`}>
               {Math.round(state.attention * 100)}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
             <div
               className={`h-full transition-all duration-g3-slow ${getBarColor(state.attention)}`}
               style={{ width: `${state.attention * 100}%` }}
@@ -204,12 +220,12 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
         {/* 疲劳度 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-gray-600">疲劳度</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">疲劳度</span>
             <span className={`text-xs font-medium ${getStateColor(state.fatigue, true)}`}>
               {Math.round(state.fatigue * 100)}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
             <div
               className={`h-full transition-all duration-g3-slow ${getBarColor(state.fatigue, true)}`}
               style={{ width: `${state.fatigue * 100}%` }}
@@ -225,12 +241,12 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
         {/* 记忆力 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-gray-600">记忆力</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">记忆力</span>
             <span className={`text-xs font-medium ${getStateColor(state.memory)}`}>
               {Math.round(state.memory * 100)}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
             <div
               className={`h-full transition-all duration-g3-slow ${getBarColor(state.memory)}`}
               style={{ width: `${state.memory * 100}%` }}
@@ -246,12 +262,12 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
         {/* 反应速度 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-gray-600">反应速度</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">反应速度</span>
             <span className={`text-xs font-medium ${getStateColor(state.speed)}`}>
               {Math.round(state.speed * 100)}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
             <div
               className={`h-full transition-all duration-g3-slow ${getBarColor(state.speed)}`}
               style={{ width: `${state.speed * 100}%` }}
@@ -267,16 +283,16 @@ function AmasStatusComponent({ detailed = false, refreshTrigger = 0 }: AmasStatu
 
       {/* 详细信息（可选） */}
       {detailed && (
-        <div className="mt-4 border-t border-gray-200 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4 dark:border-slate-600">
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-500">动机:</span>
+              <span className="text-gray-500 dark:text-gray-400">动机:</span>
               <span className={`font-medium ${getStateColor((state.motivation + 1) / 2)}`}>
                 {Math.round(state.motivation * 100)}%
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">稳定性:</span>
+              <span className="text-gray-500 dark:text-gray-400">稳定性:</span>
               <span className={`font-medium ${getStateColor(state.stability)}`}>
                 {Math.round(state.stability * 100)}%
               </span>

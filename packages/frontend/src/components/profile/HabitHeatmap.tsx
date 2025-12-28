@@ -26,15 +26,28 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
   }, [timeData, hasData]);
 
   const getColorClasses = (value: number) => {
-    if (value === 0) return { bg: 'bg-gray-50', text: 'text-gray-500', subtext: 'text-gray-400' };
+    if (value === 0)
+      return {
+        bg: 'bg-gray-50 dark:bg-slate-800',
+        text: 'text-gray-500 dark:text-gray-400',
+        subtext: 'text-gray-400 dark:text-gray-500',
+      };
     const intensity = value / maxVal;
     if (intensity < 0.25)
-      return { bg: 'bg-blue-100', text: 'text-blue-700', subtext: 'text-blue-600' };
+      return {
+        bg: 'bg-blue-100 dark:bg-blue-900/40',
+        text: 'text-blue-700 dark:text-blue-300',
+        subtext: 'text-blue-600 dark:text-blue-400',
+      };
     if (intensity < 0.5)
-      return { bg: 'bg-blue-300', text: 'text-blue-800', subtext: 'text-blue-700' };
+      return {
+        bg: 'bg-blue-300 dark:bg-blue-800/60',
+        text: 'text-blue-800 dark:text-blue-200',
+        subtext: 'text-blue-700 dark:text-blue-300',
+      };
     if (intensity < 0.75)
-      return { bg: 'bg-blue-500', text: 'text-white', subtext: 'text-blue-100' };
-    return { bg: 'bg-blue-700', text: 'text-white', subtext: 'text-blue-200' };
+      return { bg: 'bg-blue-500 dark:bg-blue-700', text: 'text-white', subtext: 'text-blue-100' };
+    return { bg: 'bg-blue-700 dark:bg-blue-600', text: 'text-white', subtext: 'text-blue-200' };
   };
 
   const getTimeLabel = (hour: number) => {
@@ -64,7 +77,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
 
   // 无数据时的空状态
   const emptyContent = (
-    <div className="py-8 text-center text-gray-400">
+    <div className="py-8 text-center text-gray-400 dark:text-gray-500">
       <p>暂无学习时段数据</p>
       <p className="mt-2 text-sm">开始学习后，系统会自动记录你的学习时段偏好</p>
     </div>
@@ -75,16 +88,16 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
       return (
         <>
           <div className="mb-6 flex items-center gap-2">
-            <h3 className="text-lg font-bold text-gray-800">学习时段热力图</h3>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white">学习时段热力图</h3>
           </div>
           {emptyContent}
         </>
       );
     }
     return (
-      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+      <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-6 flex items-center gap-2">
-          <h3 className="text-lg font-bold text-gray-800">学习时段热力图</h3>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white">学习时段热力图</h3>
         </div>
         {emptyContent}
       </div>
@@ -96,18 +109,18 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
     <>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold text-gray-800">学习时段偏好</h3>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white">学习时段偏好</h3>
           <div className="group relative">
             <Info size={18} className="cursor-help text-gray-400" />
-            <div className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-48 -translate-y-1/2 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-elevated transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-48 -translate-y-1/2 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-elevated transition-opacity group-hover:opacity-100 dark:bg-slate-700">
               颜色越深代表该时段的学习频率越高
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span>少</span>
           <div className="flex gap-1">
-            <div className="h-3 w-3 rounded-sm border border-gray-100 bg-gray-50"></div>
+            <div className="h-3 w-3 rounded-sm border border-gray-100 bg-gray-50 dark:border-slate-600 dark:bg-slate-700"></div>
             <div className="h-3 w-3 rounded-sm bg-blue-100"></div>
             <div className="h-3 w-3 rounded-sm bg-blue-300"></div>
             <div className="h-3 w-3 rounded-sm bg-blue-500"></div>
@@ -141,8 +154,8 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
       </div>
 
       {/* 时段分组汇总 */}
-      <div className="mt-6 border-t border-gray-100 pt-4">
-        <h4 className="mb-3 text-sm font-medium text-gray-600">时段汇总</h4>
+      <div className="mt-6 border-t border-gray-100 pt-4 dark:border-slate-700">
+        <h4 className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">时段汇总</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
           {timeGroupData.map(({ label, Icon, color, sum, intensity }) => (
             <div
@@ -151,12 +164,16 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
               tabIndex={0}
               aria-label={`${label}时段 - 活跃度: ${sum.toFixed(1)}`}
               className={`rounded-button p-3 text-center ${
-                intensity > 0.5 ? 'bg-blue-100' : intensity > 0.2 ? 'bg-blue-50' : 'bg-gray-50'
+                intensity > 0.5
+                  ? 'bg-blue-100 dark:bg-blue-900/30'
+                  : intensity > 0.2
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    : 'bg-gray-50 dark:bg-slate-700'
               }`}
             >
               <Icon size={24} weight="duotone" className={`mx-auto ${color}`} />
-              <p className="mt-1 text-xs font-medium text-gray-700">{label}</p>
-              <p className="text-xs text-gray-500">{sum.toFixed(0)}</p>
+              <p className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">{label}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{sum.toFixed(0)}</p>
             </div>
           ))}
         </div>
@@ -170,7 +187,7 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ data, timePref, show
   }
 
   return (
-    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
+    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
       {mainContent}
     </div>
   );

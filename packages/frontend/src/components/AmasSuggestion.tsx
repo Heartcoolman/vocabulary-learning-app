@@ -51,8 +51,8 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
     <div
       className={`p-4 ${
         isBreakSuggestion
-          ? 'border-orange-200/60 bg-orange-50/80'
-          : 'border-blue-200/60 bg-blue-50/80'
+          ? 'border-orange-200/60 bg-orange-50/80 dark:border-orange-800/60 dark:bg-orange-900/30'
+          : 'border-blue-200/60 bg-blue-50/80 dark:border-blue-800/60 dark:bg-blue-900/30'
       } animate-g3-fade-in rounded-card border shadow-soft backdrop-blur-sm transition-all duration-g3-fast`}
       role="alert"
       aria-live="polite"
@@ -65,7 +65,7 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
           <Lightbulb size={18} weight="duotone" className="text-blue-600" />
         )}
         <h4
-          className={`text-sm font-semibold ${isBreakSuggestion ? 'text-orange-700' : 'text-blue-700'}`}
+          className={`text-sm font-semibold ${isBreakSuggestion ? 'text-orange-700 dark:text-orange-300' : 'text-blue-700 dark:text-blue-300'}`}
         >
           {isBreakSuggestion ? '休息建议' : 'AI建议'}
         </h4>
@@ -73,13 +73,19 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
 
       {/* 解释说明 */}
       {result.explanation?.text && (
-        <p className="mb-3 text-xs leading-relaxed text-gray-700">{result.explanation.text}</p>
+        <p className="mb-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+          {result.explanation.text}
+        </p>
       )}
 
       {/* 具体建议 */}
       {result.suggestion && (
-        <div className="mb-3 flex items-start gap-2 rounded-button bg-white/50 p-2 text-xs text-gray-600">
-          <PushPin size={16} weight="duotone" className="mt-0.5 flex-shrink-0 text-gray-500" />
+        <div className="mb-3 flex items-start gap-2 rounded-button bg-white/50 p-2 text-xs text-gray-600 dark:bg-slate-800/50 dark:text-gray-300">
+          <PushPin
+            size={16}
+            weight="duotone"
+            className="mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400"
+          />
           <p className="flex-1">{result.suggestion}</p>
         </div>
       )}
@@ -87,25 +93,27 @@ function AmasSuggestionComponent({ result, onBreak }: AmasSuggestionProps) {
       {/* 当前策略参数 - 紧凑网格 */}
       {result.strategy && (
         <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="flex justify-between rounded bg-white/50 p-2">
-            <span className="text-gray-600">批量:</span>
-            <span className="font-medium text-gray-900">{result.strategy.batch_size ?? 10}</span>
+          <div className="flex justify-between rounded bg-white/50 p-2 dark:bg-slate-800/50">
+            <span className="text-gray-600 dark:text-gray-400">批量:</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {result.strategy.batch_size ?? 10}
+            </span>
           </div>
-          <div className="flex justify-between rounded bg-white/50 p-2">
-            <span className="text-gray-600">难度:</span>
-            <span className="font-medium text-gray-900">
+          <div className="flex justify-between rounded bg-white/50 p-2 dark:bg-slate-800/50">
+            <span className="text-gray-600 dark:text-gray-400">难度:</span>
+            <span className="font-medium text-gray-900 dark:text-white">
               {getDifficultyText(result.strategy.difficulty ?? 'mid')}
             </span>
           </div>
-          <div className="flex justify-between rounded bg-white/50 p-2">
-            <span className="text-gray-600">新词:</span>
-            <span className="font-medium text-gray-900">
+          <div className="flex justify-between rounded bg-white/50 p-2 dark:bg-slate-800/50">
+            <span className="text-gray-600 dark:text-gray-400">新词:</span>
+            <span className="font-medium text-gray-900 dark:text-white">
               {Math.round((result.strategy.new_ratio ?? 0) * 100)}%
             </span>
           </div>
-          <div className="flex justify-between rounded bg-white/50 p-2">
-            <span className="text-gray-600">提示:</span>
-            <span className="font-medium text-gray-900">
+          <div className="flex justify-between rounded bg-white/50 p-2 dark:bg-slate-800/50">
+            <span className="text-gray-600 dark:text-gray-400">提示:</span>
+            <span className="font-medium text-gray-900 dark:text-white">
               {getHintLevelText(result.strategy.hint_level ?? 0)}
             </span>
           </div>

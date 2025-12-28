@@ -58,15 +58,35 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
   const getCategoryColor = (category: BadgeCategory) => {
     switch (category) {
       case 'STREAK':
-        return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c' };
+        return {
+          bg: 'bg-orange-100 dark:bg-orange-900/30',
+          text: 'text-orange-700 dark:text-orange-400',
+          icon: '#ea580c',
+        };
       case 'ACCURACY':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: IconColor.success };
+        return {
+          bg: 'bg-green-100 dark:bg-green-900/30',
+          text: 'text-green-700 dark:text-green-400',
+          icon: IconColor.success,
+        };
       case 'COGNITIVE':
-        return { bg: 'bg-purple-100', text: 'text-purple-700', icon: '#9333ea' };
+        return {
+          bg: 'bg-purple-100 dark:bg-purple-900/30',
+          text: 'text-purple-700 dark:text-purple-400',
+          icon: '#9333ea',
+        };
       case 'MILESTONE':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', icon: IconColor.primaryDark };
+        return {
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          text: 'text-blue-700 dark:text-blue-400',
+          icon: IconColor.primaryDark,
+        };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', icon: IconColor.secondary };
+        return {
+          bg: 'bg-gray-100 dark:bg-slate-700',
+          text: 'text-gray-700 dark:text-gray-300',
+          icon: IconColor.secondary,
+        };
     }
   };
 
@@ -96,13 +116,13 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
       onClick={onClose}
     >
       <div
-        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating"
+        className="relative mx-4 w-full max-w-md animate-g3-slide-up rounded-3xl bg-white p-8 shadow-floating dark:bg-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600"
           aria-label="关闭"
         >
           <X size={16} weight="bold" color={IconColor.secondary} />
@@ -111,7 +131,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 徽章图标 */}
         <div className="mb-6 text-center">
           <div
-            className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full ${isUnlocked ? categoryColor.bg : 'bg-gray-200'} `}
+            className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full ${isUnlocked ? categoryColor.bg : 'bg-gray-200 dark:bg-slate-700'} `}
           >
             <CategoryIcon
               size={48}
@@ -122,7 +142,9 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         </div>
 
         {/* 徽章名称 */}
-        <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">{badge.name}</h2>
+        <h2 className="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-white">
+          {badge.name}
+        </h2>
 
         {/* 等级星星 */}
         <div className="mb-4 flex items-center justify-center gap-1">
@@ -146,27 +168,27 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         </div>
 
         {/* 描述 */}
-        <p className="mb-6 text-center text-gray-600">{badge.description}</p>
+        <p className="mb-6 text-center text-gray-600 dark:text-gray-400">{badge.description}</p>
 
         {/* 解锁状态 */}
         {isUnlocked ? (
-          <div className="rounded-card border border-green-200 bg-green-50 p-4 text-center">
+          <div className="rounded-card border border-green-200 bg-green-50 p-4 text-center dark:border-green-800 dark:bg-green-900/20">
             <CheckCircle
               size={24}
               weight="fill"
               color={IconColor.success}
               className="mx-auto mb-2"
             />
-            <p className="font-medium text-green-700">已解锁</p>
-            <p className="text-sm text-green-600">
+            <p className="font-medium text-green-700 dark:text-green-400">已解锁</p>
+            <p className="text-sm text-green-600 dark:text-green-500">
               {new Date(badge.unlockedAt!).toLocaleString('zh-CN')}
             </p>
           </div>
         ) : (
-          <div className="rounded-card border border-gray-200 bg-gray-50 p-4">
+          <div className="rounded-card border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-700/50">
             <div className="mb-3 flex items-center gap-2">
               <Info size={20} weight="fill" color={IconColor.secondary} />
-              <span className="font-medium text-gray-700">解锁进度</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">解锁进度</span>
             </div>
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
@@ -179,13 +201,13 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
               </div>
             ) : badgeProgress ? (
               <>
-                <div className="mb-2 h-3 w-full rounded-full bg-gray-200">
+                <div className="mb-2 h-3 w-full rounded-full bg-gray-200 dark:bg-slate-600">
                   <div
                     className="h-3 rounded-full bg-blue-500 transition-all duration-g3-slow"
                     style={{ width: `${badgeProgress.percentage}%` }}
                   />
                 </div>
-                <p className="text-center text-sm text-gray-600">
+                <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                   {badgeProgress.currentValue} / {badgeProgress.targetValue}
                   <span className="ml-2 font-medium text-blue-600">
                     ({badgeProgress.percentage}%)
@@ -193,18 +215,20 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
                 </p>
               </>
             ) : (
-              <p className="text-center text-sm text-gray-500">继续学习以解锁此徽章</p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                继续学习以解锁此徽章
+              </p>
             )}
           </div>
         )}
 
         {/* 奖励说明 */}
-        <div className="mt-6 rounded-card border border-blue-200 bg-blue-50 p-4">
+        <div className="mt-6 rounded-card border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
           <div className="mb-2 flex items-center gap-2">
             <Trophy size={20} weight="duotone" color={IconColor.primaryDark} />
-            <span className="font-medium text-blue-900">奖励说明</span>
+            <span className="font-medium text-blue-900 dark:text-blue-300">奖励说明</span>
           </div>
-          <p className="text-sm text-blue-700">
+          <p className="text-sm text-blue-700 dark:text-blue-400">
             获得此徽章将提升你的成就等级，解锁更多学习内容和个性化功能。
           </p>
         </div>
@@ -212,7 +236,7 @@ const BadgeDetailModalComponent = ({ badge, onClose }: BadgeDetailModalProps) =>
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="mt-6 w-full rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200"
+          className="mt-6 w-full rounded-card bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all duration-g3-fast hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600"
         >
           关闭
         </button>

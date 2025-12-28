@@ -69,44 +69,44 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
     switch (badge.tier) {
       case 1:
         return {
-          bg: 'bg-amber-100',
-          border: 'border-amber-400',
-          text: 'text-amber-700',
+          bg: 'bg-amber-100 dark:bg-amber-900/30',
+          border: 'border-amber-400 dark:border-amber-600',
+          text: 'text-amber-700 dark:text-amber-400',
           icon: badgeCategoryColors.bronze.icon,
         };
       case 2:
         return {
-          bg: 'bg-gray-100',
-          border: 'border-gray-400',
-          text: 'text-gray-700',
+          bg: 'bg-gray-100 dark:bg-slate-700',
+          border: 'border-gray-400 dark:border-slate-500',
+          text: 'text-gray-700 dark:text-gray-300',
           icon: badgeCategoryColors.silver.icon,
         };
       case 3:
         return {
-          bg: 'bg-yellow-100',
-          border: 'border-yellow-400',
-          text: 'text-yellow-700',
+          bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+          border: 'border-yellow-400 dark:border-yellow-600',
+          text: 'text-yellow-700 dark:text-yellow-400',
           icon: badgeCategoryColors.gold.icon,
         };
       case 4:
         return {
-          bg: 'bg-cyan-100',
-          border: 'border-cyan-400',
-          text: 'text-cyan-700',
+          bg: 'bg-cyan-100 dark:bg-cyan-900/30',
+          border: 'border-cyan-400 dark:border-cyan-600',
+          text: 'text-cyan-700 dark:text-cyan-400',
           icon: badgeCategoryColors.platinum.icon,
         };
       case 5:
         return {
-          bg: 'bg-purple-100',
-          border: 'border-purple-400',
-          text: 'text-purple-700',
+          bg: 'bg-purple-100 dark:bg-purple-900/30',
+          border: 'border-purple-400 dark:border-purple-600',
+          text: 'text-purple-700 dark:text-purple-400',
           icon: badgeCategoryColors.diamond.icon,
         };
       default:
         return {
-          bg: 'bg-blue-100',
-          border: 'border-blue-400',
-          text: 'text-blue-700',
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          border: 'border-blue-400 dark:border-blue-600',
+          text: 'text-blue-700 dark:text-blue-400',
           icon: badgeCategoryColors.master.icon,
         };
     }
@@ -166,7 +166,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
           {/* 主内容卡片 */}
           <motion.div
-            className="relative mx-4 w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
+            className="relative mx-4 w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl dark:bg-slate-800"
             variants={celebrationVariants}
             initial="hidden"
             animate="visible"
@@ -176,7 +176,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             {/* 关闭按钮 */}
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600"
               aria-label="关闭"
             >
               <X size={16} weight="bold" color={IconColor.secondary} />
@@ -201,7 +201,9 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
             </div>
 
             {/* 标题 */}
-            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">恭喜获得新徽章!</h2>
+            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-white">
+              恭喜获得新徽章!
+            </h2>
 
             {/* 徽章展示 */}
             <div
@@ -222,7 +224,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
               <h3 className={`text-xl font-bold ${tierColor.text} mb-2`}>{badge.name}</h3>
 
-              <p className="mb-3 text-gray-600">{badge.description}</p>
+              <p className="mb-3 text-gray-600 dark:text-gray-300">{badge.description}</p>
 
               {/* 等级标识 */}
               <div className="flex items-center justify-center gap-1">
@@ -239,7 +241,7 @@ export default function BadgeCelebration({ badge, onClose, isVisible }: BadgeCel
 
             {/* 解锁时间 */}
             {badge.unlockedAt && (
-              <p className="mt-4 text-center text-sm text-gray-500">
+              <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 解锁时间: {new Date(badge.unlockedAt).toLocaleString('zh-CN')}
               </p>
             )}

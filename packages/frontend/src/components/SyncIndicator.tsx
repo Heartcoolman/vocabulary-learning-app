@@ -99,7 +99,7 @@ function SyncIndicatorComponent() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="max-w-sm animate-g3-fade-in rounded-button border border-gray-200/50 bg-white/90 p-4 shadow-elevated backdrop-blur-md">
+      <div className="max-w-sm animate-g3-fade-in rounded-button border border-gray-200/50 bg-white/90 p-4 shadow-elevated backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-800/90">
         {/* 主状态 */}
         <div
           className="flex cursor-pointer items-center gap-3"
@@ -108,7 +108,7 @@ function SyncIndicatorComponent() {
           {syncStatus.isSyncing ? (
             <>
               <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-500"></div>
-              <span className="text-sm font-medium text-gray-900">正在同步...</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">正在同步...</span>
             </>
           ) : showSuccessIcon ? (
             <>
@@ -130,7 +130,7 @@ function SyncIndicatorComponent() {
           ) : syncStatus.pendingChanges > 0 ? (
             <>
               <div className="h-2 w-2 animate-pulse rounded-full bg-yellow-500"></div>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
                 {syncStatus.pendingChanges} 个待同步
               </span>
             </>
@@ -142,7 +142,7 @@ function SyncIndicatorComponent() {
           )}
 
           <button
-            className="ml-auto text-gray-400 hover:text-gray-600"
+            className="ml-auto text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             aria-label={showDetails ? '隐藏详情' : '显示详情'}
           >
             <svg
@@ -163,12 +163,14 @@ function SyncIndicatorComponent() {
 
         {/* 详细信息 */}
         {showDetails && (
-          <div className="mt-3 animate-g3-fade-in space-y-2 border-t border-gray-200 pt-3">
+          <div className="mt-3 animate-g3-fade-in space-y-2 border-t border-gray-200 pt-3 dark:border-slate-600">
             {syncStatus.error && (
-              <div className="rounded bg-red-50 p-2 text-xs text-red-600">{syncStatus.error}</div>
+              <div className="rounded bg-red-50 p-2 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                {syncStatus.error}
+              </div>
             )}
 
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-gray-600 dark:text-gray-300">
               <div className="flex justify-between">
                 <span>最后同步</span>
                 <span className="font-medium">{formatTime(syncStatus.lastSyncTime)}</span>

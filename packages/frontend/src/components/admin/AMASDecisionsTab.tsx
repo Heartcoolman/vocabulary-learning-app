@@ -272,7 +272,9 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
   if (error && decisions.length === 0) {
     return (
       <div className="p-5">
-        <div className="rounded bg-red-50 p-3 text-red-700">{error}</div>
+        <div className="rounded bg-red-50 p-3 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          {error}
+        </div>
       </div>
     );
   }
@@ -281,27 +283,29 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
     <div className="p-5">
       {/* 统计面板 */}
       {statistics && (
-        <div className="mb-5 rounded-button bg-gray-50 p-5">
-          <h3 className="mb-4 text-lg font-bold">决策统计</h3>
+        <div className="mb-5 rounded-button bg-gray-50 p-5 dark:bg-slate-900">
+          <h3 className="mb-4 text-lg font-bold dark:text-white">决策统计</h3>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-            <div className="rounded-md border border-gray-200 bg-white p-4">
-              <div className="mb-2 text-sm text-gray-500">总决策数</div>
-              <div className="text-2xl font-bold text-gray-900">{statistics.totalDecisions}</div>
+            <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-2 text-sm text-gray-500 dark:text-slate-400">总决策数</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {statistics.totalDecisions}
+              </div>
             </div>
-            <div className="rounded-md border border-gray-200 bg-white p-4">
-              <div className="mb-2 text-sm text-gray-500">平均置信度</div>
-              <div className="text-2xl font-bold text-gray-900">
+            <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-2 text-sm text-gray-500 dark:text-slate-400">平均置信度</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {(statistics.averageConfidence * 100).toFixed(1)}%
               </div>
             </div>
-            <div className="rounded-md border border-gray-200 bg-white p-4">
-              <div className="mb-2 text-sm text-gray-500">平均奖励</div>
-              <div className="text-2xl font-bold text-gray-900">
+            <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-2 text-sm text-gray-500 dark:text-slate-400">平均奖励</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {statistics.averageReward.toFixed(3)}
               </div>
             </div>
-            <div className="rounded-md border border-gray-200 bg-white p-4">
-              <div className="mb-2 text-sm text-gray-500">决策来源</div>
+            <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-2 text-sm text-gray-500 dark:text-slate-400">决策来源</div>
               <div className="mt-1 text-xs">
                 {Object.entries(statistics.decisionSourceDistribution).map(([source, count]) => (
                   <div key={source}>
@@ -321,19 +325,19 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           value={filters.startDate}
           onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
           placeholder="开始日期"
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         />
         <input
           type="date"
           value={filters.endDate}
           onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
           placeholder="结束日期"
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         />
         <select
           value={filters.decisionSource}
           onChange={(e) => setFilters({ ...filters, decisionSource: e.target.value })}
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
+          className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         >
           <option value="">所有来源</option>
           <option value="coldstart">冷启动</option>
@@ -348,72 +352,74 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
       </div>
 
       {/* 决策列表 */}
-      <div className="overflow-x-auto rounded-button border border-gray-200">
+      <div className="overflow-x-auto rounded-button border border-gray-200 dark:border-slate-700">
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 时间
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 来源
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 策略
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 置信度
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 奖励
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 耗时
               </th>
-              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700">
+              <th className="border-b-2 border-gray-200 bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 操作
               </th>
             </tr>
           </thead>
           <tbody>
             {decisions.map((d) => (
-              <tr key={d.decisionId} className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-900">
+              <tr key={d.decisionId} className="border-b border-gray-100 dark:border-slate-700">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   {new Date(d.timestamp).toLocaleString('zh-CN')}
                 </td>
-                <td className="p-3 text-sm text-gray-900">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   <span
                     className={`rounded px-2 py-1 text-xs font-bold ${
                       d.decisionSource === 'ensemble'
-                        ? 'bg-blue-50 text-blue-800'
-                        : 'bg-amber-50 text-amber-900'
+                        ? 'bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-amber-50 text-amber-900 dark:bg-amber-900/30 dark:text-amber-300'
                     }`}
                   >
                     {d.decisionSource}
                   </span>
                 </td>
-                <td className="p-3 text-sm text-gray-900">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   {d.strategy.difficulty}, {d.strategy.batch_size}词
                 </td>
-                <td className="p-3 text-sm text-gray-900">
-                  <div className="mr-2 inline-block h-2 w-20 rounded bg-gray-200">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
+                  <div className="mr-2 inline-block h-2 w-20 rounded bg-gray-200 dark:bg-slate-700">
                     <div
                       className="h-full rounded bg-blue-500"
                       style={{ width: `${d.confidence * 100}%` }}
                     />
                   </div>
-                  <span className="text-xs">{(d.confidence * 100).toFixed(0)}%</span>
+                  <span className="text-xs dark:text-slate-300">
+                    {(d.confidence * 100).toFixed(0)}%
+                  </span>
                 </td>
-                <td className="p-3 text-sm text-gray-900">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   {d.reward !== null && d.reward !== undefined ? d.reward.toFixed(3) : '-'}
                 </td>
-                <td className="p-3 text-sm text-gray-900">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   {d.totalDurationMs ? `${d.totalDurationMs}ms` : '-'}
                 </td>
-                <td className="p-3 text-sm text-gray-900">
+                <td className="p-3 text-sm text-gray-900 dark:text-slate-200">
                   <button
                     onClick={() => handleViewDetail(d.decisionId)}
-                    className="cursor-pointer rounded border border-gray-300 bg-gray-100 px-3 py-1.5 text-[13px]"
+                    className="cursor-pointer rounded border border-gray-300 bg-gray-100 px-3 py-1.5 text-[13px] dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
                   >
                     详情
                   </button>
@@ -424,7 +430,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
         </table>
 
         {decisions.length === 0 && (
-          <div className="py-10 text-center text-gray-500">暂无决策记录</div>
+          <div className="py-10 text-center text-gray-500 dark:text-slate-400">暂无决策记录</div>
         )}
       </div>
 
@@ -434,17 +440,17 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           <button
             disabled={pagination.page === 1}
             onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm"
+            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
           >
             上一页
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-slate-400">
             第 {pagination.page} / {pagination.totalPages} 页（共 {pagination.total} 条）
           </span>
           <button
             disabled={pagination.page === pagination.totalPages}
             onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm"
+            className="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
           >
             下一页
           </button>
@@ -458,14 +464,14 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
           onClick={closeDetail}
         >
           <div
-            className="max-h-[90vh] w-[90%] max-w-[900px] overflow-auto rounded-card bg-white"
+            className="max-h-[90vh] w-[90%] max-w-[900px] overflow-auto rounded-card bg-white dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-200 p-5">
-              <h3>决策详情</h3>
+            <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
+              <h3 className="dark:text-white">决策详情</h3>
               <button
                 onClick={closeDetail}
-                className="cursor-pointer border-none bg-none text-[28px] leading-none text-gray-500"
+                className="cursor-pointer border-none bg-none text-[28px] leading-none text-gray-500 dark:text-slate-400"
               >
                 ×
               </button>
@@ -477,8 +483,10 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
               <div className="p-5">
                 {/* 基本信息 */}
                 <div className="mb-6">
-                  <h4 className="mb-3 text-base font-bold text-gray-900">基本信息</h4>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm">
+                  <h4 className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+                    基本信息
+                  </h4>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm dark:text-slate-300">
                     <div>
                       <strong>决策ID:</strong> {decisionDetail.decision.decisionId}
                     </div>
@@ -510,13 +518,18 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 {/* 状态快照 */}
                 {decisionDetail.insight?.stateSnapshot && (
                   <div className="mb-6">
-                    <h4 className="mb-3 text-base font-bold text-gray-900">用户状态快照</h4>
+                    <h4 className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+                      用户状态快照
+                    </h4>
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
                       {Object.entries(decisionDetail.insight.stateSnapshot).map(
                         ([key, value]: [string, StateSnapshotValue]) => (
-                          <div key={key} className="rounded bg-gray-50 p-2 text-[13px]">
-                            <span className="mr-1 font-bold">{key}:</span>
-                            <span className="text-gray-500">
+                          <div
+                            key={key}
+                            className="rounded bg-gray-50 p-2 text-[13px] dark:bg-slate-700"
+                          >
+                            <span className="mr-1 font-bold dark:text-slate-200">{key}:</span>
+                            <span className="text-gray-500 dark:text-slate-400">
                               {typeof value === 'number' ? value.toFixed(2) : JSON.stringify(value)}
                             </span>
                           </div>
@@ -529,17 +542,17 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 {/* 流水线执行 */}
                 {decisionDetail.pipeline && decisionDetail.pipeline.length > 0 && (
                   <div className="mb-6">
-                    <h4 className="mb-3 text-base font-bold text-gray-900">
+                    <h4 className="mb-3 text-base font-bold text-gray-900 dark:text-white">
                       流水线执行（六层架构）
                     </h4>
                     <div className="flex flex-col gap-3">
                       {decisionDetail.pipeline.map((stage: PipelineStage, index: number) => (
                         <div
                           key={index}
-                          className="rounded-md border-l-4 border-blue-500 bg-gray-50 p-3"
+                          className="rounded-md border-l-4 border-blue-500 bg-gray-50 p-3 dark:bg-slate-700"
                         >
                           <div className="mb-2 flex items-center gap-3">
-                            <span className="text-lg font-bold">
+                            <span className="text-lg font-bold dark:text-slate-200">
                               {stage.status === 'SUCCESS'
                                 ? '✓'
                                 : stage.status === 'FAILED'
@@ -548,7 +561,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                                     ? '⏳'
                                     : '─'}
                             </span>
-                            <span className="flex-1 text-sm font-bold">
+                            <span className="flex-1 text-sm font-bold dark:text-slate-200">
                               {stage.stageName || stage.stage}
                             </span>
                             <span
@@ -559,14 +572,14 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                             >
                               {stage.status}
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-slate-400">
                               {stage.durationMs !== null && stage.durationMs !== undefined
                                 ? `${stage.durationMs}ms`
                                 : '-'}
                             </span>
                           </div>
                           {stage.outputSummary && (
-                            <div className="ml-[30px] text-xs text-gray-500">
+                            <div className="ml-[30px] text-xs text-gray-500 dark:text-slate-400">
                               输出: {JSON.stringify(stage.outputSummary).substring(0, 100)}...
                             </div>
                           )}
@@ -583,8 +596,10 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
 
                 {/* 选择的动作 */}
                 <div className="mb-6">
-                  <h4 className="mb-3 text-base font-bold text-gray-900">选择的动作</h4>
-                  <pre className="max-h-[300px] overflow-auto rounded bg-gray-100 p-3 text-xs">
+                  <h4 className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+                    选择的动作
+                  </h4>
+                  <pre className="max-h-[300px] overflow-auto rounded bg-gray-100 p-3 text-xs dark:bg-slate-700 dark:text-slate-300">
                     {JSON.stringify(decisionDetail.decision.selectedAction, null, 2)}
                   </pre>
                 </div>
@@ -592,8 +607,10 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 {/* 上下文信息 */}
                 {decisionDetail.context && (
                   <div className="mb-6">
-                    <h4 className="mb-3 text-base font-bold text-gray-900">上下文</h4>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm">
+                    <h4 className="mb-3 text-base font-bold text-gray-900 dark:text-white">
+                      上下文
+                    </h4>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 text-sm dark:text-slate-300">
                       <div>
                         <strong>单词:</strong> {decisionDetail.context.answerRecord.wordSpelling}
                       </div>
@@ -612,7 +629,7 @@ export const AMASDecisionsTab: React.FC<Props> = ({ userId }) => {
                 )}
               </div>
             ) : (
-              <div className="p-5">加载失败</div>
+              <div className="p-5 dark:text-slate-300">加载失败</div>
             )}
           </div>
         </div>
