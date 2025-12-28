@@ -167,19 +167,19 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
 }) => {
   if (loading) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           系统健康状态
         </div>
-        <div className="py-10 text-center text-gray-600">加载中...</div>
+        <div className="py-10 text-center text-gray-600 dark:text-slate-400">加载中...</div>
       </div>
     );
   }
 
   if (!health) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           系统健康状态
         </div>
         <div className="py-10 text-center text-red-500">无法获取健康状态</div>
@@ -188,8 +188,8 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
   }
 
   return (
-    <div className="rounded-button bg-white p-5 shadow-soft">
-      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
         系统健康状态
         <span
           className={`inline-block rounded-card px-3 py-1 text-xs font-medium text-white ${getStatusClass(health.status)}`}
@@ -197,16 +197,20 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
           {health.status === 'healthy' ? '健康' : health.status === 'degraded' ? '降级' : '异常'}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">版本</span>
-        <span className="text-sm font-medium text-gray-800">{health.version || 'unknown'}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">版本</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {health.version || 'unknown'}
+        </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">运行时间</span>
-        <span className="text-sm font-medium text-gray-800">{formatUptime(health.uptime)}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">运行时间</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {formatUptime(health.uptime)}
+        </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">数据库</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">数据库</span>
         <span
           className={`text-sm font-medium ${
             health.checks.database === 'connected' ? 'text-green-500' : 'text-red-500'
@@ -216,15 +220,15 @@ const HealthCard: React.FC<{ health: HealthStatus | null; loading: boolean }> = 
         </span>
       </div>
       {health.details?.databaseLatency !== undefined && (
-        <div className="flex items-center justify-between border-b border-gray-200 py-2">
-          <span className="text-sm text-gray-600">数据库延迟</span>
-          <span className="text-sm font-medium text-gray-800">
+        <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+          <span className="text-sm text-gray-600 dark:text-slate-400">数据库延迟</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
             {health.details.databaseLatency}ms
           </span>
         </div>
       )}
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">内存状态</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">内存状态</span>
         <span
           className={`text-sm font-medium ${
             health.checks.memory ? 'text-green-500' : 'text-red-500'
@@ -246,19 +250,19 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
 }) => {
   if (loading) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           性能指标
         </div>
-        <div className="py-10 text-center text-gray-600">加载中...</div>
+        <div className="py-10 text-center text-gray-600 dark:text-slate-400">加载中...</div>
       </div>
     );
   }
 
   if (!metrics) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           性能指标
         </div>
         <div className="py-10 text-center text-red-500">无法获取性能指标</div>
@@ -270,18 +274,18 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
     (metrics.process.memoryUsage.heapUsed / metrics.process.memoryUsage.heapTotal) * 100;
 
   return (
-    <div className="rounded-button bg-white p-5 shadow-soft">
-      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
         性能指标
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">请求总数</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">请求总数</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.http.totalRequests.toLocaleString()}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">5xx 错误数</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">5xx 错误数</span>
         <span
           className={`text-sm font-medium ${
             metrics.http.errorRequests5xx > 0 ? 'text-red-500' : 'text-green-500'
@@ -290,29 +294,31 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
           {metrics.http.errorRequests5xx}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">平均响应时间</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">平均响应时间</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.http.requestDuration.avg.toFixed(2)}ms
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">P95 响应时间</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">P95 响应时间</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.http.requestDuration.p95.toFixed(2)}ms
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">P99 响应时间</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">P99 响应时间</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.http.requestDuration.p99.toFixed(2)}ms
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">慢查询数</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">慢查询数</span>
         <span
           className={`text-sm font-medium ${
-            metrics.database.slowQueryTotal > 10 ? 'text-amber-500' : 'text-gray-800'
+            metrics.database.slowQueryTotal > 10
+              ? 'text-amber-500'
+              : 'text-gray-800 dark:text-slate-200'
           }`}
         >
           {metrics.database.slowQueryTotal}
@@ -320,13 +326,13 @@ const MetricsCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean }>
       </div>
       <div className="mt-4">
         <div className="flex justify-between">
-          <span className="text-sm text-gray-600">堆内存使用</span>
-          <span className="text-sm font-medium text-gray-800">
+          <span className="text-sm text-gray-600 dark:text-slate-400">堆内存使用</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
             {formatBytes(metrics.process.memoryUsage.heapUsed)} /{' '}
             {formatBytes(metrics.process.memoryUsage.heapTotal)}
           </span>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-300">
+        <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-300 dark:bg-slate-600">
           <div
             className={`h-full rounded transition-all duration-g3-normal ${
               memoryPercent > 90
@@ -352,19 +358,19 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 }) => {
   if (loading) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           系统信息
         </div>
-        <div className="py-10 text-center text-gray-600">加载中...</div>
+        <div className="py-10 text-center text-gray-600 dark:text-slate-400">加载中...</div>
       </div>
     );
   }
 
   if (!metrics) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           系统信息
         </div>
         <div className="py-10 text-center text-red-500">无法获取系统信息</div>
@@ -373,43 +379,51 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
   }
 
   return (
-    <div className="rounded-button bg-white p-5 shadow-soft">
-      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
         系统信息
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">主机名</span>
-        <span className="text-sm font-medium text-gray-800">{metrics.system.hostname}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">主机名</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {metrics.system.hostname}
+        </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">平台</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">平台</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.system.platform} / {metrics.system.arch}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">Node 版本</span>
-        <span className="text-sm font-medium text-gray-800">{metrics.system.nodeVersion}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">Node 版本</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {metrics.system.nodeVersion}
+        </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">CPU 核心数</span>
-        <span className="text-sm font-medium text-gray-800">{metrics.system.cpuCount}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">CPU 核心数</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {metrics.system.cpuCount}
+        </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">系统负载 (1/5/15分钟)</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">系统负载 (1/5/15分钟)</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {metrics.system.loadAverage.map((l) => l.toFixed(2)).join(' / ')}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">系统运行时间</span>
-        <span className="text-sm font-medium text-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">系统运行时间</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
           {formatUptime(metrics.system.uptime)}
         </span>
       </div>
-      <div className="flex items-center justify-between border-b border-gray-200 py-2">
-        <span className="text-sm text-gray-600">进程 PID</span>
-        <span className="text-sm font-medium text-gray-800">{metrics.process.pid}</span>
+      <div className="flex items-center justify-between border-b border-gray-200 py-2 dark:border-slate-700">
+        <span className="text-sm text-gray-600 dark:text-slate-400">进程 PID</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">
+          {metrics.process.pid}
+        </span>
       </div>
     </div>
   );
@@ -421,18 +435,18 @@ const SystemInfoCard: React.FC<{ metrics: SystemMetrics | null; loading: boolean
 const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, loading }) => {
   if (loading) {
     return (
-      <div className="rounded-button bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+      <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+        <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
           活跃告警
         </div>
-        <div className="py-10 text-center text-gray-600">加载中...</div>
+        <div className="py-10 text-center text-gray-600 dark:text-slate-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-button bg-white p-5 shadow-soft">
-      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+      <div className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800 dark:text-slate-200">
         活跃告警
         {alerts.length > 0 && (
           <span className="inline-block rounded-card bg-red-500 px-3 py-1 text-xs font-medium text-white">
@@ -441,20 +455,25 @@ const AlertsCard: React.FC<{ alerts: Alert[]; loading: boolean }> = ({ alerts, l
         )}
       </div>
       {alerts.length === 0 ? (
-        <div className="p-5 text-center text-gray-400">
+        <div className="p-5 text-center text-gray-400 dark:text-slate-500">
           <span className="text-3xl">✓</span>
           <p>无活跃告警</p>
         </div>
       ) : (
         <ul className="m-0 list-none p-0">
           {alerts.map((alert, index) => (
-            <li key={index} className="mb-2 flex items-start gap-3 rounded bg-gray-50 p-3">
+            <li
+              key={index}
+              className="mb-2 flex items-start gap-3 rounded bg-gray-50 p-3 dark:bg-slate-700"
+            >
               <div
                 className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${getSeverityClass(alert.severity)}`}
               />
               <div className="flex-1">
-                <div className="mb-1 text-sm font-medium text-gray-800">{alert.ruleName}</div>
-                <div className="text-xs text-gray-400">
+                <div className="mb-1 text-sm font-medium text-gray-800 dark:text-slate-200">
+                  {alert.ruleName}
+                </div>
+                <div className="text-xs text-gray-400 dark:text-slate-500">
                   {new Date(alert.triggeredAt).toLocaleString()}
                 </div>
               </div>
@@ -544,12 +563,12 @@ export const SystemStatusDashboard: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-6 dark:bg-slate-900">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="m-0 text-2xl font-semibold text-gray-800">系统状态仪表板</h1>
+        <h1 className="m-0 text-2xl font-semibold text-gray-800 dark:text-white">系统状态仪表板</h1>
         <div className="flex items-center gap-4">
           {lastUpdate && (
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-slate-400">
               更新时间: {lastUpdate.toLocaleTimeString()}
             </span>
           )}
@@ -564,7 +583,7 @@ export const SystemStatusDashboard: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-button bg-red-50 p-5 shadow-soft">
+        <div className="mb-6 rounded-button bg-red-50 p-5 shadow-soft dark:bg-red-900/20">
           <div className="text-red-500">{error}</div>
         </div>
       )}

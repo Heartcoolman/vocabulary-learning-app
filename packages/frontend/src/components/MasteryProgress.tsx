@@ -23,15 +23,30 @@ export interface MasteryProgressProps {
 }
 
 const STATUS_CONFIG = {
-  new: { label: '新词', Icon: Sparkle, color: 'text-blue-500', bg: 'bg-blue-50' },
+  new: {
+    label: '新词',
+    Icon: Sparkle,
+    color: 'text-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+  },
   learning: {
     label: '学习中',
     Icon: ArrowsClockwise,
     color: 'text-orange-500',
-    bg: 'bg-orange-50',
+    bg: 'bg-orange-50 dark:bg-orange-900/30',
   },
-  almost: { label: '即将掌握', Icon: Star, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-  mastered: { label: '已掌握', Icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
+  almost: {
+    label: '即将掌握',
+    Icon: Star,
+    color: 'text-indigo-500',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+  },
+  mastered: {
+    label: '已掌握',
+    Icon: CheckCircle,
+    color: 'text-green-500',
+    bg: 'bg-green-50 dark:bg-green-900/30',
+  },
 } as const;
 
 /**
@@ -57,7 +72,7 @@ function MasteryProgress({
 
   return (
     <div
-      className={`w-full rounded-card border border-gray-100 bg-white px-5 py-4 shadow-soft ${className}`}
+      className={`w-full rounded-card border border-gray-100 bg-white px-5 py-4 shadow-soft dark:border-slate-700 dark:bg-slate-800 ${className}`}
       role="region"
       aria-label="掌握模式学习进度"
       data-testid="mastery-progress"
@@ -66,7 +81,7 @@ function MasteryProgress({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
-            className={`rounded-button p-2 ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}
+            className={`rounded-button p-2 ${isCompleted ? 'bg-green-100 text-green-600 dark:bg-green-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}
           >
             {isCompleted ? (
               <CheckCircle size={20} weight="fill" />
@@ -75,8 +90,12 @@ function MasteryProgress({
             )}
           </div>
           <div className="flex items-center gap-3">
-            <h3 className="font-semibold text-gray-900">{isCompleted ? '目标达成' : '学习进度'}</h3>
-            <span className="text-sm font-medium text-gray-500">{Math.round(percentage)}%</span>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {isCompleted ? '目标达成' : '学习进度'}
+            </h3>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {Math.round(percentage)}%
+            </span>
           </div>
         </div>
 
@@ -85,7 +104,7 @@ function MasteryProgress({
       </div>
 
       {/* Progress Bar */}
-      <div className="relative mb-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="relative mb-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
         <div
           className={`h-full rounded-full transition-all duration-g3-slower ease-g3 ${
             isCompleted
@@ -103,26 +122,30 @@ function MasteryProgress({
 
       {/* Footer Stats */}
       <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4 text-gray-600">
+        <div className="flex items-center gap-4 text-gray-600 dark:text-gray-300">
           <span
             className="flex items-center gap-1.5"
             title="已掌握/目标"
             data-testid="mastered-count"
           >
             <Target size={16} className={isCompleted ? 'text-green-500' : 'text-blue-500'} />
-            <span className="font-medium text-gray-900">{progress.masteredCount}</span>
-            <span className="text-gray-400">/</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {progress.masteredCount}
+            </span>
+            <span className="text-gray-400 dark:text-gray-500">/</span>
             <span>{progress.targetCount}</span>
           </span>
 
-          <span className="h-4 w-px bg-gray-200" />
+          <span className="h-4 w-px bg-gray-200 dark:bg-slate-600" />
 
           <span
             className="flex items-center gap-1.5"
             title="本次答题数"
             data-testid="question-count"
           >
-            <span className="font-medium text-gray-900">{progress.totalQuestions}</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {progress.totalQuestions}
+            </span>
             <span>题</span>
           </span>
         </div>
@@ -137,7 +160,7 @@ function MasteryProgress({
         )}
 
         {isCompleted && (
-          <div className="flex items-center gap-1.5 rounded bg-green-50 px-2.5 py-1 text-sm font-medium text-green-600">
+          <div className="flex items-center gap-1.5 rounded bg-green-50 px-2.5 py-1 text-sm font-medium text-green-600 dark:bg-green-900/30">
             <CheckCircle size={14} weight="fill" />
             完成
           </div>

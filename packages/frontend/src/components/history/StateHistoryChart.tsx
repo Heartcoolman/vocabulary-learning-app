@@ -77,10 +77,10 @@ const MetricChart: React.FC<{
   }, [values]);
 
   return (
-    <div className="rounded-card border border-gray-200 bg-white p-5 transition-all hover:shadow-elevated">
+    <div className="rounded-card border border-gray-200 bg-white p-5 transition-all hover:shadow-elevated dark:border-slate-700 dark:bg-slate-800">
       {/* 标题和趋势箭头 */}
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-500">{label}</span>
+        <span className="text-sm font-medium text-gray-500 dark:text-slate-400">{label}</span>
         {hasChange && (
           <span
             className={`text-sm font-semibold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}
@@ -95,7 +95,7 @@ const MetricChart: React.FC<{
         <span className="text-4xl font-bold" style={{ color }}>
           {displayValue}
         </span>
-        <span className="ml-1 text-lg text-gray-400">%</span>
+        <span className="ml-1 text-lg text-gray-400 dark:text-slate-500">%</span>
       </div>
 
       {/* 迷你折线图（仅当数据>=3天时显示） */}
@@ -133,7 +133,7 @@ const MetricChart: React.FC<{
       )}
 
       {/* 简洁的进度条 */}
-      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
         <div
           className="h-full rounded-full transition-all duration-g3-slower ease-g3"
           style={{
@@ -157,13 +157,13 @@ const StateHistoryChart: React.FC<StateHistoryChartProps> = React.memo(({ stateH
   }
 
   return (
-    <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="mb-6 rounded-card border border-gray-200 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <ChartLine size={24} weight="duotone" color="#3b82f6" />
           状态历史趋势
         </h2>
-        <span className="text-sm text-gray-400">
+        <span className="text-sm text-gray-400 dark:text-slate-500">
           {formatShortDate(stateHistory[0].date)} -{' '}
           {formatShortDate(stateHistory[stateHistory.length - 1].date)}
         </span>

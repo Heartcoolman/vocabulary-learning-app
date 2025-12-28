@@ -1,11 +1,22 @@
 import React from 'react';
 import { AlgorithmWeights } from '../../types/explainability';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface WeightRadarChartProps {
   weights: AlgorithmWeights;
 }
 
 const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // 主题相关颜色
+  const gridColor = isDark ? '#374151' : '#e5e7eb';
+  const polygonFill = isDark ? 'rgba(129, 140, 248, 0.25)' : 'rgba(99, 102, 241, 0.2)';
+  const polygonStroke = isDark ? '#818cf8' : '#6366f1';
+  const pointFill = isDark ? '#818cf8' : '#6366f1';
+  const pointStroke = isDark ? '#1e293b' : 'white';
+
   // Config
   const size = 300;
   const center = size / 2;
@@ -48,7 +59,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
         y1={center}
         x2={p.x}
         y2={p.y}
-        stroke="#e5e7eb"
+        stroke={gridColor}
         strokeWidth="1"
         strokeDasharray="4 4"
       />
@@ -64,7 +75,7 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
       })
       .join(' ');
     return (
-      <polygon key={`grid-${idx}`} points={points} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+      <polygon key={`grid-${idx}`} points={points} fill="none" stroke={gridColor} strokeWidth="1" />
     );
   });
 
@@ -79,8 +90,8 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
           {/* Data Polygon */}
           <polygon
             points={polygonPoints}
-            fill="rgba(99, 102, 241, 0.2)"
-            stroke="#6366f1"
+            fill={polygonFill}
+            stroke={polygonStroke}
             strokeWidth="2"
             className="transition-all duration-g3-slower ease-g3"
           />
@@ -90,7 +101,14 @@ const WeightRadarChart: React.FC<WeightRadarChartProps> = React.memo(({ weights 
             const p = getPoint(i, d.value);
             return (
               <g key={`point-${i}`}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#6366f1" stroke="white" strokeWidth="2" />
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="4"
+                  fill={pointFill}
+                  stroke={pointStroke}
+                  strokeWidth="2"
+                />
                 {/* Labels */}
                 <text
                   x={getPoint(i, 1.2).x}

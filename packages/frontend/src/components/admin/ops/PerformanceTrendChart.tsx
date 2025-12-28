@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { env } from '../../../config/env';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 // ============================================
 // 类型定义
@@ -39,107 +40,16 @@ const CHART_COLORS = {
   p50: '#4caf50',
   p95: '#ff9800',
   p99: '#f44336',
-  grid: '#e0e0e0',
-  text: '#666',
-  background: '#ffffff',
+  grid: { light: '#e0e0e0', dark: '#374151' },
+  text: { light: '#666', dark: '#9ca3af' },
+  background: { light: '#ffffff', dark: '#1e293b' },
+  border: { light: '#eee', dark: '#374151' },
+  threshold: { light: '#9e9e9e', dark: '#6b7280' },
 };
 
 // ============================================
-// 组件样式
+// 组件样式（已移至 Tailwind 类名）
 // ============================================
-
-const styles = {
-  container: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '20px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  } as React.CSSProperties,
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px',
-  } as React.CSSProperties,
-  title: {
-    fontSize: '16px',
-    fontWeight: 600,
-    color: '#333',
-    margin: 0,
-  } as React.CSSProperties,
-  controls: {
-    display: 'flex',
-    gap: '8px',
-  } as React.CSSProperties,
-  button: {
-    padding: '4px 12px',
-    fontSize: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  } as React.CSSProperties,
-  buttonActive: {
-    backgroundColor: '#1976d2',
-    color: 'white',
-    borderColor: '#1976d2',
-  } as React.CSSProperties,
-  chartContainer: {
-    position: 'relative' as const,
-    width: '100%',
-  } as React.CSSProperties,
-  legend: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '24px',
-    marginTop: '16px',
-  } as React.CSSProperties,
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    color: '#666',
-    cursor: 'pointer',
-    opacity: 1,
-    transition: 'opacity 0.2s',
-  } as React.CSSProperties,
-  legendItemDisabled: {
-    opacity: 0.3,
-  } as React.CSSProperties,
-  legendLine: {
-    width: '20px',
-    height: '2px',
-  } as React.CSSProperties,
-  stats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '16px',
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #eee',
-  } as React.CSSProperties,
-  statItem: {
-    textAlign: 'center' as const,
-  } as React.CSSProperties,
-  statValue: {
-    fontSize: '20px',
-    fontWeight: 600,
-  } as React.CSSProperties,
-  statLabel: {
-    fontSize: '12px',
-    color: '#999',
-    marginTop: '4px',
-  } as React.CSSProperties,
-  noData: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#999',
-    fontSize: '14px',
-  } as React.CSSProperties,
-};
 
 // ============================================
 // 辅助函数
@@ -162,6 +72,8 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
   refreshInterval = 60,
   height = 300,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [data, setData] = useState<PerformanceDataPoint[]>([]);
   const [selectedRange, setSelectedRange] = useState(timeRange);
   const [loading, setLoading] = useState(true);
@@ -244,7 +156,7 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
     const chartContentHeight = chartHeight - padding.top - padding.bottom;
 
     // 清除画布
-    ctx.fillStyle = CHART_COLORS.background;
+    ctx.fillStyle = isDark ? CHART_COLORS.background.dark : CHART_COLORS.background.light;
     ctx.fillRect(0, 0, width, chartHeight);
 
     // 计算数据范围
@@ -259,7 +171,9 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
     const maxTime = data[data.length - 1].timestamp;
 
     // 绘制网格线
-    ctx.strokeStyle = CHART_COLORS.grid;
+    const gridColor = isDark ? CHART_COLORS.grid.dark : CHART_COLORS.grid.light;
+    const textColor = isDark ? CHART_COLORS.text.dark : CHART_COLORS.text.light;
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
 
     // 水平网格线
@@ -273,18 +187,18 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
 
       // Y 轴标签
       const value = (maxValue * (yGridCount - i)) / yGridCount;
-      ctx.fillStyle = CHART_COLORS.text;
+      ctx.fillStyle = textColor;
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(`${value.toFixed(0)}ms`, padding.left - 8, y + 4);
     }
 
     // 垂直网格线和时间标签
-    const xGridCount = Math.min(data.length - 1, 6);
+    const xGridCount = Math.max(1, Math.min(data.length - 1, 6));
     for (let i = 0; i <= xGridCount; i++) {
       const x = padding.left + (chartWidth * i) / xGridCount;
       ctx.beginPath();
-      ctx.strokeStyle = CHART_COLORS.grid;
+      ctx.strokeStyle = gridColor;
       ctx.moveTo(x, padding.top);
       ctx.lineTo(x, chartHeight - padding.bottom);
       ctx.stroke();
@@ -292,7 +206,7 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
       // X 轴时间标签
       const dataIndex = Math.floor((data.length - 1) * (i / xGridCount));
       if (data[dataIndex]) {
-        ctx.fillStyle = CHART_COLORS.text;
+        ctx.fillStyle = textColor;
         ctx.font = '11px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(formatTime(data[dataIndex].timestamp), x, chartHeight - padding.bottom + 20);
@@ -353,9 +267,10 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
 
     // 绘制阈值线（200ms）
     const thresholdY = padding.top + chartContentHeight - (200 / maxValue) * chartContentHeight;
+    const thresholdColor = isDark ? CHART_COLORS.threshold.dark : CHART_COLORS.threshold.light;
     if (thresholdY > padding.top && thresholdY < padding.top + chartContentHeight) {
       ctx.beginPath();
-      ctx.strokeStyle = '#9e9e9e';
+      ctx.strokeStyle = thresholdColor;
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 5]);
       ctx.moveTo(padding.left, thresholdY);
@@ -364,7 +279,7 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
       ctx.setLineDash([]);
 
       // 阈值标签
-      ctx.fillStyle = '#9e9e9e';
+      ctx.fillStyle = thresholdColor;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText('目标 200ms', width - padding.right + 4, thresholdY + 3);
@@ -374,12 +289,12 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
     ctx.save();
     ctx.translate(12, chartHeight / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = CHART_COLORS.text;
+    ctx.fillStyle = textColor;
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('响应时间 (ms)', 0, 0);
     ctx.restore();
-  }, [data, height, visibleLines]);
+  }, [data, height, visibleLines, isDark]);
 
   // 获取数据
   useEffect(() => {
@@ -425,17 +340,20 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h3 style={styles.title}>响应时间趋势</h3>
-        <div style={styles.controls}>
+    <div className="rounded-button bg-white p-5 shadow-soft dark:bg-slate-800">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="m-0 text-base font-semibold text-gray-800 dark:text-gray-100">
+          响应时间趋势
+        </h3>
+        <div className="flex gap-2">
           {[15, 30, 60, 120].map((range) => (
             <button
               key={range}
-              style={{
-                ...styles.button,
-                ...(selectedRange === range ? styles.buttonActive : {}),
-              }}
+              className={`rounded px-3 py-1 text-xs transition-all ${
+                selectedRange === range
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600'
+              }`}
               onClick={() => setSelectedRange(range)}
             >
               {range}分钟
@@ -444,105 +362,97 @@ export const PerformanceTrendChart: React.FC<PerformanceTrendChartProps> = ({
         </div>
       </div>
 
-      <div style={{ ...styles.chartContainer, height }}>
+      <div className="relative w-full" style={{ height }}>
         {loading ? (
-          <div style={{ ...styles.noData, height }}>加载中...</div>
+          <div
+            className="flex items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+            style={{ height }}
+          >
+            加载中...
+          </div>
         ) : fetchError ? (
-          <div style={{ ...styles.noData, height, color: '#ef4444' }}>{fetchError}</div>
+          <div className="flex items-center justify-center text-sm text-red-500" style={{ height }}>
+            {fetchError}
+          </div>
         ) : data.length === 0 ? (
-          <div style={{ ...styles.noData, height }}>暂无数据</div>
+          <div
+            className="flex items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+            style={{ height }}
+          >
+            暂无数据
+          </div>
         ) : (
           <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
         )}
       </div>
 
-      <div style={styles.legend}>
+      <div className="mt-4 flex justify-center gap-6">
         <div
-          style={{
-            ...styles.legendItem,
-            ...(visibleLines.avg ? {} : styles.legendItemDisabled),
-          }}
+          className={`flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 transition-opacity dark:text-gray-400 ${!visibleLines.avg ? 'opacity-30' : ''}`}
           onClick={() => toggleLine('avg')}
         >
-          <div style={{ ...styles.legendLine, backgroundColor: CHART_COLORS.avg }} />
+          <div className="h-0.5 w-5" style={{ backgroundColor: CHART_COLORS.avg }} />
           <span>平均值</span>
         </div>
         <div
-          style={{
-            ...styles.legendItem,
-            ...(visibleLines.p50 ? {} : styles.legendItemDisabled),
-          }}
+          className={`flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 transition-opacity dark:text-gray-400 ${!visibleLines.p50 ? 'opacity-30' : ''}`}
           onClick={() => toggleLine('p50')}
         >
-          <div style={{ ...styles.legendLine, backgroundColor: CHART_COLORS.p50 }} />
+          <div className="h-0.5 w-5" style={{ backgroundColor: CHART_COLORS.p50 }} />
           <span>P50</span>
         </div>
         <div
-          style={{
-            ...styles.legendItem,
-            ...(visibleLines.p95 ? {} : styles.legendItemDisabled),
-          }}
+          className={`flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 transition-opacity dark:text-gray-400 ${!visibleLines.p95 ? 'opacity-30' : ''}`}
           onClick={() => toggleLine('p95')}
         >
-          <div style={{ ...styles.legendLine, backgroundColor: CHART_COLORS.p95 }} />
+          <div className="h-0.5 w-5" style={{ backgroundColor: CHART_COLORS.p95 }} />
           <span>P95</span>
         </div>
         <div
-          style={{
-            ...styles.legendItem,
-            ...(visibleLines.p99 ? {} : styles.legendItemDisabled),
-          }}
+          className={`flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 transition-opacity dark:text-gray-400 ${!visibleLines.p99 ? 'opacity-30' : ''}`}
           onClick={() => toggleLine('p99')}
         >
-          <div style={{ ...styles.legendLine, backgroundColor: CHART_COLORS.p99 }} />
+          <div className="h-0.5 w-5" style={{ backgroundColor: CHART_COLORS.p99 }} />
           <span>P99</span>
         </div>
       </div>
 
-      <div style={styles.stats}>
-        <div style={styles.statItem}>
+      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-gray-200 pt-4 dark:border-slate-700">
+        <div className="text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: getPerformanceColor(latestStats.avg),
-            }}
+            className="text-xl font-semibold"
+            style={{ color: getPerformanceColor(latestStats.avg) }}
           >
             {latestStats.avg.toFixed(0)}ms
           </div>
-          <div style={styles.statLabel}>当前平均</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">当前平均</div>
         </div>
-        <div style={styles.statItem}>
+        <div className="text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: getPerformanceColor(latestStats.p50),
-            }}
+            className="text-xl font-semibold"
+            style={{ color: getPerformanceColor(latestStats.p50) }}
           >
             {latestStats.p50.toFixed(0)}ms
           </div>
-          <div style={styles.statLabel}>P50</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">P50</div>
         </div>
-        <div style={styles.statItem}>
+        <div className="text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: getPerformanceColor(latestStats.p95),
-            }}
+            className="text-xl font-semibold"
+            style={{ color: getPerformanceColor(latestStats.p95) }}
           >
             {latestStats.p95.toFixed(0)}ms
           </div>
-          <div style={styles.statLabel}>P95</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">P95</div>
         </div>
-        <div style={styles.statItem}>
+        <div className="text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: getPerformanceColor(latestStats.p99),
-            }}
+            className="text-xl font-semibold"
+            style={{ color: getPerformanceColor(latestStats.p99) }}
           >
             {latestStats.p99.toFixed(0)}ms
           </div>
-          <div style={styles.statLabel}>P99</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">P99</div>
         </div>
       </div>
     </div>

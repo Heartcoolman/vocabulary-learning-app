@@ -40,7 +40,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
             return (
               <div
                 key={stat.wordId}
-                className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated ${mastery.border}`}
+                className={`group relative animate-g3-fade-in rounded-card border bg-white/80 p-4 shadow-soft backdrop-blur-sm transition-all duration-g3-fast hover:scale-105 hover:shadow-elevated dark:bg-slate-800/80 ${mastery.border}`}
                 style={{ animationDelay: `${index * 30}ms` }}
               >
                 {/* 掌握程度标签 */}
@@ -58,12 +58,14 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
                 {/* 单词名称 */}
                 <div className="mb-4">
                   <h3
-                    className="mb-0.5 truncate text-xl font-bold text-gray-900"
+                    className="mb-0.5 truncate text-xl font-bold text-gray-900 dark:text-white"
                     title={stat.spelling}
                   >
                     {stat.spelling}
                   </h3>
-                  <p className="text-xs text-gray-500">{formatDate(stat.lastStudied)}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {formatDate(stat.lastStudied)}
+                  </p>
                 </div>
 
                 {/* 圆形进度条 */}
@@ -77,7 +79,7 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
                         stroke="currentColor"
                         strokeWidth="6"
                         fill="none"
-                        className="text-gray-200"
+                        className="text-gray-200 dark:text-slate-700"
                       />
                       <circle
                         cx="40"
@@ -109,13 +111,15 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
                 </div>
 
                 {/* 统计信息 */}
-                <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 dark:border-slate-700">
                   <div className="text-center">
-                    <p className="mb-0.5 text-xs text-gray-500">次数</p>
-                    <p className="text-sm font-bold text-gray-900">{stat.attempts}</p>
+                    <p className="mb-0.5 text-xs text-gray-500 dark:text-slate-400">次数</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">
+                      {stat.attempts}
+                    </p>
                   </div>
                   <div className="text-center">
-                    <p className="mb-0.5 text-xs text-gray-500">正确</p>
+                    <p className="mb-0.5 text-xs text-gray-500 dark:text-slate-400">正确</p>
                     <p className="text-sm font-bold text-green-600">{stat.correct}</p>
                   </div>
                 </div>
@@ -130,17 +134,17 @@ const WordStatsTable: React.FC<WordStatsTableProps> = React.memo(
             <button
               onClick={() => onPageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               上一页
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-slate-400">
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-button border border-gray-200 px-3 py-1 text-gray-600 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               下一页
             </button>

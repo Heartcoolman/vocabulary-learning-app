@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { chartColors } from '../utils/iconColors';
 
 export interface LineChartData {
@@ -16,7 +16,25 @@ export interface LineChartProps {
 const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height = 300 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height });
+  const [isDark, setIsDark] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 检测深色模式
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    checkDarkMode();
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const gridColor = useMemo(() => (isDark ? chartColors.gridDark : chartColors.grid), [isDark]);
+  const tooltipBg = useMemo(
+    () => (isDark ? chartColors.backgroundDark : chartColors.text),
+    [isDark],
+  );
 
   // 使用debounce优化resize事件处理，避免频繁重渲染
   const updateDimensions = useCallback(() => {
@@ -52,7 +70,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-gray-400">
+      <div className="flex items-center justify-center py-8 text-gray-400 dark:text-gray-500">
         <p>暂无数据</p>
       </div>
     );
@@ -86,7 +104,9 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
 
   return (
     <div ref={containerRef} className="w-full">
-      {title && <h3 className="mb-4 text-lg font-semibold text-gray-800">{title}</h3>}
+      {title && (
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
+      )}
 
       <svg
         width={dimensions.width}
@@ -108,7 +128,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
             y={padding.top + chartHeight / 2}
             textAnchor="middle"
             transform={`rotate(-90, 15, ${padding.top + chartHeight / 2})`}
-            className="fill-gray-600 text-xs"
+            className="fill-gray-600 text-xs dark:fill-gray-400"
           >
             {yAxisLabel}
           </text>
@@ -123,14 +143,14 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
                 y1={y}
                 x2={padding.left + chartWidth}
                 y2={y}
-                stroke={chartColors.grid}
+                stroke={gridColor}
                 strokeWidth="1"
               />
               <text
                 x={padding.left - 10}
                 y={y + 4}
                 textAnchor="end"
-                className="fill-gray-500 text-xs"
+                className="fill-gray-500 text-xs dark:fill-gray-400"
               >
                 {value.toFixed(0)}
               </text>
@@ -159,9 +179,8 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
               cy={point.y}
               r={hoveredPoint === index ? 6 : 4}
               fill={chartColors.primary}
-              stroke="white"
+              className="cursor-pointer stroke-white transition-all duration-g3-fast dark:stroke-slate-800"
               strokeWidth="2"
-              className="cursor-pointer transition-all duration-g3-fast"
               onMouseEnter={() => setHoveredPoint(index)}
               onMouseLeave={() => setHoveredPoint(null)}
             />
@@ -173,7 +192,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
                   width="80"
                   height="30"
                   rx="4"
-                  fill={chartColors.text}
+                  fill={tooltipBg}
                   opacity="0.9"
                 />
                 <text
@@ -208,7 +227,7 @@ const LineChart: React.FC<LineChartProps> = ({ data, title, yAxisLabel, height =
                 x={x}
                 y={padding.top + chartHeight + 20}
                 textAnchor={i === 0 ? 'start' : i === filtered.length - 1 ? 'end' : 'middle'}
-                className="fill-gray-600 text-xs"
+                className="fill-gray-600 text-xs dark:fill-gray-400"
               >
                 {point.date}
               </text>

@@ -21,8 +21,8 @@ export const GoalTracker = ({
     weeklyGoal > 0 ? Math.min(100, Math.round((weeklyProgress / weeklyGoal) * 100)) : 0;
 
   return (
-    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft">
-      <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
+    <div className="rounded-card border border-gray-100 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+      <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
         <Target className="h-6 w-6 text-blue-500" weight="duotone" />
         学习目标追踪
       </h3>
@@ -33,7 +33,7 @@ export const GoalTracker = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-blue-500" weight="bold" />
-              <span className="text-sm font-medium text-gray-700">每日目标</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">每日目标</span>
             </div>
             <span className="text-sm font-bold text-blue-600">
               {currentProgress} / {dailyGoal} 个单词
@@ -41,7 +41,7 @@ export const GoalTracker = ({
           </div>
 
           <div className="relative">
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
               <div
                 className={`h-3 rounded-full transition-all duration-g3-slow ${
                   dailyPercentage >= 100
@@ -69,7 +69,9 @@ export const GoalTracker = ({
               <Lightning size={14} weight="fill" /> 快完成了，继续加油！
             </p>
           ) : (
-            <p className="text-xs text-gray-500">还需学习 {dailyGoal - currentProgress} 个单词</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              还需学习 {dailyGoal - currentProgress} 个单词
+            </p>
           )}
         </div>
 
@@ -78,7 +80,7 @@ export const GoalTracker = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendUp className="h-4 w-4 text-purple-500" weight="bold" />
-              <span className="text-sm font-medium text-gray-700">本周目标</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">本周目标</span>
             </div>
             <span className="text-sm font-bold text-purple-600">
               {weeklyProgress} / {weeklyGoal} 个单词
@@ -86,7 +88,7 @@ export const GoalTracker = ({
           </div>
 
           <div className="relative">
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
               <div
                 className={`h-3 rounded-full transition-all duration-g3-slow ${
                   weeklyPercentage >= 100
@@ -98,20 +100,24 @@ export const GoalTracker = ({
             </div>
           </div>
 
-          <p className="text-xs text-gray-500">本周已完成 {weeklyPercentage}%</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">本周已完成 {weeklyPercentage}%</p>
         </div>
 
         {/* 预计完成时间 */}
         {estimatedDaysToComplete !== null && estimatedDaysToComplete > 0 && (
-          <div className="border-t border-gray-100 pt-4">
-            <div className="rounded-button bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+          <div className="border-t border-gray-100 pt-4 dark:border-slate-700">
+            <div className="rounded-button bg-gradient-to-r from-indigo-50 to-purple-50 p-4 dark:from-indigo-900/20 dark:to-purple-900/20">
               <div className="mb-2 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-600" weight="bold" />
-                <span className="text-sm font-semibold text-gray-900">完成预测</span>
+                <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" weight="bold" />
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  完成预测
+                </span>
               </div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 按当前进度，预计{' '}
-                <span className="font-bold text-indigo-600">{estimatedDaysToComplete} 天</span>{' '}
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                  {estimatedDaysToComplete} 天
+                </span>{' '}
                 后达成学习目标
               </p>
             </div>
