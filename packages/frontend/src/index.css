@@ -141,6 +141,20 @@
   --g3-duration-slower: 480ms; /* 大型过渡：模态框、页面切换 */
 }
 
+.dark {
+  color-scheme: dark;
+  color: #f8fafc;
+  background-color: #0f172a;
+
+  /* 深色模式玻璃态渐变 */
+  --gradient-glass: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.85) 100%);
+
+  /* 深色模式阴影调整 */
+  --g3-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --g3-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --g3-shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
 body {
   margin: 0;
   display: flex;
@@ -403,8 +417,8 @@ body {
    * ---------------------------------------- */
   .btn-secondary {
     @apply relative inline-flex items-center justify-center px-4 py-2 font-medium;
-    @apply overflow-hidden rounded-button text-gray-700;
-    @apply border border-gray-200/80;
+    @apply overflow-hidden rounded-button text-gray-700 dark:text-gray-200;
+    @apply border border-gray-200/80 dark:border-slate-700/80;
     @apply shadow-soft;
     @apply transition-all duration-g3-fast ease-g3;
     background: var(--gradient-glass);
@@ -424,7 +438,7 @@ body {
   }
 
   .btn-secondary:hover:not(:disabled) {
-    @apply border-gray-300/80 shadow-elevated;
+    @apply border-gray-300/80 shadow-elevated dark:border-slate-600;
     @apply -translate-y-0.5;
   }
 
@@ -453,16 +467,16 @@ body {
    * ---------------------------------------- */
   .btn-ghost {
     @apply inline-flex items-center justify-center px-3 py-1.5 font-medium;
-    @apply rounded-button bg-transparent text-gray-600;
+    @apply rounded-button bg-transparent text-gray-600 dark:text-gray-400;
     @apply transition-all duration-g3-fast ease-g3;
   }
 
   .btn-ghost:hover:not(:disabled) {
-    @apply bg-gray-100/80 text-gray-900;
+    @apply bg-gray-100/80 text-gray-900 dark:bg-slate-700/80 dark:text-white;
   }
 
   .btn-ghost:active:not(:disabled) {
-    @apply bg-gray-200/80;
+    @apply bg-gray-200/80 dark:bg-slate-600/80;
     transform: scale(0.98);
   }
 
@@ -544,7 +558,7 @@ body {
    * ---------------------------------------- */
   .card-elevated {
     @apply relative rounded-card;
-    @apply border border-gray-100/50 bg-white;
+    @apply border border-gray-100/50 bg-white dark:border-slate-700/50 dark:bg-slate-800;
     @apply transition-all duration-g3-normal ease-g3;
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.04),
@@ -579,7 +593,7 @@ body {
    * ---------------------------------------- */
   .card-glass {
     @apply relative overflow-hidden rounded-card;
-    @apply border border-white/40;
+    @apply border border-white/40 dark:border-slate-700/40;
     @apply shadow-elevated;
     background: linear-gradient(
       135deg,
@@ -621,7 +635,7 @@ body {
    * ---------------------------------------- */
   .skeleton {
     @apply relative overflow-hidden;
-    @apply rounded-badge bg-gray-200/60;
+    @apply rounded-badge bg-gray-200/60 dark:bg-slate-700/60;
   }
 
   .skeleton::after {
@@ -634,7 +648,7 @@ body {
   /* 骨架屏卡片预设 */
   .skeleton-card {
     @apply space-y-3 rounded-card p-4;
-    @apply border border-gray-100/50 bg-white shadow-soft;
+    @apply border border-gray-100/50 bg-white shadow-soft dark:border-slate-700/50 dark:bg-slate-800;
   }
 
   .skeleton-line {
@@ -660,22 +674,22 @@ body {
    * ---------------------------------------- */
   .input-enhanced {
     @apply w-full px-4 py-2.5;
-    @apply rounded-input border border-gray-200/80 bg-gray-50/50;
-    @apply text-gray-900 placeholder-gray-400;
+    @apply rounded-input border border-gray-200/80 bg-gray-50/50 dark:border-slate-700/80 dark:bg-slate-900/50;
+    @apply text-gray-900 placeholder-gray-400 dark:text-white dark:placeholder-gray-500;
     @apply transition-all duration-g3-fast ease-g3;
   }
 
   .input-enhanced:hover:not(:disabled):not(:focus) {
-    @apply border-gray-300 bg-gray-50/80;
+    @apply border-gray-300 bg-gray-50/80 dark:border-slate-600 dark:bg-slate-900/80;
   }
 
   .input-enhanced:focus {
-    @apply border-blue-400 bg-white outline-none;
-    @apply ring-2 ring-blue-100;
+    @apply border-blue-400 bg-white outline-none dark:bg-slate-800;
+    @apply ring-2 ring-blue-100 dark:ring-blue-900/50;
   }
 
   .input-enhanced:disabled {
-    @apply cursor-not-allowed bg-gray-100 opacity-50;
+    @apply cursor-not-allowed bg-gray-100 opacity-50 dark:bg-slate-800;
   }
 
   /* ----------------------------------------
@@ -703,12 +717,12 @@ body {
   }
 
   .text-caption {
-    @apply text-sm text-gray-500;
+    @apply text-sm text-gray-500 dark:text-gray-400;
     line-height: var(--leading-normal);
   }
 
   .text-label {
-    @apply text-xs font-medium uppercase tracking-wider text-gray-500;
+    @apply text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400;
   }
 
   /* ----------------------------------------
@@ -736,7 +750,7 @@ body {
    * 链接样式
    * ---------------------------------------- */
   .link {
-    @apply font-medium text-blue-600;
+    @apply font-medium text-blue-600 dark:text-blue-400;
     @apply transition-colors duration-g3-fast ease-g3;
     text-decoration: underline;
     text-decoration-color: transparent;
@@ -744,7 +758,7 @@ body {
   }
 
   .link:hover {
-    @apply text-blue-700;
+    @apply text-blue-700 dark:text-blue-300;
     text-decoration-color: currentColor;
   }
 
