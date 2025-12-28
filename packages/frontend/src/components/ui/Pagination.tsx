@@ -124,15 +124,17 @@ export const Pagination = memo(
           buttonBaseStyles,
           isActive
             ? 'bg-blue-500 text-white shadow-button-rest'
-            : 'text-gray-600 hover:bg-gray-100',
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700',
           disabled && 'cursor-not-allowed opacity-50',
         );
 
       const navButtonStyles = (canNavigate: boolean) =>
         cn(
           buttonBaseStyles,
-          'text-gray-600',
-          canNavigate ? 'hover:bg-gray-100' : 'cursor-not-allowed opacity-50',
+          'text-gray-600 dark:text-gray-300',
+          canNavigate
+            ? 'hover:bg-gray-100 dark:hover:bg-slate-700'
+            : 'cursor-not-allowed opacity-50',
         );
 
       if (total <= 1) return null;
@@ -164,7 +166,7 @@ export const Pagination = memo(
                   key={`ellipsis-${index}`}
                   className={cn(
                     'inline-flex items-center justify-center',
-                    'text-gray-400',
+                    'text-gray-400 dark:text-gray-500',
                     buttonSize,
                   )}
                   aria-hidden="true"
@@ -242,7 +244,9 @@ export const SimplePagination = memo(
           'transition-all duration-g3-fast ease-g3',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
           buttonSize,
-          canNavigate ? 'text-gray-700 hover:bg-gray-100' : 'cursor-not-allowed text-gray-300',
+          canNavigate
+            ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+            : 'cursor-not-allowed text-gray-300 dark:text-gray-600',
         );
 
       return (
@@ -264,7 +268,7 @@ export const SimplePagination = memo(
           </button>
 
           {showInfo && (
-            <span className="px-2 text-sm text-gray-500">
+            <span className="px-2 text-sm text-gray-500 dark:text-gray-400">
               {current} / {total}
             </span>
           )}

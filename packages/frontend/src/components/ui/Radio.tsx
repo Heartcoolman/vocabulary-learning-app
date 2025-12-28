@@ -108,7 +108,9 @@ export const Radio = memo(
               'transition-all duration-g3-fast ease-g3',
               outer,
               // 状态样式
-              checked ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400',
+              checked
+                ? 'border-blue-500'
+                : 'border-gray-300 hover:border-gray-400 dark:border-slate-600 dark:hover:border-slate-500',
               // 禁用样式
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -147,7 +149,7 @@ export const Radio = memo(
                 <label
                   htmlFor={inputId}
                   className={cn(
-                    'cursor-pointer font-medium text-gray-900',
+                    'cursor-pointer font-medium text-gray-900 dark:text-white',
                     textSize,
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
@@ -158,7 +160,10 @@ export const Radio = memo(
               {description && (
                 <p
                   id={descriptionId}
-                  className={cn('mt-0.5 text-gray-500', size === 'lg' ? 'text-sm' : 'text-xs')}
+                  className={cn(
+                    'mt-0.5 text-gray-500 dark:text-gray-400',
+                    size === 'lg' ? 'text-sm' : 'text-xs',
+                  )}
                 >
                   {description}
                 </p>
@@ -238,7 +243,11 @@ export const RadioGroup = memo(
           }}
         >
           <div ref={ref} role="radiogroup" aria-label={label} className={className}>
-            {label && <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>}
+            {label && (
+              <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
+                {label}
+              </span>
+            )}
             <div
               className={cn(
                 'flex gap-3',

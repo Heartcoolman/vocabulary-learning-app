@@ -27,23 +27,27 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 const variantStyles: Record<AlertVariant, { container: string; icon: string; iconColor: string }> =
   {
     success: {
-      container: 'bg-green-50 border-green-200 text-green-800',
-      icon: 'text-green-500',
+      container:
+        'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200',
+      icon: 'text-green-500 dark:text-green-400',
       iconColor: '#22c55e',
     },
     error: {
-      container: 'bg-red-50 border-red-200 text-red-800',
-      icon: 'text-red-500',
+      container:
+        'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200',
+      icon: 'text-red-500 dark:text-red-400',
       iconColor: '#ef4444',
     },
     warning: {
-      container: 'bg-amber-50 border-amber-200 text-amber-800',
-      icon: 'text-amber-500',
+      container:
+        'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-200',
+      icon: 'text-amber-500 dark:text-amber-400',
       iconColor: '#f59e0b',
     },
     info: {
-      container: 'bg-blue-50 border-blue-200 text-blue-800',
-      icon: 'text-blue-500',
+      container:
+        'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200',
+      icon: 'text-blue-500 dark:text-blue-400',
       iconColor: '#3b82f6',
     },
   };
@@ -109,7 +113,7 @@ export const Alert = memo(
               className={cn(
                 'flex-shrink-0 rounded-badge p-1',
                 'transition-colors duration-g3-fast',
-                'hover:bg-black/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                'hover:bg-black/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:hover:bg-white/10',
                 variant === 'success' && 'focus-visible:ring-green-500',
                 variant === 'error' && 'focus-visible:ring-red-500',
                 variant === 'warning' && 'focus-visible:ring-amber-500',
@@ -196,7 +200,7 @@ export const AlertBanner = memo(
               className={cn(
                 'ml-auto flex-shrink-0 rounded-badge p-1',
                 'transition-colors duration-g3-fast',
-                'hover:bg-black/5 focus:outline-none focus-visible:ring-2',
+                'hover:bg-black/5 focus:outline-none focus-visible:ring-2 dark:hover:bg-white/10',
               )}
               aria-label="关闭提示"
             >

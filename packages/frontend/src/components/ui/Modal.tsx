@@ -60,7 +60,7 @@ export function Modal({
 
       {/* Modal Content */}
       <div
-        className={`relative animate-g3-scale-in rounded-card bg-white shadow-floating ${maxWidthClasses[maxWidth]} w-full`}
+        className={`relative animate-g3-scale-in rounded-card bg-white shadow-floating dark:bg-slate-800 ${maxWidthClasses[maxWidth]} w-full`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
@@ -69,14 +69,14 @@ export function Modal({
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-6 pb-0">
             {title && (
-              <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+              <h2 id="modal-title" className="text-xl font-bold text-gray-900 dark:text-white">
                 {title}
               </h2>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="rounded-button p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-button p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-700 dark:hover:text-gray-200"
                 aria-label="关闭"
               >
                 <X size={20} weight="bold" />
@@ -127,12 +127,12 @@ export function ConfirmModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm">
-      <p className="mb-6 text-gray-600">{message}</p>
+      <p className="mb-6 text-gray-600 dark:text-gray-300">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="flex-1 rounded-button bg-gray-100 px-4 py-2.5 font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:opacity-50"
+          className="flex-1 rounded-button bg-gray-100 px-4 py-2.5 font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:opacity-50 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600"
         >
           {cancelText}
         </button>
@@ -174,7 +174,7 @@ export function AlertModal({
 }: AlertModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm" showCloseButton={false}>
-      <p className="mb-6 text-gray-600">{message}</p>
+      <p className="mb-6 text-gray-600 dark:text-gray-300">{message}</p>
       <button
         onClick={onClose}
         className={`w-full rounded-button px-4 py-2.5 font-medium text-white transition-all duration-g3-fast hover:scale-105 focus:ring-2 focus:ring-offset-2 active:scale-95 ${alertVariantStyles[variant]}`}

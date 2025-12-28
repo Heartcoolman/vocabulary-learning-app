@@ -219,19 +219,21 @@ export const Tab = memo(
           'relative',
           orientation === 'horizontal' ? '-mb-px border-b-2' : '-mr-px border-r-2',
           isSelected
-            ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+            ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:border-slate-500',
         ),
         pills: cn(
           'rounded-button',
-          isSelected ? 'bg-white text-gray-900 shadow-soft' : 'text-gray-500 hover:text-gray-700',
+          isSelected
+            ? 'bg-white text-gray-900 shadow-soft dark:bg-slate-700 dark:text-white'
+            : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200',
         ),
         enclosed: cn(
           'border border-transparent rounded-t-lg',
           orientation === 'horizontal' ? '-mb-px' : '-mr-px rounded-t-none rounded-l-lg',
           isSelected
-            ? 'border-gray-200 border-b-white bg-white text-gray-900'
-            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+            ? 'border-gray-200 border-b-white bg-white text-gray-900 dark:border-slate-600 dark:border-b-slate-800 dark:bg-slate-800 dark:text-white'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700',
         ),
       };
 

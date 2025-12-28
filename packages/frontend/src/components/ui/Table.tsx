@@ -147,12 +147,13 @@ export const Table = memo(
             'w-full border-collapse',
             tableSizeStyles[size],
             // 变体样式
-            variant === 'striped' && '[&_tbody_tr:nth-child(even)]:bg-gray-50',
+            variant === 'striped' &&
+              '[&_tbody_tr:nth-child(even)]:bg-gray-50 dark:[&_tbody_tr:nth-child(even)]:bg-slate-800/50',
             variant === 'bordered' &&
-              'border border-gray-200 [&_td]:border [&_td]:border-gray-200 [&_th]:border [&_th]:border-gray-200',
+              'border border-gray-200 dark:border-slate-700 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-slate-700 [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-slate-700',
             // 固定表头
             stickyHeader &&
-              '[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-gray-50',
+              '[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-gray-50 dark:[&_thead_th]:bg-slate-800',
             className,
           )}
           {...props}
@@ -173,7 +174,7 @@ export const Table = memo(
       if (maxHeight) {
         return (
           <div
-            className="overflow-auto rounded-card border border-gray-200"
+            className="overflow-auto rounded-card border border-gray-200 dark:border-slate-700"
             style={{
               maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight,
             }}
@@ -199,7 +200,7 @@ export const TableHeader = memo(
   forwardRef<HTMLTableSectionElement, TableHeaderProps>(
     ({ className, children, ...props }, ref) => {
       return (
-        <thead ref={ref} className={cn('bg-gray-50', className)} {...props}>
+        <thead ref={ref} className={cn('bg-gray-50 dark:bg-slate-800', className)} {...props}>
           {children}
         </thead>
       );
@@ -217,7 +218,11 @@ export interface TableBodyProps extends HTMLAttributes<HTMLTableSectionElement> 
 export const TableBody = memo(
   forwardRef<HTMLTableSectionElement, TableBodyProps>(({ className, children, ...props }, ref) => {
     return (
-      <tbody ref={ref} className={cn('divide-y divide-gray-100', className)} {...props}>
+      <tbody
+        ref={ref}
+        className={cn('divide-y divide-gray-100 dark:divide-slate-700', className)}
+        {...props}
+      >
         {children}
       </tbody>
     );
@@ -286,8 +291,10 @@ export const TableRow = memo(
           tabIndex={isSelectable ? 0 : undefined}
           className={cn(
             'transition-colors duration-g3-instant',
-            (clickable || isSelectable) && 'cursor-pointer hover:bg-gray-50',
-            isSelected && 'bg-blue-50 hover:bg-blue-100',
+            (clickable || isSelectable) &&
+              'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50',
+            isSelected &&
+              'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/40',
             className,
           )}
           onClick={handleClick}
@@ -324,9 +331,9 @@ export const TableHead = memo(
           scope="col"
           onClick={sortable ? onSort : undefined}
           className={cn(
-            'text-left font-semibold text-gray-900',
-            'border-b border-gray-200',
-            sortable && 'cursor-pointer select-none hover:bg-gray-100',
+            'text-left font-semibold text-gray-900 dark:text-white',
+            'border-b border-gray-200 dark:border-slate-700',
+            sortable && 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-slate-700',
             className,
           )}
           aria-sort={
@@ -341,7 +348,7 @@ export const TableHead = memo(
           <div className="flex items-center gap-1">
             {children}
             {sortable && (
-              <span className="inline-flex flex-col text-gray-400">
+              <span className="inline-flex flex-col text-gray-400 dark:text-gray-500">
                 <svg
                   className={cn('-mb-0.5 h-2 w-2', sortDirection === 'asc' && 'text-blue-500')}
                   viewBox="0 0 8 4"
@@ -375,7 +382,7 @@ export interface TableCellProps extends TdHTMLAttributes<HTMLTableCellElement> {
 export const TableCell = memo(
   forwardRef<HTMLTableCellElement, TableCellProps>(({ className, children, ...props }, ref) => {
     return (
-      <td ref={ref} className={cn('text-gray-700', className)} {...props}>
+      <td ref={ref} className={cn('text-gray-700 dark:text-gray-300', className)} {...props}>
         {children}
       </td>
     );
@@ -393,7 +400,11 @@ export const TableCaption = memo(
   forwardRef<HTMLTableCaptionElement, TableCaptionProps>(
     ({ className, children, ...props }, ref) => {
       return (
-        <caption ref={ref} className={cn('mt-4 text-sm text-gray-500', className)} {...props}>
+        <caption
+          ref={ref}
+          className={cn('mt-4 text-sm text-gray-500 dark:text-gray-400', className)}
+          {...props}
+        >
           {children}
         </caption>
       );
@@ -422,7 +433,7 @@ export const TableEmpty = memo(
         <tr ref={ref} className={className} {...props}>
           <td colSpan={colSpan} className="py-12 text-center">
             {children || (
-              <div className="flex flex-col items-center gap-2 text-gray-400">
+              <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
                 {icon}
                 <span className="text-sm">{message}</span>
               </div>
@@ -503,7 +514,7 @@ export const TableCheckbox = memo(
           onKeyDown={handleKeyDown}
           aria-checked={isIndeterminate ? 'mixed' : isChecked}
           className={cn(
-            'h-4 w-4 rounded border-gray-300',
+            'h-4 w-4 rounded border-gray-300 dark:border-slate-600',
             'text-blue-600 focus:ring-2 focus:ring-blue-500',
             'cursor-pointer transition-colors duration-g3-instant',
             className,

@@ -58,7 +58,7 @@ export const Breadcrumb = memo(
     (
       {
         separator = (
-          <svg className="h-3 w-3 text-gray-400" viewBox="0 0 12 12" fill="none">
+          <svg className="h-3 w-3 text-gray-400 dark:text-gray-500" viewBox="0 0 12 12" fill="none">
             <path
               d="M4.5 2.5L7.5 6L4.5 9.5"
               stroke="currentColor"
@@ -96,7 +96,10 @@ export const Breadcrumb = memo(
               {displayChildren.map((child, index) => (
                 <li key={index} className="flex items-center gap-2">
                   {index > 0 && (
-                    <span className="flex-shrink-0 text-gray-400" aria-hidden="true">
+                    <span
+                      className="flex-shrink-0 text-gray-400 dark:text-gray-500"
+                      aria-hidden="true"
+                    >
                       {separator}
                     </span>
                   )}
@@ -132,7 +135,9 @@ export const BreadcrumbItem = memo(
           aria-current={isCurrent ? 'page' : undefined}
           className={cn(
             'inline-flex items-center gap-1.5',
-            isCurrent ? 'font-medium text-gray-900' : 'text-gray-500',
+            isCurrent
+              ? 'font-medium text-gray-900 dark:text-white'
+              : 'text-gray-500 dark:text-gray-400',
             className,
           )}
           {...props}
@@ -173,7 +178,7 @@ export const BreadcrumbLink = memo(
           onKeyDown={handleKeyDown}
           className={cn(
             'inline-flex items-center gap-1.5',
-            'text-gray-500 hover:text-gray-900',
+            'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white',
             'transition-colors duration-g3-instant',
             'focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
             className,
@@ -202,7 +207,11 @@ export const BreadcrumbEllipsis = memo(
         ref={ref}
         role="presentation"
         aria-hidden="true"
-        className={cn('flex w-6 items-center justify-center', 'text-gray-400', className)}
+        className={cn(
+          'flex w-6 items-center justify-center',
+          'text-gray-400 dark:text-gray-500',
+          className,
+        )}
         {...props}
       >
         <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
@@ -232,7 +241,7 @@ export const BreadcrumbSeparator = memo(
           ref={ref}
           role="presentation"
           aria-hidden="true"
-          className={cn('flex-shrink-0 text-gray-400', className)}
+          className={cn('flex-shrink-0 text-gray-400 dark:text-gray-500', className)}
           {...props}
         >
           {children || separator}

@@ -198,14 +198,20 @@ export const Empty = memo(
           )}
           {...props}
         >
-          {displayIcon && <div className={cn('text-gray-300', styles.icon)}>{displayIcon}</div>}
+          {displayIcon && (
+            <div className={cn('text-gray-300 dark:text-gray-600', styles.icon)}>{displayIcon}</div>
+          )}
 
           {displayTitle && (
-            <h3 className={cn('font-medium text-gray-900', styles.title)}>{displayTitle}</h3>
+            <h3 className={cn('font-medium text-gray-900 dark:text-white', styles.title)}>
+              {displayTitle}
+            </h3>
           )}
 
           {displayDesc && (
-            <p className={cn('max-w-sm text-gray-500', styles.desc)}>{displayDesc}</p>
+            <p className={cn('max-w-sm text-gray-500 dark:text-gray-400', styles.desc)}>
+              {displayDesc}
+            </p>
           )}
 
           {children}
@@ -233,7 +239,10 @@ export const EmptySimple = memo(
       return (
         <div
           ref={ref}
-          className={cn('flex items-center justify-center py-8 text-sm text-gray-400', className)}
+          className={cn(
+            'flex items-center justify-center py-8 text-sm text-gray-400 dark:text-gray-500',
+            className,
+          )}
           {...props}
         >
           {message}

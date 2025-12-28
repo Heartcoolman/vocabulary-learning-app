@@ -98,8 +98,8 @@ export const Checkbox = memo(
               isChecked || indeterminate
                 ? 'border-blue-500 bg-blue-500'
                 : error
-                  ? 'border-red-300 bg-white'
-                  : 'border-gray-300 bg-white hover:border-gray-400',
+                  ? 'border-red-300 bg-white dark:bg-slate-800'
+                  : 'border-gray-300 bg-white hover:border-gray-400 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500',
               // 禁用样式
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -133,7 +133,7 @@ export const Checkbox = memo(
                 <label
                   htmlFor={inputId}
                   className={cn(
-                    'cursor-pointer font-medium text-gray-900',
+                    'cursor-pointer font-medium text-gray-900 dark:text-white',
                     textSize,
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
@@ -144,7 +144,10 @@ export const Checkbox = memo(
               {description && (
                 <p
                   id={descriptionId}
-                  className={cn('mt-0.5 text-gray-500', size === 'lg' ? 'text-sm' : 'text-xs')}
+                  className={cn(
+                    'mt-0.5 text-gray-500 dark:text-gray-400',
+                    size === 'lg' ? 'text-sm' : 'text-xs',
+                  )}
                 >
                   {description}
                 </p>
@@ -212,7 +215,11 @@ export const CheckboxGroup = memo(
 
       return (
         <div ref={ref} role="group" aria-label={label} className={className}>
-          {label && <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>}
+          {label && (
+            <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
+              {label}
+            </span>
+          )}
           <div
             className={cn(
               'flex gap-3',

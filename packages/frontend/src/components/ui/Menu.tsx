@@ -259,10 +259,15 @@ export const MenuItem = memo(
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
             sizeStyles[size],
             // 状态样式
-            isSelected && !danger && 'bg-blue-50 text-blue-600',
-            !isSelected && !danger && !disabled && 'text-gray-700 hover:bg-gray-100',
-            danger && !disabled && 'text-red-600 hover:bg-red-50',
-            disabled && 'cursor-not-allowed text-gray-400',
+            isSelected &&
+              !danger &&
+              'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+            !isSelected &&
+              !danger &&
+              !disabled &&
+              'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-slate-700',
+            danger && !disabled && 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30',
+            disabled && 'cursor-not-allowed text-gray-400 dark:text-gray-500',
             // 折叠模式
             collapsed && 'justify-center px-2',
             className,
@@ -345,8 +350,9 @@ export const SubMenu = memo(
               'cursor-pointer select-none',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
               sizeStyles[size],
-              !disabled && 'text-gray-700 hover:bg-gray-100',
-              disabled && 'cursor-not-allowed text-gray-400',
+              !disabled &&
+                'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-slate-700',
+              disabled && 'cursor-not-allowed text-gray-400 dark:text-gray-500',
               collapsed && mode === 'inline' && 'justify-center px-2',
             )}
           >
@@ -388,7 +394,7 @@ export const SubMenu = memo(
                 'm-0 list-none overflow-hidden',
                 'animate-g3-fade-in',
                 mode === 'horizontal' &&
-                  'absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-button border border-gray-100 bg-white py-1 shadow-elevated',
+                  'absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-button border border-gray-100 bg-white py-1 shadow-elevated dark:border-slate-700 dark:bg-slate-800',
                 mode !== 'horizontal' && 'mt-1 pl-4',
               )}
             >
@@ -420,7 +426,7 @@ export const MenuGroup = memo(
         {(!collapsed || mode !== 'inline') && (
           <div
             className={cn(
-              'px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500',
+              'px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400',
               size === 'sm' && 'px-3 py-1',
             )}
           >
@@ -453,7 +459,7 @@ export const MenuDivider = memo(
         ref={ref}
         role="separator"
         aria-hidden="true"
-        className={cn('mx-2 my-1 h-px bg-gray-200', className)}
+        className={cn('mx-2 my-1 h-px bg-gray-200 dark:bg-slate-700', className)}
         {...props}
       />
     );

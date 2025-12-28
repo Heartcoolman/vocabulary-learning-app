@@ -21,18 +21,18 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<CardVariant, string> = {
   elevated: `
-    bg-white border border-gray-100/50
+    bg-white dark:bg-slate-800 border border-gray-100/50 dark:border-slate-700/50
     shadow-soft
   `,
   outlined: `
-    bg-white border border-gray-200
+    bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700
   `,
   filled: `
-    bg-gray-50 border border-transparent
+    bg-gray-50 dark:bg-slate-800/50 border border-transparent
   `,
   glass: `
-    bg-white/80 backdrop-blur-sm
-    border border-white/40
+    bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm
+    border border-white/40 dark:border-slate-700/40
     shadow-elevated
   `,
 };
@@ -110,8 +110,14 @@ export const CardHeader = memo(
           {...props}
         >
           <div className="min-w-0 flex-1">
-            {title && <h3 className="truncate text-lg font-semibold text-gray-900">{title}</h3>}
-            {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+            {title && (
+              <h3 className="truncate text-lg font-semibold text-gray-900 dark:text-white">
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+            )}
             {children}
           </div>
           {action && <div className="flex-shrink-0">{action}</div>}
@@ -150,7 +156,7 @@ export const CardFooter = memo(
           ref={ref}
           className={cn(
             'flex items-center justify-end gap-2',
-            divider && 'mt-4 border-t border-gray-100 pt-4',
+            divider && 'mt-4 border-t border-gray-100 pt-4 dark:border-slate-700',
             className,
           )}
           {...props}

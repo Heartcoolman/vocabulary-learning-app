@@ -86,9 +86,9 @@ export const Stat = memo(
               : 'neutral');
 
       const changeColorStyles = {
-        increase: 'text-green-600',
-        decrease: 'text-red-600',
-        neutral: 'text-gray-500',
+        increase: 'text-green-600 dark:text-green-400',
+        decrease: 'text-red-600 dark:text-red-400',
+        neutral: 'text-gray-500 dark:text-gray-400',
       };
 
       const changePrefix = {
@@ -110,7 +110,7 @@ export const Stat = memo(
           {icon && direction === 'horizontal' && (
             <div
               className={cn(
-                'flex items-center justify-center rounded-button bg-gray-100 text-gray-600',
+                'flex items-center justify-center rounded-button bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300',
                 styles.icon,
               )}
             >
@@ -119,9 +119,9 @@ export const Stat = memo(
           )}
 
           <div className="flex flex-col">
-            <dt className={cn('text-gray-500', styles.label)}>{label}</dt>
+            <dt className={cn('text-gray-500 dark:text-slate-400', styles.label)}>{label}</dt>
 
-            <dd className={cn('tracking-tight text-gray-900', styles.value)}>
+            <dd className={cn('tracking-tight text-gray-900 dark:text-white', styles.value)}>
               <span className="flex items-baseline gap-2">
                 {value}
                 {change !== undefined && resolvedChangeType && (
@@ -150,7 +150,9 @@ export const Stat = memo(
               </span>
             </dd>
 
-            {helpText && <p className="mt-1 text-xs text-gray-400">{helpText}</p>}
+            {helpText && (
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">{helpText}</p>
+            )}
           </div>
         </div>
       );
@@ -176,8 +178,8 @@ export const StatCard = memo(
       return (
         <div
           className={cn(
-            'rounded-button bg-white p-4',
-            bordered && 'border border-gray-200',
+            'rounded-button bg-white p-4 dark:bg-slate-800',
+            bordered && 'border border-gray-200 dark:border-slate-700',
             shadow && 'shadow-soft',
             className,
           )}
@@ -229,7 +231,7 @@ export const StatGroup = memo(
             columnStyles[columns],
             spacingStyles[spacing],
             divider &&
-              '[&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-gray-200 [&>*:not(:last-child)]:pr-6',
+              '[&>*:not(:last-child)]:border-r [&>*:not(:last-child)]:border-gray-200 [&>*:not(:last-child)]:pr-6 dark:[&>*:not(:last-child)]:border-slate-700',
             className,
           )}
           {...props}
@@ -259,15 +261,15 @@ export const MiniStat = memo(
   forwardRef<HTMLDivElement, MiniStatProps>(({ label, value, trend, className, ...props }, ref) => {
     return (
       <div ref={ref} className={cn('flex items-center gap-2', className)} {...props}>
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className="text-sm font-semibold text-gray-900">{value}</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">{value}</span>
         {trend && (
           <span
             className={cn(
               'text-xs',
-              trend === 'up' && 'text-green-500',
-              trend === 'down' && 'text-red-500',
-              trend === 'neutral' && 'text-gray-400',
+              trend === 'up' && 'text-green-500 dark:text-green-400',
+              trend === 'down' && 'text-red-500 dark:text-red-400',
+              trend === 'neutral' && 'text-gray-400 dark:text-gray-500',
             )}
           >
             {trend === 'up' && '↑'}

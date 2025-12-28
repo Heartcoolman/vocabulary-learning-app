@@ -28,9 +28,9 @@ const variantStyles: Record<string, string> = {
 };
 
 const colorStyles: Record<string, string> = {
-  default: 'border-gray-200',
-  light: 'border-gray-100',
-  dark: 'border-gray-300',
+  default: 'border-gray-200 dark:border-slate-700',
+  light: 'border-gray-100 dark:border-slate-800',
+  dark: 'border-gray-300 dark:border-slate-600',
 };
 
 const spacingStyles: Record<string, { horizontal: string; vertical: string }> = {
@@ -112,7 +112,9 @@ export const Divider = memo(
                 )}
               />
             )}
-            <span className="flex-shrink-0 px-2 text-sm text-gray-500">{children}</span>
+            <span className="flex-shrink-0 px-2 text-sm text-gray-500 dark:text-gray-400">
+              {children}
+            </span>
             {labelPosition !== 'right' && (
               <div
                 className={cn(
@@ -137,7 +139,7 @@ export const Divider = memo(
           {...props}
         >
           <div className={cn('flex-1 border-l', variantStyles[variant], colorStyles[color])} />
-          <span className="writing-mode-vertical flex-shrink-0 py-2 text-sm text-gray-500">
+          <span className="writing-mode-vertical flex-shrink-0 py-2 text-sm text-gray-500 dark:text-gray-400">
             {children}
           </span>
           <div className={cn('flex-1 border-l', variantStyles[variant], colorStyles[color])} />

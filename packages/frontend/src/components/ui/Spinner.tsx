@@ -28,7 +28,7 @@ const sizeStyles: Record<Size, { icon: number; text: string }> = {
 
 const colorStyles: Record<string, string> = {
   primary: 'text-blue-500',
-  secondary: 'text-gray-500',
+  secondary: 'text-gray-500 dark:text-gray-400',
   white: 'text-white',
   current: 'text-current',
 };
@@ -88,13 +88,13 @@ export const FullPageSpinner = memo(
           className={cn(
             'fixed inset-0 z-50',
             'flex flex-col items-center justify-center gap-3',
-            overlay && 'bg-white/80 backdrop-blur-sm',
+            overlay && 'bg-white/80 backdrop-blur-sm dark:bg-slate-900/80',
             className,
           )}
           {...props}
         >
           <Spinner size="lg" />
-          {showLabel && <p className="font-medium text-gray-600">{label}</p>}
+          {showLabel && <p className="font-medium text-gray-600 dark:text-gray-300">{label}</p>}
         </div>
       );
     },

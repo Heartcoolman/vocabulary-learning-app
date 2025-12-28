@@ -228,7 +228,10 @@ export const Select = memo(
       return (
         <div ref={ref} className={cn('relative', fullWidth && 'w-full', className)} {...props}>
           {label && (
-            <label htmlFor={selectId} className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor={selectId}
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
               {label}
               {required && <span className="ml-1 text-red-500">*</span>}
             </label>
@@ -250,17 +253,22 @@ export const Select = memo(
             onKeyDown={handleKeyDown}
             className={cn(
               'flex w-full items-center justify-between gap-2',
-              'rounded-input border bg-white',
+              'rounded-input border bg-white dark:bg-slate-800',
               'transition-all duration-g3-fast ease-g3',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
               trigger,
               error
                 ? 'border-red-300 focus-visible:ring-red-500'
-                : 'border-gray-200 hover:border-gray-300 focus-visible:ring-blue-500',
-              disabled && 'cursor-not-allowed bg-gray-50 opacity-60',
+                : 'border-gray-200 hover:border-gray-300 focus-visible:ring-blue-500 dark:border-slate-600 dark:hover:border-slate-500',
+              disabled && 'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-slate-700',
             )}
           >
-            <span className={cn('flex-1 truncate text-left', !selectedOption && 'text-gray-400')}>
+            <span
+              className={cn(
+                'flex-1 truncate text-left',
+                !selectedOption && 'text-gray-400 dark:text-gray-500',
+              )}
+            >
               {selectedOption ? (
                 <span className="flex items-center gap-2">
                   {selectedOption.icon}
@@ -273,7 +281,7 @@ export const Select = memo(
             <CaretDown
               size={iconSize}
               className={cn(
-                'text-gray-400 transition-transform duration-g3-fast',
+                'text-gray-400 transition-transform duration-g3-fast dark:text-gray-500',
                 isOpen && 'rotate-180',
               )}
             />
@@ -285,7 +293,7 @@ export const Select = memo(
               ref={listRef}
               className={cn(
                 'absolute z-50 mt-1 w-full',
-                'rounded-card border border-gray-100 bg-white',
+                'rounded-card border border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800',
                 'py-1 shadow-elevated',
                 'animate-g3-fade-in',
               )}
@@ -296,7 +304,7 @@ export const Select = memo(
                   <div className="relative">
                     <MagnifyingGlass
                       size={14}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                     />
                     <input
                       ref={searchInputRef}
@@ -310,7 +318,7 @@ export const Select = memo(
                       placeholder="搜索..."
                       className={cn(
                         'w-full py-1.5 pl-8 pr-3',
-                        'rounded-badge border border-gray-200 bg-gray-50 text-sm',
+                        'rounded-badge border border-gray-200 bg-gray-50 text-sm dark:border-slate-600 dark:bg-slate-700',
                         'focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100',
                       )}
                     />
@@ -326,7 +334,9 @@ export const Select = memo(
                 className="max-h-60 overflow-auto"
               >
                 {filteredOptions.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-sm text-gray-500">{emptyContent}</div>
+                  <div className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    {emptyContent}
+                  </div>
                 ) : (
                   filteredOptions.map((option, index) => {
                     const isSelected = option.value === currentValue;
@@ -347,9 +357,9 @@ export const Select = memo(
                           'transition-colors duration-g3-instant',
                           optionStyle,
                           option.disabled
-                            ? 'cursor-not-allowed text-gray-400'
-                            : 'text-gray-700 hover:bg-gray-50',
-                          isActive && !option.disabled && 'bg-gray-50',
+                            ? 'cursor-not-allowed text-gray-400 dark:text-gray-500'
+                            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-slate-700',
+                          isActive && !option.disabled && 'bg-gray-50 dark:bg-slate-700',
                           isSelected && 'font-medium text-blue-600',
                         )}
                       >
@@ -661,7 +671,10 @@ export const MultiSelect = memo(
       return (
         <div ref={ref} className={cn('relative', fullWidth && 'w-full', className)} {...props}>
           {label && (
-            <label htmlFor={selectId} className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor={selectId}
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200"
+            >
               {label}
               {required && <span className="ml-1 text-red-500">*</span>}
             </label>
@@ -688,19 +701,19 @@ export const MultiSelect = memo(
               trigger,
               error
                 ? 'border-red-300 focus-visible:ring-red-500'
-                : 'border-gray-200 hover:border-gray-300 focus-visible:ring-blue-500',
-              disabled && 'cursor-not-allowed bg-gray-50 opacity-60',
+                : 'border-gray-200 hover:border-gray-300 focus-visible:ring-blue-500 dark:border-slate-600 dark:hover:border-slate-500',
+              disabled && 'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-slate-700',
             )}
           >
             {selectedOptions.length === 0 ? (
-              <span className="flex-1 text-gray-400">{placeholder}</span>
+              <span className="flex-1 text-gray-400 dark:text-gray-500">{placeholder}</span>
             ) : (
               <>
                 {visibleTags.map((option) => (
                   <span
                     key={option.value}
                     className={cn(
-                      'inline-flex items-center gap-1 rounded bg-blue-100 text-blue-700',
+                      'inline-flex items-center gap-1 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
                       tag,
                     )}
                   >
@@ -717,7 +730,9 @@ export const MultiSelect = memo(
                   </span>
                 ))}
                 {hiddenCount > 0 && (
-                  <span className={cn('text-gray-500', tag)}>+{hiddenCount}</span>
+                  <span className={cn('text-gray-500 dark:text-gray-400', tag)}>
+                    +{hiddenCount}
+                  </span>
                 )}
                 <span className="flex-1" />
               </>
@@ -728,7 +743,7 @@ export const MultiSelect = memo(
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none dark:text-gray-500 dark:hover:text-gray-300"
                   aria-label="清除所有选中项"
                 >
                   <X size={iconSize} />
@@ -737,7 +752,7 @@ export const MultiSelect = memo(
               <CaretDown
                 size={iconSize}
                 className={cn(
-                  'text-gray-400 transition-transform duration-g3-fast',
+                  'text-gray-400 transition-transform duration-g3-fast dark:text-gray-500',
                   isOpen && 'rotate-180',
                 )}
               />
@@ -750,7 +765,7 @@ export const MultiSelect = memo(
               ref={listRef}
               className={cn(
                 'absolute z-50 mt-1 w-full',
-                'rounded-card border border-gray-100 bg-white',
+                'rounded-card border border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800',
                 'py-1 shadow-elevated',
                 'animate-g3-fade-in',
               )}
@@ -761,7 +776,7 @@ export const MultiSelect = memo(
                   <div className="relative">
                     <MagnifyingGlass
                       size={14}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                     />
                     <input
                       ref={searchInputRef}
@@ -775,7 +790,7 @@ export const MultiSelect = memo(
                       placeholder="搜索..."
                       className={cn(
                         'w-full py-1.5 pl-8 pr-3',
-                        'rounded-badge border border-gray-200 bg-gray-50 text-sm',
+                        'rounded-badge border border-gray-200 bg-gray-50 text-sm dark:border-slate-600 dark:bg-slate-700',
                         'focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100',
                       )}
                     />
@@ -792,7 +807,9 @@ export const MultiSelect = memo(
                 className="max-h-60 overflow-auto"
               >
                 {filteredOptions.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-sm text-gray-500">{emptyContent}</div>
+                  <div className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    {emptyContent}
+                  </div>
                 ) : (
                   filteredOptions.map((option) => {
                     const isSelected = currentValue.includes(option.value);
@@ -817,9 +834,12 @@ export const MultiSelect = memo(
                           'transition-colors duration-g3-instant',
                           optionStyle,
                           option.disabled || isDisabledByMax
-                            ? 'cursor-not-allowed text-gray-400'
-                            : 'text-gray-700 hover:bg-gray-50',
-                          isActive && !option.disabled && !isDisabledByMax && 'bg-gray-50',
+                            ? 'cursor-not-allowed text-gray-400 dark:text-gray-500'
+                            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-slate-700',
+                          isActive &&
+                            !option.disabled &&
+                            !isDisabledByMax &&
+                            'bg-gray-50 dark:bg-slate-700',
                           isSelected && 'font-medium text-blue-600',
                         )}
                       >
@@ -827,7 +847,9 @@ export const MultiSelect = memo(
                         <span
                           className={cn(
                             'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors',
-                            isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300',
+                            isSelected
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-gray-300 dark:border-slate-500',
                           )}
                         >
                           {isSelected && <Check size={12} weight="bold" className="text-white" />}
