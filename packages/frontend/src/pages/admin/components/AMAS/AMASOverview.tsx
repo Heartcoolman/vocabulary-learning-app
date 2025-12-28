@@ -28,7 +28,7 @@ export interface AMASOverviewProps {
  * 根据数值获取状态颜色
  */
 const getStateColor = (value: number | undefined): string => {
-  if (value === undefined) return 'text-gray-500';
+  if (value === undefined) return 'text-gray-500 dark:text-gray-400';
   if (value >= 0.7) return 'text-green-600';
   if (value >= 0.4) return 'text-yellow-600';
   return 'text-red-600';
@@ -84,8 +84,8 @@ const StateMetricCard = memo(function StateMetricCard({
   stateLabel: string;
 }) {
   return (
-    <div className="rounded-button bg-gray-50 p-3">
-      <p className="mb-1 text-xs text-gray-600">{label}</p>
+    <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-900">
+      <p className="mb-1 text-xs text-gray-600 dark:text-gray-400">{label}</p>
       <div className="flex items-center justify-between">
         <p className={`text-xl font-bold ${stateColor}`}>
           {value !== undefined ? `${(value * 100).toFixed(0)}%` : '-'}
@@ -109,12 +109,14 @@ const DifficultyFactorBar = memo(function DifficultyFactorBar({
   value: number;
 }) {
   return (
-    <div className="rounded-button bg-purple-50 p-3">
+    <div className="rounded-button bg-purple-50 p-3 dark:bg-purple-900/30">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs capitalize text-gray-600">{formatDifficultyFactorName(name)}</p>
-        <p className="text-sm font-bold text-gray-900">{value.toFixed(2)}</p>
+        <p className="text-xs capitalize text-gray-600 dark:text-gray-400">
+          {formatDifficultyFactorName(name)}
+        </p>
+        <p className="text-sm font-bold text-gray-900 dark:text-white">{value.toFixed(2)}</p>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
         <div
           className="h-full bg-purple-500 transition-all duration-g3-normal"
           style={{ width: `${Math.min(100, value * 100)}%` }}
@@ -133,13 +135,15 @@ const DecisionFactorCard = memo(function DecisionFactorCard({
   factor: { name: string; weight: number; explanation: string; score: number };
 }) {
   return (
-    <div className="rounded-button bg-gray-50 p-3">
+    <div className="rounded-button bg-gray-50 p-3 dark:bg-slate-900">
       <div className="mb-1 flex items-center justify-between">
-        <span className="font-medium text-gray-800">{factor.name}</span>
-        <span className="text-sm text-gray-600">权重: {(factor.weight * 100).toFixed(1)}%</span>
+        <span className="font-medium text-gray-800 dark:text-gray-300">{factor.name}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          权重: {(factor.weight * 100).toFixed(1)}%
+        </span>
       </div>
-      <p className="mb-2 text-xs text-gray-500">{factor.explanation}</p>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{factor.explanation}</p>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
         <div
           className="h-full bg-green-500 transition-all duration-g3-normal"
           style={{ width: `${factor.score * 100}%` }}
@@ -157,17 +161,17 @@ const DecisionFactorCard = memo(function DecisionFactorCard({
  */
 function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMASOverviewProps) {
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <Brain size={24} weight="duotone" className="text-purple-500" />
           决策解释
         </h2>
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
           title="刷新"
         >
           <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
@@ -181,7 +185,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
         </div>
       ) : error ? (
         /* 错误状态 */
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">
           <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
@@ -189,7 +193,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
         /* 数据展示 */
         <div className="space-y-6">
           {/* 决策 ID 和时间 */}
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1">
               <Info size={16} />
               ID: {explanation.decisionId.slice(0, 8)}...
@@ -202,8 +206,8 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
 
           {/* 推理说明 */}
           {explanation.reasoning && (
-            <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
-              <p className="text-sm text-blue-800">
+            <div className="rounded-button border border-blue-100 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
                 <strong>推理说明：</strong> {explanation.reasoning}
               </p>
             </div>
@@ -211,7 +215,9 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
 
           {/* 学习状态 */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">学习状态</h3>
+            <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              学习状态
+            </h3>
             <div className="grid gap-3 md:grid-cols-3">
               <StateMetricCard
                 label="注意力"
@@ -240,7 +246,9 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
 
           {/* 难度因素 */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">难度因素</h3>
+            <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              难度因素
+            </h3>
             <div className="grid gap-3 md:grid-cols-2">
               {Object.entries(explanation.difficultyFactors).map(([key, value]) => (
                 <DifficultyFactorBar key={key} name={key} value={value} />
@@ -251,15 +259,19 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
           {/* 算法权重 */}
           {explanation.weights && (
             <div>
-              <h3 className="mb-3 text-sm font-semibold text-gray-700">算法权重</h3>
+              <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                算法权重
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(explanation.weights).map(([algo, weight]) => (
                   <div
                     key={algo}
-                    className="flex items-center gap-2 rounded-button bg-indigo-50 px-3 py-2"
+                    className="flex items-center gap-2 rounded-button bg-indigo-50 px-3 py-2 dark:bg-indigo-900/30"
                   >
-                    <span className="text-sm font-medium capitalize text-indigo-700">{algo}</span>
-                    <span className="text-sm font-bold text-indigo-900">
+                    <span className="text-sm font-medium capitalize text-indigo-700 dark:text-indigo-300">
+                      {algo}
+                    </span>
+                    <span className="text-sm font-bold text-indigo-900 dark:text-indigo-200">
                       {((weight as number) * 100).toFixed(1)}%
                     </span>
                   </div>
@@ -271,7 +283,9 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
           {/* 决策因素详情 */}
           {explanation.factors && explanation.factors.length > 0 && (
             <div>
-              <h3 className="mb-3 text-sm font-semibold text-gray-700">决策因素</h3>
+              <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                决策因素
+              </h3>
               <div className="space-y-2">
                 {explanation.factors.map((factor, idx) => (
                   <DecisionFactorCard key={idx} factor={factor} />
@@ -283,12 +297,14 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
           {/* 触发器 */}
           {explanation.triggers && explanation.triggers.length > 0 && (
             <div>
-              <h3 className="mb-3 text-sm font-semibold text-gray-700">触发器</h3>
+              <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                触发器
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {explanation.triggers.map((trigger, idx) => (
                   <span
                     key={idx}
-                    className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800"
+                    className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
                   >
                     {trigger}
                   </span>
@@ -299,7 +315,7 @@ function AMASOverviewComponent({ explanation, isLoading, error, onRefresh }: AMA
         </div>
       ) : (
         /* 空状态 */
-        <div className="py-8 text-center text-gray-500">暂无决策解释数据</div>
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">暂无决策解释数据</div>
       )}
     </div>
   );

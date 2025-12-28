@@ -43,18 +43,18 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
   const isDefault = JSON.stringify(intervals) === JSON.stringify(defaultIntervals);
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">遗忘曲线参数</h2>
-          <p className="mt-1 text-sm text-gray-600">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">遗忘曲线参数</h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             配置复习间隔序列（单位：天）
             {!isDefault && <span className="ml-2 text-blue-600">（已修改）</span>}
           </p>
         </div>
         <button
           onClick={addInterval}
-          className="flex items-center gap-1 rounded-button bg-blue-50 px-4 py-2 text-blue-600 transition-all hover:bg-blue-100"
+          className="flex items-center gap-1 rounded-button bg-blue-50 px-4 py-2 text-blue-600 transition-all hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
         >
           <Plus size={16} weight="bold" />
           添加间隔
@@ -64,19 +64,21 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
       <div className="space-y-3">
         {intervals.map((interval, index) => (
           <div key={index} className="flex items-center gap-4">
-            <span className="w-20 text-sm font-medium text-gray-700">第 {index + 1} 次</span>
+            <span className="w-20 text-sm font-medium text-gray-700 dark:text-gray-300">
+              第 {index + 1} 次
+            </span>
             <input
               type="number"
               value={interval}
               onChange={(e) => updateInterval(index, parseInt(e.target.value) || 0)}
               min="1"
-              className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-button border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
-            <span className="w-12 text-sm text-gray-600">天后</span>
+            <span className="w-12 text-sm text-gray-600 dark:text-gray-400">天后</span>
             {intervals.length > 1 && (
               <button
                 onClick={() => removeInterval(index)}
-                className="rounded-button p-2 text-red-500 transition-all hover:bg-red-50"
+                className="rounded-button p-2 text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/30"
               >
                 <Trash size={18} weight="bold" />
               </button>
@@ -85,8 +87,8 @@ export const ReviewIntervalsSection = memo(function ReviewIntervalsSection({
         ))}
       </div>
 
-      <div className="mt-4 rounded-button bg-gray-50 p-3">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 rounded-button bg-gray-50 p-3 dark:bg-slate-900">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           <strong>默认值：</strong>
           {defaultIntervals.join(', ')} 天
         </p>

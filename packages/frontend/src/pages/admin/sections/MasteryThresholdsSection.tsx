@@ -44,10 +44,10 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
   };
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900">掌握程度阈值</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">掌握程度阈值</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           配置各级别的晋升条件（1-5级）
           {!isDefault && <span className="ml-2 text-blue-600">（已修改）</span>}
         </p>
@@ -56,20 +56,24 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">级别</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+            <tr className="border-b border-gray-200 dark:border-slate-700">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                级别
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
                 连续答对次数
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
                 最低正确率
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">最低得分</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                最低得分
+              </th>
             </tr>
           </thead>
           <tbody>
             {safeThresholds.map((threshold) => (
-              <tr key={threshold.level} className="border-b border-gray-100">
+              <tr key={threshold.level} className="border-b border-gray-100 dark:border-slate-700">
                 <td className="px-4 py-3">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-600">
                     {threshold.level}
@@ -87,9 +91,9 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                         parseInt(e.target.value) || 1,
                       )
                     }
-                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
-                  <span className="ml-2 text-sm text-gray-600">次</span>
+                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">次</span>
                 </td>
                 <td className="px-4 py-3">
                   <input
@@ -105,9 +109,9 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                         parseFloat(e.target.value) || 0,
                       )
                     }
-                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
-                  <span className="ml-2 text-sm text-gray-600">
+                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                     ({(threshold.minAccuracy * 100).toFixed(0)}%)
                   </span>
                 </td>
@@ -120,9 +124,9 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
                     onChange={(e) =>
                       updateThreshold(threshold.level, 'minScore', parseInt(e.target.value) || 0)
                     }
-                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                    className="w-24 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
-                  <span className="ml-2 text-sm text-gray-600">分</span>
+                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">分</span>
                 </td>
               </tr>
             ))}
@@ -130,8 +134,8 @@ export const MasteryThresholdsSection = memo(function MasteryThresholdsSection({
         </table>
       </div>
 
-      <div className="mt-4 rounded-button bg-gray-50 p-3">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 rounded-button bg-gray-50 p-3 dark:bg-slate-900">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           <strong>说明：</strong>单词需要同时满足所有条件才能晋升到对应级别
         </p>
       </div>

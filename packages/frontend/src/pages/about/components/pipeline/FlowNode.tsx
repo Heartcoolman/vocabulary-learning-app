@@ -178,7 +178,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
               transition={g3SpringStandard}
             />
           </div>
-          <span className="w-8 text-right font-mono text-[9px] text-slate-500">
+          <span className="w-8 text-right font-mono text-[9px] text-slate-500 dark:text-gray-400">
             {(state.load * 100).toFixed(0)}%
           </span>
         </div>
@@ -250,11 +250,13 @@ export const FlowNode: React.FC<FlowNodeProps> = ({
       </div>
 
       {/* 标签 */}
-      <div className="truncate text-xs font-medium leading-tight text-slate-200">{node.label}</div>
+      <div className="truncate text-xs font-medium leading-tight text-slate-200 dark:text-gray-300">
+        {node.label}
+      </div>
 
       {/* 元信息 */}
       {node.meta?.outputDim && (
-        <div className="mt-0.5 truncate font-mono text-[9px] text-slate-500">
+        <div className="mt-0.5 truncate font-mono text-[9px] text-slate-500 dark:text-gray-400">
           {node.meta.outputDim}
         </div>
       )}

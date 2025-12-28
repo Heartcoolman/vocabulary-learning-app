@@ -40,15 +40,15 @@ const Tabs = ({
     { id: 'ignored', label: '已忽略' },
   ];
   return (
-    <div className="mb-4 flex border-b border-gray-100">
+    <div className="mb-4 flex border-b border-gray-100 dark:border-slate-700">
       {tabs.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
             current === t.id
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           }`}
         >
           {t.label}
@@ -91,7 +91,7 @@ export const IssueListTable: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex min-h-[500px] flex-col rounded-xl border border-gray-100 bg-white shadow-sm">
+    <div className="flex min-h-[500px] flex-col rounded-xl border border-gray-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="px-6 pt-4">
         <Tabs
           current={filterStatus}
@@ -104,10 +104,12 @@ export const IssueListTable: React.FC<Props> = ({
 
       {/* Toolbar */}
       <div className="flex items-center justify-between px-6 pb-4">
-        <div className="text-sm text-gray-500">共找到 {total} 条记录</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">共找到 {total} 条记录</div>
         {selected.size > 0 && filterStatus === 'open' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 flex items-center gap-2 duration-200">
-            <span className="mr-2 text-sm font-medium text-gray-700">已选 {selected.size} 项</span>
+            <span className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              已选 {selected.size} 项
+            </span>
             <Button size="sm" variant="primary" onClick={() => handleBatch('fix')}>
               批量修复
             </Button>
@@ -121,55 +123,72 @@ export const IssueListTable: React.FC<Props> = ({
       {/* Table */}
       <div className="flex-1 overflow-x-auto">
         <table className="w-full border-collapse text-left">
-          <thead className="sticky top-0 bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500">
+          <thead className="sticky top-0 bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500 dark:bg-slate-700/50 dark:text-gray-400">
             <tr>
-              <th className="w-12 border-b border-gray-100 p-4">
+              <th className="w-12 border-b border-gray-100 p-4 dark:border-slate-700">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
                   checked={issues.length > 0 && selected.size === issues.length}
                   onChange={handleSelectAll}
                   disabled={issues.length === 0}
                 />
               </th>
-              <th className="border-b border-gray-100 p-4 font-semibold">单词</th>
-              <th className="border-b border-gray-100 p-4 font-semibold">问题类型</th>
-              <th className="w-1/3 border-b border-gray-100 p-4 font-semibold">描述 & 建议</th>
-              <th className="border-b border-gray-100 p-4 font-semibold">严重等级</th>
+              <th className="border-b border-gray-100 p-4 font-semibold dark:border-slate-700">
+                单词
+              </th>
+              <th className="border-b border-gray-100 p-4 font-semibold dark:border-slate-700">
+                问题类型
+              </th>
+              <th className="w-1/3 border-b border-gray-100 p-4 font-semibold dark:border-slate-700">
+                描述 & 建议
+              </th>
+              <th className="border-b border-gray-100 p-4 font-semibold dark:border-slate-700">
+                严重等级
+              </th>
               {filterStatus === 'open' && (
-                <th className="border-b border-gray-100 p-4 text-right font-semibold">操作</th>
+                <th className="border-b border-gray-100 p-4 text-right font-semibold dark:border-slate-700">
+                  操作
+                </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
                   <td colSpan={6} className="p-4">
-                    <div className="h-8 animate-pulse rounded bg-gray-100" />
+                    <div className="h-8 animate-pulse rounded bg-gray-100 dark:bg-slate-700" />
                   </td>
                 </tr>
               ))
             ) : issues.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-gray-400">
+                <td colSpan={6} className="p-12 text-center text-gray-400 dark:text-gray-500">
                   没有发现相关记录
                 </td>
               </tr>
             ) : (
               issues.map((issue) => (
-                <tr key={issue.id} className="group transition-colors hover:bg-gray-50/50">
+                <tr
+                  key={issue.id}
+                  className="group transition-colors hover:bg-gray-50/50 dark:hover:bg-slate-700/30"
+                >
                   <td className="p-4 align-top">
                     <input
                       type="checkbox"
                       checked={selected.has(issue.id)}
                       onChange={() => handleSelect(issue.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
                     />
                   </td>
                   <td className="p-4 align-top">
-                    <div className="font-bold text-gray-900">{issue.wordSpelling}</div>
-                    <div className="mt-1 text-xs text-gray-400">ID: {issue.wordId.slice(0, 6)}</div>
+                    <div className="font-bold text-gray-900 dark:text-white">
+                      {issue.wordSpelling}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                      ID: {issue.wordId.slice(0, 6)}
+                    </div>
                   </td>
                   <td className="p-4 align-top">
                     <Badge variant="secondary" className="text-xs font-normal">
@@ -177,9 +196,11 @@ export const IssueListTable: React.FC<Props> = ({
                     </Badge>
                   </td>
                   <td className="p-4 align-top">
-                    <div className="mb-1 text-sm text-gray-700">{issue.message}</div>
+                    <div className="mb-1 text-sm text-gray-700 dark:text-gray-300">
+                      {issue.message}
+                    </div>
                     {issue.suggestion != null && (
-                      <div className="mt-1 inline-block rounded bg-green-50 p-2 text-xs text-green-600">
+                      <div className="mt-1 inline-block rounded bg-green-50 p-2 text-xs text-green-600 dark:bg-green-900/30 dark:text-green-400">
                         建议:{' '}
                         {typeof issue.suggestion === 'object'
                           ? JSON.stringify(issue.suggestion)
@@ -198,7 +219,7 @@ export const IssueListTable: React.FC<Props> = ({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30"
                           onClick={() => onFix(issue.id)}
                           title="应用修复"
                         >
@@ -207,7 +228,7 @@ export const IssueListTable: React.FC<Props> = ({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                          className="text-gray-400 hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-slate-700"
                           onClick={() => onIgnore(issue.id)}
                           title="忽略"
                         >

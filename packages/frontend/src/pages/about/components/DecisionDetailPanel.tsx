@@ -11,11 +11,13 @@ interface DecisionDetailPanelProps {
 export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
   if (!decision) {
     return (
-      <div className="flex h-full items-center justify-center rounded-card border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="text-center text-slate-400">
+      <div className="flex h-full items-center justify-center rounded-card border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center text-slate-400 dark:text-gray-400">
           <GitBranch size={48} className="mx-auto mb-4 opacity-50" />
           <p className="text-sm font-medium">请从左侧选择一条决策记录</p>
-          <p className="mt-1 text-xs text-slate-300">Select a decision to view details</p>
+          <p className="mt-1 text-xs text-slate-300 dark:text-gray-400">
+            Select a decision to view details
+          </p>
         </div>
       </div>
     );
@@ -33,36 +35,40 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 p-6 dark:from-slate-900 dark:to-slate-800">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header Section */}
-        <header className="rounded-card border border-slate-200 bg-white/80 p-5 shadow-soft backdrop-blur-md">
+        <header className="rounded-card border border-slate-200 bg-white/80 p-5 shadow-soft backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/80">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-white">
                 <GitBranch size={20} weight="bold" className="text-indigo-500" />
                 决策轨迹
               </h2>
-              <div className="mt-1.5 font-mono text-xs text-slate-500">
-                <span className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5">
+              <div className="mt-1.5 font-mono text-xs text-slate-500 dark:text-gray-400">
+                <span className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
                   {decision.decisionId}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-400">
               <Clock size={14} />
               <span className="font-mono">{formatTimestamp(decision.timestamp)}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-700">
             <div className="flex items-center gap-3">
               <div className="rounded-button bg-indigo-50 p-2 text-indigo-600">
                 <IdentificationBadge size={18} weight="fill" />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">Pseudo ID</p>
-                <p className="font-mono text-sm font-medium text-slate-700">{decision.pseudoId}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400">
+                  Pseudo ID
+                </p>
+                <p className="font-mono text-sm font-medium text-slate-700 dark:text-gray-300">
+                  {decision.pseudoId}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -70,8 +76,10 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
                 <Hash size={18} weight="fill" />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">决策来源</p>
-                <p className="text-sm font-medium capitalize text-slate-700">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-gray-400">
+                  决策来源
+                </p>
+                <p className="text-sm font-medium capitalize text-slate-700 dark:text-gray-300">
                   {decision.decisionSource}
                 </p>
               </div>

@@ -17,11 +17,11 @@ const Card = ({ title, value, icon: Icon, color, delay }: any) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
-    className="flex items-start justify-between rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+    className="flex items-start justify-between rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
   >
     <div>
-      <p className="mb-1 text-sm font-medium text-gray-500">{title}</p>
-      <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+      <p className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
     </div>
     <div className={`rounded-lg p-3 ${color}`}>
       <Icon className="h-6 w-6 text-white" weight="fill" />
@@ -34,7 +34,7 @@ export const StatsDashboard: React.FC<Props> = ({ stats, loading }) => {
     return (
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-slate-700" />
         ))}
       </div>
     );

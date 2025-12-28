@@ -39,7 +39,9 @@ const SliderInput = memo(function SliderInput({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-gray-700">{label} (0-1)</label>
+      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label} (0-1)
+      </label>
       <input
         type="range"
         min="0"
@@ -49,9 +51,9 @@ const SliderInput = memo(function SliderInput({
         onChange={(e) => onChange(e.target.value)}
         className="w-full"
       />
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>低</span>
-        <span className="font-medium text-gray-700">{value}</span>
+        <span className="font-medium text-gray-700 dark:text-gray-300">{value}</span>
         <span>高</span>
       </div>
     </div>
@@ -71,22 +73,26 @@ const PredictionResultCard = memo(function PredictionResultCard({
   return (
     <div
       className={`rounded-button border p-4 ${
-        wouldTrigger ? 'border-yellow-200 bg-yellow-50' : 'border-green-200 bg-green-50'
+        wouldTrigger
+          ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/30'
+          : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/30'
       }`}
     >
       <div className="mb-2 flex items-center gap-2">
         {wouldTrigger ? (
-          <Warning size={20} weight="bold" className="text-yellow-600" />
+          <Warning size={20} weight="bold" className="text-yellow-600 dark:text-yellow-400" />
         ) : (
-          <CheckCircle size={20} weight="bold" className="text-green-600" />
+          <CheckCircle size={20} weight="bold" className="text-green-600 dark:text-green-400" />
         )}
-        <span className={`font-medium ${wouldTrigger ? 'text-yellow-700' : 'text-green-700'}`}>
+        <span
+          className={`font-medium ${wouldTrigger ? 'text-yellow-700 dark:text-yellow-300' : 'text-green-700 dark:text-green-300'}`}
+        >
           {wouldTrigger ? '会触发难度调整' : '不会触发难度调整'}
         </span>
       </div>
 
       {prediction.suggestedDifficulty && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           建议难度调整:{' '}
           <span className="font-medium">
             {prediction.suggestedDifficulty === 'easier' ? '降低难度' : '提高难度'}
@@ -94,7 +100,7 @@ const PredictionResultCard = memo(function PredictionResultCard({
         </p>
       )}
 
-      <p className="mt-1 text-sm text-gray-600">
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
         预估准确率变化:{' '}
         <span
           className={`font-medium ${
@@ -124,25 +130,25 @@ const StateComparisonCard = memo(function StateComparisonCard({
   };
 
   return (
-    <div className="rounded-button bg-gray-50 p-4">
-      <h4 className="mb-3 text-sm font-semibold text-gray-700">状态对比</h4>
+    <div className="rounded-button bg-gray-50 p-4 dark:bg-slate-900">
+      <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">状态对比</h4>
       <div className="grid gap-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">注意力</span>
+          <span className="text-gray-600 dark:text-gray-400">注意力</span>
           <span>
             {formatValue(baseState.attention)} &rarr;{' '}
             <span className="font-medium">{formatValue(counterfactualState.attention)}</span>
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">疲劳度</span>
+          <span className="text-gray-600 dark:text-gray-400">疲劳度</span>
           <span>
             {formatValue(baseState.fatigue)} &rarr;{' '}
             <span className="font-medium">{formatValue(counterfactualState.fatigue)}</span>
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">动机</span>
+          <span className="text-gray-600 dark:text-gray-400">动机</span>
           <span>
             {formatValue(baseState.motivation)} &rarr;{' '}
             <span className="font-medium">{formatValue(counterfactualState.motivation)}</span>
@@ -158,7 +164,7 @@ const StateComparisonCard = memo(function StateComparisonCard({
  */
 const EmptyResultPlaceholder = memo(function EmptyResultPlaceholder() {
   return (
-    <div className="flex h-full min-h-[200px] items-center justify-center text-gray-400">
+    <div className="flex h-full min-h-[200px] items-center justify-center text-gray-400 dark:text-gray-500">
       <div className="text-center">
         <Lightbulb size={48} weight="duotone" className="mx-auto mb-2" />
         <p>调整参数并运行分析</p>
@@ -206,17 +212,17 @@ function AMASDetailPanelComponent({
   );
 
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <Question size={24} weight="duotone" className="text-teal-500" />
           反事实分析
         </h2>
       </div>
 
       {/* 描述 */}
-      <p className="mb-4 text-sm text-gray-600">
+      <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         探索"如果...会怎样"的场景。调整学习状态参数，查看系统预测的结果变化。
       </p>
 
@@ -254,8 +260,8 @@ function AMASDetailPanelComponent({
             <div
               className={`rounded-button border p-4 text-sm ${
                 errorType === 'info'
-                  ? 'border-blue-200 bg-blue-50 text-blue-700'
-                  : 'border-red-200 bg-red-50 text-red-700'
+                  ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300'
               }`}
             >
               {error}
@@ -275,8 +281,8 @@ function AMASDetailPanelComponent({
               />
 
               {/* 解释说明 */}
-              <div className="rounded-button border border-blue-100 bg-blue-50 p-4">
-                <p className="text-sm text-blue-800">
+              <div className="rounded-button border border-blue-100 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
                   <strong>分析说明：</strong> {result.explanation || ''}
                 </p>
               </div>

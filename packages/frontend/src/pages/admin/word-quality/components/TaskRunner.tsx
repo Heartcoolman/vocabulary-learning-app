@@ -43,12 +43,14 @@ export const TaskRunner: React.FC<Props> = ({
   const remaining = Math.max(0, total - processed);
 
   return (
-    <div className="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         {/* Left: Controls */}
         <div className="w-full flex-1">
-          <h3 className="mb-1 text-lg font-semibold text-gray-900">质量检查任务</h3>
-          <p className="text-sm text-gray-500">选择检查维度，AI 将自动分析词库中的潜在问题。</p>
+          <h3 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">质量检查任务</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            选择检查维度，AI 将自动分析词库中的潜在问题。
+          </p>
         </div>
 
         {/* Right: Action Area */}
@@ -58,7 +60,7 @@ export const TaskRunner: React.FC<Props> = ({
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as CheckType)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-300"
                 disabled={loading}
               >
                 {CHECK_TYPES.map((t) => (
@@ -84,11 +86,11 @@ export const TaskRunner: React.FC<Props> = ({
           ) : (
             <div className="flex w-full min-w-[300px] items-center gap-4">
               <div className="flex-1">
-                <div className="mb-1 flex justify-between text-xs font-medium text-gray-500">
+                <div className="mb-1 flex justify-between text-xs font-medium text-gray-500 dark:text-gray-400">
                   <span>正在检查: {current || '处理中...'}</span>
                   <span>{Math.round(percent)}%</span>
                 </div>
-                <div className="relative h-3 overflow-hidden rounded-full bg-gray-100">
+                <div className="relative h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                   <motion.div
                     className="h-full rounded-full bg-blue-500"
                     initial={{ width: 0 }}
@@ -96,7 +98,7 @@ export const TaskRunner: React.FC<Props> = ({
                     transition={{ duration: 0.5 }}
                   />
                 </div>
-                <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                <div className="mt-1 flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
                   <span>剩余: {remaining}</span>
                   <span>总计: {total}</span>
                 </div>
@@ -120,24 +122,26 @@ export const TaskRunner: React.FC<Props> = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="mt-4 grid grid-cols-4 gap-4 divide-x divide-gray-100 border-t border-gray-100 pt-4 text-center"
+            className="mt-4 grid grid-cols-4 gap-4 divide-x divide-gray-100 border-t border-gray-100 pt-4 text-center dark:divide-slate-700 dark:border-slate-700"
           >
             <div>
-              <div className="text-xs text-gray-500">进度</div>
-              <div className="font-mono font-semibold">
+              <div className="text-xs text-gray-500 dark:text-gray-400">进度</div>
+              <div className="font-mono font-semibold dark:text-white">
                 {processed} / {total}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">剩余</div>
-              <div className="font-mono font-semibold text-gray-700">{remaining}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">剩余</div>
+              <div className="font-mono font-semibold text-gray-700 dark:text-gray-300">
+                {remaining}
+              </div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">发现问题</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">发现问题</div>
               <div className="font-mono font-semibold text-amber-600">{issues}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">状态</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">状态</div>
               <div className="flex items-center justify-center gap-1 font-mono font-semibold text-blue-600">
                 <CircleNotch className="h-3 w-3 animate-spin" />
                 进行中

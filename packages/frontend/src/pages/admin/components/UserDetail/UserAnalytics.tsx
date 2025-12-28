@@ -62,7 +62,7 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-          <p className="text-gray-600">加载学习数据中...</p>
+          <p className="text-gray-600 dark:text-gray-400">加载学习数据中...</p>
         </div>
       </div>
     );
@@ -70,10 +70,10 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
 
   if (!analyticsData) {
     return (
-      <div className="rounded-card border border-gray-200 bg-white p-12 text-center">
+      <div className="rounded-card border border-gray-200 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-800">
         <CalendarBlank size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
-        <p className="text-lg text-gray-500">暂无学习数据</p>
-        <p className="mt-2 text-sm text-gray-400">用户尚未开始学习</p>
+        <p className="text-lg text-gray-500 dark:text-gray-400">暂无学习数据</p>
+        <p className="mt-2 text-sm text-gray-400 dark:text-gray-500">用户尚未开始学习</p>
       </div>
     );
   }
@@ -83,46 +83,46 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       {/* 学习概况卡片 */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* 平均响应时间 */}
-        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
             <Lightning size={32} weight="duotone" className="text-yellow-500" />
           </div>
-          <div className="mb-1 text-3xl font-bold text-gray-900">
+          <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {analyticsData.avgResponseTime.toFixed(1)}s
           </div>
-          <div className="text-sm text-gray-600">平均响应时间</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">平均响应时间</div>
         </div>
 
         {/* 学习偏好时段 */}
-        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
             <Clock size={32} weight="duotone" className="text-indigo-500" />
           </div>
-          <div className="mb-1 text-3xl font-bold text-gray-900">
+          <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {analyticsData.preferredTime === 'morning' && '上午'}
             {analyticsData.preferredTime === 'afternoon' && '下午'}
             {analyticsData.preferredTime === 'evening' && '傍晚'}
             {analyticsData.preferredTime === 'night' && '深夜'}
             {analyticsData.preferredTime === 'unknown' && '未知'}
           </div>
-          <div className="text-sm text-gray-600">学习偏好时段</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">学习偏好时段</div>
         </div>
 
         {/* 最活跃时段 */}
-        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
             <Flame size={32} weight="duotone" className="text-orange-500" />
           </div>
-          <div className="mb-1 text-3xl font-bold text-gray-900">
+          <div className="mb-1 text-3xl font-bold text-gray-900 dark:text-white">
             {analyticsData.peakHours.length > 0 ? `${analyticsData.peakHours[0]}:00` : '-'}
           </div>
-          <div className="text-sm text-gray-600">最活跃时段</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">最活跃时段</div>
         </div>
       </div>
 
       {/* 30天学习活动热力图 */}
-      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-        <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <CalendarBlank size={24} weight="duotone" className="text-blue-500" />
           30天学习活动热力图
         </h2>
@@ -132,12 +132,12 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
             const intensity = maxCount > 0 ? day.count / maxCount : 0;
             const bgColor =
               day.count === 0
-                ? 'bg-gray-100'
+                ? 'bg-gray-100 dark:bg-slate-700'
                 : intensity > 0.7
                   ? 'bg-green-600'
                   : intensity > 0.4
                     ? 'bg-green-400'
-                    : 'bg-green-200';
+                    : 'bg-green-200 dark:bg-green-700';
 
             return (
               <div
@@ -148,11 +148,11 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
             );
           })}
         </div>
-        <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+        <div className="mt-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <span>少</span>
           <div className="flex gap-1">
-            <div className="h-4 w-4 rounded bg-gray-100" />
-            <div className="h-4 w-4 rounded bg-green-200" />
+            <div className="h-4 w-4 rounded bg-gray-100 dark:bg-slate-700" />
+            <div className="h-4 w-4 rounded bg-green-200 dark:bg-green-700" />
             <div className="h-4 w-4 rounded bg-green-400" />
             <div className="h-4 w-4 rounded bg-green-600" />
           </div>
@@ -161,8 +161,8 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 学习时段分布 */}
-      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-        <h2 className="mb-6 text-xl font-bold text-gray-900">24小时学习时段分布</h2>
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-6 text-xl font-bold text-gray-900 dark:text-white">24小时学习时段分布</h2>
         <div className="flex h-64 items-end gap-1">
           {analyticsData.hourDistribution.map((count, hour) => {
             const maxCount = Math.max(...analyticsData.hourDistribution);
@@ -183,7 +183,9 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
                   } hover:opacity-80`}
                   style={{ height: `${height}%` }}
                 />
-                {hour % 3 === 0 && <span className="text-xs text-gray-500">{hour}</span>}
+                {hour % 3 === 0 && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{hour}</span>
+                )}
               </div>
             );
           })}
@@ -191,8 +193,8 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       </div>
 
       {/* 准确率趋势 */}
-      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-        <h2 className="mb-6 text-xl font-bold text-gray-900">每日准确率趋势</h2>
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-6 text-xl font-bold text-gray-900 dark:text-white">每日准确率趋势</h2>
         <div className="flex h-64 items-end gap-2">
           {analyticsData.dailyAccuracyTrend.map((point, index) => (
             <div
@@ -213,46 +215,46 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
             </div>
           ))}
         </div>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
           最近 {analyticsData.dailyAccuracyTrend.length} 天
         </p>
       </div>
 
       {/* 学习模式分析 */}
-      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-        <h2 className="mb-6 text-xl font-bold text-gray-900">学习模式分析</h2>
+      <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-6 text-xl font-bold text-gray-900 dark:text-white">学习模式分析</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className="rounded-button bg-blue-50 p-4 text-center">
-            <div className="mb-1 text-2xl font-bold text-blue-600">
+          <div className="rounded-button bg-blue-50 p-4 text-center dark:bg-blue-900/30">
+            <div className="mb-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
               {analyticsData.learningPattern.morning}
             </div>
-            <div className="text-sm text-gray-600">上午 (6-12点)</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">上午 (6-12点)</div>
           </div>
-          <div className="rounded-button bg-green-50 p-4 text-center">
-            <div className="mb-1 text-2xl font-bold text-green-600">
+          <div className="rounded-button bg-green-50 p-4 text-center dark:bg-green-900/30">
+            <div className="mb-1 text-2xl font-bold text-green-600 dark:text-green-400">
               {analyticsData.learningPattern.afternoon}
             </div>
-            <div className="text-sm text-gray-600">下午 (12-18点)</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">下午 (12-18点)</div>
           </div>
-          <div className="rounded-button bg-orange-50 p-4 text-center">
-            <div className="mb-1 text-2xl font-bold text-orange-600">
+          <div className="rounded-button bg-orange-50 p-4 text-center dark:bg-orange-900/30">
+            <div className="mb-1 text-2xl font-bold text-orange-600 dark:text-orange-400">
               {analyticsData.learningPattern.evening}
             </div>
-            <div className="text-sm text-gray-600">傍晚 (18-24点)</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">傍晚 (18-24点)</div>
           </div>
-          <div className="rounded-button bg-purple-50 p-4 text-center">
-            <div className="mb-1 text-2xl font-bold text-purple-600">
+          <div className="rounded-button bg-purple-50 p-4 text-center dark:bg-purple-900/30">
+            <div className="mb-1 text-2xl font-bold text-purple-600 dark:text-purple-400">
               {analyticsData.learningPattern.night}
             </div>
-            <div className="text-sm text-gray-600">深夜 (0-6点)</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">深夜 (0-6点)</div>
           </div>
         </div>
       </div>
 
       {/* 薄弱环节识别 */}
       {analyticsData.weakWords.length > 0 && (
-        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft">
-          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
+        <div className="rounded-card border border-gray-200 bg-white p-6 shadow-soft dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
             <Target size={24} weight="duotone" className="text-red-500" />
             薄弱环节识别
           </h2>
@@ -260,26 +262,28 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
             {analyticsData.weakWords.map((word, index) => (
               <div
                 key={word.wordId}
-                className="flex items-center justify-between rounded-button bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                className="flex items-center justify-between rounded-button bg-gray-50 p-4 transition-colors hover:bg-gray-100 dark:bg-slate-900 dark:hover:bg-slate-700"
               >
                 <div className="flex items-center gap-4">
-                  <div className="text-lg font-semibold text-gray-400">#{index + 1}</div>
+                  <div className="text-lg font-semibold text-gray-400 dark:text-gray-500">
+                    #{index + 1}
+                  </div>
                   <div>
-                    <div className="font-medium text-gray-900">{word.spelling}</div>
-                    <div className="text-sm text-gray-500">{word.phonetic}</div>
+                    <div className="font-medium text-gray-900 dark:text-white">{word.spelling}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{word.phonetic}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center">
-                    <div className="text-sm text-gray-500">学习次数</div>
-                    <div className="font-semibold text-gray-900">{word.total}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">学习次数</div>
+                    <div className="font-semibold text-gray-900 dark:text-white">{word.total}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-sm text-gray-500">错误次数</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">错误次数</div>
                     <div className="font-semibold text-red-600">{word.errors}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-sm text-gray-500">错误率</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">错误率</div>
                     <div
                       className={`font-bold ${
                         word.errorRate >= 0.7
@@ -300,11 +304,15 @@ const UserAnalyticsComponent: React.FC<UserAnalyticsProps> = ({
       )}
 
       {/* 导出学习报告按钮 */}
-      <div className="rounded-card border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+      <div className="rounded-card border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="mb-1 text-lg font-semibold text-gray-900">导出学习报告</h3>
-            <p className="text-sm text-gray-600">导出包含学习轨迹、行为分析和效果评估的完整报告</p>
+            <h3 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">
+              导出学习报告
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              导出包含学习轨迹、行为分析和效果评估的完整报告
+            </p>
           </div>
           <button
             onClick={() => onExport('excel')}

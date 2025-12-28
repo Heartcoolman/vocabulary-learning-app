@@ -35,11 +35,11 @@ export function MiniPipelineFlow({ stages }: MiniPipelineFlowProps) {
 
   return (
     <div>
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
+      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-gray-400">
         流水线执行轨迹
       </h3>
 
-      <div className="rounded-button border border-slate-200 bg-white/60 p-4 backdrop-blur-sm">
+      <div className="rounded-button border border-slate-200 bg-white/60 p-4 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60">
         <div className="flex items-center justify-between">
           {orderedStages.map((stageType, index) => {
             const stage = stageMap.get(stageType);
@@ -62,12 +62,12 @@ export function MiniPipelineFlow({ stages }: MiniPipelineFlowProps) {
                     {status === 'SKIPPED' && <Minus size={16} color={color} />}
                   </div>
 
-                  <span className="mt-1.5 text-center text-[9px] font-medium text-slate-600">
+                  <span className="mt-1.5 text-center text-[9px] font-medium text-slate-600 dark:text-gray-400">
                     {STAGE_NAMES[stageType]}
                   </span>
 
                   {stage?.durationMs !== undefined && (
-                    <span className="font-mono text-[8px] text-slate-400">
+                    <span className="font-mono text-[8px] text-slate-400 dark:text-gray-400">
                       {stage.durationMs}ms
                     </span>
                   )}

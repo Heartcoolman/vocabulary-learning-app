@@ -68,12 +68,12 @@ const getStateLabel = (state: string): string => {
  */
 const getStateColor = (state: string): string => {
   const colors: Record<string, string> = {
-    NEW: 'bg-gray-100 text-gray-700',
-    LEARNING: 'bg-blue-100 text-blue-700',
-    REVIEWING: 'bg-yellow-100 text-yellow-700',
-    MASTERED: 'bg-green-100 text-green-700',
+    NEW: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300',
+    LEARNING: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+    REVIEWING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300',
+    MASTERED: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
   };
-  return colors[state] || 'bg-gray-100 text-gray-700';
+  return colors[state] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300';
 };
 
 /**
@@ -117,10 +117,10 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
   );
 
   return (
-    <div className="rounded-card border border-gray-200 bg-white shadow-soft">
-      <div className="border-b border-gray-200 p-6">
+    <div className="rounded-card border border-gray-200 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
+      <div className="border-b border-gray-200 p-6 dark:border-slate-700">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">单词列表</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">单词列表</h2>
           <div className="flex items-center gap-3">
             {/* 导出按钮 */}
             <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
             </div>
             <button
               onClick={onToggleFilters}
-              className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200"
+              className="flex items-center gap-2 rounded-button bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700"
             >
               <MagnifyingGlass size={16} weight="bold" />
               <span>筛选和排序</span>
@@ -182,10 +182,12 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
         {/* 筛选器 */}
         {showFilters && (
-          <div className="grid grid-cols-1 gap-4 rounded-button bg-gray-50 p-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 rounded-button bg-gray-50 p-4 dark:bg-slate-900 md:grid-cols-2 lg:grid-cols-4">
             {/* 得分范围 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">得分范围</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                得分范围
+              </label>
               <select
                 value={filters.scoreRange || ''}
                 onChange={(e) =>
@@ -193,7 +195,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     scoreRange: (e.target.value as FilterState['scoreRange']) || undefined,
                   })
                 }
-                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               >
                 <option value="">全部</option>
                 <option value="low">低分 (0-40)</option>
@@ -204,7 +206,9 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
             {/* 掌握程度 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">掌握程度</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                掌握程度
+              </label>
               <select
                 value={filters.masteryLevel !== undefined ? filters.masteryLevel : ''}
                 onChange={(e) =>
@@ -212,7 +216,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     masteryLevel: e.target.value === '' ? undefined : parseInt(e.target.value),
                   })
                 }
-                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               >
                 <option value="">全部</option>
                 <option value="0">新单词</option>
@@ -226,7 +230,9 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
             {/* 学习状态 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">学习状态</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                学习状态
+              </label>
               <select
                 value={filters.state || ''}
                 onChange={(e) =>
@@ -234,7 +240,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                     state: (e.target.value as FilterState['state']) || undefined,
                   })
                 }
-                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               >
                 <option value="">全部</option>
                 <option value="new">新单词</option>
@@ -246,7 +252,9 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
             {/* 排序方式 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">排序方式</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                排序方式
+              </label>
               <div className="flex gap-2">
                 <select
                   value={filters.sortBy}
@@ -255,7 +263,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                       sortBy: e.target.value as FilterState['sortBy'],
                     })
                   }
-                  className="flex-1 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 rounded-button border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 >
                   <option value="score">单词得分</option>
                   <option value="accuracy">正确率</option>
@@ -264,7 +272,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 </select>
                 <button
                   onClick={onToggleSortOrder}
-                  className="rounded-button bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200"
+                  className="rounded-button bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                   title={filters.sortOrder === 'asc' ? '升序' : '降序'}
                 >
                   {filters.sortOrder === 'asc' ? (
@@ -283,56 +291,60 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
       {isLoading ? (
         <div className="p-12 text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600 dark:text-gray-400">加载中...</p>
         </div>
       ) : words.length === 0 ? (
         <div className="p-12 text-center">
           <Books size={64} weight="thin" className="mx-auto mb-4 text-gray-300" />
-          <p className="text-lg text-gray-500">暂无单词数据</p>
+          <p className="text-lg text-gray-500 dark:text-gray-400">暂无单词数据</p>
         </div>
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="border-b border-gray-200 bg-gray-50">
+              <thead className="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-900">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">单词</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    单词
+                  </th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     得分
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     掌握程度
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     正确率
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     学习次数
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     最近学习
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     下次复习
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
                     状态
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {words.map((wordDetail) => (
                   <tr
                     key={wordDetail.word.id}
-                    className="cursor-pointer transition-colors hover:bg-gray-50"
+                    className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-700"
                     onClick={() => handleWordClick(wordDetail.word.id)}
                   >
                     <td className="px-6 py-4">
                       <div>
-                        <div className="font-medium text-gray-900 transition-colors hover:text-blue-600">
+                        <div className="font-medium text-gray-900 transition-colors hover:text-blue-600 dark:text-white dark:hover:text-blue-400">
                           {wordDetail.word.spelling}
                         </div>
-                        <div className="text-sm text-gray-500">{wordDetail.word.phonetic}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {wordDetail.word.phonetic}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -369,15 +381,17 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="text-gray-900">{wordDetail.reviewCount}</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {wordDetail.reviewCount}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(wordDetail.lastReviewDate)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(wordDetail.nextReviewDate)}
                       </span>
                     </td>
@@ -398,8 +412,8 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
 
           {/* 分页 */}
           {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 p-6">
-              <div className="text-sm text-gray-600">
+            <div className="flex items-center justify-between border-t border-gray-200 p-6 dark:border-slate-700">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 显示第 {(pagination.page - 1) * pagination.pageSize + 1} -{' '}
                 {Math.min(pagination.page * pagination.pageSize, pagination.total)} 条，共{' '}
                 {pagination.total} 条
@@ -408,7 +422,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 <button
                   onClick={() => onPageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   <CaretLeft size={16} weight="bold" />
                 </button>
@@ -425,13 +439,15 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                       const showEllipsis = index > 0 && page - array[index - 1] > 1;
                       return (
                         <span key={page} className="contents">
-                          {showEllipsis && <span className="px-2 text-gray-400">...</span>}
+                          {showEllipsis && (
+                            <span className="px-2 text-gray-400 dark:text-gray-500">...</span>
+                          )}
                           <button
                             onClick={() => onPageChange(page)}
                             className={`rounded-button px-4 py-2 transition-all ${
                               page === pagination.page
                                 ? 'bg-blue-500 text-white'
-                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700'
                             }`}
                           >
                             {page}
@@ -443,7 +459,7 @@ const UserWordListComponent: React.FC<UserWordListProps> = ({
                 <button
                   onClick={() => onPageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-button border border-gray-300 px-4 py-2 text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-gray-300 dark:hover:bg-slate-700"
                 >
                   <CaretRight size={16} weight="bold" />
                 </button>

@@ -33,12 +33,12 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, icon }: MetricCardProps) {
   return (
-    <div className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm">
-      <div className="mb-2 flex items-center gap-2 text-slate-500">
-        {icon && <span className="text-slate-400">{icon}</span>}
+    <div className="rounded-button border border-slate-200 bg-white/60 p-3 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/60">
+      <div className="mb-2 flex items-center gap-2 text-slate-500 dark:text-gray-400">
+        {icon && <span className="text-slate-400 dark:text-gray-400">{icon}</span>}
         <span className="text-xs font-medium">{label}</span>
       </div>
-      <div className="text-sm font-semibold text-slate-800">{value}</div>
+      <div className="text-sm font-semibold text-slate-800 dark:text-white">{value}</div>
     </div>
   );
 }
@@ -52,7 +52,7 @@ export function DecisionMetricsSection({
   coldstartPhase,
 }: DecisionMetricsSectionProps) {
   const getDifficultyBadge = (difficulty?: string) => {
-    if (!difficulty) return <span className="text-slate-400">-</span>;
+    if (!difficulty) return <span className="text-slate-400 dark:text-gray-400">-</span>;
 
     const style = DIFFICULTY_STYLES[difficulty.toLowerCase()] || {
       bg: 'bg-slate-100',
@@ -71,7 +71,7 @@ export function DecisionMetricsSection({
   };
 
   const getRewardDisplay = (val?: number) => {
-    if (val === undefined) return <span className="text-slate-400">未定义</span>;
+    if (val === undefined) return <span className="text-slate-400 dark:text-gray-400">未定义</span>;
     if (val > 0) {
       return (
         <span className="flex items-center gap-1 text-green-600">
@@ -86,12 +86,12 @@ export function DecisionMetricsSection({
         </span>
       );
     }
-    return <span className="text-slate-600">{val}</span>;
+    return <span className="text-slate-600 dark:text-gray-400">{val}</span>;
   };
 
   return (
     <div>
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
+      <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-gray-400">
         决策指标与策略
       </h3>
 
@@ -121,7 +121,7 @@ export function DecisionMetricsSection({
           label="决策置信度"
           value={
             <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                 <div
                   className="h-full rounded-full bg-indigo-500 transition-all"
                   style={{ width: `${confidence * 100}%` }}

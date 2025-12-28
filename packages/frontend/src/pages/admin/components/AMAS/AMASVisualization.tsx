@@ -59,12 +59,12 @@ const TimelineItemCard = memo(function TimelineItemCard({ item }: { item: Decisi
         className={`absolute left-2 top-3 h-4 w-4 rounded-full border-2 border-white ${getConfidenceColor(item.decision.confidence)}`}
       />
 
-      <div className="rounded-button bg-gray-50 p-4 transition-all hover:bg-gray-100">
+      <div className="rounded-button bg-gray-50 p-4 transition-all hover:bg-gray-100 dark:bg-slate-900 dark:hover:bg-slate-800">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
             单词 ID: {item.wordId.slice(0, 8)}...
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {new Date(item.timestamp).toLocaleString('zh-CN')}
           </span>
         </div>
@@ -72,15 +72,15 @@ const TimelineItemCard = memo(function TimelineItemCard({ item }: { item: Decisi
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1">
             <Target size={14} className="text-blue-500" />
-            <span className="text-gray-600">置信度:</span>
+            <span className="text-gray-600 dark:text-gray-400">置信度:</span>
             <span className={`font-medium ${getConfidenceTextColor(item.decision.confidence)}`}>
               {(item.decision.confidence * 100).toFixed(0)}%
             </span>
           </div>
           <div className="flex items-center gap-1">
             <Lightning size={14} className="text-purple-500" />
-            <span className="text-gray-600">决策 ID:</span>
-            <span className="font-mono text-xs text-gray-500">
+            <span className="text-gray-600 dark:text-gray-400">决策 ID:</span>
+            <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
               {item.decision.decisionId.slice(0, 8)}
             </span>
           </div>
@@ -104,7 +104,7 @@ const LoadMoreButton = memo(function LoadMoreButton({
     <button
       onClick={onClick}
       disabled={isLoading}
-      className="flex w-full items-center justify-center gap-2 rounded-button py-3 text-blue-600 transition-all hover:bg-blue-50 disabled:opacity-50"
+      className="flex w-full items-center justify-center gap-2 rounded-button py-3 text-blue-600 transition-all hover:bg-blue-50 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
     >
       {isLoading ? (
         <>
@@ -133,17 +133,17 @@ function AMASVisualizationComponent({
   hasMore,
 }: AMASVisualizationProps) {
   return (
-    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm">
+    <div className="rounded-card border border-gray-200/60 bg-white/80 p-6 shadow-soft backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80">
       {/* 标题栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
           <Clock size={24} weight="duotone" className="text-orange-500" />
           决策时间线
         </h2>
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50"
+          className="rounded-button p-2 transition-all hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-slate-700"
           title="刷新"
         >
           <ArrowClockwise size={20} weight="bold" className={isLoading ? 'animate-spin' : ''} />
@@ -157,7 +157,7 @@ function AMASVisualizationComponent({
         </div>
       ) : error ? (
         /* 错误状态 */
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">
           <Warning size={48} weight="duotone" color="#ef4444" className="mx-auto mb-4" />
           <p>{error}</p>
         </div>
@@ -166,7 +166,7 @@ function AMASVisualizationComponent({
         <div className="space-y-4">
           <div className="relative">
             {/* 时间线竖线 */}
-            <div className="absolute bottom-0 left-4 top-0 w-0.5 bg-gray-200" />
+            <div className="absolute bottom-0 left-4 top-0 w-0.5 bg-gray-200 dark:bg-slate-700" />
 
             {/* 时间线项目 */}
             <div className="space-y-4">
@@ -181,7 +181,7 @@ function AMASVisualizationComponent({
         </div>
       ) : (
         /* 空状态 */
-        <div className="py-8 text-center text-gray-500">暂无决策时间线数据</div>
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">暂无决策时间线数据</div>
       )}
     </div>
   );
