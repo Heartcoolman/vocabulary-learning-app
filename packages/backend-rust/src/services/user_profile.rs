@@ -113,6 +113,13 @@ struct AnswerRecordInteraction {
     response_time: Option<i64>,
 }
 
+struct TrackingStats {
+    pronunciation_clicks: i32,
+    pause_count: i32,
+    page_switch_count: i32,
+    total_interactions: i32,
+}
+
 // ========== Validation ==========
 
 pub fn is_valid_reward_profile_id(profile_id: &str) -> bool {
@@ -243,6 +250,7 @@ pub async fn compute_chronotype(pool: &PgPool, user_id: &str) -> Result<Chronoty
 
 pub async fn compute_learning_style(pool: &PgPool, user_id: &str) -> Result<LearningStyleProfile, String> {
     let interactions = fetch_records_for_learning_style(pool, user_id).await?;
+    let tracking = fetch_tracking_stats(pool, user_id).await;
     let sample_count = interactions.len() as i64;
 
     if interactions.is_empty() {
@@ -258,49 +266,57 @@ pub async fn compute_learning_style(pool: &PgPool, user_id: &str) -> Result<Lear
     let dwell_variance = interactions.iter().map(|r| (r.dwell_time as f64 - avg_dwell_time).powi(2)).sum::<f64>() / interactions.len() as f64;
     let response_variance = interactions.iter().map(|r| (r.response_time.unwrap_or(0) as f64 - avg_response_time).powi(2)).sum::<f64>() / interactions.len() as f64;
 
-    let mut pause_count = 0i64;
-    for i in 1..interactions.len() {
-        if interactions[i - 1].timestamp_ms - interactions[i].timestamp_ms > 30_000 { pause_count += 1; }
-    }
-
-    let mut switch_count = 0i64;
-    for i in 1..interactions.len() {
-        let prev = response_or_avg(interactions[i - 1].response_time, avg_response_time);
-        let curr = response_or_avg(interactions[i].response_time, avg_response_time);
-        if prev > 0.0 && curr > 0.0 && (curr / prev > 2.0 || prev / curr > 2.0) { switch_count += 1; }
-    }
+    let (pause_count, switch_count, pause_frequency, switch_frequency) = match &tracking {
+        Some(t) if t.total_interactions >= 10 => {
+            let pf = t.pause_count as f64 / t.total_interactions as f64;
+            let sf = t.page_switch_count as f64 / t.total_interactions as f64;
+            (t.pause_count as i64, t.page_switch_count as i64, pf, sf)
+        }
+        _ => {
+            let mut pc = 0i64;
+            for i in 1..interactions.len() {
+                if interactions[i - 1].timestamp_ms - interactions[i].timestamp_ms > 30_000 { pc += 1; }
+            }
+            let mut sc = 0i64;
+            for i in 1..interactions.len() {
+                let prev = response_or_avg(interactions[i - 1].response_time, avg_response_time);
+                let curr = response_or_avg(interactions[i].response_time, avg_response_time);
+                if prev > 0.0 && curr > 0.0 && (curr / prev > 2.0 || prev / curr > 2.0) { sc += 1; }
+            }
+            (pc, sc, pc as f64 / sample_count as f64, sc as f64 / sample_count as f64)
+        }
+    };
 
     if sample_count < 50 {
         return Ok(LearningStyleProfile {
             style: "mixed", confidence: 0.3, sample_count,
             scores: LearningStyleScores { visual: 0.33, auditory: 0.33, kinesthetic: 0.33 },
-            interaction_patterns: LearningStyleInteractionPatterns { avg_dwell_time, avg_response_time, pause_frequency: 0.0, switch_frequency: 0.0 },
+            interaction_patterns: LearningStyleInteractionPatterns { avg_dwell_time, avg_response_time, pause_frequency, switch_frequency },
         });
     }
 
     let mut scores = LearningStyleScores {
         visual: compute_visual_score(avg_dwell_time),
-        auditory: compute_auditory_score(avg_dwell_time, dwell_variance, pause_count, sample_count),
-        kinesthetic: compute_kinesthetic_score(avg_response_time, response_variance, switch_count, sample_count),
+        auditory: compute_auditory_score_with_tracking(avg_dwell_time, dwell_variance, pause_count, sample_count, &tracking),
+        kinesthetic: compute_kinesthetic_score_with_tracking(avg_response_time, response_variance, switch_count, sample_count, &tracking),
     };
 
     let total_score = scores.visual + scores.auditory + scores.kinesthetic;
     if total_score > 0.0 { scores.visual /= total_score; scores.auditory /= total_score; scores.kinesthetic /= total_score; }
 
     let normalized_max = scores.visual.max(scores.auditory.max(scores.kinesthetic));
-    let pause_frequency = pause_count as f64 / sample_count as f64;
-    let switch_frequency = switch_count as f64 / sample_count as f64;
+    let tracking_confidence = if tracking.as_ref().map(|t| t.total_interactions >= 20).unwrap_or(false) { 0.1 } else { 0.0 };
 
     if normalized_max < 0.4 {
         return Ok(LearningStyleProfile {
-            style: "mixed", confidence: 0.5, sample_count, scores,
+            style: "mixed", confidence: 0.5 + tracking_confidence, sample_count, scores,
             interaction_patterns: LearningStyleInteractionPatterns { avg_dwell_time, avg_response_time, pause_frequency, switch_frequency },
         });
     }
 
     let style = if scores.visual == normalized_max { "visual" } else if scores.auditory == normalized_max { "auditory" } else { "kinesthetic" };
     Ok(LearningStyleProfile {
-        style, confidence: normalized_max.min(0.9), sample_count, scores,
+        style, confidence: (normalized_max + tracking_confidence).min(0.95), sample_count, scores,
         interaction_patterns: LearningStyleInteractionPatterns { avg_dwell_time, avg_response_time, pause_frequency, switch_frequency },
     })
 }
@@ -331,6 +347,23 @@ async fn fetch_records_for_learning_style(pool: &PgPool, user_id: &str) -> Resul
             response_time: row.try_get::<Option<i64>, _>("responseTime").ok().flatten(),
         })
     }).collect())
+}
+
+async fn fetch_tracking_stats(pool: &PgPool, user_id: &str) -> Option<TrackingStats> {
+    let row = sqlx::query(
+        r#"SELECT "pronunciationClicks", "pauseCount", "pageSwitchCount", "totalInteractions"
+           FROM "user_interaction_stats" WHERE "userId" = $1 LIMIT 1"#
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .ok()??;
+    Some(TrackingStats {
+        pronunciation_clicks: row.try_get("pronunciationClicks").unwrap_or(0),
+        pause_count: row.try_get("pauseCount").unwrap_or(0),
+        page_switch_count: row.try_get("pageSwitchCount").unwrap_or(0),
+        total_interactions: row.try_get("totalInteractions").unwrap_or(0),
+    })
 }
 
 // ========== Write Operations ==========
@@ -394,20 +427,34 @@ fn compute_visual_score(avg_dwell_time: f64) -> f64 {
     (dwell_score + deliberate_score).min(1.0)
 }
 
-fn compute_auditory_score(avg_dwell_time: f64, dwell_variance: f64, pause_count: i64, sample_count: i64) -> f64 {
+fn compute_auditory_score_with_tracking(avg_dwell_time: f64, dwell_variance: f64, pause_count: i64, sample_count: i64, tracking: &Option<TrackingStats>) -> f64 {
     let cv = if avg_dwell_time > 0.0 { dwell_variance.sqrt() / avg_dwell_time } else { 1.0 };
-    let stability_score: f64 = if cv < 0.3 { 0.4 } else if cv < 0.5 { 0.25 } else { 0.1 };
-    let dwell_score: f64 = if avg_dwell_time >= 3000.0 && avg_dwell_time <= 6000.0 { 0.3 } else { 0.1 };
+    let stability_score: f64 = if cv < 0.3 { 0.35 } else if cv < 0.5 { 0.2 } else { 0.1 };
+    let dwell_score: f64 = if avg_dwell_time >= 3000.0 && avg_dwell_time <= 6000.0 { 0.25 } else { 0.1 };
     let pause_rate = pause_count as f64 / sample_count as f64;
-    let pause_score: f64 = if pause_rate > 0.1 { 0.2 } else { 0.1 };
-    (stability_score + dwell_score + pause_score).min(1.0)
+    let pause_score: f64 = if pause_rate > 0.1 { 0.15 } else { 0.1 };
+    let pronunciation_score: f64 = match tracking {
+        Some(t) if t.total_interactions >= 10 => {
+            let click_ratio = t.pronunciation_clicks as f64 / t.total_interactions as f64;
+            (click_ratio / 0.25).min(1.0) * 0.25
+        }
+        _ => 0.0
+    };
+    (stability_score + dwell_score + pause_score + pronunciation_score).min(1.0)
 }
 
-fn compute_kinesthetic_score(avg_response_time: f64, response_variance: f64, switch_count: i64, sample_count: i64) -> f64 {
-    let speed_score: f64 = if avg_response_time < 2000.0 { 0.4 } else if avg_response_time < 3000.0 { 0.3 } else { 0.15 };
+fn compute_kinesthetic_score_with_tracking(avg_response_time: f64, response_variance: f64, switch_count: i64, sample_count: i64, tracking: &Option<TrackingStats>) -> f64 {
+    let speed_score: f64 = if avg_response_time < 2000.0 { 0.35 } else if avg_response_time < 3000.0 { 0.25 } else { 0.15 };
     let switch_rate = switch_count as f64 / sample_count as f64;
-    let switch_score: f64 = if switch_rate > 0.2 { 0.3 } else if switch_rate > 0.1 { 0.2 } else { 0.1 };
+    let switch_score: f64 = if switch_rate > 0.2 { 0.25 } else if switch_rate > 0.1 { 0.15 } else { 0.1 };
     let response_cv = if avg_response_time > 0.0 { response_variance.sqrt() / avg_response_time } else { 0.0 };
-    let variability_score: f64 = if response_cv > 0.5 { 0.2 } else { 0.1 };
-    (speed_score + switch_score + variability_score).min(1.0)
+    let variability_score: f64 = if response_cv > 0.5 { 0.15 } else { 0.1 };
+    let page_switch_score: f64 = match tracking {
+        Some(t) if t.total_interactions >= 10 => {
+            let switch_ratio = t.page_switch_count as f64 / t.total_interactions as f64;
+            (switch_ratio / 0.3).min(1.0) * 0.2
+        }
+        _ => 0.0
+    };
+    (speed_score + switch_score + variability_score + page_switch_score).min(1.0)
 }

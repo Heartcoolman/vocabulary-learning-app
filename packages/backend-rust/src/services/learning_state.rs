@@ -60,10 +60,13 @@ pub struct WordScore {
     pub id: String,
     pub user_id: String,
     pub word_id: String,
-    pub score: f64,
-    pub correct_count: i32,
-    pub incorrect_count: i32,
-    pub total_response_time: i64,
+    pub total_score: f64,
+    pub accuracy_score: f64,
+    pub speed_score: f64,
+    pub total_attempts: i32,
+    pub correct_attempts: i32,
+    pub average_response_time: f64,
+    pub recent_accuracy: f64,
     pub updated_at: i64,
 }
 
@@ -286,8 +289,8 @@ pub async fn get_word_score(
     word_id: &str,
 ) -> Result<Option<WordScore>, String> {
     let row = sqlx::query(
-        r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-           "totalResponseTime", "updatedAt"
+        r#"SELECT "id", "userId", "wordId", "totalScore", "accuracyScore", "speedScore",
+           "totalAttempts", "correctAttempts", "averageResponseTime", "recentAccuracy", "updatedAt"
            FROM "word_scores" WHERE "userId" = $1 AND "wordId" = $2"#,
     )
     .bind(user_id)
@@ -301,10 +304,13 @@ pub async fn get_word_score(
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         word_id: row.try_get("wordId").unwrap_or_default(),
-        score: row.try_get("score").unwrap_or(0.0),
-        correct_count: row.try_get("correctCount").unwrap_or(0),
-        incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-        total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
+        total_score: row.try_get("totalScore").unwrap_or(0.0),
+        accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
+        speed_score: row.try_get("speedScore").unwrap_or(0.0),
+        total_attempts: row.try_get("totalAttempts").unwrap_or(0),
+        correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
+        average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
+        recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
         updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
     }))
 }
@@ -316,10 +322,10 @@ pub async fn get_low_score_words(
     limit: i32,
 ) -> Result<Vec<WordScore>, String> {
     let rows = sqlx::query(
-        r#"SELECT "id", "userId", "wordId", "score", "correctCount", "incorrectCount",
-           "totalResponseTime", "updatedAt"
-           FROM "word_scores" WHERE "userId" = $1 AND "score" < $2
-           ORDER BY "score" ASC LIMIT $3"#,
+        r#"SELECT "id", "userId", "wordId", "totalScore", "accuracyScore", "speedScore",
+           "totalAttempts", "correctAttempts", "averageResponseTime", "recentAccuracy", "updatedAt"
+           FROM "word_scores" WHERE "userId" = $1 AND "totalScore" < $2
+           ORDER BY "totalScore" ASC LIMIT $3"#,
     )
     .bind(user_id)
     .bind(threshold)
@@ -332,10 +338,13 @@ pub async fn get_low_score_words(
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
         word_id: row.try_get("wordId").unwrap_or_default(),
-        score: row.try_get("score").unwrap_or(0.0),
-        correct_count: row.try_get("correctCount").unwrap_or(0),
-        incorrect_count: row.try_get("incorrectCount").unwrap_or(0),
-        total_response_time: row.try_get("totalResponseTime").unwrap_or(0),
+        total_score: row.try_get("totalScore").unwrap_or(0.0),
+        accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
+        speed_score: row.try_get("speedScore").unwrap_or(0.0),
+        total_attempts: row.try_get("totalAttempts").unwrap_or(0),
+        correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
+        average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
+        recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
         updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
     }).collect())
 }
@@ -343,10 +352,10 @@ pub async fn get_low_score_words(
 pub async fn get_score_stats(pool: &PgPool, user_id: &str) -> Result<ScoreStats, String> {
     let row = sqlx::query(
         r#"SELECT
-           COALESCE(AVG("score"), 0) as avg_score,
-           COUNT(*) FILTER (WHERE "score" >= 80) as high_count,
-           COUNT(*) FILTER (WHERE "score" >= 40 AND "score" < 80) as medium_count,
-           COUNT(*) FILTER (WHERE "score" < 40) as low_count
+           COALESCE(AVG("totalScore"), 0) as avg_score,
+           COUNT(*) FILTER (WHERE "totalScore" >= 80) as high_count,
+           COUNT(*) FILTER (WHERE "totalScore" >= 40 AND "totalScore" < 80) as medium_count,
+           COUNT(*) FILTER (WHERE "totalScore" < 40) as low_count
            FROM "word_scores" WHERE "userId" = $1"#,
     )
     .bind(user_id)
@@ -381,7 +390,7 @@ pub async fn get_complete_word_state(
 }
 
 fn compute_mastery_evaluation(state: &WordLearningState, score: Option<&WordScore>) -> MasteryEvaluation {
-    let base_score = score.map(|s| s.score).unwrap_or(50.0);
+    let base_score = score.map(|s| s.total_score).unwrap_or(50.0);
     let mastery_factor = (state.mastery_level as f64 / 10.0).min(1.0);
     let review_factor = (state.review_count as f64 / 20.0).min(1.0);
     let combined_score = base_score * 0.5 + mastery_factor * 30.0 + review_factor * 20.0;
@@ -466,23 +475,35 @@ pub async fn upsert_word_score(
     let now = Utc::now();
     let id = uuid::Uuid::new_v4().to_string();
     let correct_inc = if is_correct { 1 } else { 0 };
-    let incorrect_inc = if is_correct { 0 } else { 1 };
+    let accuracy = if is_correct { 1.0 } else { 0.0 };
 
     sqlx::query(
-        r#"INSERT INTO "word_scores" ("id","userId","wordId","score","correctCount","incorrectCount","totalResponseTime","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        r#"INSERT INTO "word_scores" ("id","userId","wordId","totalScore","accuracyScore","speedScore","totalAttempts","correctAttempts","averageResponseTime","recentAccuracy","createdAt","updatedAt")
+           VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,$9,$10,$10)
            ON CONFLICT ("userId","wordId") DO UPDATE SET
-           "score"=$4,
-           "correctCount"="word_scores"."correctCount"+$5,
-           "incorrectCount"="word_scores"."incorrectCount"+$6,
-           "totalResponseTime"="word_scores"."totalResponseTime"+$7,
-           "updatedAt"=$8"#,
+           "totalScore"=EXCLUDED."totalScore",
+           "accuracyScore"=("word_scores"."accuracyScore" * "word_scores"."totalAttempts" + EXCLUDED."accuracyScore") / ("word_scores"."totalAttempts" + 1),
+           "totalAttempts"="word_scores"."totalAttempts"+1,
+           "correctAttempts"="word_scores"."correctAttempts"+$7,
+           "averageResponseTime"=("word_scores"."averageResponseTime" * "word_scores"."totalAttempts" + $8) / ("word_scores"."totalAttempts" + 1),
+           "recentAccuracy"=EXCLUDED."recentAccuracy",
+           "updatedAt"=$10"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(score)
-    .bind(correct_inc).bind(incorrect_inc).bind(response_time).bind(now)
+    .bind(accuracy).bind(calculate_speed_score(response_time)).bind(correct_inc)
+    .bind(response_time as f64).bind(accuracy).bind(now)
     .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())
+}
+
+fn calculate_speed_score(response_time: i64) -> f64 {
+    let max_time = 10000.0;
+    let min_time = 500.0;
+    let rt = response_time as f64;
+    if rt <= min_time { 1.0 }
+    else if rt >= max_time { 0.0 }
+    else { 1.0 - (rt - min_time) / (max_time - min_time) }
 }
 
 pub async fn record_review(

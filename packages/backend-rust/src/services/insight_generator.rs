@@ -172,7 +172,52 @@ pub async fn generate_insights(
         store_insight(pool, insight).await?;
     }
 
+    store_user_behavior_insight(proxy, request.segment.as_deref(), &stats, &insights).await;
+
     Ok(insights)
+}
+
+async fn store_user_behavior_insight(
+    proxy: &DatabaseProxy,
+    segment: Option<&str>,
+    stats: &SegmentStats,
+    insights: &[Insight],
+) {
+    let analysis_date = Utc::now().date_naive();
+    let user_segment = segment.unwrap_or("all").to_string();
+
+    let patterns = serde_json::json!({
+        "avgAccuracy": stats.avg_accuracy,
+        "avgResponseTime": stats.avg_response_time,
+        "activeRatio": stats.active_ratio,
+        "strugglingRatio": stats.struggling_count as f64 / stats.user_count.max(1) as f64,
+        "highPerformersRatio": stats.high_performers_count as f64 / stats.user_count.max(1) as f64,
+    });
+
+    let insights_summary: Vec<serde_json::Value> = insights.iter().map(|i| {
+        serde_json::json!({
+            "type": i.insight_type,
+            "severity": i.severity,
+            "title": i.title,
+        })
+    }).collect();
+
+    let recommendations: Vec<String> = insights.iter()
+        .flat_map(|i| i.recommendations.clone())
+        .collect();
+
+    if let Err(e) = crate::db::operations::upsert_user_behavior_insight(
+        proxy,
+        analysis_date,
+        &user_segment,
+        &patterns,
+        &serde_json::json!(insights_summary),
+        &serde_json::json!(recommendations),
+        stats.user_count as i32,
+        (stats.user_count * 10) as i32,
+    ).await {
+        tracing::warn!(error = %e, "Failed to store user behavior insight");
+    }
 }
 
 fn create_insight(

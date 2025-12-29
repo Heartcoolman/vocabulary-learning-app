@@ -323,6 +323,10 @@ async fn run_check_task(
                     .await;
                 }
 
+                if let Some(ref suggestions) = result.suggestions {
+                    store_word_content_variants(&pool, &word, suggestions, Some(&task_id.to_string())).await;
+                }
+
                 let p = processed.fetch_add(1, Ordering::SeqCst) + 1;
                 issues_found.fetch_add(new_issues, Ordering::SeqCst);
 
@@ -472,13 +476,77 @@ async fn check_with_llm(llm: &LLMProvider, word: &WordForCheck) -> Result<LlmChe
 
     let messages = [
         ChatMessage { role: "system".into(), content: system_prompt.into() },
-        ChatMessage { role: "user".into(), content: user_prompt },
+        ChatMessage { role: "user".into(), content: user_prompt.clone() },
     ];
 
     let response = llm.chat(&messages).await.map_err(|e| format!("LLM调用失败: {e}"))?;
     let raw = response.first_content().unwrap_or_default();
     tracing::info!("LLM Raw Response for {}: {:?}", word.spelling, raw);
     parse_llm_result(raw, word)
+}
+
+async fn store_word_content_variants(
+    pool: &PgPool,
+    word: &WordForCheck,
+    suggestions: &LlmSuggestions,
+    task_id: Option<&str>,
+) {
+    if let Some(ref phonetic) = suggestions.phonetic {
+        let original = if word.phonetic.is_empty() { None } else { Some(serde_json::json!(word.phonetic)) };
+        if let Err(e) = sqlx::query(
+            r#"
+            INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
+            VALUES ($1, $2, 'phonetic', $3, $4, 0.8, $5, 'pending', NOW())
+            "#,
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(&word.id)
+        .bind(&original)
+        .bind(serde_json::json!(phonetic))
+        .bind(task_id)
+        .execute(pool)
+        .await {
+            tracing::warn!(error = %e, word = %word.spelling, "Failed to store phonetic variant");
+        }
+    }
+
+    if let Some(ref meanings) = suggestions.meanings {
+        let original = if word.meanings.is_empty() { None } else { Some(serde_json::json!(&word.meanings)) };
+        if let Err(e) = sqlx::query(
+            r#"
+            INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
+            VALUES ($1, $2, 'meanings', $3, $4, 0.75, $5, 'pending', NOW())
+            "#,
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(&word.id)
+        .bind(&original)
+        .bind(serde_json::json!(meanings))
+        .bind(task_id)
+        .execute(pool)
+        .await {
+            tracing::warn!(error = %e, word = %word.spelling, "Failed to store meanings variant");
+        }
+    }
+
+    if let Some(ref examples) = suggestions.examples {
+        let original = if word.examples.is_empty() { None } else { Some(serde_json::json!(&word.examples)) };
+        if let Err(e) = sqlx::query(
+            r#"
+            INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
+            VALUES ($1, $2, 'examples', $3, $4, 0.7, $5, 'pending', NOW())
+            "#,
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(&word.id)
+        .bind(&original)
+        .bind(serde_json::json!(examples))
+        .bind(task_id)
+        .execute(pool)
+        .await {
+            tracing::warn!(error = %e, word = %word.spelling, "Failed to store examples variant");
+        }
+    }
 }
 
 fn parse_llm_result(raw: &str, word: &WordForCheck) -> Result<LlmCheckResult, String> {

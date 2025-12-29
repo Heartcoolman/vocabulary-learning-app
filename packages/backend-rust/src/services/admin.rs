@@ -1231,3 +1231,314 @@ pub async fn get_anomaly_flags(
         })
         .collect())
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeatmapItem {
+    pub date: String,
+    pub activity_count: i64,
+    pub correct_count: i64,
+    pub words_learned: i64,
+    pub average_score: f64,
+}
+
+pub async fn get_user_heatmap(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    start_date: Option<&str>,
+    end_date: Option<&str>,
+) -> Result<Vec<HeatmapItem>, AdminError> {
+    let pool = proxy.pool();
+
+    let start = start_date
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| (Utc::now() - chrono::Duration::days(365)).date_naive());
+    let end = end_date
+        .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .unwrap_or_else(|| Utc::now().date_naive());
+
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            DATE("timestamp") as "date",
+            COUNT(*) as "activityCount",
+            COUNT(*) FILTER (WHERE "isCorrect" = true) as "correctCount",
+            COUNT(DISTINCT "wordId") as "wordsLearned",
+            COALESCE(AVG("score"), 0) as "avgScore"
+        FROM "answer_records"
+        WHERE "userId" = $1 AND DATE("timestamp") BETWEEN $2 AND $3
+        GROUP BY DATE("timestamp")
+        ORDER BY "date" ASC
+        "#,
+    )
+    .bind(user_id)
+    .bind(start)
+    .bind(end)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let date: chrono::NaiveDate = row.try_get("date").unwrap_or_else(|_| Utc::now().date_naive());
+            HeatmapItem {
+                date: date.to_string(),
+                activity_count: row.try_get::<i64, _>("activityCount").unwrap_or(0),
+                correct_count: row.try_get::<i64, _>("correctCount").unwrap_or(0),
+                words_learned: row.try_get::<i64, _>("wordsLearned").unwrap_or(0),
+                average_score: row.try_get::<f64, _>("avgScore").unwrap_or(0.0),
+            }
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserWordDetailResult {
+    pub word: AdminWord,
+    pub state: String,
+    pub score: f64,
+    pub mastery_level: i32,
+    pub review_count: i32,
+    pub correct_count: i32,
+    pub accuracy: f64,
+    pub last_review_date: Option<String>,
+    pub next_review_date: Option<String>,
+    pub first_learned_at: Option<String>,
+    pub total_time_spent_ms: i64,
+}
+
+pub async fn get_user_word_detail(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_id: &str,
+) -> Result<UserWordDetailResult, AdminError> {
+    let pool = proxy.pool();
+
+    let word_row = sqlx::query(
+        r#"
+        SELECT "id", "spelling", "phonetic", "meanings", "examples"
+        FROM "words" WHERE "id" = $1
+        "#,
+    )
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AdminError::NotFound("单词不存在".to_string()))?;
+
+    let word = AdminWord {
+        id: word_row.try_get("id").unwrap_or_default(),
+        spelling: word_row.try_get("spelling").unwrap_or_default(),
+        phonetic: word_row.try_get("phonetic").unwrap_or_default(),
+        meanings: word_row.try_get::<serde_json::Value, _>("meanings")
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default(),
+        examples: word_row.try_get::<serde_json::Value, _>("examples")
+            .ok()
+            .and_then(|v| serde_json::from_value(v).ok())
+            .unwrap_or_default(),
+    };
+
+    let state_row = sqlx::query(
+        r#"
+        SELECT "state"::text as "state", "masteryLevel", "reviewCount", "lastReviewDate", "nextReviewDate", "createdAt"
+        FROM "word_learning_states"
+        WHERE "userId" = $1 AND "wordId" = $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let score_row = sqlx::query(
+        r#"SELECT "totalScore", "recentAccuracy" FROM "word_scores" WHERE "userId" = $1 AND "wordId" = $2"#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let stats_row = sqlx::query(
+        r#"
+        SELECT
+            COUNT(*) as "totalCount",
+            COUNT(*) FILTER (WHERE "isCorrect" = true) as "correctCount",
+            COALESCE(SUM("responseTimeMs"), 0) as "totalTime"
+        FROM "answer_records"
+        WHERE "userId" = $1 AND "wordId" = $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .fetch_one(pool)
+    .await?;
+
+    let (state, mastery_level, review_count, last_review, next_review, first_learned) = match state_row {
+        Some(row) => {
+            let last: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
+            let next: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
+            let created: Option<NaiveDateTime> = row.try_get("createdAt").ok();
+            (
+                row.try_get::<String, _>("state").unwrap_or_else(|_| "NEW".to_string()),
+                row.try_get::<i32, _>("masteryLevel").unwrap_or(0),
+                row.try_get::<i32, _>("reviewCount").unwrap_or(0),
+                last.map(crate::auth::format_naive_datetime_iso_millis),
+                next.map(crate::auth::format_naive_datetime_iso_millis),
+                created.map(crate::auth::format_naive_datetime_iso_millis),
+            )
+        }
+        None => ("NEW".to_string(), 0, 0, None, None, None),
+    };
+
+    let score = score_row
+        .as_ref()
+        .and_then(|r| r.try_get::<f64, _>("totalScore").ok())
+        .unwrap_or(0.0);
+    let recent_accuracy = score_row
+        .as_ref()
+        .and_then(|r| r.try_get::<f64, _>("recentAccuracy").ok())
+        .unwrap_or(0.0);
+
+    let total_count = stats_row.try_get::<i64, _>("totalCount").unwrap_or(0);
+    let correct_count = stats_row.try_get::<i64, _>("correctCount").unwrap_or(0);
+    let total_time = stats_row.try_get::<i64, _>("totalTime").unwrap_or(0);
+
+    Ok(UserWordDetailResult {
+        word,
+        state,
+        score,
+        mastery_level,
+        review_count,
+        correct_count: correct_count as i32,
+        accuracy: if total_count > 0 { recent_accuracy * 100.0 } else { 0.0 },
+        last_review_date: last_review,
+        next_review_date: next_review,
+        first_learned_at: first_learned,
+        total_time_spent_ms: total_time,
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WordHistoryItem {
+    pub id: String,
+    pub timestamp: String,
+    pub answer_type: String,
+    pub is_correct: bool,
+    pub score: f64,
+    pub response_time_ms: i64,
+    pub mastery_level_after: Option<i32>,
+}
+
+pub async fn get_word_history(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+    word_id: &str,
+    limit: i64,
+) -> Result<Vec<WordHistoryItem>, AdminError> {
+    let pool = proxy.pool();
+    let limit = limit.min(200).max(1);
+
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            ar."id",
+            ar."timestamp",
+            ar."answerType" as "answerType",
+            ar."isCorrect",
+            ar."score",
+            ar."responseTimeMs",
+            wls."masteryLevel"
+        FROM "answer_records" ar
+        LEFT JOIN "word_learning_states" wls ON wls."userId" = ar."userId" AND wls."wordId" = ar."wordId"
+        WHERE ar."userId" = $1 AND ar."wordId" = $2
+        ORDER BY ar."timestamp" DESC
+        LIMIT $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(word_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let ts: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+            WordHistoryItem {
+                id: row.try_get("id").unwrap_or_default(),
+                timestamp: crate::auth::format_naive_datetime_iso_millis(ts),
+                answer_type: row.try_get("answerType").unwrap_or_else(|_| "unknown".to_string()),
+                is_correct: row.try_get("isCorrect").unwrap_or(false),
+                score: row.try_get("score").unwrap_or(0.0),
+                response_time_ms: row.try_get("responseTimeMs").unwrap_or(0),
+                mastery_level_after: row.try_get("masteryLevel").ok(),
+            }
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportWordItem {
+    pub word_id: String,
+    pub spelling: String,
+    pub phonetic: Option<String>,
+    pub state: String,
+    pub score: f64,
+    pub mastery_level: i32,
+    pub review_count: i32,
+    pub accuracy: f64,
+    pub last_review_date: Option<String>,
+}
+
+pub async fn export_user_words(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<Vec<ExportWordItem>, AdminError> {
+    let pool = proxy.pool();
+
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            w."id" as "wordId",
+            w."spelling",
+            w."phonetic",
+            wls."state"::text as "state",
+            COALESCE(ws."totalScore", 0) as "score",
+            wls."masteryLevel",
+            wls."reviewCount",
+            COALESCE(ws."recentAccuracy", 0) as "accuracy",
+            wls."lastReviewDate"
+        FROM "word_learning_states" wls
+        JOIN "words" w ON w."id" = wls."wordId"
+        LEFT JOIN "word_scores" ws ON ws."userId" = wls."userId" AND ws."wordId" = wls."wordId"
+        WHERE wls."userId" = $1
+        ORDER BY w."spelling" ASC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let last_review: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
+            ExportWordItem {
+                word_id: row.try_get("wordId").unwrap_or_default(),
+                spelling: row.try_get("spelling").unwrap_or_default(),
+                phonetic: row.try_get("phonetic").ok(),
+                state: row.try_get("state").unwrap_or_else(|_| "NEW".to_string()),
+                score: row.try_get("score").unwrap_or(0.0),
+                mastery_level: row.try_get("masteryLevel").unwrap_or(0),
+                review_count: row.try_get("reviewCount").unwrap_or(0),
+                accuracy: row.try_get::<f64, _>("accuracy").unwrap_or(0.0) * 100.0,
+                last_review_date: last_review.map(crate::auth::format_naive_datetime_iso_millis),
+            }
+        })
+        .collect())
+}

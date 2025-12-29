@@ -6,6 +6,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, error, info, warn};
 
 use crate::db::DatabaseProxy;
+use crate::routes::notifications::{create_notification, CreateNotificationInput};
 
 const BATCH_SIZE: usize = 100;
 const RETENTION_THRESHOLD: f64 = 0.3;
@@ -33,7 +34,7 @@ pub async fn scan_forgetting_risks(db: Arc<DatabaseProxy>) -> Result<(), super::
     info!(user_count = users.len(), "Scanning users for forgetting risks");
 
     for user_id in users {
-        if let Err(e) = process_user_alerts(&pool, &user_id, &mut stats).await {
+        if let Err(e) = process_user_alerts(&db, &user_id, &mut stats).await {
             error!(user_id = %user_id, error = %e, "Failed to process user alerts");
         }
     }
@@ -69,15 +70,16 @@ async fn get_active_users(pool: &PgPool) -> Result<Vec<String>, super::WorkerErr
 }
 
 async fn process_user_alerts(
-    pool: &PgPool,
+    db: &DatabaseProxy,
     user_id: &str,
     stats: &mut AlertStats,
 ) -> Result<(), super::WorkerError> {
+    let pool = db.pool();
     let learning_states = get_user_learning_states(pool, user_id).await?;
     stats.words_scanned += learning_states.len() as i64;
 
     for chunk in learning_states.chunks(BATCH_SIZE) {
-        process_batch(pool, user_id, chunk, stats).await?;
+        process_batch(db, user_id, chunk, stats).await?;
     }
 
     Ok(())
@@ -134,12 +136,13 @@ async fn get_user_learning_states(
 }
 
 async fn process_batch(
-    pool: &PgPool,
+    db: &DatabaseProxy,
     user_id: &str,
     states: &[LearningState],
     stats: &mut AlertStats,
 ) -> Result<(), super::WorkerError> {
     let now = Utc::now();
+    let pool = db.pool();
 
     for state in states {
         let retention = calculate_retention(state, now);
@@ -148,6 +151,19 @@ async fn process_batch(
             let alert_result = upsert_forgetting_alert(pool, user_id, state, retention).await?;
             if alert_result.created {
                 stats.alerts_created += 1;
+                if let Err(e) = create_notification(db, CreateNotificationInput {
+                    user_id: user_id.to_string(),
+                    notification_type: "FORGETTING_ALERT".to_string(),
+                    title: "单词遗忘提醒".to_string(),
+                    content: format!("您有单词即将遗忘，记忆保留率已降至 {:.0}%", retention * 100.0),
+                    priority: if retention < 0.1 { "HIGH".to_string() } else { "NORMAL".to_string() },
+                    metadata: Some(serde_json::json!({
+                        "wordId": state.word_id,
+                        "recallProbability": retention
+                    })),
+                }).await {
+                    warn!(error = %e, "Failed to create forgetting alert notification");
+                }
             } else if alert_result.updated {
                 stats.alerts_updated += 1;
             }
@@ -185,30 +201,37 @@ async fn upsert_forgetting_alert(
     let now = Utc::now();
     let id = uuid::Uuid::new_v4().to_string();
 
-    // Use ON CONFLICT to handle race condition atomically
+    let predicted_forget_at = now + chrono::Duration::seconds((state.half_life * (1.0 - retention).ln().abs() / 0.693147) as i64);
+
     let result = sqlx::query(
         r#"
-        INSERT INTO "forgetting_alert" ("id", "userId", "wordId", "retentionRate", "status", "createdAt", "updatedAt")
-        VALUES ($1, $2, $3, $4, 'PENDING', $5, $5)
-        ON CONFLICT ("userId", "wordId") WHERE status = 'PENDING'
+        INSERT INTO "forgetting_alerts" ("id", "userId", "wordId", "predictedForgetAt", "recallProbability", "status", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $6)
+        ON CONFLICT ("userId", "wordId")
         DO UPDATE SET
-            "retentionRate" = CASE
-                WHEN ABS("forgetting_alert"."retentionRate" - EXCLUDED."retentionRate") > 0.05
-                THEN EXCLUDED."retentionRate"
-                ELSE "forgetting_alert"."retentionRate"
+            "recallProbability" = CASE
+                WHEN ABS("forgetting_alerts"."recallProbability" - EXCLUDED."recallProbability") > 0.05
+                THEN EXCLUDED."recallProbability"
+                ELSE "forgetting_alerts"."recallProbability"
+            END,
+            "predictedForgetAt" = CASE
+                WHEN ABS("forgetting_alerts"."recallProbability" - EXCLUDED."recallProbability") > 0.05
+                THEN EXCLUDED."predictedForgetAt"
+                ELSE "forgetting_alerts"."predictedForgetAt"
             END,
             "updatedAt" = CASE
-                WHEN ABS("forgetting_alert"."retentionRate" - EXCLUDED."retentionRate") > 0.05
+                WHEN ABS("forgetting_alerts"."recallProbability" - EXCLUDED."recallProbability") > 0.05
                 THEN EXCLUDED."updatedAt"
-                ELSE "forgetting_alert"."updatedAt"
+                ELSE "forgetting_alerts"."updatedAt"
             END
         RETURNING (xmax = 0) AS inserted,
-                  (xmax <> 0 AND "updatedAt" = $5) AS updated
+                  (xmax <> 0 AND "updatedAt" = $6) AS updated
         "#,
     )
     .bind(&id)
     .bind(user_id)
     .bind(&state.word_id)
+    .bind(predicted_forget_at)
     .bind(retention)
     .bind(now)
     .fetch_optional(pool)
@@ -243,9 +266,9 @@ async fn dismiss_existing_alert(
 
     sqlx::query(
         r#"
-        UPDATE "forgetting_alert"
-        SET status = 'DISMISSED', "updatedAt" = $1
-        WHERE "userId" = $2 AND "wordId" = $3 AND status = 'PENDING'
+        UPDATE "forgetting_alerts"
+        SET status = 'REVIEWED', "reviewedAt" = $1, "updatedAt" = $1
+        WHERE "userId" = $2 AND "wordId" = $3 AND status = 'ACTIVE'
         "#,
     )
     .bind(now)
@@ -262,8 +285,8 @@ pub async fn cleanup_resolved_alerts(pool: &PgPool, older_than_days: i64) -> Res
 
     let result = sqlx::query(
         r#"
-        DELETE FROM "forgetting_alert"
-        WHERE status IN ('REVIEWED', 'DISMISSED')
+        DELETE FROM "forgetting_alerts"
+        WHERE status = 'REVIEWED'
           AND "updatedAt" < $1
         "#,
     )
