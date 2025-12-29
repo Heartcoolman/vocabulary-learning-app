@@ -6,6 +6,7 @@
 import React, { forwardRef, memo, useState, HTMLAttributes, ReactNode } from 'react';
 import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
 import { cn } from './utils';
+import { IconColor } from '../../utils/iconColors';
 
 export type AlertVariant = 'success' | 'error' | 'warning' | 'info';
 
@@ -24,33 +25,35 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   action?: ReactNode;
 }
 
-const variantStyles: Record<AlertVariant, { container: string; icon: string; iconColor: string }> =
-  {
-    success: {
-      container:
-        'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200',
-      icon: 'text-green-500 dark:text-green-400',
-      iconColor: '#22c55e',
-    },
-    error: {
-      container:
-        'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200',
-      icon: 'text-red-500 dark:text-red-400',
-      iconColor: '#ef4444',
-    },
-    warning: {
-      container:
-        'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-200',
-      icon: 'text-amber-500 dark:text-amber-400',
-      iconColor: '#f59e0b',
-    },
-    info: {
-      container:
-        'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200',
-      icon: 'text-blue-500 dark:text-blue-400',
-      iconColor: '#3b82f6',
-    },
-  };
+const alertIconColors: Record<AlertVariant, string> = {
+  success: IconColor.success,
+  error: IconColor.danger,
+  warning: IconColor.warning,
+  info: IconColor.primary,
+};
+
+const variantStyles: Record<AlertVariant, { container: string; icon: string }> = {
+  success: {
+    container:
+      'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200',
+    icon: 'text-green-500 dark:text-green-400',
+  },
+  error: {
+    container:
+      'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200',
+    icon: 'text-red-500 dark:text-red-400',
+  },
+  warning: {
+    container:
+      'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-200',
+    icon: 'text-amber-500 dark:text-amber-400',
+  },
+  info: {
+    container:
+      'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200',
+    icon: 'text-blue-500 dark:text-blue-400',
+  },
+};
 
 const defaultIcons: Record<AlertVariant, React.ElementType> = {
   success: CheckCircle,
@@ -88,7 +91,7 @@ export const Alert = memo(
 
       const showIcon = icon !== false;
       const IconComponent = icon || (
-        <DefaultIcon size={20} weight="fill" color={styles.iconColor} />
+        <DefaultIcon size={20} weight="fill" color={alertIconColors[variant]} />
       );
 
       return (
@@ -169,7 +172,7 @@ export const AlertBanner = memo(
 
       const showIcon = icon !== false;
       const IconComponent = icon || (
-        <DefaultIcon size={20} weight="fill" color={styles.iconColor} />
+        <DefaultIcon size={20} weight="fill" color={alertIconColors[variant]} />
       );
 
       return (

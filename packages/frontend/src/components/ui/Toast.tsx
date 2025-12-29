@@ -1,6 +1,7 @@
 import { useEffect, ReactNode } from 'react';
 import { CheckCircle, XCircle, Warning, Info, X } from '../Icon';
 import { useToastStore, ToastType } from '../../stores';
+import { IconColor } from '../../utils/iconColors';
 
 // 导出hook供其他组件使用
 export function useToast() {
@@ -36,11 +37,11 @@ const toastStyles = {
   info: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
 };
 
-const iconColors = {
-  success: '#22c55e',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
+const toastIconColors: Record<ToastType, string> = {
+  success: IconColor.success,
+  error: IconColor.danger,
+  warning: IconColor.warning,
+  info: IconColor.primary,
 };
 
 interface ToastProviderProps {
@@ -81,7 +82,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
               <Icon
                 size={20}
                 weight="fill"
-                color={iconColors[toast.type]}
+                color={toastIconColors[toast.type]}
                 className="mt-0.5 flex-shrink-0"
               />
               <p className="flex-1 text-sm font-medium">{toast.message}</p>

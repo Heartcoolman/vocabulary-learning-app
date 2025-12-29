@@ -20,7 +20,7 @@ export interface CheckboxProps extends Omit<
   /** 不确定状态（用于全选） */
   indeterminate?: boolean;
   /** 尺寸 */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   /** 标签文本 */
   label?: ReactNode;
   /** 描述文本 */
@@ -30,6 +30,11 @@ export interface CheckboxProps extends Omit<
 }
 
 const sizeStyles = {
+  xs: {
+    box: 'w-3.5 h-3.5',
+    icon: 8,
+    text: 'text-xs',
+  },
   sm: {
     box: 'w-4 h-4',
     icon: 10,
@@ -44,6 +49,11 @@ const sizeStyles = {
     box: 'w-6 h-6',
     icon: 14,
     text: 'text-base',
+  },
+  xl: {
+    box: 'w-7 h-7',
+    icon: 16,
+    text: 'text-lg',
   },
 };
 

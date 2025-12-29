@@ -48,7 +48,7 @@ export interface SelectProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onCha
   /** 是否禁用 */
   disabled?: boolean;
   /** 尺寸 */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   /** 是否有错误 */
   error?: boolean;
   /** 错误消息 */
@@ -65,10 +65,15 @@ export interface SelectProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onCha
   fullWidth?: boolean;
 }
 
-const sizeStyles: Record<'sm' | 'md' | 'lg', { trigger: string; option: string; icon: number }> = {
+const sizeStyles: Record<
+  'xs' | 'sm' | 'md' | 'lg' | 'xl',
+  { trigger: string; option: string; icon: number }
+> = {
+  xs: { trigger: 'h-6 px-1.5 text-xs', option: 'px-1.5 py-1 text-xs', icon: 12 },
   sm: { trigger: 'h-8 px-2 text-sm', option: 'px-2 py-1.5 text-sm', icon: 14 },
   md: { trigger: 'h-10 px-3 text-sm', option: 'px-3 py-2 text-sm', icon: 16 },
   lg: { trigger: 'h-12 px-4 text-base', option: 'px-4 py-2.5 text-base', icon: 18 },
+  xl: { trigger: 'h-14 px-5 text-lg', option: 'px-5 py-3 text-lg', icon: 20 },
 };
 
 export const Select = memo(
@@ -411,7 +416,7 @@ export interface MultiSelectProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   /** 是否禁用 */
   disabled?: boolean;
   /** 尺寸 */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   /** 是否有错误 */
   error?: boolean;
   /** 错误消息 */
@@ -433,7 +438,7 @@ export interface MultiSelectProps extends Omit<HTMLAttributes<HTMLDivElement>, '
 }
 
 const multiSelectSizeStyles: Record<
-  'sm' | 'md' | 'lg',
+  'xs' | 'sm' | 'md' | 'lg' | 'xl',
   {
     trigger: string;
     option: string;
@@ -442,6 +447,13 @@ const multiSelectSizeStyles: Record<
     tagClose: number;
   }
 > = {
+  xs: {
+    trigger: 'min-h-[24px] px-1.5 py-0.5 text-xs',
+    option: 'px-1.5 py-1 text-xs',
+    icon: 12,
+    tag: 'px-1 py-0 text-xs',
+    tagClose: 10,
+  },
   sm: {
     trigger: 'min-h-[32px] px-2 py-1 text-sm',
     option: 'px-2 py-1.5 text-sm',
@@ -462,6 +474,13 @@ const multiSelectSizeStyles: Record<
     icon: 18,
     tag: 'px-2.5 py-1 text-sm',
     tagClose: 16,
+  },
+  xl: {
+    trigger: 'min-h-[56px] px-5 py-2.5 text-lg',
+    option: 'px-5 py-3 text-lg',
+    icon: 20,
+    tag: 'px-3 py-1 text-sm',
+    tagClose: 18,
   },
 };
 

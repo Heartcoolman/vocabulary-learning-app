@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useCallback } from 'react';
 import { X } from '../Icon';
+import { Button } from './Button';
 
 interface ModalProps {
   isOpen: boolean;
@@ -104,11 +105,11 @@ interface ConfirmModalProps {
   isLoading?: boolean;
 }
 
-const variantStyles = {
-  danger: 'bg-red-500 hover:bg-red-600 focus:ring-red-500',
-  warning: 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-500',
-  info: 'bg-blue-500 hover:bg-blue-600 focus:ring-blue-500',
-};
+const confirmVariantMap = {
+  danger: 'danger',
+  warning: 'warning',
+  info: 'primary',
+} as const;
 
 export function ConfirmModal({
   isOpen,
@@ -121,28 +122,22 @@ export function ConfirmModal({
   variant = 'danger',
   isLoading = false,
 }: ConfirmModalProps) {
-  const handleConfirm = () => {
-    onConfirm();
-  };
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm">
       <p className="mb-6 text-gray-600 dark:text-gray-300">{message}</p>
       <div className="flex gap-3">
-        <button
-          onClick={onClose}
-          disabled={isLoading}
-          className="flex-1 rounded-button bg-gray-100 px-4 py-2.5 font-medium text-gray-700 transition-all duration-g3-fast hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 active:scale-95 disabled:opacity-50 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600"
-        >
+        <Button type="button" variant="secondary" fullWidth onClick={onClose} disabled={isLoading}>
           {cancelText}
-        </button>
-        <button
-          onClick={handleConfirm}
-          disabled={isLoading}
-          className={`flex-1 rounded-button px-4 py-2.5 font-medium text-white transition-all duration-g3-fast hover:scale-105 focus:ring-2 focus:ring-offset-2 active:scale-95 disabled:opacity-50 ${variantStyles[variant]}`}
+        </Button>
+        <Button
+          type="button"
+          variant={confirmVariantMap[variant]}
+          fullWidth
+          onClick={onConfirm}
+          loading={isLoading}
         >
-          {isLoading ? '处理中...' : confirmText}
-        </button>
+          {confirmText}
+        </Button>
       </div>
     </Modal>
   );
@@ -157,12 +152,12 @@ interface AlertModalProps {
   variant?: 'success' | 'error' | 'warning' | 'info';
 }
 
-const alertVariantStyles = {
-  success: 'bg-green-500 hover:bg-green-600',
-  error: 'bg-red-500 hover:bg-red-600',
-  warning: 'bg-amber-500 hover:bg-amber-600',
-  info: 'bg-blue-500 hover:bg-blue-600',
-};
+const alertVariantMap = {
+  success: 'success',
+  error: 'danger',
+  warning: 'warning',
+  info: 'primary',
+} as const;
 
 export function AlertModal({
   isOpen,
@@ -175,12 +170,9 @@ export function AlertModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm" showCloseButton={false}>
       <p className="mb-6 text-gray-600 dark:text-gray-300">{message}</p>
-      <button
-        onClick={onClose}
-        className={`w-full rounded-button px-4 py-2.5 font-medium text-white transition-all duration-g3-fast hover:scale-105 focus:ring-2 focus:ring-offset-2 active:scale-95 ${alertVariantStyles[variant]}`}
-      >
+      <Button type="button" variant={alertVariantMap[variant]} fullWidth onClick={onClose}>
         {buttonText}
-      </button>
+      </Button>
     </Modal>
   );
 }

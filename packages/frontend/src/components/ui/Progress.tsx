@@ -6,6 +6,7 @@
 import React, { forwardRef, memo, HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { useTheme } from '../../contexts/ThemeContext';
+import { IconColor, chartColors } from '../../utils/iconColors';
 
 export interface ProgressProps extends HTMLAttributes<HTMLDivElement> {
   /** 进度值 (0-100) */
@@ -148,10 +149,10 @@ const circularTextSizes = {
 };
 
 const circularColors = {
-  primary: '#3b82f6',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  danger: '#ef4444',
+  primary: IconColor.primary,
+  success: IconColor.success,
+  warning: IconColor.warning,
+  danger: IconColor.danger,
 };
 
 export const CircularProgress = memo(
@@ -171,7 +172,7 @@ export const CircularProgress = memo(
     ) => {
       const { theme } = useTheme();
       const isDark = theme === 'dark';
-      const ringBgColor = isDark ? '#374151' : '#e5e7eb';
+      const ringBgColor = isDark ? chartColors.gridDark : chartColors.grid;
 
       const dimension = circularSizes[size];
       const radius = (dimension - strokeWidth) / 2;

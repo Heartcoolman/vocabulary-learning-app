@@ -123,9 +123,14 @@ export {
   Stop,
   // 词库质量管理页面图标
   Wrench,
+  // LLM 任务管理页面图标
+  Queue,
   // 403错误页面和疲劳提醒图标
   House,
   Bed,
+  // 偏好设置页面图标
+  PaintBrush,
+  GearSix,
 } from '@phosphor-icons/react';
 
 // 图标别名

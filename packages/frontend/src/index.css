@@ -17,7 +17,7 @@
   /* 色彩方案 */
   color-scheme: light;
   color: #1f2937;
-  background-color: #fafbfc;
+  background-color: #f9fafb; /* Tailwind gray-50 */
 
   /* 字体渲染优化 */
   font-synthesis: none;
@@ -66,6 +66,16 @@
   --g3-shadow-button-rest: 0 2px 6px rgba(0, 0, 0, 0.06);
   --g3-shadow-button-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
   --g3-shadow-button-active: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* ========================================
+   * 状态发光阴影令牌
+   * 用于状态指示器、节点高亮等场景
+   * ======================================== */
+  --g3-glow-success: 0 0 12px rgba(34, 197, 94, 0.3);
+  --g3-glow-warning: 0 0 12px rgba(245, 158, 11, 0.3);
+  --g3-glow-error: 0 0 12px rgba(239, 68, 68, 0.3);
+  --g3-glow-info: 0 0 12px rgba(59, 130, 246, 0.3);
+  --g3-glow-cyan: 0 0 12px rgba(6, 182, 212, 0.3);
 
   /* ========================================
    * 渐变色彩系统
@@ -153,6 +163,13 @@
   --g3-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.2);
   --g3-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
   --g3-shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.4);
+
+  /* 深色模式发光阴影 - 提高透明度以增强可见性 */
+  --g3-glow-success: 0 0 12px rgba(34, 197, 94, 0.5);
+  --g3-glow-warning: 0 0 12px rgba(245, 158, 11, 0.5);
+  --g3-glow-error: 0 0 12px rgba(239, 68, 68, 0.5);
+  --g3-glow-info: 0 0 12px rgba(59, 130, 246, 0.5);
+  --g3-glow-cyan: 0 0 12px rgba(6, 182, 212, 0.5);
 }
 
 body {
