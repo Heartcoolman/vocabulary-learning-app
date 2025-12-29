@@ -35,25 +35,35 @@ pub struct AmasUserModel {
 #[serde(rename_all = "camelCase")]
 pub struct DecisionRecord {
     pub id: String,
-    pub user_id: String,
+    pub decision_id: String,
+    pub answer_record_id: Option<String>,
     pub session_id: Option<String>,
-    pub decision_type: String,
-    pub input_state: serde_json::Value,
-    pub output_action: serde_json::Value,
+    pub decision_source: String,
+    pub coldstart_phase: Option<String>,
+    pub weights_snapshot: Option<serde_json::Value>,
+    pub member_votes: Option<serde_json::Value>,
+    pub selected_action: serde_json::Value,
+    pub confidence: f64,
     pub reward: Option<f64>,
-    pub delayed_reward: Option<f64>,
-    pub feature_vector_id: Option<String>,
-    pub created_at: String,
+    pub trace_version: i32,
+    pub total_duration_ms: Option<i32>,
+    pub is_simulation: bool,
+    pub emotion_label: Option<String>,
+    pub flow_score: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionInsight {
     pub id: String,
-    pub decision_record_id: String,
-    pub insight_type: String,
-    pub data: serde_json::Value,
+    pub decision_id: String,
+    pub user_id: String,
+    pub state_snapshot: serde_json::Value,
+    pub difficulty_factors: serde_json::Value,
+    pub triggers: Vec<String>,
+    pub feature_vector_hash: String,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,11 +71,16 @@ pub struct DecisionInsight {
 pub struct PipelineStage {
     pub id: String,
     pub decision_record_id: String,
+    pub stage: String,
     pub stage_name: String,
-    pub stage_order: i32,
-    pub input_data: serde_json::Value,
-    pub output_data: serde_json::Value,
-    pub duration_ms: i64,
+    pub status: String,
+    pub started_at: chrono::NaiveDateTime,
+    pub ended_at: Option<chrono::NaiveDateTime>,
+    pub duration_ms: Option<i32>,
+    pub input_summary: Option<serde_json::Value>,
+    pub output_summary: Option<serde_json::Value>,
+    pub metadata: Option<serde_json::Value>,
+    pub error_message: Option<String>,
     pub created_at: String,
 }
 
@@ -185,20 +200,29 @@ pub async fn insert_decision_record(
     sqlx::query(
         r#"
         INSERT INTO "decision_records" (
-            "id", "userId", "sessionId", "decisionType", "inputState",
-            "outputAction", "reward", "delayedReward", "featureVectorId", "createdAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "id", "decisionId", "answerRecordId", "sessionId", "decisionSource",
+            "coldstartPhase", "weightsSnapshot", "memberVotes", "selectedAction",
+            "confidence", "reward", "traceVersion", "totalDurationMs",
+            "isSimulation", "emotionLabel", "flowScore", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)
         "#,
     )
     .bind(&record.id)
-    .bind(&record.user_id)
+    .bind(&record.decision_id)
+    .bind(&record.answer_record_id)
     .bind(&record.session_id)
-    .bind(&record.decision_type)
-    .bind(&record.input_state)
-    .bind(&record.output_action)
+    .bind(&record.decision_source)
+    .bind(&record.coldstart_phase)
+    .bind(&record.weights_snapshot)
+    .bind(&record.member_votes)
+    .bind(&record.selected_action)
+    .bind(record.confidence)
     .bind(record.reward)
-    .bind(record.delayed_reward)
-    .bind(&record.feature_vector_id)
+    .bind(record.trace_version)
+    .bind(record.total_duration_ms)
+    .bind(record.is_simulation)
+    .bind(&record.emotion_label)
+    .bind(record.flow_score)
     .bind(now)
     .execute(proxy.pool())
     .await?;
@@ -207,18 +231,18 @@ pub async fn insert_decision_record(
 
 pub async fn get_recent_decision_records(
     proxy: &DatabaseProxy,
-    user_id: &str,
+    session_id: &str,
     limit: i64,
 ) -> Result<Vec<DecisionRecord>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
         SELECT * FROM "decision_records"
-        WHERE "userId" = $1
+        WHERE "sessionId" = $1
         ORDER BY "createdAt" DESC
         LIMIT $2
         "#,
     )
-    .bind(user_id)
+    .bind(session_id)
     .bind(limit)
     .fetch_all(proxy.pool())
     .await?;
@@ -241,6 +265,87 @@ pub async fn insert_feature_vector(
     .bind(&fv.user_id)
     .bind(&fv.vector)
     .bind(&fv.labels)
+    .bind(now)
+    .execute(proxy.pool())
+    .await?;
+    Ok(())
+}
+
+pub async fn insert_decision_insight(
+    proxy: &DatabaseProxy,
+    decision_id: &str,
+    user_id: &str,
+    state_snapshot: &serde_json::Value,
+    difficulty_factors: &serde_json::Value,
+    triggers: &[String],
+    feature_vector_hash: &str,
+) -> Result<(), sqlx::Error> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "decision_insights" (
+            "id", "decision_id", "user_id", "state_snapshot", "difficulty_factors",
+            "triggers", "feature_vector_hash", "created_at", "updated_at"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+        ON CONFLICT ("decision_id") DO UPDATE SET
+            "state_snapshot" = EXCLUDED."state_snapshot",
+            "difficulty_factors" = EXCLUDED."difficulty_factors",
+            "triggers" = EXCLUDED."triggers",
+            "feature_vector_hash" = EXCLUDED."feature_vector_hash",
+            "updated_at" = EXCLUDED."updated_at"
+        "#,
+    )
+    .bind(&id)
+    .bind(decision_id)
+    .bind(user_id)
+    .bind(state_snapshot)
+    .bind(difficulty_factors)
+    .bind(triggers)
+    .bind(feature_vector_hash)
+    .bind(now)
+    .execute(proxy.pool())
+    .await?;
+    Ok(())
+}
+
+pub async fn insert_pipeline_stage(
+    proxy: &DatabaseProxy,
+    decision_record_id: &str,
+    stage: &str,
+    stage_name: &str,
+    status: &str,
+    started_at: chrono::NaiveDateTime,
+    ended_at: Option<chrono::NaiveDateTime>,
+    duration_ms: Option<i32>,
+    input_summary: Option<&serde_json::Value>,
+    output_summary: Option<&serde_json::Value>,
+    metadata: Option<&serde_json::Value>,
+    error_message: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = Utc::now().naive_utc();
+    sqlx::query(
+        r#"
+        INSERT INTO "pipeline_stages" (
+            "id", "decisionRecordId", "stage", "stageName", "status",
+            "startedAt", "endedAt", "durationMs", "inputSummary",
+            "outputSummary", "metadata", "errorMessage", "createdAt"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        "#,
+    )
+    .bind(&id)
+    .bind(decision_record_id)
+    .bind(stage)
+    .bind(stage_name)
+    .bind(status)
+    .bind(started_at)
+    .bind(ended_at)
+    .bind(duration_ms)
+    .bind(input_summary)
+    .bind(output_summary)
+    .bind(metadata)
+    .bind(error_message)
     .bind(now)
     .execute(proxy.pool())
     .await?;
@@ -280,18 +385,23 @@ fn map_amas_user_model(row: &sqlx::postgres::PgRow) -> AmasUserModel {
 }
 
 fn map_decision_record(row: &sqlx::postgres::PgRow) -> DecisionRecord {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
     DecisionRecord {
         id: row.try_get("id").unwrap_or_default(),
-        user_id: row.try_get("userId").unwrap_or_default(),
+        decision_id: row.try_get("decisionId").unwrap_or_default(),
+        answer_record_id: row.try_get("answerRecordId").ok(),
         session_id: row.try_get("sessionId").ok(),
-        decision_type: row.try_get("decisionType").unwrap_or_default(),
-        input_state: row.try_get("inputState").unwrap_or(serde_json::Value::Null),
-        output_action: row.try_get("outputAction").unwrap_or(serde_json::Value::Null),
+        decision_source: row.try_get("decisionSource").unwrap_or_default(),
+        coldstart_phase: row.try_get("coldstartPhase").ok(),
+        weights_snapshot: row.try_get("weightsSnapshot").ok(),
+        member_votes: row.try_get("memberVotes").ok(),
+        selected_action: row.try_get("selectedAction").unwrap_or(serde_json::Value::Null),
+        confidence: row.try_get("confidence").unwrap_or(0.0),
         reward: row.try_get("reward").ok(),
-        delayed_reward: row.try_get("delayedReward").ok(),
-        feature_vector_id: row.try_get("featureVectorId").ok(),
-        created_at: format_naive_iso(created_at),
+        trace_version: row.try_get("traceVersion").unwrap_or(1),
+        total_duration_ms: row.try_get("totalDurationMs").ok(),
+        is_simulation: row.try_get("isSimulation").unwrap_or(false),
+        emotion_label: row.try_get("emotionLabel").ok(),
+        flow_score: row.try_get("flowScore").ok(),
     }
 }
 
