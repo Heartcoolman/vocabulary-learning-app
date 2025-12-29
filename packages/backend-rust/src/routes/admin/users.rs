@@ -80,11 +80,18 @@ struct WordHistoryQuery {
     limit: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportQuery {
+    format: Option<String>,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_users))
         .route("/:id", get(get_user).delete(delete_user))
         .route("/:id/role", put(update_user_role))
+        .route("/:id/reset-password-token", axum::routing::post(create_password_reset_token))
         .route("/:id/learning-data", get(get_learning_data))
         .route("/:id/statistics", get(get_statistics))
         .route("/:id/words", get(get_user_words))
@@ -169,6 +176,57 @@ async fn delete_user(
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PasswordResetTokenResponse {
+    token: String,
+    expires_at: String,
+    reset_url: String,
+}
+
+async fn create_password_reset_token(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    match crate::services::admin::get_user_by_id(proxy.as_ref(), &id).await {
+        Ok(_) => {}
+        Err(crate::services::admin::AdminError::NotFound(_)) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户不存在").into_response();
+        }
+        Err(err) => return admin_error_response(err),
+    }
+
+    let token = uuid::Uuid::new_v4().to_string().replace("-", "");
+    let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::hours(24);
+
+    match crate::db::operations::user::create_password_reset_token(proxy.as_ref(), &id, &token, expires_at).await {
+        Ok(_) => {
+            let base_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+            let reset_url = format!("{}/reset-password?token={}", base_url, token);
+            let expires_at_str = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(expires_at, chrono::Utc)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+
+            Json(SuccessResponse {
+                success: true,
+                data: PasswordResetTokenResponse {
+                    token,
+                    expires_at: expires_at_str,
+                    reset_url,
+                },
+            })
+            .into_response()
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "create password reset token failed");
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+        }
+    }
+}
+
 async fn get_learning_data(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -226,8 +284,46 @@ async fn get_user_words(
     }
 }
 
-async fn export_user_words(Path(_id): Path<String>) -> Response {
-    not_implemented()
+async fn export_user_words(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<ExportQuery>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    match crate::services::admin::export_user_words(proxy.as_ref(), &id).await {
+        Ok(data) => {
+            let format = query.format.as_deref().unwrap_or("json");
+            if format == "csv" {
+                let mut csv = String::from("wordId,spelling,phonetic,state,score,masteryLevel,reviewCount,accuracy,lastReviewDate\n");
+                for item in &data {
+                    csv.push_str(&format!(
+                        "{},{},{},{},{},{},{},{},{}\n",
+                        item.word_id,
+                        item.spelling,
+                        item.phonetic.as_deref().unwrap_or(""),
+                        item.state,
+                        item.score,
+                        item.mastery_level,
+                        item.review_count,
+                        item.accuracy,
+                        item.last_review_date.as_deref().unwrap_or("")
+                    ));
+                }
+                (
+                    StatusCode::OK,
+                    [(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8")],
+                    csv,
+                )
+                    .into_response()
+            } else {
+                Json(SuccessResponse { success: true, data }).into_response()
+            }
+        }
+        Err(err) => admin_error_response(err),
+    }
 }
 
 async fn get_user_decisions(
@@ -257,25 +353,57 @@ async fn get_user_decisions(
 }
 
 async fn get_decision_detail(Path((_id, _decision_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+    json_error(StatusCode::NOT_IMPLEMENTED, "NOT_IMPLEMENTED", "AMAS 决策详情功能开发中").into_response()
 }
 
 async fn get_user_heatmap(
-    Path(_user_id): Path<String>,
-    Query(_query): Query<HeatmapQuery>,
+    State(state): State<AppState>,
+    Path(user_id): Path<String>,
+    Query(query): Query<HeatmapQuery>,
 ) -> Response {
-    not_implemented()
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    match crate::services::admin::get_user_heatmap(
+        proxy.as_ref(),
+        &user_id,
+        query.start_date.as_deref(),
+        query.end_date.as_deref(),
+    ).await {
+        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
-async fn get_user_word_detail(Path((_user_id, _word_id)): Path<(String, String)>) -> Response {
-    not_implemented()
+async fn get_user_word_detail(
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    match crate::services::admin::get_user_word_detail(proxy.as_ref(), &user_id, &word_id).await {
+        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
 async fn get_word_history(
-    Path((_user_id, _word_id)): Path<(String, String)>,
-    Query(_query): Query<WordHistoryQuery>,
+    State(state): State<AppState>,
+    Path((user_id, word_id)): Path<(String, String)>,
+    Query(query): Query<WordHistoryQuery>,
 ) -> Response {
-    not_implemented()
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    let limit = query.limit.unwrap_or(50);
+    match crate::services::admin::get_word_history(proxy.as_ref(), &user_id, &word_id, limit).await {
+        Ok(data) => Json(SuccessResponse { success: true, data }).into_response(),
+        Err(err) => admin_error_response(err),
+    }
 }
 
 async fn get_word_score_history(

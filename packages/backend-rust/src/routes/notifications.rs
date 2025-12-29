@@ -981,3 +981,43 @@ async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, B
     };
     Ok((parts, body_bytes))
 }
+
+#[derive(Debug, Clone)]
+pub struct CreateNotificationInput {
+    pub user_id: String,
+    pub notification_type: String,
+    pub title: String,
+    pub content: String,
+    pub priority: String,
+    pub metadata: Option<serde_json::Value>,
+}
+
+pub async fn create_notification(
+    proxy: &crate::db::DatabaseProxy,
+    input: CreateNotificationInput,
+) -> Result<String, String> {
+    let pool = proxy.pool();
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = Utc::now().naive_utc();
+
+    sqlx::query(
+        r#"
+        INSERT INTO "notifications" (
+            "id", "userId", "type", "title", "content", "status", "priority", "metadata", "createdAt", "updatedAt"
+        ) VALUES ($1, $2, $3::"NotificationType", $4, $5, 'UNREAD'::"NotificationStatus", $6::"NotificationPriority", $7, $8, $8)
+        "#,
+    )
+    .bind(&id)
+    .bind(&input.user_id)
+    .bind(&input.notification_type)
+    .bind(&input.title)
+    .bind(&input.content)
+    .bind(&input.priority)
+    .bind(&input.metadata)
+    .bind(now)
+    .execute(pool)
+    .await
+    .map_err(|e| format!("创建通知失败: {e}"))?;
+
+    Ok(id)
+}

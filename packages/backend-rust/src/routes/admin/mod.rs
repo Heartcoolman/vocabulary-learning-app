@@ -20,6 +20,8 @@ mod ops;
 mod statistics;
 mod users;
 mod wordbooks;
+mod llm;
+mod analytics;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -34,6 +36,8 @@ pub fn router() -> Router<AppState> {
         .nest("/logs", logs::router())
         .nest("/quality", quality::router())
         .nest("/ops", ops::router())
+        .nest("/llm", llm::router())
+        .nest("/analytics", analytics::router())
         .route("/statistics", axum::routing::get(statistics::get_statistics))
         .route("/export/history", axum::routing::get(get_export_history))
         .route("/metrics/error-rate", axum::routing::get(get_error_rate_metrics))

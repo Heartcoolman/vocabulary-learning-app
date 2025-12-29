@@ -393,6 +393,8 @@ async fn apply_suggestions_to_config(
     }
 
     let pool = proxy.pool();
+
+    let metrics_before = collect_current_metrics(pool).await;
     let config_row = sqlx::query(
         r#"SELECT "id" FROM "algorithm_configs" WHERE "isDefault" = true LIMIT 1"#,
     )
@@ -517,6 +519,18 @@ async fn apply_suggestions_to_config(
                     tracing::error!(error = %e, target = %item.target, "Failed to insert config history");
                 }
 
+                if let Err(e) = crate::db::operations::insert_suggestion_effect_tracking(
+                    proxy,
+                    suggestion_id,
+                    &item.id,
+                    &item.target,
+                    real_current_value,
+                    item.suggested_value,
+                    &metrics_before,
+                ).await {
+                    tracing::warn!(error = %e, "Failed to insert suggestion effect tracking");
+                }
+
                 tracing::info!(
                     suggestion_id = %suggestion_id,
                     target = %item.target,
@@ -542,6 +556,37 @@ async fn apply_suggestions_to_config(
     }
 
     Ok(result)
+}
+
+async fn collect_current_metrics(pool: &sqlx::PgPool) -> serde_json::Value {
+    let row = sqlx::query(
+        r#"
+        SELECT
+            COUNT(*) as total_answers,
+            SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END) as correct,
+            AVG(NULLIF("responseTime", 0)) as avg_rt
+        FROM "answer_records"
+        WHERE "timestamp" >= NOW() - INTERVAL '7 days'
+        "#,
+    )
+    .fetch_one(pool)
+    .await;
+
+    match row {
+        Ok(r) => {
+            let total: i64 = r.try_get("total_answers").unwrap_or(0);
+            let correct: i64 = r.try_get("correct").unwrap_or(0);
+            let avg_rt: Option<f64> = r.try_get("avg_rt").ok();
+            let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
+            serde_json::json!({
+                "totalAnswers": total,
+                "accuracy": accuracy,
+                "avgResponseTime": avg_rt.unwrap_or(0.0),
+                "capturedAt": Utc::now().to_rfc3339()
+            })
+        }
+        Err(_) => serde_json::json!({ "error": "failed to collect metrics" })
+    }
 }
 
 async fn count_pending(proxy: &crate::db::DatabaseProxy) -> Result<i64, AppError> {

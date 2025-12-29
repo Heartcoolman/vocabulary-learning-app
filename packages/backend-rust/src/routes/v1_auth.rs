@@ -28,6 +28,12 @@ struct LogoutResponse {
     message: &'static str,
 }
 
+#[derive(Serialize)]
+struct MessageResponse {
+    success: bool,
+    message: &'static str,
+}
+
 #[derive(Debug, Deserialize)]
 struct RegisterRequest {
     email: String,
@@ -145,17 +151,70 @@ pub async fn request_password_reset(Json(_payload): Json<PasswordResetRequest>) 
     json_error(
         StatusCode::NOT_IMPLEMENTED,
         "NOT_IMPLEMENTED",
-        "密码重置功能尚未启用",
+        "自助密码重置未启用，请联系管理员",
     )
     .into_response()
 }
 
-pub async fn reset_password(Json(_payload): Json<PasswordResetConfirmRequest>) -> Response {
-    json_error(
-        StatusCode::NOT_IMPLEMENTED,
-        "NOT_IMPLEMENTED",
-        "密码重置功能尚未启用",
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(payload): Json<PasswordResetConfirmRequest>,
+) -> Response {
+    if payload.token.trim().is_empty() {
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "令牌不能为空").into_response();
+    }
+
+    if let Some(message) = validate_register_password(&payload.new_password) {
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", message).into_response();
+    }
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+    };
+
+    let token_record = match crate::db::operations::user::get_valid_password_reset_token(
+        proxy.as_ref(),
+        &payload.token,
     )
+    .await
+    {
+        Ok(Some(record)) => record,
+        Ok(None) => {
+            return json_error(StatusCode::BAD_REQUEST, "INVALID_TOKEN", "令牌无效或已过期").into_response();
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "password reset token lookup failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        }
+    };
+
+    let password_hash = match bcrypt::hash(&payload.new_password, 10) {
+        Ok(hash) => hash,
+        Err(err) => {
+            tracing::warn!(error = %err, "password hash failed");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        }
+    };
+
+    let pool = proxy.pool();
+    if let Err(err) = sqlx::query(r#"UPDATE "users" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "id" = $2"#)
+        .bind(&password_hash)
+        .bind(&token_record.user_id)
+        .execute(pool)
+        .await
+    {
+        tracing::warn!(error = %err, "password update failed");
+        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    }
+
+    if let Err(err) = crate::db::operations::user::mark_password_reset_token_used(proxy.as_ref(), &token_record.id).await {
+        tracing::warn!(error = %err, "mark token used failed");
+    }
+
+    Json(MessageResponse {
+        success: true,
+        message: "密码重置成功",
+    })
     .into_response()
 }
 

@@ -232,6 +232,18 @@ async fn process_batch(proxy: Arc<crate::db::DatabaseProxy>, user_id: String, ba
         .execute(pool)
         .await;
     }
+
+    // Persist interaction stats to database
+    if let Err(e) = crate::db::operations::upsert_user_interaction_stats(
+        &proxy,
+        &user_id,
+        pronunciation_clicks as i32,
+        pause_count as i32,
+        page_switch_count as i32,
+        batch.events.len() as i32,
+    ).await {
+        tracing::warn!(error = %e, "Failed to persist user interaction stats");
+    }
 }
 
 async fn stats(

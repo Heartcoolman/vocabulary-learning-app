@@ -199,12 +199,21 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
     };
     let order_dir = if sort_order == "asc" { "ASC" } else { "DESC" };
 
+    // Parse comma-separated levels into a vector
+    let levels: Vec<&str> = query.level.as_ref()
+        .map(|l| l.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect())
+        .unwrap_or_default();
+
     let mut conditions = vec!["1=1".to_string()];
     let mut bind_idx = 1;
 
-    if query.level.is_some() {
-        conditions.push(format!("\"level\"::text = ${bind_idx}"));
-        bind_idx += 1;
+    if !levels.is_empty() {
+        let placeholders: Vec<String> = levels.iter()
+            .enumerate()
+            .map(|(i, _)| format!("${}", bind_idx + i as i32))
+            .collect();
+        conditions.push(format!("\"level\"::text IN ({})", placeholders.join(",")));
+        bind_idx += levels.len() as i32;
     }
     if query.module.is_some() {
         conditions.push(format!("\"module\" = ${bind_idx}"));
@@ -246,7 +255,7 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
     let mut count_q = sqlx::query_scalar(&count_query);
     let mut data_q = sqlx::query(&data_query);
 
-    if let Some(ref v) = query.level { count_q = count_q.bind(v); data_q = data_q.bind(v); }
+    for level in &levels { count_q = count_q.bind(*level); data_q = data_q.bind(*level); }
     if let Some(ref v) = query.module { count_q = count_q.bind(v); data_q = data_q.bind(v); }
     if let Some(ref v) = query.source { count_q = count_q.bind(v); data_q = data_q.bind(v); }
     if let Some(ref v) = query.user_id { count_q = count_q.bind(v); data_q = data_q.bind(v); }

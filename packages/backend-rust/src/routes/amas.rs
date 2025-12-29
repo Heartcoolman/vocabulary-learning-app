@@ -20,7 +20,7 @@ use crate::services::learning_state::{
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
 use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
-use crate::db::operations::{insert_decision_record, DecisionRecord};
+use crate::db::operations::{insert_decision_record, insert_decision_insight, DecisionRecord};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -371,18 +371,54 @@ async fn process_event(
     // Write decision record for explainability
     let decision_record = DecisionRecord {
         id: Uuid::new_v4().to_string(),
-        user_id: user.id.clone(),
+        decision_id: Uuid::new_v4().to_string(),
+        answer_record_id: None,
         session_id: Some(session_id.clone()),
-        decision_type: "process_event".to_string(),
-        input_state: serde_json::to_value(&result.state).unwrap_or_default(),
-        output_action: serde_json::to_value(&result.strategy).unwrap_or_default(),
+        decision_source: "AMAS".to_string(),
+        coldstart_phase: None,
+        weights_snapshot: None,
+        member_votes: None,
+        selected_action: serde_json::to_value(&result.strategy).unwrap_or_default(),
+        confidence: result.explanation.factors.iter().map(|f| f.value).sum::<f64>() / result.explanation.factors.len().max(1) as f64,
         reward: Some(result.reward.value),
-        delayed_reward: None,
-        feature_vector_id: result.feature_vector.as_ref().map(|_| Uuid::new_v4().to_string()),
-        created_at: chrono::Utc::now().to_rfc3339(),
+        trace_version: 1,
+        total_duration_ms: None,
+        is_simulation: false,
+        emotion_label: None,
+        flow_score: None,
     };
     if let Err(e) = insert_decision_record(&proxy, &decision_record).await {
         tracing::warn!(error = %e, "Failed to insert decision record");
+    }
+
+    // Write decision insight for explainability analysis
+    let state_snapshot = serde_json::json!({
+        "attention": result.state.attention,
+        "fatigue": result.state.fatigue,
+        "motivation": result.state.motivation,
+    });
+    let difficulty_factors = serde_json::json!({
+        "accuracy": result.explanation.factors.iter()
+            .find(|f| f.name == "accuracy").map(|f| f.value).unwrap_or(0.5),
+        "responseTime": result.explanation.factors.iter()
+            .find(|f| f.name == "responseTime").map(|f| f.value).unwrap_or(0.5),
+    });
+    let feature_hash = {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(serde_json::to_string(&result.explanation.factors).unwrap_or_default());
+        hex::encode(hasher.finalize())
+    };
+    if let Err(e) = insert_decision_insight(
+        &proxy,
+        &decision_record.decision_id,
+        &user.id,
+        &state_snapshot,
+        &difficulty_factors,
+        &result.explanation.changes,
+        &feature_hash,
+    ).await {
+        tracing::warn!(error = %e, "Failed to insert decision insight");
     }
 
     let response = ProcessEventResponse {
@@ -621,21 +657,21 @@ async fn get_delayed_rewards(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let (_, _user) = require_user(&state, &headers).await?;
+    let (proxy, user) = require_user(&state, &headers).await?;
 
-    #[derive(Serialize)]
-    struct DelayedRewardsResponse {
-        items: Vec<serde_json::Value>,
-        count: usize,
+    match crate::services::delayed_reward::get_user_pending_rewards(proxy.pool(), &user.id).await {
+        Ok(items) => {
+            let count = items.len();
+            Ok(Json(SuccessResponse {
+                success: true,
+                data: serde_json::json!({
+                    "items": items,
+                    "count": count,
+                }),
+            }))
+        }
+        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
     }
-
-    Ok(Json(SuccessResponse {
-        success: true,
-        data: DelayedRewardsResponse {
-            items: vec![],
-            count: 0,
-        },
-    }))
 }
 
 async fn get_time_preferences(

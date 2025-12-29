@@ -5,7 +5,7 @@ use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use sqlx::Row;
 
 use crate::response::json_error;
 use crate::services::{weekly_report, insight_generator};
@@ -61,7 +61,7 @@ struct AlertAnalysis {
     resolved_by: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SuggestedFix {
     action: String,
@@ -124,51 +124,204 @@ pub fn router() -> Router<AppState> {
         .route("/amas/config", get(get_amas_config))
 }
 
-async fn analyze_alert(Json(payload): Json<AnalyzeAlertRequest>) -> Response {
+async fn analyze_alert(
+    State(state): State<AppState>,
+    Json(payload): Json<AnalyzeAlertRequest>,
+) -> Response {
     let now = Utc::now();
     let alert_rule_id = payload.alert.alert_rule_id.unwrap_or_default();
     let severity = payload.alert.severity.unwrap_or_else(|| "low".to_string());
-    let analysis = AlertAnalysis {
-        id: Uuid::new_v4().to_string(),
-        alert_rule_id,
-        severity,
-        root_cause: "暂未分析".to_string(),
-        suggested_fixes: Vec::new(),
-        related_metrics: serde_json::json!({}),
-        confidence: 0.0,
-        status: "open".to_string(),
-        created_at: crate::auth::format_naive_datetime_iso_millis(now.naive_utc()),
-        resolution: None,
-        resolved_at: None,
-        resolved_by: None,
+
+    let root_cause = analyze_root_cause(&severity);
+    let suggested_fixes = generate_suggested_fixes(&severity);
+    let related_metrics = serde_json::json!({
+        "triggeredAt": now.to_rfc3339(),
+        "severity": severity
+    });
+    let confidence = calculate_confidence(&severity);
+
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
     };
 
-    Json(SuccessResponse { success: true, data: analysis }).into_response()
+    match crate::db::operations::insert_alert_root_cause_analysis(
+        &proxy,
+        &alert_rule_id,
+        &severity,
+        &root_cause,
+        &serde_json::to_value(&suggested_fixes).unwrap_or_default(),
+        &related_metrics,
+        confidence,
+    ).await {
+        Ok(id) => {
+            let analysis = AlertAnalysis {
+                id,
+                alert_rule_id,
+                severity,
+                root_cause,
+                suggested_fixes,
+                related_metrics,
+                confidence,
+                status: "open".to_string(),
+                created_at: crate::auth::format_naive_datetime_iso_millis(now.naive_utc()),
+                resolution: None,
+                resolved_at: None,
+                resolved_by: None,
+            };
+            Json(SuccessResponse { success: true, data: analysis }).into_response()
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to insert alert root cause analysis");
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "存储分析失败").into_response()
+        }
+    }
 }
 
-async fn get_analyses(Query(_query): Query<PaginationQuery>) -> Response {
+fn analyze_root_cause(severity: &str) -> String {
+    match severity {
+        "critical" => "系统检测到严重异常，可能是核心服务故障或数据一致性问题".to_string(),
+        "high" => "检测到高风险问题，可能影响部分用户的学习体验".to_string(),
+        "medium" => "发现中等级别问题，建议在下次迭代中处理".to_string(),
+        _ => "低优先级问题，可按计划处理".to_string(),
+    }
+}
+
+fn generate_suggested_fixes(severity: &str) -> Vec<SuggestedFix> {
+    match severity {
+        "critical" | "high" => vec![
+            SuggestedFix {
+                action: "检查服务健康状态".to_string(),
+                priority: "high".to_string(),
+                estimated_impact: "可快速定位问题根源".to_string(),
+            },
+            SuggestedFix {
+                action: "回滚最近的配置变更".to_string(),
+                priority: "medium".to_string(),
+                estimated_impact: "可恢复到稳定状态".to_string(),
+            },
+        ],
+        _ => vec![
+            SuggestedFix {
+                action: "记录问题并安排后续处理".to_string(),
+                priority: "low".to_string(),
+                estimated_impact: "不影响正常运行".to_string(),
+            },
+        ],
+    }
+}
+
+fn calculate_confidence(severity: &str) -> f64 {
+    match severity {
+        "critical" => 0.9,
+        "high" => 0.8,
+        "medium" => 0.7,
+        _ => 0.6,
+    }
+}
+
+async fn get_analyses(State(state): State<AppState>, Query(query): Query<PaginationQuery>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    let pool = proxy.pool();
+    let limit = query.limit.unwrap_or(20).max(1).min(100);
+    let offset = query.offset.unwrap_or(0).max(0);
+
+    let total: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "alert_root_cause_analyses""#)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+    let rows = sqlx::query(
+        r#"
+        SELECT "id", "alertRuleId", "severity", "rootCause", "suggestedFixes", "relatedMetrics",
+               "confidence", "status", "resolvedBy", "resolvedAt", "resolution", "createdAt"
+        FROM "alert_root_cause_analyses"
+        ORDER BY "createdAt" DESC
+        LIMIT $1 OFFSET $2
+        "#,
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    let analyses: Vec<AlertAnalysis> = rows.into_iter().map(|row| map_alert_analysis(&row)).collect();
+
     Json(SuccessResponse {
         success: true,
-        data: AlertAnalysisListResult {
-            analyses: Vec::new(),
-            total: 0,
-        },
+        data: AlertAnalysisListResult { analyses, total },
     })
     .into_response()
 }
 
-async fn get_analysis(Path(_id): Path<String>) -> Response {
-    Json(SuccessResponse {
-        success: true,
-        data: Option::<AlertAnalysis>::None,
-    })
-    .into_response()
+async fn get_analysis(State(state): State<AppState>, Path(id): Path<String>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT "id", "alertRuleId", "severity", "rootCause", "suggestedFixes", "relatedMetrics",
+               "confidence", "status", "resolvedBy", "resolvedAt", "resolution", "createdAt"
+        FROM "alert_root_cause_analyses"
+        WHERE "id" = $1
+        "#,
+    )
+    .bind(&id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+
+    match row {
+        Some(r) => Json(SuccessResponse {
+            success: true,
+            data: Some(map_alert_analysis(&r)),
+        }).into_response(),
+        None => Json(SuccessResponse {
+            success: true,
+            data: Option::<AlertAnalysis>::None,
+        }).into_response(),
+    }
 }
 
 async fn update_analysis_status(
-    Path(_id): Path<String>,
-    Json(_payload): Json<UpdateAlertStatusRequest>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateAlertStatusRequest>,
 ) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    if payload.status == "resolved" {
+        if let Err(e) = crate::db::operations::update_alert_root_cause_resolved(
+            &proxy,
+            &id,
+            "admin",
+            payload.resolution.as_deref().unwrap_or(""),
+        ).await {
+            tracing::error!(error = %e, "Failed to update alert analysis status");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新状态失败").into_response();
+        }
+    } else {
+        let pool = proxy.pool();
+        if let Err(e) = sqlx::query(
+            r#"UPDATE "alert_root_cause_analyses" SET "status" = $1, "updatedAt" = NOW() WHERE "id" = $2"#,
+        )
+        .bind(&payload.status)
+        .bind(&id)
+        .execute(pool)
+        .await {
+            tracing::error!(error = %e, "Failed to update alert analysis status");
+            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新状态失败").into_response();
+        }
+    }
+
     Json(SuccessResponse {
         success: true,
         data: serde_json::json!({ "updated": true }),
@@ -176,25 +329,91 @@ async fn update_analysis_status(
     .into_response()
 }
 
-async fn get_alert_stats() -> Response {
+async fn get_alert_stats(State(state): State<AppState>) -> Response {
+    let Some(proxy) = state.db_proxy() else {
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+    };
+
+    let pool = proxy.pool();
+    let row = sqlx::query(
+        r#"
+        SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE "status" = 'open') as open_count,
+            COUNT(*) FILTER (WHERE "status" = 'investigating') as investigating_count,
+            COUNT(*) FILTER (WHERE "status" = 'resolved') as resolved_count,
+            COALESCE(AVG("confidence"), 0) as avg_confidence
+        FROM "alert_root_cause_analyses"
+        "#,
+    )
+    .fetch_one(pool)
+    .await;
+
+    let severity_rows = sqlx::query(
+        r#"SELECT "severity", COUNT(*) as cnt FROM "alert_root_cause_analyses" GROUP BY "severity""#,
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
     let mut by_severity = std::collections::BTreeMap::new();
     by_severity.insert("low".to_string(), 0);
     by_severity.insert("medium".to_string(), 0);
     by_severity.insert("high".to_string(), 0);
     by_severity.insert("critical".to_string(), 0);
 
-    Json(SuccessResponse {
-        success: true,
-        data: AlertStats {
-            total_analyses: 0,
-            open_count: 0,
-            investigating_count: 0,
-            resolved_count: 0,
-            avg_confidence: 0.0,
-            by_severity,
-        },
-    })
-    .into_response()
+    for r in severity_rows {
+        let sev: String = r.try_get("severity").unwrap_or_default();
+        let cnt: i64 = r.try_get("cnt").unwrap_or(0);
+        by_severity.insert(sev, cnt);
+    }
+
+    match row {
+        Ok(r) => Json(SuccessResponse {
+            success: true,
+            data: AlertStats {
+                total_analyses: r.try_get("total").unwrap_or(0),
+                open_count: r.try_get("open_count").unwrap_or(0),
+                investigating_count: r.try_get("investigating_count").unwrap_or(0),
+                resolved_count: r.try_get("resolved_count").unwrap_or(0),
+                avg_confidence: r.try_get("avg_confidence").unwrap_or(0.0),
+                by_severity,
+            },
+        }).into_response(),
+        Err(_) => Json(SuccessResponse {
+            success: true,
+            data: AlertStats {
+                total_analyses: 0,
+                open_count: 0,
+                investigating_count: 0,
+                resolved_count: 0,
+                avg_confidence: 0.0,
+                by_severity,
+            },
+        }).into_response(),
+    }
+}
+
+fn map_alert_analysis(row: &sqlx::postgres::PgRow) -> AlertAnalysis {
+    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let resolved_at: Option<chrono::NaiveDateTime> = row.try_get("resolvedAt").ok();
+    let suggested_fixes_json: serde_json::Value = row.try_get("suggestedFixes").unwrap_or(serde_json::json!([]));
+    let suggested_fixes: Vec<SuggestedFix> = serde_json::from_value(suggested_fixes_json).unwrap_or_default();
+
+    AlertAnalysis {
+        id: row.try_get("id").unwrap_or_default(),
+        alert_rule_id: row.try_get("alertRuleId").unwrap_or_default(),
+        severity: row.try_get("severity").unwrap_or_default(),
+        root_cause: row.try_get("rootCause").unwrap_or_default(),
+        suggested_fixes,
+        related_metrics: row.try_get("relatedMetrics").unwrap_or(serde_json::json!({})),
+        confidence: row.try_get("confidence").unwrap_or(0.0),
+        status: row.try_get("status").unwrap_or_default(),
+        created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
+        resolution: row.try_get("resolution").ok(),
+        resolved_at: resolved_at.map(crate::auth::format_naive_datetime_iso_millis),
+        resolved_by: row.try_get("resolvedBy").ok(),
+    }
 }
 
 async fn generate_weekly_report(State(state): State<AppState>) -> Response {

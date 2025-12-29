@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 mod about;
 mod admin;
 mod alerts;
@@ -17,7 +15,7 @@ mod learning_objectives;
 mod learning_sessions;
 mod llm_advisor;
 mod logs;
-mod notifications;
+pub mod notifications;
 mod optimization;
 mod plan;
 mod preferences;

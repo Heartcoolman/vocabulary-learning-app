@@ -167,13 +167,21 @@ pub async fn ingest(
         ctx.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
         ctx.insert("username".to_string(), serde_json::Value::String(username.to_string()));
 
-        if let Some(extra) = entry.context {
+        if let Some(extra) = entry.context.clone() {
             for (key, value) in extra {
                 ctx.insert(key, value);
             }
         }
 
-        if let Some(err) = entry.err {
+        let error_json = entry.err.as_ref().map(|err| {
+            serde_json::json!({
+                "message": err.message,
+                "stack": err.stack,
+                "name": err.name,
+            })
+        });
+
+        if let Some(ref err) = entry.err {
             ctx.insert(
                 "frontendError".to_string(),
                 serde_json::json!({
@@ -184,13 +192,53 @@ pub async fn ingest(
             );
         }
 
-        let ctx_str = serde_json::Value::Object(ctx).to_string();
+        let ctx_str = serde_json::Value::Object(ctx.clone()).to_string();
         match entry.level {
             LogLevel::Trace => tracing::trace!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Debug => tracing::debug!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Info => tracing::info!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Warn => tracing::warn!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Error | LogLevel::Fatal => tracing::error!(context = %ctx_str, "{}", entry.msg),
+        }
+
+        // Write to database
+        if let Some(ref proxy) = state.db_proxy() {
+            let pool = proxy.pool();
+            let log_id = uuid::Uuid::new_v4().to_string();
+            let level_str = match entry.level {
+                LogLevel::Trace => "TRACE",
+                LogLevel::Debug => "DEBUG",
+                LogLevel::Info => "INFO",
+                LogLevel::Warn => "WARN",
+                LogLevel::Error => "ERROR",
+                LogLevel::Fatal => "FATAL",
+            };
+            let context_json = serde_json::Value::Object(ctx);
+            let timestamp = chrono::DateTime::parse_from_rfc3339(&entry.time)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| chrono::Utc::now());
+
+            if let Err(e) = sqlx::query(
+                r#"INSERT INTO "system_logs" ("id", "level", "message", "module", "source", "context", "error", "userId", "clientIp", "userAgent", "app", "env", "timestamp")
+                   VALUES ($1, $2::"LogLevel", $3, $4, 'FRONTEND'::"LogSource", $5, $6, $7, $8, $9, $10, $11, $12)"#
+            )
+            .bind(&log_id)
+            .bind(level_str)
+            .bind(&entry.msg)
+            .bind(&entry.module)
+            .bind(&context_json)
+            .bind(&error_json)
+            .bind(if user_id == "anonymous" { None } else { Some(user_id) })
+            .bind(&client_ip)
+            .bind(user_agent)
+            .bind(&entry.app)
+            .bind(&entry.env)
+            .bind(timestamp)
+            .execute(pool)
+            .await
+            {
+                tracing::error!("Failed to write log to database: {}", e);
+            }
         }
     }
 
