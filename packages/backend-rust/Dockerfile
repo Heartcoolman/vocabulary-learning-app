@@ -4,61 +4,23 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Chef - Prepare recipe for dependency caching
+# Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM rust:1.75-slim-bookworm AS chef
-
-RUN cargo install cargo-chef --locked
-WORKDIR /app
-
-# -----------------------------------------------------------------------------
-# Stage 2: Planner - Analyze dependencies
-# -----------------------------------------------------------------------------
-FROM chef AS planner
-
-# Copy all workspace members for dependency analysis
-COPY packages/backend-rust/Cargo.toml packages/backend-rust/Cargo.lock* ./packages/backend-rust/
-COPY crates/danci-algo/Cargo.toml ./crates/danci-algo/
-COPY packages/native/Cargo.toml ./packages/native/
-
-# Copy source files
-COPY packages/backend-rust/src ./packages/backend-rust/src
-COPY crates/danci-algo/src ./crates/danci-algo/src
-COPY packages/native/src ./packages/native/src
-
-WORKDIR /app/packages/backend-rust
-RUN cargo chef prepare --recipe-path recipe.json
-
-# -----------------------------------------------------------------------------
-# Stage 3: Builder - Build dependencies and application
-# -----------------------------------------------------------------------------
-FROM chef AS builder
+FROM rust:slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy recipe and build dependencies first (cache layer)
-COPY --from=planner /app/packages/backend-rust/recipe.json ./packages/backend-rust/recipe.json
+WORKDIR /app
 
-# Copy workspace member Cargo.toml files
-COPY crates/danci-algo/Cargo.toml ./crates/danci-algo/
-COPY packages/native/Cargo.toml ./packages/native/
-
-# Create stub source files for dependency compilation
-RUN mkdir -p crates/danci-algo/src packages/native/src && \
-    echo "pub fn stub() {}" > crates/danci-algo/src/lib.rs && \
-    echo "pub fn stub() {}" > packages/native/src/lib.rs
+# Copy workspace crates
+COPY crates/danci-algo ./crates/danci-algo
+COPY packages/native ./packages/native
+COPY packages/backend-rust ./packages/backend-rust
 
 WORKDIR /app/packages/backend-rust
-RUN cargo chef cook --release --recipe-path recipe.json || true
-
-# Now copy actual source code
-COPY packages/backend-rust/Cargo.toml packages/backend-rust/Cargo.lock* ./
-COPY packages/backend-rust/src ./src
-COPY crates/danci-algo/src /app/crates/danci-algo/src
-COPY packages/native/src /app/packages/native/src
 
 # Build the application
 RUN cargo build --release && \
@@ -67,7 +29,7 @@ RUN cargo build --release && \
     strip /app/danci-backend-rust
 
 # -----------------------------------------------------------------------------
-# Stage 4: Runner - Production image
+# Stage 2: Runner - Production image
 # -----------------------------------------------------------------------------
 FROM debian:bookworm-slim AS runner
 
