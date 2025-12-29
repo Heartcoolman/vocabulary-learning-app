@@ -45,6 +45,8 @@ export type {
   UserLearningHeatmap,
   AnomalyFlag,
   VisualFatigueStats,
+  LLMTask,
+  WordVariant,
 } from './admin/AdminClient';
 
 // ==================== LLM Advisor 模块 ====================
@@ -91,6 +93,16 @@ export type {
   NotificationStats,
 } from './notification/NotificationClient';
 
+// ==================== Preferences 模块 ====================
+export { PreferencesClient } from './preferences/PreferencesClient';
+export type {
+  LearningPreferences,
+  NotificationPreferences,
+  UiPreferences,
+  UserPreferences,
+  UpdatePreferencesDto,
+} from './preferences/PreferencesClient';
+
 // ==================== 单例实例 ====================
 // 创建全局共享的 Client 实例，便于直接使用
 
@@ -104,6 +116,7 @@ import { LLMAdvisorClient } from './llm/LLMAdvisorClient';
 import { visualFatigueClient } from './visual-fatigue/VisualFatigueClient';
 import { opsEnhanceClient } from './ops-enhance/OpsEnhanceClient';
 import { NotificationClient } from './notification/NotificationClient';
+import { PreferencesClient } from './preferences/PreferencesClient';
 
 /** 认证客户端单例 */
 export const authClient = new AuthClient();
@@ -129,6 +142,9 @@ export const llmAdvisorClient = new LLMAdvisorClient();
 /** 通知客户端单例 */
 export const notificationClient = new NotificationClient();
 
+/** 偏好设置客户端单例 */
+export const preferencesClient = new PreferencesClient();
+
 // ==================== 向后兼容的 API 对象 ====================
 // 提供与旧版 ApiClient 完全兼容的单例对象
 
@@ -148,6 +164,7 @@ export const apiClient = {
   visualFatigue: visualFatigueClient,
   opsEnhance: opsEnhanceClient,
   notification: notificationClient,
+  preferences: preferencesClient,
 
   // ==================== 认证相关 ====================
   register: authClient.register.bind(authClient),
@@ -347,6 +364,19 @@ export const apiClient = {
   deleteNotification: notificationClient.deleteNotification.bind(notificationClient),
   batchDeleteNotifications: notificationClient.batchDelete.bind(notificationClient),
 
+  // ==================== 偏好设置相关 ====================
+  getPreferences: preferencesClient.getPreferences.bind(preferencesClient),
+  updatePreferences: preferencesClient.updatePreferences.bind(preferencesClient),
+  getLearningPreferences: preferencesClient.getLearningPreferences.bind(preferencesClient),
+  updateLearningPreferences: preferencesClient.updateLearningPreferences.bind(preferencesClient),
+  getNotificationPreferences: preferencesClient.getNotificationPreferences.bind(preferencesClient),
+  updateNotificationPreferences:
+    preferencesClient.updateNotificationPreferences.bind(preferencesClient),
+  getUiPreferences: preferencesClient.getUiPreferences.bind(preferencesClient),
+  updateUiPreferences: preferencesClient.updateUiPreferences.bind(preferencesClient),
+  resetPreferences: preferencesClient.resetPreferences.bind(preferencesClient),
+  checkQuietHours: preferencesClient.checkQuietHours.bind(preferencesClient),
+
   // ==================== 设置 ====================
   setOnUnauthorized(callback: (() => void) | null): void {
     authClient.setOnUnauthorized(callback);
@@ -359,6 +389,7 @@ export const apiClient = {
     visualFatigueClient.setOnUnauthorized(callback);
     opsEnhanceClient.setOnUnauthorized(callback);
     notificationClient.setOnUnauthorized(callback);
+    preferencesClient.setOnUnauthorized(callback);
   },
 };
 

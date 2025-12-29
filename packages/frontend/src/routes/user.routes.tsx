@@ -29,6 +29,7 @@ const AchievementPage = lazy(() => import('../pages/AchievementPage'));
 const BadgeGalleryPage = lazy(() => import('../pages/BadgeGalleryPage'));
 const PlanPage = lazy(() => import('../pages/PlanPage'));
 const LearningProfilePage = lazy(() => import('../pages/LearningProfilePage'));
+const PreferencesPage = lazy(() => import('../pages/PreferencesPage'));
 
 /**
  * 懒加载包装组件
@@ -235,6 +236,15 @@ export const userRoutes: AppRoute[] = [
       </ProtectedLazy>
     ),
     meta: { title: '学习画像', requireAuth: true },
+  },
+  {
+    path: '/preferences',
+    element: (
+      <ProtectedLazy>
+        <PreferencesPage />
+      </ProtectedLazy>
+    ),
+    meta: { title: '偏好设置', requireAuth: true },
   },
 
   // 路径统一：重定向到主学习页面
