@@ -120,7 +120,7 @@ export default function LogViewerPage() {
       queryParams.append('pageSize', pagination.pageSize.toString());
 
       if (filters.levels.length > 0) {
-        queryParams.append('levels', filters.levels.join(','));
+        queryParams.append('level', filters.levels.join(','));
       }
       if (filters.module) {
         queryParams.append('module', filters.module);
@@ -129,13 +129,13 @@ export default function LogViewerPage() {
         queryParams.append('source', filters.source);
       }
       if (filters.startDate) {
-        queryParams.append('startDate', filters.startDate);
+        queryParams.append('startTime', filters.startDate);
       }
       if (filters.endDate) {
-        queryParams.append('endDate', filters.endDate);
+        queryParams.append('endTime', filters.endDate);
       }
       if (filters.search) {
-        queryParams.append('search', filters.search);
+        queryParams.append('messagePattern', filters.search);
       }
 
       const data = await adminClient.requestAdmin<{ logs: LogEntry[]; pagination: Pagination }>(
@@ -580,17 +580,18 @@ export default function LogViewerPage() {
                         );
                       })
                       .map((page, index, array) => {
+                        const items = [];
                         if (index > 0 && page - array[index - 1] > 1) {
-                          return (
+                          items.push(
                             <span
                               key={`ellipsis-${page}`}
                               className="px-2 text-gray-400 dark:text-gray-500"
                             >
                               ...
-                            </span>
+                            </span>,
                           );
                         }
-                        return (
+                        items.push(
                           <button
                             key={page}
                             onClick={() => handlePageChange(page)}
@@ -601,8 +602,9 @@ export default function LogViewerPage() {
                             }`}
                           >
                             {page}
-                          </button>
+                          </button>,
                         );
+                        return items;
                       })}
                   </div>
                   <button

@@ -208,7 +208,7 @@ export default function AboutHomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-6 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 md:p-12">
+    <div className="min-h-screen bg-gray-50 p-6 dark:bg-slate-900 md:p-12">
       <div className="mx-auto max-w-4xl">
         {/* 标题区 */}
         <motion.div

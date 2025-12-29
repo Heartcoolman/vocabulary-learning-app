@@ -5,7 +5,7 @@ export default function ForbiddenPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-red-50/30 px-4 dark:from-slate-900 dark:via-slate-800 dark:to-red-950/30">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-slate-900">
       <div className="max-w-md text-center">
         <div className="mb-6">
           <WarningCircle size={96} weight="duotone" color="#dc2626" className="mx-auto" />

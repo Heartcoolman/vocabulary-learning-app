@@ -490,7 +490,7 @@ export default function StatsPage() {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 md:p-10">
+    <div className="min-h-screen bg-gray-50 p-6 font-sans transition-colors dark:bg-slate-900 md:p-10">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <header className="mb-10 flex items-end justify-between">

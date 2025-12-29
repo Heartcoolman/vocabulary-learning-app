@@ -381,7 +381,7 @@ export default function LearningPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center p-3">
         <div className="w-full space-y-3">
           {/* 学习进度面板 - 集成工具栏 */}

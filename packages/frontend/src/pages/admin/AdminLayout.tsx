@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import apiClient, { User } from '../../services/client';
+import { usePrefetch } from '../../hooks/usePrefetch';
 import {
   ChartBar,
   UsersThree,
@@ -18,6 +19,7 @@ import {
   Bug,
   ChartLine,
   Sparkle,
+  Queue,
 } from '../../components/Icon';
 import { useToast } from '../../components/ui';
 import { adminLogger } from '../../utils/logger';
@@ -26,6 +28,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
+  const { prefetchOnHover } = usePrefetch();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -80,6 +83,7 @@ export default function AdminLayout() {
     { path: '/admin/optimization', label: '优化分析', icon: Target },
     { path: '/admin/causal-analysis', label: '因果分析', icon: Brain },
     { path: '/admin/llm-advisor', label: 'LLM 顾问', icon: Robot },
+    { path: '/admin/llm-tasks', label: 'LLM 任务', icon: Queue },
     { path: '/admin/amas-explainability', label: 'AMAS 可解释性', icon: Lightbulb },
     { path: '/admin/weekly-report', label: '运营周报', icon: ChartLine },
     { path: '/admin/logs', label: '系统日志', icon: FileText },
@@ -107,6 +111,7 @@ export default function AdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
+                {...prefetchOnHover(item.path)}
                 className={`flex items-center gap-2 rounded-button px-4 py-2 transition-all duration-g3-fast hover:scale-105 active:scale-95 ${
                   isActive
                     ? 'bg-blue-50 font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'

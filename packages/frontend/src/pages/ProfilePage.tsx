@@ -159,7 +159,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="max-w-md px-4 text-center">
           <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">请先登录</h2>
           <p className="mb-6 text-gray-600 dark:text-gray-400">登录后即可查看个人资料</p>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto max-w-7xl animate-g3-fade-in px-4 py-8">
         {/* 页面标题 */}
         <h1 className="mb-8 text-3xl font-bold text-gray-900 dark:text-white">个人资料</h1>

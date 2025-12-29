@@ -415,7 +415,7 @@ export default function SimulationPage() {
   }, [params, injectNoise, selectedScenario]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 font-sans transition-colors dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-6 font-sans transition-colors dark:bg-slate-900 md:p-8">
       <div className="mx-auto max-w-6xl">
         <motion.header
           initial={{ opacity: 0, y: -20 }}

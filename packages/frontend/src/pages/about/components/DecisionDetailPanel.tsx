@@ -11,7 +11,7 @@ interface DecisionDetailPanelProps {
 export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
   if (!decision) {
     return (
-      <div className="flex h-full items-center justify-center rounded-card border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+      <div className="flex h-full items-center justify-center rounded-card border border-dashed border-slate-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-900">
         <div className="text-center text-slate-400 dark:text-gray-400">
           <GitBranch size={48} className="mx-auto mb-4 opacity-50" />
           <p className="text-sm font-medium">请从左侧选择一条决策记录</p>
@@ -35,7 +35,7 @@ export function DecisionDetailPanel({ decision }: DecisionDetailPanelProps) {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 p-6 dark:from-slate-900 dark:to-slate-800">
+    <div className="h-full overflow-y-auto bg-gray-50 p-6 dark:bg-slate-900">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header Section */}
         <header className="rounded-card border border-slate-200 bg-white/80 p-5 shadow-soft backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/80">

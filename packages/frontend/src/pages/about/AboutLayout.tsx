@@ -21,7 +21,7 @@ export default function AboutLayout() {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* 侧边栏 */}
       <aside className="flex w-64 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-800/80">
         {/* 标题区 */}

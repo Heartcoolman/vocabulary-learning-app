@@ -101,7 +101,7 @@ export default function FlashcardPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
       <div className="mx-auto w-full max-w-4xl p-4">
         <div className="mb-4 flex items-center gap-4">
           <button
