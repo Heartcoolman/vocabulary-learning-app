@@ -239,7 +239,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push Backend Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/backend/Dockerfile
@@ -262,7 +262,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push Frontend Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/frontend/Dockerfile
