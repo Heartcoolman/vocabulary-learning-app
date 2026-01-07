@@ -563,7 +563,7 @@ describe('WordQueueManager', () => {
       expect(result.mastered).toBe(true);
     });
 
-    it('should fallback to default rules when AMAS confidence is low', () => {
+    it('should use AMAS decision regardless of confidence level', () => {
       const words = createTestWords(3);
       const config: Partial<QueueConfig> = {
         masteryThreshold: 5, // 设高一点
@@ -579,11 +579,10 @@ describe('WordQueueManager', () => {
         suggestedRepeats: 0,
       };
 
-      // 只答对一次，使用较长响应时间避免首次秒答规则
-      // 按默认规则不应该掌握（还没连续答对5次）
+      // AMAS 决策优先，无论置信度
       const result = manager.recordAnswer(word.id, true, 5000, amasDecision);
 
-      expect(result.mastered).toBe(false);
+      expect(result.mastered).toBe(true);
     });
 
     it('should master on quick first correct answer', () => {

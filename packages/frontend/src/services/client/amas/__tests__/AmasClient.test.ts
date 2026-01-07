@@ -191,8 +191,15 @@ describe('AmasClient', () => {
         responseTime: 2000,
       };
       const mockResult = {
-        strategy: { nextAction: 'continue' },
-        stateUpdate: { fatigue: 0.3 },
+        sessionId: 'session-123',
+        strategy: {
+          interval_scale: 1.0,
+          new_ratio: 0.3,
+          difficulty: 'mid',
+          batch_size: 10,
+          hint_level: 1,
+        },
+        state: { A: 0.8, F: 0.2, M: 0.9, C: { mem: 0.5, speed: 0.5, stability: 0.5 } },
       };
       mockRequest.mockResolvedValue(mockResult);
 
@@ -202,17 +209,17 @@ describe('AmasClient', () => {
         method: 'POST',
         body: JSON.stringify(eventData),
       });
-      // @ts-expect-error - Test expects property that may not exist in type
-      expect(result.strategy.nextAction).toBe('continue');
+      expect(result.strategy.interval_scale).toBe(1.0);
     });
   });
 
   describe('getAmasState', () => {
     it('should fetch AMAS state', async () => {
       const mockState = {
-        attention: 0.8,
-        fatigue: 0.2,
-        motivation: 0.9,
+        A: 0.8,
+        F: 0.2,
+        M: 0.9,
+        C: { mem: 0.5, speed: 0.5, stability: 0.5 },
       };
       mockRequest.mockResolvedValue(mockState);
 

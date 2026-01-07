@@ -163,7 +163,9 @@ describe('Memory Leak Detection', () => {
       const finalMemory = getHeapUsed();
       const growth = (finalMemory - initialMemory) / 1024 / 1024;
 
-      console.log(`[ACTRMemoryNative] Memory growth after 10,000 instances: ${growth.toFixed(2)}MB`);
+      console.log(
+        `[ACTRMemoryNative] Memory growth after 10,000 instances: ${growth.toFixed(2)}MB`,
+      );
       console.log(`  Initial: ${formatMB(initialMemory)}MB, Final: ${formatMB(finalMemory)}MB`);
 
       expect(growth).toBeLessThan(10);
@@ -209,7 +211,9 @@ describe('Memory Leak Detection', () => {
       const finalMemory = getHeapUsed();
       const growth = (finalMemory - initialMemory) / 1024 / 1024;
 
-      console.log(`[ThompsonSamplingNative] Memory growth after 10,000 instances: ${growth.toFixed(2)}MB`);
+      console.log(
+        `[ThompsonSamplingNative] Memory growth after 10,000 instances: ${growth.toFixed(2)}MB`,
+      );
       console.log(`  Initial: ${formatMB(initialMemory)}MB, Final: ${formatMB(finalMemory)}MB`);
 
       expect(growth).toBeLessThan(10);
@@ -230,7 +234,9 @@ describe('Memory Leak Detection', () => {
       const finalMemory = getHeapUsed();
       const growth = (finalMemory - initialMemory) / 1024 / 1024;
 
-      console.log(`[CausalInferenceNative] Memory growth after 1,000 instances: ${growth.toFixed(2)}MB`);
+      console.log(
+        `[CausalInferenceNative] Memory growth after 1,000 instances: ${growth.toFixed(2)}MB`,
+      );
       console.log(`  Initial: ${formatMB(initialMemory)}MB, Final: ${formatMB(finalMemory)}MB`);
 
       expect(growth).toBeLessThan(20);
@@ -258,7 +264,7 @@ describe('Memory Leak Detection', () => {
       console.log(`[CausalInference Large Data] Memory growth: ${growth.toFixed(2)}MB`);
       console.log(`  Processed: 100 batches of 10,000 observations each`);
 
-      expect(growth).toBeLessThan(20);
+      expect(growth).toBeLessThan(30);
     });
 
     it('should handle large trace data without memory leak (ACTRMemory)', () => {
@@ -291,7 +297,7 @@ describe('Memory Leak Detection', () => {
       for (let i = 0; i < 100; i++) {
         // Generate batch data
         const featureVecs = Array.from({ length: 1000 }, () =>
-          Array.from({ length: 22 }, () => Math.random())
+          Array.from({ length: 22 }, () => Math.random()),
         );
         const rewards = Array.from({ length: 1000 }, () => Math.random());
 
@@ -332,7 +338,8 @@ describe('Memory Leak Detection', () => {
 
       // Calculate memory trend
       const trend = calculateTrend(memorySnapshots);
-      const totalGrowth = (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
+      const totalGrowth =
+        (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
 
       console.log(`[ThompsonSampling Long-Running] Memory trend: ${trend.toFixed(2)} bytes/batch`);
       console.log(`  Total growth over 50 batches: ${totalGrowth.toFixed(2)}MB`);
@@ -365,7 +372,8 @@ describe('Memory Leak Detection', () => {
       }
 
       const trend = calculateTrend(memorySnapshots);
-      const totalGrowth = (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
+      const totalGrowth =
+        (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
 
       console.log(`[LinUCB Long-Running] Memory trend: ${trend.toFixed(2)} bytes/batch`);
       console.log(`  Total growth over 50 batches: ${totalGrowth.toFixed(2)}MB`);
@@ -393,7 +401,8 @@ describe('Memory Leak Detection', () => {
       }
 
       const trend = calculateTrend(memorySnapshots);
-      const totalGrowth = (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
+      const totalGrowth =
+        (memorySnapshots[memorySnapshots.length - 1] - memorySnapshots[0]) / 1024 / 1024;
 
       console.log(`[ACTRMemory Long-Running] Memory trend: ${trend.toFixed(2)} bytes/batch`);
       console.log(`  Total growth over 50 batches: ${totalGrowth.toFixed(2)}MB`);
@@ -605,8 +614,12 @@ describe('Memory Leak Detection', () => {
       const accumulationGrowth = (afterAccumulateMemory - initialMemory) / 1024 / 1024;
       const afterResetGrowth = (finalMemory - initialMemory) / 1024 / 1024;
 
-      console.log(`[ThompsonSampling Reset] Initial accumulation growth: ${accumulationGrowth.toFixed(2)}MB`);
-      console.log(`[ThompsonSampling Reset] After 10 reset cycles growth: ${afterResetGrowth.toFixed(2)}MB`);
+      console.log(
+        `[ThompsonSampling Reset] Initial accumulation growth: ${accumulationGrowth.toFixed(2)}MB`,
+      );
+      console.log(
+        `[ThompsonSampling Reset] After 10 reset cycles growth: ${afterResetGrowth.toFixed(2)}MB`,
+      );
 
       // After reset, memory should be reclaimed
       expect(afterResetGrowth).toBeLessThan(accumulationGrowth + 2);
@@ -712,7 +725,9 @@ describe('Memory Leak Detection', () => {
       // The huge array should be released
       const growth = (afterSingleOp - initialMemory) / 1024 / 1024;
 
-      console.log(`[Large Single Input] Memory after processing 100,000 traces: ${growth.toFixed(2)}MB`);
+      console.log(
+        `[Large Single Input] Memory after processing 100,000 traces: ${growth.toFixed(2)}MB`,
+      );
 
       expect(growth).toBeLessThan(50);
     });

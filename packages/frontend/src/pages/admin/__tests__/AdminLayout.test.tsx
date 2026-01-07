@@ -13,14 +13,18 @@ const mockAdminUser = {
   username: 'admin',
   email: 'admin@test.com',
   role: 'ADMIN' as const,
+  rewardProfile: 'default',
   createdAt: '2024-01-01',
+  updatedAt: '2024-01-01',
 };
 const mockNormalUser = {
   id: 'user-1',
   username: 'user',
   email: 'user@test.com',
   role: 'USER' as const,
+  rewardProfile: 'default',
   createdAt: '2024-01-01',
+  updatedAt: '2024-01-01',
 };
 
 vi.mock('react-router-dom', async () => {
@@ -38,6 +42,9 @@ vi.mock('@/services/client', () => ({
       username: 'admin',
       email: 'admin@test.com',
       role: 'ADMIN',
+      rewardProfile: 'default',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
     }),
   },
 }));

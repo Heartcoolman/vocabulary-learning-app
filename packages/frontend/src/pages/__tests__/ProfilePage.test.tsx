@@ -204,14 +204,14 @@ describe('ProfilePage', () => {
       const confirmPasswordInput = screen.getByLabelText('确认新密码');
 
       await userEvent.type(oldPasswordInput, 'oldpass123');
-      await userEvent.type(newPasswordInput, 'short');
-      await userEvent.type(confirmPasswordInput, 'short');
+      await userEvent.type(newPasswordInput, 'Ab1!');
+      await userEvent.type(confirmPasswordInput, 'Ab1!');
 
       const submitButton = document.querySelector('button[type="submit"]')!;
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('新密码长度至少为8个字符')).toBeInTheDocument();
+        expect(screen.getByText('新密码长度至少为10个字符')).toBeInTheDocument();
       });
     });
 
@@ -229,8 +229,8 @@ describe('ProfilePage', () => {
       const confirmPasswordInput = screen.getByLabelText('确认新密码');
 
       await userEvent.type(oldPasswordInput, 'oldpass123');
-      await userEvent.type(newPasswordInput, 'newpassword123');
-      await userEvent.type(confirmPasswordInput, 'differentpassword');
+      await userEvent.type(newPasswordInput, 'NewPass123!');
+      await userEvent.type(confirmPasswordInput, 'DiffPass123!');
 
       const submitButton = document.querySelector('button[type="submit"]')!;
       fireEvent.click(submitButton);
@@ -254,15 +254,15 @@ describe('ProfilePage', () => {
       const confirmPasswordInput = screen.getByLabelText('确认新密码');
 
       await userEvent.type(oldPasswordInput, 'oldpass123');
-      await userEvent.type(newPasswordInput, 'newpassword123');
-      await userEvent.type(confirmPasswordInput, 'newpassword123');
+      await userEvent.type(newPasswordInput, 'NewPass123!');
+      await userEvent.type(confirmPasswordInput, 'NewPass123!');
 
       const submitButton = document.querySelector('button[type="submit"]')!;
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(apiClient.updatePassword).toHaveBeenCalledWith('oldpass123', 'newpassword123');
-        expect(screen.getByText('密码修改成功！')).toBeInTheDocument();
+        expect(apiClient.updatePassword).toHaveBeenCalledWith('oldpass123', 'NewPass123!');
+        expect(screen.getByText(/密码修改成功/)).toBeInTheDocument();
       });
     });
   });

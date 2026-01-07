@@ -21,7 +21,7 @@ vi.mock('../Icon', async (importOriginal) => {
 vi.mock('../AmasSuggestion', () => ({
   default: ({ result, onBreak }: any) => (
     <div data-testid="amas-suggestion">
-      <span>Explanation: {result?.explanation}</span>
+      <span>Explanation: {result?.explanation?.text}</span>
       {onBreak && <button onClick={onBreak}>Take Break</button>}
     </div>
   ),
@@ -46,7 +46,7 @@ function createTestResult(overrides: Partial<AmasProcessResult> = {}): AmasProce
       speed: 0.65,
       stability: 0.7,
     },
-    explanation: '',
+    explanation: { factors: [], changes: [], text: '' },
     suggestion: '',
     shouldBreak: false,
     ...overrides,
@@ -58,7 +58,7 @@ describe('SuggestionModal', () => {
   const mockOnBreak = vi.fn();
 
   const mockResult: AmasProcessResult = createTestResult({
-    explanation: 'Test explanation',
+    explanation: { factors: [], changes: [], text: 'Test explanation' },
     suggestion: 'Test suggestion',
     shouldBreak: false,
   });

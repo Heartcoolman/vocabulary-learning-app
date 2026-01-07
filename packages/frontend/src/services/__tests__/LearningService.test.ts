@@ -205,10 +205,11 @@ describe('LearningService', () => {
       expect(result).toBe(true);
     });
 
-    it('should return null for getCurrentSession (session not persisted)', async () => {
+    it('should return session after startSession is called', async () => {
       await LearningService.startSession(['word-1', 'word-2']);
       const session = LearningService.getCurrentSession();
-      expect(session).toBeNull();
+      expect(session).not.toBeNull();
+      expect(session?.wordIds).toEqual(['word-1', 'word-2']);
     });
   });
 
@@ -392,7 +393,7 @@ describe('LearningService', () => {
 
     it('should return feedback info from API', async () => {
       mockApiClient.processLearningEvent.mockResolvedValue({
-        decision: { masteryChange: 2, score: 90 },
+        wordMasteryDecision: { isMastered: true, confidence: 0.9 },
       });
 
       await LearningService.startSession(['word-1', 'word-2'], 'user-123');
@@ -407,7 +408,7 @@ describe('LearningService', () => {
       );
 
       expect(result).not.toBeNull();
-      expect(result?.masteryLevelAfter).toBe(2);
+      expect(result?.masteryLevelAfter).toBe(1);
       expect(result?.score).toBe(90);
     });
   });
@@ -463,13 +464,14 @@ describe('LearningService', () => {
       const result = await LearningService.getDueWords('user-123');
 
       expect(Array.isArray(result)).toBe(true);
-      expect(result).toEqual(['word-1', 'word-2']);
+      expect(result).toEqual([{ wordId: 'word-1' }, { wordId: 'word-2' }]);
     });
 
     it('should get trend analysis from API', async () => {
       mockApiClient.getCurrentTrend.mockResolvedValue({
-        trend: 'improving',
-        recommendedSessionLength: 25,
+        state: 'up',
+        consecutiveDays: 5,
+        stateDescription: 'improving',
       });
 
       const result = await LearningService.getTrendAnalysis();

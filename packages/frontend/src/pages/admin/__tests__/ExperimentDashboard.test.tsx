@@ -9,6 +9,7 @@ import ExperimentDashboard from '../ExperimentDashboard';
 const { mockApiClient } = vi.hoisted(() => ({
   mockApiClient: {
     getExperiments: vi.fn(),
+    getExperiment: vi.fn(),
     startExperiment: vi.fn(),
     stopExperiment: vi.fn(),
     deleteExperiment: vi.fn(),
@@ -148,6 +149,26 @@ describe('ExperimentDashboard', () => {
       recommendation: '继续运行实验',
       reason: '样本量尚未达到最小要求',
       isActive: true,
+    });
+
+    mockApiClient.getExperiment.mockResolvedValue({
+      id: 'exp-running',
+      name: '运行中实验',
+      description: 'desc',
+      status: 'RUNNING',
+      trafficAllocation: 'EVEN',
+      minSampleSize: 100,
+      significanceLevel: 0.05,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      variantCount: 2,
+      totalSamples: 1000,
+      variants: [
+        { id: 'linucb', name: 'LinUCB', algorithmId: 'linucb' },
+        { id: 'thompson', name: 'Thompson', algorithmId: 'thompson' },
+      ],
     });
   });
 

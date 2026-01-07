@@ -70,6 +70,7 @@ vi.mock('../../services/LearningService', () => ({
       options: ['测试', '示例', '学习', '阅读'],
       correctIndex: 0,
     }),
+    simplifyMeaning: vi.fn().mockImplementation((meaning: string) => meaning),
   },
 }));
 
@@ -364,7 +365,7 @@ describe('LearningPage', () => {
       expect(screen.getByRole('button', { name: '添加单词' })).toBeInTheDocument();
     });
 
-    it('should navigate to vocabulary when selecting wordbook', () => {
+    it('should navigate to study-settings when selecting wordbook', () => {
       mockUseMasteryLearning = vi.fn(() => ({
         ...defaultMockReturn,
         allWords: [],
@@ -375,7 +376,7 @@ describe('LearningPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: '选择词书' }));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/vocabulary');
+      expect(mockNavigate).toHaveBeenCalledWith('/study-settings');
     });
 
     it('should navigate to profile when adding words', () => {

@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock the mastery module functions that useMasteryLearning imports
 vi.mock('../mastery', async (importOriginal) => {
@@ -96,7 +97,11 @@ const createWrapper = () => {
   });
 
   return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client: queryClient }, children);
+    React.createElement(
+      MemoryRouter,
+      null,
+      React.createElement(QueryClientProvider, { client: queryClient }, children),
+    );
 };
 
 describe('useMasteryLearning', () => {
