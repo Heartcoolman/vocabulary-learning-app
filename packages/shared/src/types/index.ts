@@ -39,3 +39,6 @@ export * from './preference';
 
 // 实时通信相关
 export * from './realtime';
+
+// 词源词根相关
+export * from './etymology';

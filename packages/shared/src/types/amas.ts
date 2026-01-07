@@ -286,6 +286,16 @@ export interface WordMasteryDecision {
   confidence: number;
   /** 建议重复次数 */
   suggestedRepeats: number;
+  /** FSRS 稳定性 (天数) */
+  stability?: number;
+  /** FSRS 难度 (0-1) */
+  difficulty?: number;
+  /** FSRS 可提取性 (0-1) */
+  retrievability?: number;
+  /** FSRS 遗忘次数 */
+  lapses?: number;
+  /** FSRS 复习次数 */
+  reps?: number;
 }
 
 /**
