@@ -471,7 +471,7 @@ test.describe('Learning Flow', () => {
   });
 
   test.describe('Navigation Integration', () => {
-    test('should allow navigation to vocabulary from empty state', async ({ page }) => {
+    test('should allow navigation to study settings from empty state', async ({ page }) => {
       await page.goto('/');
       await waitForLearningPageReady(page);
 
@@ -481,7 +481,7 @@ test.describe('Learning Flow', () => {
 
       if (hasEmptyState) {
         await vocabButton.click();
-        await expect(page).toHaveURL('/vocabulary');
+        await expect(page).toHaveURL('/study-settings');
       }
     });
 
