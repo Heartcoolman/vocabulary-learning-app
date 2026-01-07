@@ -191,6 +191,9 @@ export default function LearningPage() {
   // 使用 ref 立即跟踪是否已提交，防止快速点击重复提交
   const isSubmittingRef = useRef(false);
 
+  // 使用 ref 存储 handleNext 的最新引用，避免自动跳转定时器因依赖变化而被取消
+  const handleNextRef = useRef<() => void>(() => {});
+
   const handleSelectAnswer = useCallback(
     async (answer: string) => {
       if (!currentWord || showResult || isSubmittingRef.current) return;
@@ -228,19 +231,22 @@ export default function LearningPage() {
     isSubmittingRef.current = false; // 重置提交状态
   }, [advanceToNext, regenerateOptions]);
 
+  // 始终保持 ref 指向最新的 handleNext
+  handleNextRef.current = handleNext;
+
   const handleRestart = useCallback(async () => {
     await resetSession();
   }, [resetSession]);
 
-  // 答题后自动切换到下一词
+  // 答题后自动切换到下一词（使用 ref 调用以避免依赖变化导致定时器被取消）
   useEffect(() => {
     if (showResult) {
       const timer = setTimeout(() => {
-        handleNext();
+        handleNextRef.current();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [showResult, handleNext]);
+  }, [showResult]);
 
   // 自动朗读已由 useAutoPlayPronunciation Hook 处理
 

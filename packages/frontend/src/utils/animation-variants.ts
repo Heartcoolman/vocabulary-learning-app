@@ -3,23 +3,23 @@ import { Variants } from 'framer-motion';
 // 基础过渡配置
 export const transitions = {
   spring: {
-    type: 'spring',
+    type: 'spring' as const,
     stiffness: 300,
     damping: 30,
   },
   springBouncy: {
-    type: 'spring',
+    type: 'spring' as const,
     stiffness: 400,
     damping: 20,
   },
   easeOut: {
-    type: 'tween',
-    ease: 'easeOut',
+    type: 'tween' as const,
+    ease: 'easeOut' as const,
     duration: 0.2,
   },
   easeInOut: {
-    type: 'tween',
-    ease: 'easeInOut',
+    type: 'tween' as const,
+    ease: 'easeInOut' as const,
     duration: 0.3,
   },
 };

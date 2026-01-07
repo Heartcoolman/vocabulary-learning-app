@@ -349,14 +349,14 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
         <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
           <div
             className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: CHART_COLORS.error }}
+            style={{ backgroundColor: chartColors.error }}
           />
           <span>错误率</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
           <div
             className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: CHART_COLORS.warning }}
+            style={{ backgroundColor: chartColors.warning }}
           />
           <span>告警阈值</span>
         </div>
@@ -373,7 +373,7 @@ export const ErrorRateChart: React.FC<ErrorRateChartProps> = ({
           <div
             className="text-xl font-semibold"
             style={{
-              color: stats.maxErrorRate > 2 ? CHART_COLORS.error : CHART_COLORS.success,
+              color: stats.maxErrorRate > 2 ? chartColors.error : chartColors.success,
             }}
           >
             {stats.maxErrorRate.toFixed(2)}%

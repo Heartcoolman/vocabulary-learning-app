@@ -391,6 +391,28 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     }));
   }, []);
 
+  const applyStrategy = useCallback(
+    (strategy: {
+      batchSize?: number;
+      difficulty?: string;
+      hintLevel?: number;
+      intervalScale?: number;
+    }) => {
+      const manager = queueManagerRef.current;
+      if (!manager) return;
+      manager.applyStrategy(strategy);
+    },
+    [],
+  );
+
+  const updateMasteryFromBackend = useCallback((wordId: string, isMastered: boolean) => {
+    const manager = queueManagerRef.current;
+    if (!manager) return;
+    manager.updateMasteryFromBackend(wordId, isMastered);
+    // 更新本地进度状态
+    setProgress(manager.getProgress());
+  }, []);
+
   return {
     currentWord,
     allWords,
@@ -410,6 +432,8 @@ export function useWordQueue(options: UseWordQueueOptions = {}) {
     resetQueue,
     resetAdaptiveCounter,
     restoreMasteredCount,
+    applyStrategy,
+    updateMasteryFromBackend,
   };
 }
 
@@ -485,13 +509,14 @@ export function useMasterySync(options: UseMasterySyncOptions) {
         retryQueue.addToQueue({
           id: `answer_${params.wordId}_${Date.now()}`,
           action: async () => {
-            await processLearningEvent({
+            const result = await processLearningEvent({
               wordId: params.wordId,
               isCorrect: params.isCorrect,
               responseTime: params.responseTime,
               sessionId: getSessionId(),
               pausedTimeMs: params.pausedTimeMs,
             });
+            onAmasResult?.(result);
           },
           maxRetries: 3,
         });

@@ -17,8 +17,11 @@ import {
   createMasterySession,
   endHabitSession,
 } from './mastery';
-import { useSubmitAnswer, extractAmasState } from './mutations';
+import { useSubmitAnswer, extractAmasState, useSyncProgress, syncProgress } from './mutations';
 import { learningLogger } from '../utils/logger';
+import { STORAGE_KEYS } from '../constants/storageKeys';
+
+const END_SESSION_ENDPOINT = '/api/habit-profile/end-session';
 
 export interface UseMasteryLearningOptions {
   targetMasteryCount?: number;
@@ -65,8 +68,11 @@ export function useMasteryLearning(
   // Refs
   const currentSessionIdRef = useRef(sessionId || '');
   const sessionStartTimeRef = useRef(0);
+  const sessionEndedRef = useRef(false);
   const isMountedRef = useRef(true);
   const prevUserIdRef = useRef(user?.id);
+  const endSessionRef = useRef<(mode: 'async' | 'beacon') => void>(() => {});
+  const lastSyncCountRef = useRef(0);
 
   // 子 hooks
   const wordQueue = useWordQueue({ targetMasteryCount: initialTargetCount });
@@ -97,13 +103,52 @@ export function useMasteryLearning(
     getSessionId: () => currentSessionIdRef.current,
     getUserId: () => user?.id,
     getQueueManager: () => wordQueueRef.current.queueManagerRef.current,
-    onAmasResult: setLatestAmasResult,
+    onAmasResult: (result) => {
+      setLatestAmasResult(result);
+      // 应用 AMAS 策略到队列
+      if (result.strategy) {
+        wordQueueRef.current.applyStrategy({
+          batchSize: result.strategy.batch_size,
+          difficulty: result.strategy.difficulty,
+          hintLevel: result.strategy.hint_level,
+          intervalScale: result.strategy.interval_scale,
+        });
+      }
+      // 同步后端掌握判定
+      if (result.wordMasteryDecision?.wordId !== undefined) {
+        wordQueueRef.current.updateMasteryFromBackend(
+          result.wordMasteryDecision.wordId,
+          result.wordMasteryDecision.isMastered,
+        );
+      }
+    },
     onQueueAdjusted: () => {
       saveCacheRef.current();
       wordQueueRef.current.resetAdaptiveCounter();
     },
   });
   syncRef.current = sync;
+
+  // 进度同步 mutation
+  const syncProgressMutation = useSyncProgress();
+
+  endSessionRef.current = (mode) => {
+    const sid = currentSessionIdRef.current;
+    if (!sid || sessionStartTimeRef.current <= 0 || sessionEndedRef.current) return;
+
+    sessionEndedRef.current = true;
+    sessionStartTimeRef.current = 0;
+
+    if (mode === 'beacon' && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      const payload = JSON.stringify({ sessionId: sid, authToken: token });
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = `${import.meta.env.VITE_API_URL || ''}${END_SESSION_ENDPOINT}`;
+      if (navigator.sendBeacon(url, blob)) return;
+    }
+
+    endHabitSession(sid).catch(() => {});
+  };
 
   // 使用 React Query mutation hook 进行答案提交
   // 提供乐观更新、自动重试和错误回滚
@@ -113,6 +158,22 @@ export function useMasteryLearning(
     },
     onAmasResult: (result) => {
       setLatestAmasResult(result);
+      // 应用 AMAS 策略到队列
+      if (result.strategy) {
+        wordQueueRef.current.applyStrategy({
+          batchSize: result.strategy.batch_size,
+          difficulty: result.strategy.difficulty,
+          hintLevel: result.strategy.hint_level,
+          intervalScale: result.strategy.interval_scale,
+        });
+      }
+      // 同步后端掌握判定
+      if (result.wordMasteryDecision?.wordId !== undefined) {
+        wordQueueRef.current.updateMasteryFromBackend(
+          result.wordMasteryDecision.wordId,
+          result.wordMasteryDecision.isMastered,
+        );
+      }
     },
     onError: (err) => {
       setError(err.message);
@@ -169,6 +230,7 @@ export function useMasteryLearning(
         if (cachedProgress) {
           currentSessionIdRef.current = cachedProgress.sessionId;
           sessionStartTimeRef.current = Date.now();
+          sessionEndedRef.current = false;
           // 初始化队列，然后恢复进度
           wordQueueRef.current.initializeQueue(filteredWords, {
             masteryThreshold: cachedProgress.masteryThreshold,
@@ -188,6 +250,7 @@ export function useMasteryLearning(
           if (!isMountedRef.current) return;
           currentSessionIdRef.current = session?.sessionId ?? '';
           sessionStartTimeRef.current = Date.now();
+          sessionEndedRef.current = false;
           wordQueueRef.current.initializeQueue(words.words, {
             masteryThreshold: words.meta.masteryThreshold,
             maxTotalQuestions: words.meta.maxQuestions,
@@ -252,11 +315,53 @@ export function useMasteryLearning(
   ]);
 
   useEffect(() => {
-    if (wordQueue.isCompleted && currentSessionIdRef.current && sessionStartTimeRef.current > 0) {
-      endHabitSession(currentSessionIdRef.current).catch(() => {});
-      sessionStartTimeRef.current = 0;
+    if (!wordQueue.isCompleted || sessionEndedRef.current) return;
+
+    // 会话完成时同步最终进度
+    if (currentSessionIdRef.current) {
+      syncProgressMutation.mutate({
+        sessionId: currentSessionIdRef.current,
+        actualMasteryCount: wordQueue.progress.masteredCount,
+        totalQuestions: wordQueue.progress.totalQuestions,
+      });
     }
-  }, [wordQueue.isCompleted]);
+
+    endSessionRef.current('async');
+  }, [wordQueue.isCompleted, wordQueue.progress, syncProgressMutation]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleBeforeUnload = () => {
+      endSessionRef.current('beacon');
+    };
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) return;
+      endSessionRef.current('beacon');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // 组件卸载时同步进度（仅在会话未结束时）
+      if (!sessionEndedRef.current && currentSessionIdRef.current) {
+        const queueState = wordQueueRef.current.queueManagerRef.current?.getState();
+        if (queueState && queueState.totalQuestions > 0) {
+          syncProgress({
+            sessionId: currentSessionIdRef.current,
+            actualMasteryCount: queueState.masteredWordIds?.length ?? 0,
+            totalQuestions: queueState.totalQuestions,
+          }).catch(() => {});
+        }
+      }
+      endSessionRef.current('async');
+    };
+  }, []);
 
   // Actions
   const submitAnswer = useCallback(
@@ -302,6 +407,17 @@ export function useMasteryLearning(
         pausedTimeMs,
         latestAmasState: amasState,
       });
+
+      // 每 5 次答题同步一次进度到服务器
+      const currentTotal = wordQueue.progress.totalQuestions;
+      if (currentTotal > 0 && currentTotal % 5 === 0 && currentTotal !== lastSyncCountRef.current) {
+        lastSyncCountRef.current = currentTotal;
+        syncProgressMutation.mutate({
+          sessionId: currentSessionIdRef.current,
+          actualMasteryCount: wordQueue.progress.masteredCount,
+          totalQuestions: currentTotal,
+        });
+      }
     },
     [
       wordQueue,
@@ -311,6 +427,7 @@ export function useMasteryLearning(
       getDialogPausedTime,
       resetDialogPausedTime,
       submitAnswerMutation,
+      syncProgressMutation,
     ],
   );
 

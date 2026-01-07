@@ -97,6 +97,13 @@ interface ApiProcessEventResponse {
     prevInterval: number;
     newInterval: number;
     quality: number;
+    stability: number;
+    difficulty: number;
+    retrievability: number;
+    isMastered: boolean;
+    lapses: number;
+    reps: number;
+    confidence: number;
   };
   reward: { value: number; reason: string };
   coldStartPhase?: string;
@@ -407,8 +414,13 @@ export class AmasClient extends BaseClient {
               prevInterval: raw.wordMasteryDecision.prevInterval,
               newInterval: raw.wordMasteryDecision.newInterval,
               quality: raw.wordMasteryDecision.quality,
-              isMastered: raw.wordMasteryDecision.newMastery >= 0.8,
-              confidence: Math.min(raw.wordMasteryDecision.newMastery, 1),
+              stability: raw.wordMasteryDecision.stability,
+              difficulty: raw.wordMasteryDecision.difficulty,
+              retrievability: raw.wordMasteryDecision.retrievability,
+              isMastered: raw.wordMasteryDecision.isMastered,
+              lapses: raw.wordMasteryDecision.lapses,
+              reps: raw.wordMasteryDecision.reps,
+              confidence: raw.wordMasteryDecision.confidence,
               suggestedRepeats: raw.wordMasteryDecision.quality < 3 ? 2 : 0,
             }
           : undefined,

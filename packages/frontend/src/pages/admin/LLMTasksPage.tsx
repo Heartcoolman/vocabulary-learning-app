@@ -250,7 +250,7 @@ function TaskList({
   onComplete: (id: string) => void;
   onFail: (id: string, error: string) => void;
 }) {
-  if (tasks.length === 0) {
+  if (!tasks || tasks.length === 0) {
     return (
       <div className="py-16 text-center">
         <Queue size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
@@ -367,7 +367,7 @@ function VariantList({
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }) {
-  if (variants.length === 0) {
+  if (!variants || variants.length === 0) {
     return (
       <div className="py-16 text-center">
         <Plus size={48} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />

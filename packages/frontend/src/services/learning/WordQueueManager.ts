@@ -353,15 +353,15 @@ export class WordQueueManager {
 
   /**
    * 检查是否达到掌握标准
-   * 优先使用AMAS判定,降级使用默认规则
+   * 后端AMAS为权威来源，本地规则仅作离线降级
    */
   private checkMastery(
     progress: WordProgress,
     responseTime: number,
     amasDecision?: MasteryDecision,
   ): boolean {
-    // 优先使用AMAS判定
-    if (amasDecision && amasDecision.confidence > 0.7) {
+    // 后端 AMAS 为权威来源
+    if (amasDecision) {
       learningLogger.info(
         `[WordQueue] 使用AMAS判定: isMastered=${amasDecision.isMastered}, ` +
           `confidence=${amasDecision.confidence.toFixed(2)}`,
@@ -369,18 +369,13 @@ export class WordQueueManager {
       return amasDecision.isMastered;
     }
 
-    // 降级: 使用默认规则
-    // 条件1: 连续正确N次
+    // 离线降级规则（仅在无法连接后端时使用）
     if (progress.consecutiveCorrect >= this.config.masteryThreshold) {
       return true;
     }
-
-    // 条件2: 首次秒答(<3秒)
     if (progress.attempts === 1 && progress.correctCount === 1 && responseTime < 3000) {
       return true;
     }
-
-    // 条件3: 容错模式(3/4正确)
     if (progress.correctCount >= 3 && progress.wrongCount <= 1) {
       return true;
     }
@@ -506,6 +501,74 @@ export class WordQueueManager {
   }
 
   // ========== 队列动态调整方法 ==========
+
+  /**
+   * 应用 AMAS 策略参数
+   * @param strategy AMAS 返回的策略
+   */
+  applyStrategy(strategy: {
+    batchSize?: number;
+    difficulty?: string;
+    hintLevel?: number;
+    intervalScale?: number;
+  }): void {
+    if (strategy.batchSize !== undefined) {
+      this.config.maxActiveWords = Math.min(Math.max(strategy.batchSize, 3), 20);
+    }
+    if (strategy.difficulty !== undefined) {
+      this.config.masteryThreshold =
+        strategy.difficulty === 'easy' ? 1 : strategy.difficulty === 'hard' ? 3 : 2;
+    }
+    learningLogger.debug({ strategy, config: this.config }, '[WordQueue] Applied AMAS strategy');
+  }
+
+  /**
+   * 根据后端 AMAS 判定更新单词掌握状态
+   * @param wordId 单词ID
+   * @param isMastered 后端判定是否掌握
+   */
+  updateMasteryFromBackend(wordId: string, isMastered: boolean): void {
+    const wasInActive = this.activeWords.has(wordId);
+    const wasInMastered = this.masteredWords.has(wordId);
+    const pendingIndex = this.pendingWords.findIndex((w) => w.id === wordId);
+
+    if (isMastered && wasInActive && !wasInMastered) {
+      this.activeWords.delete(wordId);
+      this.masteredWords.add(wordId);
+      learningLogger.info(
+        `[WordQueue] 后端确认掌握: ${this.getWordItem(wordId)?.spelling}, ` +
+          `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`,
+      );
+    } else if (isMastered && pendingIndex !== -1 && !wasInMastered) {
+      this.pendingWords.splice(pendingIndex, 1);
+      this.masteredWords.add(wordId);
+      learningLogger.info(
+        `[WordQueue] 后端确认掌握(from pending): ${this.getWordItem(wordId)?.spelling}, ` +
+          `mastered=${this.masteredWords.size}/${this.config.targetMasteryCount}`,
+      );
+    } else if (!isMastered && wasInMastered && !wasInActive) {
+      this.masteredWords.delete(wordId);
+      const word = this.getWordItem(wordId);
+      if (word) {
+        this.activeWords.set(wordId, {
+          wordId,
+          correctCount: 0,
+          wrongCount: 0,
+          consecutiveCorrect: 0,
+          attempts: 0,
+          lastAttemptTime: Date.now(),
+        });
+      }
+      learningLogger.info(`[WordQueue] 后端撤销掌握: ${word?.spelling}, 重新加入活跃队列`);
+    }
+  }
+
+  /**
+   * 获取当前配置
+   */
+  getConfig(): Readonly<QueueConfig> {
+    return { ...this.config };
+  }
 
   /**
    * 获取当前队列中的所有单词ID（包括活跃和等待中）
