@@ -1,11 +1,13 @@
-use crate::amas::types::{FeatureVector, StrategyParams, UserState};
+use serde::{Deserialize, Serialize};
 use rand::Rng;
 use std::collections::HashMap;
+
+use crate::amas::types::{FeatureVector, StrategyParams, UserState};
 
 const MAX_PARAMS_CACHE_SIZE: usize = 1000;
 const MAX_GAMMA_ITERATIONS: usize = 10000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BetaParams {
     alpha: f64,
     beta: f64,
@@ -22,7 +24,7 @@ impl BetaParams {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThompsonSamplingModel {
     prior_alpha: f64,
     prior_beta: f64,

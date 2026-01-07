@@ -11,6 +11,7 @@ use crate::amas::modeling::{
 use crate::amas::persistence::AMASPersistence;
 use crate::amas::types::*;
 use crate::db::DatabaseProxy;
+use crate::services::fsrs::{FSRSParams, FSRSState, Rating, fsrs_next_interval, fsrs_next_interval_with_root, fsrs_retrievability, compute_fsrs_mastery_score};
 
 struct UserModels {
     attention: AttentionMonitor,
@@ -152,27 +153,108 @@ impl AMASEngine {
 
         let explanation = self.build_explanation(&candidates, &new_user_state, &new_strategy);
 
-        // Calculate actual interval in days based on mastery and scale factor
-        let base_interval_days = match new_user_state.cognitive.mem {
-            m if m >= 0.8 => 7.0,  // Well learned: 7 days base
-            m if m >= 0.6 => 3.0,  // Learning: 3 days base
-            m if m >= 0.4 => 1.0,  // Early learning: 1 day base
-            _ => 0.5,              // New/struggling: 12 hours base
-        };
-        let prev_base_interval = match state.user_state.cognitive.mem {
-            m if m >= 0.8 => 7.0,
-            m if m >= 0.6 => 3.0,
-            m if m >= 0.4 => 1.0,
-            _ => 0.5,
-        };
+        // Calculate interval using FSRS when word state is available
+        let word_mastery_decision = event.word_id.as_ref().map(|wid| {
+            let rating = Rating::from_correct(event.is_correct, event.response_time);
+            let fsrs_params = FSRSParams::default();
 
-        let word_mastery_decision = event.word_id.as_ref().map(|wid| WordMasteryDecision {
-            word_id: wid.clone(),
-            prev_mastery: state.user_state.cognitive.mem,
-            new_mastery: new_user_state.cognitive.mem,
-            prev_interval: prev_base_interval * current_strategy.interval_scale,
-            new_interval: base_interval_days * new_strategy.interval_scale,
-            quality: if event.is_correct { 4 } else { 2 },
+            if let Some(ref ws) = options.word_state {
+                // Use FSRS with existing word state
+                let fsrs_state = FSRSState {
+                    stability: ws.stability,
+                    difficulty: ws.difficulty,
+                    elapsed_days: ws.elapsed_days,
+                    scheduled_days: ws.scheduled_days,
+                    reps: ws.reps,
+                    lapses: ws.lapses,
+                };
+                let desired_retention = ws.desired_retention.max(0.8).min(0.95);
+                let root_bonus = options.root_features.as_ref()
+                    .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
+                    .unwrap_or(0.0);
+                let result = fsrs_next_interval_with_root(&fsrs_state, rating, desired_retention, &fsrs_params, root_bonus);
+                let retrievability = fsrs_retrievability(ws.stability, ws.elapsed_days);
+
+                // AMAS comprehensive mastery decision
+                let (fsrs_score, _fsrs_conf) = compute_fsrs_mastery_score(&result.state, rating);
+                let is_first_attempt = ws.reps == 0;
+
+                // Cognitive state adjustment (0-30 points)
+                let cognitive_score = (
+                    new_user_state.cognitive.mem * 0.4 +
+                    new_user_state.cognitive.speed * 0.3 +
+                    new_user_state.cognitive.stability * 0.3
+                ) * 20.0;
+                let attention_bonus = new_user_state.attention * 10.0;
+                let fatigue_penalty = new_user_state.fatigue * 10.0;
+                let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
+
+                // First attempt fast correct bonus
+                let first_attempt_bonus = if is_first_attempt && rating == Rating::Easy { 15.0 } else { 0.0 };
+
+                let total_score = fsrs_score + user_state_score + first_attempt_bonus;
+                let confidence = (total_score / 100.0).clamp(0.0, 1.0);
+                let is_mastered_decision = total_score >= 60.0;
+
+                WordMasteryDecision {
+                    word_id: wid.clone(),
+                    prev_mastery: retrievability,
+                    new_mastery: result.retrievability,
+                    prev_interval: ws.scheduled_days,
+                    new_interval: result.interval_days * new_strategy.interval_scale,
+                    quality: rating as i32,
+                    stability: result.state.stability,
+                    difficulty: result.state.difficulty,
+                    retrievability: result.retrievability,
+                    is_mastered: is_mastered_decision,
+                    lapses: result.state.lapses,
+                    reps: result.state.reps,
+                    confidence,
+                }
+            } else {
+                // New word: use FSRS with default state
+                let fsrs_state = FSRSState::default();
+                let root_bonus = options.root_features.as_ref()
+                    .map(|rf| (rf.avg_root_mastery / 5.0).clamp(0.0, 1.0))
+                    .unwrap_or(0.0);
+                let result = fsrs_next_interval_with_root(&fsrs_state, rating, 0.9, &fsrs_params, root_bonus);
+
+                // AMAS comprehensive mastery decision for new word
+                let (fsrs_score, _) = compute_fsrs_mastery_score(&result.state, rating);
+
+                // Cognitive state adjustment (0-30 points)
+                let cognitive_score = (
+                    new_user_state.cognitive.mem * 0.4 +
+                    new_user_state.cognitive.speed * 0.3 +
+                    new_user_state.cognitive.stability * 0.3
+                ) * 20.0;
+                let attention_bonus = new_user_state.attention * 10.0;
+                let fatigue_penalty = new_user_state.fatigue * 10.0;
+                let user_state_score = cognitive_score + attention_bonus - fatigue_penalty;
+
+                // First attempt fast correct bonus (always true for new word)
+                let first_attempt_bonus = if rating == Rating::Easy { 15.0 } else { 0.0 };
+
+                let total_score = fsrs_score + user_state_score + first_attempt_bonus;
+                let confidence = (total_score / 100.0).clamp(0.0, 1.0);
+                let is_mastered_decision = total_score >= 60.0;
+
+                WordMasteryDecision {
+                    word_id: wid.clone(),
+                    prev_mastery: 0.0,
+                    new_mastery: result.retrievability,
+                    prev_interval: 0.0,
+                    new_interval: result.interval_days * new_strategy.interval_scale,
+                    quality: rating as i32,
+                    stability: result.state.stability,
+                    difficulty: result.state.difficulty,
+                    retrievability: result.retrievability,
+                    is_mastered: is_mastered_decision,
+                    lapses: result.state.lapses,
+                    reps: result.state.reps,
+                    confidence,
+                }
+            }
         });
 
         let cold_start_phase = models.cold_start.as_ref().map(|cs| cs.phase());
@@ -186,10 +268,10 @@ impl AMASEngine {
             state.cold_start_state = Some(cs.state().clone());
         }
 
-        // Update bandit_model for persistence (simplified - just store last action)
+        // Update bandit_model for persistence with actual model state
         state.bandit_model = Some(crate::amas::types::BanditModel {
-            thompson_params: None, // Thompson model is stateful but not easily serializable
-            linucb_state: None,
+            thompson_params: serde_json::to_value(&models.thompson).ok(),
+            linucb_state: serde_json::to_value(&models.linucb).ok(),
             last_action_idx: None,
         });
 
@@ -296,7 +378,21 @@ impl AMASEngine {
         }
 
         if let Some(ref persistence) = self.persistence {
-            if let Some(state) = persistence.load_state(user_id).await {
+            if let Some(mut state) = persistence.load_state(user_id).await {
+                // 基于时间的疲劳衰减（会话级状态隔离）
+                // 使用 user_state.ts 而非 last_updated，因为 ts 反映实际交互时间
+                let elapsed_minutes = (chrono::Utc::now().timestamp_millis() - state.user_state.ts) as f64 / 60000.0;
+                if elapsed_minutes >= 30.0 {
+                    // 30分钟以上：完全重置疲劳和注意力
+                    state.user_state.fatigue = 0.0;
+                    state.user_state.attention = 0.7;
+                } else if elapsed_minutes > 5.0 {
+                    // 5-30分钟：指数衰减疲劳度
+                    let decay_factor = (-0.05 * elapsed_minutes).exp();
+                    state.user_state.fatigue *= decay_factor;
+                }
+                // 5分钟内：保持原状态
+
                 let mut states = self.user_states.write().await;
                 states.insert(user_id.to_string(), state.clone());
                 return state;
@@ -336,19 +432,39 @@ impl AMASEngine {
             }
         }
 
-        let models = if let Some(ref cs_state) = state.cold_start_state {
-            UserModels::from_cold_start_state(config, cs_state.clone())
-        } else {
-            UserModels::new(config)
+        // Restore bandit models from persisted state
+        let linucb = state.bandit_model.as_ref()
+            .and_then(|b| b.linucb_state.as_ref())
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_else(|| LinUCBModel::new(config.bandit.context_dim, config.bandit.alpha));
+
+        let thompson = state.bandit_model.as_ref()
+            .and_then(|b| b.thompson_params.as_ref())
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_else(|| ThompsonSamplingModel::new(1.0, 1.0));
+
+        let models = UserModels {
+            attention: AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing),
+            fatigue: FatigueEstimator::new(config.fatigue.clone()),
+            cognitive: CognitiveProfiler::new(config.cognitive.clone()),
+            motivation: MotivationTracker::new(config.motivation.clone()),
+            trend: TrendAnalyzer::new(config.trend.clone()),
+            cold_start: state.cold_start_state.as_ref().map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs.clone())),
+            linucb: linucb.clone(),
+            thompson: thompson.clone(),
         };
 
         let mut model_map = self.user_models.write().await;
-        let cached_models = if let Some(ref cs_state) = state.cold_start_state {
-            UserModels::from_cold_start_state(config, cs_state.clone())
-        } else {
-            UserModels::new(config)
-        };
-        model_map.insert(user_id.to_string(), cached_models);
+        model_map.insert(user_id.to_string(), UserModels {
+            attention: AttentionMonitor::new(config.attention_weights.clone(), config.attention_smoothing),
+            fatigue: FatigueEstimator::new(config.fatigue.clone()),
+            cognitive: CognitiveProfiler::new(config.cognitive.clone()),
+            motivation: MotivationTracker::new(config.motivation.clone()),
+            trend: TrendAnalyzer::new(config.trend.clone()),
+            cold_start: state.cold_start_state.as_ref().map(|cs| ColdStartManager::from_state(config.cold_start.clone(), cs.clone())),
+            linucb,
+            thompson,
+        });
 
         models
     }
@@ -412,7 +528,7 @@ impl AMASEngine {
 
         let attention = models.attention.update(AttentionFeatures {
             rt_mean: rt_norm,
-            rt_cv: 0.0,
+            rt_cv: options.rt_cv.unwrap_or(0.0),
             pace_cv: 0.0,
             pause_count: event.pause_count as f64,
             switch_count: event.switch_count as f64,

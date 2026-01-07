@@ -428,6 +428,14 @@ pub struct WordMasteryDecision {
     pub prev_interval: f64,
     pub new_interval: f64,
     pub quality: i32,
+    // FSRS fields
+    pub stability: f64,
+    pub difficulty: f64,
+    pub retrievability: f64,
+    pub is_mastered: bool,
+    pub lapses: i32,
+    pub reps: i32,
+    pub confidence: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -489,6 +497,18 @@ pub struct WordReviewHistory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct FSRSWordState {
+    pub stability: f64,
+    pub difficulty: f64,
+    pub elapsed_days: f64,
+    pub scheduled_days: f64,
+    pub reps: i32,
+    pub lapses: i32,
+    pub desired_retention: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessOptions {
     pub current_params: Option<StrategyParams>,
     pub interaction_count: Option<i32>,
@@ -500,6 +520,19 @@ pub struct ProcessOptions {
     pub word_review_history: Option<Vec<WordReviewHistory>>,
     pub visual_fatigue_score: Option<f64>,
     pub study_duration_minutes: Option<f64>,
+    pub word_state: Option<FSRSWordState>,
+    pub rt_cv: Option<f64>,
+    pub pace_cv: Option<f64>,
+    pub root_features: Option<RootFeatures>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RootFeatures {
+    pub root_count: i32,
+    pub known_root_ratio: f64,
+    pub avg_root_mastery: f64,
+    pub max_root_mastery: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

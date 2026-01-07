@@ -106,6 +106,13 @@ pub struct WordMasteryResponse {
     pub prev_interval: f64,
     pub new_interval: f64,
     pub quality: i32,
+    pub stability: f64,
+    pub difficulty: f64,
+    pub retrievability: f64,
+    pub is_mastered: bool,
+    pub lapses: i32,
+    pub reps: i32,
+    pub confidence: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +307,13 @@ pub async fn process_event(
             prev_interval: w.prev_interval,
             new_interval: w.new_interval,
             quality: w.quality,
+            stability: w.stability,
+            difficulty: w.difficulty,
+            retrievability: w.retrievability,
+            is_mastered: w.is_mastered,
+            lapses: w.lapses,
+            reps: w.reps,
+            confidence: w.confidence,
         }),
         reward: RewardResponse {
             value: result.reward.value,

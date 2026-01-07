@@ -187,6 +187,14 @@ struct WordMasteryResponse {
     prev_interval: f64,
     new_interval: f64,
     quality: i32,
+    // FSRS fields
+    stability: f64,
+    difficulty: f64,
+    retrievability: f64,
+    is_mastered: bool,
+    lapses: i32,
+    reps: i32,
+    confidence: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -263,6 +271,34 @@ async fn process_event(
 
     let word_id = body.word_id.clone();
     let response_time = body.response_time.max(0);
+
+    // Load existing word state for FSRS calculation
+    let existing_word_state = crate::services::learning_state::get_word_state(
+        proxy.pool(),
+        &user.id,
+        &word_id,
+    ).await.ok().flatten();
+
+    let fsrs_word_state = existing_word_state.as_ref().map(|ws| {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let elapsed_days = ws.last_review_date
+            .map(|lr| (now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
+            .unwrap_or(0.0);
+        crate::amas::types::FSRSWordState {
+            stability: ws.stability,
+            difficulty: ws.difficulty,
+            elapsed_days,
+            scheduled_days: ws.scheduled_days,
+            reps: ws.reps,
+            lapses: ws.lapses,
+            desired_retention: ws.desired_retention,
+        }
+    });
+
+    // Load recent answers for feature calculation
+    let recent_answers = load_recent_answers(proxy.pool(), &user.id, 20).await;
+    let (rt_cv, recent_accuracy) = calculate_performance_features(&recent_answers);
+
     let raw_event = RawEvent {
         word_id: Some(body.word_id),
         is_correct: body.is_correct,
@@ -279,7 +315,12 @@ async fn process_event(
         ..Default::default()
     };
 
-    let options = ProcessOptions::default();
+    let options = ProcessOptions {
+        word_state: fsrs_word_state,
+        rt_cv: Some(rt_cv),
+        recent_accuracy: Some(recent_accuracy),
+        ..Default::default()
+    };
 
     let engine = state.amas_engine();
     let result = engine.process_event(&user.id, raw_event, options)
@@ -300,15 +341,15 @@ async fn process_event(
         tracing::warn!(error = %e, "Failed to save state snapshot");
     }
 
-    // Update word_learning_states based on mastery decision
+    // Update word_learning_states based on mastery decision with FSRS data
     if let Some(ref mastery) = result.word_mastery_decision {
         let now_ms = chrono::Utc::now().timestamp_millis();
-        let mastery_level = ((mastery.new_mastery * 5.0).floor() as i32).clamp(0, 5);
-        let word_state = if mastery.new_mastery >= 0.8 {
+        let mastery_level = ((mastery.retrievability * 5.0).floor() as i32).clamp(0, 5);
+        let word_state = if mastery.is_mastered {
             WordState::Mastered
-        } else if mastery.new_mastery >= 0.4 {
+        } else if mastery.stability >= 10.0 {
             WordState::Reviewing
-        } else if mastery.new_mastery > 0.0 {
+        } else if mastery.stability > 1.0 {
             WordState::Learning
         } else {
             WordState::New
@@ -323,6 +364,14 @@ async fn process_event(
             last_review_date: Some(now_ms),
             next_review_date: Some(next_review_ms),
             increment_review: true,
+            // FSRS fields
+            stability: Some(mastery.stability),
+            difficulty: Some(mastery.difficulty),
+            desired_retention: None,
+            lapses: Some(mastery.lapses),
+            reps: Some(mastery.reps),
+            scheduled_days: Some(mastery.new_interval),
+            elapsed_days: Some(0.0),
         };
 
         if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
@@ -362,6 +411,36 @@ async fn process_event(
                 due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
                 idempotency_key: format!("reward:{}:{}", user.id, record.id),
             }).await;
+
+            // Update learning session statistics (only on successful record creation)
+            if !session_id.is_empty() {
+                let _ = sqlx::query(
+                    r#"UPDATE "learning_sessions"
+                       SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1
+                       WHERE "id" = $2 AND "userId" = $3"#
+                )
+                .bind(chrono::Utc::now().naive_utc())
+                .bind(&session_id)
+                .bind(&user.id)
+                .execute(proxy.pool())
+                .await;
+
+                if let Some(ref mastery) = result.word_mastery_decision {
+                    const MASTERY_THRESHOLD: f64 = 0.6;
+                    if mastery.new_mastery >= MASTERY_THRESHOLD && mastery.prev_mastery < MASTERY_THRESHOLD {
+                        let _ = sqlx::query(
+                            r#"UPDATE "learning_sessions"
+                               SET "actualMasteryCount" = "actualMasteryCount" + 1, "updatedAt" = $1
+                               WHERE "id" = $2 AND "userId" = $3"#
+                        )
+                        .bind(chrono::Utc::now().naive_utc())
+                        .bind(&session_id)
+                        .bind(&user.id)
+                        .execute(proxy.pool())
+                        .await;
+                    }
+                }
+            }
         }
         Err(e) => {
             tracing::warn!(error = %e, "Failed to create answer record");
@@ -442,6 +521,13 @@ async fn process_event(
             prev_interval: w.prev_interval,
             new_interval: w.new_interval,
             quality: w.quality,
+            stability: w.stability,
+            difficulty: w.difficulty,
+            retrievability: w.retrievability,
+            is_mastered: w.is_mastered,
+            lapses: w.lapses,
+            reps: w.reps,
+            confidence: w.confidence,
         }),
         reward: RewardResponse {
             value: result.reward.value,
@@ -572,12 +658,12 @@ async fn batch_process(
                 // Update word_learning_states for this event
                 if let Some(ref mastery) = result.word_mastery_decision {
                     let now_ms = chrono::Utc::now().timestamp_millis();
-                    let mastery_level = ((mastery.new_mastery * 5.0).floor() as i32).clamp(0, 5);
-                    let word_state = if mastery.new_mastery >= 0.8 {
+                    let mastery_level = ((mastery.retrievability * 5.0).floor() as i32).clamp(0, 5);
+                    let word_state = if mastery.is_mastered {
                         WordState::Mastered
-                    } else if mastery.new_mastery >= 0.4 {
+                    } else if mastery.stability >= 10.0 {
                         WordState::Reviewing
-                    } else if mastery.new_mastery > 0.0 {
+                    } else if mastery.stability > 1.0 {
                         WordState::Learning
                     } else {
                         WordState::New
@@ -592,6 +678,13 @@ async fn batch_process(
                         last_review_date: Some(now_ms),
                         next_review_date: Some(next_review_ms),
                         increment_review: true,
+                        stability: Some(mastery.stability),
+                        difficulty: Some(mastery.difficulty),
+                        desired_retention: None,
+                        lapses: Some(mastery.lapses),
+                        reps: Some(mastery.reps),
+                        scheduled_days: Some(mastery.new_interval),
+                        elapsed_days: Some(0.0),
                     };
 
                     if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
@@ -1508,4 +1601,63 @@ async fn reset_user_state(
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
 
     Ok(())
+}
+
+struct RecentAnswer {
+    response_time: i64,
+    is_correct: bool,
+}
+
+async fn load_recent_answers(pool: &PgPool, user_id: &str, limit: i32) -> Vec<RecentAnswer> {
+    let rows = sqlx::query(
+        r#"
+        SELECT "responseTime", "isCorrect"
+        FROM "answer_records"
+        WHERE "userId" = $1 AND "responseTime" IS NOT NULL
+        ORDER BY "createdAt" DESC
+        LIMIT $2
+        "#,
+    )
+    .bind(user_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await;
+
+    match rows {
+        Ok(rows) => rows
+            .iter()
+            .filter_map(|row| {
+                let rt: Option<i64> = row.try_get("responseTime").ok();
+                let correct: Option<bool> = row.try_get("isCorrect").ok();
+                match (rt, correct) {
+                    (Some(rt), Some(c)) => Some(RecentAnswer {
+                        response_time: rt,
+                        is_correct: c,
+                    }),
+                    _ => None,
+                }
+            })
+            .collect(),
+        Err(_) => vec![],
+    }
+}
+
+fn calculate_performance_features(answers: &[RecentAnswer]) -> (f64, f64) {
+    if answers.is_empty() {
+        return (0.0, 0.7);
+    }
+
+    let rts: Vec<f64> = answers.iter().map(|a| a.response_time as f64).collect();
+    let rt_mean = rts.iter().sum::<f64>() / rts.len() as f64;
+    let rt_cv = if rt_mean > 0.0 {
+        let variance = rts.iter().map(|rt| (rt - rt_mean).powi(2)).sum::<f64>() / rts.len() as f64;
+        variance.sqrt() / rt_mean
+    } else {
+        0.0
+    };
+
+    let correct_count = answers.iter().filter(|a| a.is_correct).count();
+    let recent_accuracy = correct_count as f64 / answers.len() as f64;
+
+    (rt_cv.min(2.0), recent_accuracy)
 }

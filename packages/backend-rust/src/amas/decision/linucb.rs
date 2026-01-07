@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::amas::types::{FeatureVector, StrategyParams, UserState};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinUCBModel {
     d: usize,
     alpha: f64,

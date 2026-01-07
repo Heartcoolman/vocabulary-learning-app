@@ -178,6 +178,10 @@ pub async fn insert_amas_user_model(
         INSERT INTO "amas_user_models" (
             "id", "userId", "modelType", "parameters", "version", "createdAt", "updatedAt"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT ("id") DO UPDATE SET
+            "parameters" = EXCLUDED."parameters",
+            "version" = EXCLUDED."version",
+            "updatedAt" = EXCLUDED."updatedAt"
         "#,
     )
     .bind(&model.id)
