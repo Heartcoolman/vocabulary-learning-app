@@ -7,6 +7,7 @@ use chrono::{NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
+use crate::cache::keys::{user_profile_key, USER_PROFILE_TTL};
 use crate::response::json_error;
 use crate::services::user_profile::{
     compute_chronotype, compute_learning_style, CognitiveProfileResponse,
@@ -25,7 +26,7 @@ struct MessageResponse {
     message: &'static str,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MeResponse {
     id: String,
@@ -126,12 +127,20 @@ pub async fn me(
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+    let cache = state.cache();
+    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
         }
     };
+
+    let cache_key = user_profile_key(&auth_user.id);
+    if let Some(ref cache) = cache {
+        if let Some(user) = cache.get::<MeResponse>(&cache_key).await {
+            return Json(SuccessResponse { success: true, data: user }).into_response();
+        }
+    }
 
     let user = match select_user_me(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(value)) => value,
@@ -143,6 +152,10 @@ pub async fn me(
             return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
         }
     };
+
+    if let Some(ref cache) = cache {
+        cache.set(&cache_key, &user, USER_PROFILE_TTL).await;
+    }
 
     Json(SuccessResponse {
         success: true,
@@ -186,7 +199,8 @@ pub async fn update_profile(
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+    let cache = state.cache();
+    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -212,6 +226,11 @@ pub async fn update_profile(
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
     }
 
+    let cache_key = user_profile_key(&auth_user.id);
+    if let Some(ref cache) = cache {
+        cache.delete(&cache_key).await;
+    }
+
     let user = match select_user_me(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(value)) => value,
         Ok(None) => {
@@ -222,6 +241,10 @@ pub async fn update_profile(
             return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
         }
     };
+
+    if let Some(ref cache) = cache {
+        cache.set(&cache_key, &user, USER_PROFILE_TTL).await;
+    }
 
     Json(SuccessResponse {
         success: true,
@@ -408,7 +431,8 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
     };
 
-    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+    let cache = state.cache();
+    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
         Ok(user) => user,
         Err(_) => {
             return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
@@ -432,6 +456,10 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
     {
         tracing::warn!(error = %err, "reward profile update failed");
         return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+    }
+
+    if let Some(ref cache) = cache {
+        cache.delete(&user_profile_key(&auth_user.id)).await;
     }
 
     Json(SuccessResponse {

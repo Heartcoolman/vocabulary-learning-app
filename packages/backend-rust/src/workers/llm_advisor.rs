@@ -60,7 +60,7 @@ async fn collect_system_stats(pool: &PgPool) -> Result<SystemStats, super::Worke
     let row = sqlx::query(
         r#"
         SELECT
-            (SELECT COUNT(*) FROM "user") as total_users,
+            (SELECT COUNT(*) FROM "users") as total_users,
             (SELECT COUNT(DISTINCT "userId") FROM "answer_records" WHERE "timestamp" >= $1) as active_users,
             (SELECT COUNT(*) FROM "answer_records" WHERE "timestamp" >= $1) as total_answers,
             (SELECT AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) FROM "answer_records" WHERE "timestamp" >= $1) as avg_correct

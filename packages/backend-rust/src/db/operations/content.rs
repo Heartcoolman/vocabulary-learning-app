@@ -2,6 +2,8 @@ use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
+use crate::cache::keys::{word_key, wordbook_system_list_key, WORD_TTL, WORDBOOK_SYSTEM_LIST_TTL};
+use crate::cache::RedisCache;
 use crate::db::DatabaseProxy;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,12 +99,32 @@ pub async fn get_user_word_books(
 pub async fn get_system_word_books(
     proxy: &DatabaseProxy,
 ) -> Result<Vec<WordBook>, sqlx::Error> {
+    get_system_word_books_cached(proxy, None).await
+}
+
+pub async fn get_system_word_books_cached(
+    proxy: &DatabaseProxy,
+    cache: Option<&RedisCache>,
+) -> Result<Vec<WordBook>, sqlx::Error> {
+    let cache_key = wordbook_system_list_key();
+    if let Some(cache) = cache {
+        if let Some(books) = cache.get::<Vec<WordBook>>(cache_key).await {
+            return Ok(books);
+        }
+    }
+
     let rows = sqlx::query(
         r#"SELECT * FROM "word_books" WHERE "type"::text = 'SYSTEM' ORDER BY "createdAt" DESC"#,
     )
     .fetch_all(proxy.pool())
     .await?;
-    Ok(rows.iter().map(map_word_book).collect())
+    let books: Vec<WordBook> = rows.iter().map(map_word_book).collect();
+
+    if let Some(cache) = cache {
+        cache.set(cache_key, &books, WORDBOOK_SYSTEM_LIST_TTL).await;
+    }
+
+    Ok(books)
 }
 
 pub async fn insert_word_book(
@@ -170,13 +192,35 @@ pub async fn get_word(
     proxy: &DatabaseProxy,
     word_id: &str,
 ) -> Result<Option<Word>, sqlx::Error> {
+    get_word_cached(proxy, word_id, None).await
+}
+
+pub async fn get_word_cached(
+    proxy: &DatabaseProxy,
+    word_id: &str,
+    cache: Option<&RedisCache>,
+) -> Result<Option<Word>, sqlx::Error> {
+    let cache_key = word_key(word_id);
+    if let Some(cache) = cache {
+        if let Some(word) = cache.get::<Word>(&cache_key).await {
+            return Ok(Some(word));
+        }
+    }
+
     let row = sqlx::query(
         r#"SELECT * FROM "words" WHERE "id" = $1 LIMIT 1"#,
     )
     .bind(word_id)
     .fetch_optional(proxy.pool())
     .await?;
-    Ok(row.map(|r| map_word(&r)))
+
+    let word = row.map(|r| map_word(&r));
+
+    if let (Some(cache), Some(ref w)) = (cache, &word) {
+        cache.set(&cache_key, w, WORD_TTL).await;
+    }
+
+    Ok(word)
 }
 
 pub async fn get_words_by_book(

@@ -52,6 +52,14 @@ pub struct WordLearningState {
     pub next_review_date: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
+    // FSRS fields
+    pub stability: f64,
+    pub difficulty: f64,
+    pub desired_retention: f64,
+    pub lapses: i32,
+    pub reps: i32,
+    pub scheduled_days: f64,
+    pub elapsed_days: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,6 +148,14 @@ pub struct WordStateUpdateData {
     pub next_review_date: Option<i64>,
     #[serde(default)]
     pub increment_review: bool,
+    // FSRS fields
+    pub stability: Option<f64>,
+    pub difficulty: Option<f64>,
+    pub desired_retention: Option<f64>,
+    pub lapses: Option<i32>,
+    pub reps: Option<i32>,
+    pub scheduled_days: Option<f64>,
+    pub elapsed_days: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -160,7 +176,8 @@ pub async fn get_word_state(
 ) -> Result<Option<WordLearningState>, String> {
     let row = sqlx::query(
         r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
            FROM "word_learning_states" WHERE "userId" = $1 AND "wordId" = $2"#,
     )
     .bind(user_id)
@@ -170,7 +187,11 @@ pub async fn get_word_state(
     .map_err(|e| format!("查询失败: {e}"))?;
 
     let Some(row) = row else { return Ok(None) };
-    Ok(Some(WordLearningState {
+    Ok(Some(parse_word_learning_state(&row)?))
+}
+
+fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearningState, String> {
+    Ok(WordLearningState {
         id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
         user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
         word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
@@ -182,7 +203,14 @@ pub async fn get_word_state(
         next_review_date: row.try_get::<Option<DateTime<Utc>>, _>("nextReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
         created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
         updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-    }))
+        stability: row.try_get("stability").unwrap_or(1.0),
+        difficulty: row.try_get("difficulty").unwrap_or(0.3),
+        desired_retention: row.try_get("desiredRetention").unwrap_or(0.9),
+        lapses: row.try_get("lapses").unwrap_or(0),
+        reps: row.try_get("reps").unwrap_or(0),
+        scheduled_days: row.try_get("scheduledDays").unwrap_or(0.0),
+        elapsed_days: row.try_get("elapsedDays").unwrap_or(0.0),
+    })
 }
 
 pub async fn get_user_stats(pool: &PgPool, user_id: &str) -> Result<UserStats, String> {
@@ -217,7 +245,8 @@ pub async fn get_due_words(
     let now = Utc::now();
     let rows = sqlx::query(
         r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
            FROM "word_learning_states"
            WHERE "userId" = $1 AND "nextReviewDate" <= $2
            ORDER BY "nextReviewDate" ASC LIMIT $3"#,
@@ -229,21 +258,7 @@ pub async fn get_due_words(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter().map(|row| {
-        Ok(WordLearningState {
-            id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-            user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
-            word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
-            state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
-            mastery_level: row.try_get("masteryLevel").unwrap_or(0),
-            ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
-            review_count: row.try_get("reviewCount").unwrap_or(0),
-            last_review_date: row.try_get::<Option<DateTime<Utc>>, _>("lastReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-            next_review_date: row.try_get::<Option<DateTime<Utc>>, _>("nextReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-            created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-            updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-        })
-    }).collect()
+    rows.iter().map(|row| parse_word_learning_state(row)).collect()
 }
 
 pub async fn get_words_by_state(
@@ -255,7 +270,8 @@ pub async fn get_words_by_state(
     let state_str = state.as_str();
     let rows = sqlx::query(
         r#"SELECT "id", "userId", "wordId", "state", "masteryLevel", "easeFactor", "reviewCount",
-           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt"
+           "lastReviewDate", "nextReviewDate", "createdAt", "updatedAt",
+           "stability", "difficulty", "desiredRetention", "lapses", "reps", "scheduledDays", "elapsedDays"
            FROM "word_learning_states"
            WHERE "userId" = $1 AND "state" = $2 LIMIT $3"#,
     )
@@ -266,21 +282,7 @@ pub async fn get_words_by_state(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter().map(|row| {
-        Ok(WordLearningState {
-            id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-            user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
-            word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
-            state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
-            mastery_level: row.try_get("masteryLevel").unwrap_or(0),
-            ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
-            review_count: row.try_get("reviewCount").unwrap_or(0),
-            last_review_date: row.try_get::<Option<DateTime<Utc>>, _>("lastReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-            next_review_date: row.try_get::<Option<DateTime<Utc>>, _>("nextReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-            created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-            updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-        })
-    }).collect()
+    rows.iter().map(|row| parse_word_learning_state(row)).collect()
 }
 
 pub async fn get_word_score(
@@ -442,22 +444,36 @@ pub async fn upsert_word_state(
     let next_review: Option<DateTime<Utc>> = data.next_review_date.and_then(DateTime::from_timestamp_millis);
 
     sqlx::query(
-        r#"INSERT INTO "word_learning_states" ("id","userId","wordId","state","masteryLevel","easeFactor",
-           "reviewCount","lastReviewDate","nextReviewDate","createdAt","updatedAt")
-           VALUES ($1,$2,$3,COALESCE($4::"WordState",'NEW'::"WordState"),COALESCE($5,0),COALESCE($6,2.5),COALESCE($7,0),$8,$9,$10,$11)
-           ON CONFLICT ("userId","wordId") DO UPDATE SET
+        r#"INSERT INTO "word_learning_states" (
+           "id","userId","wordId","state","masteryLevel","easeFactor",
+           "reviewCount","lastReviewDate","nextReviewDate","createdAt","updatedAt",
+           "stability","difficulty","desiredRetention","lapses","reps","scheduledDays","elapsedDays"
+         )
+         VALUES ($1,$2,$3,COALESCE($4::"WordState",'NEW'::"WordState"),COALESCE($5,0),COALESCE($6,2.5),
+                 COALESCE($7,0),$8,$9,$10,$11,
+                 COALESCE($13,1.0),COALESCE($14,0.3),COALESCE($15,0.9),COALESCE($16,0),COALESCE($17,0),COALESCE($18,0.0),COALESCE($19,0.0))
+         ON CONFLICT ("userId","wordId") DO UPDATE SET
            "state"=COALESCE($4::"WordState","word_learning_states"."state"),
            "masteryLevel"=COALESCE($5,"word_learning_states"."masteryLevel"),
            "easeFactor"=COALESCE($6,"word_learning_states"."easeFactor"),
            "reviewCount"=CASE WHEN $12 THEN "word_learning_states"."reviewCount"+1 ELSE COALESCE($7,"word_learning_states"."reviewCount") END,
            "lastReviewDate"=COALESCE($8,"word_learning_states"."lastReviewDate"),
            "nextReviewDate"=COALESCE($9,"word_learning_states"."nextReviewDate"),
-           "updatedAt"=$11"#,
+           "updatedAt"=$11,
+           "stability"=COALESCE($13,"word_learning_states"."stability"),
+           "difficulty"=COALESCE($14,"word_learning_states"."difficulty"),
+           "desiredRetention"=COALESCE($15,"word_learning_states"."desiredRetention"),
+           "lapses"=COALESCE($16,"word_learning_states"."lapses"),
+           "reps"=CASE WHEN $12 THEN "word_learning_states"."reps"+1 ELSE COALESCE($17,"word_learning_states"."reps") END,
+           "scheduledDays"=COALESCE($18,"word_learning_states"."scheduledDays"),
+           "elapsedDays"=COALESCE($19,"word_learning_states"."elapsedDays")"#,
     )
     .bind(&id).bind(user_id).bind(word_id).bind(state_str)
     .bind(data.mastery_level).bind(data.ease_factor).bind(data.review_count)
     .bind(last_review).bind(next_review).bind(now).bind(now)
     .bind(data.increment_review)
+    .bind(data.stability).bind(data.difficulty).bind(data.desired_retention)
+    .bind(data.lapses).bind(data.reps).bind(data.scheduled_days).bind(data.elapsed_days)
     .execute(pool).await.map_err(|e| format!("写入失败: {e}"))?;
 
     Ok(())

@@ -1264,7 +1264,10 @@ pub async fn get_user_heatmap(
             COUNT(*) as "activityCount",
             COUNT(*) FILTER (WHERE "isCorrect" = true) as "correctCount",
             COUNT(DISTINCT "wordId") as "wordsLearned",
-            COALESCE(AVG("score"), 0) as "avgScore"
+            CASE WHEN COUNT(*) > 0
+                THEN (SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END)::double precision * 100 / COUNT(*)::double precision)
+                ELSE 0
+            END as "avgScore"
         FROM "answer_records"
         WHERE "userId" = $1 AND DATE("timestamp") BETWEEN $2 AND $3
         GROUP BY DATE("timestamp")
@@ -1446,13 +1449,14 @@ pub async fn get_word_history(
         SELECT
             ar."id",
             ar."timestamp",
-            ar."answerType" as "answerType",
+            'quiz' as "answerType",
             ar."isCorrect",
-            ar."score",
-            ar."responseTimeMs",
+            COALESCE(ws."totalScore", 0) as "score",
+            COALESCE(ar."responseTime", 0) as "responseTimeMs",
             wls."masteryLevel"
         FROM "answer_records" ar
         LEFT JOIN "word_learning_states" wls ON wls."userId" = ar."userId" AND wls."wordId" = ar."wordId"
+        LEFT JOIN "word_scores" ws ON ws."userId" = ar."userId" AND ws."wordId" = ar."wordId"
         WHERE ar."userId" = $1 AND ar."wordId" = $2
         ORDER BY ar."timestamp" DESC
         LIMIT $3

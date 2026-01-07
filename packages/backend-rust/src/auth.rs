@@ -5,17 +5,19 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, TimeZone, Utc};
 use hmac::{Hmac, Mac};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use sqlx::Row;
 use thiserror::Error;
 
+use crate::cache::keys::{session_key, SESSION_TTL};
+use crate::cache::RedisCache;
 use crate::db::DatabaseProxy;
 
 const AUTH_COOKIE_NAME: &str = "auth_token";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthUser {
     pub id: String,
@@ -72,13 +74,34 @@ pub async fn verify_request_token(
     proxy: &DatabaseProxy,
     token: &str,
 ) -> Result<AuthUser, AuthError> {
+    verify_request_token_cached(proxy, token, None).await
+}
+
+pub async fn verify_request_token_cached(
+    proxy: &DatabaseProxy,
+    token: &str,
+    cache: Option<&RedisCache>,
+) -> Result<AuthUser, AuthError> {
     let secret = std::env::var("JWT_SECRET").map_err(|_| AuthError::MissingSecret)?;
     let claims = verify_jwt_hs256(token, &secret)?;
 
     let token_hash = hash_token(token);
+    let cache_key = session_key(&token_hash);
+
+    if let Some(cache) = cache {
+        if let Some(user) = cache.get::<AuthUser>(&cache_key).await {
+            return Ok(user);
+        }
+    }
 
     let pool = proxy.pool();
-    verify_with_postgres(&pool, &claims.user_id, &token_hash).await
+    let user = verify_with_postgres(&pool, &claims.user_id, &token_hash).await?;
+
+    if let Some(cache) = cache {
+        cache.set(&cache_key, &user, SESSION_TTL).await;
+    }
+
+    Ok(user)
 }
 
 #[derive(Debug, Clone)]

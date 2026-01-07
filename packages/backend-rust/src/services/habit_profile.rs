@@ -230,7 +230,7 @@ pub async fn persist_habit_profile(
            "timePref" = EXCLUDED."timePref", "rhythmPref" = EXCLUDED."rhythmPref", "updatedAt" = EXCLUDED."updatedAt""#,
     )
     .bind(user_id)
-    .bind(&profile.time_pref)
+    .bind(serde_json::to_value(&profile.time_pref).unwrap_or_default())
     .bind(serde_json::json!({
         "sessionMedianMinutes": profile.rhythm_pref.session_median_minutes,
         "batchMedian": profile.rhythm_pref.batch_median,

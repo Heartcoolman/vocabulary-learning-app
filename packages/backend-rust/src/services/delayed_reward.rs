@@ -87,7 +87,7 @@ pub async fn enqueue_delayed_reward(
 
     let result = sqlx::query(
         r#"INSERT INTO "reward_queue" ("id","userId","answerRecordId","sessionId","reward","dueTs","status","idempotencyKey","createdAt","updatedAt")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
+           VALUES ($1,$2,$3,$4,$5,$6,$7::"RewardStatus",$8,NOW(),NOW())
            ON CONFLICT ("idempotencyKey") DO NOTHING
            RETURNING "id","userId","answerRecordId","sessionId","reward","dueTs","status","lastError","createdAt","updatedAt""#,
     )

@@ -20,6 +20,8 @@ struct SuccessResponse<T> {
 #[serde(rename_all = "camelCase")]
 struct EndSessionRequest {
     session_id: String,
+    #[serde(default)]
+    auth_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -150,7 +152,20 @@ async fn end_session(
     headers: HeaderMap,
     Json(payload): Json<EndSessionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (proxy, user) = require_user(&state, &headers).await?;
+    let Some(proxy) = state.db_proxy() else {
+        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "数据库服务不可用"));
+    };
+
+    let token = crate::auth::extract_token(&headers)
+        .or_else(|| payload.auth_token.clone());
+
+    let Some(token) = token else {
+        return Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"));
+    };
+
+    let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
+        .await
+        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
 
     let session_id = payload.session_id.trim().to_string();
     if session_id.is_empty() {
@@ -484,7 +499,7 @@ async fn persist_habit_profile(
         "#,
     )
     .bind(user_id)
-    .bind(&profile.time_pref)
+    .bind(serde_json::to_value(&profile.time_pref).unwrap_or_default())
     .bind(serde_json::json!({
         "sessionMedianMinutes": profile.rhythm_pref.session_median_minutes,
         "batchMedian": profile.rhythm_pref.batch_median,
@@ -493,7 +508,7 @@ async fn persist_habit_profile(
     .bind(now)
     .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?;
+    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "数据库写入失败"))?;
 
     Ok(true)
 }

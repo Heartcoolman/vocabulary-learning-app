@@ -1,4 +1,7 @@
+#![allow(dead_code)]
+
 pub mod amas;
+pub mod cache;
 pub mod config;
 pub mod core;
 pub mod db;
@@ -21,7 +24,7 @@ pub async fn create_app() -> axum::Router {
     };
 
     let amas_engine = AppState::create_amas_engine(db_proxy.clone());
-    let state = AppState::new(db_proxy, amas_engine);
+    let state = AppState::new(db_proxy, amas_engine, None);
 
     routes::router(state)
         .layer(TraceLayer::new_for_http())

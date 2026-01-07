@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 
 mod delayed_reward;
+mod etymology;
 mod forgetting_alert;
 mod llm_advisor;
 mod optimization;
+mod session_cleanup;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -72,6 +74,10 @@ impl WorkerManager {
         let enable_forgetting_alert = std::env::var("ENABLE_FORGETTING_ALERT_WORKER")
             .map(|v| v != "false" && v != "0")
             .unwrap_or(true);
+
+        let enable_etymology = std::env::var("ENABLE_ETYMOLOGY_WORKER")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
 
         let scheduler = self.scheduler.lock().await;
 
@@ -169,6 +175,30 @@ impl WorkerManager {
             info!(schedule = %schedule, "Forgetting alert worker scheduled");
         }
 
+        if enable_etymology {
+            let schedule = std::env::var("ETYMOLOGY_SCHEDULE")
+                .unwrap_or_else(|_| "0 30 3 * * *".to_string());
+            let db = Arc::clone(&self.db_proxy);
+            let shutdown_rx = self.shutdown_tx.subscribe();
+            let job = Job::new_async(&schedule, move |_uuid, _lock| {
+                let db = Arc::clone(&db);
+                let mut rx = shutdown_rx.resubscribe();
+                Box::pin(async move {
+                    tokio::select! {
+                        _ = rx.recv() => {},
+                        result = etymology::run_etymology_analysis(db) => {
+                            if let Err(e) = result {
+                                error!(error = %e, "Etymology worker error");
+                            }
+                        }
+                    }
+                })
+            })
+            .map_err(WorkerError::Scheduler)?;
+            scheduler.add(job).await.map_err(WorkerError::Scheduler)?;
+            info!(schedule = %schedule, "Etymology worker scheduled");
+        }
+
         // AMAS cache cleanup - runs every 10 minutes
         {
             let amas = Arc::clone(&self.amas_engine);
@@ -228,4 +258,6 @@ pub enum WorkerError {
     Scheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("{0}")]
+    Custom(String),
 }

@@ -610,7 +610,7 @@ async fn evaluate_recent_learning_effect_pg(pool: &sqlx::PgPool) -> Result<Optio
         SELECT
             COUNT(*) as "total",
             SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END) as "correct",
-            AVG(NULLIF("responseTime", 0)) as "avg_response_time"
+            AVG(NULLIF("responseTime", 0))::float8 as "avg_response_time"
         FROM "answer_records"
         WHERE "timestamp" >= $1
         "#,

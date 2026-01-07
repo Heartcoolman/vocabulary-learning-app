@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
 
+use danci_backend_rust::cache::RedisCache;
 use danci_backend_rust::config::Config;
 use danci_backend_rust::db;
 use danci_backend_rust::state::AppState;
@@ -34,6 +35,20 @@ async fn main() {
         quality_service::cleanup_stale_tasks(proxy).await;
     }
 
+    let cache = match std::env::var("REDIS_URL") {
+        Ok(redis_url) => match RedisCache::connect(&redis_url).await {
+            Ok(c) => {
+                tracing::info!("Redis cache connected");
+                Some(Arc::new(c))
+            }
+            Err(err) => {
+                tracing::warn!(error = %err, "Redis cache not initialized");
+                None
+            }
+        },
+        Err(_) => None,
+    };
+
     let amas_engine = AppState::create_amas_engine(db_proxy.clone());
 
     let worker_manager = if let Some(ref proxy) = db_proxy {
@@ -53,7 +68,7 @@ async fn main() {
         None
     };
 
-    let state = AppState::new(db_proxy, amas_engine);
+    let state = AppState::new(db_proxy, amas_engine, cache);
 
     let app = routes::router(state)
         .layer(TraceLayer::new_for_http())

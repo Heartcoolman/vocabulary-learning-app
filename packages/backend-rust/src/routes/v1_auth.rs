@@ -8,6 +8,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
+use crate::cache::keys::session_key;
 use crate::response::json_error;
 use crate::state::AppState;
 
@@ -126,6 +127,10 @@ pub async fn logout(
                 return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
             }
 
+            if let Some(cache) = state.cache() {
+                cache.delete(&session_key(&token_hash)).await;
+            }
+
             let mut headers = HeaderMap::new();
             if let Some(cookie) = clear_auth_cookie_header() {
                 headers.insert(header::SET_COOKIE, cookie);
@@ -241,6 +246,10 @@ pub async fn refresh_token(
     let old_token_hash = crate::auth::hash_token(&token);
     if let Err(err) = proxy.delete_session_by_token_hash(&old_token_hash).await {
         tracing::warn!(error = %err, "refresh token: old session delete failed");
+    }
+
+    if let Some(cache) = state.cache() {
+        cache.delete(&session_key(&old_token_hash)).await;
     }
 
     let (new_token, expires_at) = match crate::auth::sign_jwt_for_user(&user.id) {

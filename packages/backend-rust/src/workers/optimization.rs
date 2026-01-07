@@ -118,8 +118,8 @@ async fn get_recent_performance(pool: &PgPool, user_id: &str) -> Result<RecentPe
     let row = sqlx::query(
         r#"
         SELECT COUNT(*) as total,
-               AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END) as correct_rate,
-               AVG("responseTime") as avg_response_time
+               AVG(CASE WHEN "isCorrect" THEN 1.0 ELSE 0.0 END)::float8 as correct_rate,
+               AVG("responseTime")::float8 as avg_response_time
         FROM "answer_records"
         WHERE "userId" = $1 AND "timestamp" >= $2
         "#,

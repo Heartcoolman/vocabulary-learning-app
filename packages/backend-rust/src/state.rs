@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
 use crate::amas::AMASEngine;
+use crate::cache::RedisCache;
 use crate::core::EventBus;
 use crate::db::DatabaseProxy;
 
@@ -10,16 +11,22 @@ pub struct AppState {
     started_at: Instant,
     started_at_system: SystemTime,
     db_proxy: Option<Arc<DatabaseProxy>>,
+    cache: Option<Arc<RedisCache>>,
     amas_engine: Arc<AMASEngine>,
     event_bus: Arc<EventBus>,
 }
 
 impl AppState {
-    pub fn new(db_proxy: Option<Arc<DatabaseProxy>>, amas_engine: Arc<AMASEngine>) -> Self {
+    pub fn new(
+        db_proxy: Option<Arc<DatabaseProxy>>,
+        amas_engine: Arc<AMASEngine>,
+        cache: Option<Arc<RedisCache>>,
+    ) -> Self {
         Self {
             started_at: Instant::now(),
             started_at_system: SystemTime::now(),
             db_proxy,
+            cache,
             amas_engine,
             event_bus: Arc::new(EventBus::new()),
         }
@@ -42,6 +49,10 @@ impl AppState {
 
     pub fn db_proxy(&self) -> Option<Arc<DatabaseProxy>> {
         self.db_proxy.clone()
+    }
+
+    pub fn cache(&self) -> Option<Arc<RedisCache>> {
+        self.cache.clone()
     }
 
     pub fn amas_engine(&self) -> Arc<AMASEngine> {

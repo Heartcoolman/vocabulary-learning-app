@@ -6,6 +6,7 @@ mod amas;
 mod badges;
 mod debug;
 mod emergency;
+mod etymology;
 mod evaluation;
 mod experiments;
 mod habit_profile;
@@ -539,6 +540,7 @@ pub fn router(state: AppState) -> Router {
     app = app.nest("/api/amas", amas::router());
     app = app.nest("/api/badges", badges::router());
     app = app.nest("/api/debug", debug::router());
+    app = app.nest("/api/etymology", etymology::routes());
     app = app.nest("/api/evaluation", evaluation::router());
     app = app.nest("/api/experiments", experiments::router());
     app = app.nest("/api/habit-profile", habit_profile::router());

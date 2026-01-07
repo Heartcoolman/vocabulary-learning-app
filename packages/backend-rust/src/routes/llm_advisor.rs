@@ -564,7 +564,7 @@ async fn collect_current_metrics(pool: &sqlx::PgPool) -> serde_json::Value {
         SELECT
             COUNT(*) as total_answers,
             SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END) as correct,
-            AVG(NULLIF("responseTime", 0)) as avg_rt
+            AVG(NULLIF("responseTime", 0))::float8 as avg_rt
         FROM "answer_records"
         WHERE "timestamp" >= NOW() - INTERVAL '7 days'
         "#,
@@ -1039,6 +1039,12 @@ struct UsersSnapshot {
     active_this_week: i64,
     new_this_week: i64,
     churned: i64,
+    #[serde(skip_serializing_if = "is_zero")]
+    prev_week_active: i64,
+}
+
+fn is_zero(v: &i64) -> bool {
+    *v == 0
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1493,7 +1499,7 @@ async fn compute_weekly_learning_stats(
         SELECT
             COUNT(*) as "total",
             SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END) as "correct",
-            AVG(NULLIF("responseTime", 0)) as "avg_rt",
+            AVG(NULLIF("responseTime", 0))::float8 as "avg_rt",
             COUNT("responseTime") as "rt_count",
             COUNT(NULLIF("responseTime", 0)) as "rt_non_zero_count"
         FROM "answer_records"
@@ -1534,17 +1540,22 @@ async fn compute_user_stats(
     end: chrono::DateTime<Utc>,
 ) -> Result<UsersSnapshot, AppError> {
     let pool = proxy.pool();
+    let prev_start = start - chrono::Duration::days(7);
+
     let row = sqlx::query(
         r#"
         SELECT
             (SELECT COUNT(*) FROM "users") as total,
             (SELECT COUNT(DISTINCT "userId") FROM "answer_records"
              WHERE "timestamp" >= $1 AND "timestamp" <= $2) as active,
-            (SELECT COUNT(*) FROM "users" WHERE "createdAt" >= $1 AND "createdAt" <= $2) as new_users
+            (SELECT COUNT(*) FROM "users" WHERE "createdAt" >= $1 AND "createdAt" <= $2) as new_users,
+            (SELECT COUNT(DISTINCT "userId") FROM "answer_records"
+             WHERE "timestamp" >= $3 AND "timestamp" < $1) as prev_active
         "#,
     )
     .bind(start.naive_utc())
     .bind(end.naive_utc())
+    .bind(prev_start.naive_utc())
     .fetch_one(pool)
     .await
     .map_err(|e| {
@@ -1555,27 +1566,36 @@ async fn compute_user_stats(
     let total: i64 = row.try_get("total").unwrap_or(0);
     let active: i64 = row.try_get("active").unwrap_or(0);
     let new_users: i64 = row.try_get("new_users").unwrap_or(0);
+    let prev_active: i64 = row.try_get("prev_active").unwrap_or(0);
 
-    let churned: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*) FROM "users" u
-        WHERE u."createdAt" < $1
-        AND NOT EXISTS (
-            SELECT 1 FROM "answer_records" ar
-            WHERE ar."userId" = u."id" AND ar."timestamp" >= $1
+    let churned: i64 = if prev_active > 0 {
+        sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*) FROM (
+                SELECT DISTINCT "userId" FROM "answer_records"
+                WHERE "timestamp" >= $1 AND "timestamp" < $2
+            ) prev
+            WHERE NOT EXISTS (
+                SELECT 1 FROM "answer_records" ar
+                WHERE ar."userId" = prev."userId" AND ar."timestamp" >= $2
+            )
+            "#,
         )
-        "#,
-    )
-    .bind(start.naive_utc())
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+        .bind(prev_start.naive_utc())
+        .bind(start.naive_utc())
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0)
+    } else {
+        0
+    };
 
     Ok(UsersSnapshot {
         total,
         active_this_week: active,
         new_this_week: new_users,
         churned,
+        prev_week_active: prev_active,
     })
 }
 
@@ -1591,7 +1611,7 @@ async fn compute_learning_stats(
         SELECT
             COUNT(*) as total_answers,
             SUM(CASE WHEN "isCorrect" THEN 1 ELSE 0 END) as correct,
-            AVG(NULLIF("responseTime", 0)) as avg_rt,
+            AVG(NULLIF("responseTime", 0))::float8 as avg_rt,
             COUNT(DISTINCT "wordId") as words_learned
         FROM "answer_records"
         WHERE "timestamp" >= $1 AND "timestamp" <= $2
@@ -1621,7 +1641,9 @@ async fn compute_learning_stats(
         r#"
         SELECT AVG(EXTRACT(EPOCH FROM ("endedAt" - "startedAt"))) as avg_duration
         FROM "learning_sessions"
-        WHERE "startedAt" >= $1 AND "startedAt" <= $2 AND "endedAt" IS NOT NULL
+        WHERE "startedAt" >= $1 AND "startedAt" <= $2
+          AND "endedAt" IS NOT NULL
+          AND EXTRACT(EPOCH FROM ("endedAt" - "startedAt")) BETWEEN 10 AND 7200
         "#,
     )
     .bind(start.naive_utc())
@@ -1733,13 +1755,17 @@ async fn compute_alerts(
         .unwrap_or((0, 0, 1));
 
     let active_count = users.active_this_week.max(1) as f64;
-    let total_before_period = (users.total - users.new_this_week).max(1) as f64;
+    let prev_active_count = users.prev_week_active.max(1) as f64;
 
     Ok(AlertsSnapshot {
         low_accuracy_user_ratio: low_accuracy_count as f64 / active_count,
         high_fatigue_user_ratio: high_fatigue as f64 / state_total as f64,
         low_motivation_user_ratio: low_motivation as f64 / state_total as f64,
-        churn_rate: users.churned as f64 / total_before_period,
+        churn_rate: if users.prev_week_active > 0 {
+            users.churned as f64 / prev_active_count
+        } else {
+            0.0
+        },
     })
 }
 

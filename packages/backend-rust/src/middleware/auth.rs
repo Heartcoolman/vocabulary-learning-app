@@ -17,7 +17,8 @@ pub async fn require_auth(State(state): State<AppState>, mut req: Request<Body>,
         return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "数据库服务不可用").into_response();
     };
 
-    match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+    let cache = state.cache();
+    match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
         Ok(user) => {
             req.extensions_mut().insert(user);
             next.run(req).await
@@ -38,7 +39,8 @@ pub async fn optional_auth(State(state): State<AppState>, mut req: Request<Body>
         return next.run(req).await;
     };
 
-    if let Ok(user) = crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+    let cache = state.cache();
+    if let Ok(user) = crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
         req.extensions_mut().insert(user);
     }
 
