@@ -25,7 +25,7 @@
     "universal": "napi universal"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.4",
+    "@napi-rs/cli": "^3.5.1",
     "vitest": "^4.0.15"
   },
   "engines": {
