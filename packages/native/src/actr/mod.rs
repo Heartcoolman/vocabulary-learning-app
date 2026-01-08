@@ -167,13 +167,10 @@ pub struct BatchComputeResult {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionState {
     /// Attention level [0, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "A"))]
     pub attention: f64,
     /// Fatigue level [0, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "F"))]
     pub fatigue: f64,
     /// Motivation level [-1, 1]
-    #[cfg_attr(feature = "napi", napi(js_name = "M"))]
     pub motivation: f64,
     /// Confidence level [0, 1]
     pub conf: f64,
@@ -192,13 +189,10 @@ pub struct ACTRSelectionState {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionContext {
     /// Current time (timestamp)
-    #[cfg_attr(feature = "napi", napi(js_name = "currentTime"))]
     pub current_time: f64,
     /// Session duration in milliseconds
-    #[cfg_attr(feature = "napi", napi(js_name = "sessionDuration"))]
     pub session_duration: f64,
     /// Number of words reviewed in session
-    #[cfg_attr(feature = "napi", napi(js_name = "wordsReviewed"))]
     pub words_reviewed: u32,
 }
 
@@ -222,7 +216,6 @@ pub struct ACTRActionParams {
 #[derive(Clone, Debug)]
 pub struct ACTRSelectionResult {
     /// Selected action index
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
     pub selected_index: u32,
     /// Selection score
     pub score: f64,

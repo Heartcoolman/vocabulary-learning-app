@@ -15,16 +15,17 @@ pub const CHOLESKY_RECOMPUTE_INTERVAL: u32 = 200;
 /// BanditModel 结构体 (字段命名与 TS 对齐)
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BanditModel {
-    #[cfg_attr(feature = "napi", napi(js_name = "A"))]
+    #[serde(rename = "A")]
     pub a_matrix: Vec<f64>, // d*d, 行优先
     pub b: Vec<f64>, // d 维
-    #[cfg_attr(feature = "napi", napi(js_name = "L"))]
+    #[serde(rename = "L")]
     pub l_matrix: Vec<f64>, // d*d, 下三角
     pub lambda: f64,
     pub alpha: f64,
     pub d: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "updateCount"))]
+    #[serde(rename = "updateCount")]
     pub update_count: u32,
 }
 
@@ -73,82 +74,88 @@ impl FromStr for Difficulty {
 /// Action 结构体
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Action {
-    #[cfg_attr(feature = "napi", napi(js_name = "wordId"))]
+    #[serde(rename = "wordId")]
     pub word_id: String,
     pub difficulty: String, // 字符串形式，兼容性更好
-    #[cfg_attr(feature = "napi", napi(js_name = "scheduledAt"))]
+    #[serde(rename = "scheduledAt")]
     pub scheduled_at: Option<f64>,
 }
 
 /// Action 类型化版本
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionTyped {
-    #[cfg_attr(feature = "napi", napi(js_name = "wordId"))]
+    #[serde(rename = "wordId")]
     pub word_id: String,
     pub difficulty: Difficulty,
-    #[cfg_attr(feature = "napi", napi(js_name = "scheduledAt"))]
+    #[serde(rename = "scheduledAt")]
     pub scheduled_at: Option<f64>,
 }
 
 /// UserState 结构体
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserState {
-    #[cfg_attr(feature = "napi", napi(js_name = "masteryLevel"))]
+    #[serde(rename = "masteryLevel")]
     pub mastery_level: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "recentAccuracy"))]
+    #[serde(rename = "recentAccuracy")]
     pub recent_accuracy: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "studyStreak"))]
+    #[serde(rename = "studyStreak")]
     pub study_streak: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "totalInteractions"))]
+    #[serde(rename = "totalInteractions")]
     pub total_interactions: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "averageResponseTime"))]
+    #[serde(rename = "averageResponseTime")]
     pub average_response_time: f64,
 }
 
 /// LinUCBContext 结构体
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LinUCBContext {
-    #[cfg_attr(feature = "napi", napi(js_name = "timeOfDay"))]
+    #[serde(rename = "timeOfDay")]
     pub time_of_day: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "dayOfWeek"))]
+    #[serde(rename = "dayOfWeek")]
     pub day_of_week: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "sessionDuration"))]
+    #[serde(rename = "sessionDuration")]
     pub session_duration: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "fatigueFactor"))]
+    #[serde(rename = "fatigueFactor")]
     pub fatigue_factor: Option<f64>,
 }
 
 /// ActionSelection 结构体 - 动作选择结果
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionSelection {
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
+    #[serde(rename = "selectedIndex")]
     pub selected_index: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedAction"))]
+    #[serde(rename = "selectedAction")]
     pub selected_action: Action,
     pub exploitation: f64,
     pub exploration: f64,
     pub score: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "allScores"))]
+    #[serde(rename = "allScores")]
     pub all_scores: Vec<f64>,
 }
 
 /// ActionSelectionTyped 结构体 - 类型化动作选择结果
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionSelectionTyped {
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedIndex"))]
+    #[serde(rename = "selectedIndex")]
     pub selected_index: u32,
-    #[cfg_attr(feature = "napi", napi(js_name = "selectedAction"))]
+    #[serde(rename = "selectedAction")]
     pub selected_action: ActionTyped,
     pub exploitation: f64,
     pub exploration: f64,
     pub score: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "allScores"))]
+    #[serde(rename = "allScores")]
     pub all_scores: Vec<f64>,
 }
 
@@ -165,18 +172,19 @@ pub struct UCBStats {
 /// DiagnosticResult 结构体 - 诊断结果
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiagnosticResult {
-    #[cfg_attr(feature = "napi", napi(js_name = "isHealthy"))]
+    #[serde(rename = "isHealthy")]
     pub is_healthy: bool,
-    #[cfg_attr(feature = "napi", napi(js_name = "hasNaN"))]
+    #[serde(rename = "hasNaN")]
     pub has_nan: bool,
-    #[cfg_attr(feature = "napi", napi(js_name = "hasInf"))]
+    #[serde(rename = "hasInf")]
     pub has_inf: bool,
-    #[cfg_attr(feature = "napi", napi(js_name = "conditionNumber"))]
+    #[serde(rename = "conditionNumber")]
     pub condition_number: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "minDiagonal"))]
+    #[serde(rename = "minDiagonal")]
     pub min_diagonal: f64,
-    #[cfg_attr(feature = "napi", napi(js_name = "maxDiagonal"))]
+    #[serde(rename = "maxDiagonal")]
     pub max_diagonal: f64,
     pub message: String,
 }
