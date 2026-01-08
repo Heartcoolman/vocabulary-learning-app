@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - dev
     paths:
       - 'packages/native/**'
       - '.github/workflows/native.yml'
@@ -49,7 +50,6 @@ jobs:
               set -e
               rm -f *.node
               pnpm build --target aarch64-unknown-linux-gnu
-              # Verify the built file is for aarch64
               built=$(ls *.node 2>/dev/null | head -1)
               if [ -z "$built" ]; then
                 echo "No .node file produced"
@@ -60,7 +60,7 @@ jobs:
               aarch64-linux-gnu-strip -x "$built"
 
           # macOS x64 (Intel)
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             build: |
               set -e
@@ -74,11 +74,6 @@ jobs:
             build: |
               set -e
               rm -f *.node
-              sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*
-              export CC=$(xcrun -f clang)
-              export CXX=$(xcrun -f clang++)
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path)
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT"
               pnpm build --target aarch64-apple-darwin
               strip -x *.node
 
@@ -127,7 +122,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
-          # Set environment variables for cross-compilation
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
@@ -138,6 +132,11 @@ jobs:
       - name: Build
         working-directory: packages/native
         run: ${{ matrix.build }}
+        shell: bash
+
+      - name: List built files
+        working-directory: packages/native
+        run: ls -la *.node || echo "No .node files found"
         shell: bash
 
       - name: Upload artifact
@@ -156,7 +155,7 @@ jobs:
         settings:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -176,6 +175,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.settings.target }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -184,14 +189,46 @@ jobs:
         with:
           name: bindings-${{ matrix.settings.target }}
           path: packages/native
+        continue-on-error: true
 
-      - name: List packages
-        run: ls -R packages/native
+      - name: List downloaded files
+        working-directory: packages/native
+        run: |
+          echo "Contents of packages/native:"
+          ls -la
+          echo "Looking for .node files:"
+          ls -la *.node 2>/dev/null || echo "No .node files found"
+        shell: bash
+
+      - name: Build native module if artifact missing
+        working-directory: packages/native
+        run: |
+          if [ -z "$(ls -1 *.node 2>/dev/null | head -1)" ]; then
+            echo "No .node file found, building locally..."
+            pnpm build --target ${{ matrix.settings.target }}
+            echo "Built files:"
+            ls -la *.node || echo "Build failed - no .node files"
+          else
+            echo "Using downloaded artifact"
+          fi
+        shell: bash
+
+      - name: Verify native binding exists
+        working-directory: packages/native
+        run: |
+          if [ -z "$(ls -1 *.node 2>/dev/null | head -1)" ]; then
+            echo "ERROR: No native .node binding found"
+            exit 1
+          fi
+          echo "Native binding found:"
+          ls -la *.node
         shell: bash
 
       - name: Run tests
         working-directory: packages/native
         run: pnpm test
+        env:
+          RUST_BACKTRACE: 1
 
   publish:
     name: Publish to npm
