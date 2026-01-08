@@ -29,6 +29,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             build: |
               set -e
+              rm -f *.node
               pnpm build --target x86_64-unknown-linux-gnu
               strip -x *.node
 
@@ -37,9 +38,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             build: |
               set -e
-              rustup target add x86_64-unknown-linux-musl
-              sudo apt-get update
-              sudo apt-get install -y musl-tools
+              rm -f *.node
               pnpm build --target x86_64-unknown-linux-musl
               strip -x *.node
 
@@ -48,23 +47,24 @@ jobs:
             target: aarch64-unknown-linux-gnu
             build: |
               set -e
+              rm -f *.node
               pnpm build --target aarch64-unknown-linux-gnu
-              aarch64-linux-gnu-strip -x *.node
-
-          # Linux ARM64 (musl - Alpine)
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-            build: |
-              set -e
-              rustup target add aarch64-unknown-linux-musl
-              pnpm build --target aarch64-unknown-linux-musl
-              llvm-strip -x *.node
+              # Verify the built file is for aarch64
+              built=$(ls *.node 2>/dev/null | head -1)
+              if [ -z "$built" ]; then
+                echo "No .node file produced"
+                exit 1
+              fi
+              echo "Built file: $built"
+              file "$built"
+              aarch64-linux-gnu-strip -x "$built"
 
           # macOS x64 (Intel)
           - os: macos-latest
             target: x86_64-apple-darwin
             build: |
               set -e
+              rm -f *.node
               pnpm build --target x86_64-apple-darwin
               strip -x *.node
 
@@ -73,6 +73,7 @@ jobs:
             target: aarch64-apple-darwin
             build: |
               set -e
+              rm -f *.node
               sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*
               export CC=$(xcrun -f clang)
               export CXX=$(xcrun -f clang++)
@@ -84,7 +85,9 @@ jobs:
           # Windows x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            build: pnpm build --target x86_64-pc-windows-msvc
+            build: |
+              rm -f *.node 2>/dev/null || true
+              pnpm build --target x86_64-pc-windows-msvc
 
     name: Build - ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -113,24 +116,21 @@ jobs:
           workspaces: packages/native -> target
           shared-key: ${{ matrix.target }}
 
+      - name: Install cross-compilation tools (x86_64-linux-musl)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Install cross-compilation tools (aarch64-linux-gnu)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          # Set environment variables for cross-compilation
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      - name: Install cross-compilation tools (aarch64-linux-musl)
-        if: matrix.target == 'aarch64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm clang
-          echo "CC_aarch64_unknown_linux_musl=clang" >> $GITHUB_ENV
-          echo "CXX_aarch64_unknown_linux_musl=clang++" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS=-C link-arg=-fuse-ld=lld" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
