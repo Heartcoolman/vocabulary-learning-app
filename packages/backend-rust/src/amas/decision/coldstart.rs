@@ -27,9 +27,21 @@ impl ColdStartManager {
     }
 
     fn handle_classify(&mut self, accuracy: f64, response_time: i64) -> Option<StrategyParams> {
-        let fast_score = if response_time < 2000 && accuracy > 0.8 { 1.0 } else { 0.0 };
-        let stable_score = if accuracy >= 0.6 && accuracy <= 0.85 { 1.0 } else { 0.0 };
-        let cautious_score = if response_time > 4000 || accuracy < 0.6 { 1.0 } else { 0.0 };
+        let fast_score = if response_time < 2000 && accuracy > 0.8 {
+            1.0
+        } else {
+            0.0
+        };
+        let stable_score = if accuracy >= 0.6 && accuracy <= 0.85 {
+            1.0
+        } else {
+            0.0
+        };
+        let cautious_score = if response_time > 4000 || accuracy < 0.6 {
+            1.0
+        } else {
+            0.0
+        };
 
         self.state.classification_scores[0] += fast_score;
         self.state.classification_scores[1] += stable_score;
@@ -38,7 +50,9 @@ impl ColdStartManager {
         self.state.update_count += 1;
 
         if self.state.update_count >= self.config.classify_samples {
-            let max_idx = self.state.classification_scores
+            let max_idx = self
+                .state
+                .classification_scores
                 .iter()
                 .enumerate()
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())

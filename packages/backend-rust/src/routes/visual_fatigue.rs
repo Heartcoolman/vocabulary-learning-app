@@ -231,13 +231,23 @@ async fn require_user(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -245,22 +255,46 @@ async fn require_user(
 fn validate_metrics(payload: &VisualFatigueMetricsBody) -> Result<(), AppError> {
     let in_unit = |v: f64| v.is_finite() && (0.0..=1.0).contains(&v);
     if !in_unit(payload.score) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "score 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "score 必须在 0-1 之间",
+        ));
     }
     if !in_unit(payload.perclos) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "perclos 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "perclos 必须在 0-1 之间",
+        ));
     }
     if !payload.blink_rate.is_finite() || payload.blink_rate < 0.0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "blinkRate 必须是非负数字"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "blinkRate 必须是非负数字",
+        ));
     }
     if payload.yawn_count < 0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "yawnCount 必须是非负整数"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "yawnCount 必须是非负整数",
+        ));
     }
     if !in_unit(payload.confidence) {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "confidence 必须在 0-1 之间"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "confidence 必须在 0-1 之间",
+        ));
     }
     if payload.timestamp <= 0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "timestamp 必须是正整数"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "timestamp 必须是正整数",
+        ));
     }
     Ok(())
 }
@@ -297,7 +331,12 @@ fn detect_conflict(behavior_fatigue: f64, visual_fatigue: f64) -> (bool, Option<
     (true, Some(description.to_string()))
 }
 
-fn generate_recommendations(fused: f64, visual: f64, behavior: f64, duration_minutes: f64) -> Vec<String> {
+fn generate_recommendations(
+    fused: f64,
+    visual: f64,
+    behavior: f64,
+    duration_minutes: f64,
+) -> Vec<String> {
     let mut recommendations = Vec::new();
     if fused > 0.8 {
         recommendations.push("建议立即休息 15-20 分钟".to_string());
@@ -325,12 +364,15 @@ async fn select_behavior_fatigue(
     user_id: &str,
 ) -> Result<f64, AppError> {
     let pool = proxy.pool();
-    let row = sqlx::query(r#"SELECT "fatigue" as "fatigue" FROM "amas_user_states" WHERE "userId" = $1"#)
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-    Ok(row.and_then(|r| r.try_get::<f64, _>("fatigue").ok()).unwrap_or(0.1))
+    let row =
+        sqlx::query(r#"SELECT "fatigue" as "fatigue" FROM "amas_user_states" WHERE "userId" = $1"#)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
+    Ok(row
+        .and_then(|r| r.try_get::<f64, _>("fatigue").ok())
+        .unwrap_or(0.1))
 }
 
 async fn select_study_duration_minutes(
@@ -357,9 +399,11 @@ async fn select_study_duration_minutes(
     .unwrap_or(None);
 
     let Some(row) = row else { return Ok(0.0) };
-    let started_at: chrono::NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| now.naive_utc());
+    let started_at: chrono::NaiveDateTime =
+        row.try_get("startedAt").unwrap_or_else(|_| now.naive_utc());
     let ended_at: Option<chrono::NaiveDateTime> = row.try_get("endedAt").ok();
-    let start_ms = chrono::DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis();
+    let start_ms =
+        chrono::DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis();
     let end_ms = ended_at
         .map(|dt| chrono::DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis())
         .unwrap_or_else(|| now.timestamp_millis());
@@ -433,9 +477,16 @@ async fn report_metrics(
         behavior_weight += 0.4;
     }
 
-    let fused_fatigue = behavior_weight * behavior_fatigue + visual_weight * visual_fatigue + temporal_weight * temporal_fatigue;
+    let fused_fatigue = behavior_weight * behavior_fatigue
+        + visual_weight * visual_fatigue
+        + temporal_weight * temporal_fatigue;
     let fatigue_level = determine_fatigue_level(fused_fatigue);
-    let recommendations = generate_recommendations(fused_fatigue, visual_fatigue, behavior_fatigue, study_duration_minutes);
+    let recommendations = generate_recommendations(
+        fused_fatigue,
+        visual_fatigue,
+        behavior_fatigue,
+        study_duration_minutes,
+    );
     let (has_conflict, conflict_description) = detect_conflict(behavior_fatigue, visual_fatigue);
 
     let fusion = FusionDto {
@@ -459,12 +510,14 @@ async fn report_metrics(
     {
         let store = store();
         let mut guard = store.users.write().await;
-        let entry = guard.entry(user.id.clone()).or_insert_with(|| VisualUserState {
-            last_update_ms: payload.timestamp,
-            latest_visual: None,
-            latest_fusion: None,
-            history: Vec::new(),
-        });
+        let entry = guard
+            .entry(user.id.clone())
+            .or_insert_with(|| VisualUserState {
+                last_update_ms: payload.timestamp,
+                latest_visual: None,
+                latest_fusion: None,
+                history: Vec::new(),
+            });
         entry.last_update_ms = payload.timestamp;
         entry.latest_visual = Some(visual.clone());
         entry.latest_fusion = Some(fusion.clone());
@@ -575,7 +628,13 @@ async fn fetch_user_config(
     let upload_interval_ms: i64 = row.try_get("uploadIntervalMs").unwrap_or(5000);
     let vlm_analysis_enabled: bool = row.try_get("vlmAnalysisEnabled").unwrap_or(false);
     let baseline: Option<serde_json::Value> = row.try_get("personalBaselineData").ok();
-    Ok(Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)))
+    Ok(Some((
+        enabled,
+        detection_fps,
+        upload_interval_ms,
+        vlm_analysis_enabled,
+        baseline,
+    )))
 }
 
 async fn get_config(
@@ -586,25 +645,31 @@ async fn get_config(
     let base = default_config();
 
     let cfg = fetch_user_config(proxy.as_ref(), &user.id).await?;
-    let data = if let Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)) = cfg {
-        VisualFatigueConfigDto {
-            enabled,
-            detection_interval_ms: (1000.0 / (detection_fps.max(1) as f64)).round() as i64,
-            report_interval_ms: upload_interval_ms,
-            ear_threshold: base.ear_threshold,
-            perclos_threshold: base.perclos_threshold,
-            yawn_duration_ms: base.yawn_duration_ms,
-            window_size_seconds: base.window_size_seconds,
-            video_width: base.video_width,
-            video_height: base.video_height,
-            vlm_analysis_enabled,
-            personal_baseline: baseline,
-        }
-    } else {
-        base
-    };
+    let data =
+        if let Some((enabled, detection_fps, upload_interval_ms, vlm_analysis_enabled, baseline)) =
+            cfg
+        {
+            VisualFatigueConfigDto {
+                enabled,
+                detection_interval_ms: (1000.0 / (detection_fps.max(1) as f64)).round() as i64,
+                report_interval_ms: upload_interval_ms,
+                ear_threshold: base.ear_threshold,
+                perclos_threshold: base.perclos_threshold,
+                yawn_duration_ms: base.yawn_duration_ms,
+                window_size_seconds: base.window_size_seconds,
+                video_width: base.video_width,
+                video_height: base.video_height,
+                vlm_analysis_enabled,
+                personal_baseline: baseline,
+            }
+        } else {
+            base
+        };
 
-    Ok(Json(SuccessResponse { success: true, data }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data,
+    }))
 }
 
 async fn update_config(
@@ -615,7 +680,8 @@ async fn update_config(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     let existing = fetch_user_config(proxy.as_ref(), &user.id).await?;
-    let (mut enabled, mut detection_fps, mut upload_interval_ms, mut vlm, mut baseline) = existing.unwrap_or((false, 5, 5000, false, None));
+    let (mut enabled, mut detection_fps, mut upload_interval_ms, mut vlm, mut baseline) =
+        existing.unwrap_or((false, 5, 5000, false, None));
 
     if let Some(value) = patch.enabled {
         enabled = value;
@@ -700,7 +766,8 @@ async fn update_baseline(
 
     let baseline = serde_json::to_value(payload).unwrap_or(serde_json::Value::Null);
     let existing = fetch_user_config(proxy.as_ref(), &user.id).await?;
-    let (enabled, detection_fps, upload_interval_ms, vlm, _old_baseline) = existing.unwrap_or((false, 5, 5000, false, None));
+    let (enabled, detection_fps, upload_interval_ms, vlm, _old_baseline) =
+        existing.unwrap_or((false, 5, 5000, false, None));
 
     upsert_user_config(
         proxy.as_ref(),
@@ -757,14 +824,23 @@ async fn get_fusion(
     let (has_data, fusion, visual, trend) = if let Some(entry) = entry {
         let age_ms = now_ms - entry.last_update_ms;
         let fresh = age_ms <= 30_000;
-        let fusion = if fresh { entry.latest_fusion.clone() } else { None };
-        let visual = if fresh { entry.latest_visual.clone() } else { None };
+        let fusion = if fresh {
+            entry.latest_fusion.clone()
+        } else {
+            None
+        };
+        let visual = if fresh {
+            entry.latest_visual.clone()
+        } else {
+            None
+        };
 
         let trend = if entry.history.len() < 10 {
             0.0
         } else {
             let recent = &entry.history[entry.history.len().saturating_sub(5)..];
-            let earlier = &entry.history[entry.history.len().saturating_sub(10)..entry.history.len().saturating_sub(5)];
+            let earlier = &entry.history
+                [entry.history.len().saturating_sub(10)..entry.history.len().saturating_sub(5)];
             let recent_avg = recent.iter().sum::<f64>() / (recent.len() as f64);
             let earlier_avg = earlier.iter().sum::<f64>() / (earlier.len() as f64);
             recent_avg - earlier_avg

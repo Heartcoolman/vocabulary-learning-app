@@ -35,7 +35,10 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    pub async fn new(db_proxy: Arc<DatabaseProxy>, amas_engine: Arc<AMASEngine>) -> Result<Self, WorkerError> {
+    pub async fn new(
+        db_proxy: Arc<DatabaseProxy>,
+        amas_engine: Arc<AMASEngine>,
+    ) -> Result<Self, WorkerError> {
         let scheduler = JobScheduler::new().await.map_err(WorkerError::Scheduler)?;
         let (shutdown_tx, _) = broadcast::channel(1);
         Ok(Self {
@@ -128,8 +131,8 @@ impl WorkerManager {
         }
 
         if enable_llm_advisor {
-            let schedule = std::env::var("LLM_ADVISOR_SCHEDULE")
-                .unwrap_or_else(|_| "0 0 4 * * 0".to_string());
+            let schedule =
+                std::env::var("LLM_ADVISOR_SCHEDULE").unwrap_or_else(|_| "0 0 4 * * 0".to_string());
             let db = Arc::clone(&self.db_proxy);
             let shutdown_rx = self.shutdown_tx.subscribe();
             let job = Job::new_async(&schedule, move |_uuid, _lock| {
@@ -176,8 +179,8 @@ impl WorkerManager {
         }
 
         if enable_etymology {
-            let schedule = std::env::var("ETYMOLOGY_SCHEDULE")
-                .unwrap_or_else(|_| "0 30 3 * * *".to_string());
+            let schedule =
+                std::env::var("ETYMOLOGY_SCHEDULE").unwrap_or_else(|_| "0 30 3 * * *".to_string());
             let db = Arc::clone(&self.db_proxy);
             let shutdown_rx = self.shutdown_tx.subscribe();
             let job = Job::new_async(&schedule, move |_uuid, _lock| {

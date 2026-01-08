@@ -153,19 +153,32 @@ async fn end_session(
     Json(payload): Json<EndSessionRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "数据库服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "数据库服务不可用",
+        ));
     };
 
-    let token = crate::auth::extract_token(&headers)
-        .or_else(|| payload.auth_token.clone());
+    let token = crate::auth::extract_token(&headers).or_else(|| payload.auth_token.clone());
 
     let Some(token) = token else {
-        return Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"));
+        return Err(json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "未提供认证令牌",
+        ));
     };
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     let session_id = payload.session_id.trim().to_string();
     if session_id.is_empty() {
@@ -178,7 +191,11 @@ async fn end_session(
 
     let session = select_learning_session_for_user(proxy.as_ref(), &session_id, &user.id).await?;
     let Some(session) = session else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "Session not found"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "Session not found",
+        ));
     };
 
     let now_ms = Utc::now().timestamp_millis();
@@ -234,18 +251,33 @@ async fn end_session(
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
-    })?;
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(&proxy, &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -333,9 +365,14 @@ async fn select_stored_habit_profile(
         .ok()
         .flatten()
         .and_then(parse_rhythm_pref)
-        .unwrap_or(RhythmPref { session_median_minutes: 15.0, batch_median: 8.0 });
+        .unwrap_or(RhythmPref {
+            session_median_minutes: 15.0,
+            batch_median: 8.0,
+        });
 
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     Ok(Some(StoredHabitProfile {
         time_pref,
@@ -358,15 +395,28 @@ fn parse_time_pref(value: serde_json::Value) -> Option<Vec<f64>> {
 
 fn parse_rhythm_pref(value: serde_json::Value) -> Option<RhythmPref> {
     let obj = value.as_object()?;
-    let session_median_minutes = obj.get("sessionMedianMinutes").and_then(|v| v.as_f64()).unwrap_or(15.0);
-    let batch_median = obj.get("batchMedian").and_then(|v| v.as_f64()).unwrap_or(8.0);
-    Some(RhythmPref { session_median_minutes, batch_median })
+    let session_median_minutes = obj
+        .get("sessionMedianMinutes")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(15.0);
+    let batch_median = obj
+        .get("batchMedian")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(8.0);
+    Some(RhythmPref {
+        session_median_minutes,
+        batch_median,
+    })
 }
 
 fn compute_preferred_slots(time_pref: &[f64]) -> Vec<i64> {
     let mut indexed: Vec<(usize, f64)> = time_pref.iter().copied().enumerate().collect();
     indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    indexed.into_iter().take(3).map(|(hour, _)| hour as i64).collect()
+    indexed
+        .into_iter()
+        .take(3)
+        .map(|(hour, _)| hour as i64)
+        .collect()
 }
 
 async fn compute_realtime_habit_profile(
@@ -416,7 +466,10 @@ async fn compute_realtime_habit_profile(
     Ok(Some(RealtimeHabitProfile {
         time_pref,
         preferred_time_slots,
-        rhythm_pref: RhythmPref { session_median_minutes, batch_median },
+        rhythm_pref: RhythmPref {
+            session_median_minutes,
+            batch_median,
+        },
         samples: HabitSamples {
             time_events,
             sessions: durations.len() as i64,
@@ -455,7 +508,9 @@ async fn select_recent_sessions(
 
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let started_at: NaiveDateTime = row
+            .try_get("startedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let ended_at: Option<NaiveDateTime> = row.try_get("endedAt").ok().flatten();
         let started_dt = DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc);
         let started_hour = Some(started_dt.hour());
@@ -481,7 +536,9 @@ async fn persist_habit_profile(
     user_id: &str,
     profile: Option<&RealtimeHabitProfile>,
 ) -> Result<bool, AppError> {
-    let Some(profile) = profile else { return Ok(false) };
+    let Some(profile) = profile else {
+        return Ok(false);
+    };
     if profile.samples.time_events < 10 {
         return Ok(false);
     }
@@ -508,7 +565,13 @@ async fn persist_habit_profile(
     .bind(now)
     .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "数据库写入失败"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "数据库写入失败",
+        )
+    })?;
 
     Ok(true)
 }
@@ -540,9 +603,15 @@ async fn select_learning_session_for_user(
     .await
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
     let Some(row) = row else { return Ok(None) };
-    let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let started_at_ms = Some(DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis());
-    Ok(Some(OwnedSessionRow { started_at_ms, answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0) }))
+    let started_at: NaiveDateTime = row
+        .try_get("startedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let started_at_ms =
+        Some(DateTime::<Utc>::from_naive_utc_and_offset(started_at, Utc).timestamp_millis());
+    Ok(Some(OwnedSessionRow {
+        started_at_ms,
+        answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
+    }))
 }
 
 async fn set_learning_session_ended_at(
@@ -562,7 +631,11 @@ async fn set_learning_session_ended_at(
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
         .rows_affected();
     if affected == 0 {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "Session not found"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "Session not found",
+        ));
     }
     Ok(())
 }

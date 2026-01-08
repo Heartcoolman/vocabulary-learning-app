@@ -24,7 +24,8 @@ impl LinUCBModel {
         &self,
         _state: &UserState,
         _feature: &FeatureVector,
-        candidates: &[StrategyParams]) -> Option<StrategyParams> {
+        candidates: &[StrategyParams],
+    ) -> Option<StrategyParams> {
         if candidates.is_empty() {
             return None;
         }
@@ -125,7 +126,11 @@ impl LinUCBModel {
             for j in 0..n {
                 let val = aug[i][n + j];
                 result[i][j] = if val.is_nan() || val.is_infinite() {
-                    if i == j { 1.0 } else { 0.0 }
+                    if i == j {
+                        1.0
+                    } else {
+                        0.0
+                    }
                 } else {
                     val
                 };

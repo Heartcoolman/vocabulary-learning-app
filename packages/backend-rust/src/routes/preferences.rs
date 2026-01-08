@@ -168,42 +168,63 @@ impl PreferencesRow {
     }
 }
 
-pub async fn get_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn get_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let now_iso = now_iso_millis();
     if let Err(err) = ensure_preferences_exist(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "ensure preferences row failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let row = match select_preferences_row(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => row,
         Ok(None) => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
         Err(err) => {
             tracing::warn!(error = %err, "select preferences failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -215,17 +236,11 @@ pub async fn get_preferences(
     .into_response()
 }
 
-pub async fn update_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     update_preferences_inner(state, req, UpdateMode::All).await
 }
 
-pub async fn learning_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn learning_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     get_preferences_part(state, req, PreferencesPart::Learning).await
 }
 
@@ -250,24 +265,15 @@ pub async fn update_notification_preferences(
     update_preferences_inner(state, req, UpdateMode::NotificationOnly).await
 }
 
-pub async fn ui_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn ui_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     get_preferences_part(state, req, PreferencesPart::Ui).await
 }
 
-pub async fn update_ui_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_ui_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     update_preferences_inner(state, req, UpdateMode::UiOnly).await
 }
 
-pub async fn reset_preferences(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn reset_preferences(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, _body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -275,32 +281,51 @@ pub async fn reset_preferences(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let now_iso = now_iso_millis();
     if let Err(err) = upsert_default_preferences(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "reset preferences failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let row = match select_preferences_row(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => row,
         _ => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -312,42 +337,61 @@ pub async fn reset_preferences(
     .into_response()
 }
 
-pub async fn quiet_hours_check(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn quiet_hours_check(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let now_iso = now_iso_millis();
     if let Err(err) = ensure_preferences_exist(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "ensure preferences row failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let row = match select_preferences_row(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => row,
         _ => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
-    let is_quiet_time = is_in_quiet_hours(row.quiet_hours_start.as_deref(), row.quiet_hours_end.as_deref());
+    let is_quiet_time = is_in_quiet_hours(
+        row.quiet_hours_start.as_deref(),
+        row.quiet_hours_end.as_deref(),
+    );
 
     Json(SuccessResponse {
         success: true,
@@ -364,46 +408,89 @@ enum PreferencesPart {
     Ui,
 }
 
-async fn get_preferences_part(state: AppState, req: Request<Body>, part: PreferencesPart) -> Response {
+async fn get_preferences_part(
+    state: AppState,
+    req: Request<Body>,
+    part: PreferencesPart,
+) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let now_iso = now_iso_millis();
     if let Err(err) = ensure_preferences_exist(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "ensure preferences row failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let row = match select_preferences_row(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => row,
         Ok(None) => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
         Err(err) => {
             tracing::warn!(error = %err, "select preferences failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
     match part {
-        PreferencesPart::Learning => Json(SuccessResponse { success: true, data: row.learning(), message: None }).into_response(),
-        PreferencesPart::Notification => Json(SuccessResponse { success: true, data: row.notification(), message: None }).into_response(),
-        PreferencesPart::Ui => Json(SuccessResponse { success: true, data: row.ui(), message: None }).into_response(),
+        PreferencesPart::Learning => Json(SuccessResponse {
+            success: true,
+            data: row.learning(),
+            message: None,
+        })
+        .into_response(),
+        PreferencesPart::Notification => Json(SuccessResponse {
+            success: true,
+            data: row.notification(),
+            message: None,
+        })
+        .into_response(),
+        PreferencesPart::Ui => Json(SuccessResponse {
+            success: true,
+            data: row.ui(),
+            message: None,
+        })
+        .into_response(),
     }
 }
 
@@ -414,7 +501,11 @@ enum UpdateMode {
     UiOnly,
 }
 
-async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: UpdateMode) -> Response {
+async fn update_preferences_inner(
+    state: AppState,
+    req: Request<Body>,
+    mode: UpdateMode,
+) -> Response {
     let (parts, _body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -422,39 +513,63 @@ async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: Upd
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: serde_json::Value = match serde_json::from_slice(&_body_bytes) {
         Ok(value) => value,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let now_iso = now_iso_millis();
     if let Err(err) = ensure_preferences_exist(proxy.as_ref(), &auth_user.id, &now_iso).await {
         tracing::warn!(error = %err, "ensure preferences row failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let current = match select_preferences_row(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => row,
         _ => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -466,7 +581,12 @@ async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: Upd
             let dto: UpdatePreferencesDto = match serde_json::from_value(payload) {
                 Ok(value) => value,
                 Err(_) => {
-                    return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+                    return json_error(
+                        StatusCode::BAD_REQUEST,
+                        "VALIDATION_ERROR",
+                        "请求参数不合法",
+                    )
+                    .into_response();
                 }
             };
             if let Some(patch) = dto.learning {
@@ -483,7 +603,12 @@ async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: Upd
             let patch: LearningPreferencesPatch = match serde_json::from_value(payload) {
                 Ok(value) => value,
                 Err(_) => {
-                    return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+                    return json_error(
+                        StatusCode::BAD_REQUEST,
+                        "VALIDATION_ERROR",
+                        "请求参数不合法",
+                    )
+                    .into_response();
                 }
             };
             apply_learning_patch(&mut updated, patch);
@@ -492,7 +617,12 @@ async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: Upd
             let patch: NotificationPreferencesPatch = match serde_json::from_value(payload) {
                 Ok(value) => value,
                 Err(_) => {
-                    return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+                    return json_error(
+                        StatusCode::BAD_REQUEST,
+                        "VALIDATION_ERROR",
+                        "请求参数不合法",
+                    )
+                    .into_response();
                 }
             };
             apply_notification_patch(&mut updated, patch);
@@ -501,23 +631,47 @@ async fn update_preferences_inner(state: AppState, req: Request<Body>, mode: Upd
             let patch: UiPreferencesPatch = match serde_json::from_value(payload) {
                 Ok(value) => value,
                 Err(_) => {
-                    return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+                    return json_error(
+                        StatusCode::BAD_REQUEST,
+                        "VALIDATION_ERROR",
+                        "请求参数不合法",
+                    )
+                    .into_response();
                 }
             };
             apply_ui_patch(&mut updated, patch);
         }
     };
 
-    if let Err(err) = persist_preferences_row(proxy.as_ref(), &auth_user.id, &updated, &now_iso).await {
+    if let Err(err) =
+        persist_preferences_row(proxy.as_ref(), &auth_user.id, &updated, &now_iso).await
+    {
         tracing::warn!(error = %err, "preferences update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let (data, message) = match mode {
-        UpdateMode::All => (serde_json::to_value(updated.to_grouped()).unwrap_or(serde_json::Value::Null), Some("偏好设置已更新".to_string())),
-        UpdateMode::LearningOnly => (serde_json::to_value(updated.learning()).unwrap_or(serde_json::Value::Null), Some("学习偏好已更新".to_string())),
-        UpdateMode::NotificationOnly => (serde_json::to_value(updated.notification()).unwrap_or(serde_json::Value::Null), Some("通知偏好已更新".to_string())),
-        UpdateMode::UiOnly => (serde_json::to_value(updated.ui()).unwrap_or(serde_json::Value::Null), Some("界面偏好已更新".to_string())),
+        UpdateMode::All => (
+            serde_json::to_value(updated.to_grouped()).unwrap_or(serde_json::Value::Null),
+            Some("偏好设置已更新".to_string()),
+        ),
+        UpdateMode::LearningOnly => (
+            serde_json::to_value(updated.learning()).unwrap_or(serde_json::Value::Null),
+            Some("学习偏好已更新".to_string()),
+        ),
+        UpdateMode::NotificationOnly => (
+            serde_json::to_value(updated.notification()).unwrap_or(serde_json::Value::Null),
+            Some("通知偏好已更新".to_string()),
+        ),
+        UpdateMode::UiOnly => (
+            serde_json::to_value(updated.ui()).unwrap_or(serde_json::Value::Null),
+            Some("界面偏好已更新".to_string()),
+        ),
     };
 
     Json(SuccessResponse {
@@ -962,16 +1116,19 @@ fn now_iso_millis() -> String {
 }
 
 fn parse_naive_datetime(value: &str) -> Option<chrono::NaiveDateTime> {
-    chrono::DateTime::parse_from_rfc3339(value).ok().map(|dt| dt.naive_utc())
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|dt| dt.naive_utc())
 }
-
 
 async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, Bytes), Response> {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response());
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            );
         }
     };
     Ok((parts, body_bytes))

@@ -194,15 +194,19 @@ async fn store_user_behavior_insight(
         "highPerformersRatio": stats.high_performers_count as f64 / stats.user_count.max(1) as f64,
     });
 
-    let insights_summary: Vec<serde_json::Value> = insights.iter().map(|i| {
-        serde_json::json!({
-            "type": i.insight_type,
-            "severity": i.severity,
-            "title": i.title,
+    let insights_summary: Vec<serde_json::Value> = insights
+        .iter()
+        .map(|i| {
+            serde_json::json!({
+                "type": i.insight_type,
+                "severity": i.severity,
+                "title": i.title,
+            })
         })
-    }).collect();
+        .collect();
 
-    let recommendations: Vec<String> = insights.iter()
+    let recommendations: Vec<String> = insights
+        .iter()
         .flat_map(|i| i.recommendations.clone())
         .collect();
 
@@ -215,7 +219,9 @@ async fn store_user_behavior_insight(
         &serde_json::json!(recommendations),
         stats.user_count as i32,
         (stats.user_count * 10) as i32,
-    ).await {
+    )
+    .await
+    {
         tracing::warn!(error = %e, "Failed to store user behavior insight");
     }
 }
@@ -269,7 +275,10 @@ async fn store_insight(pool: &PgPool, insight: &Insight) -> Result<(), String> {
     Ok(())
 }
 
-async fn collect_segment_stats(pool: &PgPool, _segment: Option<&str>) -> Result<SegmentStats, String> {
+async fn collect_segment_stats(
+    pool: &PgPool,
+    _segment: Option<&str>,
+) -> Result<SegmentStats, String> {
     let seven_days_ago = Utc::now() - chrono::Duration::days(7);
 
     let stats_row = sqlx::query(
@@ -321,15 +330,24 @@ async fn collect_segment_stats(pool: &PgPool, _segment: Option<&str>) -> Result<
     Ok(SegmentStats {
         user_count,
         avg_accuracy: stats_row.try_get::<f64, _>("avg_accuracy").unwrap_or(0.0),
-        avg_response_time: stats_row.try_get::<f64, _>("avg_response_time").unwrap_or(0.0),
+        avg_response_time: stats_row
+            .try_get::<f64, _>("avg_response_time")
+            .unwrap_or(0.0),
         active_ratio: if user_count > 0 {
-            1.0 - (inactive_row.try_get::<i64, _>("inactive_count").unwrap_or(0) as f64 / user_count as f64)
+            1.0 - (inactive_row
+                .try_get::<i64, _>("inactive_count")
+                .unwrap_or(0) as f64
+                / user_count as f64)
         } else {
             0.0
         },
-        inactive_7d_count: inactive_row.try_get::<i64, _>("inactive_count").unwrap_or(0),
+        inactive_7d_count: inactive_row
+            .try_get::<i64, _>("inactive_count")
+            .unwrap_or(0),
         struggling_count: performance_row.try_get::<i64, _>("struggling").unwrap_or(0),
-        high_performers_count: performance_row.try_get::<i64, _>("high_performers").unwrap_or(0),
+        high_performers_count: performance_row
+            .try_get::<i64, _>("high_performers")
+            .unwrap_or(0),
     })
 }
 
@@ -389,9 +407,13 @@ pub async fn get_insights(
     let insights = rows
         .into_iter()
         .map(|row| {
-            let generated_at: chrono::NaiveDateTime = row.try_get("generatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+            let generated_at: chrono::NaiveDateTime = row
+                .try_get("generatedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             let acknowledged_at: Option<chrono::NaiveDateTime> = row.try_get("acknowledgedAt").ok();
-            let recommendations: serde_json::Value = row.try_get("recommendations").unwrap_or(serde_json::json!([]));
+            let recommendations: serde_json::Value = row
+                .try_get("recommendations")
+                .unwrap_or(serde_json::json!([]));
 
             Insight {
                 id: row.try_get("id").unwrap_or_default(),
@@ -429,9 +451,13 @@ pub async fn get_insight_by_id(proxy: &DatabaseProxy, id: &str) -> Result<Option
     .map_err(|e| format!("查询洞察失败: {e}"))?;
 
     Ok(row.map(|row| {
-        let generated_at: chrono::NaiveDateTime = row.try_get("generatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let generated_at: chrono::NaiveDateTime = row
+            .try_get("generatedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let acknowledged_at: Option<chrono::NaiveDateTime> = row.try_get("acknowledgedAt").ok();
-        let recommendations: serde_json::Value = row.try_get("recommendations").unwrap_or(serde_json::json!([]));
+        let recommendations: serde_json::Value = row
+            .try_get("recommendations")
+            .unwrap_or(serde_json::json!([]));
 
         Insight {
             id: row.try_get("id").unwrap_or_default(),

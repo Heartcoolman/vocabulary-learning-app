@@ -210,7 +210,11 @@ async fn batch_evaluate(
     for raw in payload.word_ids {
         let id = raw.trim();
         if id.is_empty() {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId不能为空"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "wordId不能为空",
+            ));
         }
         if seen.insert(id.to_string(), ()).is_none() {
             unique_ids.push(id.to_string());
@@ -234,7 +238,10 @@ async fn get_word(
     let (proxy, user) = require_user(&state, &headers).await?;
     let fatigue = clamp01(query.user_fatigue.unwrap_or(0.0));
     let eval = evaluate_single_word(proxy.as_ref(), &user.id, word_id.trim(), fatigue).await?;
-    Ok(Json(SuccessResponse { success: true, data: eval }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: eval,
+    }))
 }
 
 async fn get_trace(
@@ -244,7 +251,11 @@ async fn get_trace(
     Query(query): Query<TraceQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, user) = require_user(&state, &headers).await?;
-    let limit = query.limit.unwrap_or(DEFAULT_TRACE_LIMIT).max(1).min(MAX_TRACE_LIMIT);
+    let limit = query
+        .limit
+        .unwrap_or(DEFAULT_TRACE_LIMIT)
+        .max(1)
+        .min(MAX_TRACE_LIMIT);
     let trace = select_review_trace(proxy.as_ref(), &user.id, word_id.trim(), limit).await?;
 
     Ok(Json(SuccessResponse {
@@ -265,7 +276,8 @@ async fn get_interval(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, user) = require_user(&state, &headers).await?;
     let target_recall = query.target_recall.unwrap_or(0.9).clamp(0.01, 1.0);
-    let trace = select_review_trace_raw(proxy.as_ref(), &user.id, word_id.trim(), MAX_TRACE_LIMIT).await?;
+    let trace =
+        select_review_trace_raw(proxy.as_ref(), &user.id, word_id.trim(), MAX_TRACE_LIMIT).await?;
     let actr_trace = to_actr_trace(&trace)?;
 
     let model = danci_algo::ACTRMemoryNative::new(None, None, None);
@@ -295,17 +307,33 @@ async fn get_interval(
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -331,7 +359,13 @@ async fn count_learning_state_buckets(
     .bind(user_id)
     .fetch_all(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     let mut new_words = 0usize;
     let mut learning_words = 0usize;
@@ -344,7 +378,10 @@ async fn count_learning_state_buckets(
             _ => {}
         }
     }
-    Ok(StateBuckets { new_words, learning_words })
+    Ok(StateBuckets {
+        new_words,
+        learning_words,
+    })
 }
 
 async fn list_user_word_ids(
@@ -413,7 +450,11 @@ async fn evaluate_single_word(
     user_fatigue: f64,
 ) -> Result<MasteryEvaluationDto, AppError> {
     if word_id.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "wordId不能为空"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "wordId不能为空",
+        ));
     }
 
     let learning_state = select_learning_state(proxy, user_id, word_id).await?;
@@ -455,7 +496,13 @@ async fn evaluate_words_batch(
         let trace = traces.get(word_id).cloned().unwrap_or_default();
         let actr_trace = to_actr_trace(&trace)?;
         let recall = model.predict_recall(actr_trace).recall_probability;
-        evaluations.push(compute_evaluation(word_id, state_row, score_row, recall, user_fatigue));
+        evaluations.push(compute_evaluation(
+            word_id,
+            state_row,
+            score_row,
+            recall,
+            user_fatigue,
+        ));
     }
     Ok(evaluations)
 }
@@ -477,7 +524,9 @@ fn compute_evaluation(
     let fatigue_impact = 0.3;
 
     let normalized_srs = (srs_level as f64 / 5.0).clamp(0.0, 1.0);
-    let raw_score = weights_srs * normalized_srs + weights_actr * actr_recall + weights_recent * recent_accuracy;
+    let raw_score = weights_srs * normalized_srs
+        + weights_actr * actr_recall
+        + weights_recent * recent_accuracy;
     let score = raw_score.clamp(0.0, 1.0);
 
     let safe_fatigue = clamp01(user_fatigue);
@@ -692,11 +741,21 @@ async fn select_review_trace_raw(
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
         let id = row.try_get::<String, _>("id").unwrap_or_default();
-        let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+        let ts = row
+            .try_get::<NaiveDateTime, _>("timestamp")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
         let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
-        let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
-        out.push(TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time });
+        let response_time = row
+            .try_get::<i32, _>("responseTime")
+            .map(|v| v as i64)
+            .unwrap_or(0);
+        out.push(TraceRow {
+            id,
+            timestamp_ms: ts_ms,
+            is_correct,
+            response_time,
+        });
     }
     Ok(out)
 }
@@ -729,11 +788,24 @@ async fn select_review_traces_batch(
     for row in fetched {
         let id = row.try_get::<String, _>("id").unwrap_or_default();
         let word_id = row.try_get::<String, _>("wordId").unwrap_or_default();
-        let ts = row.try_get::<NaiveDateTime, _>("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+        let ts = row
+            .try_get::<NaiveDateTime, _>("timestamp")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let ts_ms = DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).timestamp_millis();
         let is_correct = row.try_get::<bool, _>("isCorrect").unwrap_or(false);
-        let response_time = row.try_get::<i32, _>("responseTime").map(|v| v as i64).unwrap_or(0);
-        rows.push((word_id.clone(), TraceRow { id, timestamp_ms: ts_ms, is_correct, response_time }));
+        let response_time = row
+            .try_get::<i32, _>("responseTime")
+            .map(|v| v as i64)
+            .unwrap_or(0);
+        rows.push((
+            word_id.clone(),
+            TraceRow {
+                id,
+                timestamp_ms: ts_ms,
+                is_correct,
+                response_time,
+            },
+        ));
     }
 
     let mut map: HashMap<String, Vec<TraceRow>> = HashMap::new();

@@ -162,12 +162,16 @@ pub(super) async fn get(
             mastery_learning::SessionError::Forbidden => {
                 json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未授权")
             }
-            mastery_learning::SessionError::Sql(_) | mastery_learning::SessionError::Mutation(_) => {
+            mastery_learning::SessionError::Sql(_)
+            | mastery_learning::SessionError::Mutation(_) => {
                 json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
             }
         })?;
 
-    Ok(Json(SuccessResponse { success: true, data: progress }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: progress,
+    }))
 }
 
 pub(super) async fn sync_progress(
@@ -280,7 +284,11 @@ pub(super) async fn list(
                 page,
                 page_size,
                 total,
-                total_pages: if total == 0 { 0 } else { (total + page_size - 1) / page_size },
+                total_pages: if total == 0 {
+                    0
+                } else {
+                    (total + page_size - 1) / page_size
+                },
             },
         }));
     }
@@ -294,7 +302,11 @@ pub(super) async fn list(
             page,
             page_size,
             total,
-            total_pages: if total == 0 { 0 } else { (total + page_size - 1) / page_size },
+            total_pages: if total == 0 {
+                0
+            } else {
+                (total + page_size - 1) / page_size
+            },
         },
     }))
 }
@@ -302,18 +314,33 @@ pub(super) async fn list(
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
-    })?;
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -409,7 +436,9 @@ async fn select_user_sessions_pg(
 }
 
 fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
-    let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let started_at: NaiveDateTime = row
+        .try_get("startedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let ended_at: Option<NaiveDateTime> = row.try_get("endedAt").ok().flatten();
     let started_at_iso = format_naive_datetime(started_at);
     let ended_at_iso = ended_at.map(format_naive_datetime);
@@ -421,14 +450,36 @@ fn map_session_row_pg(row: sqlx::postgres::PgRow) -> SessionStats {
         started_at: started_at_iso,
         ended_at: ended_at_iso,
         duration,
-        total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-        actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-        target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-        session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-        flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-        avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-        context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
+        total_questions: row
+            .try_get::<Option<i64>, _>("totalQuestions")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
+        actual_mastery_count: row
+            .try_get::<Option<i64>, _>("actualMasteryCount")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
+        target_mastery_count: row
+            .try_get::<Option<i64>, _>("targetMasteryCount")
+            .ok()
+            .flatten(),
+        session_type: row
+            .try_get("sessionType")
+            .unwrap_or_else(|_| "NORMAL".to_string()),
+        flow_peak_score: row
+            .try_get::<Option<f64>, _>("flowPeakScore")
+            .ok()
+            .flatten(),
+        avg_cognitive_load: row
+            .try_get::<Option<f64>, _>("avgCognitiveLoad")
+            .ok()
+            .flatten(),
+        context_shifts: row
+            .try_get::<Option<i64>, _>("contextShifts")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
         answer_record_count: row.try_get::<i64, _>("answerRecordCount").unwrap_or(0),
     }
 }
-

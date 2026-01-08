@@ -31,7 +31,10 @@ pub async fn scan_forgetting_risks(db: Arc<DatabaseProxy>) -> Result<(), super::
     let users = get_active_users(&pool).await?;
     stats.users_scanned = users.len() as i64;
 
-    info!(user_count = users.len(), "Scanning users for forgetting risks");
+    info!(
+        user_count = users.len(),
+        "Scanning users for forgetting risks"
+    );
 
     for user_id in users {
         if let Err(e) = process_user_alerts(&db, &user_id, &mut stats).await {
@@ -66,7 +69,10 @@ async fn get_active_users(pool: &PgPool) -> Result<Vec<String>, super::WorkerErr
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().filter_map(|r| r.try_get("id").ok()).collect())
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| r.try_get("id").ok())
+        .collect())
 }
 
 async fn process_user_alerts(
@@ -122,7 +128,11 @@ async fn get_user_learning_states(
                 (Ok(id), Ok(word_id), Ok(last_review_date)) => Some(LearningState {
                     id,
                     word_id,
-                    half_life: r.try_get::<Option<f64>, _>("halfLife").ok().flatten().unwrap_or(86400.0),
+                    half_life: r
+                        .try_get::<Option<f64>, _>("halfLife")
+                        .ok()
+                        .flatten()
+                        .unwrap_or(86400.0),
                     last_review_date,
                     next_review_date: r.try_get("nextReviewDate").ok(),
                 }),
@@ -151,17 +161,29 @@ async fn process_batch(
             let alert_result = upsert_forgetting_alert(pool, user_id, state, retention).await?;
             if alert_result.created {
                 stats.alerts_created += 1;
-                if let Err(e) = create_notification(db, CreateNotificationInput {
-                    user_id: user_id.to_string(),
-                    notification_type: "FORGETTING_ALERT".to_string(),
-                    title: "单词遗忘提醒".to_string(),
-                    content: format!("您有单词即将遗忘，记忆保留率已降至 {:.0}%", retention * 100.0),
-                    priority: if retention < 0.1 { "HIGH".to_string() } else { "NORMAL".to_string() },
-                    metadata: Some(serde_json::json!({
-                        "wordId": state.word_id,
-                        "recallProbability": retention
-                    })),
-                }).await {
+                if let Err(e) = create_notification(
+                    db,
+                    CreateNotificationInput {
+                        user_id: user_id.to_string(),
+                        notification_type: "FORGETTING_ALERT".to_string(),
+                        title: "单词遗忘提醒".to_string(),
+                        content: format!(
+                            "您有单词即将遗忘，记忆保留率已降至 {:.0}%",
+                            retention * 100.0
+                        ),
+                        priority: if retention < 0.1 {
+                            "HIGH".to_string()
+                        } else {
+                            "NORMAL".to_string()
+                        },
+                        metadata: Some(serde_json::json!({
+                            "wordId": state.word_id,
+                            "recallProbability": retention
+                        })),
+                    },
+                )
+                .await
+                {
                     warn!(error = %e, "Failed to create forgetting alert notification");
                 }
             } else if alert_result.updated {
@@ -201,7 +223,10 @@ async fn upsert_forgetting_alert(
     let now = Utc::now();
     let id = uuid::Uuid::new_v4().to_string();
 
-    let predicted_forget_at = now + chrono::Duration::seconds((state.half_life * (1.0 - retention).ln().abs() / 0.693147) as i64);
+    let predicted_forget_at = now
+        + chrono::Duration::seconds(
+            (state.half_life * (1.0 - retention).ln().abs() / 0.693147) as i64,
+        );
 
     let result = sqlx::query(
         r#"
@@ -251,9 +276,15 @@ async fn upsert_forgetting_alert(
                 );
             }
 
-            Ok(AlertResult { created: inserted, updated })
+            Ok(AlertResult {
+                created: inserted,
+                updated,
+            })
         }
-        None => Ok(AlertResult { created: false, updated: false }),
+        None => Ok(AlertResult {
+            created: false,
+            updated: false,
+        }),
     }
 }
 
@@ -280,7 +311,10 @@ async fn dismiss_existing_alert(
     Ok(())
 }
 
-pub async fn cleanup_resolved_alerts(pool: &PgPool, older_than_days: i64) -> Result<i64, super::WorkerError> {
+pub async fn cleanup_resolved_alerts(
+    pool: &PgPool,
+    older_than_days: i64,
+) -> Result<i64, super::WorkerError> {
     let cutoff = Utc::now() - chrono::Duration::days(older_than_days);
 
     let result = sqlx::query(
@@ -296,7 +330,11 @@ pub async fn cleanup_resolved_alerts(pool: &PgPool, older_than_days: i64) -> Res
 
     let count = result.rows_affected() as i64;
     if count > 0 {
-        info!(count = count, older_than_days = older_than_days, "Cleaned up resolved alerts");
+        info!(
+            count = count,
+            older_than_days = older_than_days,
+            "Cleaned up resolved alerts"
+        );
     }
 
     Ok(count)

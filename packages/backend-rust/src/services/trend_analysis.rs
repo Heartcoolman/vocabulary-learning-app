@@ -55,14 +55,13 @@ pub async fn get_current_trend(
 ) -> Result<TrendResult, String> {
     let pool = proxy.pool();
 
-    let state: Option<String> = sqlx::query_scalar(
-        r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#,
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .ok()
-    .flatten();
+    let state: Option<String> =
+        sqlx::query_scalar(r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
 
     let rows = sqlx::query(
         r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history" WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
@@ -72,12 +71,15 @@ pub async fn get_current_trend(
     .await
     .unwrap_or_default();
 
-    let history: Vec<HistoryPoint> = rows.into_iter().map(|r| HistoryPoint {
-        trend_state: r.try_get("trendState").ok(),
-        motivation: r.try_get("motivation").unwrap_or(0.0),
-        memory: r.try_get("memory").unwrap_or(0.0),
-        speed: r.try_get("speed").unwrap_or(0.0),
-    }).collect();
+    let history: Vec<HistoryPoint> = rows
+        .into_iter()
+        .map(|r| HistoryPoint {
+            trend_state: r.try_get("trendState").ok(),
+            motivation: r.try_get("motivation").unwrap_or(0.0),
+            memory: r.try_get("memory").unwrap_or(0.0),
+            speed: r.try_get("speed").unwrap_or(0.0),
+        })
+        .collect();
 
     let (trend_state, history) = (state, history);
 
@@ -132,21 +134,43 @@ pub async fn generate_trend_report(
     let history = get_trend_history(proxy, user_id, DEFAULT_TREND_DAYS).await?;
 
     let accuracy_trend = calculate_trend_line(
-        history.iter().map(|h| DataPoint { date: h.date.clone(), value: h.accuracy }).collect(),
+        history
+            .iter()
+            .map(|h| DataPoint {
+                date: h.date.clone(),
+                value: h.accuracy,
+            })
+            .collect(),
         false,
     );
 
     let response_time_trend = calculate_trend_line(
-        history.iter().map(|h| DataPoint { date: h.date.clone(), value: h.avg_response_time }).collect(),
+        history
+            .iter()
+            .map(|h| DataPoint {
+                date: h.date.clone(),
+                value: h.avg_response_time,
+            })
+            .collect(),
         true,
     );
 
     let motivation_trend = calculate_trend_line(
-        history.iter().map(|h| DataPoint { date: h.date.clone(), value: h.motivation }).collect(),
+        history
+            .iter()
+            .map(|h| DataPoint {
+                date: h.date.clone(),
+                value: h.motivation,
+            })
+            .collect(),
         false,
     );
 
-    let (summary, recommendations) = generate_summary_and_recommendations(&accuracy_trend, &response_time_trend, &motivation_trend);
+    let (summary, recommendations) = generate_summary_and_recommendations(
+        &accuracy_trend,
+        &response_time_trend,
+        &motivation_trend,
+    );
 
     Ok(TrendReport {
         accuracy_trend,
@@ -193,22 +217,34 @@ fn calculate_trend_from_history(history: &[HistoryPoint]) -> String {
     }
 
     let avg = |items: &[&HistoryPoint]| -> f64 {
-        let sum: f64 = items.iter().map(|p| (p.motivation + p.memory + p.speed) / 3.0).sum();
+        let sum: f64 = items
+            .iter()
+            .map(|p| (p.motivation + p.memory + p.speed) / 3.0)
+            .sum();
         sum / items.len() as f64
     };
 
     let recent_avg = avg(&recent);
     let previous_avg = avg(&previous);
-    let denominator = if previous_avg == 0.0 { 1.0 } else { previous_avg };
+    let denominator = if previous_avg == 0.0 {
+        1.0
+    } else {
+        previous_avg
+    };
     let change = (recent_avg - previous_avg) / denominator;
 
     const TREND_THRESHOLD: f64 = 0.1;
     const MINOR_THRESHOLD: f64 = 0.05;
 
-    if change > TREND_THRESHOLD { "up".to_string() }
-    else if change < -TREND_THRESHOLD { "down".to_string() }
-    else if change.abs() < MINOR_THRESHOLD { "flat".to_string() }
-    else { "stuck".to_string() }
+    if change > TREND_THRESHOLD {
+        "up".to_string()
+    } else if change < -TREND_THRESHOLD {
+        "down".to_string()
+    } else if change.abs() < MINOR_THRESHOLD {
+        "flat".to_string()
+    } else {
+        "stuck".to_string()
+    }
 }
 
 fn calculate_consecutive_days(history: &[HistoryPoint], current_state: &str) -> i64 {
@@ -223,7 +259,11 @@ fn calculate_consecutive_days(history: &[HistoryPoint], current_state: &str) -> 
             break;
         }
     }
-    if count > 0 { count } else { 1 }
+    if count > 0 {
+        count
+    } else {
+        1
+    }
 }
 
 fn aggregate_daily_data_pg(
@@ -234,7 +274,9 @@ fn aggregate_daily_data_pg(
 
     let mut history_map: HashMap<NaiveDate, (Option<String>, f64)> = HashMap::new();
     for row in history_rows {
-        let Ok(date): Result<NaiveDate, _> = row.try_get("date") else { continue };
+        let Ok(date): Result<NaiveDate, _> = row.try_get("date") else {
+            continue;
+        };
         let trend_state: Option<String> = row.try_get("trendState").ok();
         let motivation: f64 = row.try_get("motivation").unwrap_or(0.0);
         history_map.insert(date, (trend_state, motivation));
@@ -242,7 +284,9 @@ fn aggregate_daily_data_pg(
 
     let mut records_map: HashMap<NaiveDate, (i64, i64, i64)> = HashMap::new();
     for row in record_rows {
-        let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else { continue };
+        let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else {
+            continue;
+        };
         let date = ts.date();
         let is_correct: bool = row.try_get("isCorrect").unwrap_or(false);
         let response_time: i64 = row
@@ -254,28 +298,45 @@ fn aggregate_daily_data_pg(
 
         let entry = records_map.entry(date).or_insert((0, 0, 0));
         entry.0 += 1;
-        if is_correct { entry.1 += 1; }
+        if is_correct {
+            entry.1 += 1;
+        }
         entry.2 += response_time;
     }
 
-    let mut all_dates: Vec<NaiveDate> = history_map.keys().chain(records_map.keys()).cloned().collect();
+    let mut all_dates: Vec<NaiveDate> = history_map
+        .keys()
+        .chain(records_map.keys())
+        .cloned()
+        .collect();
     all_dates.sort();
     all_dates.dedup();
 
-    all_dates.into_iter().map(|date| {
-        let (trend_state, motivation) = history_map.get(&date).cloned().unwrap_or((None, 0.0));
-        let (total, correct, rt_sum) = records_map.get(&date).cloned().unwrap_or((0, 0, 0));
-        let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
-        let avg_rt = if total > 0 { rt_sum as f64 / total as f64 } else { 0.0 };
+    all_dates
+        .into_iter()
+        .map(|date| {
+            let (trend_state, motivation) = history_map.get(&date).cloned().unwrap_or((None, 0.0));
+            let (total, correct, rt_sum) = records_map.get(&date).cloned().unwrap_or((0, 0, 0));
+            let accuracy = if total > 0 {
+                correct as f64 / total as f64
+            } else {
+                0.0
+            };
+            let avg_rt = if total > 0 {
+                rt_sum as f64 / total as f64
+            } else {
+                0.0
+            };
 
-        TrendHistoryItem {
-            date: format!("{}T00:00:00.000Z", date.format("%Y-%m-%d")),
-            state: trend_state.unwrap_or_else(|| "flat".to_string()),
-            accuracy,
-            avg_response_time: avg_rt,
-            motivation,
-        }
-    }).collect()
+            TrendHistoryItem {
+                date: format!("{}T00:00:00.000Z", date.format("%Y-%m-%d")),
+                state: trend_state.unwrap_or_else(|| "flat".to_string()),
+                accuracy,
+                avg_response_time: avg_rt,
+                motivation,
+            }
+        })
+        .collect()
 }
 
 fn calculate_trend_line(points: Vec<DataPoint>, invert_direction: bool) -> TrendLine {
@@ -297,10 +358,18 @@ fn calculate_trend_line(points: Vec<DataPoint>, invert_direction: bool) -> Trend
         0.0
     };
 
-    let semantic_change = if invert_direction { -raw_change } else { raw_change };
-    let direction = if semantic_change > 5.0 { "up" }
-    else if semantic_change < -5.0 { "down" }
-    else { "flat" };
+    let semantic_change = if invert_direction {
+        -raw_change
+    } else {
+        raw_change
+    };
+    let direction = if semantic_change > 5.0 {
+        "up"
+    } else if semantic_change < -5.0 {
+        "down"
+    } else {
+        "flat"
+    };
 
     TrendLine {
         points,

@@ -262,7 +262,8 @@ impl DebugState {
     }
 
     fn simulation_remaining_ms(&self, now_ms: i64) -> Option<i64> {
-        self.simulation_until_ms.map(|until| (until - now_ms).max(0))
+        self.simulation_until_ms
+            .map(|until| (until - now_ms).max(0))
     }
 
     fn simulation_active(&self) -> bool {
@@ -286,13 +287,20 @@ impl DebugState {
     }
 
     fn expire_simulation_if_needed(&mut self, now_ms: i64) {
-        let Some(until) = self.simulation_until_ms else { return };
+        let Some(until) = self.simulation_until_ms else {
+            return;
+        };
         if now_ms >= until {
             self.reset_debug_config();
         }
     }
 
-    fn push_audit_log(&mut self, action: impl Into<String>, details: Value, user_id: Option<String>) {
+    fn push_audit_log(
+        &mut self,
+        action: impl Into<String>,
+        details: Value,
+        user_id: Option<String>,
+    ) {
         let entry = AuditLogEntry {
             timestamp: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
             action: action.into(),
@@ -341,7 +349,10 @@ fn env_bool(key: &str) -> Option<bool> {
 
 fn debug_available() -> bool {
     let debug_mode = env_bool("DEBUG_MODE").unwrap_or(false);
-    let is_production = matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("production"));
+    let is_production = matches!(
+        std::env::var("NODE_ENV").ok().as_deref(),
+        Some("production")
+    );
     debug_mode || !is_production
 }
 
@@ -426,16 +437,30 @@ async fn require_admin(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     if user.role != "ADMIN" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "需要管理员权限"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "需要管理员权限",
+        ));
     }
 
     Ok((proxy, user))
@@ -482,7 +507,10 @@ async fn get_status(
 
     guard.push_audit_log("debug.status", Value::Null, Some(user.id));
 
-    Ok(Json(SuccessResponse { success: true, data: status }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: status,
+    }))
 }
 
 async fn get_health(
@@ -506,7 +534,10 @@ async fn get_health(
         amas: AmasHealth { healthy: true },
     };
 
-    Ok(Json(SuccessResponse { success: true, data: result }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: result,
+    }))
 }
 
 async fn toggle_redis(
@@ -553,12 +584,18 @@ async fn simulate_db(
         guard.infrastructure.db_simulation.slow_query_delay_ms = value.max(0);
     }
     if let Some(value) = payload.simulate_connection_failure {
-        guard.infrastructure.db_simulation.simulate_connection_failure = value;
+        guard
+            .infrastructure
+            .db_simulation
+            .simulate_connection_failure = value;
         apply_db_failure_simulation(&state, value).await;
     }
 
     if guard.infrastructure.db_simulation.simulate_slow_query
-        || guard.infrastructure.db_simulation.simulate_connection_failure
+        || guard
+            .infrastructure
+            .db_simulation
+            .simulate_connection_failure
     {
         guard.start_simulation(now_ms);
     } else {
@@ -633,7 +670,11 @@ async fn update_feature_flags(
     let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let updates = payload.as_object().ok_or_else(|| {
-        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求体必须是JSON对象")
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "请求体必须是JSON对象",
+        )
     })?;
 
     let now_ms = Utc::now().timestamp_millis();
@@ -643,7 +684,9 @@ async fn update_feature_flags(
 
     let mut applied = Map::new();
     for (key, value) in updates {
-        let Some(flag) = value.as_bool() else { continue };
+        let Some(flag) = value.as_bool() else {
+            continue;
+        };
         if guard.feature_flags.contains_key(key) {
             guard.feature_flags.insert(key.clone(), Value::Bool(flag));
             applied.insert(key.clone(), Value::Bool(flag));
@@ -826,7 +869,11 @@ async fn toggle_services(
     let (_proxy, user) = require_admin(&state, &headers).await?;
 
     let updates = payload.as_object().ok_or_else(|| {
-        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "请求体必须是JSON对象")
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "请求体必须是JSON对象",
+        )
     })?;
 
     let now_ms = Utc::now().timestamp_millis();
@@ -836,7 +883,9 @@ async fn toggle_services(
 
     let mut applied = Map::new();
     for (key, value) in updates {
-        let Some(flag) = value.as_bool() else { continue };
+        let Some(flag) = value.as_bool() else {
+            continue;
+        };
         match key.as_str() {
             "behaviorFatigue" => {
                 guard.services.behavior_fatigue = flag;
@@ -862,11 +911,7 @@ async fn toggle_services(
         }
     }
 
-    guard.push_audit_log(
-        "services.toggle",
-        Value::Object(applied),
-        Some(user.id),
-    );
+    guard.push_audit_log("services.toggle", Value::Object(applied), Some(user.id));
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -933,7 +978,10 @@ async fn get_audit_log(
     guard.expire_simulation_if_needed(now_ms);
 
     let items: Vec<AuditLogEntry> = guard.audit_log.iter().take(limit).cloned().collect();
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 async fn clear_audit_log(
@@ -958,7 +1006,10 @@ async fn clear_audit_log(
 }
 
 async fn test_database_connection(proxy: &crate::db::DatabaseProxy) -> bool {
-    sqlx::query_scalar::<_, i64>("SELECT 1").fetch_one(proxy.pool()).await.is_ok()
+    sqlx::query_scalar::<_, i64>("SELECT 1")
+        .fetch_one(proxy.pool())
+        .await
+        .is_ok()
 }
 
 async fn test_database_health(

@@ -357,8 +357,12 @@ pub async fn insert_pipeline_stage(
 }
 
 fn map_amas_user_state(row: &sqlx::postgres::PgRow) -> AmasUserState {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let default_cognitive = serde_json::json!({ "mem": 0.5, "speed": 0.5, "stability": 0.5 });
     AmasUserState {
         id: row.try_get("id").unwrap_or_default(),
@@ -375,8 +379,12 @@ fn map_amas_user_state(row: &sqlx::postgres::PgRow) -> AmasUserState {
 }
 
 fn map_amas_user_model(row: &sqlx::postgres::PgRow) -> AmasUserModel {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     AmasUserModel {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
@@ -398,7 +406,9 @@ fn map_decision_record(row: &sqlx::postgres::PgRow) -> DecisionRecord {
         coldstart_phase: row.try_get("coldstartPhase").ok(),
         weights_snapshot: row.try_get("weightsSnapshot").ok(),
         member_votes: row.try_get("memberVotes").ok(),
-        selected_action: row.try_get("selectedAction").unwrap_or(serde_json::Value::Null),
+        selected_action: row
+            .try_get("selectedAction")
+            .unwrap_or(serde_json::Value::Null),
         confidence: row.try_get("confidence").unwrap_or(0.0),
         reward: row.try_get("reward").ok(),
         trace_version: row.try_get("traceVersion").unwrap_or(1),
@@ -410,5 +420,6 @@ fn map_decision_record(row: &sqlx::postgres::PgRow) -> DecisionRecord {
 }
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
-    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
+    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
+        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }

@@ -170,10 +170,7 @@ pub async fn run_counterfactual(
     compute_counterfactual(pg_pool, user_id, &target_id, input.overrides).await
 }
 
-async fn get_latest_decision_id(
-    pg_pool: &PgPool,
-    user_id: &str,
-) -> Result<Option<String>, String> {
+async fn get_latest_decision_id(pg_pool: &PgPool, user_id: &str) -> Result<Option<String>, String> {
     let row = sqlx::query(
         r#"
         SELECT dr."decisionId"
@@ -307,7 +304,10 @@ fn parse_difficulty_factors(value: Option<serde_json::Value>) -> DifficultyFacto
         length: obj.get("length").and_then(|v| v.as_f64()).unwrap_or(0.5),
         accuracy: obj.get("accuracy").and_then(|v| v.as_f64()).unwrap_or(0.5),
         frequency: obj.get("frequency").and_then(|v| v.as_f64()).unwrap_or(0.5),
-        forgetting: obj.get("forgetting").and_then(|v| v.as_f64()).unwrap_or(0.5),
+        forgetting: obj
+            .get("forgetting")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.5),
     }
 }
 
@@ -328,7 +328,8 @@ struct ParsedCursor {
 }
 
 fn parse_cursor(cursor: &str) -> Option<ParsedCursor> {
-    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, cursor).ok()?;
+    let decoded =
+        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, cursor).ok()?;
     let s = String::from_utf8(decoded).ok()?;
     let parts: Vec<&str> = s.split('|').collect();
     if parts.len() == 2 {
@@ -399,7 +400,11 @@ fn build_timeline_response_pg(
     fetch_limit: i32,
 ) -> Result<DecisionTimelineResponse, String> {
     let has_more = rows.len() as i32 > fetch_limit - 1;
-    let take_count = if has_more { fetch_limit - 1 } else { rows.len() as i32 };
+    let take_count = if has_more {
+        fetch_limit - 1
+    } else {
+        rows.len() as i32
+    };
 
     let mut items = Vec::with_capacity(take_count as usize);
     let mut last_ts = String::new();
@@ -419,7 +424,9 @@ fn build_timeline_response_pg(
             .try_get::<chrono::DateTime<chrono::Utc>, _>("timestamp")
             .map(|t| t.to_rfc3339())
             .unwrap_or_default();
-        let selected_action_json: serde_json::Value = row.try_get("selectedAction").unwrap_or(serde_json::Value::Null);
+        let selected_action_json: serde_json::Value = row
+            .try_get("selectedAction")
+            .unwrap_or(serde_json::Value::Null);
         let selected_action = parse_selected_action(&selected_action_json);
 
         last_ts = timestamp.clone();
@@ -461,11 +468,28 @@ fn parse_selected_action(value: &serde_json::Value) -> SelectedAction {
     };
 
     SelectedAction {
-        difficulty: obj.get("difficulty").and_then(|v| v.as_str()).map(String::from),
-        batch_size: obj.get("batch_size").or(obj.get("batchSize")).and_then(|v| v.as_i64()).map(|v| v as i32),
-        interval_scale: obj.get("interval_scale").or(obj.get("intervalScale")).and_then(|v| v.as_f64()),
-        new_ratio: obj.get("new_ratio").or(obj.get("newRatio")).and_then(|v| v.as_f64()),
-        hint_level: obj.get("hint_level").or(obj.get("hintLevel")).and_then(|v| v.as_i64()).map(|v| v as i32),
+        difficulty: obj
+            .get("difficulty")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        batch_size: obj
+            .get("batch_size")
+            .or(obj.get("batchSize"))
+            .and_then(|v| v.as_i64())
+            .map(|v| v as i32),
+        interval_scale: obj
+            .get("interval_scale")
+            .or(obj.get("intervalScale"))
+            .and_then(|v| v.as_f64()),
+        new_ratio: obj
+            .get("new_ratio")
+            .or(obj.get("newRatio"))
+            .and_then(|v| v.as_f64()),
+        hint_level: obj
+            .get("hint_level")
+            .or(obj.get("hintLevel"))
+            .and_then(|v| v.as_i64())
+            .map(|v| v as i32),
     }
 }
 

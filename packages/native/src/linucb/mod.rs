@@ -1,10 +1,10 @@
+use crate::matrix::*;
+use crate::sanitize::*;
+use crate::types::*;
 #[cfg(feature = "napi")]
 use napi::bindgen_prelude::*;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
-use crate::matrix::*;
-use crate::sanitize::*;
-use crate::types::*;
 
 /// LinUCB 原生实现
 #[cfg_attr(feature = "napi", napi)]

@@ -230,28 +230,55 @@ mod tests {
 
     #[test]
     fn test_difficulty_from_str_valid_lowercase() {
-        assert_eq!(Difficulty::try_from_str("recognition"), Some(Difficulty::Recognition));
+        assert_eq!(
+            Difficulty::try_from_str("recognition"),
+            Some(Difficulty::Recognition)
+        );
         assert_eq!(Difficulty::try_from_str("recall"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::try_from_str("spelling"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::try_from_str("listening"), Some(Difficulty::Listening));
+        assert_eq!(
+            Difficulty::try_from_str("spelling"),
+            Some(Difficulty::Spelling)
+        );
+        assert_eq!(
+            Difficulty::try_from_str("listening"),
+            Some(Difficulty::Listening)
+        );
         assert_eq!(Difficulty::try_from_str("usage"), Some(Difficulty::Usage));
     }
 
     #[test]
     fn test_difficulty_from_str_valid_uppercase() {
-        assert_eq!(Difficulty::try_from_str("RECOGNITION"), Some(Difficulty::Recognition));
+        assert_eq!(
+            Difficulty::try_from_str("RECOGNITION"),
+            Some(Difficulty::Recognition)
+        );
         assert_eq!(Difficulty::try_from_str("RECALL"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::try_from_str("SPELLING"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::try_from_str("LISTENING"), Some(Difficulty::Listening));
+        assert_eq!(
+            Difficulty::try_from_str("SPELLING"),
+            Some(Difficulty::Spelling)
+        );
+        assert_eq!(
+            Difficulty::try_from_str("LISTENING"),
+            Some(Difficulty::Listening)
+        );
         assert_eq!(Difficulty::try_from_str("USAGE"), Some(Difficulty::Usage));
     }
 
     #[test]
     fn test_difficulty_from_str_valid_mixed_case() {
-        assert_eq!(Difficulty::try_from_str("Recognition"), Some(Difficulty::Recognition));
+        assert_eq!(
+            Difficulty::try_from_str("Recognition"),
+            Some(Difficulty::Recognition)
+        );
         assert_eq!(Difficulty::try_from_str("ReCaLl"), Some(Difficulty::Recall));
-        assert_eq!(Difficulty::try_from_str("SpElLiNg"), Some(Difficulty::Spelling));
-        assert_eq!(Difficulty::try_from_str("Listening"), Some(Difficulty::Listening));
+        assert_eq!(
+            Difficulty::try_from_str("SpElLiNg"),
+            Some(Difficulty::Spelling)
+        );
+        assert_eq!(
+            Difficulty::try_from_str("Listening"),
+            Some(Difficulty::Listening)
+        );
         assert_eq!(Difficulty::try_from_str("UsAgE"), Some(Difficulty::Usage));
     }
 
@@ -324,7 +351,11 @@ mod tests {
         sorted_indices.sort();
         sorted_indices.dedup();
 
-        assert_eq!(indices.len(), sorted_indices.len(), "Indices should be unique");
+        assert_eq!(
+            indices.len(),
+            sorted_indices.len(),
+            "Indices should be unique"
+        );
     }
 
     #[test]
@@ -368,7 +399,11 @@ mod tests {
                 if i == j {
                     assert_eq!(value, 1.0, "Diagonal element A[{},{}] should be 1.0", i, j);
                 } else {
-                    assert_eq!(value, 0.0, "Off-diagonal element A[{},{}] should be 0.0", i, j);
+                    assert_eq!(
+                        value, 0.0,
+                        "Off-diagonal element A[{},{}] should be 0.0",
+                        i, j
+                    );
                 }
             }
         }
@@ -394,10 +429,19 @@ mod tests {
             for j in 0..d {
                 let value = model.l_matrix[i * d + j];
                 if i == j {
-                    assert!((value - sqrt_lambda).abs() < EPSILON,
-                        "Diagonal element L[{},{}] should be {}", i, j, sqrt_lambda);
+                    assert!(
+                        (value - sqrt_lambda).abs() < EPSILON,
+                        "Diagonal element L[{},{}] should be {}",
+                        i,
+                        j,
+                        sqrt_lambda
+                    );
                 } else {
-                    assert_eq!(value, 0.0, "Off-diagonal element L[{},{}] should be 0.0", i, j);
+                    assert_eq!(
+                        value, 0.0,
+                        "Off-diagonal element L[{},{}] should be 0.0",
+                        i, j
+                    );
                 }
             }
         }

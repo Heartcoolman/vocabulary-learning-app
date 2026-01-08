@@ -1,3 +1,5 @@
+use crate::response::json_error;
+use crate::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -5,8 +7,6 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use crate::response::json_error;
-use crate::state::AppState;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -153,8 +153,12 @@ struct CreateAlertRuleInput {
     cooldown_minutes: i32,
 }
 
-fn default_enabled() -> bool { true }
-fn default_cooldown() -> i32 { 30 }
+fn default_enabled() -> bool {
+    true
+}
+fn default_cooldown() -> i32 {
+    30
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -177,13 +181,17 @@ pub fn router() -> Router<AppState> {
         .route("/stats", get(logs_stats))
         .route("/modules", get(logs_modules))
         .route("/log-alerts", get(list_log_alerts).post(create_log_alert))
-        .route("/log-alerts/{id}", put(update_log_alert).delete(delete_log_alert))
+        .route(
+            "/log-alerts/{id}",
+            put(update_log_alert).delete(delete_log_alert),
+        )
         .route("/{id}", get(get_log))
 }
 
 async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -200,15 +208,23 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
     let order_dir = if sort_order == "asc" { "ASC" } else { "DESC" };
 
     // Parse comma-separated levels into a vector
-    let levels: Vec<&str> = query.level.as_ref()
-        .map(|l| l.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect())
+    let levels: Vec<&str> = query
+        .level
+        .as_ref()
+        .map(|l| {
+            l.split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
 
     let mut conditions = vec!["1=1".to_string()];
     let mut bind_idx = 1;
 
     if !levels.is_empty() {
-        let placeholders: Vec<String> = levels.iter()
+        let placeholders: Vec<String> = levels
+            .iter()
             .enumerate()
             .map(|(i, _)| format!("${}", bind_idx + i as i32))
             .collect();
@@ -255,92 +271,186 @@ async fn list_logs(State(state): State<AppState>, Query(query): Query<LogsQuery>
     let mut count_q = sqlx::query_scalar(&count_query);
     let mut data_q = sqlx::query(&data_query);
 
-    for level in &levels { count_q = count_q.bind(*level); data_q = data_q.bind(*level); }
-    if let Some(ref v) = query.module { count_q = count_q.bind(v); data_q = data_q.bind(v); }
-    if let Some(ref v) = query.source { count_q = count_q.bind(v); data_q = data_q.bind(v); }
-    if let Some(ref v) = query.user_id { count_q = count_q.bind(v); data_q = data_q.bind(v); }
-    if let Some(ref v) = query.request_id { count_q = count_q.bind(v); data_q = data_q.bind(v); }
+    for level in &levels {
+        count_q = count_q.bind(*level);
+        data_q = data_q.bind(*level);
+    }
+    if let Some(ref v) = query.module {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
+    if let Some(ref v) = query.source {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
+    if let Some(ref v) = query.user_id {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
+    if let Some(ref v) = query.request_id {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
     if let Some(ref v) = query.message_pattern {
         let pattern = format!("%{v}%");
         count_q = count_q.bind(pattern.clone());
         data_q = data_q.bind(pattern);
     }
-    if let Some(ref v) = query.start_time { count_q = count_q.bind(v); data_q = data_q.bind(v); }
-    if let Some(ref v) = query.end_time { count_q = count_q.bind(v); data_q = data_q.bind(v); }
+    if let Some(ref v) = query.start_time {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
+    if let Some(ref v) = query.end_time {
+        count_q = count_q.bind(v);
+        data_q = data_q.bind(v);
+    }
 
     data_q = data_q.bind(page_size).bind(offset);
 
     let total: i64 = count_q.fetch_one(pg).await.unwrap_or(0);
     let rows = match data_q.fetch_all(pg).await {
         Ok(r) => r,
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Err(e) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                &e.to_string(),
+            )
+            .into_response()
+        }
     };
 
     let logs: Vec<LogEntry> = rows.iter().map(|r| parse_log_entry_pg(r)).collect();
     let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
 
-    (StatusCode::OK, Json(SuccessResponse {
-        success: true,
-        data: LogsListData {
-            logs,
-            pagination: PaginationInfo { page, page_size, total, total_pages },
-        },
-    })).into_response()
+    (
+        StatusCode::OK,
+        Json(SuccessResponse {
+            success: true,
+            data: LogsListData {
+                logs,
+                pagination: PaginationInfo {
+                    page,
+                    page_size,
+                    total,
+                    total_pages,
+                },
+            },
+        }),
+    )
+        .into_response()
 }
 
 async fn logs_stats(State(state): State<AppState>, Query(query): Query<StatsQuery>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
     let mut where_parts = vec![];
-    if query.start_time.is_some() { where_parts.push("\"timestamp\" >= $1".to_string()); }
+    if query.start_time.is_some() {
+        where_parts.push("\"timestamp\" >= $1".to_string());
+    }
     if query.end_time.is_some() {
         let idx = if query.start_time.is_some() { 2 } else { 1 };
         where_parts.push(format!("\"timestamp\" <= ${idx}"));
     }
-    let where_clause = if where_parts.is_empty() { "1=1".to_string() } else { where_parts.join(" AND ") };
+    let where_clause = if where_parts.is_empty() {
+        "1=1".to_string()
+    } else {
+        where_parts.join(" AND ")
+    };
 
     let total_q = format!(r#"SELECT COUNT(*) FROM "system_logs" WHERE {where_clause}"#);
-    let level_q = format!(r#"SELECT "level"::text, COUNT(*) as cnt FROM "system_logs" WHERE {where_clause} GROUP BY "level""#);
-    let source_q = format!(r#"SELECT "source"::text, COUNT(*) as cnt FROM "system_logs" WHERE {where_clause} GROUP BY "source""#);
+    let level_q = format!(
+        r#"SELECT "level"::text, COUNT(*) as cnt FROM "system_logs" WHERE {where_clause} GROUP BY "level""#
+    );
+    let source_q = format!(
+        r#"SELECT "source"::text, COUNT(*) as cnt FROM "system_logs" WHERE {where_clause} GROUP BY "source""#
+    );
 
     let mut tq = sqlx::query_scalar(&total_q);
     let mut lq = sqlx::query(&level_q);
     let mut sq = sqlx::query(&source_q);
 
-    if let Some(ref s) = query.start_time { tq = tq.bind(s); lq = lq.bind(s); sq = sq.bind(s); }
-    if let Some(ref e) = query.end_time { tq = tq.bind(e); lq = lq.bind(e); sq = sq.bind(e); }
+    if let Some(ref s) = query.start_time {
+        tq = tq.bind(s);
+        lq = lq.bind(s);
+        sq = sq.bind(s);
+    }
+    if let Some(ref e) = query.end_time {
+        tq = tq.bind(e);
+        lq = lq.bind(e);
+        sq = sq.bind(e);
+    }
 
     let total: i64 = tq.fetch_one(pg).await.unwrap_or(0);
     let level_rows = lq.fetch_all(pg).await.unwrap_or_default();
     let source_rows = sq.fetch_all(pg).await.unwrap_or_default();
 
-    let by_level: Vec<LevelCount> = level_rows.iter().map(|r| LevelCount {
-        level: r.try_get("level").unwrap_or_default(),
-        count: r.try_get("cnt").unwrap_or(0),
-    }).collect();
+    let by_level: Vec<LevelCount> = level_rows
+        .iter()
+        .map(|r| LevelCount {
+            level: r.try_get("level").unwrap_or_default(),
+            count: r.try_get("cnt").unwrap_or(0),
+        })
+        .collect();
 
-    let by_source: Vec<SourceCount> = source_rows.iter().map(|r| SourceCount {
-        source: r.try_get("source").unwrap_or_default(),
-        count: r.try_get("cnt").unwrap_or(0),
-    }).collect();
+    let by_source: Vec<SourceCount> = source_rows
+        .iter()
+        .map(|r| SourceCount {
+            source: r.try_get("source").unwrap_or_default(),
+            count: r.try_get("cnt").unwrap_or(0),
+        })
+        .collect();
 
-    let error_count = by_level.iter().find(|l| l.level == "ERROR").map(|l| l.count).unwrap_or(0);
-    let warn_count = by_level.iter().find(|l| l.level == "WARN").map(|l| l.count).unwrap_or(0);
-    let frontend_count = by_source.iter().find(|s| s.source == "FRONTEND").map(|s| s.count).unwrap_or(0);
-    let backend_count = by_source.iter().find(|s| s.source == "BACKEND").map(|s| s.count).unwrap_or(0);
+    let error_count = by_level
+        .iter()
+        .find(|l| l.level == "ERROR")
+        .map(|l| l.count)
+        .unwrap_or(0);
+    let warn_count = by_level
+        .iter()
+        .find(|l| l.level == "WARN")
+        .map(|l| l.count)
+        .unwrap_or(0);
+    let frontend_count = by_source
+        .iter()
+        .find(|s| s.source == "FRONTEND")
+        .map(|s| s.count)
+        .unwrap_or(0);
+    let backend_count = by_source
+        .iter()
+        .find(|s| s.source == "BACKEND")
+        .map(|s| s.count)
+        .unwrap_or(0);
 
-    (StatusCode::OK, Json(SuccessResponse {
-        success: true,
-        data: LogsStatsData { total, error_count, warn_count, frontend_count, backend_count, by_level, by_source },
-    })).into_response()
+    (
+        StatusCode::OK,
+        Json(SuccessResponse {
+            success: true,
+            data: LogsStatsData {
+                total,
+                error_count,
+                warn_count,
+                frontend_count,
+                backend_count,
+                by_level,
+                by_source,
+            },
+        }),
+    )
+        .into_response()
 }
 
-async fn logs_modules(State(state): State<AppState>, Query(query): Query<ModulesQuery>) -> Response {
+async fn logs_modules(
+    State(state): State<AppState>,
+    Query(query): Query<ModulesQuery>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -356,16 +466,26 @@ async fn logs_modules(State(state): State<AppState>, Query(query): Query<Modules
         sqlx::query(&sql).fetch_all(pg).await
     };
 
-    let modules: Vec<String> = rows.unwrap_or_default().iter()
+    let modules: Vec<String> = rows
+        .unwrap_or_default()
+        .iter()
         .filter_map(|r| r.try_get::<String, _>("module").ok())
         .collect();
 
-    (StatusCode::OK, Json(SuccessResponse { success: true, data: modules })).into_response()
+    (
+        StatusCode::OK,
+        Json(SuccessResponse {
+            success: true,
+            data: modules,
+        }),
+    )
+        .into_response()
 }
 
 async fn list_log_alerts(State(state): State<AppState>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -379,15 +499,31 @@ async fn list_log_alerts(State(state): State<AppState>) -> Response {
     match rows {
         Ok(rows) => {
             let rules: Vec<LogAlertRule> = rows.iter().map(|r| parse_alert_rule_pg(r)).collect();
-            (StatusCode::OK, Json(SuccessResponse { success: true, data: rules })).into_response()
+            (
+                StatusCode::OK,
+                Json(SuccessResponse {
+                    success: true,
+                    data: rules,
+                }),
+            )
+                .into_response()
         }
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_ERROR",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
-async fn create_log_alert(State(state): State<AppState>, Json(input): Json<CreateAlertRuleInput>) -> Response {
+async fn create_log_alert(
+    State(state): State<AppState>,
+    Json(input): Json<CreateAlertRuleInput>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -415,7 +551,12 @@ async fn create_log_alert(State(state): State<AppState>, Json(input): Json<Creat
     .await;
 
     if let Err(e) = result {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "WRITE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
     let rule = LogAlertRule {
@@ -434,12 +575,24 @@ async fn create_log_alert(State(state): State<AppState>, Json(input): Json<Creat
         updated_at: now_str,
     };
 
-    (StatusCode::CREATED, Json(SuccessResponse { success: true, data: rule })).into_response()
+    (
+        StatusCode::CREATED,
+        Json(SuccessResponse {
+            success: true,
+            data: rule,
+        }),
+    )
+        .into_response()
 }
 
-async fn update_log_alert(State(state): State<AppState>, Path(id): Path<String>, Json(input): Json<UpdateAlertRuleInput>) -> Response {
+async fn update_log_alert(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(input): Json<UpdateAlertRuleInput>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -455,42 +608,105 @@ async fn update_log_alert(State(state): State<AppState>, Path(id): Path<String>,
     let mut sets = vec!["\"updatedAt\" = NOW()".to_string()];
     let mut bind_idx = 1;
 
-    if input.name.is_some() { sets.push(format!("\"name\" = ${bind_idx}")); bind_idx += 1; }
-    if input.description.is_some() { sets.push(format!("\"description\" = ${bind_idx}")); bind_idx += 1; }
-    if input.enabled.is_some() { sets.push(format!("\"enabled\" = ${bind_idx}")); bind_idx += 1; }
-    if input.levels.is_some() { sets.push(format!("\"levels\" = ${bind_idx}::jsonb")); bind_idx += 1; }
-    if input.module.is_some() { sets.push(format!("\"module\" = ${bind_idx}")); bind_idx += 1; }
-    if input.message_pattern.is_some() { sets.push(format!("\"messagePattern\" = ${bind_idx}")); bind_idx += 1; }
-    if input.threshold.is_some() { sets.push(format!("\"threshold\" = ${bind_idx}")); bind_idx += 1; }
-    if input.window_minutes.is_some() { sets.push(format!("\"windowMinutes\" = ${bind_idx}")); bind_idx += 1; }
-    if input.webhook_url.is_some() { sets.push(format!("\"webhookUrl\" = ${bind_idx}")); bind_idx += 1; }
-    if input.cooldown_minutes.is_some() { sets.push(format!("\"cooldownMinutes\" = ${bind_idx}")); bind_idx += 1; }
+    if input.name.is_some() {
+        sets.push(format!("\"name\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.description.is_some() {
+        sets.push(format!("\"description\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.enabled.is_some() {
+        sets.push(format!("\"enabled\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.levels.is_some() {
+        sets.push(format!("\"levels\" = ${bind_idx}::jsonb"));
+        bind_idx += 1;
+    }
+    if input.module.is_some() {
+        sets.push(format!("\"module\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.message_pattern.is_some() {
+        sets.push(format!("\"messagePattern\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.threshold.is_some() {
+        sets.push(format!("\"threshold\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.window_minutes.is_some() {
+        sets.push(format!("\"windowMinutes\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.webhook_url.is_some() {
+        sets.push(format!("\"webhookUrl\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
+    if input.cooldown_minutes.is_some() {
+        sets.push(format!("\"cooldownMinutes\" = ${bind_idx}"));
+        bind_idx += 1;
+    }
 
-    let sql = format!(r#"UPDATE "log_alert_rules" SET {} WHERE "id" = ${bind_idx}"#, sets.join(", "));
+    let sql = format!(
+        r#"UPDATE "log_alert_rules" SET {} WHERE "id" = ${bind_idx}"#,
+        sets.join(", ")
+    );
     let mut q = sqlx::query(&sql);
 
-    if let Some(ref n) = input.name { q = q.bind(n); }
-    if let Some(ref d) = input.description { q = q.bind(d); }
-    if let Some(e) = input.enabled { q = q.bind(e); }
-    if let Some(ref l) = input.levels { q = q.bind(serde_json::to_string(l).unwrap_or_default()); }
-    if let Some(ref m) = input.module { q = q.bind(m); }
-    if let Some(ref p) = input.message_pattern { q = q.bind(p); }
-    if let Some(t) = input.threshold { q = q.bind(t); }
-    if let Some(w) = input.window_minutes { q = q.bind(w); }
-    if let Some(ref u) = input.webhook_url { q = q.bind(u); }
-    if let Some(c) = input.cooldown_minutes { q = q.bind(c); }
+    if let Some(ref n) = input.name {
+        q = q.bind(n);
+    }
+    if let Some(ref d) = input.description {
+        q = q.bind(d);
+    }
+    if let Some(e) = input.enabled {
+        q = q.bind(e);
+    }
+    if let Some(ref l) = input.levels {
+        q = q.bind(serde_json::to_string(l).unwrap_or_default());
+    }
+    if let Some(ref m) = input.module {
+        q = q.bind(m);
+    }
+    if let Some(ref p) = input.message_pattern {
+        q = q.bind(p);
+    }
+    if let Some(t) = input.threshold {
+        q = q.bind(t);
+    }
+    if let Some(w) = input.window_minutes {
+        q = q.bind(w);
+    }
+    if let Some(ref u) = input.webhook_url {
+        q = q.bind(u);
+    }
+    if let Some(c) = input.cooldown_minutes {
+        q = q.bind(c);
+    }
     q = q.bind(&id);
 
     if let Err(e) = q.execute(pg).await {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "WRITE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
-    (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "更新成功" }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "success": true, "message": "更新成功" })),
+    )
+        .into_response()
 }
 
 async fn delete_log_alert(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -508,15 +724,25 @@ async fn delete_log_alert(State(state): State<AppState>, Path(id): Path<String>)
         .execute(pg)
         .await
     {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DELETE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DELETE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
-    (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "删除成功" }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "success": true, "message": "删除成功" })),
+    )
+        .into_response()
 }
 
 async fn get_log(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let pg = proxy.pool();
 
@@ -531,15 +757,29 @@ async fn get_log(State(state): State<AppState>, Path(id): Path<String>) -> Respo
     match row {
         Ok(Some(r)) => {
             let log = parse_log_entry_pg(&r);
-            (StatusCode::OK, Json(SuccessResponse { success: true, data: log })).into_response()
+            (
+                StatusCode::OK,
+                Json(SuccessResponse {
+                    success: true,
+                    data: log,
+                }),
+            )
+                .into_response()
         }
         Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "日志不存在").into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_ERROR",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
 fn parse_log_entry_pg(row: &sqlx::postgres::PgRow) -> LogEntry {
-    let timestamp: chrono::NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let timestamp: chrono::NaiveDateTime = row
+        .try_get("timestamp")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
     LogEntry {
         id: row.try_get("id").unwrap_or_default(),
         level: row.try_get("level").unwrap_or_default(),
@@ -554,14 +794,23 @@ fn parse_log_entry_pg(row: &sqlx::postgres::PgRow) -> LogEntry {
         user_agent: row.try_get("userAgent").ok(),
         app: row.try_get("app").ok(),
         env: row.try_get("env").ok(),
-        timestamp: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(timestamp, chrono::Utc).to_rfc3339(),
+        timestamp: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            timestamp,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
     }
 }
 
 fn parse_alert_rule_pg(row: &sqlx::postgres::PgRow) -> LogAlertRule {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-    let updated_at: chrono::NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-    let levels: Vec<String> = row.try_get::<serde_json::Value, _>("levels")
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let updated_at: chrono::NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let levels: Vec<String> = row
+        .try_get::<serde_json::Value, _>("levels")
         .ok()
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
@@ -578,7 +827,15 @@ fn parse_alert_rule_pg(row: &sqlx::postgres::PgRow) -> LogAlertRule {
         window_minutes: row.try_get("windowMinutes").unwrap_or(60),
         webhook_url: row.try_get("webhookUrl").ok(),
         cooldown_minutes: row.try_get("cooldownMinutes").unwrap_or(30),
-        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(created_at, chrono::Utc).to_rfc3339(),
-        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(updated_at, chrono::Utc).to_rfc3339(),
+        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            created_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
+        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            updated_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
     }
 }

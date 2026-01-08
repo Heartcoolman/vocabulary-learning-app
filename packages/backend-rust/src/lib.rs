@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 pub mod amas;
+pub mod auth;
 pub mod cache;
 pub mod config;
 pub mod core;
 pub mod db;
-pub mod auth;
 pub mod middleware;
 pub mod response;
 pub mod routes;

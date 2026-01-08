@@ -41,7 +41,8 @@ async fn delete_expired_sessions(pool: &PgPool) -> Result<i64, super::WorkerErro
         r#"
         DELETE FROM "sessions"
         WHERE "expiresAt" < $1
-        "#)
+        "#,
+    )
     .bind(now)
     .execute(pool)
     .await?;

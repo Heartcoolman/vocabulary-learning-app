@@ -105,17 +105,15 @@ impl RedisEventBridge {
     }
 
     async fn subscribe_and_listen(&self) -> Result<(), RedisEventError> {
-        let client = redis::Client::open(self.redis_url.as_str())
-            .map_err(RedisEventError::Connection)?;
+        let client =
+            redis::Client::open(self.redis_url.as_str()).map_err(RedisEventError::Connection)?;
 
         let mut pubsub = client
             .get_async_pubsub()
             .await
             .map_err(RedisEventError::Connection)?;
 
-        let patterns = vec![
-            format!("{}*", CHANNEL_PREFIX),
-        ];
+        let patterns = vec![format!("{}*", CHANNEL_PREFIX)];
 
         for pattern in &patterns {
             pubsub
@@ -138,10 +136,7 @@ impl RedisEventBridge {
                 }
             }
 
-            let msg = match tokio::time::timeout(
-                Duration::from_secs(30),
-                stream.next(),
-            ).await {
+            let msg = match tokio::time::timeout(Duration::from_secs(30), stream.next()).await {
                 Ok(Some(msg)) => msg,
                 Ok(None) => {
                     warn!("Redis subscription stream ended");
@@ -210,10 +205,8 @@ mod tests {
     #[ignore = "requires Redis"]
     async fn test_redis_bridge_publish() {
         let event_bus = Arc::new(EventBus::new());
-        let bridge = RedisEventBridge::new(
-            Arc::clone(&event_bus),
-            "redis://localhost:6379".to_string(),
-        );
+        let bridge =
+            RedisEventBridge::new(Arc::clone(&event_bus), "redis://localhost:6379".to_string());
 
         let event = LearningEvent::AnswerRecorded(AnswerRecordedPayload {
             user_id: "test_user".to_string(),

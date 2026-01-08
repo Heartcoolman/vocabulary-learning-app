@@ -118,10 +118,14 @@ pub async fn upsert_word_learning_state(
     wls: &WordLearningState,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
-    let last_review = wls.last_review_at.as_ref()
+    let last_review = wls
+        .last_review_at
+        .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
-    let next_review = wls.next_review_at.as_ref()
+    let next_review = wls
+        .next_review_at
+        .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
 
@@ -249,8 +253,12 @@ pub async fn insert_word_review_trace(
 }
 
 fn map_word_learning_state(row: &sqlx::postgres::PgRow) -> WordLearningState {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let last_review_at: Option<NaiveDateTime> = row.try_get("lastReviewAt").ok();
     let next_review_at: Option<NaiveDateTime> = row.try_get("nextReviewAt").ok();
     WordLearningState {
@@ -272,8 +280,12 @@ fn map_word_learning_state(row: &sqlx::postgres::PgRow) -> WordLearningState {
 }
 
 fn map_answer_record(row: &sqlx::postgres::PgRow) -> AnswerRecord {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let timestamp: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let timestamp: NaiveDateTime = row
+        .try_get("timestamp")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     AnswerRecord {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
@@ -292,5 +304,6 @@ fn map_answer_record(row: &sqlx::postgres::PgRow) -> AnswerRecord {
 }
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
-    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
+    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
+        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }

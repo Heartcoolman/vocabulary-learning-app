@@ -278,11 +278,18 @@ pub async fn batch_create_records(
             Some(ts) => validate_timestamp_ms(ts)?,
             None => now_ms,
         };
-        resolved.push(ResolvedRecord { input: record, timestamp_ms: ts_ms });
+        resolved.push(ResolvedRecord {
+            input: record,
+            timestamp_ms: ts_ms,
+        });
     }
 
     let word_ids: Vec<String> = resolved.iter().map(|r| r.input.word_id.clone()).collect();
-    let unique_word_ids: Vec<String> = word_ids.into_iter().collect::<HashSet<_>>().into_iter().collect();
+    let unique_word_ids: Vec<String> = word_ids
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
 
     let accessible_word_ids = select_accessible_word_ids(proxy, user_id, &unique_word_ids).await?;
     let accessible_set: HashSet<&str> = accessible_word_ids.iter().map(|id| id.as_str()).collect();
@@ -293,7 +300,9 @@ pub async fn batch_create_records(
         .collect();
 
     if valid.is_empty() {
-        return Err(RecordError::Validation("所有单词都不存在或无权访问".to_string()));
+        return Err(RecordError::Validation(
+            "所有单词都不存在或无权访问".to_string(),
+        ));
     }
 
     let session_ids: Vec<String> = valid
@@ -406,7 +415,8 @@ pub async fn get_statistics_with_period(
 
     let date_filter = parse_period_to_date_filter(period);
     let total_records = count_answer_records_with_date(proxy, user_id, None, date_filter).await?;
-    let correct_records = count_answer_records_with_date(proxy, user_id, Some(true), date_filter).await?;
+    let correct_records =
+        count_answer_records_with_date(proxy, user_id, Some(true), date_filter).await?;
     let recent_records = select_recent_records_with_date(proxy, user_id, date_filter).await?;
 
     let correct_rate = if total_records > 0 {
@@ -504,43 +514,57 @@ fn validate_record_input(input: &CreateRecordInput) -> Result<(), RecordError> {
 
     if let Some(value) = input.selected_answer.as_deref() {
         if value.trim().is_empty() {
-            return Err(RecordError::Validation("selectedAnswer 不能为空".to_string()));
+            return Err(RecordError::Validation(
+                "selectedAnswer 不能为空".to_string(),
+            ));
         }
     }
 
     if let Some(value) = input.selected_option.as_deref() {
         if value.trim().is_empty() {
-            return Err(RecordError::Validation("selectedOption 不能为空".to_string()));
+            return Err(RecordError::Validation(
+                "selectedOption 不能为空".to_string(),
+            ));
         }
     }
 
     if let Some(value) = input.correct_answer.as_deref() {
         if value.trim().is_empty() {
-            return Err(RecordError::Validation("correctAnswer 不能为空".to_string()));
+            return Err(RecordError::Validation(
+                "correctAnswer 不能为空".to_string(),
+            ));
         }
     }
 
     if let Some(value) = input.response_time {
         if value < 0 {
-            return Err(RecordError::Validation("responseTime 必须是非负整数".to_string()));
+            return Err(RecordError::Validation(
+                "responseTime 必须是非负整数".to_string(),
+            ));
         }
     }
 
     if let Some(value) = input.dwell_time {
         if value < 0 {
-            return Err(RecordError::Validation("dwellTime 必须是非负整数".to_string()));
+            return Err(RecordError::Validation(
+                "dwellTime 必须是非负整数".to_string(),
+            ));
         }
     }
 
     if let Some(value) = input.timestamp_ms {
         if value < 0 {
-            return Err(RecordError::Validation("timestamp 必须是非负整数".to_string()));
+            return Err(RecordError::Validation(
+                "timestamp 必须是非负整数".to_string(),
+            ));
         }
     }
 
     if let Some(session) = input.session_id.as_deref() {
         if session.len() > 255 {
-            return Err(RecordError::Validation("sessionId 长度不能超过 255".to_string()));
+            return Err(RecordError::Validation(
+                "sessionId 长度不能超过 255".to_string(),
+            ));
         }
     }
 
@@ -550,10 +574,14 @@ fn validate_record_input(input: &CreateRecordInput) -> Result<(), RecordError> {
 fn validate_timestamp_ms(timestamp: i64) -> Result<i64, RecordError> {
     let now = Utc::now().timestamp_millis();
     if timestamp > now + TIMESTAMP_FUTURE_LIMIT_MS {
-        return Err(RecordError::Validation("时间戳不能超过当前时间1小时".to_string()));
+        return Err(RecordError::Validation(
+            "时间戳不能超过当前时间1小时".to_string(),
+        ));
     }
     if timestamp < now - TIMESTAMP_PAST_LIMIT_MS {
-        return Err(RecordError::Validation("时间戳不能早于24小时前".to_string()));
+        return Err(RecordError::Validation(
+            "时间戳不能早于24小时前".to_string(),
+        ));
     }
     Ok(timestamp)
 }
@@ -653,7 +681,9 @@ async fn select_accessible_word_ids(
         }
         sep.push_unseparated(")");
     }
-    qb.push(" AND (wb.\"type\"::text = 'SYSTEM' OR (wb.\"type\"::text = 'USER' AND wb.\"userId\" = ");
+    qb.push(
+        " AND (wb.\"type\"::text = 'SYSTEM' OR (wb.\"type\"::text = 'USER' AND wb.\"userId\" = ",
+    );
     qb.push_bind(user_id);
     qb.push("))");
     let rows = qb.build().fetch_all(pool).await?;
@@ -805,7 +835,9 @@ async fn count_answer_records_pg(
 }
 
 fn map_answer_record_pg(row: sqlx::postgres::PgRow) -> AnswerRecordWithWord {
-    let timestamp: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+    let timestamp: NaiveDateTime = row
+        .try_get("timestamp")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     AnswerRecordWithWord {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
@@ -814,7 +846,11 @@ fn map_answer_record_pg(row: sqlx::postgres::PgRow) -> AnswerRecordWithWord {
         correct_answer: row.try_get("correctAnswer").unwrap_or_default(),
         is_correct: row.try_get::<bool, _>("isCorrect").unwrap_or(false),
         timestamp: crate::auth::format_naive_datetime_iso_millis(timestamp),
-        dwell_time: row.try_get::<Option<i32>, _>("dwellTime").ok().flatten().map(|v| v as i64),
+        dwell_time: row
+            .try_get::<Option<i32>, _>("dwellTime")
+            .ok()
+            .flatten()
+            .map(|v| v as i64),
         mastery_level_after: row
             .try_get::<Option<i32>, _>("masteryLevelAfter")
             .ok()
@@ -834,7 +870,9 @@ fn map_answer_record_pg(row: sqlx::postgres::PgRow) -> AnswerRecordWithWord {
         word: AnswerRecordWord {
             spelling: row.try_get("wSpelling").unwrap_or_default(),
             phonetic: row.try_get("wPhonetic").unwrap_or_default(),
-            meanings: row.try_get::<Vec<String>, _>("wMeanings").unwrap_or_default(),
+            meanings: row
+                .try_get::<Vec<String>, _>("wMeanings")
+                .unwrap_or_default(),
         },
     }
 }
@@ -854,7 +892,10 @@ async fn select_accessible_word_book_ids(
     .bind(user_id)
     .fetch_all(pool)
     .await?;
-    Ok(rows.into_iter().filter_map(|r| r.try_get::<String, _>("id").ok()).collect())
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| r.try_get::<String, _>("id").ok())
+        .collect())
 }
 
 async fn count_words_in_word_books(
@@ -959,10 +1000,15 @@ async fn select_recent_records_with_date(
 }
 
 fn map_recent_record_pg(row: sqlx::postgres::PgRow) -> RecentRecord {
-    let timestamp: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+    let timestamp: NaiveDateTime = row
+        .try_get("timestamp")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let meanings: Option<serde_json::Value> = row.try_get("wMeanings").ok();
     let definition = meanings
-        .and_then(|v| v.as_array().and_then(|arr| arr.first().and_then(|m| m.as_str().map(|s| s.to_string()))))
+        .and_then(|v| {
+            v.as_array()
+                .and_then(|arr| arr.first().and_then(|m| m.as_str().map(|s| s.to_string())))
+        })
         .unwrap_or_default();
     RecentRecord {
         id: row.try_get("id").unwrap_or_default(),
@@ -972,8 +1018,16 @@ fn map_recent_record_pg(row: sqlx::postgres::PgRow) -> RecentRecord {
         correct_answer: row.try_get("correctAnswer").unwrap_or_default(),
         is_correct: row.try_get::<bool, _>("isCorrect").unwrap_or(false),
         timestamp: crate::auth::format_naive_datetime_iso_millis(timestamp),
-        response_time: row.try_get::<Option<i32>, _>("responseTime").ok().flatten().map(|v| v as i64),
-        dwell_time: row.try_get::<Option<i32>, _>("dwellTime").ok().flatten().map(|v| v as i64),
+        response_time: row
+            .try_get::<Option<i32>, _>("responseTime")
+            .ok()
+            .flatten()
+            .map(|v| v as i64),
+        dwell_time: row
+            .try_get::<Option<i32>, _>("dwellTime")
+            .ok()
+            .flatten()
+            .map(|v| v as i64),
         session_id: row.try_get::<Option<String>, _>("sessionId").ok().flatten(),
         word: RecentWord {
             id: row.try_get("wId").unwrap_or_default(),
@@ -999,14 +1053,15 @@ pub async fn get_enhanced_statistics(
     proxy: &DatabaseProxy,
     user_id: &str,
 ) -> Result<EnhancedStudyStatistics, sqlx::Error> {
-    let (base, study_days, consecutive_days, daily_accuracy, weekday_heat, mastery_distribution) = tokio::try_join!(
-        get_statistics(proxy, user_id),
-        calculate_study_days(proxy, user_id),
-        calculate_consecutive_days(proxy, user_id),
-        calculate_daily_accuracy(proxy, user_id),
-        calculate_weekday_heat(proxy, user_id),
-        calculate_mastery_distribution(proxy, user_id),
-    )?;
+    let (base, study_days, consecutive_days, daily_accuracy, weekday_heat, mastery_distribution) =
+        tokio::try_join!(
+            get_statistics(proxy, user_id),
+            calculate_study_days(proxy, user_id),
+            calculate_consecutive_days(proxy, user_id),
+            calculate_daily_accuracy(proxy, user_id),
+            calculate_weekday_heat(proxy, user_id),
+            calculate_mastery_distribution(proxy, user_id),
+        )?;
 
     Ok(EnhancedStudyStatistics {
         total_words: base.total_words,
@@ -1021,10 +1076,7 @@ pub async fn get_enhanced_statistics(
     })
 }
 
-async fn calculate_study_days(
-    proxy: &DatabaseProxy,
-    user_id: &str,
-) -> Result<i64, sqlx::Error> {
+async fn calculate_study_days(proxy: &DatabaseProxy, user_id: &str) -> Result<i64, sqlx::Error> {
     let pool = proxy.pool();
     let row = sqlx::query(
         r#"SELECT COUNT(DISTINCT DATE("timestamp")) as "count" FROM "answer_records" WHERE "userId" = $1"#,
@@ -1163,4 +1215,3 @@ async fn calculate_mastery_distribution(
     }
     Ok(distribution)
 }
-

@@ -89,13 +89,22 @@ pub async fn batch_get_word_scores(
         return Ok(HashMap::new());
     }
     if word_ids.len() > MAX_BATCH_SIZE {
-        return Err(WordScoreError::Validation("wordIds数组最多允许500个元素".to_string()));
+        return Err(WordScoreError::Validation(
+            "wordIds数组最多允许500个元素".to_string(),
+        ));
     }
     if !word_ids.iter().all(|id| !id.trim().is_empty()) {
-        return Err(WordScoreError::Validation("wordIds数组元素必须是非空字符串".to_string()));
+        return Err(WordScoreError::Validation(
+            "wordIds数组元素必须是非空字符串".to_string(),
+        ));
     }
 
-    let unique_ids: Vec<String> = word_ids.iter().map(|id| id.trim().to_string()).collect::<HashSet<_>>().into_iter().collect();
+    let unique_ids: Vec<String> = word_ids
+        .iter()
+        .map(|id| id.trim().to_string())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
 
     let pool = proxy.pool();
 
@@ -298,7 +307,10 @@ pub async fn upsert_word_score(
 
     for key in &insert_keys {
         qb.push(", ");
-        let value = safe_update.get(key).cloned().unwrap_or(serde_json::Value::Null);
+        let value = safe_update
+            .get(key)
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         match key.as_str() {
             "totalScore"
             | "accuracyScore"
@@ -341,7 +353,10 @@ fn sanitize_word_score_update(
 ) -> Result<serde_json::Map<String, serde_json::Value>, WordScoreError> {
     let mut out = serde_json::Map::new();
     for (key, value) in raw {
-        if matches!(key.as_str(), "userId" | "wordId" | "id" | "createdAt" | "updatedAt") {
+        if matches!(
+            key.as_str(),
+            "userId" | "wordId" | "id" | "createdAt" | "updatedAt"
+        ) {
             continue;
         }
         if value.is_null() {
@@ -414,8 +429,12 @@ async fn ensure_word_access(
 }
 
 fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordScoreRecord {
-    let created_dt: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_dt: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_dt: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_dt: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     WordScoreRecord {
         id: row.try_get::<String, _>("id").unwrap_or_default(),
@@ -426,8 +445,14 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordScoreRecord {
         speed_score: row.try_get::<f64, _>("speedScore").unwrap_or(0.0),
         stability_score: row.try_get::<f64, _>("stabilityScore").unwrap_or(0.0),
         proficiency_score: row.try_get::<f64, _>("proficiencyScore").unwrap_or(0.0),
-        total_attempts: row.try_get::<i32, _>("totalAttempts").map(|v| v as i64).unwrap_or(0),
-        correct_attempts: row.try_get::<i32, _>("correctAttempts").map(|v| v as i64).unwrap_or(0),
+        total_attempts: row
+            .try_get::<i32, _>("totalAttempts")
+            .map(|v| v as i64)
+            .unwrap_or(0),
+        correct_attempts: row
+            .try_get::<i32, _>("correctAttempts")
+            .map(|v| v as i64)
+            .unwrap_or(0),
         average_response_time: row.try_get::<f64, _>("averageResponseTime").unwrap_or(0.0),
         average_dwell_time: row.try_get::<f64, _>("averageDwellTime").unwrap_or(0.0),
         recent_accuracy: row.try_get::<f64, _>("recentAccuracy").unwrap_or(0.0),

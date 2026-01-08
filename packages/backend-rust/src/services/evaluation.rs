@@ -126,14 +126,17 @@ pub async fn get_observations(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|row| CausalObservationRecord {
-        id: row.try_get("id").unwrap_or_default(),
-        user_id: row.try_get("userId").ok(),
-        features: row.try_get::<Vec<f64>, _>("features").unwrap_or_default(),
-        treatment: row.try_get("treatment").unwrap_or(0),
-        outcome: row.try_get("outcome").unwrap_or(0.0),
-        timestamp: row.try_get("timestamp").unwrap_or(0),
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| CausalObservationRecord {
+            id: row.try_get("id").unwrap_or_default(),
+            user_id: row.try_get("userId").ok(),
+            features: row.try_get::<Vec<f64>, _>("features").unwrap_or_default(),
+            treatment: row.try_get("treatment").unwrap_or(0),
+            outcome: row.try_get("outcome").unwrap_or(0.0),
+            timestamp: row.try_get("timestamp").unwrap_or(0),
+        })
+        .collect())
 }
 
 pub async fn estimate_strategy_effect(pool: &PgPool) -> Result<Option<CausalEstimate>, String> {
@@ -143,9 +146,8 @@ pub async fn estimate_strategy_effect(pool: &PgPool) -> Result<Option<CausalEsti
         return Ok(None);
     }
 
-    let (treatment_records, control_records): (Vec<_>, Vec<_>) = observations
-        .iter()
-        .partition(|o| o.treatment == 1);
+    let (treatment_records, control_records): (Vec<_>, Vec<_>) =
+        observations.iter().partition(|o| o.treatment == 1);
 
     let treatment_outcomes: Vec<f64> = treatment_records.iter().map(|o| o.outcome).collect();
     let control_outcomes: Vec<f64> = control_records.iter().map(|o| o.outcome).collect();
@@ -160,7 +162,9 @@ pub async fn estimate_strategy_effect(pool: &PgPool) -> Result<Option<CausalEsti
 
     let treatment_var = variance(&treatment_outcomes);
     let control_var = variance(&control_outcomes);
-    let ate_se = ((treatment_var / treatment_outcomes.len() as f64) + (control_var / control_outcomes.len() as f64)).sqrt();
+    let ate_se = ((treatment_var / treatment_outcomes.len() as f64)
+        + (control_var / control_outcomes.len() as f64))
+        .sqrt();
 
     let z = 1.96;
     let ci_low = ate - z * ate_se;
@@ -215,12 +219,30 @@ pub async fn evaluate_word_mastery(
     .await
     .unwrap_or(0);
 
-    let mastery_level: i32 = state_row.as_ref().and_then(|r| r.try_get("masteryLevel").ok()).unwrap_or(0);
-    let ease_factor: f64 = state_row.as_ref().and_then(|r| r.try_get("easeFactor").ok()).unwrap_or(2.5);
-    let review_count: i32 = state_row.as_ref().and_then(|r| r.try_get("reviewCount").ok()).unwrap_or(0);
-    let score: f64 = score_row.as_ref().and_then(|r| r.try_get("score").ok()).unwrap_or(50.0);
-    let correct_count: i32 = score_row.as_ref().and_then(|r| r.try_get("correctCount").ok()).unwrap_or(0);
-    let incorrect_count: i32 = score_row.as_ref().and_then(|r| r.try_get("incorrectCount").ok()).unwrap_or(0);
+    let mastery_level: i32 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("masteryLevel").ok())
+        .unwrap_or(0);
+    let ease_factor: f64 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("easeFactor").ok())
+        .unwrap_or(2.5);
+    let review_count: i32 = state_row
+        .as_ref()
+        .and_then(|r| r.try_get("reviewCount").ok())
+        .unwrap_or(0);
+    let score: f64 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("score").ok())
+        .unwrap_or(50.0);
+    let correct_count: i32 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("correctCount").ok())
+        .unwrap_or(0);
+    let incorrect_count: i32 = score_row
+        .as_ref()
+        .and_then(|r| r.try_get("incorrectCount").ok())
+        .unwrap_or(0);
 
     let _ = score;
     let total_attempts = correct_count + incorrect_count;
@@ -278,7 +300,9 @@ pub async fn batch_evaluate_word_mastery(
 }
 
 fn variance(values: &[f64]) -> f64 {
-    if values.is_empty() { return 0.0; }
+    if values.is_empty() {
+        return 0.0;
+    }
     let mean = values.iter().sum::<f64>() / values.len() as f64;
     values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64
 }

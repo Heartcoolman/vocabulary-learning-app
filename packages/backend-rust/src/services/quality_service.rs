@@ -142,13 +142,12 @@ pub async fn start_task(
     let check_type = request.check_type.clone();
     let now = Utc::now();
 
-    let word_count: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#,
-    )
-    .bind(wordbook_id)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let word_count: i64 =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
+            .bind(wordbook_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
 
     sqlx::query(
         r#"
@@ -188,7 +187,15 @@ pub async fn start_task(
     let check_type_clone = check_type.unwrap_or_else(|| "FULL".to_string());
 
     tokio::spawn(async move {
-        run_check_task(pool_clone, task_id, &wordbook_id, &check_type_clone, word_count as i32, &user_id).await;
+        run_check_task(
+            pool_clone,
+            task_id,
+            &wordbook_id,
+            &check_type_clone,
+            word_count as i32,
+            &user_id,
+        )
+        .await;
     });
 
     Ok(task)
@@ -202,9 +209,17 @@ async fn run_check_task(
     total_items: i32,
     user_id: &str,
 ) {
-    tracing::info!("Starting quality check task: {}, type: {}, total: {}", task_id, check_type, total_items);
+    tracing::info!(
+        "Starting quality check task: {}, type: {}, total: {}",
+        task_id,
+        check_type,
+        total_items
+    );
     let llm = LLMProvider::from_env();
-    tracing::info!("LLM Status: is_available={}, config details omitted", llm.is_available());
+    tracing::info!(
+        "LLM Status: is_available={}, config details omitted",
+        llm.is_available()
+    );
 
     let words = match sqlx::query(
         r#"SELECT "id", "spelling", "phonetic", "meanings", "examples" FROM "words" WHERE "wordBookId" = $1"#,
@@ -224,15 +239,16 @@ async fn run_check_task(
         }
     };
 
-    let words: Vec<WordForCheck> = words.into_iter().map(|row| {
-        WordForCheck {
+    let words: Vec<WordForCheck> = words
+        .into_iter()
+        .map(|row| WordForCheck {
             id: row.try_get("id").unwrap_or_default(),
             spelling: row.try_get("spelling").unwrap_or_default(),
             phonetic: row.try_get("phonetic").unwrap_or_default(),
             meanings: row.try_get("meanings").unwrap_or_default(),
             examples: row.try_get("examples").unwrap_or_default(),
-        }
-    }).collect();
+        })
+        .collect();
 
     let processed = Arc::new(std::sync::atomic::AtomicI32::new(0));
     let issues_found = Arc::new(std::sync::atomic::AtomicI32::new(0));
@@ -243,7 +259,11 @@ async fn run_check_task(
         .and_then(|v| v.parse().ok())
         .unwrap_or(DEFAULT_CONCURRENCY);
 
-    tracing::info!("Transformed {} words, starting concurrent loop with concurrency {}", words.len(), concurrency);
+    tracing::info!(
+        "Transformed {} words, starting concurrent loop with concurrency {}",
+        words.len(),
+        concurrency
+    );
 
     if let Err(e) = sqlx::query(r#"DELETE FROM "word_issues" WHERE "wordbookId" = $1"#)
         .bind(wordbook_id)
@@ -272,7 +292,7 @@ async fn run_check_task(
                 if CANCELLED.load(Ordering::SeqCst) || cancelled.load(Ordering::SeqCst) {
                     return;
                 }
-                
+
                 tracing::info!("Processing word: {}, meanings: {}", word.spelling, word.meanings.len());
 
                 let _ = sqlx::query(r#"UPDATE "quality_tasks" SET "currentItem" = $1 WHERE "id" = $2"#)
@@ -344,7 +364,11 @@ async fn run_check_task(
         })
         .await;
 
-    let final_status = if CANCELLED.load(Ordering::SeqCst) { "cancelled" } else { "completed" };
+    let final_status = if CANCELLED.load(Ordering::SeqCst) {
+        "cancelled"
+    } else {
+        "completed"
+    };
     let _ = sqlx::query(
         r#"UPDATE "quality_tasks" SET "status" = $1, "completedAt" = NOW(), "currentItem" = NULL WHERE "id" = $2"#,
     )
@@ -353,10 +377,23 @@ async fn run_check_task(
     .execute(&pool)
     .await;
 
-    send_progress(&user_id, task_id.to_string(), wordbook_id.clone(), final_status.into(), total_items, processed.load(Ordering::SeqCst), issues_found.load(Ordering::SeqCst), None);
+    send_progress(
+        &user_id,
+        task_id.to_string(),
+        wordbook_id.clone(),
+        final_status.into(),
+        total_items,
+        processed.load(Ordering::SeqCst),
+        issues_found.load(Ordering::SeqCst),
+        None,
+    );
 }
 
-async fn check_word_quality(llm: &LLMProvider, word: &WordForCheck, check_type: &str) -> WordCheckResult {
+async fn check_word_quality(
+    llm: &LLMProvider,
+    word: &WordForCheck,
+    check_type: &str,
+) -> WordCheckResult {
     let mut issues = Vec::new();
     let mut suggestions = None;
 
@@ -433,17 +470,19 @@ async fn check_word_quality(llm: &LLMProvider, word: &WordForCheck, check_type: 
     if check_type == "FULL" && llm.is_available() {
         match tokio::time::timeout(
             Duration::from_secs(WORD_CHECK_TIMEOUT_SECS),
-            check_with_llm(llm, word)
-        ).await {
+            check_with_llm(llm, word),
+        )
+        .await
+        {
             Ok(Ok(llm_result)) => {
                 issues.extend(llm_result.issues);
                 if let Some(llm_sugg) = llm_result.suggestions {
                     suggestions = Some(merge_suggestions(suggestions, llm_sugg));
                 }
-            },
+            }
             Ok(Err(e)) => {
                 tracing::warn!("LLM check failed for word '{}': {}", word.spelling, e);
-            },
+            }
             Err(_) => {
                 tracing::warn!("LLM check timeout for word '{}'", word.spelling);
             }
@@ -451,7 +490,10 @@ async fn check_word_quality(llm: &LLMProvider, word: &WordForCheck, check_type: 
     }
 
     dedupe_issues(&mut issues);
-    WordCheckResult { issues, suggestions }
+    WordCheckResult {
+        issues,
+        suggestions,
+    }
 }
 
 async fn check_with_llm(llm: &LLMProvider, word: &WordForCheck) -> Result<LlmCheckResult, String> {
@@ -475,11 +517,20 @@ async fn check_with_llm(llm: &LLMProvider, word: &WordForCheck) -> Result<LlmChe
     );
 
     let messages = [
-        ChatMessage { role: "system".into(), content: system_prompt.into() },
-        ChatMessage { role: "user".into(), content: user_prompt.clone() },
+        ChatMessage {
+            role: "system".into(),
+            content: system_prompt.into(),
+        },
+        ChatMessage {
+            role: "user".into(),
+            content: user_prompt.clone(),
+        },
     ];
 
-    let response = llm.chat(&messages).await.map_err(|e| format!("LLM调用失败: {e}"))?;
+    let response = llm
+        .chat(&messages)
+        .await
+        .map_err(|e| format!("LLM调用失败: {e}"))?;
     let raw = response.first_content().unwrap_or_default();
     tracing::info!("LLM Raw Response for {}: {:?}", word.spelling, raw);
     parse_llm_result(raw, word)
@@ -492,7 +543,11 @@ async fn store_word_content_variants(
     task_id: Option<&str>,
 ) {
     if let Some(ref phonetic) = suggestions.phonetic {
-        let original = if word.phonetic.is_empty() { None } else { Some(serde_json::json!(word.phonetic)) };
+        let original = if word.phonetic.is_empty() {
+            None
+        } else {
+            Some(serde_json::json!(word.phonetic))
+        };
         if let Err(e) = sqlx::query(
             r#"
             INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
@@ -511,7 +566,11 @@ async fn store_word_content_variants(
     }
 
     if let Some(ref meanings) = suggestions.meanings {
-        let original = if word.meanings.is_empty() { None } else { Some(serde_json::json!(&word.meanings)) };
+        let original = if word.meanings.is_empty() {
+            None
+        } else {
+            Some(serde_json::json!(&word.meanings))
+        };
         if let Err(e) = sqlx::query(
             r#"
             INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
@@ -530,7 +589,11 @@ async fn store_word_content_variants(
     }
 
     if let Some(ref examples) = suggestions.examples {
-        let original = if word.examples.is_empty() { None } else { Some(serde_json::json!(&word.examples)) };
+        let original = if word.examples.is_empty() {
+            None
+        } else {
+            Some(serde_json::json!(&word.examples))
+        };
         if let Err(e) = sqlx::query(
             r#"
             INSERT INTO "word_content_variants" ("id", "wordId", "field", "originalValue", "generatedValue", "confidence", "taskId", "status", "createdAt")
@@ -572,14 +635,18 @@ fn parse_llm_result(raw: &str, word: &WordForCheck) -> Result<LlmCheckResult, St
         examples: Option<Vec<String>>,
     }
 
-    let parsed: LLMResponse = serde_json::from_str(cleaned)
-        .map_err(|e| format!("解析LLM响应失败: {e}"))?;
+    let parsed: LLMResponse =
+        serde_json::from_str(cleaned).map_err(|e| format!("解析LLM响应失败: {e}"))?;
 
-    let issues = parsed.issues.into_iter().map(|i| QualityIssue {
-        field: i.field,
-        severity: i.severity,
-        message: i.message,
-    }).collect();
+    let issues = parsed
+        .issues
+        .into_iter()
+        .map(|i| QualityIssue {
+            field: i.field,
+            severity: i.severity,
+            message: i.message,
+        })
+        .collect();
 
     let suggestions = parsed.suggestions.and_then(|s| {
         let phonetic = normalize_phonetic_suggestion(word, s.phonetic);
@@ -588,11 +655,18 @@ fn parse_llm_result(raw: &str, word: &WordForCheck) -> Result<LlmCheckResult, St
         if phonetic.is_none() && meanings.is_none() && examples.is_none() {
             None
         } else {
-            Some(LlmSuggestions { phonetic, meanings, examples })
+            Some(LlmSuggestions {
+                phonetic,
+                meanings,
+                examples,
+            })
         }
     });
 
-    Ok(LlmCheckResult { issues, suggestions })
+    Ok(LlmCheckResult {
+        issues,
+        suggestions,
+    })
 }
 
 pub async fn list_tasks(
@@ -619,19 +693,15 @@ pub async fn list_tasks(
     Ok(rows.into_iter().map(row_to_task).collect())
 }
 
-pub async fn get_stats(
-    proxy: &DatabaseProxy,
-    wordbook_id: &str,
-) -> Result<QualityStats, String> {
+pub async fn get_stats(proxy: &DatabaseProxy, wordbook_id: &str) -> Result<QualityStats, String> {
     let pool = proxy.pool();
 
-    let total_words: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#,
-    )
-    .bind(wordbook_id)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let total_words: i64 =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "words" WHERE "wordBookId" = $1"#)
+            .bind(wordbook_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
 
     let checked_words: i64 = sqlx::query_scalar(
         r#"SELECT COALESCE(MAX("processedItems"), 0) FROM "quality_tasks" WHERE "wordbookId" = $1 AND "status" = 'completed'"#,
@@ -695,10 +765,7 @@ pub async fn cleanup_stale_tasks(proxy: &DatabaseProxy) {
     }
 }
 
-pub async fn cancel_task(
-    proxy: &DatabaseProxy,
-    task_id: &str,
-) -> Result<(), String> {
+pub async fn cancel_task(proxy: &DatabaseProxy, task_id: &str) -> Result<(), String> {
     tracing::info!("Received cancel request for task: {}", task_id);
     CANCELLED.store(true, Ordering::SeqCst);
 
@@ -777,26 +844,33 @@ pub async fn list_issues(
         query = query.bind(field);
     }
 
-    let rows = query.fetch_all(pool).await.map_err(|e| format!("查询问题失败: {e}"))?;
+    let rows = query
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询问题失败: {e}"))?;
 
-    let issues = rows.into_iter().map(|row| {
-        let created_at: chrono::DateTime<Utc> = row.try_get("createdAt").unwrap_or_else(|_| Utc::now());
-        let issue_id: uuid::Uuid = row.try_get("id").unwrap_or_default();
-        let task_id: Option<uuid::Uuid> = row.try_get("taskId").ok().flatten();
-        Issue {
-            id: issue_id.to_string(),
-            task_id: task_id.map(|id| id.to_string()),
-            wordbook_id: row.try_get("wordbookId").unwrap_or_default(),
-            word_id: row.try_get("wordId").unwrap_or_default(),
-            word_spelling: row.try_get("wordSpelling").unwrap_or_default(),
-            field: row.try_get("field").unwrap_or_default(),
-            severity: row.try_get("severity").unwrap_or_default(),
-            message: row.try_get("message").unwrap_or_default(),
-            suggestion: row.try_get("suggestion").ok(),
-            status: row.try_get("status").unwrap_or_default(),
-            created_at: created_at.to_rfc3339(),
-        }
-    }).collect();
+    let issues = rows
+        .into_iter()
+        .map(|row| {
+            let created_at: chrono::DateTime<Utc> =
+                row.try_get("createdAt").unwrap_or_else(|_| Utc::now());
+            let issue_id: uuid::Uuid = row.try_get("id").unwrap_or_default();
+            let task_id: Option<uuid::Uuid> = row.try_get("taskId").ok().flatten();
+            Issue {
+                id: issue_id.to_string(),
+                task_id: task_id.map(|id| id.to_string()),
+                wordbook_id: row.try_get("wordbookId").unwrap_or_default(),
+                word_id: row.try_get("wordId").unwrap_or_default(),
+                word_spelling: row.try_get("wordSpelling").unwrap_or_default(),
+                field: row.try_get("field").unwrap_or_default(),
+                severity: row.try_get("severity").unwrap_or_default(),
+                message: row.try_get("message").unwrap_or_default(),
+                suggestion: row.try_get("suggestion").ok(),
+                status: row.try_get("status").unwrap_or_default(),
+                created_at: created_at.to_rfc3339(),
+            }
+        })
+        .collect();
 
     Ok((issues, total))
 }
@@ -840,7 +914,11 @@ pub async fn apply_fix(
             if field == "meanings" {
                 let meanings_vec: Vec<String> = meanings
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 if !meanings_vec.is_empty() {
                     sqlx::query(r#"UPDATE "words" SET "meanings" = $1 WHERE "id" = $2"#)
@@ -857,7 +935,11 @@ pub async fn apply_fix(
             if field == "examples" {
                 let examples_vec: Vec<String> = examples
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 if !examples_vec.is_empty() {
                     sqlx::query(r#"UPDATE "words" SET "examples" = $1 WHERE "id" = $2"#)
@@ -953,7 +1035,10 @@ pub async fn batch_operation(
         }
     }
 
-    Ok(BatchResult { success_count, failed_count })
+    Ok(BatchResult {
+        success_count,
+        failed_count,
+    })
 }
 
 fn row_to_task(row: sqlx::postgres::PgRow) -> Task {
@@ -977,17 +1062,36 @@ fn row_to_task(row: sqlx::postgres::PgRow) -> Task {
     }
 }
 
-async fn update_task_status(pool: &PgPool, task_id: uuid::Uuid, status: &str) -> Result<(), sqlx::Error> {
-    sqlx::query(r#"UPDATE "quality_tasks" SET "status" = $1, "completedAt" = NOW() WHERE "id" = $2"#)
-        .bind(status)
-        .bind(task_id)
-        .execute(pool)
-        .await?;
+async fn update_task_status(
+    pool: &PgPool,
+    task_id: uuid::Uuid,
+    status: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE "quality_tasks" SET "status" = $1, "completedAt" = NOW() WHERE "id" = $2"#,
+    )
+    .bind(status)
+    .bind(task_id)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
-fn send_progress(user_id: &str, task_id: String, wordbook_id: String, status: String, total: i32, processed: i32, issues: i32, current: Option<String>) {
-    let percentage = if total > 0 { (processed as f64 / total as f64 * 100.0) as i32 } else { 0 };
+fn send_progress(
+    user_id: &str,
+    task_id: String,
+    wordbook_id: String,
+    status: String,
+    total: i32,
+    processed: i32,
+    issues: i32,
+    current: Option<String>,
+) {
+    let percentage = if total > 0 {
+        (processed as f64 / total as f64 * 100.0) as i32
+    } else {
+        0
+    };
     let payload = serde_json::json!({
         "taskId": task_id,
         "wordbookId": wordbook_id,
@@ -998,12 +1102,20 @@ fn send_progress(user_id: &str, task_id: String, wordbook_id: String, status: St
         "currentItem": current,
         "percentage": percentage
     });
-    crate::routes::realtime::send_event(user_id.to_string(), None, "quality-task-progress", payload);
+    crate::routes::realtime::send_event(
+        user_id.to_string(),
+        None,
+        "quality-task-progress",
+        payload,
+    );
 }
 
 fn json_to_strings(value: &serde_json::Value) -> Vec<String> {
     match value {
-        serde_json::Value::Array(arr) => arr.iter().filter_map(|v| v.as_str().map(String::from)).collect(),
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect(),
         _ => vec![],
     }
 }
@@ -1036,17 +1148,27 @@ fn normalize_phonetic_suggestion(word: &WordForCheck, raw: Option<String>) -> Op
     Some(candidate)
 }
 
-fn normalize_meanings_suggestions(word: &WordForCheck, raw: Option<Vec<String>>) -> Option<Vec<String>> {
+fn normalize_meanings_suggestions(
+    word: &WordForCheck,
+    raw: Option<Vec<String>>,
+) -> Option<Vec<String>> {
     let list = raw?;
     let results: Vec<String> = list
         .into_iter()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    if results.is_empty() || results == word.meanings { None } else { Some(results) }
+    if results.is_empty() || results == word.meanings {
+        None
+    } else {
+        Some(results)
+    }
 }
 
-fn normalize_example_suggestions(word: &WordForCheck, raw: Option<Vec<String>>) -> Option<Vec<String>> {
+fn normalize_example_suggestions(
+    word: &WordForCheck,
+    raw: Option<Vec<String>>,
+) -> Option<Vec<String>> {
     let list = raw?;
     let mut results = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -1063,19 +1185,32 @@ fn normalize_example_suggestions(word: &WordForCheck, raw: Option<Vec<String>>) 
             break;
         }
     }
-    if results.is_empty() || results == word.examples { None } else { Some(results) }
+    if results.is_empty() || results == word.examples {
+        None
+    } else {
+        Some(results)
+    }
 }
 
 fn dedupe_issues(issues: &mut Vec<QualityIssue>) {
     let mut seen = std::collections::HashSet::new();
     issues.retain(|issue| {
-        let key = format!("{}|{}|{}", issue.field, issue.severity, issue.message.trim());
+        let key = format!(
+            "{}|{}|{}",
+            issue.field,
+            issue.severity,
+            issue.message.trim()
+        );
         seen.insert(key)
     });
 }
 
 fn truncate(s: &str, max_len: usize) -> String {
-    if s.chars().count() <= max_len { s.to_string() } else { format!("{}...", s.chars().take(max_len).collect::<String>()) }
+    if s.chars().count() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", s.chars().take(max_len).collect::<String>())
+    }
 }
 
 fn contains_cjk(s: &str) -> bool {
@@ -1087,17 +1222,44 @@ fn has_invalid_phonetic_chars(s: &str) -> bool {
 }
 
 fn filter_valid_phonetic_chars(s: &str) -> String {
-    s.chars().filter(|&c| is_allowed_phonetic_char(c)).collect::<String>().trim().to_string()
+    s.chars()
+        .filter(|&c| is_allowed_phonetic_char(c))
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 fn is_allowed_phonetic_char(c: char) -> bool {
-    if c.is_ascii_alphabetic() || c.is_whitespace() { return true; }
+    if c.is_ascii_alphabetic() || c.is_whitespace() {
+        return true;
+    }
     // Common IPA punctuation
-    if matches!(c, '/' | '[' | ']' | '(' | ')' | '-' | '.' | ',' | ';' | ':' | '\'' | 'ˈ' | 'ˌ' | 'ː' | 'ˑ' | '·' | '‿') {
+    if matches!(
+        c,
+        '/' | '['
+            | ']'
+            | '('
+            | ')'
+            | '-'
+            | '.'
+            | ','
+            | ';'
+            | ':'
+            | '\''
+            | 'ˈ'
+            | 'ˌ'
+            | 'ː'
+            | 'ˑ'
+            | '·'
+            | '‿'
+    ) {
         return true;
     }
     // Common IPA vowels not in standard ranges: æ, ɑ, ɒ, ŋ, ð, θ, ʃ, ʒ, etc.
-    if matches!(c, 'æ' | 'ø' | 'œ' | 'ɐ' | 'ɑ' | 'ɒ' | 'ŋ' | 'ð' | 'θ' | 'ʃ' | 'ʒ' | 'ɛ' | 'ɜ' | 'ɔ') {
+    if matches!(
+        c,
+        'æ' | 'ø' | 'œ' | 'ɐ' | 'ɑ' | 'ɒ' | 'ŋ' | 'ð' | 'θ' | 'ʃ' | 'ʒ' | 'ɛ' | 'ɜ' | 'ɔ'
+    ) {
         return true;
     }
     // Unicode ranges for IPA characters
@@ -1121,7 +1283,9 @@ fn example_contains_word_form(example: &str, word: &str) -> bool {
         if ch.is_ascii_alphabetic() {
             token.push(ch.to_ascii_lowercase());
         } else if !token.is_empty() {
-            if forms.contains(&token) { return true; }
+            if forms.contains(&token) {
+                return true;
+            }
             token.clear();
         }
     }
@@ -1130,18 +1294,28 @@ fn example_contains_word_form(example: &str, word: &str) -> bool {
 
 fn build_word_forms(word: &str) -> Option<std::collections::HashSet<String>> {
     let base = word.trim().to_ascii_lowercase();
-    if base.is_empty() || !base.chars().all(|c| c.is_ascii_alphabetic()) { return None; }
+    if base.is_empty() || !base.chars().all(|c| c.is_ascii_alphabetic()) {
+        return None;
+    }
 
     let mut forms = std::collections::HashSet::new();
     forms.insert(base.clone());
 
     let len = base.len();
-    if len == 1 { return Some(forms); }
+    if len == 1 {
+        return Some(forms);
+    }
 
     let last = base.chars().last().unwrap_or_default();
     let prev = base.chars().nth(len.saturating_sub(2)).unwrap_or_default();
 
-    if base.ends_with("s") || base.ends_with("x") || base.ends_with("z") || base.ends_with("ch") || base.ends_with("sh") || base.ends_with("o") {
+    if base.ends_with("s")
+        || base.ends_with("x")
+        || base.ends_with("z")
+        || base.ends_with("ch")
+        || base.ends_with("sh")
+        || base.ends_with("o")
+    {
         forms.insert(format!("{base}es"));
     } else if last == 'y' && !is_vowel(prev) {
         forms.insert(format!("{}ies", &base[..len - 1]));
@@ -1174,14 +1348,23 @@ fn build_word_forms(word: &str) -> Option<std::collections::HashSet<String>> {
     Some(forms)
 }
 
-fn is_vowel(c: char) -> bool { matches!(c, 'a' | 'e' | 'i' | 'o' | 'u') }
+fn is_vowel(c: char) -> bool {
+    matches!(c, 'a' | 'e' | 'i' | 'o' | 'u')
+}
 
 fn is_cvc(word: &str) -> bool {
-    if word.len() < 3 { return false; }
+    if word.len() < 3 {
+        return false;
+    }
     let mut chars = word.chars().rev();
     let c1 = chars.next().unwrap_or_default();
     let c2 = chars.next().unwrap_or_default();
     let c3 = chars.next().unwrap_or_default();
-    c1.is_ascii_alphabetic() && c2.is_ascii_alphabetic() && c3.is_ascii_alphabetic()
-        && !is_vowel(c1) && is_vowel(c2) && !is_vowel(c3) && !matches!(c1, 'w' | 'x' | 'y')
+    c1.is_ascii_alphabetic()
+        && c2.is_ascii_alphabetic()
+        && c3.is_ascii_alphabetic()
+        && !is_vowel(c1)
+        && is_vowel(c2)
+        && !is_vowel(c3)
+        && !matches!(c1, 'w' | 'x' | 'y')
 }

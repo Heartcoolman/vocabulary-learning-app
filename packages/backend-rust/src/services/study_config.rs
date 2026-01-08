@@ -193,7 +193,8 @@ pub async fn get_today_words(
         select_words_by_ids_and_word_books(proxy, &state_word_ids, &accessible_ids).await?
     };
 
-    let mut word_by_id: HashMap<String, StudyWordBase> = HashMap::with_capacity(learned_words.len());
+    let mut word_by_id: HashMap<String, StudyWordBase> =
+        HashMap::with_capacity(learned_words.len());
     for word in learned_words {
         word_by_id.insert(word.id.clone(), word);
     }
@@ -209,7 +210,10 @@ pub async fn get_today_words(
         });
     }
 
-    let learned_word_ids: Vec<String> = learned_states.iter().map(|s| s.state.word_id.clone()).collect();
+    let learned_word_ids: Vec<String> = learned_states
+        .iter()
+        .map(|s| s.state.word_id.clone())
+        .collect();
     let score_map = select_word_score_map(proxy, user_id, &learned_word_ids).await?;
 
     let now_ms = Utc::now().timestamp_millis();
@@ -241,10 +245,15 @@ pub async fn get_today_words(
 
             let mut priority = 0.0;
             priority += (overdue_days * 5.0).min(40.0);
-            priority += if error_rate > 0.5 { 30.0 } else { error_rate * 60.0 };
+            priority += if error_rate > 0.5 {
+                30.0
+            } else {
+                error_rate * 60.0
+            };
             priority += total_score.map(|v| (100.0 - v) * 0.3).unwrap_or(30.0);
 
-            let difficulty = compute_word_difficulty_from_score(total_score, total_attempts, error_rate);
+            let difficulty =
+                compute_word_difficulty_from_score(total_score, total_attempts, error_rate);
 
             Some(DueCandidate {
                 word: entry.word,
@@ -254,7 +263,11 @@ pub async fn get_today_words(
         })
         .collect();
 
-    due_candidates.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+    due_candidates.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let filtered_due: Vec<DueCandidate> = due_candidates
         .iter()
@@ -279,7 +292,11 @@ pub async fn get_today_words(
             dist_a
                 .partial_cmp(&dist_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal))
+                .then_with(|| {
+                    b.priority
+                        .partial_cmp(&a.priority)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
         });
         let needed = target_review.saturating_sub(filtered_due.len());
         due_words.extend(remaining.into_iter().take(needed));
@@ -505,7 +522,9 @@ async fn select_user_study_config(
         user_id: row.try_get("userId")?,
         selected_word_book_ids: row.try_get("selectedWordBookIds")?,
         daily_word_count: row.try_get::<i32, _>("dailyWordCount").unwrap_or(20) as i64,
-        study_mode: row.try_get::<String, _>("studyMode").unwrap_or_else(|_| "sequential".to_string()),
+        study_mode: row
+            .try_get::<String, _>("studyMode")
+            .unwrap_or_else(|_| "sequential".to_string()),
         daily_mastery_target: row.try_get::<i32, _>("dailyMasteryTarget").unwrap_or(20) as i64,
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
         updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
@@ -568,7 +587,8 @@ async fn select_word_learning_states(
         .into_iter()
         .map(|row| {
             let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-            let next_review_ms = next_dt.map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
+            let next_review_ms = next_dt
+                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
             WordLearningStateRow {
                 word_id: row.try_get("wordId").unwrap_or_default(),
                 state: row.try_get("state").unwrap_or_else(|_| "NEW".to_string()),
@@ -712,7 +732,11 @@ async fn select_candidate_new_words(
     Ok(rows.iter().map(map_postgres_word_row).collect())
 }
 
-fn choose_new_words(mut candidates: Vec<StudyWordBase>, range: crate::services::amas::DifficultyRange, target: usize) -> Vec<StudyWordBase> {
+fn choose_new_words(
+    mut candidates: Vec<StudyWordBase>,
+    range: crate::services::amas::DifficultyRange,
+    target: usize,
+) -> Vec<StudyWordBase> {
     if candidates.is_empty() || target == 0 {
         return Vec::new();
     }
@@ -746,11 +770,7 @@ fn choose_new_words(mut candidates: Vec<StudyWordBase>, range: crate::services::
         filtered.extend(remaining.into_iter().take(need));
     }
 
-    filtered
-        .into_iter()
-        .take(target)
-        .map(|(w, _)| w)
-        .collect()
+    filtered.into_iter().take(target).map(|(w, _)| w).collect()
 }
 
 async fn compute_progress_counts(
@@ -770,100 +790,100 @@ async fn compute_progress_counts(
     let pool = proxy.pool();
 
     let mut qb_today = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
+        r#"
             SELECT DISTINCT ar."wordId" as "wordId"
             FROM "answer_records" ar
             JOIN "words" w ON w."id" = ar."wordId"
             WHERE ar."userId" = 
             "#,
-        );
-        qb_today.push_bind(user_id);
-        qb_today.push(" AND ar.\"timestamp\" >= ");
-        qb_today.push_bind(today_start);
-        qb_today.push(" AND w.\"wordBookId\" IN (");
-        {
-            let mut sep = qb_today.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    );
+    qb_today.push_bind(user_id);
+    qb_today.push(" AND ar.\"timestamp\" >= ");
+    qb_today.push_bind(today_start);
+    qb_today.push(" AND w.\"wordBookId\" IN (");
+    {
+        let mut sep = qb_today.separated(", ");
+        for id in accessible_word_book_ids {
+            sep.push_bind(id);
         }
-        let today_rows = qb_today.build().fetch_all(pool).await?;
-        let today_studied = today_rows.len() as i64;
+        sep.push_unseparated(")");
+    }
+    let today_rows = qb_today.build().fetch_all(pool).await?;
+    let today_studied = today_rows.len() as i64;
 
-        let mut qb_total = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
+    let mut qb_total = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
             SELECT DISTINCT ar."wordId" as "wordId"
             FROM "answer_records" ar
             JOIN "words" w ON w."id" = ar."wordId"
             WHERE ar."userId" = 
             "#,
-        );
-        qb_total.push_bind(user_id);
-        qb_total.push(" AND w.\"wordBookId\" IN (");
-        {
-            let mut sep = qb_total.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    );
+    qb_total.push_bind(user_id);
+    qb_total.push(" AND w.\"wordBookId\" IN (");
+    {
+        let mut sep = qb_total.separated(", ");
+        for id in accessible_word_book_ids {
+            sep.push_bind(id);
         }
-        let total_rows = qb_total.build().fetch_all(pool).await?;
-        let total_studied = total_rows.len() as i64;
+        sep.push_unseparated(")");
+    }
+    let total_rows = qb_total.build().fetch_all(pool).await?;
+    let total_studied = total_rows.len() as i64;
 
-        let mut qb_count = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
+    let mut qb_count = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
             SELECT COUNT(*) as "count"
             FROM "answer_records" ar
             JOIN "words" w ON w."id" = ar."wordId"
             WHERE ar."userId" = 
             "#,
-        );
-        qb_count.push_bind(user_id);
-        qb_count.push(" AND w.\"wordBookId\" IN (");
-        {
-            let mut sep = qb_count.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    );
+    qb_count.push_bind(user_id);
+    qb_count.push(" AND w.\"wordBookId\" IN (");
+    {
+        let mut sep = qb_count.separated(", ");
+        for id in accessible_word_book_ids {
+            sep.push_bind(id);
         }
-        let total_count: i64 = qb_count
-            .build()
-            .fetch_one(pool)
-            .await?
-            .try_get("count")
-            .unwrap_or(0);
+        sep.push_unseparated(")");
+    }
+    let total_count: i64 = qb_count
+        .build()
+        .fetch_one(pool)
+        .await?
+        .try_get("count")
+        .unwrap_or(0);
 
-        let mut qb_correct = QueryBuilder::<sqlx::Postgres>::new(
-            r#"
+    let mut qb_correct = QueryBuilder::<sqlx::Postgres>::new(
+        r#"
             SELECT COUNT(*) as "count"
             FROM "answer_records" ar
             JOIN "words" w ON w."id" = ar."wordId"
             WHERE ar."userId" = 
             "#,
-        );
-        qb_correct.push_bind(user_id);
-        qb_correct.push(" AND ar.\"isCorrect\" = true AND w.\"wordBookId\" IN (");
-        {
-            let mut sep = qb_correct.separated(", ");
-            for id in accessible_word_book_ids {
-                sep.push_bind(id);
-            }
-            sep.push_unseparated(")");
+    );
+    qb_correct.push_bind(user_id);
+    qb_correct.push(" AND ar.\"isCorrect\" = true AND w.\"wordBookId\" IN (");
+    {
+        let mut sep = qb_correct.separated(", ");
+        for id in accessible_word_book_ids {
+            sep.push_bind(id);
         }
-        let correct_count: i64 = qb_correct
-            .build()
-            .fetch_one(pool)
-            .await?
-            .try_get("count")
-            .unwrap_or(0);
+        sep.push_unseparated(")");
+    }
+    let correct_count: i64 = qb_correct
+        .build()
+        .fetch_one(pool)
+        .await?
+        .try_get("count")
+        .unwrap_or(0);
 
-        let correct_rate = if total_count > 0 {
-            ((correct_count as f64 / total_count as f64) * 100.0).round() as i64
-        } else {
-            0
-        };
+    let correct_rate = if total_count > 0 {
+        ((correct_count as f64 / total_count as f64) * 100.0).round() as i64
+    } else {
+        0
+    };
 
     Ok((today_studied, total_studied, correct_rate))
 }
@@ -918,7 +938,8 @@ async fn compute_weekly_trend(
         .into_iter()
         .collect();
 
-    let allowed_ids = select_word_ids_in_word_books(proxy, &unique_word_ids, accessible_word_book_ids).await?;
+    let allowed_ids =
+        select_word_ids_in_word_books(proxy, &unique_word_ids, accessible_word_book_ids).await?;
     if allowed_ids.is_empty() {
         return Ok(vec![0, 0, 0, 0, 0, 0, 0]);
     }
@@ -948,7 +969,12 @@ async fn compute_weekly_trend(
             .unwrap_or(now);
         let date_str = day.to_rfc3339_opts(SecondsFormat::Millis, true);
         let day_key = date_str.split('T').next().unwrap_or("");
-        trend.push(day_to_words.get(day_key).map(|s| s.len() as i64).unwrap_or(0));
+        trend.push(
+            day_to_words
+                .get(day_key)
+                .map(|s| s.len() as i64)
+                .unwrap_or(0),
+        );
     }
 
     Ok(trend)
@@ -994,7 +1020,11 @@ async fn select_word_ids_in_word_books(
         .collect())
 }
 
-fn compute_word_difficulty_from_score(total_score: Option<f64>, total_attempts: i64, error_rate: f64) -> f64 {
+fn compute_word_difficulty_from_score(
+    total_score: Option<f64>,
+    total_attempts: i64,
+    error_rate: f64,
+) -> f64 {
     if total_score.is_none() || total_attempts == 0 {
         return 0.3;
     }
@@ -1008,15 +1038,23 @@ fn difficulty_distance(value: f64, range: crate::services::amas::DifficultyRange
 }
 
 fn map_postgres_word_row(row: &sqlx::postgres::PgRow) -> StudyWordBase {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     StudyWordBase {
         id: row.try_get("id").unwrap_or_default(),
         spelling: row.try_get("spelling").unwrap_or_default(),
         phonetic: row.try_get("phonetic").unwrap_or_default(),
-        meanings: row.try_get::<Vec<String>, _>("meanings").unwrap_or_default(),
-        examples: row.try_get::<Vec<String>, _>("examples").unwrap_or_default(),
+        meanings: row
+            .try_get::<Vec<String>, _>("meanings")
+            .unwrap_or_default(),
+        examples: row
+            .try_get::<Vec<String>, _>("examples")
+            .unwrap_or_default(),
         audio_url: row.try_get::<Option<String>, _>("audioUrl").ok().flatten(),
         word_book_id: row.try_get("wordBookId").unwrap_or_default(),
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),

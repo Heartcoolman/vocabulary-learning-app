@@ -97,23 +97,31 @@ struct ResetConfigRequest {
     config_id: Option<String>,
 }
 
-pub async fn get_active(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn get_active(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -121,7 +129,11 @@ pub async fn get_active(
         Ok(config) => config,
         Err(err) => {
             tracing::warn!(error = %err, "select active algorithm config failed");
-            return Json(SuccessResponse::<Option<AlgorithmConfigDto>> { success: true, data: None }).into_response();
+            return Json(SuccessResponse::<Option<AlgorithmConfigDto>> {
+                success: true,
+                data: None,
+            })
+            .into_response();
         }
     };
 
@@ -130,13 +142,14 @@ pub async fn get_active(
         return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "未找到算法配置").into_response();
     }
 
-    Json(SuccessResponse { success: true, data: config }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: config,
+    })
+    .into_response()
 }
 
-pub async fn update_config(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_config(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -189,22 +202,38 @@ pub async fn update_config(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     if user.role != "ADMIN" {
-        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限").into_response();
+        return json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        )
+        .into_response();
     }
 
     let validation_errors = validate_config(config_obj);
@@ -219,10 +248,17 @@ pub async fn update_config(
 
     let old_config = match select_config_by_id(proxy.as_ref(), &config_id).await {
         Ok(Some(config)) => config,
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "select algorithm config for update failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -237,25 +273,38 @@ pub async fn update_config(
     .await
     {
         tracing::warn!(error = %err, "algorithm config update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let updated_config = match select_config_by_id(proxy.as_ref(), &config_id).await {
         Ok(Some(config)) => config,
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "select updated algorithm config failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
-    Json(SuccessResponse { success: true, data: updated_config }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: updated_config,
+    })
+    .into_response()
 }
 
-pub async fn reset_config(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn reset_config(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -276,22 +325,38 @@ pub async fn reset_config(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     if user.role != "ADMIN" {
-        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限").into_response();
+        return json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        )
+        .into_response();
     }
 
     let target_id = match payload.config_id {
@@ -299,31 +364,59 @@ pub async fn reset_config(
         None => match select_active_config(proxy.as_ref()).await {
             Ok(Some(config)) => config.id,
             Ok(None) => {
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "没有可用的算法配置")
-                    .into_response()
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "没有可用的算法配置",
+                )
+                .into_response()
             }
             Err(err) => {
                 tracing::warn!(error = %err, "select active algorithm config for reset failed");
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response();
             }
         },
     };
 
     let old_config = match select_config_by_id(proxy.as_ref(), &target_id).await {
         Ok(Some(config)) => config,
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "select algorithm config for reset failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
     let default_config = match select_active_config(proxy.as_ref()).await {
         Ok(Some(config)) => config,
-        Ok(None) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "默认配置不存在").into_response(),
+        Ok(None) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "默认配置不存在",
+            )
+            .into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "select default algorithm config failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -337,43 +430,72 @@ pub async fn reset_config(
     .await
     {
         tracing::warn!(error = %err, "algorithm config reset failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let updated_config = match select_config_by_id(proxy.as_ref(), &target_id).await {
         Ok(Some(config)) => config,
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "配置不存在").into_response()
+        }
         Err(err) => {
             tracing::warn!(error = %err, "select updated algorithm config after reset failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
-    Json(SuccessResponse { success: true, data: updated_config }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: updated_config,
+    })
+    .into_response()
 }
 
-pub async fn history(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn history(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     if user.role != "ADMIN" {
-        return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限").into_response();
+        return json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        )
+        .into_response();
     }
 
     let params = parse_query(req.uri().query());
@@ -385,39 +507,65 @@ pub async fn history(
     let config_id = params.get("configId").cloned();
 
     match select_config_history(proxy.as_ref(), config_id.as_deref(), limit).await {
-        Ok(history) => Json(SuccessResponse { success: true, data: history }).into_response(),
+        Ok(history) => Json(SuccessResponse {
+            success: true,
+            data: history,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "select config history failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn presets(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn presets(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let _user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
     match select_all_configs(proxy.as_ref()).await {
-        Ok(configs) => Json(SuccessResponse { success: true, data: configs }).into_response(),
+        Ok(configs) => Json(SuccessResponse {
+            success: true,
+            data: configs,
+        })
+        .into_response(),
         Err(err) => {
             tracing::warn!(error = %err, "select algorithm configs failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
@@ -442,7 +590,15 @@ async fn apply_config_update(
     let new_config = update_postgres_config(pool, config_id, &data, old_config).await?;
     let new_json = serde_json::to_value(&new_config).unwrap_or(serde_json::Value::Null);
 
-    insert_postgres_history(pool, config_id, changed_by, change_reason, old_json, new_json).await?;
+    insert_postgres_history(
+        pool,
+        config_id,
+        changed_by,
+        change_reason,
+        old_json,
+        new_json,
+    )
+    .await?;
     Ok(())
 }
 
@@ -520,25 +676,43 @@ async fn apply_reset_to_default(
     );
     update.insert(
         "newWordRatioDefault".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(default_config.new_word_ratio_default).unwrap_or_else(|| 0.into())),
+        serde_json::Value::Number(
+            serde_json::Number::from_f64(default_config.new_word_ratio_default)
+                .unwrap_or_else(|| 0.into()),
+        ),
     );
     update.insert(
         "newWordRatioHighAccuracy".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(default_config.new_word_ratio_high_accuracy).unwrap_or_else(|| 0.into())),
+        serde_json::Value::Number(
+            serde_json::Number::from_f64(default_config.new_word_ratio_high_accuracy)
+                .unwrap_or_else(|| 0.into()),
+        ),
     );
     update.insert(
         "newWordRatioLowAccuracy".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(default_config.new_word_ratio_low_accuracy).unwrap_or_else(|| 0.into())),
+        serde_json::Value::Number(
+            serde_json::Number::from_f64(default_config.new_word_ratio_low_accuracy)
+                .unwrap_or_else(|| 0.into()),
+        ),
     );
     update.insert(
         "newWordRatioHighAccuracyThreshold".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(default_config.new_word_ratio_high_accuracy_threshold).unwrap_or_else(|| 0.into())),
+        serde_json::Value::Number(
+            serde_json::Number::from_f64(default_config.new_word_ratio_high_accuracy_threshold)
+                .unwrap_or_else(|| 0.into()),
+        ),
     );
     update.insert(
         "newWordRatioLowAccuracyThreshold".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(default_config.new_word_ratio_low_accuracy_threshold).unwrap_or_else(|| 0.into())),
+        serde_json::Value::Number(
+            serde_json::Number::from_f64(default_config.new_word_ratio_low_accuracy_threshold)
+                .unwrap_or_else(|| 0.into()),
+        ),
     );
-    update.insert("masteryThresholds".to_string(), default_config.mastery_thresholds.clone());
+    update.insert(
+        "masteryThresholds".to_string(),
+        default_config.mastery_thresholds.clone(),
+    );
 
     let mut data = filter_update_fields(&update);
     data.insert(
@@ -609,37 +783,72 @@ async fn update_postgres_config(
     let name = merge_optional(input.name, &old_config.name);
     let description = merge_optional(input.description, &old_config.description);
     let review_intervals = merge_optional(input.review_intervals, &old_config.review_intervals);
-    let consecutive_correct_threshold =
-        merge_optional(input.consecutive_correct_threshold, &old_config.consecutive_correct_threshold);
-    let consecutive_wrong_threshold =
-        merge_optional(input.consecutive_wrong_threshold, &old_config.consecutive_wrong_threshold);
-    let difficulty_adjustment_interval =
-        merge_optional(input.difficulty_adjustment_interval, &old_config.difficulty_adjustment_interval);
-    let priority_weight_new_word =
-        merge_optional(input.priority_weight_new_word, &old_config.priority_weight_new_word);
-    let priority_weight_error_rate =
-        merge_optional(input.priority_weight_error_rate, &old_config.priority_weight_error_rate);
-    let priority_weight_overdue_time =
-        merge_optional(input.priority_weight_overdue_time, &old_config.priority_weight_overdue_time);
-    let priority_weight_word_score =
-        merge_optional(input.priority_weight_word_score, &old_config.priority_weight_word_score);
-    let score_weight_accuracy = merge_optional(input.score_weight_accuracy, &old_config.score_weight_accuracy);
-    let score_weight_speed = merge_optional(input.score_weight_speed, &old_config.score_weight_speed);
-    let score_weight_stability =
-        merge_optional(input.score_weight_stability, &old_config.score_weight_stability);
-    let score_weight_proficiency =
-        merge_optional(input.score_weight_proficiency, &old_config.score_weight_proficiency);
-    let speed_threshold_excellent =
-        merge_optional(input.speed_threshold_excellent, &old_config.speed_threshold_excellent);
-    let speed_threshold_good = merge_optional(input.speed_threshold_good, &old_config.speed_threshold_good);
-    let speed_threshold_average =
-        merge_optional(input.speed_threshold_average, &old_config.speed_threshold_average);
-    let speed_threshold_slow = merge_optional(input.speed_threshold_slow, &old_config.speed_threshold_slow);
-    let new_word_ratio_default = merge_optional(input.new_word_ratio_default, &old_config.new_word_ratio_default);
-    let new_word_ratio_high_accuracy =
-        merge_optional(input.new_word_ratio_high_accuracy, &old_config.new_word_ratio_high_accuracy);
-    let new_word_ratio_low_accuracy =
-        merge_optional(input.new_word_ratio_low_accuracy, &old_config.new_word_ratio_low_accuracy);
+    let consecutive_correct_threshold = merge_optional(
+        input.consecutive_correct_threshold,
+        &old_config.consecutive_correct_threshold,
+    );
+    let consecutive_wrong_threshold = merge_optional(
+        input.consecutive_wrong_threshold,
+        &old_config.consecutive_wrong_threshold,
+    );
+    let difficulty_adjustment_interval = merge_optional(
+        input.difficulty_adjustment_interval,
+        &old_config.difficulty_adjustment_interval,
+    );
+    let priority_weight_new_word = merge_optional(
+        input.priority_weight_new_word,
+        &old_config.priority_weight_new_word,
+    );
+    let priority_weight_error_rate = merge_optional(
+        input.priority_weight_error_rate,
+        &old_config.priority_weight_error_rate,
+    );
+    let priority_weight_overdue_time = merge_optional(
+        input.priority_weight_overdue_time,
+        &old_config.priority_weight_overdue_time,
+    );
+    let priority_weight_word_score = merge_optional(
+        input.priority_weight_word_score,
+        &old_config.priority_weight_word_score,
+    );
+    let score_weight_accuracy = merge_optional(
+        input.score_weight_accuracy,
+        &old_config.score_weight_accuracy,
+    );
+    let score_weight_speed =
+        merge_optional(input.score_weight_speed, &old_config.score_weight_speed);
+    let score_weight_stability = merge_optional(
+        input.score_weight_stability,
+        &old_config.score_weight_stability,
+    );
+    let score_weight_proficiency = merge_optional(
+        input.score_weight_proficiency,
+        &old_config.score_weight_proficiency,
+    );
+    let speed_threshold_excellent = merge_optional(
+        input.speed_threshold_excellent,
+        &old_config.speed_threshold_excellent,
+    );
+    let speed_threshold_good =
+        merge_optional(input.speed_threshold_good, &old_config.speed_threshold_good);
+    let speed_threshold_average = merge_optional(
+        input.speed_threshold_average,
+        &old_config.speed_threshold_average,
+    );
+    let speed_threshold_slow =
+        merge_optional(input.speed_threshold_slow, &old_config.speed_threshold_slow);
+    let new_word_ratio_default = merge_optional(
+        input.new_word_ratio_default,
+        &old_config.new_word_ratio_default,
+    );
+    let new_word_ratio_high_accuracy = merge_optional(
+        input.new_word_ratio_high_accuracy,
+        &old_config.new_word_ratio_high_accuracy,
+    );
+    let new_word_ratio_low_accuracy = merge_optional(
+        input.new_word_ratio_low_accuracy,
+        &old_config.new_word_ratio_low_accuracy,
+    );
     let new_word_ratio_high_accuracy_threshold = merge_optional(
         input.new_word_ratio_high_accuracy_threshold,
         &old_config.new_word_ratio_high_accuracy_threshold,
@@ -648,7 +857,8 @@ async fn update_postgres_config(
         input.new_word_ratio_low_accuracy_threshold,
         &old_config.new_word_ratio_low_accuracy_threshold,
     );
-    let mastery_thresholds = merge_optional(input.mastery_thresholds, &old_config.mastery_thresholds);
+    let mastery_thresholds =
+        merge_optional(input.mastery_thresholds, &old_config.mastery_thresholds);
     let updated_at = Utc::now().naive_utc();
 
     let sql = format!(
@@ -810,13 +1020,18 @@ async fn select_config_history(
             .fetch_all(proxy.pool())
             .await?
     } else {
-        sqlx::query(sql).bind(limit as i64).fetch_all(proxy.pool()).await?
+        sqlx::query(sql)
+            .bind(limit as i64)
+            .fetch_all(proxy.pool())
+            .await?
     };
 
     Ok(rows.iter().map(map_postgres_history_row).collect())
 }
 
-async fn select_active_config_postgres(pool: &sqlx::PgPool) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
+async fn select_active_config_postgres(
+    pool: &sqlx::PgPool,
+) -> Result<Option<AlgorithmConfigDto>, sqlx::Error> {
     let sql_default = format!(
         r#"SELECT {} FROM "algorithm_configs" WHERE "isDefault" = true ORDER BY "createdAt" ASC LIMIT 1"#,
         config_select_sql()
@@ -869,8 +1084,12 @@ fn config_select_sql() -> &'static str {
 }
 
 fn map_postgres_config_row(row: &sqlx::postgres::PgRow) -> AlgorithmConfigDto {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     AlgorithmConfigDto {
         id: row.try_get("id").unwrap_or_default(),
@@ -895,9 +1114,15 @@ fn map_postgres_config_row(row: &sqlx::postgres::PgRow) -> AlgorithmConfigDto {
         new_word_ratio_default: row.try_get("newWordRatioDefault").unwrap_or(0.3),
         new_word_ratio_high_accuracy: row.try_get("newWordRatioHighAccuracy").unwrap_or(0.5),
         new_word_ratio_low_accuracy: row.try_get("newWordRatioLowAccuracy").unwrap_or(0.1),
-        new_word_ratio_high_accuracy_threshold: row.try_get("newWordRatioHighAccuracyThreshold").unwrap_or(0.85),
-        new_word_ratio_low_accuracy_threshold: row.try_get("newWordRatioLowAccuracyThreshold").unwrap_or(0.65),
-        mastery_thresholds: row.try_get("masteryThresholds").unwrap_or(serde_json::Value::Null),
+        new_word_ratio_high_accuracy_threshold: row
+            .try_get("newWordRatioHighAccuracyThreshold")
+            .unwrap_or(0.85),
+        new_word_ratio_low_accuracy_threshold: row
+            .try_get("newWordRatioLowAccuracyThreshold")
+            .unwrap_or(0.65),
+        mastery_thresholds: row
+            .try_get("masteryThresholds")
+            .unwrap_or(serde_json::Value::Null),
         is_default: row.try_get("isDefault").unwrap_or(false),
         created_at: format_naive_datetime_iso_millis(created_at),
         updated_at: format_naive_datetime_iso_millis(updated_at),
@@ -906,13 +1131,17 @@ fn map_postgres_config_row(row: &sqlx::postgres::PgRow) -> AlgorithmConfigDto {
 }
 
 fn map_postgres_history_row(row: &sqlx::postgres::PgRow) -> ConfigHistoryDto {
-    let timestamp: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+    let timestamp: NaiveDateTime = row
+        .try_get("timestamp")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     ConfigHistoryDto {
         id: row.try_get("id").unwrap_or_default(),
         config_id: row.try_get("configId").unwrap_or_default(),
         changed_by: row.try_get("changedBy").unwrap_or_default(),
         change_reason: row.try_get("changeReason").ok(),
-        previous_value: row.try_get("previousValue").unwrap_or(serde_json::Value::Null),
+        previous_value: row
+            .try_get("previousValue")
+            .unwrap_or(serde_json::Value::Null),
         new_value: row.try_get("newValue").unwrap_or(serde_json::Value::Null),
         timestamp: format_naive_datetime_iso_millis(timestamp),
     }
@@ -976,7 +1205,9 @@ fn as_i64(value: &serde_json::Value) -> Option<i64> {
     }
 }
 
-fn filter_update_fields(update: &serde_json::Map<String, serde_json::Value>) -> serde_json::Map<String, serde_json::Value> {
+fn filter_update_fields(
+    update: &serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Map<String, serde_json::Value> {
     let mut out = update.clone();
     out.remove("id");
     out.remove("createdAt");
@@ -994,7 +1225,9 @@ fn extract_config_id(path: &str, prefix: &str) -> Option<String> {
 }
 
 fn parse_query(raw: Option<&str>) -> HashMap<String, String> {
-    let Some(raw) = raw else { return HashMap::new() };
+    let Some(raw) = raw else {
+        return HashMap::new();
+    };
     raw.split('&')
         .filter_map(|pair| {
             let (k, v) = pair.split_once('=')?;
@@ -1003,11 +1236,17 @@ fn parse_query(raw: Option<&str>) -> HashMap<String, String> {
         .collect()
 }
 
-async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
+async fn split_body(
+    req: Request<Body>,
+) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
-        Err(_) => return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response()),
+        Err(_) => {
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            )
+        }
     };
     Ok((parts, body_bytes))
 }

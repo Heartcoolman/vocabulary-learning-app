@@ -31,14 +31,23 @@ pub fn router() -> Router<AppState> {
         .route("/simulate", post(simulate))
         // Stats routes (with /stats/ prefix)
         .route("/stats/overview", get(stats_overview))
-        .route("/stats/algorithm-distribution", get(stats_algorithm_distribution))
+        .route(
+            "/stats/algorithm-distribution",
+            get(stats_algorithm_distribution),
+        )
         .route("/stats/performance", get(stats_performance))
         .route("/stats/optimization-events", get(stats_optimization_events))
         .route("/stats/mastery-radar", get(stats_mastery_radar))
         .route("/stats/state-distribution", get(stats_state_distribution))
         .route("/stats/recent-decisions", get(stats_recent_decisions))
-        .route("/stats/learning-mode-distribution", get(stats_learning_mode_distribution))
-        .route("/stats/half-life-distribution", get(stats_half_life_distribution))
+        .route(
+            "/stats/learning-mode-distribution",
+            get(stats_learning_mode_distribution),
+        )
+        .route(
+            "/stats/half-life-distribution",
+            get(stats_half_life_distribution),
+        )
         .route("/stats/algorithm-trend", get(stats_algorithm_trend))
         // Frontend compatibility aliases (without /stats/ prefix)
         .route("/overview", get(stats_overview))
@@ -142,7 +151,9 @@ impl AboutStore {
     }
 
     fn next_seed(&self) -> u64 {
-        self.seed.fetch_add(1, Ordering::Relaxed).wrapping_mul(6364136223846793005)
+        self.seed
+            .fetch_add(1, Ordering::Relaxed)
+            .wrapping_mul(6364136223846793005)
     }
 }
 
@@ -411,7 +422,10 @@ struct SseConnectedEvent {
     connections: usize,
 }
 
-async fn simulate(State(_state): State<AppState>, Json(payload): Json<serde_json::Value>) -> Response {
+async fn simulate(
+    State(_state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
     let object = match payload.as_object() {
         Some(object) => object,
         None => return about_error(StatusCode::BAD_REQUEST, "请求体必须是有效的 JSON 对象"),
@@ -431,9 +445,7 @@ async fn simulate(State(_state): State<AppState>, Json(payload): Json<serde_json
         return about_error(StatusCode::BAD_REQUEST, "motivation 必须在 [-1, 1] 范围内");
     }
 
-    let cognitive = object
-        .get("cognitive")
-        .and_then(|value| value.as_object());
+    let cognitive = object.get("cognitive").and_then(|value| value.as_object());
     let mem = cognitive
         .and_then(|c| parse_f64(c.get("memory")))
         .unwrap_or(0.5);
@@ -476,7 +488,8 @@ fn parse_f64(value: Option<&serde_json::Value>) -> Option<f64> {
 fn compute_confidence(attention: f64, fatigue: f64, motivation: f64) -> f64 {
     let fatigue_factor = 1.0 - fatigue.clamp(0.0, 1.0);
     let motivation_factor = ((motivation.clamp(-1.0, 1.0) + 1.0) / 2.0).clamp(0.0, 1.0);
-    (attention.clamp(0.0, 1.0) * 0.55 + fatigue_factor * 0.25 + motivation_factor * 0.2).clamp(0.0, 1.0)
+    (attention.clamp(0.0, 1.0) * 0.55 + fatigue_factor * 0.25 + motivation_factor * 0.2)
+        .clamp(0.0, 1.0)
 }
 
 fn build_simulation(input: &StateSnapshot) -> AboutSimulateResponse {
@@ -488,7 +501,11 @@ fn build_simulation(input: &StateSnapshot) -> AboutSimulateResponse {
         "normal"
     };
 
-    let decision_source = if phase == "normal" { "ensemble" } else { "coldstart" };
+    let decision_source = if phase == "normal" {
+        "ensemble"
+    } else {
+        "coldstart"
+    };
 
     let weights = match phase {
         "classify" => EnsembleWeights {
@@ -599,7 +616,10 @@ fn decide_strategy(input: &StateSnapshot) -> StrategyParams {
     }
 }
 
-fn build_explanation_factors(input: &StateSnapshot, strategy: &StrategyParams) -> Vec<ExplanationFactor> {
+fn build_explanation_factors(
+    input: &StateSnapshot,
+    strategy: &StrategyParams,
+) -> Vec<ExplanationFactor> {
     let attention = input.attention.clamp(0.0, 1.0);
     let fatigue = input.fatigue.clamp(0.0, 1.0);
     let motivation = ((input.motivation.clamp(-1.0, 1.0) + 1.0) / 2.0).clamp(0.0, 1.0);
@@ -653,17 +673,27 @@ async fn record_virtual_decision(store: &Arc<AboutStore>, simulation: &AboutSimu
         timestamp: now.clone(),
         pseudo_id: pseudo_id.clone(),
         decision_source: simulation.decision_process.decision_source.clone(),
-        coldstart_phase: Some(simulation.decision_process.phase.clone()).filter(|_| simulation.decision_process.decision_source == "coldstart"),
+        coldstart_phase: Some(simulation.decision_process.phase.clone())
+            .filter(|_| simulation.decision_process.decision_source == "coldstart"),
         confidence: simulation.input_state.conf,
         reward: None,
         total_duration_ms: None,
         strategy: simulation.output_strategy.clone(),
         weights: {
             let mut map = HashMap::new();
-            map.insert("thompson".to_string(), simulation.decision_process.weights.thompson);
-            map.insert("linucb".to_string(), simulation.decision_process.weights.linucb);
+            map.insert(
+                "thompson".to_string(),
+                simulation.decision_process.weights.thompson,
+            );
+            map.insert(
+                "linucb".to_string(),
+                simulation.decision_process.weights.linucb,
+            );
             map.insert("actr".to_string(), simulation.decision_process.weights.actr);
-            map.insert("heuristic".to_string(), simulation.decision_process.weights.heuristic);
+            map.insert(
+                "heuristic".to_string(),
+                simulation.decision_process.weights.heuristic,
+            );
             map
         },
         member_votes: simulation
@@ -677,7 +707,11 @@ async fn record_virtual_decision(store: &Arc<AboutStore>, simulation: &AboutSimu
                 confidence: vote.confidence,
             })
             .collect(),
-        pipeline: build_virtual_pipeline(&now, &simulation.input_state, &simulation.output_strategy),
+        pipeline: build_virtual_pipeline(
+            &now,
+            &simulation.input_state,
+            &simulation.output_strategy,
+        ),
     };
 
     let summary = RecentDecision {
@@ -767,7 +801,11 @@ fn build_virtual_pipeline(
 }
 
 fn short_id(value: &str) -> String {
-    value.chars().filter(|c| c.is_ascii_alphanumeric()).take(8).collect()
+    value
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(8)
+        .collect()
 }
 
 async fn stats_overview(State(_state): State<AppState>) -> Response {
@@ -974,7 +1012,15 @@ async fn decision_detail(
 
     if source == Some("virtual") {
         let store = store();
-        let detail = { store.decisions.read().await.virtual_detail.get(&decision_id).cloned() };
+        let detail = {
+            store
+                .decisions
+                .read()
+                .await
+                .virtual_detail
+                .get(&decision_id)
+                .cloned()
+        };
 
         let Some(detail) = detail else {
             return about_error(StatusCode::NOT_FOUND, "未找到指定模拟决策");
@@ -983,10 +1029,7 @@ async fn decision_detail(
         return about_ok_with_source(detail, "virtual");
     }
 
-    about_error(
-        StatusCode::BAD_REQUEST,
-        "真实决策详情需要启用真实数据源",
-    )
+    about_error(StatusCode::BAD_REQUEST, "真实决策详情需要启用真实数据源")
 }
 
 async fn pipeline_snapshot(State(_state): State<AppState>) -> Response {
@@ -1494,7 +1537,11 @@ async fn decisions_stream(State(_state): State<AppState>) -> Response {
         });
 
     let mut response = Sse::new(stream)
-        .keep_alive(KeepAlive::new().interval(Duration::from_secs(30)).text("heartbeat"))
+        .keep_alive(
+            KeepAlive::new()
+                .interval(Duration::from_secs(30))
+                .text("heartbeat"),
+        )
         .into_response();
 
     response.headers_mut().insert(
@@ -1599,7 +1646,9 @@ async fn seed_virtual_decisions(store: &Arc<AboutStore>) {
         );
     }
 
-    guard.virtual_recent.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    guard
+        .virtual_recent
+        .sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 }
 
 async fn seed_pipeline(store: &Arc<AboutStore>) {
@@ -1676,7 +1725,14 @@ fn advance_pipeline(pipeline: &mut PipelineStore, seed: u64) {
 fn build_snapshot(pipeline: &PipelineStore) -> PipelineSnapshot {
     let now = now_ms();
     let mut node_states: HashMap<String, NodeState> = HashMap::new();
-    for node in ["perception", "model", "learner", "decision", "eval", "optim"] {
+    for node in [
+        "perception",
+        "model",
+        "learner",
+        "decision",
+        "eval",
+        "optim",
+    ] {
         node_states.insert(
             node.to_string(),
             NodeState {

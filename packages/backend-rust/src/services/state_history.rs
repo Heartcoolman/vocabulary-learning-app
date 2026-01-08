@@ -99,16 +99,27 @@ pub async fn get_state_history(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|row| StateHistoryItem {
-        date: format!("{}T00:00:00.000Z", row.try_get::<NaiveDate, _>("date").unwrap_or(Utc::now().date_naive()).format("%Y-%m-%d")),
-        attention: row.try_get("attention").unwrap_or(0.0),
-        fatigue: row.try_get("fatigue").unwrap_or(0.0),
-        motivation: row.try_get("motivation").unwrap_or(0.0),
-        memory: row.try_get("memory").unwrap_or(0.0),
-        speed: row.try_get("speed").unwrap_or(0.0),
-        stability: row.try_get("stability").unwrap_or(0.0),
-        trend_state: row.try_get::<Option<String>, _>("trendState").ok().flatten(),
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| StateHistoryItem {
+            date: format!(
+                "{}T00:00:00.000Z",
+                row.try_get::<NaiveDate, _>("date")
+                    .unwrap_or(Utc::now().date_naive())
+                    .format("%Y-%m-%d")
+            ),
+            attention: row.try_get("attention").unwrap_or(0.0),
+            fatigue: row.try_get("fatigue").unwrap_or(0.0),
+            motivation: row.try_get("motivation").unwrap_or(0.0),
+            memory: row.try_get("memory").unwrap_or(0.0),
+            speed: row.try_get("speed").unwrap_or(0.0),
+            stability: row.try_get("stability").unwrap_or(0.0),
+            trend_state: row
+                .try_get::<Option<String>, _>("trendState")
+                .ok()
+                .flatten(),
+        })
+        .collect())
 }
 
 pub async fn get_history_summary(
@@ -170,22 +181,48 @@ pub async fn get_cognitive_growth(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    let current = current_row.map(|r| CognitiveSnapshot {
-        memory: r.try_get("memory").unwrap_or(0.0),
-        speed: r.try_get("speed").unwrap_or(0.0),
-        stability: r.try_get("stability").unwrap_or(0.0),
-    }).unwrap_or(CognitiveSnapshot { memory: 0.0, speed: 0.0, stability: 0.0 });
+    let current = current_row
+        .map(|r| CognitiveSnapshot {
+            memory: r.try_get("memory").unwrap_or(0.0),
+            speed: r.try_get("speed").unwrap_or(0.0),
+            stability: r.try_get("stability").unwrap_or(0.0),
+        })
+        .unwrap_or(CognitiveSnapshot {
+            memory: 0.0,
+            speed: 0.0,
+            stability: 0.0,
+        });
 
-    let previous = previous_row.map(|r| CognitiveSnapshot {
-        memory: r.try_get("memory").unwrap_or(0.0),
-        speed: r.try_get("speed").unwrap_or(0.0),
-        stability: r.try_get("stability").unwrap_or(0.0),
-    }).unwrap_or(current.clone());
+    let previous = previous_row
+        .map(|r| CognitiveSnapshot {
+            memory: r.try_get("memory").unwrap_or(0.0),
+            speed: r.try_get("speed").unwrap_or(0.0),
+            stability: r.try_get("stability").unwrap_or(0.0),
+        })
+        .unwrap_or(current.clone());
 
     Ok(CognitiveGrowth {
-        memory_change: ((current.memory - previous.memory) / if previous.memory == 0.0 { 1.0 } else { previous.memory }) * 100.0,
-        speed_change: ((current.speed - previous.speed) / if previous.speed == 0.0 { 1.0 } else { previous.speed }) * 100.0,
-        stability_change: ((current.stability - previous.stability) / if previous.stability == 0.0 { 1.0 } else { previous.stability }) * 100.0,
+        memory_change: ((current.memory - previous.memory)
+            / if previous.memory == 0.0 {
+                1.0
+            } else {
+                previous.memory
+            })
+            * 100.0,
+        speed_change: ((current.speed - previous.speed)
+            / if previous.speed == 0.0 {
+                1.0
+            } else {
+                previous.speed
+            })
+            * 100.0,
+        stability_change: ((current.stability - previous.stability)
+            / if previous.stability == 0.0 {
+                1.0
+            } else {
+                previous.stability
+            })
+            * 100.0,
         current,
         previous,
         days: range as i64,
@@ -226,12 +263,48 @@ pub async fn get_significant_changes(
 
     let metrics: Option<Vec<(&str, &str, f64, f64, bool)>> = match (first_row, last_row) {
         (Some(first), Some(last)) => Some(vec![
-            ("attention", "注意力", first.try_get("attention").unwrap_or(0.0), last.try_get("attention").unwrap_or(0.0), true),
-            ("fatigue", "疲劳度", first.try_get("fatigue").unwrap_or(0.0), last.try_get("fatigue").unwrap_or(0.0), false),
-            ("motivation", "动机", first.try_get("motivation").unwrap_or(0.0), last.try_get("motivation").unwrap_or(0.0), true),
-            ("memory", "记忆力", first.try_get("memory").unwrap_or(0.0), last.try_get("memory").unwrap_or(0.0), true),
-            ("speed", "速度", first.try_get("speed").unwrap_or(0.0), last.try_get("speed").unwrap_or(0.0), true),
-            ("stability", "稳定性", first.try_get("stability").unwrap_or(0.0), last.try_get("stability").unwrap_or(0.0), true),
+            (
+                "attention",
+                "注意力",
+                first.try_get("attention").unwrap_or(0.0),
+                last.try_get("attention").unwrap_or(0.0),
+                true,
+            ),
+            (
+                "fatigue",
+                "疲劳度",
+                first.try_get("fatigue").unwrap_or(0.0),
+                last.try_get("fatigue").unwrap_or(0.0),
+                false,
+            ),
+            (
+                "motivation",
+                "动机",
+                first.try_get("motivation").unwrap_or(0.0),
+                last.try_get("motivation").unwrap_or(0.0),
+                true,
+            ),
+            (
+                "memory",
+                "记忆力",
+                first.try_get("memory").unwrap_or(0.0),
+                last.try_get("memory").unwrap_or(0.0),
+                true,
+            ),
+            (
+                "speed",
+                "速度",
+                first.try_get("speed").unwrap_or(0.0),
+                last.try_get("speed").unwrap_or(0.0),
+                true,
+            ),
+            (
+                "stability",
+                "稳定性",
+                first.try_get("stability").unwrap_or(0.0),
+                last.try_get("stability").unwrap_or(0.0),
+                true,
+            ),
         ]),
         _ => None,
     };
@@ -244,24 +317,35 @@ pub async fn get_significant_changes(
     let start_date_str = format!("{}T00:00:00.000Z", start_date.format("%Y-%m-%d"));
     let end_date_str = format!("{}T00:00:00.000Z", today.format("%Y-%m-%d"));
 
-    Ok(metrics.into_iter().filter_map(|(metric, label, first_val, last_val, positive_direction)| {
-        if first_val == 0.0 { return None; }
-        let change_pct = ((last_val - first_val) / first_val) * 100.0;
-        if change_pct.abs() < threshold * 100.0 { return None; }
+    Ok(metrics
+        .into_iter()
+        .filter_map(|(metric, label, first_val, last_val, positive_direction)| {
+            if first_val == 0.0 {
+                return None;
+            }
+            let change_pct = ((last_val - first_val) / first_val) * 100.0;
+            if change_pct.abs() < threshold * 100.0 {
+                return None;
+            }
 
-        let direction = if change_pct > 0.0 { "up" } else { "down" };
-        let is_positive = if positive_direction { change_pct > 0.0 } else { change_pct < 0.0 };
+            let direction = if change_pct > 0.0 { "up" } else { "down" };
+            let is_positive = if positive_direction {
+                change_pct > 0.0
+            } else {
+                change_pct < 0.0
+            };
 
-        Some(SignificantChange {
-            metric: metric.to_string(),
-            metric_label: label.to_string(),
-            change_percent: change_pct,
-            direction: direction.to_string(),
-            is_positive,
-            start_date: start_date_str.clone(),
-            end_date: end_date_str.clone(),
+            Some(SignificantChange {
+                metric: metric.to_string(),
+                metric_label: label.to_string(),
+                change_percent: change_pct,
+                direction: direction.to_string(),
+                is_positive,
+                start_date: start_date_str.clone(),
+                end_date: end_date_str.clone(),
+            })
         })
-    }).collect())
+        .collect())
 }
 
 pub async fn get_latest_state(
@@ -278,7 +362,12 @@ pub async fn get_latest_state(
     .map_err(|e| format!("查询失败: {e}"))?;
 
     Ok(row.map(|r| StateHistoryItem {
-        date: format!("{}T00:00:00.000Z", r.try_get::<NaiveDate, _>("date").unwrap_or(Utc::now().date_naive()).format("%Y-%m-%d")),
+        date: format!(
+            "{}T00:00:00.000Z",
+            r.try_get::<NaiveDate, _>("date")
+                .unwrap_or(Utc::now().date_naive())
+                .format("%Y-%m-%d")
+        ),
         attention: r.try_get("attention").unwrap_or(0.0),
         fatigue: r.try_get("fatigue").unwrap_or(0.0),
         motivation: r.try_get("motivation").unwrap_or(0.0),
@@ -305,7 +394,12 @@ pub async fn get_state_by_date(
     .map_err(|e| format!("查询失败: {e}"))?;
 
     Ok(row.map(|r| StateHistoryItem {
-        date: format!("{}T00:00:00.000Z", r.try_get::<NaiveDate, _>("date").unwrap_or(date).format("%Y-%m-%d")),
+        date: format!(
+            "{}T00:00:00.000Z",
+            r.try_get::<NaiveDate, _>("date")
+                .unwrap_or(date)
+                .format("%Y-%m-%d")
+        ),
         attention: r.try_get("attention").unwrap_or(0.0),
         fatigue: r.try_get("fatigue").unwrap_or(0.0),
         motivation: r.try_get("motivation").unwrap_or(0.0),
@@ -338,7 +432,9 @@ pub async fn save_state_snapshot(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    let (attention, fatigue, motivation, memory, speed, stability, trend_state) = if let Some(ex) = existing_row {
+    let (attention, fatigue, motivation, memory, speed, stability, trend_state) = if let Some(ex) =
+        existing_row
+    {
         let existing_trend: Option<String> = ex.try_get("trendState").ok();
         (
             alpha * snapshot.attention + (1.0 - alpha) * ex.try_get("attention").unwrap_or(0.0),
@@ -350,7 +446,15 @@ pub async fn save_state_snapshot(
             snapshot.trend_state.or(existing_trend),
         )
     } else {
-        (snapshot.attention, snapshot.fatigue, snapshot.motivation, snapshot.memory, snapshot.speed, snapshot.stability, snapshot.trend_state)
+        (
+            snapshot.attention,
+            snapshot.fatigue,
+            snapshot.motivation,
+            snapshot.memory,
+            snapshot.speed,
+            snapshot.stability,
+            snapshot.trend_state,
+        )
     };
 
     let id = uuid::Uuid::new_v4().to_string();

@@ -1,17 +1,17 @@
 pub mod config;
-pub mod state_machine;
 pub mod operations;
+pub mod state_machine;
 
 mod health_monitor;
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
 
 use crate::db::config::{DbConfig, DbConfigError};
 use crate::db::health_monitor::{HealthCheckResult, HealthCheckSnapshot, HealthTracker};
@@ -39,7 +39,9 @@ impl DatabaseProxy {
 
         let proxy = Arc::new(Self {
             health: Arc::new(RwLock::new(HealthTracker::new(config.health_check.clone()))),
-            state_machine: Arc::new(RwLock::new(DatabaseStateMachine::new(DatabaseState::Normal))),
+            state_machine: Arc::new(RwLock::new(DatabaseStateMachine::new(
+                DatabaseState::Normal,
+            ))),
             config,
             pool,
         });
@@ -94,10 +96,7 @@ impl DatabaseProxy {
         Err(DbMutationError::NotSupported)
     }
 
-    pub async fn delete_session_by_token_hash(
-        &self,
-        token_hash: &str,
-    ) -> Result<(), sqlx::Error> {
+    pub async fn delete_session_by_token_hash(&self, token_hash: &str) -> Result<(), sqlx::Error> {
         sqlx::query(r#"DELETE FROM "sessions" WHERE "token" = $1"#)
             .bind(token_hash)
             .execute(&self.pool)
@@ -137,11 +136,7 @@ impl DatabaseProxy {
         let pool = self.pool.clone();
 
         let started = std::time::Instant::now();
-        let result = tokio::time::timeout(
-            timeout,
-            sqlx::query("SELECT 1").execute(&pool),
-        )
-        .await;
+        let result = tokio::time::timeout(timeout, sqlx::query("SELECT 1").execute(&pool)).await;
 
         match result {
             Ok(Ok(_)) => HealthCheckResult::healthy(started.elapsed()),

@@ -136,17 +136,28 @@ async fn events(
         .or_else(|| batch.auth_token.clone());
 
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "数据库服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "数据库服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(u) => u,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -182,14 +193,16 @@ async fn process_batch(proxy: Arc<crate::db::DatabaseProxy>, user_id: String, ba
     let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     {
         let mut stats_guard = store.stats.write().await;
-        let entry = stats_guard.entry(user_id.clone()).or_insert(UserInteractionStats {
-            pronunciation_clicks: 0,
-            pause_count: 0,
-            page_switch_count: 0,
-            total_interactions: 0,
-            total_session_duration: 0,
-            last_activity_time: None,
-        });
+        let entry = stats_guard
+            .entry(user_id.clone())
+            .or_insert(UserInteractionStats {
+                pronunciation_clicks: 0,
+                pause_count: 0,
+                page_switch_count: 0,
+                total_interactions: 0,
+                total_session_duration: 0,
+                last_activity_time: None,
+            });
 
         entry.pronunciation_clicks += pronunciation_clicks;
         entry.pause_count += pause_count;
@@ -241,31 +254,40 @@ async fn process_batch(proxy: Arc<crate::db::DatabaseProxy>, user_id: String, ba
         pause_count as i32,
         page_switch_count as i32,
         batch.events.len() as i32,
-    ).await {
+    )
+    .await
+    {
         tracing::warn!(error = %e, "Failed to persist user interaction stats");
     }
 }
 
-async fn stats(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+async fn stats(State(state): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let user = match require_user(&state, &headers).await {
         Ok(user) => user,
         Err(res) => return res,
     };
 
     let store = store();
-    let stats = store.stats.read().await.get(&user.id).cloned().unwrap_or(UserInteractionStats {
-        pronunciation_clicks: 0,
-        pause_count: 0,
-        page_switch_count: 0,
-        total_interactions: 0,
-        total_session_duration: 0,
-        last_activity_time: None,
-    });
+    let stats = store
+        .stats
+        .read()
+        .await
+        .get(&user.id)
+        .cloned()
+        .unwrap_or(UserInteractionStats {
+            pronunciation_clicks: 0,
+            pause_count: 0,
+            page_switch_count: 0,
+            total_interactions: 0,
+            total_session_duration: 0,
+            last_activity_time: None,
+        });
 
-    Json(SuccessResponse { success: true, data: stats }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: stats,
+    })
+    .into_response()
 }
 
 async fn auditory_preference(
@@ -295,8 +317,15 @@ async fn auditory_preference(
     }
     .to_string();
 
-    let data = AuditoryPreferenceResponse { score, interpretation };
-    Json(SuccessResponse { success: true, data }).into_response()
+    let data = AuditoryPreferenceResponse {
+        score,
+        interpretation,
+    };
+    Json(SuccessResponse {
+        success: true,
+        data,
+    })
+    .into_response()
 }
 
 async fn recent(
@@ -332,7 +361,11 @@ async fn recent(
         events,
     };
 
-    Json(SuccessResponse { success: true, data: response }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: response,
+    })
+    .into_response()
 }
 
 async fn require_user(
@@ -341,15 +374,27 @@ async fn require_user(
 ) -> Result<crate::auth::AuthUser, Response> {
     let token = crate::auth::extract_token(headers);
     let Some(token) = token else {
-        return Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response());
+        return Err(
+            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response(),
+        );
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "数据库服务不可用").into_response());
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "数据库服务不可用",
+        )
+        .into_response());
     };
 
     match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => Ok(user),
-        Err(_) => Err(json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response()),
+        Err(_) => Err(json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "认证失败，请重新登录",
+        )
+        .into_response()),
     }
 }

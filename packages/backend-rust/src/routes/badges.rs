@@ -145,16 +145,21 @@ async fn get_all_badges(
     for def in badge_defs {
         let key = format!("{}:{}", def.id, def.tier);
         let unlocked_at = unlocked.get(&key).cloned();
-        let condition = def
-            .condition
-            .unwrap_or_else(|| BadgeCondition { r#type: "streak".to_string(), value: 1.0, params: None });
+        let condition = def.condition.unwrap_or_else(|| BadgeCondition {
+            r#type: "streak".to_string(),
+            value: 1.0,
+            params: None,
+        });
         let unlocked_flag = unlocked_at.is_some();
         let progress = if unlocked_flag {
             Some(100)
         } else {
             let current = current_value_for_condition(&condition, &stats);
             let pct = if condition.value > 0.0 {
-                ((current / condition.value) * 100.0).round().min(100.0).max(0.0)
+                ((current / condition.value) * 100.0)
+                    .round()
+                    .min(100.0)
+                    .max(0.0)
             } else {
                 0.0
             };
@@ -177,7 +182,10 @@ async fn get_all_badges(
     let unlocked_count = badges.iter().filter(|b| b.unlocked).count();
     let mut grouped: BTreeMap<String, Vec<BadgeDetailsDto>> = BTreeMap::new();
     for badge in &badges {
-        grouped.entry(badge.category.clone()).or_default().push(badge.clone());
+        grouped
+            .entry(badge.category.clone())
+            .or_default()
+            .push(badge.clone());
     }
 
     Ok(Json(SuccessResponse {
@@ -214,16 +222,21 @@ async fn get_badge_detail(
     let key = format!("{}:{}", def.id, def.tier);
     let unlocked_at = unlocked.get(&key).cloned();
     let stats = compute_user_badge_stats(proxy.as_ref(), &user.id).await?;
-    let condition = def
-        .condition
-        .unwrap_or_else(|| BadgeCondition { r#type: "streak".to_string(), value: 1.0, params: None });
+    let condition = def.condition.unwrap_or_else(|| BadgeCondition {
+        r#type: "streak".to_string(),
+        value: 1.0,
+        params: None,
+    });
     let unlocked_flag = unlocked_at.is_some();
     let progress = if unlocked_flag {
         Some(100)
     } else {
         let current = current_value_for_condition(&condition, &stats);
         let pct = if condition.value > 0.0 {
-            ((current / condition.value) * 100.0).round().min(100.0).max(0.0)
+            ((current / condition.value) * 100.0)
+                .round()
+                .min(100.0)
+                .max(0.0)
         } else {
             0.0
         };
@@ -268,12 +281,16 @@ async fn get_badge_progress(
     };
 
     let stats = compute_user_badge_stats(proxy.as_ref(), &user.id).await?;
-    let condition = def
-        .condition
-        .unwrap_or_else(|| BadgeCondition { r#type: "streak".to_string(), value: 1.0, params: None });
+    let condition = def.condition.unwrap_or_else(|| BadgeCondition {
+        r#type: "streak".to_string(),
+        value: 1.0,
+        params: None,
+    });
     let current_value = current_value_for_condition(&condition, &stats);
     let percentage = if condition.value > 0.0 {
-        (current_value / condition.value * 100.0).min(100.0).max(0.0)
+        (current_value / condition.value * 100.0)
+            .min(100.0)
+            .max(0.0)
     } else {
         0.0
     };
@@ -307,9 +324,11 @@ async fn check_and_award_badges(
             continue;
         }
 
-        let condition = def
-            .condition
-            .unwrap_or_else(|| BadgeCondition { r#type: "streak".to_string(), value: 1.0, params: None });
+        let condition = def.condition.unwrap_or_else(|| BadgeCondition {
+            r#type: "streak".to_string(),
+            value: 1.0,
+            params: None,
+        });
         if !is_condition_met(&condition, &stats) {
             continue;
         }
@@ -362,17 +381,33 @@ async fn check_and_award_badges(
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -403,7 +438,9 @@ async fn select_badge_definition(
     select_badge_definition_pg(&pool, id).await
 }
 
-async fn select_badge_definitions_pg(pool: &sqlx::PgPool) -> Result<Vec<BadgeDefinitionRow>, AppError> {
+async fn select_badge_definitions_pg(
+    pool: &sqlx::PgPool,
+) -> Result<Vec<BadgeDefinitionRow>, AppError> {
     let rows = sqlx::query(
         r#"
         SELECT
@@ -414,7 +451,13 @@ async fn select_badge_definitions_pg(pool: &sqlx::PgPool) -> Result<Vec<BadgeDef
     )
     .fetch_all(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     Ok(rows
         .into_iter()
@@ -423,7 +466,9 @@ async fn select_badge_definitions_pg(pool: &sqlx::PgPool) -> Result<Vec<BadgeDef
             name: row.try_get::<String, _>("name").unwrap_or_default(),
             description: row.try_get::<String, _>("description").unwrap_or_default(),
             icon_url: row.try_get::<String, _>("iconUrl").unwrap_or_default(),
-            category: row.try_get::<String, _>("category").unwrap_or_else(|_| "STREAK".to_string()),
+            category: row
+                .try_get::<String, _>("category")
+                .unwrap_or_else(|_| "STREAK".to_string()),
             tier: row.try_get::<i32, _>("tier").map(|v| v as i64).unwrap_or(1),
             condition: row
                 .try_get::<sqlx::types::Json<serde_json::Value>, _>("condition")
@@ -448,14 +493,22 @@ async fn select_badge_definition_pg(
     .bind(id)
     .fetch_optional(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     Ok(row.map(|row| BadgeDefinitionRow {
         id: row.try_get::<String, _>("id").unwrap_or_default(),
         name: row.try_get::<String, _>("name").unwrap_or_default(),
         description: row.try_get::<String, _>("description").unwrap_or_default(),
         icon_url: row.try_get::<String, _>("iconUrl").unwrap_or_default(),
-        category: row.try_get::<String, _>("category").unwrap_or_else(|_| "STREAK".to_string()),
+        category: row
+            .try_get::<String, _>("category")
+            .unwrap_or_else(|_| "STREAK".to_string()),
         tier: row.try_get::<i32, _>("tier").map(|v| v as i64).unwrap_or(1),
         condition: row
             .try_get::<sqlx::types::Json<serde_json::Value>, _>("condition")
@@ -472,7 +525,10 @@ async fn select_user_badges(
     select_user_badges_pg(&pool, user_id).await
 }
 
-async fn select_user_badges_pg(pool: &sqlx::PgPool, user_id: &str) -> Result<Vec<UserBadgeDto>, AppError> {
+async fn select_user_badges_pg(
+    pool: &sqlx::PgPool,
+    user_id: &str,
+) -> Result<Vec<UserBadgeDto>, AppError> {
     let rows = sqlx::query(
         r#"
         SELECT
@@ -493,7 +549,13 @@ async fn select_user_badges_pg(pool: &sqlx::PgPool, user_id: &str) -> Result<Vec
     .bind(user_id)
     .fetch_all(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     Ok(rows
         .into_iter()
@@ -503,11 +565,16 @@ async fn select_user_badges_pg(pool: &sqlx::PgPool, user_id: &str) -> Result<Vec
             name: row.try_get::<String, _>("name").unwrap_or_default(),
             description: row.try_get::<String, _>("description").unwrap_or_default(),
             icon_url: row.try_get::<String, _>("iconUrl").unwrap_or_default(),
-            category: row.try_get::<String, _>("category").unwrap_or_else(|_| "STREAK".to_string()),
+            category: row
+                .try_get::<String, _>("category")
+                .unwrap_or_else(|_| "STREAK".to_string()),
             tier: row.try_get::<i32, _>("tier").map(|v| v as i64).unwrap_or(1),
             unlocked_at: row
                 .try_get::<chrono::NaiveDateTime, _>("unlockedAt")
-                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+                .map(|dt| {
+                    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                        .to_rfc3339_opts(SecondsFormat::Millis, true)
+                })
                 .unwrap_or_else(|_| Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
         })
         .collect())
@@ -528,7 +595,13 @@ async fn select_user_badge_unlocks(
     .bind(user_id)
     .fetch_all(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     let mut map = HashMap::new();
     for row in rows {
@@ -536,7 +609,10 @@ async fn select_user_badge_unlocks(
         let tier = row.try_get::<i32, _>("tier").map(|v| v as i64).unwrap_or(1);
         let unlocked_at = row
             .try_get::<chrono::NaiveDateTime, _>("unlockedAt")
-            .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).to_rfc3339_opts(SecondsFormat::Millis, true))
+            .map(|dt| {
+                DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+                    .to_rfc3339_opts(SecondsFormat::Millis, true)
+            })
             .unwrap_or_default();
         map.insert(format!("{badge_id}:{tier}"), unlocked_at);
     }
@@ -655,7 +731,8 @@ async fn compute_consecutive_days(
     .fetch_all(pool)
     .await
     .unwrap_or_default();
-    let dates: Vec<NaiveDate> = rows.into_iter()
+    let dates: Vec<NaiveDate> = rows
+        .into_iter()
         .filter_map(|row| row.try_get::<chrono::NaiveDateTime, _>("timestamp").ok())
         .map(|dt| dt.date())
         .collect();
@@ -767,6 +844,12 @@ async fn upsert_user_badge(
     .bind(unlocked_dt)
     .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "数据库写入失败"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "数据库写入失败",
+        )
+    })?;
     Ok(())
 }

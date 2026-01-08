@@ -57,11 +57,13 @@ pub async fn get_time_preferences(
     let session_count = get_session_count(proxy, user_id).await?;
 
     if session_count < MIN_SESSION_COUNT {
-        return Ok(TimePreferenceResponse::Insufficient(InsufficientDataResult {
-            insufficient_data: true,
-            min_required: MIN_SESSION_COUNT,
-            current_count: session_count,
-        }));
+        return Ok(TimePreferenceResponse::Insufficient(
+            InsufficientDataResult {
+                insufficient_data: true,
+                min_required: MIN_SESSION_COUNT,
+                current_count: session_count,
+            },
+        ));
     }
 
     let time_pref = calculate_time_pref_from_records(proxy, user_id).await?;
@@ -91,8 +93,15 @@ pub async fn is_golden_time(
             matched_slot: None,
         }),
         TimePreferenceResponse::Sufficient(pref) => {
-            let matched = pref.preferred_slots.iter().find(|s| s.hour == current_hour).cloned();
-            let is_golden = matched.as_ref().map(|s| s.score >= GOLDEN_TIME_THRESHOLD).unwrap_or(false);
+            let matched = pref
+                .preferred_slots
+                .iter()
+                .find(|s| s.hour == current_hour)
+                .cloned();
+            let is_golden = matched
+                .as_ref()
+                .map(|s| s.score >= GOLDEN_TIME_THRESHOLD)
+                .unwrap_or(false);
 
             Ok(GoldenTimeResult {
                 is_golden,
@@ -135,7 +144,9 @@ async fn calculate_time_pref_from_records(
     .map_err(|e| e.to_string())?;
 
     for row in rows {
-        let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else { continue };
+        let Ok(ts): Result<chrono::NaiveDateTime, _> = row.try_get("timestamp") else {
+            continue;
+        };
         let is_correct: bool = row.try_get("isCorrect").unwrap_or(false);
         let response_time: i64 = row.try_get("responseTime").unwrap_or(0);
 
@@ -149,7 +160,13 @@ async fn calculate_time_pref_from_records(
     let time_pref: Vec<f64> = hour_scores
         .iter()
         .zip(hour_counts.iter())
-        .map(|(&score, &count)| if count == 0 { 0.0 } else { score / count as f64 })
+        .map(|(&score, &count)| {
+            if count == 0 {
+                0.0
+            } else {
+                score / count as f64
+            }
+        })
         .collect();
 
     let max_score = time_pref.iter().cloned().fold(0.001f64, f64::max);
@@ -159,9 +176,21 @@ async fn calculate_time_pref_from_records(
 fn get_recommended_slots(time_pref: &[f64]) -> Vec<TimeSlot> {
     if time_pref.len() != 24 {
         return vec![
-            TimeSlot { hour: 9, score: 0.5, confidence: 0.0 },
-            TimeSlot { hour: 14, score: 0.4, confidence: 0.0 },
-            TimeSlot { hour: 20, score: 0.3, confidence: 0.0 },
+            TimeSlot {
+                hour: 9,
+                score: 0.5,
+                confidence: 0.0,
+            },
+            TimeSlot {
+                hour: 14,
+                score: 0.4,
+                confidence: 0.0,
+            },
+            TimeSlot {
+                hour: 20,
+                score: 0.3,
+                confidence: 0.0,
+            },
         ];
     }
 
@@ -175,14 +204,19 @@ fn get_recommended_slots(time_pref: &[f64]) -> Vec<TimeSlot> {
         })
         .collect();
 
-    slots.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    slots.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     slots.truncate(RECOMMENDED_SLOTS_COUNT);
     slots
 }
 
 fn calculate_slot_confidence(score: f64, all_scores: &[f64]) -> f64 {
     let avg: f64 = all_scores.iter().sum::<f64>() / all_scores.len() as f64;
-    let variance: f64 = all_scores.iter().map(|&s| (s - avg).powi(2)).sum::<f64>() / all_scores.len() as f64;
+    let variance: f64 =
+        all_scores.iter().map(|&s| (s - avg).powi(2)).sum::<f64>() / all_scores.len() as f64;
     let std_dev = variance.sqrt();
 
     if std_dev == 0.0 {
@@ -197,7 +231,8 @@ fn calculate_confidence(session_count: i64, time_pref: &[f64]) -> f64 {
     let sample_confidence = (session_count as f64 / 100.0).min(1.0);
 
     let avg: f64 = time_pref.iter().sum::<f64>() / time_pref.len() as f64;
-    let variance: f64 = time_pref.iter().map(|&s| (s - avg).powi(2)).sum::<f64>() / time_pref.len() as f64;
+    let variance: f64 =
+        time_pref.iter().map(|&s| (s - avg).powi(2)).sum::<f64>() / time_pref.len() as f64;
     let variance_confidence = (variance * 10.0).min(1.0);
 
     sample_confidence * 0.6 + variance_confidence * 0.4

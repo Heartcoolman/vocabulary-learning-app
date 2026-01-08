@@ -138,27 +138,33 @@ struct ObjectiveHistoryItem {
     after_mode: String,
 }
 
-pub async fn get_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn get_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(Some(row)) => Json(SuccessResponse {
@@ -188,15 +194,17 @@ pub async fn get_objectives(
         }
         Err(err) => {
             tracing::warn!(error = %err, "get learning objectives failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
 
-pub async fn upsert_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn upsert_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -204,13 +212,19 @@ pub async fn upsert_objectives(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: UpdateObjectivesPayload = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
@@ -299,27 +313,49 @@ pub async fn upsert_objectives(
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let existing = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
-    let (default_mode, default_primary, default_short, default_long, default_eff, default_min_accuracy, default_max_daily_time, default_target_retention) = match existing.as_ref() {
+    let (
+        default_mode,
+        default_primary,
+        default_short,
+        default_long,
+        default_eff,
+        default_min_accuracy,
+        default_max_daily_time,
+        default_target_retention,
+    ) = match existing.as_ref() {
         Some(row) => (
             row.mode.clone(),
             row.primary_objective.clone(),
@@ -376,7 +412,12 @@ pub async fn upsert_objectives(
     .await
     {
         tracing::warn!(error = %err, "upsert learning objectives failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(SuccessResponse {
@@ -397,10 +438,7 @@ pub async fn upsert_objectives(
     .into_response()
 }
 
-pub async fn switch_mode(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn switch_mode(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -408,13 +446,19 @@ pub async fn switch_mode(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: SwitchModePayload = match serde_json::from_slice(&body_bytes) {
         Ok(value) => value,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
@@ -437,23 +481,36 @@ pub async fn switch_mode(
         .to_string();
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let current = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -486,7 +543,12 @@ pub async fn switch_mode(
     .await
     {
         tracing::warn!(error = %err, "switch mode upsert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Some(before) = current.as_ref() {
@@ -525,33 +587,44 @@ pub async fn switch_mode(
     .into_response()
 }
 
-pub async fn suggestions(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn suggestions(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let current = match select_user_objectives(proxy.as_ref(), &auth_user.id).await {
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "select learning objectives failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -576,13 +649,11 @@ pub async fn suggestions(
     .into_response()
 }
 
-pub async fn history(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn history(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let query_string = req.uri().query().unwrap_or("");
@@ -592,23 +663,36 @@ pub async fn history(
         .clamp(1, 100);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     let history = match select_objective_history(proxy.as_ref(), &auth_user.id, limit).await {
         Ok(items) => items,
         Err(err) => {
             tracing::warn!(error = %err, "select objective history failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -620,31 +704,42 @@ pub async fn history(
     .into_response()
 }
 
-pub async fn delete_objectives(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn delete_objectives(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
-    let auth_user =
-        match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
-            Ok(user) => user,
-            Err(_) => {
-                return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录")
-                    .into_response();
-            }
-        };
+    let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
+        Ok(user) => user,
+        Err(_) => {
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
+        }
+    };
 
     if let Err(err) = delete_objectives_row(proxy.as_ref(), &auth_user.id).await {
         tracing::warn!(error = %err, "delete learning objectives failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(SuccessMessageResponse {
@@ -784,7 +879,9 @@ async fn select_user_objectives(
         mode: row.try_get("mode")?,
         primary_objective: row.try_get("primaryObjective")?,
         min_accuracy: row.try_get("minAccuracy")?,
-        max_daily_time: row.try_get::<Option<i32>, _>("maxDailyTime")?.map(|v| v as i64),
+        max_daily_time: row
+            .try_get::<Option<i32>, _>("maxDailyTime")?
+            .map(|v| v as i64),
         target_retention: row.try_get("targetRetention")?,
         weight_short_term: row.try_get("weightShortTerm")?,
         weight_long_term: row.try_get("weightLongTerm")?,
@@ -954,8 +1051,16 @@ async fn select_objective_history(
         out.push(ObjectiveHistoryItem {
             timestamp: crate::auth::format_naive_datetime_iso_millis(timestamp),
             reason,
-            before_mode: before.get("mode").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            after_mode: after.get("mode").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            before_mode: before
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            after_mode: after
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
         });
     }
     Ok(out)
@@ -966,7 +1071,9 @@ fn now_iso_millis() -> String {
 }
 
 fn parse_naive_datetime(value: &str) -> Option<NaiveDateTime> {
-    chrono::DateTime::parse_from_rfc3339(value).ok().map(|dt| dt.naive_utc())
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|dt| dt.naive_utc())
 }
 
 fn get_query_param(query: &str, key: &str) -> Option<String> {
@@ -1028,7 +1135,9 @@ async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, B
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response());
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            );
         }
     };
     Ok((parts, body_bytes))

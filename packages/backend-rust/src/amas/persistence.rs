@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::amas::types::{HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState};
+use crate::amas::types::{
+    HabitProfile, HabitSamples, PersistedAMASState, RhythmPreference, UserState,
+};
 use crate::db::operations::{
     get_amas_user_model, get_amas_user_state, insert_amas_user_model, upsert_amas_user_state,
     AmasUserModel, AmasUserState,
@@ -93,8 +95,14 @@ impl AMASPersistence {
         let rhythm = rhythm_pref
             .and_then(|v| v.as_object().cloned())
             .map(|obj| RhythmPreference {
-                session_median_minutes: obj.get("sessionMedianMinutes").and_then(|v| v.as_f64()).unwrap_or(15.0),
-                batch_median: obj.get("batchMedian").and_then(|v| v.as_f64()).unwrap_or(8.0),
+                session_median_minutes: obj
+                    .get("sessionMedianMinutes")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(15.0),
+                batch_median: obj
+                    .get("batchMedian")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(8.0),
             })
             .unwrap_or_default();
 
@@ -184,7 +192,10 @@ impl AMASPersistence {
             crate::amas::types::CognitiveProfile::default()
         };
 
-        let trend = row.trend_state.as_ref().map(|s| crate::amas::types::TrendState::from_str(s));
+        let trend = row
+            .trend_state
+            .as_ref()
+            .map(|s| crate::amas::types::TrendState::from_str(s));
 
         UserState {
             attention: row.attention,
@@ -227,5 +238,9 @@ impl AMASPersistence {
 fn compute_preferred_slots(time_pref: &[f64]) -> Vec<i32> {
     let mut indexed: Vec<(usize, f64)> = time_pref.iter().copied().enumerate().collect();
     indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    indexed.into_iter().take(3).map(|(hour, _)| hour as i32).collect()
+    indexed
+        .into_iter()
+        .take(3)
+        .map(|(hour, _)| hour as i32)
+        .collect()
 }

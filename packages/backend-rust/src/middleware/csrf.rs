@@ -19,7 +19,9 @@ pub async fn csrf_token_middleware(req: Request<Body>, next: Next) -> Response {
 
     let token = generate_csrf_token();
     if let Ok(header_value) = HeaderValue::from_str(&build_csrf_cookie_header(&token)) {
-        response.headers_mut().append(header::SET_COOKIE, header_value);
+        response
+            .headers_mut()
+            .append(header::SET_COOKIE, header_value);
     }
 
     response
@@ -78,15 +80,14 @@ pub async fn csrf_validation_middleware(req: Request<Body>, next: Next) -> Respo
 }
 
 fn generate_csrf_token() -> String {
-    format!(
-        "{}{}",
-        Uuid::new_v4().simple(),
-        Uuid::new_v4().simple()
-    )
+    format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
 fn build_csrf_cookie_header(token: &str) -> String {
-    let is_production = matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("production"));
+    let is_production = matches!(
+        std::env::var("NODE_ENV").ok().as_deref(),
+        Some("production")
+    );
     let mut parts = Vec::with_capacity(6);
 
     parts.push(format!("{CSRF_COOKIE_NAME}={token}"));

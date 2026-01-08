@@ -13,14 +13,12 @@ use uuid::Uuid;
 use crate::amas::types::{
     ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams,
 };
+use crate::db::operations::{insert_decision_insight, insert_decision_record, DecisionRecord};
 use crate::response::{json_error, AppError};
-use crate::services::learning_state::{
-    upsert_word_state, WordState, WordStateUpdateData,
-};
+use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
+use crate::services::learning_state::{upsert_word_state, WordState, WordStateUpdateData};
 use crate::services::record::{create_record, CreateRecordInput};
 use crate::services::state_history::{save_state_snapshot, UserStateSnapshot};
-use crate::services::delayed_reward::{enqueue_delayed_reward, EnqueueRewardInput};
-use crate::db::operations::{insert_decision_record, insert_decision_insight, DecisionRecord};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -255,7 +253,12 @@ pub fn router() -> Router<AppState> {
 }
 
 fn not_implemented() -> Response {
-    json_error(StatusCode::NOT_IMPLEMENTED, "NOT_IMPLEMENTED", "功能尚未实现").into_response()
+    json_error(
+        StatusCode::NOT_IMPLEMENTED,
+        "NOT_IMPLEMENTED",
+        "功能尚未实现",
+    )
+    .into_response()
 }
 
 async fn process_event(
@@ -265,7 +268,8 @@ async fn process_event(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, user) = require_user(&state, &headers).await?;
 
-    let session_id = body.session_id
+    let session_id = body
+        .session_id
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
@@ -273,15 +277,16 @@ async fn process_event(
     let response_time = body.response_time.max(0);
 
     // Load existing word state for FSRS calculation
-    let existing_word_state = crate::services::learning_state::get_word_state(
-        proxy.pool(),
-        &user.id,
-        &word_id,
-    ).await.ok().flatten();
+    let existing_word_state =
+        crate::services::learning_state::get_word_state(proxy.pool(), &user.id, &word_id)
+            .await
+            .ok()
+            .flatten();
 
     let fsrs_word_state = existing_word_state.as_ref().map(|ws| {
         let now_ms = chrono::Utc::now().timestamp_millis();
-        let elapsed_days = ws.last_review_date
+        let elapsed_days = ws
+            .last_review_date
             .map(|lr| (now_ms - lr) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
             .unwrap_or(0.0);
         crate::amas::types::FSRSWordState {
@@ -323,7 +328,8 @@ async fn process_event(
     };
 
     let engine = state.amas_engine();
-    let result = engine.process_event(&user.id, raw_event, options)
+    let result = engine
+        .process_event(&user.id, raw_event, options)
         .await
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, "AMAS_ERROR", &e))?;
 
@@ -397,27 +403,33 @@ async fn process_event(
         dwell_time: body.dwell_time,
         session_id: Some(session_id.clone()),
         mastery_level_before: None,
-        mastery_level_after: result.word_mastery_decision.as_ref()
+        mastery_level_after: result
+            .word_mastery_decision
+            .as_ref()
             .map(|m| ((m.new_mastery * 5.0).round() as i64).clamp(0, 5)),
     };
     match create_record(&proxy, &user.id, record_input).await {
         Ok(record) => {
             let delay_ms = 5 * 60 * 1000i64;
-            let _ = enqueue_delayed_reward(&proxy, EnqueueRewardInput {
-                user_id: user.id.clone(),
-                answer_record_id: Some(record.id.clone()),
-                session_id: Some(session_id.clone()),
-                reward: result.reward.value,
-                due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
-                idempotency_key: format!("reward:{}:{}", user.id, record.id),
-            }).await;
+            let _ = enqueue_delayed_reward(
+                &proxy,
+                EnqueueRewardInput {
+                    user_id: user.id.clone(),
+                    answer_record_id: Some(record.id.clone()),
+                    session_id: Some(session_id.clone()),
+                    reward: result.reward.value,
+                    due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
+                    idempotency_key: format!("reward:{}:{}", user.id, record.id),
+                },
+            )
+            .await;
 
             // Update learning session statistics (only on successful record creation)
             if !session_id.is_empty() {
                 let _ = sqlx::query(
                     r#"UPDATE "learning_sessions"
                        SET "totalQuestions" = "totalQuestions" + 1, "updatedAt" = $1
-                       WHERE "id" = $2 AND "userId" = $3"#
+                       WHERE "id" = $2 AND "userId" = $3"#,
                 )
                 .bind(chrono::Utc::now().naive_utc())
                 .bind(&session_id)
@@ -427,11 +439,13 @@ async fn process_event(
 
                 if let Some(ref mastery) = result.word_mastery_decision {
                     const MASTERY_THRESHOLD: f64 = 0.6;
-                    if mastery.new_mastery >= MASTERY_THRESHOLD && mastery.prev_mastery < MASTERY_THRESHOLD {
+                    if mastery.new_mastery >= MASTERY_THRESHOLD
+                        && mastery.prev_mastery < MASTERY_THRESHOLD
+                    {
                         let _ = sqlx::query(
                             r#"UPDATE "learning_sessions"
                                SET "actualMasteryCount" = "actualMasteryCount" + 1, "updatedAt" = $1
-                               WHERE "id" = $2 AND "userId" = $3"#
+                               WHERE "id" = $2 AND "userId" = $3"#,
                         )
                         .bind(chrono::Utc::now().naive_utc())
                         .bind(&session_id)
@@ -458,7 +472,13 @@ async fn process_event(
         weights_snapshot: None,
         member_votes: None,
         selected_action: serde_json::to_value(&result.strategy).unwrap_or_default(),
-        confidence: result.explanation.factors.iter().map(|f| f.value).sum::<f64>() / result.explanation.factors.len().max(1) as f64,
+        confidence: result
+            .explanation
+            .factors
+            .iter()
+            .map(|f| f.value)
+            .sum::<f64>()
+            / result.explanation.factors.len().max(1) as f64,
         reward: Some(result.reward.value),
         trace_version: 1,
         total_duration_ms: None,
@@ -483,7 +503,7 @@ async fn process_event(
             .find(|f| f.name == "responseTime").map(|f| f.value).unwrap_or(0.5),
     });
     let feature_hash = {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(serde_json::to_string(&result.explanation.factors).unwrap_or_default());
         hex::encode(hasher.finalize())
@@ -496,7 +516,9 @@ async fn process_event(
         &difficulty_factors,
         &result.explanation.changes,
         &feature_hash,
-    ).await {
+    )
+    .await
+    {
         tracing::warn!(error = %e, "Failed to insert decision insight");
     }
 
@@ -504,12 +526,17 @@ async fn process_event(
         session_id,
         strategy: strategy_to_response(&result.strategy),
         explanation: ExplanationResponse {
-            factors: result.explanation.factors.iter().map(|f| FactorResponse {
-                name: f.name.clone(),
-                value: f.value,
-                impact: f.impact.clone(),
-                percentage: f.percentage,
-            }).collect(),
+            factors: result
+                .explanation
+                .factors
+                .iter()
+                .map(|f| FactorResponse {
+                    name: f.name.clone(),
+                    value: f.value,
+                    impact: f.impact.clone(),
+                    percentage: f.percentage,
+                })
+                .collect(),
             changes: result.explanation.changes.clone(),
             text: result.explanation.text.clone(),
         },
@@ -552,22 +579,28 @@ async fn process_event(
         } else {
             None
         },
-        objective_evaluation: result.objective_evaluation.map(|oe| ObjectiveEvaluationResponse {
-            metrics: MultiObjectiveMetricsResponse {
-                short_term_score: oe.metrics.short_term_score,
-                long_term_score: oe.metrics.long_term_score,
-                efficiency_score: oe.metrics.efficiency_score,
-                aggregated_score: oe.metrics.aggregated_score,
-                ts: oe.metrics.ts,
-            },
-            constraints_satisfied: oe.constraints_satisfied,
-            constraint_violations: oe.constraint_violations.into_iter().map(|cv| ConstraintViolationResponse {
-                constraint: cv.constraint,
-                expected: cv.expected,
-                actual: cv.actual,
-            }).collect(),
-            suggested_adjustments: oe.suggested_adjustments.map(|s| strategy_to_response(&s)),
-        }),
+        objective_evaluation: result
+            .objective_evaluation
+            .map(|oe| ObjectiveEvaluationResponse {
+                metrics: MultiObjectiveMetricsResponse {
+                    short_term_score: oe.metrics.short_term_score,
+                    long_term_score: oe.metrics.long_term_score,
+                    efficiency_score: oe.metrics.efficiency_score,
+                    aggregated_score: oe.metrics.aggregated_score,
+                    ts: oe.metrics.ts,
+                },
+                constraints_satisfied: oe.constraints_satisfied,
+                constraint_violations: oe
+                    .constraint_violations
+                    .into_iter()
+                    .map(|cv| ConstraintViolationResponse {
+                        constraint: cv.constraint,
+                        expected: cv.expected,
+                        actual: cv.actual,
+                    })
+                    .collect(),
+                suggested_adjustments: oe.suggested_adjustments.map(|s| strategy_to_response(&s)),
+            }),
         multi_objective_adjusted: result.multi_objective_adjusted,
     };
 
@@ -591,7 +624,11 @@ async fn get_state(
             success: true,
             data: state_to_response(&s),
         })),
-        None => Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户AMAS状态未初始化")),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "用户AMAS状态未初始化",
+        )),
     }
 }
 
@@ -628,10 +665,18 @@ async fn batch_process(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     if body.events.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "事件数组不能为空"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "事件数组不能为空",
+        ));
     }
     if body.events.len() > 100 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "单次批量处理最多100条事件"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "单次批量处理最多100条事件",
+        ));
     }
 
     let engine = state.amas_engine();
@@ -668,7 +713,8 @@ async fn batch_process(
                     } else {
                         WordState::New
                     };
-                    let next_review_ms = now_ms + (mastery.new_interval * 24.0 * 60.0 * 60.0 * 1000.0) as i64;
+                    let next_review_ms =
+                        now_ms + (mastery.new_interval * 24.0 * 60.0 * 60.0 * 1000.0) as i64;
 
                     let update_data = WordStateUpdateData {
                         state: Some(word_state),
@@ -687,7 +733,9 @@ async fn batch_process(
                         elapsed_days: Some(0.0),
                     };
 
-                    if let Err(e) = upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await {
+                    if let Err(e) =
+                        upsert_word_state(&proxy, &user.id, &mastery.word_id, update_data).await
+                    {
                         tracing::warn!(error = %e, "Failed to update word learning state in batch");
                     }
                 }
@@ -704,20 +752,26 @@ async fn batch_process(
                     dwell_time: None,
                     session_id: None,
                     mastery_level_before: None,
-                    mastery_level_after: result.word_mastery_decision.as_ref()
+                    mastery_level_after: result
+                        .word_mastery_decision
+                        .as_ref()
                         .map(|m| ((m.new_mastery * 5.0).floor() as i64).clamp(0, 5)),
                 };
                 match create_record(&proxy, &user.id, record_input).await {
                     Ok(record) => {
                         let delay_ms = 5 * 60 * 1000i64;
-                        let _ = enqueue_delayed_reward(&proxy, EnqueueRewardInput {
-                            user_id: user.id.clone(),
-                            answer_record_id: Some(record.id.clone()),
-                            session_id: None,
-                            reward: result.reward.value,
-                            due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
-                            idempotency_key: format!("reward:{}:{}", user.id, record.id),
-                        }).await;
+                        let _ = enqueue_delayed_reward(
+                            &proxy,
+                            EnqueueRewardInput {
+                                user_id: user.id.clone(),
+                                answer_record_id: Some(record.id.clone()),
+                                session_id: None,
+                                reward: result.reward.value,
+                                due_ts: chrono::Utc::now().timestamp_millis() + delay_ms,
+                                idempotency_key: format!("reward:{}:{}", user.id, record.id),
+                            },
+                        )
+                        .await;
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, "Failed to create answer record in batch");
@@ -763,7 +817,11 @@ async fn get_delayed_rewards(
                 }),
             }))
         }
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -774,8 +832,15 @@ async fn get_time_preferences(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     match crate::services::learning_time::get_time_preferences(&proxy, &user.id).await {
-        Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(result) => Ok(Json(SuccessResponse {
+            success: true,
+            data: result,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -786,8 +851,15 @@ async fn get_golden_time(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     match crate::services::learning_time::is_golden_time(&proxy, &user.id).await {
-        Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(result) => Ok(Json(SuccessResponse {
+            success: true,
+            data: result,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -798,8 +870,15 @@ async fn get_trend(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     match crate::services::trend_analysis::get_current_trend(&proxy, &user.id).await {
-        Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(result) => Ok(Json(SuccessResponse {
+            success: true,
+            data: result,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -812,8 +891,15 @@ async fn get_trend_history(
     let days = query.days.unwrap_or(28) as i64;
 
     match crate::services::trend_analysis::get_trend_history(&proxy, &user.id, days).await {
-        Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(result) => Ok(Json(SuccessResponse {
+            success: true,
+            data: result,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -824,8 +910,15 @@ async fn get_trend_report(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     match crate::services::trend_analysis::generate_trend_report(&proxy, &user.id).await {
-        Ok(result) => Ok(Json(SuccessResponse { success: true, data: result })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(result) => Ok(Json(SuccessResponse {
+            success: true,
+            data: result,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -838,8 +931,15 @@ async fn get_history(
     let range = query.range.unwrap_or(30);
 
     match crate::services::state_history::get_state_history(proxy.pool(), &user.id, range).await {
-        Ok(history) => Ok(Json(SuccessResponse { success: true, data: history })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+        Ok(history) => Ok(Json(SuccessResponse {
+            success: true,
+            data: history,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -851,9 +951,17 @@ async fn get_growth(
     let (proxy, user) = require_user(&state, &headers).await?;
     let range = query.range.unwrap_or(30);
 
-    match crate::services::state_history::get_cognitive_growth(proxy.pool(), &user.id, range).await {
-        Ok(growth) => Ok(Json(SuccessResponse { success: true, data: growth })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+    match crate::services::state_history::get_cognitive_growth(proxy.pool(), &user.id, range).await
+    {
+        Ok(growth) => Ok(Json(SuccessResponse {
+            success: true,
+            data: growth,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -865,9 +973,18 @@ async fn get_changes(
     let (proxy, user) = require_user(&state, &headers).await?;
     let range = query.range.unwrap_or(30);
 
-    match crate::services::state_history::get_significant_changes(proxy.pool(), &user.id, range).await {
-        Ok(changes) => Ok(Json(SuccessResponse { success: true, data: changes })),
-        Err(e) => Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e)),
+    match crate::services::state_history::get_significant_changes(proxy.pool(), &user.id, range)
+        .await
+    {
+        Ok(changes) => Ok(Json(SuccessResponse {
+            success: true,
+            data: changes,
+        })),
+        Err(e) => Err(json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_FAILED",
+            &e,
+        )),
     }
 }
 
@@ -878,17 +995,24 @@ async fn explain_decision(
 ) -> Response {
     let token = crate::auth::extract_token(&headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败")
+                .into_response();
         }
     };
 
@@ -914,7 +1038,12 @@ async fn explain_decision(
         .into_response(),
         Err(e) => {
             tracing::error!(error = %e, "explain_decision failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
@@ -926,17 +1055,24 @@ async fn get_decision_timeline(
 ) -> Response {
     let token = crate::auth::extract_token(&headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败")
+                .into_response();
         }
     };
 
@@ -958,7 +1094,12 @@ async fn get_decision_timeline(
         .into_response(),
         Err(e) => {
             tracing::error!(error = %e, "get_decision_timeline failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
@@ -970,29 +1111,30 @@ async fn counterfactual(
 ) -> Response {
     let token = crate::auth::extract_token(&headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败").into_response();
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败")
+                .into_response();
         }
     };
 
     let pool = proxy.pool();
 
-    match crate::services::explainability::run_counterfactual(
-        &pool,
-        &auth_user.id,
-        input,
-    )
-    .await
-    {
+    match crate::services::explainability::run_counterfactual(&pool, &auth_user.id, input).await {
         Ok(Some(result)) => Json(SuccessResponse {
             success: true,
             data: result,
@@ -1006,7 +1148,12 @@ async fn counterfactual(
         .into_response(),
         Err(e) => {
             tracing::error!(error = %e, "counterfactual failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response()
         }
     }
 }
@@ -1089,17 +1236,26 @@ async fn require_user(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
-
 
 async fn get_learning_curve(
     State(state): State<AppState>,
@@ -1226,10 +1382,7 @@ async fn get_phase(
     }))
 }
 
-async fn load_cold_start_phase(
-    pool: &PgPool,
-    user_id: &str,
-) -> Result<Option<String>, AppError> {
+async fn load_cold_start_phase(pool: &PgPool, user_id: &str) -> Result<Option<String>, AppError> {
     let row = sqlx::query(
         r#"
         SELECT "coldStartState"
@@ -1280,10 +1433,7 @@ fn phase_description(phase: &str) -> &'static str {
     }
 }
 
-async fn infer_phase_from_interactions(
-    pool: &PgPool,
-    user_id: &str,
-) -> Result<String, AppError> {
+async fn infer_phase_from_interactions(pool: &PgPool, user_id: &str) -> Result<String, AppError> {
     let count = count_recent_interactions(pool, user_id).await?;
     if count < 5 {
         return Ok("classify".to_string());
@@ -1294,10 +1444,7 @@ async fn infer_phase_from_interactions(
     Ok("normal".to_string())
 }
 
-async fn count_recent_interactions(
-    pool: &PgPool,
-    user_id: &str,
-) -> Result<i64, AppError> {
+async fn count_recent_interactions(pool: &PgPool, user_id: &str) -> Result<i64, AppError> {
     sqlx::query_scalar::<_, i64>(
         r#"
         SELECT COUNT(1) FROM (
@@ -1329,10 +1476,7 @@ async fn get_trend_intervention(
     }))
 }
 
-async fn load_current_trend(
-    pool: &PgPool,
-    user_id: &str,
-) -> Result<(String, i64), AppError> {
+async fn load_current_trend(pool: &PgPool, user_id: &str) -> Result<(String, i64), AppError> {
     let trend_state: Option<String> = sqlx::query_scalar(
         r#"
         SELECT "trendState"
@@ -1399,11 +1543,7 @@ fn calculate_trend_from_history(history: &[TrendHistoryPoint]) -> String {
     }
 
     let recent = history.iter().take(7).collect::<Vec<_>>();
-    let previous = history
-        .iter()
-        .skip(7)
-        .take(7)
-        .collect::<Vec<_>>();
+    let previous = history.iter().skip(7).take(7).collect::<Vec<_>>();
 
     if previous.is_empty() {
         return "flat".to_string();
@@ -1419,7 +1559,11 @@ fn calculate_trend_from_history(history: &[TrendHistoryPoint]) -> String {
 
     let recent_avg = avg(&recent);
     let previous_avg = avg(&previous);
-    let denominator = if previous_avg == 0.0 { 1.0 } else { previous_avg };
+    let denominator = if previous_avg == 0.0 {
+        1.0
+    } else {
+        previous_avg
+    };
     let change = (recent_avg - previous_avg) / denominator;
 
     const TREND_CHANGE_THRESHOLD: f64 = 0.1;
@@ -1449,7 +1593,11 @@ fn calculate_consecutive_days(history: &[TrendHistoryPoint], current_state: &str
             break;
         }
     }
-    if count > 0 { count } else { 1 }
+    if count > 0 {
+        count
+    } else {
+        1
+    }
 }
 
 fn compute_intervention(trend_state: &str, consecutive_days: i64) -> InterventionResult {
@@ -1517,10 +1665,7 @@ async fn reset_user(
     }))
 }
 
-async fn reset_user_state(
-    proxy: &crate::db::DatabaseProxy,
-    user_id: &str,
-) -> Result<(), AppError> {
+async fn reset_user_state(proxy: &crate::db::DatabaseProxy, user_id: &str) -> Result<(), AppError> {
     let now = Utc::now().naive_utc();
     let now_ms = Utc::now().timestamp_millis();
 

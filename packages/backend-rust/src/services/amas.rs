@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 
 use crate::amas::types::{
-    ColdStartPhase, ProcessOptions, RawEvent,
-    StrategyParams as AmasStrategyParams, UserState,
+    ColdStartPhase, ProcessOptions, RawEvent, StrategyParams as AmasStrategyParams, UserState,
 };
 use crate::db::DatabaseProxy;
 
@@ -20,7 +19,13 @@ pub struct StrategyParams {
 
 impl StrategyParams {
     pub fn default_strategy() -> Self {
-        Self { interval_scale: 1.0, new_ratio: 0.2, difficulty: "mid".to_string(), batch_size: 8, hint_level: 1 }
+        Self {
+            interval_scale: 1.0,
+            new_ratio: 0.2,
+            difficulty: "mid".to_string(),
+            batch_size: 8,
+            hint_level: 1,
+        }
     }
 }
 
@@ -290,12 +295,17 @@ pub async fn process_event(
         session_id,
         strategy: AMASService::strategy_to_response(&result.strategy),
         explanation: ExplanationResponse {
-            factors: result.explanation.factors.iter().map(|f| FactorResponse {
-                name: f.name.clone(),
-                value: f.value,
-                impact: f.impact.clone(),
-                percentage: f.percentage,
-            }).collect(),
+            factors: result
+                .explanation
+                .factors
+                .iter()
+                .map(|f| FactorResponse {
+                    name: f.name.clone(),
+                    value: f.value,
+                    impact: f.impact.clone(),
+                    percentage: f.percentage,
+                })
+                .collect(),
             changes: result.explanation.changes.clone(),
             text: result.explanation.text.clone(),
         },
@@ -319,7 +329,9 @@ pub async fn process_event(
             value: result.reward.value,
             reason: result.reward.reason.clone(),
         },
-        cold_start_phase: result.cold_start_phase.map(AMASService::cold_start_phase_to_string),
+        cold_start_phase: result
+            .cold_start_phase
+            .map(AMASService::cold_start_phase_to_string),
     })
 }
 
@@ -363,25 +375,25 @@ pub async fn batch_process(
 }
 
 // ========== get_state ==========
-pub async fn get_state(
-    engine: &crate::amas::AMASEngine,
-    user_id: &str,
-) -> Option<StateResponse> {
-    engine.get_user_state(user_id).await.map(|s| AMASService::state_to_response(&s))
+pub async fn get_state(engine: &crate::amas::AMASEngine, user_id: &str) -> Option<StateResponse> {
+    engine
+        .get_user_state(user_id)
+        .await
+        .map(|s| AMASService::state_to_response(&s))
 }
 
 // ========== get_strategy ==========
-pub async fn get_strategy(
-    engine: &crate::amas::AMASEngine,
-    user_id: &str,
-) -> StrategyResponse {
+pub async fn get_strategy(engine: &crate::amas::AMASEngine, user_id: &str) -> StrategyResponse {
     let strategy = engine.get_current_strategy(user_id).await;
     AMASService::strategy_to_response(&strategy)
 }
 
 // ========== get_delayed_rewards ==========
 pub fn get_delayed_rewards() -> DelayedRewardsResult {
-    DelayedRewardsResult { items: vec![], count: 0 }
+    DelayedRewardsResult {
+        items: vec![],
+        count: 0,
+    }
 }
 
 // ========== get_learning_curve ==========
@@ -405,7 +417,12 @@ pub async fn get_learning_curve(
         points.iter().map(|p| p.attention).sum::<f64>() / points.len() as f64
     };
 
-    Ok(LearningCurveResult { points, trend, current_mastery, average_attention })
+    Ok(LearningCurveResult {
+        points,
+        trend,
+        current_mastery,
+        average_attention,
+    })
 }
 
 async fn select_learning_curve_pg(
@@ -433,17 +450,25 @@ async fn select_learning_curve_pg(
         points.push(LearningCurvePoint {
             date: format!("{}T00:00:00.000Z", date.format("%Y-%m-%d")),
             mastery: memory * 100.0,
-            attention, fatigue, motivation,
+            attention,
+            fatigue,
+            motivation,
         });
     }
     Ok(points)
 }
 
 fn compute_mastery_trend(values: &[f64]) -> String {
-    if values.len() < 2 { return "flat".to_string(); }
+    if values.len() < 2 {
+        return "flat".to_string();
+    }
     let delta = values[values.len() - 1] - values[0];
-    if delta > 5.0 { return "up".to_string(); }
-    if delta < -5.0 { return "down".to_string(); }
+    if delta > 5.0 {
+        return "up".to_string();
+    }
+    if delta < -5.0 {
+        return "down".to_string();
+    }
     "flat".to_string()
 }
 
@@ -454,7 +479,10 @@ pub async fn get_phase(proxy: &DatabaseProxy, user_id: &str) -> Result<PhaseResu
         Some(p) => p,
         None => infer_phase_from_interactions(&pool, user_id).await?,
     };
-    Ok(PhaseResult { description: phase_description(&phase).to_string(), phase })
+    Ok(PhaseResult {
+        description: phase_description(&phase).to_string(),
+        phase,
+    })
 }
 
 async fn load_cold_start_phase(pool: &PgPool, user_id: &str) -> Result<Option<String>, String> {
@@ -472,7 +500,8 @@ fn extract_phase_from_json(value: Option<&serde_json::Value>) -> Option<String> 
     let value = value?;
     match value {
         serde_json::Value::String(p) => normalize_phase(p).map(|v| v.to_string()),
-        serde_json::Value::Object(m) => m.get("phase")
+        serde_json::Value::Object(m) => m
+            .get("phase")
             .and_then(|p| p.as_str())
             .and_then(normalize_phase)
             .map(|v| v.to_string()),
@@ -500,8 +529,12 @@ fn phase_description(phase: &str) -> &'static str {
 
 async fn infer_phase_from_interactions(pool: &PgPool, user_id: &str) -> Result<String, String> {
     let count = count_recent_interactions(pool, user_id).await?;
-    if count < 5 { return Ok("classify".to_string()); }
-    if count < 8 { return Ok("explore".to_string()); }
+    if count < 5 {
+        return Ok("classify".to_string());
+    }
+    if count < 8 {
+        return Ok("explore".to_string());
+    }
     Ok("normal".to_string())
 }
 
@@ -516,30 +549,44 @@ async fn count_recent_interactions(pool: &PgPool, user_id: &str) -> Result<i64, 
 }
 
 // ========== get_trend_intervention ==========
-pub async fn get_trend_intervention(proxy: &DatabaseProxy, user_id: &str) -> Result<InterventionResult, String> {
+pub async fn get_trend_intervention(
+    proxy: &DatabaseProxy,
+    user_id: &str,
+) -> Result<InterventionResult, String> {
     let pool = proxy.pool();
     let (trend_state, consecutive_days) = load_current_trend(&pool, user_id).await?;
     Ok(compute_intervention(&trend_state, consecutive_days))
 }
 
 async fn load_current_trend(pool: &PgPool, user_id: &str) -> Result<(String, i64), String> {
-    let trend_state: Option<String> = sqlx::query_scalar(
-        r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#,
-    ).bind(user_id).fetch_optional(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    let trend_state: Option<String> =
+        sqlx::query_scalar(r#"SELECT "trendState" FROM "amas_user_states" WHERE "userId" = $1"#)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| format!("查询失败: {e}"))?;
 
     let rows = sqlx::query(
         r#"SELECT "trendState", "motivation", "memory", "speed" FROM "user_state_history"
            WHERE "userId" = $1 ORDER BY "date" DESC LIMIT 30"#,
-    ).bind(user_id).fetch_all(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-    let history: Vec<TrendHistoryPoint> = rows.iter().map(|row| TrendHistoryPoint {
-        trend_state: row.try_get("trendState").ok(),
-        motivation: row.try_get("motivation").unwrap_or(0.0),
-        memory: row.try_get("memory").unwrap_or(0.0),
-        speed: row.try_get("speed").unwrap_or(0.0),
-    }).collect();
+    let history: Vec<TrendHistoryPoint> = rows
+        .iter()
+        .map(|row| TrendHistoryPoint {
+            trend_state: row.try_get("trendState").ok(),
+            motivation: row.try_get("motivation").unwrap_or(0.0),
+            memory: row.try_get("memory").unwrap_or(0.0),
+            speed: row.try_get("speed").unwrap_or(0.0),
+        })
+        .collect();
 
-    let state = trend_state.as_deref()
+    let state = trend_state
+        .as_deref()
         .and_then(normalize_trend_state)
         .map(|v| v.to_string())
         .unwrap_or_else(|| calculate_trend_from_history(&history));
@@ -548,49 +595,92 @@ async fn load_current_trend(pool: &PgPool, user_id: &str) -> Result<(String, i64
 }
 
 fn normalize_trend_state(value: &str) -> Option<&'static str> {
-    match value { "up" => Some("up"), "flat" => Some("flat"), "stuck" => Some("stuck"), "down" => Some("down"), _ => None }
+    match value {
+        "up" => Some("up"),
+        "flat" => Some("flat"),
+        "stuck" => Some("stuck"),
+        "down" => Some("down"),
+        _ => None,
+    }
 }
 
 fn calculate_trend_from_history(history: &[TrendHistoryPoint]) -> String {
-    if history.len() < 2 { return "flat".to_string(); }
+    if history.len() < 2 {
+        return "flat".to_string();
+    }
     let recent: Vec<_> = history.iter().take(7).collect();
     let previous: Vec<_> = history.iter().skip(7).take(7).collect();
-    if previous.is_empty() { return "flat".to_string(); }
+    if previous.is_empty() {
+        return "flat".to_string();
+    }
 
     let avg = |items: &[&TrendHistoryPoint]| -> f64 {
-        items.iter().map(|i| (i.motivation + i.memory + i.speed) / 3.0).sum::<f64>() / items.len() as f64
+        items
+            .iter()
+            .map(|i| (i.motivation + i.memory + i.speed) / 3.0)
+            .sum::<f64>()
+            / items.len() as f64
     };
     let (recent_avg, previous_avg) = (avg(&recent), avg(&previous));
-    let change = (recent_avg - previous_avg) / if previous_avg == 0.0 { 1.0 } else { previous_avg };
+    let change = (recent_avg - previous_avg)
+        / if previous_avg == 0.0 {
+            1.0
+        } else {
+            previous_avg
+        };
 
-    if change > 0.1 { "up".to_string() }
-    else if change < -0.1 { "down".to_string() }
-    else if change.abs() < 0.05 { "flat".to_string() }
-    else { "stuck".to_string() }
+    if change > 0.1 {
+        "up".to_string()
+    } else if change < -0.1 {
+        "down".to_string()
+    } else if change.abs() < 0.05 {
+        "flat".to_string()
+    } else {
+        "stuck".to_string()
+    }
 }
 
 fn calculate_consecutive_days(history: &[TrendHistoryPoint], current_state: &str) -> i64 {
-    if history.is_empty() { return 1; }
+    if history.is_empty() {
+        return 1;
+    }
     let mut count = 0i64;
     for item in history {
-        if item.trend_state.as_deref() == Some(current_state) { count += 1; } else { break; }
+        if item.trend_state.as_deref() == Some(current_state) {
+            count += 1;
+        } else {
+            break;
+        }
     }
-    if count > 0 { count } else { 1 }
+    if count > 0 {
+        count
+    } else {
+        1
+    }
 }
 
 fn compute_intervention(trend_state: &str, consecutive_days: i64) -> InterventionResult {
     if matches!(trend_state, "up" | "flat") {
-        return InterventionResult { needs_intervention: false, kind: None, message: None, actions: None };
+        return InterventionResult {
+            needs_intervention: false,
+            kind: None,
+            message: None,
+            actions: None,
+        };
     }
     if trend_state == "down" {
         if consecutive_days > 3 {
             return InterventionResult {
                 needs_intervention: true,
                 kind: Some("warning".to_string()),
-                message: Some(format!("您的学习状态已连续{consecutive_days}天下降，建议调整学习计划")),
+                message: Some(format!(
+                    "您的学习状态已连续{consecutive_days}天下降，建议调整学习计划"
+                )),
                 actions: Some(vec![
-                    "减少每日学习量".into(), "选择更简单的词书".into(),
-                    "调整学习时间到黄金时段".into(), "休息一天后再继续".into(),
+                    "减少每日学习量".into(),
+                    "选择更简单的词书".into(),
+                    "调整学习时间到黄金时段".into(),
+                    "休息一天后再继续".into(),
                 ]),
             };
         }
@@ -598,22 +688,27 @@ fn compute_intervention(trend_state: &str, consecutive_days: i64) -> Interventio
             needs_intervention: true,
             kind: Some("suggestion".to_string()),
             message: Some("您的学习状态有所下降，建议适当调整".to_string()),
-            actions: Some(vec!["尝试在精力充沛时学习".into(), "减少单次学习时长".into(), "增加复习比例".into()]),
+            actions: Some(vec![
+                "尝试在精力充沛时学习".into(),
+                "减少单次学习时长".into(),
+                "增加复习比例".into(),
+            ]),
         };
     }
     InterventionResult {
         needs_intervention: true,
         kind: Some("encouragement".to_string()),
         message: Some("您的学习进入了平台期，这是正常现象".to_string()),
-        actions: Some(vec!["尝试新的学习方法".into(), "挑战更难的单词".into(), "设定小目标激励自己".into()]),
+        actions: Some(vec![
+            "尝试新的学习方法".into(),
+            "挑战更难的单词".into(),
+            "设定小目标激励自己".into(),
+        ]),
     }
 }
 
 // ========== reset_user ==========
-pub async fn reset_user(
-    proxy: &DatabaseProxy,
-    user_id: &str,
-) -> Result<(), String> {
+pub async fn reset_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), String> {
     let now = Utc::now().naive_utc();
     let now_ms = Utc::now().timestamp_millis();
     let state_id = uuid::Uuid::new_v4().to_string();

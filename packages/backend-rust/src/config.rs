@@ -32,4 +32,3 @@ impl Config {
         SocketAddr::new(self.host, self.port)
     }
 }
-

@@ -107,7 +107,8 @@ pub async fn enqueue_delayed_reward(
         return Ok(parse_reward_queue_pg(&row)?);
     }
 
-    get_by_idempotency_key(proxy, &input.idempotency_key).await?
+    get_by_idempotency_key(proxy, &input.idempotency_key)
+        .await?
         .ok_or_else(|| "创建失败".to_string())
 }
 
@@ -151,11 +152,10 @@ pub async fn get_pending_rewards(
     rows.iter().map(parse_reward_queue_pg).collect()
 }
 
-pub async fn mark_as_processing(
-    proxy: &DatabaseProxy,
-    task_ids: &[String],
-) -> Result<(), String> {
-    if task_ids.is_empty() { return Ok(()); }
+pub async fn mark_as_processing(proxy: &DatabaseProxy, task_ids: &[String]) -> Result<(), String> {
+    if task_ids.is_empty() {
+        return Ok(());
+    }
 
     let pool = proxy.pool();
     let now = Utc::now();
@@ -166,17 +166,19 @@ pub async fn mark_as_processing(
     qb.push_bind(now);
     qb.push(r#" WHERE "id" IN ("#);
     let mut sep = qb.separated(", ");
-    for id in task_ids { sep.push_bind(id); }
+    for id in task_ids {
+        sep.push_bind(id);
+    }
     sep.push_unseparated(")");
 
-    qb.build().execute(pool).await.map_err(|e| format!("更新失败: {e}"))?;
+    qb.build()
+        .execute(pool)
+        .await
+        .map_err(|e| format!("更新失败: {e}"))?;
     Ok(())
 }
 
-pub async fn mark_as_done(
-    proxy: &DatabaseProxy,
-    task_id: &str,
-) -> Result<(), String> {
+pub async fn mark_as_done(proxy: &DatabaseProxy, task_id: &str) -> Result<(), String> {
     let pool = proxy.pool();
     sqlx::query(
         r#"UPDATE "reward_queue" SET "status" = 'DONE', "lastError" = NULL, "updatedAt" = NOW() WHERE "id" = $1"#,
@@ -195,7 +197,11 @@ pub async fn mark_as_failed(
     retry_count: i32,
 ) -> Result<(), String> {
     let is_final_failure = retry_count >= MAX_RETRY;
-    let next_status = if is_final_failure { "FAILED" } else { "PENDING" };
+    let next_status = if is_final_failure {
+        "FAILED"
+    } else {
+        "PENDING"
+    };
     let next_due_offset_mins = retry_count.min(5) as i64;
     let next_due = Utc::now() + Duration::minutes(next_due_offset_mins);
 
@@ -215,9 +221,7 @@ pub async fn mark_as_failed(
     Ok(())
 }
 
-pub async fn recover_stuck_processing(
-    proxy: &DatabaseProxy,
-) -> Result<i64, String> {
+pub async fn recover_stuck_processing(proxy: &DatabaseProxy) -> Result<i64, String> {
     let timeout_threshold = Utc::now() - Duration::seconds(PROCESSING_TIMEOUT_SECS);
     let pool = proxy.pool();
 
@@ -254,7 +258,11 @@ pub async fn get_queue_stats(pool: &PgPool) -> Result<QueueStats, String> {
         processing_count: row.try_get("processing").unwrap_or(0),
         done_count: row.try_get("done").unwrap_or(0),
         failed_count: row.try_get("failed").unwrap_or(0),
-        oldest_pending_ts: row.try_get::<Option<DateTime<Utc>>, _>("oldest").ok().flatten().map(|d| d.timestamp_millis()),
+        oldest_pending_ts: row
+            .try_get::<Option<DateTime<Utc>>, _>("oldest")
+            .ok()
+            .flatten()
+            .map(|d| d.timestamp_millis()),
     })
 }
 
@@ -279,14 +287,29 @@ pub async fn get_user_pending_rewards(
 fn parse_reward_queue_pg(row: &sqlx::postgres::PgRow) -> Result<RewardQueueItem, String> {
     Ok(RewardQueueItem {
         id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-        user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
+        user_id: row
+            .try_get("userId")
+            .map_err(|e| format!("解析失败: {e}"))?,
         answer_record_id: row.try_get("answerRecordId").ok(),
         session_id: row.try_get("sessionId").ok(),
         reward: row.try_get("reward").unwrap_or(0.0),
-        due_ts: row.try_get::<DateTime<Utc>, _>("dueTs").map(|d| d.timestamp_millis()).unwrap_or(0),
-        status: RewardStatus::from_str(row.try_get::<String, _>("status").unwrap_or_default().as_str()),
+        due_ts: row
+            .try_get::<DateTime<Utc>, _>("dueTs")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or(0),
+        status: RewardStatus::from_str(
+            row.try_get::<String, _>("status")
+                .unwrap_or_default()
+                .as_str(),
+        ),
         last_error: row.try_get("lastError").ok(),
-        created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or(0),
-        updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or(0),
+        created_at: row
+            .try_get::<DateTime<Utc>, _>("createdAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or(0),
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updatedAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or(0),
     })
 }

@@ -18,30 +18,93 @@ use crate::services::llm_provider::{ChatMessage, LLMProvider};
 use crate::state::AppState;
 
 const VALID_SUGGESTION_TARGETS: &[(&str, &str)] = &[
-    ("consecutiveCorrectThreshold", "连续正确阈值：连续答对多少次后提升掌握等级"),
-    ("consecutiveWrongThreshold", "连续错误阈值：连续答错多少次后降低掌握等级"),
-    ("difficultyAdjustmentInterval", "难度调整间隔：多少次答题后重新评估难度"),
-    ("priorityWeightNewWord", "新词优先级权重：新单词在选词中的权重占比"),
-    ("priorityWeightErrorRate", "错误率优先级权重：高错误率单词的权重占比"),
-    ("priorityWeightOverdueTime", "逾期时间优先级权重：逾期复习单词的权重占比"),
-    ("priorityWeightWordScore", "单词分数优先级权重：单词综合分数的权重占比"),
-    ("scoreWeightAccuracy", "准确率分数权重：准确率在分数计算中的权重"),
-    ("scoreWeightSpeed", "速度分数权重：响应速度在分数计算中的权重"),
-    ("scoreWeightStability", "稳定性分数权重：答题稳定性在分数计算中的权重"),
-    ("scoreWeightProficiency", "熟练度分数权重：熟练程度在分数计算中的权重"),
-    ("speedThresholdExcellent", "速度阈值-优秀：响应时间(ms)低于此值为优秀"),
-    ("speedThresholdGood", "速度阈值-良好：响应时间(ms)低于此值为良好"),
-    ("speedThresholdAverage", "速度阈值-一般：响应时间(ms)低于此值为一般"),
-    ("speedThresholdSlow", "速度阈值-较慢：响应时间(ms)高于此值为较慢"),
-    ("newWordRatioDefault", "默认新词比例：正常情况下新词占比(0.0-1.0)"),
-    ("newWordRatioHighAccuracy", "高正确率新词比例：正确率高时增加新词占比"),
-    ("newWordRatioLowAccuracy", "低正确率新词比例：正确率低时减少新词占比"),
-    ("newWordRatioHighAccuracyThreshold", "高正确率阈值：正确率高于此值时启用高正确率新词比例(0.0-1.0)"),
-    ("newWordRatioLowAccuracyThreshold", "低正确率阈值：正确率低于此值时启用低正确率新词比例(0.0-1.0)"),
+    (
+        "consecutiveCorrectThreshold",
+        "连续正确阈值：连续答对多少次后提升掌握等级",
+    ),
+    (
+        "consecutiveWrongThreshold",
+        "连续错误阈值：连续答错多少次后降低掌握等级",
+    ),
+    (
+        "difficultyAdjustmentInterval",
+        "难度调整间隔：多少次答题后重新评估难度",
+    ),
+    (
+        "priorityWeightNewWord",
+        "新词优先级权重：新单词在选词中的权重占比",
+    ),
+    (
+        "priorityWeightErrorRate",
+        "错误率优先级权重：高错误率单词的权重占比",
+    ),
+    (
+        "priorityWeightOverdueTime",
+        "逾期时间优先级权重：逾期复习单词的权重占比",
+    ),
+    (
+        "priorityWeightWordScore",
+        "单词分数优先级权重：单词综合分数的权重占比",
+    ),
+    (
+        "scoreWeightAccuracy",
+        "准确率分数权重：准确率在分数计算中的权重",
+    ),
+    (
+        "scoreWeightSpeed",
+        "速度分数权重：响应速度在分数计算中的权重",
+    ),
+    (
+        "scoreWeightStability",
+        "稳定性分数权重：答题稳定性在分数计算中的权重",
+    ),
+    (
+        "scoreWeightProficiency",
+        "熟练度分数权重：熟练程度在分数计算中的权重",
+    ),
+    (
+        "speedThresholdExcellent",
+        "速度阈值-优秀：响应时间(ms)低于此值为优秀",
+    ),
+    (
+        "speedThresholdGood",
+        "速度阈值-良好：响应时间(ms)低于此值为良好",
+    ),
+    (
+        "speedThresholdAverage",
+        "速度阈值-一般：响应时间(ms)低于此值为一般",
+    ),
+    (
+        "speedThresholdSlow",
+        "速度阈值-较慢：响应时间(ms)高于此值为较慢",
+    ),
+    (
+        "newWordRatioDefault",
+        "默认新词比例：正常情况下新词占比(0.0-1.0)",
+    ),
+    (
+        "newWordRatioHighAccuracy",
+        "高正确率新词比例：正确率高时增加新词占比",
+    ),
+    (
+        "newWordRatioLowAccuracy",
+        "低正确率新词比例：正确率低时减少新词占比",
+    ),
+    (
+        "newWordRatioHighAccuracyThreshold",
+        "高正确率阈值：正确率高于此值时启用高正确率新词比例(0.0-1.0)",
+    ),
+    (
+        "newWordRatioLowAccuracyThreshold",
+        "低正确率阈值：正确率低于此值时启用低正确率新词比例(0.0-1.0)",
+    ),
 ];
 
 fn valid_target_set() -> HashSet<&'static str> {
-    VALID_SUGGESTION_TARGETS.iter().map(|(name, _)| *name).collect()
+    VALID_SUGGESTION_TARGETS
+        .iter()
+        .map(|(name, _)| *name)
+        .collect()
 }
 
 #[derive(Serialize)]
@@ -252,10 +315,13 @@ fn llm_default_base_url(provider: &str) -> Option<&'static str> {
 
 fn llm_config_summary() -> LlmConfigSummaryDto {
     let enabled = env_bool("LLM_ADVISOR_ENABLED").unwrap_or(false);
-    let provider = env_string("LLM_PROVIDER").unwrap_or_else(|| "openai".to_string()).to_ascii_lowercase();
+    let provider = env_string("LLM_PROVIDER")
+        .unwrap_or_else(|| "openai".to_string())
+        .to_ascii_lowercase();
     let model = env_string("LLM_MODEL").unwrap_or_else(|| llm_default_model(&provider).to_string());
     let api_key = env_string("LLM_API_KEY").unwrap_or_default();
-    let base_url = env_string("LLM_BASE_URL").or_else(|| llm_default_base_url(&provider).map(|v| v.to_string()));
+    let base_url = env_string("LLM_BASE_URL")
+        .or_else(|| llm_default_base_url(&provider).map(|v| v.to_string()));
 
     let timeout = env_i64("LLM_TIMEOUT").unwrap_or(60_000);
     let max_retries = env_i64("LLM_MAX_RETRIES").unwrap_or(2);
@@ -303,13 +369,23 @@ async fn require_user(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -320,7 +396,11 @@ async fn require_admin_user(
 ) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let (proxy, user) = require_user(state, headers).await?;
     if user.role != "ADMIN" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        ));
     }
     Ok((proxy, user))
 }
@@ -328,7 +408,11 @@ async fn require_admin_user(
 fn parse_string_array(value: &serde_json::Value) -> Vec<String> {
     value
         .as_array()
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -374,7 +458,11 @@ fn extract_selected_suggestions(
                 target: item.get("target")?.as_str()?.to_string(),
                 current_value: item.get("currentValue")?.as_f64()?,
                 suggested_value: item.get("suggestedValue")?.as_f64()?,
-                reason: item.get("reason").and_then(|v| v.as_str()).unwrap_or("LLM建议").to_string(),
+                reason: item
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("LLM建议")
+                    .to_string(),
             })
         })
         .collect()
@@ -395,15 +483,14 @@ async fn apply_suggestions_to_config(
     let pool = proxy.pool();
 
     let metrics_before = collect_current_metrics(pool).await;
-    let config_row = sqlx::query(
-        r#"SELECT "id" FROM "algorithm_configs" WHERE "isDefault" = true LIMIT 1"#,
-    )
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!(error = %e, "Failed to query default config");
-        json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
-    })?;
+    let config_row =
+        sqlx::query(r#"SELECT "id" FROM "algorithm_configs" WHERE "isDefault" = true LIMIT 1"#)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "Failed to query default config");
+                json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
+            })?;
 
     let config_id: String = match config_row {
         Some(row) => row.try_get("id").unwrap_or_default(),
@@ -464,7 +551,9 @@ async fn apply_suggestions_to_config(
                 if item.target.starts_with("newWordRatio") {
                     row.try_get::<f64, _>("val").unwrap_or(item.current_value)
                 } else {
-                    row.try_get::<i32, _>("val").map(|v| v as f64).unwrap_or(item.current_value)
+                    row.try_get::<i32, _>("val")
+                        .map(|v| v as f64)
+                        .unwrap_or(item.current_value)
                 }
             }
             _ => item.current_value,
@@ -527,7 +616,9 @@ async fn apply_suggestions_to_config(
                     real_current_value,
                     item.suggested_value,
                     &metrics_before,
-                ).await {
+                )
+                .await
+                {
                     tracing::warn!(error = %e, "Failed to insert suggestion effect tracking");
                 }
 
@@ -577,7 +668,11 @@ async fn collect_current_metrics(pool: &sqlx::PgPool) -> serde_json::Value {
             let total: i64 = r.try_get("total_answers").unwrap_or(0);
             let correct: i64 = r.try_get("correct").unwrap_or(0);
             let avg_rt: Option<f64> = r.try_get("avg_rt").ok();
-            let accuracy = if total > 0 { correct as f64 / total as f64 } else { 0.0 };
+            let accuracy = if total > 0 {
+                correct as f64 / total as f64
+            } else {
+                0.0
+            };
             serde_json::json!({
                 "totalAnswers": total,
                 "accuracy": accuracy,
@@ -585,16 +680,18 @@ async fn collect_current_metrics(pool: &sqlx::PgPool) -> serde_json::Value {
                 "capturedAt": Utc::now().to_rfc3339()
             })
         }
-        Err(_) => serde_json::json!({ "error": "failed to collect metrics" })
+        Err(_) => serde_json::json!({ "error": "failed to collect metrics" }),
     }
 }
 
 async fn count_pending(proxy: &crate::db::DatabaseProxy) -> Result<i64, AppError> {
     let pool = proxy.pool();
-    let count: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "llm_advisor_suggestions" WHERE "status" = 'pending'"#)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
+    let count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "llm_advisor_suggestions" WHERE "status" = 'pending'"#,
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
     Ok(count)
 }
 
@@ -644,7 +741,12 @@ async fn get_health(
         success: true,
         data: HealthDto {
             status: if valid { "healthy" } else { "unhealthy" }.to_string(),
-            message: if valid { "LLM 配置已就绪（未执行网络探测）" } else { message.as_str() }.to_string(),
+            message: if valid {
+                "LLM 配置已就绪（未执行网络探测）"
+            } else {
+                message.as_str()
+            }
+            .to_string(),
         },
     }))
 }
@@ -659,7 +761,11 @@ async fn list_suggestions(
     if let Some(status) = query.status.as_deref() {
         let valid = ["pending", "approved", "rejected", "partial"];
         if !valid.contains(&status) {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "status 参数无效"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "status 参数无效",
+            ));
         }
     }
 
@@ -741,17 +847,29 @@ async fn list_suggestions(
         .into_iter()
         .map(|row| {
             let id: String = row.try_get("id").unwrap_or_default();
-            let week_start: chrono::NaiveDateTime = row.try_get("weekStart").unwrap_or_else(|_| Utc::now().naive_utc());
-            let week_end: chrono::NaiveDateTime = row.try_get("weekEnd").unwrap_or_else(|_| Utc::now().naive_utc());
-            let stats_snapshot: serde_json::Value = row.try_get("statsSnapshot").unwrap_or(serde_json::Value::Null);
+            let week_start: chrono::NaiveDateTime = row
+                .try_get("weekStart")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let week_end: chrono::NaiveDateTime = row
+                .try_get("weekEnd")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let stats_snapshot: serde_json::Value = row
+                .try_get("statsSnapshot")
+                .unwrap_or(serde_json::Value::Null);
             let raw_response: String = row.try_get("rawResponse").unwrap_or_default();
-            let parsed_suggestion: serde_json::Value = row.try_get("parsedSuggestion").unwrap_or(serde_json::Value::Null);
-            let status: String = row.try_get("status").unwrap_or_else(|_| "pending".to_string());
+            let parsed_suggestion: serde_json::Value = row
+                .try_get("parsedSuggestion")
+                .unwrap_or(serde_json::Value::Null);
+            let status: String = row
+                .try_get("status")
+                .unwrap_or_else(|_| "pending".to_string());
             let reviewed_by: Option<String> = row.try_get("reviewedBy").ok();
             let reviewed_at: Option<chrono::NaiveDateTime> = row.try_get("reviewedAt").ok();
             let review_notes: Option<String> = row.try_get("reviewNotes").ok();
             let applied_items_val: Option<serde_json::Value> = row.try_get("appliedItems").ok();
-            let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+            let created_at: chrono::NaiveDateTime = row
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
 
             StoredSuggestionDto {
                 id,
@@ -787,7 +905,10 @@ async fn get_suggestion(
     let Some(suggestion) = suggestion else {
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "建议不存在"));
     };
-    Ok(Json(SuccessResponse { success: true, data: suggestion }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: suggestion,
+    }))
 }
 
 async fn select_suggestion(
@@ -824,17 +945,29 @@ async fn select_suggestion(
     };
 
     let id: String = row.try_get("id").unwrap_or_default();
-    let week_start: chrono::NaiveDateTime = row.try_get("weekStart").unwrap_or_else(|_| Utc::now().naive_utc());
-    let week_end: chrono::NaiveDateTime = row.try_get("weekEnd").unwrap_or_else(|_| Utc::now().naive_utc());
-    let stats_snapshot: serde_json::Value = row.try_get("statsSnapshot").unwrap_or(serde_json::Value::Null);
+    let week_start: chrono::NaiveDateTime = row
+        .try_get("weekStart")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let week_end: chrono::NaiveDateTime = row
+        .try_get("weekEnd")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let stats_snapshot: serde_json::Value = row
+        .try_get("statsSnapshot")
+        .unwrap_or(serde_json::Value::Null);
     let raw_response: String = row.try_get("rawResponse").unwrap_or_default();
-    let parsed_suggestion: serde_json::Value = row.try_get("parsedSuggestion").unwrap_or(serde_json::Value::Null);
-    let status: String = row.try_get("status").unwrap_or_else(|_| "pending".to_string());
+    let parsed_suggestion: serde_json::Value = row
+        .try_get("parsedSuggestion")
+        .unwrap_or(serde_json::Value::Null);
+    let status: String = row
+        .try_get("status")
+        .unwrap_or_else(|_| "pending".to_string());
     let reviewed_by: Option<String> = row.try_get("reviewedBy").ok();
     let reviewed_at: Option<chrono::NaiveDateTime> = row.try_get("reviewedAt").ok();
     let review_notes: Option<String> = row.try_get("reviewNotes").ok();
     let applied_items_val: Option<serde_json::Value> = row.try_get("appliedItems").ok();
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     Ok(Some(StoredSuggestionDto {
         id,
@@ -862,7 +995,11 @@ async fn approve_suggestion(
     let (proxy, user) = require_admin_user(&state, &headers).await?;
 
     let selected_items = payload.selected_items.as_array().cloned().ok_or_else(|| {
-        json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "selectedItems 必须是数组")
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "selectedItems 必须是数组",
+        )
     })?;
     let selected_items = selected_items
         .into_iter()
@@ -875,7 +1012,11 @@ async fn approve_suggestion(
     };
 
     if suggestion.status != "pending" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("建议状态不允许审批: {}", suggestion.status)));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            format!("建议状态不允许审批: {}", suggestion.status),
+        ));
     }
 
     let valid_ids = extract_suggestion_ids(&suggestion.parsed_suggestion);
@@ -885,7 +1026,11 @@ async fn approve_suggestion(
         .cloned()
         .collect();
     if !invalid.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("无效的建议项: {}", invalid.join(", "))));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            format!("无效的建议项: {}", invalid.join(", ")),
+        ));
     }
 
     let status = if selected_items.is_empty() {
@@ -899,7 +1044,8 @@ async fn approve_suggestion(
     let mut apply_result = ApplyResult::default();
 
     if !selected_items.is_empty() {
-        let items_to_apply = extract_selected_suggestions(&suggestion.parsed_suggestion, &selected_items);
+        let items_to_apply =
+            extract_selected_suggestions(&suggestion.parsed_suggestion, &selected_items);
         match apply_suggestions_to_config(proxy.as_ref(), &items_to_apply, &user.id, &id).await {
             Ok(result) => {
                 if !result.skipped.is_empty() {
@@ -925,7 +1071,11 @@ async fn approve_suggestion(
             reason: format!("应用失败: {}", failed.error),
         });
     }
-    let skipped_items = if all_skipped.is_empty() { None } else { Some(all_skipped) };
+    let skipped_items = if all_skipped.is_empty() {
+        None
+    } else {
+        Some(all_skipped)
+    };
 
     let updated = update_suggestion_review(
         proxy.as_ref(),
@@ -938,7 +1088,10 @@ async fn approve_suggestion(
     )
     .await?;
 
-    Ok(Json(SuccessResponse { success: true, data: updated }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: updated,
+    }))
 }
 
 async fn reject_suggestion(
@@ -954,7 +1107,11 @@ async fn reject_suggestion(
         return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "建议不存在"));
     };
     if suggestion.status != "pending" {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("建议状态不允许拒绝: {}", suggestion.status)));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            format!("建议状态不允许拒绝: {}", suggestion.status),
+        ));
     }
 
     let updated = update_suggestion_review(
@@ -968,7 +1125,10 @@ async fn reject_suggestion(
     )
     .await?;
 
-    Ok(Json(SuccessResponse { success: true, data: updated }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: updated,
+    }))
 }
 
 async fn update_suggestion_review(
@@ -1000,7 +1160,12 @@ async fn update_suggestion_review(
     .bind(Some(now))
     .bind(notes)
     .bind(applied_items.map(|items| {
-        serde_json::Value::Array(items.iter().map(|v| serde_json::Value::String(v.clone())).collect())
+        serde_json::Value::Array(
+            items
+                .iter()
+                .map(|v| serde_json::Value::String(v.clone()))
+                .collect(),
+        )
     }))
     .bind(now)
     .bind(id)
@@ -1089,15 +1254,24 @@ fn build_heuristic_suggestion(stats: &WeeklyStatsSnapshot) -> serde_json::Value 
     key_findings.push(format!("本周活跃用户: {}人", stats.users.active_this_week));
     key_findings.push(format!("新增用户: {}人", stats.users.new_this_week));
     key_findings.push(format!("本周总答题数: {}", stats.learning.total_answers));
-    key_findings.push(format!("平均正确率: {:.1}%", stats.learning.avg_accuracy * 100.0));
-    key_findings.push(format!("学习单词数: {}", stats.learning.total_words_learned));
+    key_findings.push(format!(
+        "平均正确率: {:.1}%",
+        stats.learning.avg_accuracy * 100.0
+    ));
+    key_findings.push(format!(
+        "学习单词数: {}",
+        stats.learning.total_words_learned
+    ));
 
     if stats.learning.total_answers < 20 {
         concerns.push("样本量较小，建议仅参考低风险调整".to_string());
     }
 
     if stats.alerts.churn_rate > 0.1 {
-        concerns.push(format!("用户流失率较高: {:.1}%", stats.alerts.churn_rate * 100.0));
+        concerns.push(format!(
+            "用户流失率较高: {:.1}%",
+            stats.alerts.churn_rate * 100.0
+        ));
         suggestions.push(serde_json::json!({
             "id": Uuid::new_v4().to_string(),
             "type": "threshold",
@@ -1112,7 +1286,10 @@ fn build_heuristic_suggestion(stats: &WeeklyStatsSnapshot) -> serde_json::Value 
     }
 
     if stats.alerts.high_fatigue_user_ratio > 0.2 {
-        concerns.push(format!("高疲劳用户占比: {:.1}%", stats.alerts.high_fatigue_user_ratio * 100.0));
+        concerns.push(format!(
+            "高疲劳用户占比: {:.1}%",
+            stats.alerts.high_fatigue_user_ratio * 100.0
+        ));
         suggestions.push(serde_json::json!({
             "id": Uuid::new_v4().to_string(),
             "type": "threshold",
@@ -1127,7 +1304,10 @@ fn build_heuristic_suggestion(stats: &WeeklyStatsSnapshot) -> serde_json::Value 
     }
 
     if stats.alerts.low_motivation_user_ratio > 0.2 {
-        concerns.push(format!("低动机用户占比: {:.1}%", stats.alerts.low_motivation_user_ratio * 100.0));
+        concerns.push(format!(
+            "低动机用户占比: {:.1}%",
+            stats.alerts.low_motivation_user_ratio * 100.0
+        ));
     }
 
     if stats.learning.avg_accuracy < 0.65 {
@@ -1160,7 +1340,8 @@ fn build_heuristic_suggestion(stats: &WeeklyStatsSnapshot) -> serde_json::Value 
         }));
     }
 
-    let data_quality = if stats.learning.total_answers >= 500 && stats.users.active_this_week >= 10 {
+    let data_quality = if stats.learning.total_answers >= 500 && stats.users.active_this_week >= 10
+    {
         "sufficient"
     } else if stats.learning.total_answers >= 50 {
         "limited"
@@ -1210,7 +1391,11 @@ async fn trigger_analysis(
 
     let config = llm_config_summary();
     if !config.enabled {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "LLM 顾问未启用，请设置 LLM_ADVISOR_ENABLED=true"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "LLM 顾问未启用，请设置 LLM_ADVISOR_ENABLED=true",
+        ));
     }
     let (valid, message) = llm_config_valid(&config);
     if !valid {
@@ -1221,7 +1406,11 @@ async fn trigger_analysis(
         let store = store();
         let mut guard = store.is_running.write().await;
         if *guard {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "分析正在进行中，请稍后再试"));
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                "分析正在进行中，请稍后再试",
+            ));
         }
         *guard = true;
     }
@@ -1259,7 +1448,10 @@ async fn trigger_analysis_inner(
     let alerts = compute_alerts(proxy, &users, start, end).await?;
 
     let stats = WeeklyStatsSnapshot {
-        period: PeriodSnapshot { start: start_iso.clone(), end: end_iso.clone() },
+        period: PeriodSnapshot {
+            start: start_iso.clone(),
+            end: end_iso.clone(),
+        },
         users,
         learning,
         state_distribution,
@@ -1297,7 +1489,10 @@ async fn build_suggestion(stats: &WeeklyStatsSnapshot) -> (serde_json::Value, St
             Err(e) => warn!(error = %e, "LLM call failed, falling back to heuristic"),
         }
     }
-    (build_heuristic_suggestion(stats), "Generated by Rust heuristic advisor".to_string())
+    (
+        build_heuristic_suggestion(stats),
+        "Generated by Rust heuristic advisor".to_string(),
+    )
 }
 
 async fn build_llm_suggestion(
@@ -1401,9 +1596,12 @@ async fn build_llm_suggestion(
 - 高疲劳用户占比: {:.1}%
 - 低动机用户占比: {:.1}%
 - 流失率: {:.1}%"#,
-        stats.period.start, stats.period.end,
-        stats.users.total, stats.users.active_this_week,
-        stats.users.new_this_week, stats.users.churned,
+        stats.period.start,
+        stats.period.end,
+        stats.users.total,
+        stats.users.active_this_week,
+        stats.users.new_this_week,
+        stats.users.churned,
         stats.learning.total_answers,
         stats.learning.avg_accuracy * 100.0,
         stats.learning.avg_response_time,
@@ -1422,8 +1620,14 @@ async fn build_llm_suggestion(
     );
 
     let messages = [
-        ChatMessage { role: "system".into(), content: system_prompt },
-        ChatMessage { role: "user".into(), content: user_prompt },
+        ChatMessage {
+            role: "system".into(),
+            content: system_prompt,
+        },
+        ChatMessage {
+            role: "user".into(),
+            content: user_prompt,
+        },
     ];
 
     let response = llm.chat(&messages).await?;
@@ -1436,13 +1640,15 @@ fn parse_llm_response(raw: &str) -> serde_json::Value {
     let cleaned = strip_think_tags(raw);
     let trimmed = cleaned.trim();
     let json_str = extract_json_content(trimmed);
-    serde_json::from_str(json_str.trim()).unwrap_or_else(|_| serde_json::json!({
-        "analysis": { "summary": trimmed, "keyFindings": [], "concerns": [] },
-        "suggestions": [],
-        "confidence": 0.5,
-        "dataQuality": "limited",
-        "nextReviewFocus": ""
-    }))
+    serde_json::from_str(json_str.trim()).unwrap_or_else(|_| {
+        serde_json::json!({
+            "analysis": { "summary": trimmed, "keyFindings": [], "concerns": [] },
+            "suggestions": [],
+            "confidence": 0.5,
+            "dataQuality": "limited",
+            "nextReviewFocus": ""
+        })
+    })
 }
 
 fn strip_think_tags(s: &str) -> String {
@@ -1479,12 +1685,17 @@ fn extract_json_content(s: &str) -> &str {
 fn find_closing_fence(content: &str) -> Option<usize> {
     for (i, line) in content.lines().enumerate() {
         let trimmed_line = line.trim();
-        if trimmed_line == "```" || trimmed_line.starts_with("```\n") || trimmed_line.starts_with("``` ") {
+        if trimmed_line == "```"
+            || trimmed_line.starts_with("```\n")
+            || trimmed_line.starts_with("``` ")
+        {
             let offset: usize = content.lines().take(i).map(|l| l.len() + 1).sum();
             return Some(offset);
         }
     }
-    content.rfind("\n```").map(|i| i + 1)
+    content
+        .rfind("\n```")
+        .map(|i| i + 1)
         .or_else(|| content.rfind("```"))
 }
 
@@ -1530,7 +1741,11 @@ async fn compute_weekly_learning_stats(
         "Weekly learning stats computed"
     );
 
-    let accuracy = if total > 0 { (correct.max(0) as f64) / (total as f64) } else { 0.0 };
+    let accuracy = if total > 0 {
+        (correct.max(0) as f64) / (total as f64)
+    } else {
+        0.0
+    };
     Ok((total, accuracy, avg_rt.unwrap_or(0.0)))
 }
 
@@ -1700,12 +1915,23 @@ async fn compute_state_distribution(
             },
         ),
         None => (
-            ThreeTierDistribution { low: 0, mid: 0, high: 0 },
-            ThreeTierDistribution { low: 0, mid: 0, high: 0 },
+            ThreeTierDistribution {
+                low: 0,
+                mid: 0,
+                high: 0,
+            },
+            ThreeTierDistribution {
+                low: 0,
+                mid: 0,
+                high: 0,
+            },
         ),
     };
 
-    Ok(StateDistributionSnapshot { fatigue, motivation })
+    Ok(StateDistributionSnapshot {
+        fatigue,
+        motivation,
+    })
 }
 
 async fn compute_alerts(
@@ -1747,11 +1973,13 @@ async fn compute_alerts(
     .ok();
 
     let (high_fatigue, low_motivation, state_total) = state_row
-        .map(|r| (
-            r.try_get::<i64, _>("high_fatigue").unwrap_or(0),
-            r.try_get::<i64, _>("low_motivation").unwrap_or(0),
-            r.try_get::<i64, _>("total").unwrap_or(1).max(1),
-        ))
+        .map(|r| {
+            (
+                r.try_get::<i64, _>("high_fatigue").unwrap_or(0),
+                r.try_get::<i64, _>("low_motivation").unwrap_or(0),
+                r.try_get::<i64, _>("total").unwrap_or(1).max(1),
+            )
+        })
         .unwrap_or((0, 0, 1));
 
     let active_count = users.active_this_week.max(1) as f64;
@@ -1818,7 +2046,10 @@ async fn get_latest(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
     let suggestion = select_latest(proxy.as_ref()).await?;
-    Ok(Json(SuccessResponse { success: true, data: suggestion }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: suggestion,
+    }))
 }
 
 async fn select_latest(
@@ -1847,5 +2078,8 @@ async fn get_pending_count(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
     let count = count_pending(proxy.as_ref()).await.unwrap_or(0);
-    Ok(Json(SuccessResponse { success: true, data: PendingCountDto { count } }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: PendingCountDto { count },
+    }))
 }

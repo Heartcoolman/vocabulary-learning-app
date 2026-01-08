@@ -54,19 +54,37 @@ async fn get_etymology(
     Path(word_id): Path<String>,
 ) -> impl IntoResponse {
     let Some(db_proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Database not available").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "Database not available",
+        )
+        .into_response();
     };
     let pool = db_proxy.pool();
     match etymology::get_word_etymology(pool, &word_id).await {
         Ok(Some(data)) => (
             StatusCode::OK,
-            Json(SuccessResponse { success: true, data }),
+            Json(SuccessResponse {
+                success: true,
+                data,
+            }),
         )
             .into_response(),
-        Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "Etymology not found for this word").into_response(),
+        Ok(None) => json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "Etymology not found for this word",
+        )
+        .into_response(),
         Err(e) => {
             tracing::error!("Failed to get etymology: {}", e);
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to get etymology").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Failed to get etymology",
+            )
+            .into_response()
         }
     }
 }
@@ -77,7 +95,12 @@ async fn save_etymology(
     Json(body): Json<AnalyzeRequest>,
 ) -> impl IntoResponse {
     let Some(db_proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Database not available").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "Database not available",
+        )
+        .into_response();
     };
     let pool = db_proxy.pool();
     let confidence = body.confidence.unwrap_or(0.7);
@@ -103,7 +126,12 @@ async fn save_etymology(
             Ok(m) => m,
             Err(e) => {
                 tracing::error!("Failed to create morpheme: {}", e);
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to create morpheme").into_response();
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "Failed to create morpheme",
+                )
+                .into_response();
             }
         };
 
@@ -119,7 +147,12 @@ async fn save_etymology(
         .await
         {
             tracing::error!("Failed to link morpheme: {}", e);
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to link morpheme").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Failed to link morpheme",
+            )
+            .into_response();
         }
 
         if let Err(e) = etymology::increment_morpheme_frequency(pool, &morpheme.id).await {
@@ -130,13 +163,26 @@ async fn save_etymology(
     match etymology::get_word_etymology(pool, &word_id).await {
         Ok(Some(data)) => (
             StatusCode::OK,
-            Json(SuccessResponse { success: true, data }),
+            Json(SuccessResponse {
+                success: true,
+                data,
+            }),
         )
             .into_response(),
-        Ok(None) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to retrieve saved etymology").into_response(),
+        Ok(None) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "Failed to retrieve saved etymology",
+        )
+        .into_response(),
         Err(e) => {
             tracing::error!("Failed to get saved etymology: {}", e);
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to get saved etymology").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Failed to get saved etymology",
+            )
+            .into_response()
         }
     }
 }
@@ -147,13 +193,21 @@ async fn get_root_features(
     Path(word_id): Path<String>,
 ) -> impl IntoResponse {
     let Some(db_proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Database not available").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "Database not available",
+        )
+        .into_response();
     };
     let pool = db_proxy.pool();
     match etymology::compute_root_features(pool, &user.id, &word_id).await {
         Ok(data) => (
             StatusCode::OK,
-            Json(SuccessResponse { success: true, data }),
+            Json(SuccessResponse {
+                success: true,
+                data,
+            }),
         )
             .into_response(),
         Err(e) => {
@@ -176,7 +230,12 @@ async fn get_family(
     Query(query): Query<FamilyQuery>,
 ) -> impl IntoResponse {
     let Some(db_proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Database not available").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "Database not available",
+        )
+        .into_response();
     };
     let pool = db_proxy.pool();
     let limit = query.limit.unwrap_or(20).min(100);
@@ -184,12 +243,20 @@ async fn get_family(
     match etymology::get_word_family(pool, &morpheme_id, limit).await {
         Ok(data) => (
             StatusCode::OK,
-            Json(SuccessResponse { success: true, data }),
+            Json(SuccessResponse {
+                success: true,
+                data,
+            }),
         )
             .into_response(),
         Err(e) => {
             tracing::error!("Failed to get word family: {}", e);
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to get word family").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Failed to get word family",
+            )
+            .into_response()
         }
     }
 }
@@ -208,7 +275,12 @@ async fn search_morphemes(
     Query(query): Query<SearchQuery>,
 ) -> impl IntoResponse {
     let Some(db_proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Database not available").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "Database not available",
+        )
+        .into_response();
     };
     let pool = db_proxy.pool();
     let limit = query.limit.unwrap_or(20).min(100);
@@ -258,7 +330,12 @@ async fn search_morphemes(
         }
         Err(e) => {
             tracing::error!("Failed to search morphemes: {}", e);
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Failed to search morphemes").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Failed to search morphemes",
+            )
+            .into_response()
         }
     }
 }

@@ -28,7 +28,10 @@ pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super:
         return Ok(());
     }
 
-    info!(user_count = users.len(), "Processing users for optimization");
+    info!(
+        user_count = users.len(),
+        "Processing users for optimization"
+    );
 
     let mut optimized_count = 0;
     let mut skipped_count = 0;
@@ -54,7 +57,14 @@ pub async fn run_optimization_cycle(db: Arc<DatabaseProxy>) -> Result<(), super:
         "Optimization cycle completed"
     );
 
-    record_optimization_event(&pool, optimized_count, skipped_count, error_count, duration.as_millis() as i64).await?;
+    record_optimization_event(
+        &pool,
+        optimized_count,
+        skipped_count,
+        error_count,
+        duration.as_millis() as i64,
+    )
+    .await?;
 
     Ok(())
 }
@@ -80,10 +90,16 @@ async fn get_active_users(pool: &PgPool) -> Result<Vec<String>, super::WorkerErr
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().filter_map(|r| r.try_get("id").ok()).collect())
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| r.try_get("id").ok())
+        .collect())
 }
 
-async fn optimize_user_params(pool: &PgPool, user_id: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+async fn optimize_user_params(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let recent_performance = get_recent_performance(pool, user_id).await?;
 
     if recent_performance.total_answers < 50 {
@@ -112,7 +128,10 @@ struct RecentPerformance {
     avg_response_time: f64,
 }
 
-async fn get_recent_performance(pool: &PgPool, user_id: &str) -> Result<RecentPerformance, super::WorkerError> {
+async fn get_recent_performance(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<RecentPerformance, super::WorkerError> {
     let since = Utc::now() - chrono::Duration::days(7);
 
     let row = sqlx::query(
@@ -131,8 +150,16 @@ async fn get_recent_performance(pool: &PgPool, user_id: &str) -> Result<RecentPe
 
     Ok(RecentPerformance {
         total_answers: row.try_get::<i64, _>("total").unwrap_or(0),
-        correct_rate: row.try_get::<Option<f64>, _>("correct_rate").ok().flatten().unwrap_or(0.0),
-        avg_response_time: row.try_get::<Option<f64>, _>("avg_response_time").ok().flatten().unwrap_or(0.0),
+        correct_rate: row
+            .try_get::<Option<f64>, _>("correct_rate")
+            .ok()
+            .flatten()
+            .unwrap_or(0.0),
+        avg_response_time: row
+            .try_get::<Option<f64>, _>("avg_response_time")
+            .ok()
+            .flatten()
+            .unwrap_or(0.0),
     })
 }
 
@@ -145,11 +172,18 @@ struct AlgorithmConfig {
 
 impl Default for AlgorithmConfig {
     fn default() -> Self {
-        Self { alpha: 1.0, exploration_rate: 0.1, difficulty_weight: 0.5 }
+        Self {
+            alpha: 1.0,
+            exploration_rate: 0.1,
+            difficulty_weight: 0.5,
+        }
     }
 }
 
-async fn get_user_algorithm_config(pool: &PgPool, user_id: &str) -> Result<AlgorithmConfig, super::WorkerError> {
+async fn get_user_algorithm_config(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<AlgorithmConfig, super::WorkerError> {
     let row = sqlx::query(r#"SELECT "linucbAlpha", "explorationRate", "difficultyWeight" FROM "algorithm_config" WHERE "userId" = $1"#)
         .bind(user_id)
         .fetch_optional(pool)
@@ -157,9 +191,21 @@ async fn get_user_algorithm_config(pool: &PgPool, user_id: &str) -> Result<Algor
 
     Ok(row
         .map(|r| AlgorithmConfig {
-            alpha: r.try_get::<Option<f64>, _>("linucbAlpha").ok().flatten().unwrap_or(1.0),
-            exploration_rate: r.try_get::<Option<f64>, _>("explorationRate").ok().flatten().unwrap_or(0.1),
-            difficulty_weight: r.try_get::<Option<f64>, _>("difficultyWeight").ok().flatten().unwrap_or(0.5),
+            alpha: r
+                .try_get::<Option<f64>, _>("linucbAlpha")
+                .ok()
+                .flatten()
+                .unwrap_or(1.0),
+            exploration_rate: r
+                .try_get::<Option<f64>, _>("explorationRate")
+                .ok()
+                .flatten()
+                .unwrap_or(0.1),
+            difficulty_weight: r
+                .try_get::<Option<f64>, _>("difficultyWeight")
+                .ok()
+                .flatten()
+                .unwrap_or(0.5),
         })
         .unwrap_or_default())
 }
@@ -191,7 +237,11 @@ fn params_similar(a: &AlgorithmConfig, b: &AlgorithmConfig) -> bool {
         && (a.difficulty_weight - b.difficulty_weight).abs() < epsilon
 }
 
-async fn apply_suggested_params(pool: &PgPool, user_id: &str, params: &AlgorithmConfig) -> Result<(), super::WorkerError> {
+async fn apply_suggested_params(
+    pool: &PgPool,
+    user_id: &str,
+    params: &AlgorithmConfig,
+) -> Result<(), super::WorkerError> {
     let now = Utc::now();
 
     sqlx::query(
@@ -216,7 +266,13 @@ async fn apply_suggested_params(pool: &PgPool, user_id: &str, params: &Algorithm
     Ok(())
 }
 
-async fn record_optimization_event(pool: &PgPool, optimized: i32, skipped: i32, errors: i32, duration_ms: i64) -> Result<(), super::WorkerError> {
+async fn record_optimization_event(
+    pool: &PgPool,
+    optimized: i32,
+    skipped: i32,
+    errors: i32,
+    duration_ms: i64,
+) -> Result<(), super::WorkerError> {
     let now = Utc::now();
 
     sqlx::query(

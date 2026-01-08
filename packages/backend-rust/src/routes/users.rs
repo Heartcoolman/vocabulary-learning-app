@@ -72,7 +72,6 @@ struct RewardProfilesResponse {
     available_profiles: &'static [RewardProfileItem],
 }
 
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdatePasswordRequest {
@@ -114,31 +113,46 @@ fn is_valid_reward_profile_id(profile_id: &str) -> bool {
     matches!(profile_id, "standard" | "cram" | "relaxed")
 }
 
-pub async fn me(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn me(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let cache = state.cache();
-    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
-        Ok(user) => user,
-        Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
-        }
-    };
+    let auth_user =
+        match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref())
+            .await
+        {
+            Ok(user) => user,
+            Err(_) => {
+                return json_error(
+                    StatusCode::UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "认证失败，请重新登录",
+                )
+                .into_response();
+            }
+        };
 
     let cache_key = user_profile_key(&auth_user.id);
     if let Some(ref cache) = cache {
         if let Some(user) = cache.get::<MeResponse>(&cache_key).await {
-            return Json(SuccessResponse { success: true, data: user }).into_response();
+            return Json(SuccessResponse {
+                success: true,
+                data: user,
+            })
+            .into_response();
         }
     }
 
@@ -149,7 +163,12 @@ pub async fn me(
         }
         Err(err) => {
             tracing::warn!(error = %err, "user me query failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -164,10 +183,7 @@ pub async fn me(
     .into_response()
 }
 
-pub async fn update_profile(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_profile(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -175,37 +191,66 @@ pub async fn update_profile(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: UpdateProfileRequest = match serde_json::from_slice(&body_bytes) {
         Ok(payload) => payload,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
     let username = match &payload.username {
         Some(name) if name.trim().len() >= 2 => name.trim().to_string(),
         Some(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "用户名至少2个字符").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "用户名至少2个字符",
+            )
+            .into_response();
         }
         None => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请提供要更新的字段").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请提供要更新的字段",
+            )
+            .into_response();
         }
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let cache = state.cache();
-    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
-        Ok(user) => user,
-        Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
-        }
-    };
+    let auth_user =
+        match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref())
+            .await
+        {
+            Ok(user) => user,
+            Err(_) => {
+                return json_error(
+                    StatusCode::UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "认证失败，请重新登录",
+                )
+                .into_response();
+            }
+        };
 
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
@@ -223,7 +268,12 @@ pub async fn update_profile(
     .await
     {
         tracing::warn!(error = %err, "profile update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let cache_key = user_profile_key(&auth_user.id);
@@ -238,7 +288,12 @@ pub async fn update_profile(
         }
         Err(err) => {
             tracing::warn!(error = %err, "user profile query failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -253,23 +308,31 @@ pub async fn update_profile(
     .into_response()
 }
 
-pub async fn statistics(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn statistics(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -277,7 +340,12 @@ pub async fn statistics(
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "user statistics query failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -288,23 +356,31 @@ pub async fn statistics(
     .into_response()
 }
 
-pub async fn v1_me_profile(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn v1_me_profile(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -315,7 +391,12 @@ pub async fn v1_me_profile(
         }
         Err(err) => {
             tracing::warn!(error = %err, "user profile query failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -332,23 +413,31 @@ pub async fn v1_me_profile(
     .into_response()
 }
 
-pub async fn reward_profile(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn reward_profile(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -357,7 +446,12 @@ pub async fn reward_profile(
         Ok(None) => "standard".to_string(),
         Err(err) => {
             tracing::warn!(error = %err, "reward profile lookup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -371,17 +465,11 @@ pub async fn reward_profile(
     .into_response()
 }
 
-pub async fn v1_reward_profile(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn v1_reward_profile(State(state): State<AppState>, req: Request<Body>) -> Response {
     reward_profile(State(state), req).await
 }
 
-pub async fn update_reward_profile(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_reward_profile(State(state): State<AppState>, req: Request<Body>) -> Response {
     update_reward_profile_inner(state, req, false).await
 }
 
@@ -400,13 +488,19 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: UpdateRewardProfileRequest = match serde_json::from_slice(&body_bytes) {
         Ok(payload) => payload,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
@@ -428,16 +522,29 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let cache = state.cache();
-    let auth_user = match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref()).await {
-        Ok(user) => user,
-        Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
-        }
-    };
+    let auth_user =
+        match crate::auth::verify_request_token_cached(proxy.as_ref(), &token, cache.as_deref())
+            .await
+        {
+            Ok(user) => user,
+            Err(_) => {
+                return json_error(
+                    StatusCode::UNAUTHORIZED,
+                    "UNAUTHORIZED",
+                    "认证失败，请重新登录",
+                )
+                .into_response();
+            }
+        };
 
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
@@ -455,7 +562,12 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
     .await
     {
         tracing::warn!(error = %err, "reward profile update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Some(ref cache) = cache {
@@ -472,24 +584,15 @@ async fn update_reward_profile_inner(state: AppState, req: Request<Body>, v1: bo
     .into_response()
 }
 
-pub async fn chronotype(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn chronotype(State(state): State<AppState>, req: Request<Body>) -> Response {
     cognitive_part(State(state), req, CognitivePart::Chronotype).await
 }
 
-pub async fn learning_style(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn learning_style(State(state): State<AppState>, req: Request<Body>) -> Response {
     cognitive_part(State(state), req, CognitivePart::LearningStyle).await
 }
 
-pub async fn cognitive(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn cognitive(State(state): State<AppState>, req: Request<Body>) -> Response {
     cognitive_part(State(state), req, CognitivePart::Combined).await
 }
 
@@ -507,17 +610,28 @@ async fn cognitive_part(
 ) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -527,11 +641,20 @@ async fn cognitive_part(
                 Ok(profile) => profile,
                 Err(err) => {
                     tracing::warn!(error = %err, "chronotype compute failed");
-                    return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+                    return json_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "INTERNAL_ERROR",
+                        "服务器内部错误",
+                    )
+                    .into_response();
                 }
             };
 
-            let data = if profile.sample_count < 20 { None } else { Some(profile) };
+            let data = if profile.sample_count < 20 {
+                None
+            } else {
+                Some(profile)
+            };
             Json(SuccessResponse {
                 success: true,
                 data,
@@ -543,11 +666,20 @@ async fn cognitive_part(
                 Ok(profile) => profile,
                 Err(err) => {
                     tracing::warn!(error = %err, "learning style compute failed");
-                    return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+                    return json_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "INTERNAL_ERROR",
+                        "服务器内部错误",
+                    )
+                    .into_response();
                 }
             };
 
-            let data = if profile.sample_count < 20 { None } else { Some(profile) };
+            let data = if profile.sample_count < 20 {
+                None
+            } else {
+                Some(profile)
+            };
             Json(SuccessResponse {
                 success: true,
                 data,
@@ -585,10 +717,7 @@ async fn cognitive_part(
     }
 }
 
-pub async fn update_password(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn update_password(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -596,18 +725,29 @@ pub async fn update_password(
 
     let token = crate::auth::extract_token(&parts.headers);
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let payload: UpdatePasswordRequest = match serde_json::from_slice(&body_bytes) {
         Ok(payload) => payload,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
     if payload.old_password.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "旧密码不能为空").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "旧密码不能为空",
+        )
+        .into_response();
     }
 
     if let Some(message) = validate_register_password(&payload.new_password) {
@@ -615,13 +755,23 @@ pub async fn update_password(
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let auth_user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -632,7 +782,12 @@ pub async fn update_password(
         }
         Err(err) => {
             tracing::warn!(error = %err, "password lookup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -644,7 +799,12 @@ pub async fn update_password(
     let new_hash = match bcrypt::hash(&payload.new_password, 10) {
         Ok(hash) => hash,
         Err(_) => {
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -664,7 +824,12 @@ pub async fn update_password(
     .await
     {
         tracing::warn!(error = %err, "password update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Err(err) = sqlx::query(r#"DELETE FROM "sessions" WHERE "userId" = $1"#)
@@ -673,7 +838,12 @@ pub async fn update_password(
         .await
     {
         tracing::warn!(error = %err, "session delete failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     Json(MessageResponse {
@@ -719,7 +889,9 @@ async fn select_user_me(
         email: row.try_get("email")?,
         username: row.try_get("username")?,
         role: row.try_get("role")?,
-        reward_profile: row.try_get::<Option<String>, _>("rewardProfile")?.unwrap_or_else(|| "standard".to_string()),
+        reward_profile: row
+            .try_get::<Option<String>, _>("rewardProfile")?
+            .unwrap_or_else(|| "standard".to_string()),
         created_at: format_naive_iso(created_at),
         updated_at: format_naive_iso(updated_at),
     }))
@@ -734,7 +906,9 @@ async fn select_user_reward_profile(
         .bind(user_id)
         .fetch_optional(pool)
         .await?;
-    Ok(row.and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok()).flatten())
+    Ok(row
+        .and_then(|r| r.try_get::<Option<String>, _>("rewardProfile").ok())
+        .flatten())
 }
 
 async fn select_user_password_hash(
@@ -768,11 +942,12 @@ async fn select_user_statistics(
 
     let total_words = count_words_postgres(pool, &word_books).await.unwrap_or(0);
 
-    let total_records: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1"#)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
+    let total_records: i64 =
+        sqlx::query_scalar(r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1"#)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
 
     let correct_count: i64 = sqlx::query_scalar(
         r#"SELECT COUNT(*) FROM "answer_records" WHERE "userId" = $1 AND "isCorrect" = true"#,
@@ -801,7 +976,10 @@ fn build_accuracy(total_words: i64, total_records: i64, correct_count: i64) -> S
     }
 }
 
-async fn count_words_postgres(pool: &sqlx::PgPool, word_book_ids: &[String]) -> Result<i64, sqlx::Error> {
+async fn count_words_postgres(
+    pool: &sqlx::PgPool,
+    word_book_ids: &[String],
+) -> Result<i64, sqlx::Error> {
     if word_book_ids.is_empty() {
         return Ok(0);
     }
@@ -823,12 +1001,16 @@ fn format_naive_iso(value: NaiveDateTime) -> String {
         .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
+async fn split_body(
+    req: Request<Body>,
+) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response());
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            );
         }
     };
     Ok((parts, body_bytes))

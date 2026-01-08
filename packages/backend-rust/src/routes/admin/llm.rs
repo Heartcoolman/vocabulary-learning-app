@@ -31,7 +31,10 @@ pub fn router() -> Router<AppState> {
         .route("/word-variants", post(create_word_variant))
         .route("/word-variants", get(list_word_variants))
         .route("/word-variants/:id/status", put(update_variant_status))
-        .route("/suggestion-effects/:id/evaluate", put(evaluate_suggestion_effect))
+        .route(
+            "/suggestion-effects/:id/evaluate",
+            put(evaluate_suggestion_effect),
+        )
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,15 +57,34 @@ async fn create_task(
     Json(body): Json<CreateTaskRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     let priority = body.priority.unwrap_or(0);
-    match insert_llm_analysis_task(proxy.as_ref(), &body.task_type, priority, &body.input, Some(&user.id)).await {
-        Ok(id) => Ok(Json(SuccessResponse { success: true, data: TaskIdResponse { id } })),
+    match insert_llm_analysis_task(
+        proxy.as_ref(),
+        &body.task_type,
+        priority,
+        &body.input,
+        Some(&user.id),
+    )
+    .await
+    {
+        Ok(id) => Ok(Json(SuccessResponse {
+            success: true,
+            data: TaskIdResponse { id },
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "create llm task failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "创建任务失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "创建任务失败",
+            ))
         }
     }
 }
@@ -98,7 +120,11 @@ async fn list_tasks(
     Query(query): Query<ListTasksQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
@@ -145,15 +171,24 @@ async fn list_tasks(
 
     let rows = rows.map_err(|e| {
         tracing::warn!(error = %e, "list llm tasks failed");
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "查询任务失败")
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "查询任务失败",
+        )
     })?;
 
     let items: Vec<TaskItem> = rows.iter().map(map_task_row).collect();
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 fn map_task_row(row: &sqlx::postgres::PgRow) -> TaskItem {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
     let started_at: Option<chrono::NaiveDateTime> = row.try_get("startedAt").ok();
     let completed_at: Option<chrono::NaiveDateTime> = row.try_get("completedAt").ok();
 
@@ -184,14 +219,25 @@ async fn start_task(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match update_llm_task_started(proxy.as_ref(), &id).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "status": "processing" }) })),
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "status": "processing" }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "start llm task failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新任务状态失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "更新任务状态失败",
+            ))
         }
     }
 }
@@ -209,14 +255,25 @@ async fn complete_task(
     Json(body): Json<CompleteTaskRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match update_llm_task_completed(proxy.as_ref(), &id, &body.output, body.tokens_used).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "status": "completed" }) })),
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "status": "completed" }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "complete llm task failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新任务状态失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "更新任务状态失败",
+            ))
         }
     }
 }
@@ -233,14 +290,25 @@ async fn fail_task(
     Json(body): Json<FailTaskRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match update_llm_task_failed(proxy.as_ref(), &id, &body.error).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "status": "failed" }) })),
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "status": "failed" }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "fail llm task failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新任务状态失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "更新任务状态失败",
+            ))
         }
     }
 }
@@ -261,7 +329,11 @@ async fn create_word_variant(
     Json(body): Json<CreateWordVariantRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match insert_word_content_variant(
@@ -272,11 +344,20 @@ async fn create_word_variant(
         &body.generated_value,
         body.confidence,
         body.task_id.as_deref(),
-    ).await {
-        Ok(id) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id }) })),
+    )
+    .await
+    {
+        Ok(id) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "create word variant failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "创建单词变体失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "创建单词变体失败",
+            ))
         }
     }
 }
@@ -310,7 +391,11 @@ async fn list_word_variants(
     Query(query): Query<ListVariantsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
@@ -357,15 +442,24 @@ async fn list_word_variants(
 
     let rows = rows.map_err(|e| {
         tracing::warn!(error = %e, "list word variants failed");
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "查询单词变体失败")
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "查询单词变体失败",
+        )
     })?;
 
     let items: Vec<VariantItem> = rows.iter().map(map_variant_row).collect();
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 fn map_variant_row(row: &sqlx::postgres::PgRow) -> VariantItem {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
     let approved_at: Option<chrono::NaiveDateTime> = row.try_get("approvedAt").ok();
 
     VariantItem {
@@ -373,7 +467,9 @@ fn map_variant_row(row: &sqlx::postgres::PgRow) -> VariantItem {
         word_id: row.try_get("wordId").unwrap_or_default(),
         field: row.try_get("field").unwrap_or_default(),
         original_value: row.try_get("originalValue").ok(),
-        generated_value: row.try_get("generatedValue").unwrap_or(serde_json::Value::Null),
+        generated_value: row
+            .try_get("generatedValue")
+            .unwrap_or(serde_json::Value::Null),
         confidence: row.try_get("confidence").unwrap_or(0.0),
         task_id: row.try_get("taskId").ok(),
         status: row.try_get("status").unwrap_or_default(),
@@ -396,16 +492,31 @@ async fn update_variant_status(
     Json(body): Json<UpdateVariantStatusRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
-    let approved_by = if body.status == "approved" { Some(user.id.as_str()) } else { None };
+    let approved_by = if body.status == "approved" {
+        Some(user.id.as_str())
+    } else {
+        None
+    };
 
     match update_word_content_variant_status(proxy.as_ref(), &id, &body.status, approved_by).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "status": body.status }) })),
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "status": body.status }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "update variant status failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新状态失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "更新状态失败",
+            ))
         }
     }
 }
@@ -424,14 +535,33 @@ async fn evaluate_suggestion_effect(
     Json(body): Json<EvaluateSuggestionEffectRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
-    match update_suggestion_effect(proxy.as_ref(), &id, &body.metrics_after_apply, body.effect_score, &body.effect_analysis).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "evaluated": true }) })),
+    match update_suggestion_effect(
+        proxy.as_ref(),
+        &id,
+        &body.metrics_after_apply,
+        body.effect_score,
+        &body.effect_analysis,
+    )
+    .await
+    {
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "evaluated": true }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "evaluate suggestion effect failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "评估建议效果失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "评估建议效果失败",
+            ))
         }
     }
 }

@@ -318,27 +318,37 @@ pub async fn list_experiments(
         (rows, total)
     };
 
-    let items = rows.iter().map(|row| {
-        let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let started_at: Option<chrono::NaiveDateTime> = row.try_get("startedAt").ok();
+    let items = rows
+        .iter()
+        .map(|row| {
+            let created_at: chrono::NaiveDateTime = row
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let started_at: Option<chrono::NaiveDateTime> = row.try_get("startedAt").ok();
 
-        ExperimentListItem {
-            id: row.try_get("id").unwrap_or_default(),
-            name: row.try_get("name").unwrap_or_default(),
-            description: row.try_get("description").ok(),
-            status: row.try_get("status").unwrap_or_default(),
-            traffic_allocation: row.try_get("trafficAllocation").unwrap_or_default(),
-            variant_count: row.try_get::<i64, _>("variant_count").unwrap_or(0) as i32,
-            total_samples: row.try_get("total_samples").unwrap_or(0),
-            created_at: DateTime::<Utc>::from_naive_utc_and_offset(created_at, Utc).to_rfc3339(),
-            started_at: started_at.map(|d| DateTime::<Utc>::from_naive_utc_and_offset(d, Utc).to_rfc3339()),
-        }
-    }).collect();
+            ExperimentListItem {
+                id: row.try_get("id").unwrap_or_default(),
+                name: row.try_get("name").unwrap_or_default(),
+                description: row.try_get("description").ok(),
+                status: row.try_get("status").unwrap_or_default(),
+                traffic_allocation: row.try_get("trafficAllocation").unwrap_or_default(),
+                variant_count: row.try_get::<i64, _>("variant_count").unwrap_or(0) as i32,
+                total_samples: row.try_get("total_samples").unwrap_or(0),
+                created_at: DateTime::<Utc>::from_naive_utc_and_offset(created_at, Utc)
+                    .to_rfc3339(),
+                started_at: started_at
+                    .map(|d| DateTime::<Utc>::from_naive_utc_and_offset(d, Utc).to_rfc3339()),
+            }
+        })
+        .collect();
 
     Ok((items, total))
 }
 
-pub async fn get_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Result<Option<Experiment>, String> {
+pub async fn get_experiment(
+    proxy: &DatabaseProxy,
+    experiment_id: &str,
+) -> Result<Option<Experiment>, String> {
     let pool = proxy.pool();
 
     let row = sqlx::query(
@@ -350,7 +360,9 @@ pub async fn get_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Resul
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    let Some(row) = row else { return Ok(None); };
+    let Some(row) = row else {
+        return Ok(None);
+    };
 
     let variants = sqlx::query(
         r#"SELECT "id","experimentId","name","weight","isControl","parameters","createdAt","updatedAt"
@@ -361,27 +373,39 @@ pub async fn get_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Resul
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: chrono::NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: chrono::NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let started_at: Option<chrono::NaiveDateTime> = row.try_get("startedAt").ok();
     let ended_at: Option<chrono::NaiveDateTime> = row.try_get("endedAt").ok();
 
-    let variants_out: Vec<ExperimentVariant> = variants.iter().map(|v| {
-        let v_created: chrono::NaiveDateTime = v.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let v_updated: chrono::NaiveDateTime = v.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        let params_raw: serde_json::Value = v.try_get("parameters").unwrap_or(serde_json::json!({}));
+    let variants_out: Vec<ExperimentVariant> = variants
+        .iter()
+        .map(|v| {
+            let v_created: chrono::NaiveDateTime = v
+                .try_get("createdAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let v_updated: chrono::NaiveDateTime = v
+                .try_get("updatedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            let params_raw: serde_json::Value =
+                v.try_get("parameters").unwrap_or(serde_json::json!({}));
 
-        ExperimentVariant {
-            id: v.try_get("id").unwrap_or_default(),
-            experiment_id: v.try_get("experimentId").unwrap_or_default(),
-            name: v.try_get("name").unwrap_or_default(),
-            weight: v.try_get("weight").unwrap_or(0.5),
-            is_control: v.try_get("isControl").unwrap_or(false),
-            parameters: params_raw,
-            created_at: DateTime::<Utc>::from_naive_utc_and_offset(v_created, Utc).to_rfc3339(),
-            updated_at: DateTime::<Utc>::from_naive_utc_and_offset(v_updated, Utc).to_rfc3339(),
-        }
-    }).collect();
+            ExperimentVariant {
+                id: v.try_get("id").unwrap_or_default(),
+                experiment_id: v.try_get("experimentId").unwrap_or_default(),
+                name: v.try_get("name").unwrap_or_default(),
+                weight: v.try_get("weight").unwrap_or(0.5),
+                is_control: v.try_get("isControl").unwrap_or(false),
+                parameters: params_raw,
+                created_at: DateTime::<Utc>::from_naive_utc_and_offset(v_created, Utc).to_rfc3339(),
+                updated_at: DateTime::<Utc>::from_naive_utc_and_offset(v_updated, Utc).to_rfc3339(),
+            }
+        })
+        .collect();
 
     Ok(Some(Experiment {
         id: row.try_get("id").unwrap_or_default(),
@@ -393,7 +417,8 @@ pub async fn get_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Resul
         minimum_detectable_effect: row.try_get("minimumDetectableEffect").unwrap_or(0.05),
         auto_decision: row.try_get("autoDecision").unwrap_or(false),
         status: row.try_get("status").unwrap_or_default(),
-        started_at: started_at.map(|d| DateTime::<Utc>::from_naive_utc_and_offset(d, Utc).to_rfc3339()),
+        started_at: started_at
+            .map(|d| DateTime::<Utc>::from_naive_utc_and_offset(d, Utc).to_rfc3339()),
         ended_at: ended_at.map(|d| DateTime::<Utc>::from_naive_utc_and_offset(d, Utc).to_rfc3339()),
         created_at: DateTime::<Utc>::from_naive_utc_and_offset(created_at, Utc).to_rfc3339(),
         updated_at: DateTime::<Utc>::from_naive_utc_and_offset(updated_at, Utc).to_rfc3339(),
@@ -403,11 +428,10 @@ pub async fn get_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Resul
 
 // ========== Lifecycle Operations ==========
 
-pub async fn start_experiment(
-    proxy: &DatabaseProxy,
-    experiment_id: &str,
-) -> Result<(), String> {
-    let experiment = get_experiment(proxy, experiment_id).await?.ok_or("实验不存在")?;
+pub async fn start_experiment(proxy: &DatabaseProxy, experiment_id: &str) -> Result<(), String> {
+    let experiment = get_experiment(proxy, experiment_id)
+        .await?
+        .ok_or("实验不存在")?;
 
     if experiment.status != "DRAFT" && experiment.status != "PAUSED" {
         return Err(format!("实验状态为 {} 无法启动", experiment.status));
@@ -502,7 +526,9 @@ pub async fn assign_user_to_variant(
         return Ok(existing);
     }
 
-    let experiment = get_experiment(proxy, experiment_id).await?.ok_or("实验不存在")?;
+    let experiment = get_experiment(proxy, experiment_id)
+        .await?
+        .ok_or("实验不存在")?;
 
     if experiment.status != "RUNNING" {
         return Err("实验未在运行中".to_string());

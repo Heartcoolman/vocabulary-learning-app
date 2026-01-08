@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use crate::amas::config::CognitiveParams;
 use crate::amas::types::CognitiveProfile;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct CognitiveInput {
@@ -38,7 +38,8 @@ impl CognitiveProfiler {
         let alpha = self.params.memory_alpha;
         self.profile.mem = alpha * input.accuracy + (1.0 - alpha) * self.profile.mem;
 
-        let normalized_speed = 1.0 - (input.avg_response_time as f64 / self.params.speed_baseline_ms / 3.0).min(1.0);
+        let normalized_speed =
+            1.0 - (input.avg_response_time as f64 / self.params.speed_baseline_ms / 3.0).min(1.0);
         self.profile.speed = alpha * normalized_speed + (1.0 - alpha) * self.profile.speed;
 
         self.accuracy_history.push_back(input.accuracy);

@@ -140,7 +140,10 @@ impl DatabaseStateMachine {
 #[derive(Debug, Error)]
 pub enum TransitionError {
     #[error("Invalid transition from {from:?} to {to:?}")]
-    InvalidTransition { from: DatabaseState, to: DatabaseState },
+    InvalidTransition {
+        from: DatabaseState,
+        to: DatabaseState,
+    },
 }
 
 fn now_ms() -> u64 {
@@ -149,4 +152,3 @@ fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis() as u64
 }
-

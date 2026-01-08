@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use crate::amas::config::TrendParams;
 use crate::amas::types::TrendState;
+use std::collections::VecDeque;
 
 pub struct TrendAnalyzer {
     params: TrendParams,
@@ -62,7 +62,12 @@ impl TrendAnalyzer {
         let n = self.history.len() as f64;
         let sum_x: f64 = (0..self.history.len()).map(|i| i as f64).sum();
         let sum_y: f64 = self.history.iter().sum();
-        let sum_xy: f64 = self.history.iter().enumerate().map(|(i, y)| i as f64 * y).sum();
+        let sum_xy: f64 = self
+            .history
+            .iter()
+            .enumerate()
+            .map(|(i, y)| i as f64 * y)
+            .sum();
         let sum_xx: f64 = (0..self.history.len()).map(|i| (i as f64).powi(2)).sum();
 
         let denominator = n * sum_xx - sum_x.powi(2);

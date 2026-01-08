@@ -41,12 +41,23 @@ async fn start_task(
     Json(payload): Json<quality_service::StartTaskRequest>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::start_task(&proxy, &wordbook_id, payload, user.id).await {
-        Ok(task) => Json(SuccessResponse { success: true, data: task }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "START_TASK_FAILED", &e).into_response(),
+        Ok(task) => Json(SuccessResponse {
+            success: true,
+            data: task,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "START_TASK_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -63,14 +74,25 @@ async fn list_tasks(
     Query(query): Query<ListTasksQuery>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let limit = query.limit.unwrap_or(10).clamp(1, 100);
 
     match quality_service::list_tasks(&proxy, &wordbook_id, limit).await {
-        Ok(tasks) => Json(SuccessResponse { success: true, data: tasks }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "LIST_TASKS_FAILED", &e).into_response(),
+        Ok(tasks) => Json(SuccessResponse {
+            success: true,
+            data: tasks,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "LIST_TASKS_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -80,12 +102,23 @@ async fn get_stats(
     Path(wordbook_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::get_stats(&proxy, &wordbook_id).await {
-        Ok(stats) => Json(SuccessResponse { success: true, data: stats }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "GET_STATS_FAILED", &e).into_response(),
+        Ok(stats) => Json(SuccessResponse {
+            success: true,
+            data: stats,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "GET_STATS_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -95,12 +128,23 @@ async fn cancel_task(
     Path(task_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::cancel_task(&proxy, &task_id).await {
-        Ok(_) => Json(SuccessResponse { success: true, data: serde_json::json!({}) }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "CANCEL_TASK_FAILED", &e).into_response(),
+        Ok(_) => Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({}),
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "CANCEL_TASK_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -111,12 +155,24 @@ async fn list_issues(
     Query(filters): Query<quality_service::IssueFilters>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::list_issues(&proxy, &wordbook_id, filters).await {
-        Ok((issues, total)) => Json(ListResponse { success: true, data: issues, total }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "LIST_ISSUES_FAILED", &e).into_response(),
+        Ok((issues, total)) => Json(ListResponse {
+            success: true,
+            data: issues,
+            total,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "LIST_ISSUES_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -126,12 +182,23 @@ async fn apply_fix(
     Path(issue_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::apply_fix(&proxy, &issue_id, &user.id).await {
-        Ok(issue) => Json(SuccessResponse { success: true, data: issue }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "APPLY_FIX_FAILED", &e).into_response(),
+        Ok(issue) => Json(SuccessResponse {
+            success: true,
+            data: issue,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "APPLY_FIX_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -141,12 +208,23 @@ async fn ignore_issue(
     Path(issue_id): Path<String>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::ignore_issue(&proxy, &issue_id, &user.id).await {
-        Ok(_) => Json(SuccessResponse { success: true, data: serde_json::json!({}) }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "IGNORE_ISSUE_FAILED", &e).into_response(),
+        Ok(_) => Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({}),
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "IGNORE_ISSUE_FAILED", &e).into_response()
+        }
     }
 }
 
@@ -156,11 +234,25 @@ async fn batch_operation(
     Json(payload): Json<quality_service::BatchRequest>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match quality_service::batch_operation(&proxy, payload, &user.id).await {
-        Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "BATCH_OPERATION_FAILED", &e).into_response(),
+        Ok(result) => Json(SuccessResponse {
+            success: true,
+            data: result,
+        })
+        .into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "BATCH_OPERATION_FAILED",
+            &e,
+        )
+        .into_response(),
     }
 }

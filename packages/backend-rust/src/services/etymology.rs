@@ -150,7 +150,7 @@ pub async fn get_or_create_morpheme(
     let id = Uuid::new_v4().to_string();
     sqlx::query(
         r#"INSERT INTO "morphemes" ("id", "surface", "type", "meaning", "meaningZh", "language")
-           VALUES ($1, $2, $3, $4, $5, $6)"#
+           VALUES ($1, $2, $3, $4, $5, $6)"#,
     )
     .bind(&id)
     .bind(surface)
@@ -200,7 +200,10 @@ pub async fn link_word_morpheme(
     Ok(())
 }
 
-pub async fn get_word_etymology(pool: &PgPool, word_id: &str) -> Result<Option<WordEtymology>, sqlx::Error> {
+pub async fn get_word_etymology(
+    pool: &PgPool,
+    word_id: &str,
+) -> Result<Option<WordEtymology>, sqlx::Error> {
     let rows = sqlx::query(
         r#"SELECT wm."role", wm."position", wm."confidence", wm."source",
                   m."id", m."surface", m."type", m."meaning", m."meaningZh", m."language", m."etymology", m."aliases", m."frequency"
@@ -224,7 +227,8 @@ pub async fn get_word_etymology(pool: &PgPool, word_id: &str) -> Result<Option<W
 
     for row in &rows {
         let morpheme_type_str: String = row.get("type");
-        let morpheme_type = MorphemeType::from_str(&morpheme_type_str).unwrap_or(MorphemeType::Root);
+        let morpheme_type =
+            MorphemeType::from_str(&morpheme_type_str).unwrap_or(MorphemeType::Root);
         let surface: String = row.get("surface");
         let meaning: Option<String> = row.get("meaning");
         let meaning_zh: Option<String> = row.get("meaningZh");
@@ -256,7 +260,11 @@ pub async fn get_word_etymology(pool: &PgPool, word_id: &str) -> Result<Option<W
         source = src;
     }
 
-    let avg_confidence = if !rows.is_empty() { total_confidence / rows.len() as f64 } else { 0.0 };
+    let avg_confidence = if !rows.is_empty() {
+        total_confidence / rows.len() as f64
+    } else {
+        0.0
+    };
 
     Ok(Some(WordEtymology {
         word_id: word_id.to_string(),
@@ -267,7 +275,11 @@ pub async fn get_word_etymology(pool: &PgPool, word_id: &str) -> Result<Option<W
     }))
 }
 
-pub async fn get_word_family(pool: &PgPool, morpheme_id: &str, limit: i32) -> Result<WordFamily, sqlx::Error> {
+pub async fn get_word_family(
+    pool: &PgPool,
+    morpheme_id: &str,
+    limit: i32,
+) -> Result<WordFamily, sqlx::Error> {
     let morpheme_row = sqlx::query(
         r#"SELECT "id", "surface", "type", "meaning", "meaningZh", "language", "etymology", "aliases", "frequency"
            FROM "morphemes" WHERE "id" = $1"#
@@ -295,7 +307,7 @@ pub async fn get_word_family(pool: &PgPool, morpheme_id: &str, limit: i32) -> Re
            JOIN "words" w ON w."id" = wm."wordId"
            WHERE wm."morphemeId" = $1
            ORDER BY w."frequency" DESC NULLS LAST
-           LIMIT $2"#
+           LIMIT $2"#,
     )
     .bind(morpheme_id)
     .bind(limit)
@@ -312,10 +324,11 @@ pub async fn get_word_family(pool: &PgPool, morpheme_id: &str, limit: i32) -> Re
         })
         .collect();
 
-    let count_row = sqlx::query(r#"SELECT COUNT(*) as cnt FROM "word_morphemes" WHERE "morphemeId" = $1"#)
-        .bind(morpheme_id)
-        .fetch_one(pool)
-        .await?;
+    let count_row =
+        sqlx::query(r#"SELECT COUNT(*) as cnt FROM "word_morphemes" WHERE "morphemeId" = $1"#)
+            .bind(morpheme_id)
+            .fetch_one(pool)
+            .await?;
     let total_count: i64 = count_row.get("cnt");
 
     Ok(WordFamily {
@@ -325,7 +338,11 @@ pub async fn get_word_family(pool: &PgPool, morpheme_id: &str, limit: i32) -> Re
     })
 }
 
-pub async fn compute_root_features(pool: &PgPool, user_id: &str, word_id: &str) -> Result<RootFeatures, sqlx::Error> {
+pub async fn compute_root_features(
+    pool: &PgPool,
+    user_id: &str,
+    word_id: &str,
+) -> Result<RootFeatures, sqlx::Error> {
     let row = sqlx::query(
         r#"
         WITH word_roots AS (
@@ -353,7 +370,7 @@ pub async fn compute_root_features(pool: &PgPool, user_id: &str, word_id: &str) 
             COALESCE(AVG(um.is_known), 0.0) AS known_ratio
         FROM (SELECT 1) AS seed
         LEFT JOIN user_mastery um ON true
-        "#
+        "#,
     )
     .bind(word_id)
     .bind(user_id)
@@ -375,7 +392,7 @@ pub async fn update_user_morpheme_exposure(
     is_correct: bool,
 ) -> Result<(), sqlx::Error> {
     let morpheme_ids: Vec<String> = sqlx::query_scalar(
-        r#"SELECT "morphemeId" FROM "word_morphemes" WHERE "wordId" = $1 AND "role" = 'root'"#
+        r#"SELECT "morphemeId" FROM "word_morphemes" WHERE "wordId" = $1 AND "role" = 'root'"#,
     )
     .bind(word_id)
     .fetch_all(pool)
@@ -403,7 +420,11 @@ pub async fn update_user_morpheme_exposure(
     Ok(())
 }
 
-pub async fn recalculate_morpheme_mastery(pool: &PgPool, user_id: &str, morpheme_id: &str) -> Result<f64, sqlx::Error> {
+pub async fn recalculate_morpheme_mastery(
+    pool: &PgPool,
+    user_id: &str,
+    morpheme_id: &str,
+) -> Result<f64, sqlx::Error> {
     let row = sqlx::query(
         r#"
         SELECT
@@ -425,7 +446,7 @@ pub async fn recalculate_morpheme_mastery(pool: &PgPool, user_id: &str, morpheme
 
     sqlx::query(
         r#"UPDATE "user_morpheme_states" SET "masteryLevel" = $1, "updatedAt" = NOW()
-           WHERE "userId" = $2 AND "morphemeId" = $3"#
+           WHERE "userId" = $2 AND "morphemeId" = $3"#,
     )
     .bind(combined_mastery)
     .bind(user_id)
@@ -436,7 +457,10 @@ pub async fn recalculate_morpheme_mastery(pool: &PgPool, user_id: &str, morpheme
     Ok(combined_mastery)
 }
 
-pub async fn increment_morpheme_frequency(pool: &PgPool, morpheme_id: &str) -> Result<(), sqlx::Error> {
+pub async fn increment_morpheme_frequency(
+    pool: &PgPool,
+    morpheme_id: &str,
+) -> Result<(), sqlx::Error> {
     sqlx::query(r#"UPDATE "morphemes" SET "frequency" = "frequency" + 1 WHERE "id" = $1"#)
         .bind(morpheme_id)
         .execute(pool)

@@ -67,8 +67,12 @@ pub async fn ingest(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> Response {
-    let user = if let (Some(token), Some(proxy)) = (crate::auth::extract_token(req.headers()), state.db_proxy()) {
-        crate::auth::verify_request_token(proxy.as_ref(), &token).await.ok()
+    let user = if let (Some(token), Some(proxy)) =
+        (crate::auth::extract_token(req.headers()), state.db_proxy())
+    {
+        crate::auth::verify_request_token(proxy.as_ref(), &token)
+            .await
+            .ok()
     } else {
         None
     };
@@ -152,20 +156,47 @@ pub async fn ingest(
 
     let client_ip = addr.ip().to_string();
     let user_id = user.as_ref().map(|u| u.id.as_str()).unwrap_or("anonymous");
-    let username = user.as_ref().map(|u| u.username.as_str()).unwrap_or("anonymous");
+    let username = user
+        .as_ref()
+        .map(|u| u.username.as_str())
+        .unwrap_or("anonymous");
 
     for entry in payload.logs {
         let mut ctx = serde_json::Map::new();
-        ctx.insert("clientIp".to_string(), serde_json::Value::String(client_ip.clone()));
-        ctx.insert("userAgent".to_string(), serde_json::Value::String(user_agent.to_string()));
-        ctx.insert("originalTime".to_string(), serde_json::Value::String(entry.time.clone()));
-        ctx.insert("frontendApp".to_string(), serde_json::Value::String(entry.app.clone()));
-        ctx.insert("frontendEnv".to_string(), serde_json::Value::String(entry.env.clone()));
+        ctx.insert(
+            "clientIp".to_string(),
+            serde_json::Value::String(client_ip.clone()),
+        );
+        ctx.insert(
+            "userAgent".to_string(),
+            serde_json::Value::String(user_agent.to_string()),
+        );
+        ctx.insert(
+            "originalTime".to_string(),
+            serde_json::Value::String(entry.time.clone()),
+        );
+        ctx.insert(
+            "frontendApp".to_string(),
+            serde_json::Value::String(entry.app.clone()),
+        );
+        ctx.insert(
+            "frontendEnv".to_string(),
+            serde_json::Value::String(entry.env.clone()),
+        );
         if let Some(module) = entry.module.clone() {
-            ctx.insert("frontendModule".to_string(), serde_json::Value::String(module));
+            ctx.insert(
+                "frontendModule".to_string(),
+                serde_json::Value::String(module),
+            );
         }
-        ctx.insert("userId".to_string(), serde_json::Value::String(user_id.to_string()));
-        ctx.insert("username".to_string(), serde_json::Value::String(username.to_string()));
+        ctx.insert(
+            "userId".to_string(),
+            serde_json::Value::String(user_id.to_string()),
+        );
+        ctx.insert(
+            "username".to_string(),
+            serde_json::Value::String(username.to_string()),
+        );
 
         if let Some(extra) = entry.context.clone() {
             for (key, value) in extra {
@@ -198,7 +229,9 @@ pub async fn ingest(
             LogLevel::Debug => tracing::debug!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Info => tracing::info!(context = %ctx_str, "{}", entry.msg),
             LogLevel::Warn => tracing::warn!(context = %ctx_str, "{}", entry.msg),
-            LogLevel::Error | LogLevel::Fatal => tracing::error!(context = %ctx_str, "{}", entry.msg),
+            LogLevel::Error | LogLevel::Fatal => {
+                tracing::error!(context = %ctx_str, "{}", entry.msg)
+            }
         }
 
         // Write to database

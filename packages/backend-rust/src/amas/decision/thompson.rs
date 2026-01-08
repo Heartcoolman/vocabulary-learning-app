@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::amas::types::{FeatureVector, StrategyParams, UserState};
@@ -46,7 +46,8 @@ impl ThompsonSamplingModel {
         &mut self,
         _state: &UserState,
         _feature: &FeatureVector,
-        candidates: &[StrategyParams]) -> Option<StrategyParams> {
+        candidates: &[StrategyParams],
+    ) -> Option<StrategyParams> {
         if candidates.is_empty() {
             return None;
         }
@@ -97,7 +98,11 @@ impl ThompsonSamplingModel {
             return;
         }
 
-        let mut entries: Vec<_> = self.global_params.iter().map(|(k, v)| (k.clone(), v.last_used)).collect();
+        let mut entries: Vec<_> = self
+            .global_params
+            .iter()
+            .map(|(k, v)| (k.clone(), v.last_used))
+            .collect();
         entries.sort_by_key(|(_, lu)| *lu);
 
         let to_remove = self.global_params.len() - MAX_PARAMS_CACHE_SIZE / 2;

@@ -130,7 +130,8 @@ impl AlertMonitoringService {
     }
 }
 
-static GLOBAL_SERVICE: std::sync::OnceLock<Arc<AlertMonitoringService>> = std::sync::OnceLock::new();
+static GLOBAL_SERVICE: std::sync::OnceLock<Arc<AlertMonitoringService>> =
+    std::sync::OnceLock::new();
 
 pub fn alert_monitoring_service() -> Arc<AlertMonitoringService> {
     GLOBAL_SERVICE

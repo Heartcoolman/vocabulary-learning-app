@@ -382,7 +382,9 @@ pub async fn update_user_role(
 ) -> Result<UpdateUserRoleResult, AdminError> {
     let normalized = role.trim().to_ascii_uppercase();
     if normalized != "USER" && normalized != "ADMIN" {
-        return Err(AdminError::Validation("role 必须为 USER 或 ADMIN".to_string()));
+        return Err(AdminError::Validation(
+            "role 必须为 USER 或 ADMIN".to_string(),
+        ));
     }
 
     let pool = proxy.pool();
@@ -416,10 +418,7 @@ pub async fn update_user_role(
     })
 }
 
-pub async fn delete_user(
-    proxy: &DatabaseProxy,
-    user_id: &str,
-) -> Result<(), AdminError> {
+pub async fn delete_user(proxy: &DatabaseProxy, user_id: &str) -> Result<(), AdminError> {
     let role = select_user_role(proxy, user_id).await?;
     let Some(role) = role else {
         return Err(AdminError::NotFound("用户不存在".to_string()));
@@ -513,7 +512,9 @@ pub async fn get_user_words(
 
     if let Some(level) = params.mastery_level {
         if !(0..=5).contains(&level) {
-            return Err(AdminError::Validation("masteryLevel 参数不合法".to_string()));
+            return Err(AdminError::Validation(
+                "masteryLevel 参数不合法".to_string(),
+            ));
         }
     }
 
@@ -521,12 +522,27 @@ pub async fn get_user_words(
 
     let pool = proxy.pool();
 
-    let total = count_user_words_pg(&pool, user_id, normalized_state.as_deref(), search.as_deref()).await?;
+    let total = count_user_words_pg(
+        &pool,
+        user_id,
+        normalized_state.as_deref(),
+        search.as_deref(),
+    )
+    .await?;
 
     let words = if total == 0 {
         Vec::new()
     } else {
-        select_user_words_pg(&pool, user_id, &params, normalized_state.as_deref(), search.as_deref(), page_size, offset).await?
+        select_user_words_pg(
+            &pool,
+            user_id,
+            &params,
+            normalized_state.as_deref(),
+            search.as_deref(),
+            page_size,
+            offset,
+        )
+        .await?
     };
 
     Ok(UserWordsResult {
@@ -555,9 +571,7 @@ pub async fn get_user_decisions(
     })
 }
 
-pub async fn get_system_statistics(
-    proxy: &DatabaseProxy,
-) -> Result<SystemStatistics, AdminError> {
+pub async fn get_system_statistics(proxy: &DatabaseProxy) -> Result<SystemStatistics, AdminError> {
     let pool = proxy.pool();
     select_system_statistics_pg(&pool).await
 }
@@ -590,7 +604,6 @@ fn round_two(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
 }
 
-
 fn validate_word_state(value: &str) -> Result<String, AdminError> {
     let normalized = value.trim().to_ascii_uppercase();
     match normalized.as_str() {
@@ -600,7 +613,9 @@ fn validate_word_state(value: &str) -> Result<String, AdminError> {
 }
 
 async fn count_users_pg(pool: &sqlx::PgPool, search: Option<&str>) -> Result<i64, sqlx::Error> {
-    let mut qb = QueryBuilder::<sqlx::Postgres>::new(r#"SELECT COUNT(*) as "count" FROM "users" u WHERE 1=1"#);
+    let mut qb = QueryBuilder::<sqlx::Postgres>::new(
+        r#"SELECT COUNT(*) as "count" FROM "users" u WHERE 1=1"#,
+    );
     if let Some(search) = search {
         let pattern = format!("%{}%", search);
         qb.push(" AND (u.\"email\" ILIKE ");
@@ -671,10 +686,14 @@ async fn select_users_pg(
     Ok(rows.into_iter().map(map_user_list_item_pg).collect())
 }
 
-
 fn map_user_list_item_pg(row: sqlx::postgres::PgRow) -> UserListItem {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let last_learning_time: Option<NaiveDateTime> = row.try_get::<Option<NaiveDateTime>, _>("lastLearningTime").ok().flatten();
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let last_learning_time: Option<NaiveDateTime> = row
+        .try_get::<Option<NaiveDateTime>, _>("lastLearningTime")
+        .ok()
+        .flatten();
 
     UserListItem {
         id: row.try_get("id").unwrap_or_default(),
@@ -689,8 +708,10 @@ fn map_user_list_item_pg(row: sqlx::postgres::PgRow) -> UserListItem {
     }
 }
 
-
-async fn select_user_detail_pg(pool: &sqlx::PgPool, user_id: &str) -> Result<UserDetail, AdminError> {
+async fn select_user_detail_pg(
+    pool: &sqlx::PgPool,
+    user_id: &str,
+) -> Result<UserDetail, AdminError> {
     let row = sqlx::query(
         r#"
         SELECT
@@ -727,10 +748,12 @@ async fn select_user_detail_pg(pool: &sqlx::PgPool, user_id: &str) -> Result<Use
         role: row.try_get("role")?,
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
         updated_at: crate::auth::format_naive_datetime_iso_millis(updated_at),
-        count: UserDetailCounts { word_books, records },
+        count: UserDetailCounts {
+            word_books,
+            records,
+        },
     })
 }
-
 
 async fn select_user_role(
     proxy: &DatabaseProxy,
@@ -836,14 +859,21 @@ async fn select_statistics_aggregates(
 
     let pool = proxy.pool();
 
-    let row = sqlx::query(r#"SELECT COALESCE(AVG("totalScore"), 0) as "avg" FROM "word_scores" WHERE "userId" = $1"#)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+    let row = sqlx::query(
+        r#"SELECT COALESCE(AVG("totalScore"), 0) as "avg" FROM "word_scores" WHERE "userId" = $1"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
 
     let average_score = row.try_get::<f64, _>("avg").unwrap_or(0.0);
 
-    Ok((total_records, correct_records, total_words_learned, average_score))
+    Ok((
+        total_records,
+        correct_records,
+        total_words_learned,
+        average_score,
+    ))
 }
 
 async fn select_mastery_distribution(
@@ -1000,16 +1030,26 @@ async fn select_user_words_pg(
 fn map_user_word_pg(row: sqlx::postgres::PgRow) -> UserWordItem {
     let mastery_level = row.try_get::<i32, _>("masteryLevel").unwrap_or(0) as i64;
     let review_count = row.try_get::<i32, _>("reviewCount").unwrap_or(0) as i64;
-    let last_review: Option<NaiveDateTime> = row.try_get::<Option<NaiveDateTime>, _>("lastReviewDate").ok().flatten();
-    let next_review: Option<NaiveDateTime> = row.try_get::<Option<NaiveDateTime>, _>("nextReviewDate").ok().flatten();
+    let last_review: Option<NaiveDateTime> = row
+        .try_get::<Option<NaiveDateTime>, _>("lastReviewDate")
+        .ok()
+        .flatten();
+    let next_review: Option<NaiveDateTime> = row
+        .try_get::<Option<NaiveDateTime>, _>("nextReviewDate")
+        .ok()
+        .flatten();
 
     UserWordItem {
         word: AdminWord {
             id: row.try_get("id").unwrap_or_default(),
             spelling: row.try_get("spelling").unwrap_or_default(),
             phonetic: row.try_get("phonetic").unwrap_or_default(),
-            meanings: row.try_get::<Vec<String>, _>("meanings").unwrap_or_default(),
-            examples: row.try_get::<Vec<String>, _>("examples").unwrap_or_default(),
+            meanings: row
+                .try_get::<Vec<String>, _>("meanings")
+                .unwrap_or_default(),
+            examples: row
+                .try_get::<Vec<String>, _>("examples")
+                .unwrap_or_default(),
         },
         score: row.try_get::<f64, _>("score").unwrap_or(0.0),
         mastery_level,
@@ -1050,7 +1090,9 @@ async fn select_system_statistics_pg(pool: &sqlx::PgPool) -> Result<SystemStatis
     .fetch_one(pool)
     .await?;
 
-    let active_users = active_users_row.try_get::<i64, _>("activeUsers").unwrap_or(0);
+    let active_users = active_users_row
+        .try_get::<i64, _>("activeUsers")
+        .unwrap_or(0);
 
     Ok(SystemStatistics {
         total_users,
@@ -1116,7 +1158,9 @@ pub async fn get_word_score_history(
     let score_history = rows
         .into_iter()
         .map(|row| {
-            let ts: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+            let ts: NaiveDateTime = row
+                .try_get("timestamp")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             ScoreHistoryItem {
                 timestamp: crate::auth::format_naive_datetime_iso_millis(ts),
                 score: row.try_get::<f64, _>("score").unwrap_or(0.0),
@@ -1217,7 +1261,9 @@ pub async fn get_anomaly_flags(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let flagged_at: NaiveDateTime = row.try_get("flaggedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+            let flagged_at: NaiveDateTime = row
+                .try_get("flaggedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             AnomalyFlag {
                 id: row.try_get("id").unwrap_or_default(),
                 user_id: row.try_get("userId").unwrap_or_default(),
@@ -1283,7 +1329,9 @@ pub async fn get_user_heatmap(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let date: chrono::NaiveDate = row.try_get("date").unwrap_or_else(|_| Utc::now().date_naive());
+            let date: chrono::NaiveDate = row
+                .try_get("date")
+                .unwrap_or_else(|_| Utc::now().date_naive());
             HeatmapItem {
                 date: date.to_string(),
                 activity_count: row.try_get::<i64, _>("activityCount").unwrap_or(0),
@@ -1333,11 +1381,13 @@ pub async fn get_user_word_detail(
         id: word_row.try_get("id").unwrap_or_default(),
         spelling: word_row.try_get("spelling").unwrap_or_default(),
         phonetic: word_row.try_get("phonetic").unwrap_or_default(),
-        meanings: word_row.try_get::<serde_json::Value, _>("meanings")
+        meanings: word_row
+            .try_get::<serde_json::Value, _>("meanings")
             .ok()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default(),
-        examples: word_row.try_get::<serde_json::Value, _>("examples")
+        examples: word_row
+            .try_get::<serde_json::Value, _>("examples")
             .ok()
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default(),
@@ -1378,22 +1428,24 @@ pub async fn get_user_word_detail(
     .fetch_one(pool)
     .await?;
 
-    let (state, mastery_level, review_count, last_review, next_review, first_learned) = match state_row {
-        Some(row) => {
-            let last: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
-            let next: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-            let created: Option<NaiveDateTime> = row.try_get("createdAt").ok();
-            (
-                row.try_get::<String, _>("state").unwrap_or_else(|_| "NEW".to_string()),
-                row.try_get::<i32, _>("masteryLevel").unwrap_or(0),
-                row.try_get::<i32, _>("reviewCount").unwrap_or(0),
-                last.map(crate::auth::format_naive_datetime_iso_millis),
-                next.map(crate::auth::format_naive_datetime_iso_millis),
-                created.map(crate::auth::format_naive_datetime_iso_millis),
-            )
-        }
-        None => ("NEW".to_string(), 0, 0, None, None, None),
-    };
+    let (state, mastery_level, review_count, last_review, next_review, first_learned) =
+        match state_row {
+            Some(row) => {
+                let last: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
+                let next: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
+                let created: Option<NaiveDateTime> = row.try_get("createdAt").ok();
+                (
+                    row.try_get::<String, _>("state")
+                        .unwrap_or_else(|_| "NEW".to_string()),
+                    row.try_get::<i32, _>("masteryLevel").unwrap_or(0),
+                    row.try_get::<i32, _>("reviewCount").unwrap_or(0),
+                    last.map(crate::auth::format_naive_datetime_iso_millis),
+                    next.map(crate::auth::format_naive_datetime_iso_millis),
+                    created.map(crate::auth::format_naive_datetime_iso_millis),
+                )
+            }
+            None => ("NEW".to_string(), 0, 0, None, None, None),
+        };
 
     let score = score_row
         .as_ref()
@@ -1415,7 +1467,11 @@ pub async fn get_user_word_detail(
         mastery_level,
         review_count,
         correct_count: correct_count as i32,
-        accuracy: if total_count > 0 { recent_accuracy * 100.0 } else { 0.0 },
+        accuracy: if total_count > 0 {
+            recent_accuracy * 100.0
+        } else {
+            0.0
+        },
         last_review_date: last_review,
         next_review_date: next_review,
         first_learned_at: first_learned,
@@ -1471,11 +1527,15 @@ pub async fn get_word_history(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let ts: NaiveDateTime = row.try_get("timestamp").unwrap_or_else(|_| Utc::now().naive_utc());
+            let ts: NaiveDateTime = row
+                .try_get("timestamp")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
             WordHistoryItem {
                 id: row.try_get("id").unwrap_or_default(),
                 timestamp: crate::auth::format_naive_datetime_iso_millis(ts),
-                answer_type: row.try_get("answerType").unwrap_or_else(|_| "unknown".to_string()),
+                answer_type: row
+                    .try_get("answerType")
+                    .unwrap_or_else(|_| "unknown".to_string()),
                 is_correct: row.try_get("isCorrect").unwrap_or(false),
                 score: row.try_get("score").unwrap_or(0.0),
                 response_time_ms: row.try_get("responseTimeMs").unwrap_or(0),

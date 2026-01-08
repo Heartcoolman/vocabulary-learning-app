@@ -133,7 +133,10 @@ struct ContextStats {
 pub fn router() -> axum::Router<AppState> {
     axum::Router::new()
         .route("/", post(add_context))
-        .route("/batch", post(add_contexts_batch).delete(delete_contexts_batch))
+        .route(
+            "/batch",
+            post(add_contexts_batch).delete(delete_contexts_batch),
+        )
         .route("/recommend", post(recommend_contexts_for_words))
         .route("/word/:wordId", get(get_contexts_for_word))
         .route("/word/:wordId/random", get(get_random_context))
@@ -249,7 +252,8 @@ async fn add_contexts_batch(
         }
     }
 
-    let accessible_count = count_accessible_words(proxy.as_ref(), &user.id, &unique_word_ids).await?;
+    let accessible_count =
+        count_accessible_words(proxy.as_ref(), &user.id, &unique_word_ids).await?;
     if accessible_count != unique_word_ids.len() as i64 {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
@@ -318,12 +322,24 @@ async fn get_contexts_for_word(
     let (proxy, user) = require_user(&state, &headers).await?;
     assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
-    let sort_by = query.sort_by.clone().unwrap_or_else(|| "createdAt".to_string());
-    let sort_order = query.sort_order.clone().unwrap_or_else(|| "desc".to_string());
+    let sort_by = query
+        .sort_by
+        .clone()
+        .unwrap_or_else(|| "createdAt".to_string());
+    let sort_order = query
+        .sort_order
+        .clone()
+        .unwrap_or_else(|| "desc".to_string());
 
     let options = ContextQueryOptions {
-        context_type: query.r#type.map(|v| normalize_context_type(&v)).transpose()?,
-        difficulty: query.difficulty.map(|v| normalize_difficulty(&v)).transpose()?,
+        context_type: query
+            .r#type
+            .map(|v| normalize_context_type(&v))
+            .transpose()?,
+        difficulty: query
+            .difficulty
+            .map(|v| normalize_difficulty(&v))
+            .transpose()?,
         limit: query.limit.unwrap_or(20).clamp(1, 100),
         offset: query.offset.unwrap_or(0).max(0),
         sort_by,
@@ -347,10 +363,22 @@ async fn get_random_context(
     let (proxy, user) = require_user(&state, &headers).await?;
     assert_word_accessible(proxy.as_ref(), &user.id, &word_id).await?;
 
-    let context_type = query.r#type.map(|v| normalize_context_type(&v)).transpose()?;
-    let difficulty = query.difficulty.map(|v| normalize_difficulty(&v)).transpose()?;
+    let context_type = query
+        .r#type
+        .map(|v| normalize_context_type(&v))
+        .transpose()?;
+    let difficulty = query
+        .difficulty
+        .map(|v| normalize_difficulty(&v))
+        .transpose()?;
 
-    let context = select_random_context(proxy.as_ref(), &word_id, context_type.as_deref(), difficulty.as_deref()).await?;
+    let context = select_random_context(
+        proxy.as_ref(),
+        &word_id,
+        context_type.as_deref(),
+        difficulty.as_deref(),
+    )
+    .await?;
     let Some(context) = context else {
         return Err(json_error(
             StatusCode::NOT_FOUND,
@@ -385,7 +413,9 @@ async fn get_best_context(
         .and_then(map_user_level_to_difficulty);
 
     let mut best = None;
-    if let (Some(preferred_type), Some(difficulty)) = (preferred_type.as_deref(), difficulty.as_deref()) {
+    if let (Some(preferred_type), Some(difficulty)) =
+        (preferred_type.as_deref(), difficulty.as_deref())
+    {
         best = select_random_context(
             proxy.as_ref(),
             &word_id,
@@ -489,11 +519,20 @@ async fn update_content(
     }
 
     update_context_content(proxy.as_ref(), &context_id, &content).await?;
-    let updated = select_context_by_id(proxy.as_ref(), &context_id).await?.ok_or_else(|| {
-        json_error(StatusCode::NOT_FOUND, "CONTEXT_NOT_FOUND", "语境不存在或无权访问")
-    })?;
+    let updated = select_context_by_id(proxy.as_ref(), &context_id)
+        .await?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                "CONTEXT_NOT_FOUND",
+                "语境不存在或无权访问",
+            )
+        })?;
 
-    Ok(Json(SuccessResponse { success: true, data: updated }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: updated,
+    }))
 }
 
 async fn update_metadata(
@@ -506,7 +545,11 @@ async fn update_metadata(
     assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
     let new_meta = payload.as_object().cloned().ok_or_else(|| {
-        json_error(StatusCode::BAD_REQUEST, "INVALID_METADATA", "metadata 必须是对象")
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "INVALID_METADATA",
+            "metadata 必须是对象",
+        )
     })?;
 
     let existing = select_context_metadata(proxy.as_ref(), &context_id).await?;
@@ -517,11 +560,20 @@ async fn update_metadata(
 
     update_context_metadata(proxy.as_ref(), &context_id, &merged).await?;
 
-    let updated = select_context_by_id(proxy.as_ref(), &context_id).await?.ok_or_else(|| {
-        json_error(StatusCode::NOT_FOUND, "CONTEXT_NOT_FOUND", "语境不存在或无权访问")
-    })?;
+    let updated = select_context_by_id(proxy.as_ref(), &context_id)
+        .await?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                "CONTEXT_NOT_FOUND",
+                "语境不存在或无权访问",
+            )
+        })?;
 
-    Ok(Json(SuccessResponse { success: true, data: updated }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: updated,
+    }))
 }
 
 async fn record_usage(
@@ -532,19 +584,38 @@ async fn record_usage(
     let (proxy, user) = require_user(&state, &headers).await?;
     assert_context_accessible(proxy.as_ref(), &user.id, &context_id).await?;
 
-    let existing = select_context_metadata(proxy.as_ref(), &context_id).await?.unwrap_or_default();
+    let existing = select_context_metadata(proxy.as_ref(), &context_id)
+        .await?
+        .unwrap_or_default();
     let mut merged = existing;
 
-    let usage_count = merged.get("usageCount").and_then(|v| v.as_i64()).unwrap_or(0) + 1;
-    let view_count = merged.get("viewCount").and_then(|v| v.as_i64()).unwrap_or(0) + 1;
-    merged.insert("usageCount".to_string(), serde_json::Value::Number(usage_count.into()));
-    merged.insert("viewCount".to_string(), serde_json::Value::Number(view_count.into()));
+    let usage_count = merged
+        .get("usageCount")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+        + 1;
+    let view_count = merged
+        .get("viewCount")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+        + 1;
+    merged.insert(
+        "usageCount".to_string(),
+        serde_json::Value::Number(usage_count.into()),
+    );
+    merged.insert(
+        "viewCount".to_string(),
+        serde_json::Value::Number(view_count.into()),
+    );
 
     update_context_metadata(proxy.as_ref(), &context_id, &merged).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: UsageResponse { context_id, recorded: true },
+        data: UsageResponse {
+            context_id,
+            recorded: true,
+        },
     }))
 }
 
@@ -565,7 +636,9 @@ async fn update_effectiveness(
         ));
     }
 
-    let existing = select_context_metadata(proxy.as_ref(), &context_id).await?.unwrap_or_default();
+    let existing = select_context_metadata(proxy.as_ref(), &context_id)
+        .await?
+        .unwrap_or_default();
     let mut merged = existing;
     merged.insert(
         "effectivenessScore".to_string(),
@@ -579,7 +652,10 @@ async fn update_effectiveness(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: EffectivenessResponse { context_id, score: payload.score },
+        data: EffectivenessResponse {
+            context_id,
+            score: payload.score,
+        },
     }))
 }
 
@@ -594,7 +670,10 @@ async fn delete_context(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: DeleteContextResponse { context_id, deleted: true },
+        data: DeleteContextResponse {
+            context_id,
+            deleted: true,
+        },
     }))
 }
 
@@ -626,7 +705,9 @@ async fn delete_contexts_batch(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: BatchDeleteResponse { deleted_count: count },
+        data: BatchDeleteResponse {
+            deleted_count: count,
+        },
     }))
 }
 
@@ -645,8 +726,14 @@ async fn recommend_contexts_for_words(
         ));
     }
 
-    let context_type = payload.context_type.map(|v| normalize_context_type(&v)).transpose()?;
-    let difficulty = payload.difficulty.map(|v| normalize_difficulty(&v)).transpose()?;
+    let context_type = payload
+        .context_type
+        .map(|v| normalize_context_type(&v))
+        .transpose()?;
+    let difficulty = payload
+        .difficulty
+        .map(|v| normalize_difficulty(&v))
+        .transpose()?;
     let max_per_word = payload.max_per_word.unwrap_or(3).clamp(1, 10);
 
     let mut result: HashMap<String, Vec<WordContextData>> = HashMap::new();
@@ -671,24 +758,42 @@ async fn recommend_contexts_for_words(
         result.insert(word_id, contexts);
     }
 
-    Ok(Json(SuccessResponse { success: true, data: result }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: result,
+    }))
 }
 
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
-    })?;
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -827,7 +932,11 @@ async fn count_accessible_contexts(
     count_accessible_contexts_pg(&pool, user_id, context_ids).await
 }
 
-async fn is_word_accessible_pg(pool: &PgPool, user_id: &str, word_id: &str) -> Result<bool, AppError> {
+async fn is_word_accessible_pg(
+    pool: &PgPool,
+    user_id: &str,
+    word_id: &str,
+) -> Result<bool, AppError> {
     let row = sqlx::query_scalar::<_, String>(
         r#"
         SELECT w."id"
@@ -967,8 +1076,15 @@ async fn select_context_rows_pg(
     word_id: &str,
     options: &ContextQueryOptions,
 ) -> Result<Vec<ContextRow>, AppError> {
-    let sort_order = if options.sort_order.to_ascii_lowercase() == "asc" { "ASC" } else { "DESC" };
-    let needs_in_memory = matches!(options.sort_by.as_str(), "usageCount" | "effectivenessScore");
+    let sort_order = if options.sort_order.to_ascii_lowercase() == "asc" {
+        "ASC"
+    } else {
+        "DESC"
+    };
+    let needs_in_memory = matches!(
+        options.sort_by.as_str(),
+        "usageCount" | "effectivenessScore"
+    );
 
     if !needs_in_memory {
         let sql = format!(
@@ -1015,7 +1131,11 @@ async fn select_context_rows_pg(
         .await
         .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
     let mut contexts: Vec<ContextRow> = rows.into_iter().map(map_context_row_pg).collect();
-    sort_contexts_by_metadata(&mut contexts, options.sort_by.as_str(), options.sort_order.as_str());
+    sort_contexts_by_metadata(
+        &mut contexts,
+        options.sort_by.as_str(),
+        options.sort_order.as_str(),
+    );
     let start = options.offset.min(contexts.len() as i64) as usize;
     let end = (options.offset + options.limit).min(contexts.len() as i64) as usize;
     Ok(contexts[start..end].to_vec())
@@ -1068,15 +1188,19 @@ fn sort_contexts_by_metadata(contexts: &mut [ContextRow], field: &str, order: &s
     contexts.sort_by(|a, b| {
         let va = metadata_number(a.metadata.as_ref(), field);
         let vb = metadata_number(b.metadata.as_ref(), field);
-        let ord = va
-            .partial_cmp(&vb)
-            .unwrap_or(std::cmp::Ordering::Equal);
-        if asc { ord } else { ord.reverse() }
+        let ord = va.partial_cmp(&vb).unwrap_or(std::cmp::Ordering::Equal);
+        if asc {
+            ord
+        } else {
+            ord.reverse()
+        }
     });
 }
 
 fn metadata_number(meta: Option<&serde_json::Value>, field: &str) -> f64 {
-    meta.and_then(|v| v.get(field)).and_then(|v| v.as_f64()).unwrap_or(0.0)
+    meta.and_then(|v| v.get(field))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
 }
 
 async fn select_context_by_id(
@@ -1234,7 +1358,10 @@ fn map_context_row_pg(row: sqlx::postgres::PgRow) -> ContextRow {
         word_id: row.try_get("wordId").unwrap_or_default(),
         context_type: row.try_get("contextType").unwrap_or_default(),
         content: row.try_get("content").unwrap_or_default(),
-        metadata: row.try_get::<Option<serde_json::Value>, _>("metadata").ok().flatten(),
+        metadata: row
+            .try_get::<Option<serde_json::Value>, _>("metadata")
+            .ok()
+            .flatten(),
         created_at,
         updated_at,
     }
@@ -1251,4 +1378,3 @@ fn map_context_row(row: ContextRow) -> WordContextData {
         updated_at: normalize_datetime_str(&row.updated_at),
     }
 }
-

@@ -81,17 +81,20 @@ struct AuthUserSummary {
     created_at: String,
 }
 
-pub async fn verify(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn verify(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
@@ -100,23 +103,29 @@ pub async fn verify(
             data: VerifyData { user },
         })
         .into_response(),
-        Err(_) => {
-            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response()
-        }
+        Err(_) => json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "认证失败，请重新登录",
+        )
+        .into_response(),
     }
 }
 
-pub async fn logout(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn logout(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
@@ -124,7 +133,12 @@ pub async fn logout(
             let token_hash = crate::auth::hash_token(&token);
             if let Err(err) = proxy.delete_session_by_token_hash(&token_hash).await {
                 tracing::warn!(error = %err, "logout session delete failed");
-                return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+                return json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "服务器内部错误",
+                )
+                .into_response();
             }
 
             if let Some(cache) = state.cache() {
@@ -146,9 +160,12 @@ pub async fn logout(
             )
                 .into_response()
         }
-        Err(_) => {
-            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response()
-        }
+        Err(_) => json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "认证失败，请重新登录",
+        )
+        .into_response(),
     }
 }
 
@@ -166,7 +183,8 @@ pub async fn reset_password(
     Json(payload): Json<PasswordResetConfirmRequest>,
 ) -> Response {
     if payload.token.trim().is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "令牌不能为空").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "令牌不能为空")
+            .into_response();
     }
 
     if let Some(message) = validate_register_password(&payload.new_password) {
@@ -174,7 +192,12 @@ pub async fn reset_password(
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let token_record = match crate::db::operations::user::get_valid_password_reset_token(
@@ -185,11 +208,17 @@ pub async fn reset_password(
     {
         Ok(Some(record)) => record,
         Ok(None) => {
-            return json_error(StatusCode::BAD_REQUEST, "INVALID_TOKEN", "令牌无效或已过期").into_response();
+            return json_error(StatusCode::BAD_REQUEST, "INVALID_TOKEN", "令牌无效或已过期")
+                .into_response();
         }
         Err(err) => {
             tracing::warn!(error = %err, "password reset token lookup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -197,22 +226,39 @@ pub async fn reset_password(
         Ok(hash) => hash,
         Err(err) => {
             tracing::warn!(error = %err, "password hash failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
     let pool = proxy.pool();
-    if let Err(err) = sqlx::query(r#"UPDATE "users" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "id" = $2"#)
-        .bind(&password_hash)
-        .bind(&token_record.user_id)
-        .execute(pool)
-        .await
+    if let Err(err) = sqlx::query(
+        r#"UPDATE "users" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "id" = $2"#,
+    )
+    .bind(&password_hash)
+    .bind(&token_record.user_id)
+    .execute(pool)
+    .await
     {
         tracing::warn!(error = %err, "password update failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
-    if let Err(err) = crate::db::operations::user::mark_password_reset_token_used(proxy.as_ref(), &token_record.id).await {
+    if let Err(err) = crate::db::operations::user::mark_password_reset_token_used(
+        proxy.as_ref(),
+        &token_record.id,
+    )
+    .await
+    {
         tracing::warn!(error = %err, "mark token used failed");
     }
 
@@ -223,23 +269,31 @@ pub async fn reset_password(
     .into_response()
 }
 
-pub async fn refresh_token(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn refresh_token(State(state): State<AppState>, req: Request<Body>) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => user,
         Err(_) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response();
+            return json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+            .into_response();
         }
     };
 
@@ -256,7 +310,12 @@ pub async fn refresh_token(
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "refresh token: jwt sign failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -276,7 +335,12 @@ pub async fn refresh_token(
     .await
     {
         tracing::warn!(error = %err, "refresh token: session insert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let mut headers = HeaderMap::new();
@@ -305,10 +369,7 @@ pub async fn refresh_token(
         .into_response()
 }
 
-pub async fn register(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn register(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (_parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -317,12 +378,18 @@ pub async fn register(
     let payload: RegisterRequest = match serde_json::from_slice(&body_bytes) {
         Ok(payload) => payload,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
     if !is_valid_email(&payload.email) {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "邮箱格式无效").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "邮箱格式无效")
+            .into_response();
     }
 
     if let Some(message) = validate_register_password(&payload.password) {
@@ -330,11 +397,21 @@ pub async fn register(
     }
 
     if payload.username.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "用户名不能为空").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "用户名不能为空",
+        )
+        .into_response();
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     match select_user_id_by_email(proxy.as_ref(), &payload.email).await {
@@ -344,7 +421,12 @@ pub async fn register(
         Ok(None) => {}
         Err(err) => {
             tracing::warn!(error = %err, "register email check failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     }
 
@@ -352,7 +434,12 @@ pub async fn register(
         Ok(hash) => hash,
         Err(err) => {
             tracing::warn!(error = %err, "password hash failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -361,7 +448,12 @@ pub async fn register(
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "jwt sign failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -373,7 +465,12 @@ pub async fn register(
         Ok(tx) => tx,
         Err(err) => {
             tracing::warn!(error = %err, "register tx begin failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -392,7 +489,12 @@ pub async fn register(
     .await
     {
         tracing::warn!(error = %err, "register user insert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Err(err) = sqlx::query(
@@ -409,12 +511,22 @@ pub async fn register(
     .await
     {
         tracing::warn!(error = %err, "register session insert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     if let Err(err) = tx.commit().await {
         tracing::warn!(error = %err, "register tx commit failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let created_at = match select_user_created_at(proxy.as_ref(), &user_id).await {
@@ -447,10 +559,7 @@ pub async fn register(
         .into_response()
 }
 
-pub async fn login(
-    State(state): State<AppState>,
-    req: Request<Body>,
-) -> Response {
+pub async fn login(State(state): State<AppState>, req: Request<Body>) -> Response {
     let (_parts, body_bytes) = match split_body(req).await {
         Ok(value) => value,
         Err(res) => return res,
@@ -459,30 +568,48 @@ pub async fn login(
     let payload: LoginRequest = match serde_json::from_slice(&body_bytes) {
         Ok(payload) => payload,
         Err(_) => {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "请求参数不合法").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "请求参数不合法",
+            )
+            .into_response();
         }
     };
 
     if !is_valid_email(&payload.email) {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "邮箱格式无效").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "邮箱格式无效")
+            .into_response();
     }
 
     if payload.password.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "密码不能为空").into_response();
+        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "密码不能为空")
+            .into_response();
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+        .into_response();
     };
 
     let user = match select_user_for_login(proxy.as_ref(), &payload.email).await {
         Ok(Some(user)) => user,
         Ok(None) => {
-            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "该邮箱尚未注册").into_response();
+            return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "该邮箱尚未注册")
+                .into_response();
         }
         Err(err) => {
             tracing::warn!(error = %err, "login user lookup failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -495,7 +622,12 @@ pub async fn login(
         Ok(value) => value,
         Err(err) => {
             tracing::warn!(error = %err, "jwt sign failed");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "服务器内部错误",
+            )
+            .into_response();
         }
     };
 
@@ -516,7 +648,12 @@ pub async fn login(
     .await
     {
         tracing::warn!(error = %err, "login session insert failed");
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误").into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+        .into_response();
     }
 
     let mut headers = HeaderMap::new();
@@ -560,12 +697,16 @@ fn clear_auth_cookie_header() -> Option<HeaderValue> {
     HeaderValue::from_str(&cookie).ok()
 }
 
-async fn split_body(req: Request<Body>) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
+async fn split_body(
+    req: Request<Body>,
+) -> Result<(axum::http::request::Parts, bytes::Bytes), Response> {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response());
+            return Err(
+                json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "无效请求").into_response(),
+            );
         }
     };
     Ok((parts, body_bytes))
@@ -637,7 +778,9 @@ async fn select_user_created_at(
     };
 
     let created_at: chrono::NaiveDateTime = row.try_get("createdAt")?;
-    Ok(Some(crate::auth::format_naive_datetime_iso_millis(created_at)))
+    Ok(Some(crate::auth::format_naive_datetime_iso_millis(
+        created_at,
+    )))
 }
 
 async fn select_user_for_login(
@@ -690,9 +833,8 @@ fn auth_cookie_header(token: &str) -> Option<HeaderValue> {
         .map(|ms| ms / 1000)
         .unwrap_or(86400);
 
-    let mut cookie = format!(
-        "auth_token={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}"
-    );
+    let mut cookie =
+        format!("auth_token={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}");
     if is_production {
         cookie.push_str("; Secure");
     }

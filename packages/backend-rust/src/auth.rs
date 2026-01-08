@@ -139,7 +139,8 @@ fn verify_jwt_hs256(token: &str, secret: &str) -> Result<JwtClaims, AuthError> {
     }
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
     mac.update(format!("{header_b64}.{payload_b64}").as_bytes());
     mac.verify_slice(&sig_bytes)
         .map_err(|_| AuthError::InvalidToken)?;
@@ -209,12 +210,15 @@ pub fn sign_jwt_for_user(user_id: &str) -> Result<(String, NaiveDateTime), AuthE
         "exp": exp.timestamp(),
     });
 
-    let header_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&header_json).map_err(|_| AuthError::InvalidToken)?);
-    let payload_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload_json).map_err(|_| AuthError::InvalidToken)?);
+    let header_b64 = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&header_json).map_err(|_| AuthError::InvalidToken)?);
+    let payload_b64 = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&payload_json).map_err(|_| AuthError::InvalidToken)?);
     let signing_input = format!("{header_b64}.{payload_b64}");
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| AuthError::InvalidToken)?;
     mac.update(signing_input.as_bytes());
     let signature = mac.finalize().into_bytes();
     let sig_b64 = URL_SAFE_NO_PAD.encode(signature);
@@ -231,9 +235,7 @@ pub fn parse_expires_in_ms(value: &str) -> Result<i64, AuthError> {
         return Err(AuthError::InvalidExpiresIn);
     }
 
-    let (digits, unit) = value
-        .trim()
-        .split_at(trimmed.len() - 1);
+    let (digits, unit) = value.trim().split_at(trimmed.len() - 1);
 
     let amount: i64 = digits.parse().map_err(|_| AuthError::InvalidExpiresIn)?;
     if amount <= 0 {

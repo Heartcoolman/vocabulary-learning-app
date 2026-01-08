@@ -27,7 +27,10 @@ pub fn router() -> Router<AppState> {
         .route("/behavior-insights", get(list_behavior_insights))
         .route("/alert-root-cause", post(create_alert_root_cause))
         .route("/alert-root-cause", get(list_alert_root_causes))
-        .route("/alert-root-cause/:id/resolve", put(resolve_alert_root_cause))
+        .route(
+            "/alert-root-cause/:id/resolve",
+            put(resolve_alert_root_cause),
+        )
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,11 +50,21 @@ async fn create_behavior_insight(
     Json(body): Json<CreateBehaviorInsightRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
-    let analysis_date = NaiveDate::parse_from_str(&body.analysis_date, "%Y-%m-%d")
-        .map_err(|_| json_error(StatusCode::BAD_REQUEST, "INVALID_DATE", "日期格式无效，应为 YYYY-MM-DD"))?;
+    let analysis_date =
+        NaiveDate::parse_from_str(&body.analysis_date, "%Y-%m-%d").map_err(|_| {
+            json_error(
+                StatusCode::BAD_REQUEST,
+                "INVALID_DATE",
+                "日期格式无效，应为 YYYY-MM-DD",
+            )
+        })?;
 
     match upsert_user_behavior_insight(
         proxy.as_ref(),
@@ -62,11 +75,20 @@ async fn create_behavior_insight(
         &body.recommendations,
         body.user_count,
         body.data_points,
-    ).await {
-        Ok(id) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id }) })),
+    )
+    .await
+    {
+        Ok(id) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "create behavior insight failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "创建行为洞察失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "创建行为洞察失败",
+            ))
         }
     }
 }
@@ -98,13 +120,20 @@ async fn list_behavior_insights(
     Query(query): Query<ListBehaviorInsightsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
     let pool = proxy.pool();
 
-    let date = query.date.as_ref().and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
+    let date = query
+        .date
+        .as_ref()
+        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
 
     let rows = match (&date, &query.segment) {
         (Some(d), Some(s)) => {
@@ -147,16 +176,27 @@ async fn list_behavior_insights(
 
     let rows = rows.map_err(|e| {
         tracing::warn!(error = %e, "list behavior insights failed");
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "查询行为洞察失败")
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "查询行为洞察失败",
+        )
     })?;
 
     let items: Vec<BehaviorInsightItem> = rows.iter().map(map_behavior_insight_row).collect();
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 fn map_behavior_insight_row(row: &sqlx::postgres::PgRow) -> BehaviorInsightItem {
-    let analysis_date: NaiveDate = row.try_get("analysisDate").unwrap_or_else(|_| chrono::Utc::now().date_naive());
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let analysis_date: NaiveDate = row
+        .try_get("analysisDate")
+        .unwrap_or_else(|_| chrono::Utc::now().date_naive());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
 
     BehaviorInsightItem {
         id: row.try_get("id").unwrap_or_default(),
@@ -164,7 +204,9 @@ fn map_behavior_insight_row(row: &sqlx::postgres::PgRow) -> BehaviorInsightItem 
         user_segment: row.try_get("userSegment").unwrap_or_default(),
         patterns: row.try_get("patterns").unwrap_or(serde_json::Value::Null),
         insights: row.try_get("insights").unwrap_or(serde_json::Value::Null),
-        recommendations: row.try_get("recommendations").unwrap_or(serde_json::Value::Null),
+        recommendations: row
+            .try_get("recommendations")
+            .unwrap_or(serde_json::Value::Null),
         user_count: row.try_get("userCount").unwrap_or(0),
         data_points: row.try_get("dataPoints").unwrap_or(0),
         created_at: format_naive_iso(created_at),
@@ -192,7 +234,11 @@ async fn create_alert_root_cause(
     Json(body): Json<CreateAlertRootCauseRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match insert_alert_root_cause_analysis(
@@ -203,11 +249,20 @@ async fn create_alert_root_cause(
         &body.suggested_fixes,
         &body.related_metrics,
         body.confidence,
-    ).await {
-        Ok(id) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id }) })),
+    )
+    .await
+    {
+        Ok(id) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "create alert root cause failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "创建告警根因分析失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "创建告警根因分析失败",
+            ))
         }
     }
 }
@@ -242,7 +297,11 @@ async fn list_alert_root_causes(
     Query(query): Query<ListAlertRootCausesQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
@@ -289,15 +348,24 @@ async fn list_alert_root_causes(
 
     let rows = rows.map_err(|e| {
         tracing::warn!(error = %e, "list alert root causes failed");
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "查询告警根因分析失败")
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DB_ERROR",
+            "查询告警根因分析失败",
+        )
     })?;
 
     let items: Vec<AlertRootCauseItem> = rows.iter().map(map_alert_root_cause_row).collect();
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 fn map_alert_root_cause_row(row: &sqlx::postgres::PgRow) -> AlertRootCauseItem {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
     let resolved_at: Option<chrono::NaiveDateTime> = row.try_get("resolvedAt").ok();
 
     AlertRootCauseItem {
@@ -305,8 +373,12 @@ fn map_alert_root_cause_row(row: &sqlx::postgres::PgRow) -> AlertRootCauseItem {
         alert_rule_id: row.try_get("alertRuleId").unwrap_or_default(),
         severity: row.try_get("severity").unwrap_or_default(),
         root_cause: row.try_get("rootCause").unwrap_or_default(),
-        suggested_fixes: row.try_get("suggestedFixes").unwrap_or(serde_json::Value::Null),
-        related_metrics: row.try_get("relatedMetrics").unwrap_or(serde_json::Value::Null),
+        suggested_fixes: row
+            .try_get("suggestedFixes")
+            .unwrap_or(serde_json::Value::Null),
+        related_metrics: row
+            .try_get("relatedMetrics")
+            .unwrap_or(serde_json::Value::Null),
         confidence: row.try_get("confidence").unwrap_or(0.0),
         status: row.try_get("status").unwrap_or_default(),
         resolved_by: row.try_get("resolvedBy").ok(),
@@ -329,14 +401,25 @@ async fn resolve_alert_root_cause(
     Json(body): Json<ResolveAlertRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let Some(proxy) = state.db_proxy() else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        ));
     };
 
     match update_alert_root_cause_resolved(proxy.as_ref(), &id, &user.id, &body.resolution).await {
-        Ok(()) => Ok(Json(SuccessResponse { success: true, data: serde_json::json!({ "id": id, "status": "resolved" }) })),
+        Ok(()) => Ok(Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "id": id, "status": "resolved" }),
+        })),
         Err(e) => {
             tracing::warn!(error = %e, "resolve alert root cause failed");
-            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "解决告警根因失败"))
+            Err(json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "解决告警根因失败",
+            ))
         }
     }
 }

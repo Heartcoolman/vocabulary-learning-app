@@ -167,7 +167,9 @@ impl AlertEngine {
     }
 
     fn mark_fired(&self, rule_id: &str) {
-        self.last_fired.write().insert(rule_id.to_string(), Instant::now());
+        self.last_fired
+            .write()
+            .insert(rule_id.to_string(), Instant::now());
     }
 
     fn send_webhook(&self, event: &AlertEvent) {

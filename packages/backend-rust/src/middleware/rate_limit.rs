@@ -53,10 +53,12 @@ pub async fn auth_rate_limit_middleware(req: Request<Body>, next: Next) -> Respo
         return next.run(req).await;
     }
 
-    let limiter = AUTH_LIMITER.get_or_init(|| Arc::new(RateLimiter::new(RateLimitConfig {
-        window_ms: AUTH_WINDOW_MS,
-        max: AUTH_MAX,
-    })));
+    let limiter = AUTH_LIMITER.get_or_init(|| {
+        Arc::new(RateLimiter::new(RateLimitConfig {
+            window_ms: AUTH_WINDOW_MS,
+            max: AUTH_MAX,
+        }))
+    });
     enforce_rate_limit(
         limiter,
         Scope::Auth,
@@ -137,10 +139,7 @@ fn env_u64(key: &str) -> Option<u64> {
 }
 
 fn is_test_env() -> bool {
-    matches!(
-        std::env::var("NODE_ENV").ok().as_deref(),
-        Some("test")
-    )
+    matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("test"))
 }
 
 fn is_loopback_request(req: &Request<Body>) -> bool {
@@ -228,7 +227,11 @@ impl RateLimiter {
 
         entry.hits = entry.hits.saturating_add(1);
         let allowed = entry.hits <= self.config.max;
-        let remaining = self.config.max.saturating_sub(entry.hits).min(self.config.max);
+        let remaining = self
+            .config
+            .max
+            .saturating_sub(entry.hits)
+            .min(self.config.max);
         let reset_after_ms = self
             .config
             .window_ms

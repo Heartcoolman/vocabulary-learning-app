@@ -24,6 +24,7 @@ pub mod realtime;
 mod records;
 mod study_config;
 mod tracking;
+mod users;
 mod v1_auth;
 mod v1_sessions;
 mod visual_fatigue;
@@ -31,9 +32,8 @@ mod word_contexts;
 mod word_mastery;
 mod word_scores;
 mod word_states;
-mod users;
-mod words;
 mod wordbooks;
+mod words;
 
 use axum::http::StatusCode;
 use axum::middleware;
@@ -98,9 +98,20 @@ pub fn router(state: AppState) -> Router {
             "/api/auth/password/reset",
             post(v1_auth::reset_password).fallback(fallback_handler),
         )
-        .route("/api/users/me", get(users::me).put(users::update_profile).fallback(fallback_handler))
-        .route("/api/users/me/statistics", get(users::statistics).fallback(fallback_handler))
-        .route("/api/users/me/password", put(users::update_password).fallback(fallback_handler))
+        .route(
+            "/api/users/me",
+            get(users::me)
+                .put(users::update_profile)
+                .fallback(fallback_handler),
+        )
+        .route(
+            "/api/users/me/statistics",
+            get(users::statistics).fallback(fallback_handler),
+        )
+        .route(
+            "/api/users/me/password",
+            put(users::update_password).fallback(fallback_handler),
+        )
         .route(
             "/api/users/profile/reward",
             get(users::reward_profile)
@@ -176,7 +187,10 @@ pub fn router(state: AppState) -> Router {
             get(notifications::list_notifications).fallback(fallback_handler),
         )
         .route("/api/logs", post(logs::ingest).fallback(fallback_handler))
-        .route("/api/logs/health", get(logs::health).fallback(fallback_handler))
+        .route(
+            "/api/logs/health",
+            get(logs::health).fallback(fallback_handler),
+        )
         .route(
             "/api/notifications/stats",
             get(notifications::stats).fallback(fallback_handler),
@@ -296,7 +310,10 @@ pub fn router(state: AppState) -> Router {
             "/api/wordbooks/:wordBookId/words/:wordId",
             axum::routing::delete(wordbooks::remove_word_from_wordbook).fallback(fallback_handler),
         )
-        .route("/api/v1/users/me", get(users::me).fallback(fallback_handler))
+        .route(
+            "/api/v1/users/me",
+            get(users::me).fallback(fallback_handler),
+        )
         .route(
             "/api/v1/users/me/statistics",
             get(users::statistics).fallback(fallback_handler),
@@ -567,8 +584,7 @@ pub fn router(state: AppState) -> Router {
         app = app.nest(path.as_str(), health::router());
     }
 
-    app
-        .layer(middleware::from_fn(csrf_validation_middleware))
+    app.layer(middleware::from_fn(csrf_validation_middleware))
         .layer(middleware::from_fn(csrf_token_middleware))
         .layer(middleware::from_fn(auth_rate_limit_middleware))
         .layer(middleware::from_fn(api_rate_limit_middleware))

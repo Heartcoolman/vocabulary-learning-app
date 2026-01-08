@@ -168,12 +168,17 @@ async fn list_sessions(
     let include_active = query.include_active.unwrap_or(false);
 
     let total = count_user_sessions(proxy.as_ref(), &user.id, include_active).await?;
-    let sessions = select_user_sessions(proxy.as_ref(), &user.id, limit, offset, include_active).await?;
+    let sessions =
+        select_user_sessions(proxy.as_ref(), &user.id, limit, offset, include_active).await?;
 
     Ok(Json(SuccessResponseWithPagination {
         success: true,
         data: sessions,
-        pagination: LimitOffsetPagination { limit, offset, total },
+        pagination: LimitOffsetPagination {
+            limit,
+            offset,
+            total,
+        },
     }))
 }
 
@@ -252,16 +257,14 @@ async fn start_session(
         "userId": user.id,
         "sessionType": session.session_type,
     });
-    crate::routes::realtime::send_event(
-        user.id,
-        Some(session_id.clone()),
-        "flow-update",
-        payload,
-    );
+    crate::routes::realtime::send_event(user.id, Some(session_id.clone()), "flow-update", payload);
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: StartedResponse { session_id, status: "started" },
+        data: StartedResponse {
+            session_id,
+            status: "started",
+        },
     }))
 }
 
@@ -282,14 +285,12 @@ async fn end_session(
         "totalQuestions": stats.total_questions,
         "actualMasteryCount": stats.actual_mastery_count,
     });
-    crate::routes::realtime::send_event(
-        user.id,
-        Some(session_id),
-        "flow-update",
-        payload,
-    );
+    crate::routes::realtime::send_event(user.id, Some(session_id), "flow-update", payload);
 
-    Ok(Json(SuccessResponse { success: true, data: stats }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: stats,
+    }))
 }
 
 async fn update_progress(
@@ -325,7 +326,10 @@ async fn update_progress(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: UpdatedResponse { session_id, updated: true },
+        data: UpdatedResponse {
+            session_id,
+            updated: true,
+        },
     }))
 }
 
@@ -336,7 +340,10 @@ async fn get_session_stats(
 ) -> Result<impl IntoResponse, AppError> {
     let (proxy, user) = require_user(&state, &headers).await?;
     let session = verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
-    Ok(Json(SuccessResponse { success: true, data: row_to_stats(&session) }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: row_to_stats(&session),
+    }))
 }
 
 async fn get_session_detail(
@@ -350,7 +357,10 @@ async fn get_session_detail(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: SessionDetail { stats: row_to_stats(&session), answer_records },
+        data: SessionDetail {
+            stats: row_to_stats(&session),
+            answer_records,
+        },
     }))
 }
 
@@ -365,7 +375,10 @@ async fn get_active_session(
         None => None,
     };
 
-    Ok(Json(SuccessResponse { success: true, data }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data,
+    }))
 }
 
 async fn detect_flow(
@@ -381,13 +394,20 @@ async fn detect_flow(
     validate_unit_interval(payload.skill_level, "skillLevel")?;
     validate_unit_interval(payload.concentration, "concentration")?;
 
-    let flow_score = compute_flow_score(payload.challenge_level, payload.skill_level, payload.concentration);
+    let flow_score = compute_flow_score(
+        payload.challenge_level,
+        payload.skill_level,
+        payload.concentration,
+    );
 
     update_flow_peak_score_if_higher(proxy.as_ref(), &session_id, flow_score).await?;
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: FlowResponse { session_id, flow_score },
+        data: FlowResponse {
+            session_id,
+            flow_score,
+        },
     }))
 }
 
@@ -400,7 +420,10 @@ async fn track_emotion(
     let (proxy, user) = require_user(&state, &headers).await?;
     verify_session_ownership(proxy.as_ref(), &session_id, &user.id).await?;
 
-    if !matches!(payload.r#type.as_str(), "answer" | "pause" | "resume" | "end") {
+    if !matches!(
+        payload.r#type.as_str(),
+        "answer" | "pause" | "resume" | "end"
+    ) {
         return Err(json_error(
             StatusCode::BAD_REQUEST,
             "INVALID_EVENT_TYPE",
@@ -412,25 +435,43 @@ async fn track_emotion(
 
     Ok(Json(SuccessResponse {
         success: true,
-        data: TrackedResponse { session_id, tracked: true },
+        data: TrackedResponse {
+            session_id,
+            tracked: true,
+        },
     }))
 }
 
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
-    })?;
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -443,8 +484,16 @@ async fn verify_session_ownership(
     let session = select_learning_session(proxy, session_id).await?;
     match session {
         Some(s) if s.user_id == user_id => Ok(s),
-        Some(_) => Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "无权访问此会话")),
-        None => Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}"))),
+        Some(_) => Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "无权访问此会话",
+        )),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        )),
     }
 }
 
@@ -525,9 +574,9 @@ async fn select_session_answer_records(
 
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let timestamp: NaiveDateTime = row.try_get("timestamp").map_err(|_| {
-            json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败")
-        })?;
+        let timestamp: NaiveDateTime = row
+            .try_get("timestamp")
+            .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
         out.push(SessionAnswerRecord {
             id: row.try_get("id").unwrap_or_default(),
             word_id: row.try_get("wordId").unwrap_or_default(),
@@ -545,7 +594,11 @@ async fn get_session_stats_internal(
     session_id: &str,
 ) -> Result<SessionStats, AppError> {
     let Some(session) = select_learning_session(proxy, session_id).await? else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     };
     Ok(row_to_stats(&session))
 }
@@ -619,21 +672,31 @@ async fn set_session_ended_at(
 ) -> Result<(), AppError> {
     let exists = select_learning_session(proxy, session_id).await?;
     if exists.is_none() {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     }
 
     let pool = proxy.pool();
     let now = Utc::now().naive_utc();
-    let affected = sqlx::query(r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3"#)
-        .bind(now)
-        .bind(now)
-        .bind(session_id)
-        .execute(pool)
-        .await
-        .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
-        .rows_affected();
+    let affected = sqlx::query(
+        r#"UPDATE "learning_sessions" SET "endedAt" = $1, "updatedAt" = $2 WHERE "id" = $3"#,
+    )
+    .bind(now)
+    .bind(now)
+    .bind(session_id)
+    .execute(pool)
+    .await
+    .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库写入失败"))?
+    .rows_affected();
     if affected == 0 {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     }
     Ok(())
 }
@@ -645,7 +708,11 @@ async fn update_session_progress(
 ) -> Result<(), AppError> {
     let exists = select_learning_session(proxy, session_id).await?;
     if exists.is_none() {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     }
 
     let pool = proxy.pool();
@@ -654,10 +721,14 @@ async fn update_session_progress(
     let mut separated = qb.separated(", ");
 
     if let Some(value) = payload.total_questions {
-        separated.push(r#""totalQuestions" = "#).push_bind(value as i32);
+        separated
+            .push(r#""totalQuestions" = "#)
+            .push_bind(value as i32);
     }
     if let Some(value) = payload.actual_mastery_count {
-        separated.push(r#""actualMasteryCount" = "#).push_bind(value as i32);
+        separated
+            .push(r#""actualMasteryCount" = "#)
+            .push_bind(value as i32);
     }
     if let Some(value) = payload.flow_peak_score {
         separated.push(r#""flowPeakScore" = "#).push_bind(value);
@@ -666,7 +737,9 @@ async fn update_session_progress(
         separated.push(r#""avgCognitiveLoad" = "#).push_bind(value);
     }
     if let Some(value) = payload.context_shifts {
-        separated.push(r#""contextShifts" = "#).push_bind(value as i32);
+        separated
+            .push(r#""contextShifts" = "#)
+            .push_bind(value as i32);
     }
 
     separated.push(r#""updatedAt" = "#).push_bind(now);
@@ -681,7 +754,11 @@ async fn update_session_progress(
         .rows_affected();
 
     if affected == 0 {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     }
 
     Ok(())
@@ -694,7 +771,11 @@ async fn update_flow_peak_score_if_higher(
 ) -> Result<(), AppError> {
     let session = select_learning_session(proxy, session_id).await?;
     let Some(session) = session else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     };
 
     if session.flow_peak_score.is_some_and(|v| score <= v) {
@@ -722,12 +803,19 @@ async fn update_cognitive_load_from_emotion(
 ) -> Result<(), AppError> {
     let session = select_learning_session(proxy, session_id).await?;
     let Some(session) = session else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", format!("会话不存在: {session_id}")));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            format!("会话不存在: {session_id}"),
+        ));
     };
 
     let sample = match payload.r#type.as_str() {
         "answer" => {
-            let correctness = payload.is_correct.map(|v| if v { 0.0 } else { 1.0 }).unwrap_or(0.3);
+            let correctness = payload
+                .is_correct
+                .map(|v| if v { 0.0 } else { 1.0 })
+                .unwrap_or(0.3);
             let rt = payload
                 .response_time
                 .map(|v| (v as f64 / 10_000.0).clamp(0.0, 1.0))
@@ -812,19 +900,45 @@ async fn select_user_sessions(
         let session_row = LearningSessionRow {
             id: session_id,
             user_id: row.try_get("userId").unwrap_or_default(),
-            started_at: format_naive_datetime(row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc())),
+            started_at: format_naive_datetime(
+                row.try_get("startedAt")
+                    .unwrap_or_else(|_| Utc::now().naive_utc()),
+            ),
             ended_at: row
                 .try_get::<Option<NaiveDateTime>, _>("endedAt")
                 .ok()
                 .flatten()
                 .map(format_naive_datetime),
-            total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-            actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-            target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-            session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-            flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-            avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-            context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
+            total_questions: row
+                .try_get::<Option<i64>, _>("totalQuestions")
+                .ok()
+                .flatten()
+                .unwrap_or(0),
+            actual_mastery_count: row
+                .try_get::<Option<i64>, _>("actualMasteryCount")
+                .ok()
+                .flatten()
+                .unwrap_or(0),
+            target_mastery_count: row
+                .try_get::<Option<i64>, _>("targetMasteryCount")
+                .ok()
+                .flatten(),
+            session_type: row
+                .try_get("sessionType")
+                .unwrap_or_else(|_| "NORMAL".to_string()),
+            flow_peak_score: row
+                .try_get::<Option<f64>, _>("flowPeakScore")
+                .ok()
+                .flatten(),
+            avg_cognitive_load: row
+                .try_get::<Option<f64>, _>("avgCognitiveLoad")
+                .ok()
+                .flatten(),
+            context_shifts: row
+                .try_get::<Option<i64>, _>("contextShifts")
+                .ok()
+                .flatten()
+                .unwrap_or(0),
             answer_record_count,
         };
         sessions.push(row_to_stats(&session_row));
@@ -873,19 +987,45 @@ async fn select_learning_session(
     Ok(Some(LearningSessionRow {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
-        started_at: format_naive_datetime(row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc())),
+        started_at: format_naive_datetime(
+            row.try_get("startedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc()),
+        ),
         ended_at: row
             .try_get::<Option<NaiveDateTime>, _>("endedAt")
             .ok()
             .flatten()
             .map(format_naive_datetime),
-        total_questions: row.try_get::<Option<i64>, _>("totalQuestions").ok().flatten().unwrap_or(0),
-        actual_mastery_count: row.try_get::<Option<i64>, _>("actualMasteryCount").ok().flatten().unwrap_or(0),
-        target_mastery_count: row.try_get::<Option<i64>, _>("targetMasteryCount").ok().flatten(),
-        session_type: row.try_get("sessionType").unwrap_or_else(|_| "NORMAL".to_string()),
-        flow_peak_score: row.try_get::<Option<f64>, _>("flowPeakScore").ok().flatten(),
-        avg_cognitive_load: row.try_get::<Option<f64>, _>("avgCognitiveLoad").ok().flatten(),
-        context_shifts: row.try_get::<Option<i64>, _>("contextShifts").ok().flatten().unwrap_or(0),
+        total_questions: row
+            .try_get::<Option<i64>, _>("totalQuestions")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
+        actual_mastery_count: row
+            .try_get::<Option<i64>, _>("actualMasteryCount")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
+        target_mastery_count: row
+            .try_get::<Option<i64>, _>("targetMasteryCount")
+            .ok()
+            .flatten(),
+        session_type: row
+            .try_get("sessionType")
+            .unwrap_or_else(|_| "NORMAL".to_string()),
+        flow_peak_score: row
+            .try_get::<Option<f64>, _>("flowPeakScore")
+            .ok()
+            .flatten(),
+        avg_cognitive_load: row
+            .try_get::<Option<f64>, _>("avgCognitiveLoad")
+            .ok()
+            .flatten(),
+        context_shifts: row
+            .try_get::<Option<i64>, _>("contextShifts")
+            .ok()
+            .flatten()
+            .unwrap_or(0),
         answer_record_count,
     }))
 }

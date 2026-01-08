@@ -137,19 +137,27 @@ pub async fn get_user_badges(pool: &PgPool, user_id: &str) -> Result<Vec<UserBad
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|row| {
-        let unlocked_at: NaiveDateTime = row.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        UserBadge {
-            id: row.try_get("id").unwrap_or_default(),
-            badge_id: row.try_get("badgeId").unwrap_or_default(),
-            name: row.try_get("name").unwrap_or_default(),
-            description: row.try_get("description").unwrap_or_default(),
-            icon_url: row.try_get("iconUrl").unwrap_or_default(),
-            category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-            tier: row.try_get("tier").unwrap_or(1),
-            unlocked_at: chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339(),
-        }
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let unlocked_at: NaiveDateTime = row
+                .try_get("unlockedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            UserBadge {
+                id: row.try_get("id").unwrap_or_default(),
+                badge_id: row.try_get("badgeId").unwrap_or_default(),
+                name: row.try_get("name").unwrap_or_default(),
+                description: row.try_get("description").unwrap_or_default(),
+                icon_url: row.try_get("iconUrl").unwrap_or_default(),
+                category: row
+                    .try_get("category")
+                    .unwrap_or_else(|_| "STREAK".to_string()),
+                tier: row.try_get("tier").unwrap_or(1),
+                unlocked_at: chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc)
+                    .to_rfc3339(),
+            }
+        })
+        .collect())
 }
 
 pub async fn check_and_award_badges(
@@ -263,32 +271,35 @@ pub async fn get_all_badges_with_status(
     let user_badges = get_user_badge_map(pool, user_id).await?;
     let stats = get_user_stats(pool, user_id).await?;
 
-    Ok(all_badges.into_iter().map(|badge| {
-        let badge_key = format!("{}:{}", badge.id, badge.tier);
-        let unlocked_at = user_badges.get(&badge_key).cloned();
-        let is_unlocked = unlocked_at.is_some();
+    Ok(all_badges
+        .into_iter()
+        .map(|badge| {
+            let badge_key = format!("{}:{}", badge.id, badge.tier);
+            let unlocked_at = user_badges.get(&badge_key).cloned();
+            let is_unlocked = unlocked_at.is_some();
 
-        let progress = if is_unlocked {
-            Some(100)
-        } else {
-            let current = get_current_value_for_condition(&badge.condition, &stats);
-            let target = badge.condition.value;
-            Some(((current / target * 100.0).min(100.0).round()) as i64)
-        };
+            let progress = if is_unlocked {
+                Some(100)
+            } else {
+                let current = get_current_value_for_condition(&badge.condition, &stats);
+                let target = badge.condition.value;
+                Some(((current / target * 100.0).min(100.0).round()) as i64)
+            };
 
-        BadgeDetails {
-            id: badge.id,
-            name: badge.name,
-            description: badge.description,
-            icon_url: badge.icon_url,
-            category: badge.category,
-            tier: badge.tier,
-            condition: badge.condition,
-            unlocked: is_unlocked,
-            unlocked_at,
-            progress,
-        }
-    }).collect())
+            BadgeDetails {
+                id: badge.id,
+                name: badge.name,
+                description: badge.description,
+                icon_url: badge.icon_url,
+                category: badge.category,
+                tier: badge.tier,
+                condition: badge.condition,
+                unlocked: is_unlocked,
+                unlocked_at,
+                progress,
+            }
+        })
+        .collect())
 }
 
 async fn get_all_badge_definitions(pool: &PgPool) -> Result<Vec<BadgeDetails>, String> {
@@ -300,28 +311,38 @@ async fn get_all_badge_definitions(pool: &PgPool) -> Result<Vec<BadgeDetails>, S
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|row| {
-        let condition_raw: serde_json::Value = row.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
-        BadgeDetails {
-            id: row.try_get("id").unwrap_or_default(),
-            name: row.try_get("name").unwrap_or_default(),
-            description: row.try_get("description").unwrap_or_default(),
-            icon_url: row.try_get("iconUrl").unwrap_or_default(),
-            category: row.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
-            tier: row.try_get("tier").unwrap_or(1),
-            condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
-                condition_type: "streak".to_string(),
-                value: 1.0,
-                params: None,
-            }),
-            unlocked: false,
-            unlocked_at: None,
-            progress: None,
-        }
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let condition_raw: serde_json::Value = row
+                .try_get("condition")
+                .unwrap_or(serde_json::json!({"type":"streak","value":1}));
+            BadgeDetails {
+                id: row.try_get("id").unwrap_or_default(),
+                name: row.try_get("name").unwrap_or_default(),
+                description: row.try_get("description").unwrap_or_default(),
+                icon_url: row.try_get("iconUrl").unwrap_or_default(),
+                category: row
+                    .try_get("category")
+                    .unwrap_or_else(|_| "STREAK".to_string()),
+                tier: row.try_get("tier").unwrap_or(1),
+                condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
+                    condition_type: "streak".to_string(),
+                    value: 1.0,
+                    params: None,
+                }),
+                unlocked: false,
+                unlocked_at: None,
+                progress: None,
+            }
+        })
+        .collect())
 }
 
-async fn get_badge_definition(pool: &PgPool, badge_id: &str) -> Result<Option<BadgeDetails>, String> {
+async fn get_badge_definition(
+    pool: &PgPool,
+    badge_id: &str,
+) -> Result<Option<BadgeDetails>, String> {
     let row = sqlx::query(
         r#"SELECT "id","name","description","iconUrl","category"::text,"tier","condition"
            FROM "badge_definitions" WHERE "id" = $1"#,
@@ -332,13 +353,17 @@ async fn get_badge_definition(pool: &PgPool, badge_id: &str) -> Result<Option<Ba
     .map_err(|e| format!("查询失败: {e}"))?;
 
     Ok(row.map(|r| {
-        let condition_raw: serde_json::Value = r.try_get("condition").unwrap_or(serde_json::json!({"type":"streak","value":1}));
+        let condition_raw: serde_json::Value = r
+            .try_get("condition")
+            .unwrap_or(serde_json::json!({"type":"streak","value":1}));
         BadgeDetails {
             id: r.try_get("id").unwrap_or_default(),
             name: r.try_get("name").unwrap_or_default(),
             description: r.try_get("description").unwrap_or_default(),
             icon_url: r.try_get("iconUrl").unwrap_or_default(),
-            category: r.try_get("category").unwrap_or_else(|_| "STREAK".to_string()),
+            category: r
+                .try_get("category")
+                .unwrap_or_else(|_| "STREAK".to_string()),
             tier: r.try_get("tier").unwrap_or(1),
             condition: serde_json::from_value(condition_raw).unwrap_or(BadgeCondition {
                 condition_type: "streak".to_string(),
@@ -359,40 +384,72 @@ async fn get_existing_badge_keys(pool: &PgPool, user_id: &str) -> Result<HashSet
         .await
         .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|r| {
-        let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-        let tier: i64 = r.try_get("tier").unwrap_or(1);
-        format!("{badge_id}:{tier}")
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|r| {
+            let badge_id: String = r.try_get("badgeId").unwrap_or_default();
+            let tier: i64 = r.try_get("tier").unwrap_or(1);
+            format!("{badge_id}:{tier}")
+        })
+        .collect())
 }
 
-async fn get_user_badge_map(pool: &PgPool, user_id: &str) -> Result<HashMap<String, String>, String> {
-    let rows = sqlx::query(r#"SELECT "badgeId","tier","unlockedAt" FROM "user_badges" WHERE "userId" = $1"#)
-        .bind(user_id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| format!("查询失败: {e}"))?;
+async fn get_user_badge_map(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<HashMap<String, String>, String> {
+    let rows = sqlx::query(
+        r#"SELECT "badgeId","tier","unlockedAt" FROM "user_badges" WHERE "userId" = $1"#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|r| {
-        let badge_id: String = r.try_get("badgeId").unwrap_or_default();
-        let tier: i64 = r.try_get("tier").unwrap_or(1);
-        let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        (format!("{badge_id}:{tier}"), chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339())
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|r| {
+            let badge_id: String = r.try_get("badgeId").unwrap_or_default();
+            let tier: i64 = r.try_get("tier").unwrap_or(1);
+            let unlocked_at: NaiveDateTime = r
+                .try_get("unlockedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            (
+                format!("{badge_id}:{tier}"),
+                chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339(),
+            )
+        })
+        .collect())
 }
 
-async fn check_user_has_badge(pool: &PgPool, user_id: &str, badge_id: &str) -> Result<(bool, Option<String>), String> {
-    let row = sqlx::query(r#"SELECT "unlockedAt" FROM "user_badges" WHERE "userId" = $1 AND "badgeId" = $2 LIMIT 1"#)
-        .bind(user_id)
-        .bind(badge_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| format!("查询失败: {e}"))?;
+async fn check_user_has_badge(
+    pool: &PgPool,
+    user_id: &str,
+    badge_id: &str,
+) -> Result<(bool, Option<String>), String> {
+    let row = sqlx::query(
+        r#"SELECT "unlockedAt" FROM "user_badges" WHERE "userId" = $1 AND "badgeId" = $2 LIMIT 1"#,
+    )
+    .bind(user_id)
+    .bind(badge_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(row.map(|r| {
-        let unlocked_at: NaiveDateTime = r.try_get("unlockedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-        (true, Some(chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc).to_rfc3339()))
-    }).unwrap_or((false, None)))
+    Ok(row
+        .map(|r| {
+            let unlocked_at: NaiveDateTime = r
+                .try_get("unlockedAt")
+                .unwrap_or_else(|_| Utc::now().naive_utc());
+            (
+                true,
+                Some(
+                    chrono::DateTime::<Utc>::from_naive_utc_and_offset(unlocked_at, Utc)
+                        .to_rfc3339(),
+                ),
+            )
+        })
+        .unwrap_or((false, None)))
 }
 
 async fn get_user_stats(pool: &PgPool, user_id: &str) -> Result<UserStats, String> {
@@ -416,7 +473,9 @@ fn check_badge_eligibility(condition: &BadgeCondition, stats: &UserStats) -> boo
     match ctype {
         BadgeConditionType::Streak => stats.consecutive_days >= condition.value as i64,
         BadgeConditionType::Accuracy => {
-            let min_words = condition.params.as_ref()
+            let min_words = condition
+                .params
+                .as_ref()
                 .and_then(|p| p.get("minWords"))
                 .and_then(|v| v.as_i64())
                 .unwrap_or(0);
@@ -436,7 +495,9 @@ fn check_cognitive_improvement(condition: &BadgeCondition, stats: &UserStats) ->
         return false;
     }
 
-    let metric = condition.params.as_ref()
+    let metric = condition
+        .params
+        .as_ref()
         .and_then(|p| p.get("metric"))
         .and_then(|v| v.as_str())
         .unwrap_or("all");
@@ -444,9 +505,9 @@ fn check_cognitive_improvement(condition: &BadgeCondition, stats: &UserStats) ->
 
     match metric {
         "all" => {
-            stats.cognitive_improvement.memory >= threshold &&
-            stats.cognitive_improvement.speed >= threshold &&
-            stats.cognitive_improvement.stability >= threshold
+            stats.cognitive_improvement.memory >= threshold
+                && stats.cognitive_improvement.speed >= threshold
+                && stats.cognitive_improvement.stability >= threshold
         }
         "memory" => stats.cognitive_improvement.memory >= threshold,
         "speed" => stats.cognitive_improvement.speed >= threshold,
@@ -463,12 +524,16 @@ fn get_current_value_for_condition(condition: &BadgeCondition, stats: &UserStats
         BadgeConditionType::WordsLearned => stats.total_words_learned as f64,
         BadgeConditionType::TotalSessions => stats.total_sessions as f64,
         BadgeConditionType::CognitiveImprovement => {
-            let metric = condition.params.as_ref()
+            let metric = condition
+                .params
+                .as_ref()
                 .and_then(|p| p.get("metric"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("all");
             match metric {
-                "all" => stats.cognitive_improvement.memory
+                "all" => stats
+                    .cognitive_improvement
+                    .memory
                     .min(stats.cognitive_improvement.speed)
                     .min(stats.cognitive_improvement.stability),
                 "memory" => stats.cognitive_improvement.memory,
@@ -489,9 +554,14 @@ async fn calculate_consecutive_days(pool: &PgPool, user_id: &str) -> Result<i64,
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    let dates: Vec<String> = rows.iter().filter_map(|r| {
-        r.try_get::<chrono::NaiveDate, _>("d").ok().map(|d| d.to_string())
-    }).collect();
+    let dates: Vec<String> = rows
+        .iter()
+        .filter_map(|r| {
+            r.try_get::<chrono::NaiveDate, _>("d")
+                .ok()
+                .map(|d| d.to_string())
+        })
+        .collect();
 
     if dates.is_empty() {
         return Ok(0);
@@ -522,11 +592,13 @@ async fn calculate_consecutive_days(pool: &PgPool, user_id: &str) -> Result<i64,
 }
 
 async fn calculate_total_words_learned(pool: &PgPool, user_id: &str) -> Result<i64, String> {
-    sqlx::query_scalar(r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = $1 AND "reviewCount" > 0"#)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| format!("查询失败: {e}"))
+    sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "word_learning_states" WHERE "userId" = $1 AND "reviewCount" > 0"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))
 }
 
 async fn calculate_total_sessions(pool: &PgPool, user_id: &str) -> Result<i64, String> {
@@ -549,11 +621,17 @@ async fn calculate_recent_accuracy(pool: &PgPool, user_id: &str) -> Result<f64, 
         return Ok(0.0);
     }
 
-    let correct = rows.iter().filter(|r| r.try_get::<bool, _>("isCorrect").unwrap_or(false)).count();
+    let correct = rows
+        .iter()
+        .filter(|r| r.try_get::<bool, _>("isCorrect").unwrap_or(false))
+        .count();
     Ok(correct as f64 / rows.len() as f64)
 }
 
-async fn calculate_cognitive_improvement(pool: &PgPool, user_id: &str) -> Result<CognitiveImprovementData, String> {
+async fn calculate_cognitive_improvement(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<CognitiveImprovementData, String> {
     let thirty_days_ago = (Utc::now() - Duration::days(30)).naive_utc();
 
     let past = sqlx::query(
@@ -578,9 +656,12 @@ async fn calculate_cognitive_improvement(pool: &PgPool, user_id: &str) -> Result
     };
 
     Ok(CognitiveImprovementData {
-        memory: current.try_get::<f64, _>("memory").unwrap_or(0.0) - past.try_get::<f64, _>("memory").unwrap_or(0.0),
-        speed: current.try_get::<f64, _>("speed").unwrap_or(0.0) - past.try_get::<f64, _>("speed").unwrap_or(0.0),
-        stability: current.try_get::<f64, _>("stability").unwrap_or(0.0) - past.try_get::<f64, _>("stability").unwrap_or(0.0),
+        memory: current.try_get::<f64, _>("memory").unwrap_or(0.0)
+            - past.try_get::<f64, _>("memory").unwrap_or(0.0),
+        speed: current.try_get::<f64, _>("speed").unwrap_or(0.0)
+            - past.try_get::<f64, _>("speed").unwrap_or(0.0),
+        stability: current.try_get::<f64, _>("stability").unwrap_or(0.0)
+            - past.try_get::<f64, _>("stability").unwrap_or(0.0),
         has_data: true,
     })
 }

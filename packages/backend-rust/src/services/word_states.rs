@@ -169,12 +169,8 @@ pub async fn upsert_word_state(
                 qb.push_bind(value.as_str().unwrap_or("NEW"));
                 qb.push(r#"::"WordState""#);
             }
-            "masteryLevel"
-            | "reviewCount"
-            | "currentInterval"
-            | "consecutiveCorrect"
-            | "consecutiveWrong"
-            | "version" => {
+            "masteryLevel" | "reviewCount" | "currentInterval" | "consecutiveCorrect"
+            | "consecutiveWrong" | "version" => {
                 qb.push_bind(value.as_i64().map(|v| v as i32));
             }
             "easeFactor" | "halfLife" => {
@@ -346,10 +342,16 @@ fn apply_update_fields(
     update: &WordStateUpdate,
 ) -> Result<(), WordStateError> {
     if let Some(value) = update.state.as_deref() {
-        target.insert("state".to_string(), serde_json::Value::String(value.to_string()));
+        target.insert(
+            "state".to_string(),
+            serde_json::Value::String(value.to_string()),
+        );
     }
     if let Some(value) = update.mastery_level {
-        target.insert("masteryLevel".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "masteryLevel".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = update.ease_factor {
         let num = serde_json::Number::from_f64(value)
@@ -357,22 +359,34 @@ fn apply_update_fields(
         target.insert("easeFactor".to_string(), serde_json::Value::Number(num));
     }
     if let Some(value) = update.review_count {
-        target.insert("reviewCount".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "reviewCount".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = &update.last_review_date {
         match value {
-            Some(iso) => target.insert("lastReviewDate".to_string(), serde_json::Value::String(iso.clone())),
+            Some(iso) => target.insert(
+                "lastReviewDate".to_string(),
+                serde_json::Value::String(iso.clone()),
+            ),
             None => target.insert("lastReviewDate".to_string(), serde_json::Value::Null),
         };
     }
     if let Some(value) = &update.next_review_date {
         match value {
-            Some(iso) => target.insert("nextReviewDate".to_string(), serde_json::Value::String(iso.clone())),
+            Some(iso) => target.insert(
+                "nextReviewDate".to_string(),
+                serde_json::Value::String(iso.clone()),
+            ),
             None => target.insert("nextReviewDate".to_string(), serde_json::Value::Null),
         };
     }
     if let Some(value) = update.current_interval {
-        target.insert("currentInterval".to_string(), serde_json::Value::Number(value.into()));
+        target.insert(
+            "currentInterval".to_string(),
+            serde_json::Value::Number(value.into()),
+        );
     }
     if let Some(value) = update.consecutive_correct {
         target.insert(
@@ -423,7 +437,10 @@ fn collect_update_pairs(
         out.push(("currentInterval", serde_json::Value::Number(value.into())));
     }
     if let Some(value) = update.consecutive_correct {
-        out.push(("consecutiveCorrect", serde_json::Value::Number(value.into())));
+        out.push((
+            "consecutiveCorrect",
+            serde_json::Value::Number(value.into()),
+        ));
     }
     if let Some(value) = update.consecutive_wrong {
         out.push(("consecutiveWrong", serde_json::Value::Number(value.into())));
@@ -479,16 +496,22 @@ pub fn validate_timestamp_ms(value: i64) -> Result<Option<String>, WordStateErro
 
     let now = Utc::now().timestamp_millis();
     if value > now + TIMESTAMP_FUTURE_LIMIT_MS {
-        return Err(WordStateError::Validation("时间戳不能超过当前时间1小时".to_string()));
+        return Err(WordStateError::Validation(
+            "时间戳不能超过当前时间1小时".to_string(),
+        ));
     }
     if value < now - TIMESTAMP_PAST_LIMIT_MS {
-        return Err(WordStateError::Validation("时间戳不能早于1年前".to_string()));
+        return Err(WordStateError::Validation(
+            "时间戳不能早于1年前".to_string(),
+        ));
     }
 
     Ok(crate::auth::format_timestamp_ms_iso_millis(value))
 }
 
-pub fn parse_datetime_input(value: &serde_json::Value) -> Result<Option<Option<String>>, WordStateError> {
+pub fn parse_datetime_input(
+    value: &serde_json::Value,
+) -> Result<Option<Option<String>>, WordStateError> {
     if value.is_null() {
         return Ok(Some(None));
     }
@@ -519,12 +542,21 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordLearningStateRecord {
     let user_id: String = row.try_get("userId").unwrap_or_default();
     let word_id: String = row.try_get("wordId").unwrap_or_default();
     let state: String = row.try_get("state").unwrap_or_else(|_| "NEW".to_string());
-    let mastery_level: i64 = row.try_get::<i32, _>("masteryLevel").map(|v| v as i64).unwrap_or(0);
+    let mastery_level: i64 = row
+        .try_get::<i32, _>("masteryLevel")
+        .map(|v| v as i64)
+        .unwrap_or(0);
     let ease_factor: f64 = row.try_get::<f64, _>("easeFactor").unwrap_or(2.5);
-    let review_count: i64 = row.try_get::<i32, _>("reviewCount").map(|v| v as i64).unwrap_or(0);
+    let review_count: i64 = row
+        .try_get::<i32, _>("reviewCount")
+        .map(|v| v as i64)
+        .unwrap_or(0);
     let last_dt: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
     let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-    let current_interval: i64 = row.try_get::<i32, _>("currentInterval").map(|v| v as i64).unwrap_or(1);
+    let current_interval: i64 = row
+        .try_get::<i32, _>("currentInterval")
+        .map(|v| v as i64)
+        .unwrap_or(1);
     let consecutive_correct: i64 = row
         .try_get::<i32, _>("consecutiveCorrect")
         .map(|v| v as i64)
@@ -534,9 +566,16 @@ fn map_pg_row(row: &sqlx::postgres::PgRow) -> WordLearningStateRecord {
         .map(|v| v as i64)
         .unwrap_or(0);
     let half_life: f64 = row.try_get::<f64, _>("halfLife").unwrap_or(1.0);
-    let version: i64 = row.try_get::<i32, _>("version").map(|v| v as i64).unwrap_or(0);
-    let created_dt: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_dt: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let version: i64 = row
+        .try_get::<i32, _>("version")
+        .map(|v| v as i64)
+        .unwrap_or(0);
+    let created_dt: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_dt: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     WordLearningStateRecord {
         id,
@@ -643,14 +682,20 @@ pub async fn batch_update_states(
             "mastered" => mark_mastered(proxy, user_id, word_id).await?,
             "needsPractice" => mark_needs_practice(proxy, user_id, word_id).await?,
             "reset" => reset_progress(proxy, user_id, word_id).await?,
-            _ => return Err(WordStateError::Validation("Invalid operation. Allowed: mastered, needsPractice, reset".to_string())),
+            _ => {
+                return Err(WordStateError::Validation(
+                    "Invalid operation. Allowed: mastered, needsPractice, reset".to_string(),
+                ))
+            }
         };
         results.push(record);
     }
     Ok(results)
 }
 
-pub fn validate_word_state_update_payload(raw: &serde_json::Map<String, serde_json::Value>) -> Result<WordStateUpdate, WordStateError> {
+pub fn validate_word_state_update_payload(
+    raw: &serde_json::Map<String, serde_json::Value>,
+) -> Result<WordStateUpdate, WordStateError> {
     let allowed: HashSet<&'static str> = [
         "state",
         "masteryLevel",
@@ -671,11 +716,16 @@ pub fn validate_word_state_update_payload(raw: &serde_json::Map<String, serde_js
         .filter(|k| !allowed.contains(k))
         .collect();
     if !invalid.is_empty() {
-        return Err(WordStateError::Validation(format!("不允许的字段: {}", invalid.join(", "))));
+        return Err(WordStateError::Validation(format!(
+            "不允许的字段: {}",
+            invalid.join(", ")
+        )));
     }
 
     if raw.contains_key("userId") || raw.contains_key("wordId") {
-        return Err(WordStateError::Validation("不允许提交 userId 或 wordId".to_string()));
+        return Err(WordStateError::Validation(
+            "不允许提交 userId 或 wordId".to_string(),
+        ));
     }
 
     let mut out = WordStateUpdate::default();

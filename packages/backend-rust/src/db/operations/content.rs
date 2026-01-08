@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::cache::keys::{word_key, wordbook_system_list_key, WORD_TTL, WORDBOOK_SYSTEM_LIST_TTL};
+use crate::cache::keys::{word_key, wordbook_system_list_key, WORDBOOK_SYSTEM_LIST_TTL, WORD_TTL};
 use crate::cache::RedisCache;
 use crate::db::DatabaseProxy;
 
@@ -70,12 +70,10 @@ pub async fn get_word_book(
     proxy: &DatabaseProxy,
     word_book_id: &str,
 ) -> Result<Option<WordBook>, sqlx::Error> {
-    let row = sqlx::query(
-        r#"SELECT * FROM "word_books" WHERE "id" = $1 LIMIT 1"#,
-    )
-    .bind(word_book_id)
-    .fetch_optional(proxy.pool())
-    .await?;
+    let row = sqlx::query(r#"SELECT * FROM "word_books" WHERE "id" = $1 LIMIT 1"#)
+        .bind(word_book_id)
+        .fetch_optional(proxy.pool())
+        .await?;
     Ok(row.map(|r| map_word_book(&r)))
 }
 
@@ -96,9 +94,7 @@ pub async fn get_user_word_books(
     Ok(rows.iter().map(map_word_book).collect())
 }
 
-pub async fn get_system_word_books(
-    proxy: &DatabaseProxy,
-) -> Result<Vec<WordBook>, sqlx::Error> {
+pub async fn get_system_word_books(proxy: &DatabaseProxy) -> Result<Vec<WordBook>, sqlx::Error> {
     get_system_word_books_cached(proxy, None).await
 }
 
@@ -127,10 +123,7 @@ pub async fn get_system_word_books_cached(
     Ok(books)
 }
 
-pub async fn insert_word_book(
-    proxy: &DatabaseProxy,
-    book: &WordBook,
-) -> Result<(), sqlx::Error> {
+pub async fn insert_word_book(proxy: &DatabaseProxy, book: &WordBook) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -155,10 +148,7 @@ pub async fn insert_word_book(
     Ok(())
 }
 
-pub async fn update_word_book(
-    proxy: &DatabaseProxy,
-    book: &WordBook,
-) -> Result<(), sqlx::Error> {
+pub async fn update_word_book(proxy: &DatabaseProxy, book: &WordBook) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -188,10 +178,7 @@ pub async fn delete_word_book(
     Ok(())
 }
 
-pub async fn get_word(
-    proxy: &DatabaseProxy,
-    word_id: &str,
-) -> Result<Option<Word>, sqlx::Error> {
+pub async fn get_word(proxy: &DatabaseProxy, word_id: &str) -> Result<Option<Word>, sqlx::Error> {
     get_word_cached(proxy, word_id, None).await
 }
 
@@ -207,12 +194,10 @@ pub async fn get_word_cached(
         }
     }
 
-    let row = sqlx::query(
-        r#"SELECT * FROM "words" WHERE "id" = $1 LIMIT 1"#,
-    )
-    .bind(word_id)
-    .fetch_optional(proxy.pool())
-    .await?;
+    let row = sqlx::query(r#"SELECT * FROM "words" WHERE "id" = $1 LIMIT 1"#)
+        .bind(word_id)
+        .fetch_optional(proxy.pool())
+        .await?;
 
     let word = row.map(|r| map_word(&r));
 
@@ -256,7 +241,11 @@ pub async fn get_words_by_ids(
         return Ok(Vec::new());
     }
 
-    let placeholders: Vec<String> = word_ids.iter().enumerate().map(|(i, _)| format!("${}", i + 1)).collect();
+    let placeholders: Vec<String> = word_ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect();
     let query = format!(
         r#"SELECT * FROM "words" WHERE "id" IN ({})"#,
         placeholders.join(",")
@@ -269,10 +258,7 @@ pub async fn get_words_by_ids(
     Ok(rows.iter().map(map_word).collect())
 }
 
-pub async fn insert_word(
-    proxy: &DatabaseProxy,
-    word: &Word,
-) -> Result<(), sqlx::Error> {
+pub async fn insert_word(proxy: &DatabaseProxy, word: &Word) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
     sqlx::query(
         r#"
@@ -298,10 +284,7 @@ pub async fn insert_word(
     Ok(())
 }
 
-pub async fn delete_word(
-    proxy: &DatabaseProxy,
-    word_id: &str,
-) -> Result<(), sqlx::Error> {
+pub async fn delete_word(proxy: &DatabaseProxy, word_id: &str) -> Result<(), sqlx::Error> {
     sqlx::query(r#"DELETE FROM "words" WHERE "id" = $1"#)
         .bind(word_id)
         .execute(proxy.pool())
@@ -347,15 +330,14 @@ pub async fn get_active_study_plan(
     Ok(row.map(|r| map_study_plan(&r)))
 }
 
-pub async fn upsert_study_plan(
-    proxy: &DatabaseProxy,
-    plan: &StudyPlan,
-) -> Result<(), sqlx::Error> {
+pub async fn upsert_study_plan(proxy: &DatabaseProxy, plan: &StudyPlan) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
     let start_date = chrono::DateTime::parse_from_rfc3339(&plan.start_date)
         .map(|dt| dt.naive_utc())
         .unwrap_or(now);
-    let end_date = plan.end_date.as_ref()
+    let end_date = plan
+        .end_date
+        .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
 
@@ -409,7 +391,9 @@ pub async fn upsert_user_word_book_progress(
     progress: &UserWordBookProgress,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
-    let last_study = progress.last_study_at.as_ref()
+    let last_study = progress
+        .last_study_at
+        .as_ref()
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.naive_utc());
 
@@ -442,8 +426,12 @@ pub async fn upsert_user_word_book_progress(
 }
 
 fn map_word_book(row: &sqlx::postgres::PgRow) -> WordBook {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     WordBook {
         id: row.try_get("id").unwrap_or_default(),
         name: row.try_get("name").unwrap_or_default(),
@@ -459,8 +447,12 @@ fn map_word_book(row: &sqlx::postgres::PgRow) -> WordBook {
 }
 
 fn map_word(row: &sqlx::postgres::PgRow) -> Word {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     Word {
         id: row.try_get("id").unwrap_or_default(),
         word_book_id: row.try_get("wordBookId").unwrap_or_default(),
@@ -477,9 +469,15 @@ fn map_word(row: &sqlx::postgres::PgRow) -> Word {
 }
 
 fn map_study_plan(row: &sqlx::postgres::PgRow) -> StudyPlan {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let start_date: NaiveDateTime = row.try_get("startDate").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let start_date: NaiveDateTime = row
+        .try_get("startDate")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let end_date: Option<NaiveDateTime> = row.try_get("endDate").ok();
     StudyPlan {
         id: row.try_get("id").unwrap_or_default(),
@@ -496,8 +494,12 @@ fn map_study_plan(row: &sqlx::postgres::PgRow) -> StudyPlan {
 }
 
 fn map_progress(row: &sqlx::postgres::PgRow) -> UserWordBookProgress {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let last_study_at: Option<NaiveDateTime> = row.try_get("lastStudyAt").ok();
     UserWordBookProgress {
         id: row.try_get("id").unwrap_or_default(),
@@ -513,5 +515,6 @@ fn map_progress(row: &sqlx::postgres::PgRow) -> UserWordBookProgress {
 }
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
-    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
+    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
+        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }

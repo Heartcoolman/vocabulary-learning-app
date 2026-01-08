@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Row};
 
 use crate::db::DatabaseProxy;
-use crate::services::amas::{compute_new_word_difficulty, map_difficulty_level, DifficultyRange, StrategyParams};
+use crate::services::amas::{
+    compute_new_word_difficulty, map_difficulty_level, DifficultyRange, StrategyParams,
+};
 use crate::services::study_config::get_or_create_user_study_config;
 
 #[derive(Debug, Clone, Serialize)]
@@ -188,15 +190,24 @@ pub async fn get_next_words(
     let strategy = StrategyParams::default_strategy();
 
     let mut exclude: HashSet<String> = HashSet::new();
-    for id in input.current_word_ids.iter().chain(input.mastered_word_ids.iter()) {
+    for id in input
+        .current_word_ids
+        .iter()
+        .chain(input.mastered_word_ids.iter())
+    {
         exclude.insert(id.clone());
     }
     let exclude_ids: Vec<String> = exclude.into_iter().collect();
 
-    let words = fetch_words_with_strategy(proxy, user_id, batch_size, &strategy, &exclude_ids).await?;
+    let words =
+        fetch_words_with_strategy(proxy, user_id, batch_size, &strategy, &exclude_ids).await?;
     let reason = explain_word_selection(&strategy, &words);
 
-    Ok(NextWordsResponse { words, strategy, reason })
+    Ok(NextWordsResponse {
+        words,
+        strategy,
+        reason,
+    })
 }
 
 pub async fn adjust_words_for_user(
@@ -205,12 +216,20 @@ pub async fn adjust_words_for_user(
 ) -> Result<AdjustWordsResponse, sqlx::Error> {
     let user_id = input.user_id.as_str();
 
-    let target = compute_target_difficulty(&input.user_state, &input.recent_performance, &input.adjust_reason);
+    let target = compute_target_difficulty(
+        &input.user_state,
+        &input.recent_performance,
+        &input.adjust_reason,
+    );
     let next_check_in = compute_next_check_in(&input.recent_performance, input.user_state.as_ref());
 
     let difficulty_map = batch_compute_difficulty(proxy, user_id, &input.current_word_ids).await?;
 
-    let mastered_set: HashSet<&str> = input.mastered_word_ids.iter().map(|id| id.as_str()).collect();
+    let mastered_set: HashSet<&str> = input
+        .mastered_word_ids
+        .iter()
+        .map(|id| id.as_str())
+        .collect();
     let remove: Vec<String> = input
         .current_word_ids
         .iter()
@@ -230,19 +249,17 @@ pub async fn adjust_words_for_user(
         .max(2);
 
     let mut exclude: HashSet<String> = HashSet::new();
-    for id in input.current_word_ids.iter().chain(input.mastered_word_ids.iter()) {
+    for id in input
+        .current_word_ids
+        .iter()
+        .chain(input.mastered_word_ids.iter())
+    {
         exclude.insert(id.clone());
     }
     let exclude_ids: Vec<String> = exclude.into_iter().collect();
 
-    let mut candidates = fetch_words_in_difficulty_range(
-        proxy,
-        user_id,
-        target,
-        &exclude_ids,
-        desired_add,
-    )
-    .await?;
+    let mut candidates =
+        fetch_words_in_difficulty_range(proxy, user_id, target, &exclude_ids, desired_add).await?;
 
     if candidates.len() < desired_add {
         candidates = fetch_words_in_difficulty_range(
@@ -255,17 +272,30 @@ pub async fn adjust_words_for_user(
         .await?;
     }
 
-    let reason_text = adjust_reason_text(&input.adjust_reason, input.user_state.as_ref(), &input.recent_performance);
+    let reason_text = adjust_reason_text(
+        &input.adjust_reason,
+        input.user_state.as_ref(),
+        &input.recent_performance,
+    );
 
     Ok(AdjustWordsResponse {
-        adjustments: Adjustments { remove, add: candidates.clone() },
-        target_difficulty: DifficultyRangeResponse { min: target.min, max: target.max },
+        adjustments: Adjustments {
+            remove,
+            add: candidates.clone(),
+        },
+        target_difficulty: DifficultyRangeResponse {
+            min: target.min,
+            max: target.max,
+        },
         reason: reason_text,
         adjustment_reason: input.adjust_reason,
         trigger_conditions: TriggerConditions {
             performance: input.recent_performance,
             user_state: input.user_state,
-            target_difficulty: DifficultyRangeResponse { min: target.min, max: target.max },
+            target_difficulty: DifficultyRangeResponse {
+                min: target.min,
+                max: target.max,
+            },
         },
         next_check_in,
     })
@@ -426,7 +456,11 @@ async fn fetch_words_with_strategy(
     let difficulty_range = map_difficulty_level(&strategy.difficulty);
 
     // 复习词按优先级排序，不按难度过滤（用户需要复习已学过的单词，无论难度）
-    due_words.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+    due_words.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let review_count = ((count as f64) * (1.0 - strategy.new_ratio)).ceil() as usize;
     let new_count = count.saturating_sub(review_count);
@@ -445,7 +479,14 @@ async fn fetch_words_with_strategy(
     combined_exclude.extend(review_words.iter().map(|w| w.word.id.clone()));
 
     // 新词仍然按难度过滤
-    let new_words = fetch_new_words_in_range(proxy, user_id, actual_new, difficulty_range, &combined_exclude).await?;
+    let new_words = fetch_new_words_in_range(
+        proxy,
+        user_id,
+        actual_new,
+        difficulty_range,
+        &combined_exclude,
+    )
+    .await?;
 
     let mut out: Vec<LearningWord> = Vec::new();
     for w in review_words {
@@ -474,12 +515,15 @@ async fn get_due_words_with_priority(
         select_word_scores(proxy, user_id, &word_ids),
     )?;
 
-    let score_map: HashMap<&str, &WordScoreRow> = scores.iter().map(|s| (s.word_id.as_str(), s)).collect();
+    let score_map: HashMap<&str, &WordScoreRow> =
+        scores.iter().map(|s| (s.word_id.as_str(), s)).collect();
     let word_map: HashMap<&str, &WordBase> = words.iter().map(|w| (w.id.as_str(), w)).collect();
 
     let mut results = Vec::new();
     for state_row in word_states {
-        let Some(word) = word_map.get(state_row.word_id.as_str()) else { continue };
+        let Some(word) = word_map.get(state_row.word_id.as_str()) else {
+            continue;
+        };
 
         let score = score_map.get(state_row.word_id.as_str()).copied();
         let overdue_days = state_row
@@ -496,10 +540,13 @@ async fn get_due_words_with_priority(
             None => (0.0, None),
         };
 
-        let priority =
-            overdue_days.min(8.0) * 5.0
-                + if error_rate > 0.5 { 30.0 } else { error_rate * 60.0 }
-                + total_score.map(|v| (100.0 - v) * 0.3).unwrap_or(30.0);
+        let priority = overdue_days.min(8.0) * 5.0
+            + if error_rate > 0.5 {
+                30.0
+            } else {
+                error_rate * 60.0
+            }
+            + total_score.map(|v| (100.0 - v) * 0.3).unwrap_or(30.0);
 
         let difficulty = compute_difficulty_from_score(score, error_rate);
 
@@ -678,9 +725,14 @@ async fn batch_compute_difficulty(
         select_learning_state_difficulty_rows(proxy, user_id, word_ids),
     )?;
 
-    let score_map: HashMap<&str, &WordScoreRow> = scores.iter().map(|s| (s.word_id.as_str(), s)).collect();
-    let freq_map: HashMap<&str, f64> = freqs.iter().map(|f| (f.word_id.as_str(), f.frequency_score)).collect();
-    let state_map: HashMap<&str, &LearningStateDifficultyRow> = states.iter().map(|s| (s.word_id.as_str(), s)).collect();
+    let score_map: HashMap<&str, &WordScoreRow> =
+        scores.iter().map(|s| (s.word_id.as_str(), s)).collect();
+    let freq_map: HashMap<&str, f64> = freqs
+        .iter()
+        .map(|f| (f.word_id.as_str(), f.frequency_score))
+        .collect();
+    let state_map: HashMap<&str, &LearningStateDifficultyRow> =
+        states.iter().map(|s| (s.word_id.as_str(), s)).collect();
 
     let now_ms = Utc::now().timestamp_millis();
     let mut out = HashMap::new();
@@ -706,14 +758,19 @@ async fn batch_compute_difficulty(
             Some(state_row) if state_row.review_count > 0 => {
                 let retention = state_row
                     .last_review_ms
-                    .map(|last| calculate_forgetting_factor(now_ms, last, state_row.review_count, accuracy))
+                    .map(|last| {
+                        calculate_forgetting_factor(now_ms, last, state_row.review_count, accuracy)
+                    })
                     .unwrap_or(0.5);
                 (1.0 - retention).clamp(0.0, 1.0)
             }
             _ => 0.5,
         };
 
-        let difficulty = (0.2 * length_factor + 0.4 * (1.0 - accuracy) + 0.2 * frequency_factor + 0.2 * forgetting_factor)
+        let difficulty = (0.2 * length_factor
+            + 0.4 * (1.0 - accuracy)
+            + 0.2 * frequency_factor
+            + 0.2 * forgetting_factor)
             .clamp(0.0, 1.0);
 
         out.insert(word.id, difficulty);
@@ -722,7 +779,12 @@ async fn batch_compute_difficulty(
     Ok(out)
 }
 
-fn calculate_forgetting_factor(now_ms: i64, last_review_ms: i64, review_count: i64, average_accuracy: f64) -> f64 {
+fn calculate_forgetting_factor(
+    now_ms: i64,
+    last_review_ms: i64,
+    review_count: i64,
+    average_accuracy: f64,
+) -> f64 {
     let days_since = ((now_ms - last_review_ms).max(0) as f64) / 86_400_000.0;
     let review_multiplier = 1.0 + (review_count as f64) * 0.2;
     let accuracy = average_accuracy.clamp(0.1, 1.0);
@@ -737,7 +799,10 @@ fn compute_target_difficulty(
 ) -> DifficultyRange {
     let fatigue = user_state.as_ref().and_then(|v| v.fatigue).unwrap_or(0.0);
     let attention = user_state.as_ref().and_then(|v| v.attention).unwrap_or(1.0);
-    let motivation = user_state.as_ref().and_then(|v| v.motivation).unwrap_or(0.5);
+    let motivation = user_state
+        .as_ref()
+        .and_then(|v| v.motivation)
+        .unwrap_or(0.5);
 
     let accuracy = performance.accuracy;
     let consecutive_wrong = performance.consecutive_wrong;
@@ -778,13 +843,20 @@ fn compute_next_check_in(performance: &RecentPerformance, user_state: Option<&Us
     3
 }
 
-fn adjust_reason_text(reason: &str, user_state: Option<&UserState>, performance: &RecentPerformance) -> String {
+fn adjust_reason_text(
+    reason: &str,
+    user_state: Option<&UserState>,
+    performance: &RecentPerformance,
+) -> String {
     match reason {
         "fatigue" => format!(
             "检测到疲劳度较高({}%)，已切换为简单词汇",
             ((user_state.and_then(|s| s.fatigue).unwrap_or(0.0)) * 100.0).round() as i64
         ),
-        "struggling" => format!("连续{}次错误，已降低难度", performance.consecutive_wrong.round() as i64),
+        "struggling" => format!(
+            "连续{}次错误，已降低难度",
+            performance.consecutive_wrong.round() as i64
+        ),
         "excelling" => format!(
             "表现优秀(正确率{}%)，已提升难度",
             (performance.accuracy * 100.0).round() as i64
@@ -869,8 +941,12 @@ async fn select_due_word_states(
         .filter_map(|row| {
             let word_id: String = row.try_get("wordId").ok()?;
             let next_dt: Option<NaiveDateTime> = row.try_get("nextReviewDate").ok();
-            let next_ms = next_dt.map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
-            Some(WordStateRow { word_id, next_review_ms: next_ms })
+            let next_ms = next_dt
+                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
+            Some(WordStateRow {
+                word_id,
+                next_review_ms: next_ms,
+            })
         })
         .collect())
 }
@@ -915,7 +991,9 @@ async fn select_word_spellings(
     );
     {
         let mut sep = qb.separated(", ");
-        for id in word_ids { sep.push_bind(id); }
+        for id in word_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     let rows = qb.build().fetch_all(pool).await?;
@@ -946,7 +1024,9 @@ async fn select_word_scores(
     qb.push(" AND \"wordId\" IN (");
     {
         let mut sep = qb.separated(", ");
-        for id in word_ids { sep.push_bind(id); }
+        for id in word_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     let rows = qb.build().fetch_all(pool).await?;
@@ -974,7 +1054,9 @@ async fn select_word_frequencies(
     );
     {
         let mut sep = qb.separated(", ");
-        for id in word_ids { sep.push_bind(id); }
+        for id in word_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     let rows = qb.build().fetch_all(pool).await?;
@@ -1003,7 +1085,9 @@ async fn select_learning_state_difficulty_rows(
     qb.push(" AND \"wordId\" IN (");
     {
         let mut sep = qb.separated(", ");
-        for id in word_ids { sep.push_bind(id); }
+        for id in word_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     let rows = qb.build().fetch_all(pool).await?;
@@ -1011,7 +1095,8 @@ async fn select_learning_state_difficulty_rows(
         .into_iter()
         .map(|row| {
             let last_dt: Option<NaiveDateTime> = row.try_get("lastReviewDate").ok();
-            let last_review_ms = last_dt.map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
+            let last_review_ms = last_dt
+                .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).timestamp_millis());
             LearningStateDifficultyRow {
                 word_id: row.try_get("wordId").unwrap_or_default(),
                 last_review_ms,
@@ -1052,7 +1137,9 @@ async fn select_learned_word_set(
     qb.push(" AND \"wordId\" IN (");
     {
         let mut sep = qb.separated(", ");
-        for id in word_ids { sep.push_bind(id); }
+        for id in word_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     let rows = qb.build().fetch_all(pool).await?;
@@ -1080,14 +1167,18 @@ async fn select_candidate_words_from_word_books(
     );
     {
         let mut sep = qb.separated(", ");
-        for id in word_book_ids { sep.push_bind(id); }
+        for id in word_book_ids {
+            sep.push_bind(id);
+        }
         sep.push_unseparated(")");
     }
     if !exclude_ids.is_empty() {
         qb.push(" AND \"id\" NOT IN (");
         {
             let mut sep = qb.separated(", ");
-            for id in exclude_ids { sep.push_bind(id); }
+            for id in exclude_ids {
+                sep.push_bind(id);
+            }
             sep.push_unseparated(")");
         }
     }
@@ -1121,7 +1212,9 @@ async fn select_learning_session(
     .fetch_optional(pool)
     .await?;
     Ok(row.map(|row| {
-        let started_at: NaiveDateTime = row.try_get("startedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+        let started_at: NaiveDateTime = row
+            .try_get("startedAt")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
         let ended_at: Option<NaiveDateTime> = row.try_get("endedAt").ok();
         LearningSessionRow {
             target_mastery_count: row.try_get::<i32, _>("targetMasteryCount").unwrap_or(0) as i64,
@@ -1203,8 +1296,12 @@ fn map_postgres_word_row(row: sqlx::postgres::PgRow) -> WordBase {
         id: row.try_get("id").unwrap_or_default(),
         spelling: row.try_get("spelling").unwrap_or_default(),
         phonetic: row.try_get("phonetic").unwrap_or_default(),
-        meanings: row.try_get::<Vec<String>, _>("meanings").unwrap_or_default(),
-        examples: row.try_get::<Vec<String>, _>("examples").unwrap_or_default(),
+        meanings: row
+            .try_get::<Vec<String>, _>("meanings")
+            .unwrap_or_default(),
+        examples: row
+            .try_get::<Vec<String>, _>("examples")
+            .unwrap_or_default(),
         audio_url: row.try_get::<Option<String>, _>("audioUrl").ok().flatten(),
     }
 }

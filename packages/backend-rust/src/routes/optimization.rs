@@ -215,13 +215,23 @@ async fn require_user(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -232,7 +242,11 @@ async fn require_admin_user(
 ) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let (proxy, user) = require_user(state, headers).await?;
     if user.role != "ADMIN" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        ));
     }
     Ok((proxy, user))
 }
@@ -261,14 +275,20 @@ fn sample_params(state: &OptimizerState) -> OptimizationParams {
             random_in(interval_bounds)
         } else {
             let span = (interval_bounds.max - interval_bounds.min) * 0.1;
-            clamp(best_params.interval_scale + (random_unit() * 2.0 - 1.0) * span, interval_bounds)
+            clamp(
+                best_params.interval_scale + (random_unit() * 2.0 - 1.0) * span,
+                interval_bounds,
+            )
         };
 
         let new_ratio = if explore {
             random_in(new_ratio_bounds)
         } else {
             let span = (new_ratio_bounds.max - new_ratio_bounds.min) * 0.1;
-            clamp(best_params.new_ratio + (random_unit() * 2.0 - 1.0) * span, new_ratio_bounds)
+            clamp(
+                best_params.new_ratio + (random_unit() * 2.0 - 1.0) * span,
+                new_ratio_bounds,
+            )
         };
 
         let difficulty = if explore {
@@ -292,8 +312,14 @@ fn sample_params(state: &OptimizerState) -> OptimizationParams {
     } else if !state.observations.is_empty() {
         let base = DEFAULT_PARAMS;
         OptimizationParams {
-            interval_scale: clamp(base.interval_scale + (random_unit() * 0.2 - 0.1), bounds_for("interval_scale")),
-            new_ratio: clamp(base.new_ratio + (random_unit() * 0.1 - 0.05), bounds_for("new_ratio")),
+            interval_scale: clamp(
+                base.interval_scale + (random_unit() * 0.2 - 0.1),
+                bounds_for("interval_scale"),
+            ),
+            new_ratio: clamp(
+                base.new_ratio + (random_unit() * 0.1 - 0.05),
+                bounds_for("new_ratio"),
+            ),
             difficulty: (base.difficulty + (random_unit() * 2.0 - 1.0).round() as i64).clamp(1, 3),
             hint_level: (base.hint_level + (random_unit() * 2.0 - 1.0).round() as i64).clamp(0, 2),
         }
@@ -312,7 +338,10 @@ fn params_to_vec(params: &OptimizationParams) -> Vec<f64> {
 }
 
 fn vec_to_params(params: &[f64]) -> OptimizationParams {
-    let interval_scale = params.get(0).copied().unwrap_or(DEFAULT_PARAMS.interval_scale);
+    let interval_scale = params
+        .get(0)
+        .copied()
+        .unwrap_or(DEFAULT_PARAMS.interval_scale);
     let new_ratio = params.get(1).copied().unwrap_or(DEFAULT_PARAMS.new_ratio);
     let difficulty = params
         .get(2)
@@ -334,14 +363,25 @@ fn vec_to_params(params: &[f64]) -> OptimizationParams {
 }
 
 fn parse_named_params(value: &serde_json::Value) -> Result<OptimizationParams, AppError> {
-    let obj = value.as_object().ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "params 必须是对象"))?;
+    let obj = value
+        .as_object()
+        .ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "params 必须是对象"))?;
 
     let extract = |key: &str| -> Result<f64, AppError> {
-        let val = obj
-            .get(key)
-            .ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("params 缺少字段: {key}")))?;
-        val.as_f64()
-            .ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", format!("params.{key} 必须是数字")))
+        let val = obj.get(key).ok_or_else(|| {
+            json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                format!("params 缺少字段: {key}"),
+            )
+        })?;
+        val.as_f64().ok_or_else(|| {
+            json_error(
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                format!("params.{key} 必须是数字"),
+            )
+        })
     };
 
     let interval_scale = extract("interval_scale")?;
@@ -361,23 +401,34 @@ fn parse_observations(value: serde_json::Value) -> Vec<OptimizerObservation> {
     let array = value.as_array().cloned().unwrap_or_default();
     let mut out = Vec::with_capacity(array.len());
     for entry in array {
-        let Some(obj) = entry.as_object() else { continue };
+        let Some(obj) = entry.as_object() else {
+            continue;
+        };
         let params = obj
             .get("params")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_f64()).collect::<Vec<f64>>())
             .unwrap_or_default();
-        let Some(value) = obj.get("value").and_then(|v| v.as_f64()) else { continue };
+        let Some(value) = obj.get("value").and_then(|v| v.as_f64()) else {
+            continue;
+        };
         let timestamp = obj
             .get("timestamp")
             .and_then(|v| v.as_i64())
             .unwrap_or_else(|| Utc::now().timestamp_millis());
-        out.push(OptimizerObservation { params, value, timestamp });
+        out.push(OptimizerObservation {
+            params,
+            value,
+            timestamp,
+        });
     }
     out
 }
 
-fn parse_best(best_params: Option<serde_json::Value>, best_value: Option<f64>) -> Option<OptimizerBest> {
+fn parse_best(
+    best_params: Option<serde_json::Value>,
+    best_value: Option<f64>,
+) -> Option<OptimizerBest> {
     let value = best_value?;
     let params_val = best_params?;
     let params = params_val
@@ -406,7 +457,10 @@ async fn load_state(proxy: &crate::db::DatabaseProxy) -> Result<OptimizerState, 
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
 
     let Some(row) = row else {
-        return Ok(OptimizerState { observations: Vec::new(), best: None });
+        return Ok(OptimizerState {
+            observations: Vec::new(),
+            best: None,
+        });
     };
 
     let observations_val: serde_json::Value = row
@@ -440,7 +494,15 @@ async fn persist_state(
     );
 
     let (best_params, best_value) = match &optimizer_state.best {
-        Some(best) => (Some(serde_json::Value::Array(best.params.iter().filter_map(|v| serde_json::Number::from_f64(*v).map(serde_json::Value::Number)).collect())), Some(best.value)),
+        Some(best) => (
+            Some(serde_json::Value::Array(
+                best.params
+                    .iter()
+                    .filter_map(|v| serde_json::Number::from_f64(*v).map(serde_json::Value::Number))
+                    .collect(),
+            )),
+            Some(best.value),
+        ),
         None => (None, None),
     };
 
@@ -507,7 +569,11 @@ async fn evaluate_params(
     }
 
     if !payload.value.is_finite() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "value 必须是有效的数字"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "value 必须是有效的数字",
+        ));
     }
 
     let params = parse_named_params(&payload.params)?;
@@ -551,7 +617,10 @@ async fn get_best(
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !bayesian_optimizer_enabled() {
-        return Ok(Json(SuccessResponse::<Option<BestData>> { success: true, data: None }));
+        return Ok(Json(SuccessResponse::<Option<BestData>> {
+            success: true,
+            data: None,
+        }));
     }
 
     let state = load_state(proxy.as_ref()).await?;
@@ -560,7 +629,10 @@ async fn get_best(
         value: best.value,
     });
 
-    Ok(Json(SuccessResponse { success: true, data: best }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: best,
+    }))
 }
 
 async fn get_history(

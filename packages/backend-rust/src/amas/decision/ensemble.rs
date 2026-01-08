@@ -111,7 +111,9 @@ impl EnsembleDecision {
             }
         }
 
-        let difficulty = if difficulty_scores[2] > difficulty_scores[1] && difficulty_scores[2] > difficulty_scores[0] {
+        let difficulty = if difficulty_scores[2] > difficulty_scores[1]
+            && difficulty_scores[2] > difficulty_scores[0]
+        {
             DifficultyLevel::Hard
         } else if difficulty_scores[0] > difficulty_scores[1] {
             DifficultyLevel::Easy
@@ -132,7 +134,12 @@ impl EnsembleDecision {
         let options = [0.5, 0.8, 1.0, 1.2, 1.5];
         *options
             .iter()
-            .min_by(|a, b| ((*a) - value).abs().partial_cmp(&((*b) - value).abs()).unwrap())
+            .min_by(|a, b| {
+                ((*a) - value)
+                    .abs()
+                    .partial_cmp(&((*b) - value).abs())
+                    .unwrap()
+            })
             .unwrap_or(&1.0)
     }
 
@@ -140,7 +147,12 @@ impl EnsembleDecision {
         let options = [0.1, 0.2, 0.3, 0.4];
         *options
             .iter()
-            .min_by(|a, b| ((*a) - value).abs().partial_cmp(&((*b) - value).abs()).unwrap())
+            .min_by(|a, b| {
+                ((*a) - value)
+                    .abs()
+                    .partial_cmp(&((*b) - value).abs())
+                    .unwrap()
+            })
             .unwrap_or(&0.2)
     }
 

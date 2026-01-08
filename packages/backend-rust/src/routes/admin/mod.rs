@@ -14,14 +14,14 @@ use crate::response::json_error;
 use crate::response::AppError;
 use crate::state::AppState;
 
-mod quality;
+mod analytics;
+mod llm;
 mod logs;
 mod ops;
+mod quality;
 mod statistics;
 mod users;
 mod wordbooks;
-mod llm;
-mod analytics;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -38,10 +38,19 @@ pub fn router() -> Router<AppState> {
         .nest("/ops", ops::router())
         .nest("/llm", llm::router())
         .nest("/analytics", analytics::router())
-        .route("/statistics", axum::routing::get(statistics::get_statistics))
+        .route(
+            "/statistics",
+            axum::routing::get(statistics::get_statistics),
+        )
         .route("/export/history", axum::routing::get(get_export_history))
-        .route("/metrics/error-rate", axum::routing::get(get_error_rate_metrics))
-        .route("/metrics/performance", axum::routing::get(get_performance_metrics))
+        .route(
+            "/metrics/error-rate",
+            axum::routing::get(get_error_rate_metrics),
+        )
+        .route(
+            "/metrics/performance",
+            axum::routing::get(get_performance_metrics),
+        )
         .route(
             "/visual-fatigue/stats",
             axum::routing::get(get_visual_fatigue_stats),
@@ -62,7 +71,10 @@ async fn get_export_history(
     let _data_type = query.data_type.unwrap_or_default();
 
     let items: Vec<serde_json::Value> = Vec::with_capacity(limit as usize);
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +105,10 @@ async fn get_error_rate_metrics(
         error_rate: 0.0,
     }];
 
-    Ok(Json(SuccessResponse { success: true, data: points }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: points,
+    }))
 }
 
 #[derive(Debug, Serialize)]
@@ -122,7 +137,10 @@ async fn get_performance_metrics(
         count: 0,
     }];
 
-    Ok(Json(SuccessResponse { success: true, data: points }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: points,
+    }))
 }
 
 #[derive(Debug, Serialize)]
@@ -196,7 +214,10 @@ async fn get_visual_fatigue_stats(
     };
 
     let now = Utc::now();
-    let today_start = now.date_naive().and_hms_opt(0, 0, 0).unwrap_or_else(|| now.naive_utc());
+    let today_start = now
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap_or_else(|| now.naive_utc());
     let week_start = today_start - chrono::Duration::days(7);
 
     let pool = proxy.pool();
@@ -275,8 +296,12 @@ async fn fetch_visual_fatigue_stats_pg(
 
     let (avg_visual_fatigue, avg_fused_fatigue) = match aggregate_row {
         Ok(row) => (
-            row.try_get::<Option<f64>, _>("avgScore").unwrap_or(Some(0.0)).unwrap_or(0.0),
-            row.try_get::<Option<f64>, _>("avgFused").unwrap_or(Some(0.0)).unwrap_or(0.0),
+            row.try_get::<Option<f64>, _>("avgScore")
+                .unwrap_or(Some(0.0))
+                .unwrap_or(0.0),
+            row.try_get::<Option<f64>, _>("avgFused")
+                .unwrap_or(Some(0.0))
+                .unwrap_or(0.0),
         ),
         Err(_) => (0.0, 0.0),
     };
@@ -312,10 +337,11 @@ async fn fetch_visual_fatigue_stats_pg(
         }
     }
 
-    let distinct_users: i64 = sqlx::query_scalar(r#"SELECT COUNT(DISTINCT "userId") FROM "visual_fatigue_records""#)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
+    let distinct_users: i64 =
+        sqlx::query_scalar(r#"SELECT COUNT(DISTINCT "userId") FROM "visual_fatigue_records""#)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
 
     let avg_records_per_user = if distinct_users > 0 {
         (total_records as f64) / (distinct_users as f64)
@@ -394,27 +420,44 @@ async fn fetch_visual_fatigue_stats_pg(
     })
 }
 
-
-pub async fn require_admin(State(state): State<AppState>, mut req: Request<Body>, next: Next) -> Response {
+pub async fn require_admin(
+    State(state): State<AppState>,
+    mut req: Request<Body>,
+    next: Next,
+) -> Response {
     let token = crate::auth::extract_token(req.headers());
     let Some(token) = token else {
-        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌").into_response();
+        return json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
+            .into_response();
     };
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match crate::auth::verify_request_token(proxy.as_ref(), &token).await {
         Ok(user) => {
             if user.role != "ADMIN" {
-                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限").into_response();
+                return json_error(
+                    StatusCode::FORBIDDEN,
+                    "FORBIDDEN",
+                    "权限不足，需要管理员权限",
+                )
+                .into_response();
             }
             req.extensions_mut().insert(user);
             next.run(req).await
         }
-        Err(_err) => {
-            json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录").into_response()
-        }
+        Err(_err) => json_error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "认证失败，请重新登录",
+        )
+        .into_response(),
     }
 }

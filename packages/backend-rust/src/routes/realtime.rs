@@ -84,7 +84,12 @@ fn hub() -> Arc<RealtimeHub> {
         .clone()
 }
 
-pub fn send_event(user_id: String, session_id: Option<String>, event_type: &str, payload: serde_json::Value) {
+pub fn send_event(
+    user_id: String,
+    session_id: Option<String>,
+    event_type: &str,
+    payload: serde_json::Value,
+) {
     let event = RealtimeEventDto {
         r#type: event_type.to_string(),
         payload,
@@ -230,13 +235,23 @@ async fn require_user(
         .or(fallback_token)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -277,7 +292,11 @@ async fn session_stream(
 
     let hub = hub();
     let (receiver, guard) = hub
-        .subscribe(user.id.clone(), Some(session_id.clone()), event_types.clone())
+        .subscribe(
+            user.id.clone(),
+            Some(session_id.clone()),
+            event_types.clone(),
+        )
         .await;
 
     let user_id = user.id.clone();
@@ -305,7 +324,8 @@ async fn session_stream(
                         }
                     }
 
-                    let data = serde_json::to_string(&msg.event).unwrap_or_else(|_| "{}".to_string());
+                    let data =
+                        serde_json::to_string(&msg.event).unwrap_or_else(|_| "{}".to_string());
                     let sse = Event::default()
                         .id(uuid::Uuid::new_v4().to_string())
                         .event(msg.event.r#type.clone())
@@ -345,7 +365,10 @@ async fn get_stats(
 ) -> Result<impl IntoResponse, AppError> {
     let (_proxy, _user) = require_user(&state, &headers, None).await?;
     let stats = hub().stats().await;
-    Ok(Json(SuccessResponse { success: true, data: stats }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: stats,
+    }))
 }
 
 async fn send_test_event(
@@ -357,11 +380,19 @@ async fn send_test_event(
 
     let env = std::env::var("NODE_ENV").unwrap_or_else(|_| "development".to_string());
     if env != "development" && env != "test" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "仅开发环境可用"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "仅开发环境可用",
+        ));
     }
 
     if payload.session_id.trim().is_empty() || payload.event_type.trim().is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "缺少必需参数"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "缺少必需参数",
+        ));
     }
 
     let event = RealtimeEventDto {

@@ -233,7 +233,11 @@ impl CausalInferenceNative {
 
     /// Bootstrap 标准误估计（使用 Rayon 并行化）
     #[cfg_attr(feature = "napi", napi)]
-    pub fn bootstrap_se(&self, observations: Vec<CausalObservation>, n_bootstrap: Option<u32>) -> f64 {
+    pub fn bootstrap_se(
+        &self,
+        observations: Vec<CausalObservation>,
+        n_bootstrap: Option<u32>,
+    ) -> f64 {
         let n_bootstrap = n_bootstrap.unwrap_or(100) as usize;
         let n = observations.len();
 
@@ -257,10 +261,8 @@ impl CausalInferenceNative {
                     .collect();
 
                 // 检查重采样后的数据是否有效
-                let treatment_obs: Vec<_> =
-                    sample.iter().filter(|o| o.treatment == 1).collect();
-                let control_obs: Vec<_> =
-                    sample.iter().filter(|o| o.treatment == 0).collect();
+                let treatment_obs: Vec<_> = sample.iter().filter(|o| o.treatment == 1).collect();
+                let control_obs: Vec<_> = sample.iter().filter(|o| o.treatment == 0).collect();
 
                 if treatment_obs.len() < 3 || control_obs.len() < 3 {
                     return None;
@@ -297,7 +299,10 @@ impl CausalInferenceNative {
 
     /// 诊断倾向得分分布
     #[cfg_attr(feature = "napi", napi)]
-    pub fn diagnose_propensity(&self, observations: Vec<CausalObservation>) -> PropensityDiagnostics {
+    pub fn diagnose_propensity(
+        &self,
+        observations: Vec<CausalObservation>,
+    ) -> PropensityDiagnostics {
         if observations.is_empty() {
             return PropensityDiagnostics {
                 mean: 0.5,
@@ -409,10 +414,7 @@ impl CausalInferenceNative {
 
     /// 点积计算
     fn dot_product(a: &[f64], b: &[f64]) -> f64 {
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| x * y)
-            .sum()
+        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
     }
 
     /// Sigmoid 函数（带数值稳定性处理）
@@ -767,12 +769,10 @@ mod tests {
         estimator.fit_propensity(observations);
 
         // 检查权重已更新
-        assert!(
-            estimator
-                .propensity_weights
-                .iter()
-                .any(|&w| w.abs() > EPSILON)
-        );
+        assert!(estimator
+            .propensity_weights
+            .iter()
+            .any(|&w| w.abs() > EPSILON));
     }
 
     #[test]
@@ -783,18 +783,14 @@ mod tests {
         estimator.fit_outcome(observations);
 
         // 检查处理组和对照组权重已更新
-        assert!(
-            estimator
-                .outcome_weights_treatment
-                .iter()
-                .any(|&w| w.abs() > EPSILON)
-        );
-        assert!(
-            estimator
-                .outcome_weights_control
-                .iter()
-                .any(|&w| w.abs() > EPSILON)
-        );
+        assert!(estimator
+            .outcome_weights_treatment
+            .iter()
+            .any(|&w| w.abs() > EPSILON));
+        assert!(estimator
+            .outcome_weights_control
+            .iter()
+            .any(|&w| w.abs() > EPSILON));
     }
 
     #[test]

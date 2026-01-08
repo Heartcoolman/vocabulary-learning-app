@@ -12,10 +12,10 @@ impl Default for FSRSParams {
     fn default() -> Self {
         Self {
             w: [
-                0.4, 0.6, 2.4, 5.8,   // w0-w3: initial stability
-                4.93, 0.94, 0.86, 0.01, 1.49,  // w4-w8
-                0.14, 0.94, 2.18, 0.05, 0.34,  // w9-w13
-                1.26, 0.29, 2.61,  // w14-w16
+                0.4, 0.6, 2.4, 5.8, // w0-w3: initial stability
+                4.93, 0.94, 0.86, 0.01, 1.49, // w4-w8
+                0.14, 0.94, 2.18, 0.05, 0.34, // w9-w13
+                1.26, 0.29, 2.61, // w14-w16
             ],
         }
     }
@@ -122,7 +122,13 @@ pub fn fsrs_next_interval(
         let s = next_forget_stability(w, state.difficulty, state.stability, retrievability);
         (s, state.lapses + 1)
     } else {
-        let s = next_recall_stability(w, state.difficulty, state.stability, retrievability, rating_val);
+        let s = next_recall_stability(
+            w,
+            state.difficulty,
+            state.stability,
+            retrievability,
+            rating_val,
+        );
         (s, state.lapses)
     };
 
@@ -164,13 +170,21 @@ fn next_recall_stability(w: &[f64; 17], d: f64, s: f64, r: f64, rating: i32) -> 
     let hard_penalty = if rating == 2 { w[15] } else { 1.0 };
     let easy_bonus = if rating == 4 { w[16] } else { 1.0 };
 
-    let new_s = s * (1.0 + w[8].exp() * (11.0 - d_10) * s.powf(-w[9]) * ((1.0 - r) * w[10]).exp_m1() * hard_penalty * easy_bonus);
+    let new_s = s
+        * (1.0
+            + w[8].exp()
+                * (11.0 - d_10)
+                * s.powf(-w[9])
+                * ((1.0 - r) * w[10]).exp_m1()
+                * hard_penalty
+                * easy_bonus);
     new_s.max(0.1)
 }
 
 fn next_forget_stability(w: &[f64; 17], d: f64, s: f64, r: f64) -> f64 {
     let d_10 = d * 10.0;
-    let new_s = w[11] * d_10.powf(-w[12]) * ((s + 1.0).powf(w[13]) - 1.0) * (1.0 - r).powf(w[14]).exp();
+    let new_s =
+        w[11] * d_10.powf(-w[12]) * ((s + 1.0).powf(w[13]) - 1.0) * (1.0 - r).powf(w[14]).exp();
     new_s.clamp(0.1, s)
 }
 

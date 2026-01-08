@@ -5,7 +5,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post, put};
 use axum::Json;
-use chrono::{Datelike, DateTime, Duration, NaiveDateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, QueryBuilder, Row};
 
@@ -199,19 +199,33 @@ async fn adjust_plan(
 async fn require_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<(std::sync::Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError>
-{
-    let token = crate::auth::extract_token(headers).ok_or_else(|| {
-        json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌")
-    })?;
+) -> Result<
+    (
+        std::sync::Arc<crate::db::DatabaseProxy>,
+        crate::auth::AuthUser,
+    ),
+    AppError,
+> {
+    let token = crate::auth::extract_token(headers)
+        .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(&proxy, &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -328,7 +342,8 @@ async fn generate_plan_internal(
     };
 
     let estimated_completion_date = Utc::now() + Duration::days(days_to_complete);
-    let estimated_completion_iso = estimated_completion_date.to_rfc3339_opts(SecondsFormat::Millis, true);
+    let estimated_completion_iso =
+        estimated_completion_date.to_rfc3339_opts(SecondsFormat::Millis, true);
 
     let distribution = calculate_wordbook_distribution(&wordbooks);
     let milestones = generate_weekly_milestones(total_words, daily_target, days_to_complete);
@@ -384,7 +399,11 @@ fn calculate_wordbook_distribution(wordbooks: &[WordbookRow]) -> Vec<WordbookAll
     let mut remaining = 100 - floor_sum;
 
     let mut by_remainder = items.clone();
-    by_remainder.sort_by(|a, b| b.remainder.partial_cmp(&a.remainder).unwrap_or(std::cmp::Ordering::Equal));
+    by_remainder.sort_by(|a, b| {
+        b.remainder
+            .partial_cmp(&a.remainder)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     for item in by_remainder.iter_mut() {
         if remaining <= 0 {
             break;
@@ -401,7 +420,9 @@ fn calculate_wordbook_distribution(wordbooks: &[WordbookRow]) -> Vec<WordbookAll
     items
         .into_iter()
         .map(|item| {
-            let percentage = *remap.get(item.id.as_str()).unwrap_or(&item.floor_percentage);
+            let percentage = *remap
+                .get(item.id.as_str())
+                .unwrap_or(&item.floor_percentage);
             WordbookAllocation {
                 wordbook_id: item.id,
                 wordbook_name: Some(item.name),
@@ -412,7 +433,11 @@ fn calculate_wordbook_distribution(wordbooks: &[WordbookRow]) -> Vec<WordbookAll
         .collect()
 }
 
-fn generate_weekly_milestones(total_words: i64, daily_target: i64, total_days: i64) -> Vec<WeeklyMilestone> {
+fn generate_weekly_milestones(
+    total_words: i64,
+    daily_target: i64,
+    total_days: i64,
+) -> Vec<WeeklyMilestone> {
     let total_weeks = ((total_days + 6) / 7).max(1);
     let weekly_target = daily_target * 7;
     let mut milestones: Vec<WeeklyMilestone> = Vec::new();
@@ -532,8 +557,11 @@ async fn adjust_plan_internal(
     let pool = proxy.pool();
     let total_completed = count_learned_words(pool, user_id).await?;
     let now = Utc::now();
-    let est_ms = parse_datetime_millis(&plan.estimated_completion_date).unwrap_or(now.timestamp_millis());
-    let remaining_days = (((est_ms - now.timestamp_millis()) as f64) / 86_400_000.0).ceil().max(1.0) as i64;
+    let est_ms =
+        parse_datetime_millis(&plan.estimated_completion_date).unwrap_or(now.timestamp_millis());
+    let remaining_days = (((est_ms - now.timestamp_millis()) as f64) / 86_400_000.0)
+        .ceil()
+        .max(1.0) as i64;
 
     let remaining_words = (plan.total_words - total_completed).max(0);
     let mut new_daily_target = ((remaining_words + remaining_days - 1) / remaining_days).max(1);
@@ -621,9 +649,15 @@ async fn select_plan(
     .map_err(|_| json_error(StatusCode::BAD_GATEWAY, "DB_ERROR", "数据库查询失败"))?;
     let Some(row) = row else { return Ok(None) };
 
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let estimated: NaiveDateTime = row.try_get("estimatedCompletionDate").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let estimated: NaiveDateTime = row
+        .try_get("estimatedCompletionDate")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
 
     let wordbook_distribution = row
         .try_get::<serde_json::Value, _>("wordbookDistribution")

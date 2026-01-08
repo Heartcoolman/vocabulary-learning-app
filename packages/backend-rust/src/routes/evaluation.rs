@@ -157,13 +157,23 @@ async fn require_user(
     let token = crate::auth::extract_token(headers)
         .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "未提供认证令牌"))?;
 
-    let proxy = state
-        .db_proxy()
-        .ok_or_else(|| json_error(StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "服务不可用"))?;
+    let proxy = state.db_proxy().ok_or_else(|| {
+        json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+            "服务不可用",
+        )
+    })?;
 
     let user = crate::auth::verify_request_token(proxy.as_ref(), &token)
         .await
-        .map_err(|_| json_error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "认证失败，请重新登录"))?;
+        .map_err(|_| {
+            json_error(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "认证失败，请重新登录",
+            )
+        })?;
 
     Ok((proxy, user))
 }
@@ -174,7 +184,11 @@ async fn require_admin_user(
 ) -> Result<(Arc<crate::db::DatabaseProxy>, crate::auth::AuthUser), AppError> {
     let (proxy, user) = require_user(state, headers).await?;
     if user.role != "ADMIN" {
-        return Err(json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "权限不足，需要管理员权限"));
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN",
+            "权限不足，需要管理员权限",
+        ));
     }
     Ok((proxy, user))
 }
@@ -187,7 +201,10 @@ async fn observe(
     let (proxy, user) = require_user(&state, &headers).await?;
 
     if !causal_inference_enabled() {
-        return Ok(Json(SuccessResponse::<Option<ObserveResponse>> { success: true, data: None }));
+        return Ok(Json(SuccessResponse::<Option<ObserveResponse>> {
+            success: true,
+            data: None,
+        }));
     }
 
     validate_observation(&payload)?;
@@ -196,7 +213,11 @@ async fn observe(
 
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
     insert_observation_pg(&pool, &id, &user.id, &payload, now_ms).await?;
 
@@ -218,11 +239,17 @@ async fn get_ate(
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !causal_inference_enabled() {
-        return Ok(Json(SuccessResponse::<Option<CausalEstimateDto>> { success: true, data: None }));
+        return Ok(Json(SuccessResponse::<Option<CausalEstimateDto>> {
+            success: true,
+            data: None,
+        }));
     }
 
     let estimate = estimate_ate(proxy.as_ref()).await?;
-    Ok(Json(SuccessResponse { success: true, data: estimate }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: estimate,
+    }))
 }
 
 async fn compare_strategies(
@@ -233,14 +260,34 @@ async fn compare_strategies(
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !causal_inference_enabled() {
-        return Ok(Json(SuccessResponse::<Option<StrategyComparisonResultDto>> { success: true, data: None }));
+        return Ok(Json(
+            SuccessResponse::<Option<StrategyComparisonResultDto>> {
+                success: true,
+                data: None,
+            },
+        ));
     }
 
-    let a = query.strategy_a.ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "strategyA 和 strategyB 必须是有效的数字"))?;
-    let b = query.strategy_b.ok_or_else(|| json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "strategyA 和 strategyB 必须是有效的数字"))?;
+    let a = query.strategy_a.ok_or_else(|| {
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "strategyA 和 strategyB 必须是有效的数字",
+        )
+    })?;
+    let b = query.strategy_b.ok_or_else(|| {
+        json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "strategyA 和 strategyB 必须是有效的数字",
+        )
+    })?;
 
     let result = compare_groups(proxy.as_ref(), a, b).await?;
-    Ok(Json(SuccessResponse { success: true, data: result }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: result,
+    }))
 }
 
 async fn get_diagnostics(
@@ -250,12 +297,19 @@ async fn get_diagnostics(
     let (proxy, _user) = require_admin_user(&state, &headers).await?;
 
     if !causal_inference_enabled() {
-        return Ok(Json(SuccessResponse::<Option<CausalDiagnosticsDto>> { success: true, data: None }));
+        return Ok(Json(SuccessResponse::<Option<CausalDiagnosticsDto>> {
+            success: true,
+            data: None,
+        }));
     }
 
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
     let (observation_count, treatment_distribution) = diagnostics_pg(&pool).await?;
 
@@ -280,15 +334,26 @@ async fn get_variant(
 
     let experiment_id = experiment_id.trim();
     if experiment_id.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "experimentId 参数缺失"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "experimentId 参数缺失",
+        ));
     }
 
     let assignment = get_or_assign_variant(proxy.as_ref(), &user.id, experiment_id).await?;
     let Some(assignment) = assignment else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "实验不存在或未在运行中"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "实验不存在或未在运行中",
+        ));
     };
 
-    Ok(Json(SuccessResponse { success: true, data: assignment }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: assignment,
+    }))
 }
 
 async fn record_variant_metric(
@@ -301,7 +366,11 @@ async fn record_variant_metric(
 
     let experiment_id = experiment_id.trim();
     if experiment_id.is_empty() {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "experimentId 参数缺失"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "experimentId 参数缺失",
+        ));
     }
 
     if !payload.reward.is_finite() || payload.reward < -1.0 || payload.reward > 1.0 {
@@ -314,10 +383,20 @@ async fn record_variant_metric(
 
     let assignment = get_user_variant(proxy.as_ref(), &user.id, experiment_id, true).await?;
     let Some(assignment) = assignment else {
-        return Err(json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "用户未参与此实验或实验已停止"));
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            "NOT_FOUND",
+            "用户未参与此实验或实验已停止",
+        ));
     };
 
-    record_metric(proxy.as_ref(), experiment_id, &assignment.variant_id, payload.reward).await?;
+    record_metric(
+        proxy.as_ref(),
+        experiment_id,
+        &assignment.variant_id,
+        payload.reward,
+    )
+    .await?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -333,11 +412,18 @@ async fn get_active_experiments(
 
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
     let items = list_active_experiments_pg(&pool).await?;
 
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 async fn get_user_experiments(
@@ -348,11 +434,18 @@ async fn get_user_experiments(
 
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
     let items = list_user_active_experiments_pg(&pool, &user.id).await?;
 
-    Ok(Json(SuccessResponse { success: true, data: items }))
+    Ok(Json(SuccessResponse {
+        success: true,
+        data: items,
+    }))
 }
 
 fn validate_observation(payload: &ObserveBody) -> Result<(), AppError> {
@@ -373,10 +466,18 @@ fn validate_observation(payload: &ObserveBody) -> Result<(), AppError> {
         }
     }
     if payload.treatment != 0 && payload.treatment != 1 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "treatment 必须为 0 或 1"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "treatment 必须为 0 或 1",
+        ));
     }
     if !payload.outcome.is_finite() || payload.outcome < -1.0 || payload.outcome > 1.0 {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "outcome 必须在 [-1, 1] 范围内"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "outcome 必须在 [-1, 1] 范围内",
+        ));
     }
     Ok(())
 }
@@ -404,16 +505,26 @@ async fn insert_observation_pg(
     .bind(timestamp_ms)
     .execute(pool)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     Ok(())
 }
 
-async fn estimate_ate(proxy: &crate::db::DatabaseProxy) -> Result<Option<CausalEstimateDto>, AppError> {
+async fn estimate_ate(
+    proxy: &crate::db::DatabaseProxy,
+) -> Result<Option<CausalEstimateDto>, AppError> {
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else { return Ok(None) };
     let observations = load_causal_observations_pg(&pool).await?;
 
-    let Some(dim) = observations.first().map(|o| o.features.len()) else { return Ok(None) };
+    let Some(dim) = observations.first().map(|o| o.features.len()) else {
+        return Ok(None);
+    };
     if dim == 0 {
         return Ok(None);
     }
@@ -477,7 +588,10 @@ async fn load_causal_observations_pg(pool: &sqlx::PgPool) -> Result<Vec<RawObser
             .try_get::<sqlx::types::Json<Vec<f64>>, _>("features")
             .map(|v| v.0)
             .unwrap_or_default();
-        let treatment = row.try_get::<i32, _>("treatment").map(|v| v as i64).unwrap_or(0);
+        let treatment = row
+            .try_get::<i32, _>("treatment")
+            .map(|v| v as i64)
+            .unwrap_or(0);
         let outcome = row.try_get::<f64, _>("outcome").unwrap_or(0.0);
         let ts = row.try_get::<i64, _>("timestamp").unwrap_or(0);
         let user_id = row.try_get::<Option<String>, _>("userId").unwrap_or(None);
@@ -501,7 +615,10 @@ async fn diagnostics_pg(pool: &sqlx::PgPool) -> Result<(i64, HashMap<i64, i64>),
     let mut distribution = HashMap::new();
     let mut total = 0i64;
     for row in rows {
-        let treatment = row.try_get::<i32, _>("treatment").map(|v| v as i64).unwrap_or(0);
+        let treatment = row
+            .try_get::<i32, _>("treatment")
+            .map(|v| v as i64)
+            .unwrap_or(0);
         let count = row.try_get::<i64, _>("count").unwrap_or(0);
         distribution.insert(treatment, count);
         total += count;
@@ -543,7 +660,11 @@ async fn compare_groups(
 
     let diff = mean_b - mean_a;
     let pooled_se = (var_a / group_a.len() as f64 + var_b / group_b.len() as f64).sqrt();
-    let z_score = if pooled_se > 0.0 { diff / pooled_se } else { 0.0 };
+    let z_score = if pooled_se > 0.0 {
+        diff / pooled_se
+    } else {
+        0.0
+    };
     let p_value = 2.0 * (1.0 - normal_cdf(z_score.abs()));
     let margin = 1.96 * pooled_se;
     let ci = [diff - margin, diff + margin];
@@ -584,7 +705,10 @@ async fn load_compare_observations_pg(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let treatment = row.try_get::<i32, _>("treatment").map(|v| v as i64).unwrap_or(0);
+            let treatment = row
+                .try_get::<i32, _>("treatment")
+                .map(|v| v as i64)
+                .unwrap_or(0);
             let outcome = row.try_get::<f64, _>("outcome").unwrap_or(0.0);
             (treatment, outcome)
         })
@@ -602,11 +726,7 @@ fn variance(values: &[f64], mean: f64) -> f64 {
     if values.len() < 2 {
         return 0.0;
     }
-    values
-        .iter()
-        .map(|v| (v - mean).powi(2))
-        .sum::<f64>()
-        / (values.len() as f64 - 1.0)
+    values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (values.len() as f64 - 1.0)
 }
 
 fn normal_cdf(x: f64) -> f64 {
@@ -616,9 +736,7 @@ fn normal_cdf(x: f64) -> f64 {
     let a3 = 1.421413741;
     let a4 = -1.453152027;
     let a5 = 1.061405429;
-    let y = 1.0
-        - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t)
-            * (-x * x / 2.0).exp();
+    let y = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t) * (-x * x / 2.0).exp();
     0.5 * (1.0 + if x < 0.0 { -y } else { y })
 }
 
@@ -701,13 +819,12 @@ async fn assign_variant_pg(
     user_id: &str,
     experiment_id: &str,
 ) -> Result<Option<VariantAssignmentDto>, AppError> {
-    let status: Option<String> = sqlx::query_scalar(
-        r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#,
-    )
-    .bind(experiment_id)
-    .fetch_optional(pool)
-    .await
-    .unwrap_or(None);
+    let status: Option<String> =
+        sqlx::query_scalar(r#"SELECT "status"::text FROM "ab_experiments" WHERE "id" = $1"#)
+            .bind(experiment_id)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
 
     if status.as_deref() != Some("RUNNING") {
         return Ok(None);
@@ -758,7 +875,10 @@ async fn assign_variant_pg(
 fn hash_user_id(user_id: &str) -> u32 {
     let mut hash: i32 = 0;
     for ch in user_id.chars() {
-        hash = hash.wrapping_shl(5).wrapping_sub(hash).wrapping_add(ch as i32);
+        hash = hash
+            .wrapping_shl(5)
+            .wrapping_sub(hash)
+            .wrapping_add(ch as i32);
     }
     hash as u32
 }
@@ -779,7 +899,9 @@ fn select_variant_id_by_hash(user_id: &str, variants: &[(String, f64)]) -> Optio
     Some(variants[variants.len() - 1].0.clone())
 }
 
-async fn list_active_experiments_pg(pool: &sqlx::PgPool) -> Result<Vec<ActiveExperimentDto>, AppError> {
+async fn list_active_experiments_pg(
+    pool: &sqlx::PgPool,
+) -> Result<Vec<ActiveExperimentDto>, AppError> {
     let rows = sqlx::query(
         r#"
         SELECT "id","name","description"
@@ -796,7 +918,9 @@ async fn list_active_experiments_pg(pool: &sqlx::PgPool) -> Result<Vec<ActiveExp
         .map(|row| ActiveExperimentDto {
             id: row.try_get::<String, _>("id").unwrap_or_default(),
             name: row.try_get::<String, _>("name").unwrap_or_default(),
-            description: row.try_get::<Option<String>, _>("description").unwrap_or(None),
+            description: row
+                .try_get::<Option<String>, _>("description")
+                .unwrap_or(None),
         })
         .collect())
 }
@@ -830,7 +954,9 @@ async fn list_user_active_experiments_pg(
         .into_iter()
         .map(|row| UserActiveExperimentDto {
             experiment_id: row.try_get::<String, _>("experimentId").unwrap_or_default(),
-            experiment_name: row.try_get::<String, _>("experimentName").unwrap_or_default(),
+            experiment_name: row
+                .try_get::<String, _>("experimentName")
+                .unwrap_or_default(),
             variant_id: row.try_get::<String, _>("variantId").unwrap_or_default(),
             variant_name: row.try_get::<String, _>("variantName").unwrap_or_default(),
             is_control: row.try_get::<bool, _>("isControl").unwrap_or(false),
@@ -850,7 +976,11 @@ async fn record_metric(
 ) -> Result<(), AppError> {
     let primary = proxy.primary_pool().await;
     let Some(pool) = primary else {
-        return Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "数据库不可用"));
+        return Err(json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DATABASE_UNAVAILABLE",
+            "数据库不可用",
+        ));
     };
     record_metric_pg(&pool, experiment_id, variant_id, reward).await
 }
@@ -861,10 +991,13 @@ async fn record_metric_pg(
     variant_id: &str,
     reward: f64,
 ) -> Result<(), AppError> {
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    let mut tx = pool.begin().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
     let current = sqlx::query(
         r#"
@@ -881,7 +1014,11 @@ async fn record_metric_pg(
     .unwrap_or(None);
 
     let Some(row) = current else {
-        return Err(json_error(StatusCode::BAD_REQUEST, "BAD_REQUEST", "指标记录不存在"));
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "BAD_REQUEST",
+            "指标记录不存在",
+        ));
     };
 
     let sample_count = row.try_get::<i32, _>("sampleCount").unwrap_or(0) as i64;
@@ -919,10 +1056,20 @@ async fn record_metric_pg(
     .bind(variant_id)
     .execute(&mut *tx)
     .await
-    .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    .map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
 
-    tx.commit()
-        .await
-        .map_err(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误"))?;
+    tx.commit().await.map_err(|_| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "INTERNAL_ERROR",
+            "服务器内部错误",
+        )
+    })?;
     Ok(())
 }

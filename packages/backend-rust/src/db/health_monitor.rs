@@ -94,11 +94,7 @@ impl HealthTracker {
         if result.healthy {
             self.consecutive_successes = self.consecutive_successes.saturating_add(1);
 
-            let recent_failures = self
-                .window
-                .iter()
-                .filter(|healthy| !**healthy)
-                .count() as u32;
+            let recent_failures = self.window.iter().filter(|healthy| !**healthy).count() as u32;
 
             if recent_failures >= self.config.failure_threshold {
                 self.consecutive_failures = recent_failures;
@@ -108,11 +104,7 @@ impl HealthTracker {
         } else {
             self.consecutive_failures = self.consecutive_failures.saturating_add(1);
 
-            let recent_successes = self
-                .window
-                .iter()
-                .filter(|healthy| **healthy)
-                .count() as u32;
+            let recent_successes = self.window.iter().filter(|healthy| **healthy).count() as u32;
 
             if recent_successes >= self.config.recovery_threshold {
                 self.consecutive_successes = recent_successes;
@@ -126,7 +118,11 @@ impl HealthTracker {
 
     pub fn snapshot(&self) -> HealthCheckSnapshot {
         HealthCheckSnapshot {
-            healthy: self.last_result.as_ref().map(|r| r.healthy).unwrap_or(false),
+            healthy: self
+                .last_result
+                .as_ref()
+                .map(|r| r.healthy)
+                .unwrap_or(false),
             latency_ms: self.last_result.as_ref().and_then(|r| r.latency_ms),
             error: self.last_result.as_ref().and_then(|r| r.error.clone()),
             timestamp_ms: self.last_result.as_ref().map(|r| r.timestamp_ms),
@@ -153,4 +149,3 @@ fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis() as u64
 }
-

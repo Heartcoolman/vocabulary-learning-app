@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
@@ -7,10 +7,10 @@ use tracing_subscriber::EnvFilter;
 use danci_backend_rust::cache::RedisCache;
 use danci_backend_rust::config::Config;
 use danci_backend_rust::db;
-use danci_backend_rust::state::AppState;
-use danci_backend_rust::workers::WorkerManager;
 use danci_backend_rust::routes;
 use danci_backend_rust::services::quality_service;
+use danci_backend_rust::state::AppState;
+use danci_backend_rust::workers::WorkerManager;
 
 #[tokio::main]
 async fn main() {
@@ -81,8 +81,11 @@ async fn main() {
         .await
         .expect("bind listener failed");
 
-    let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(shutdown_signal());
+    let server = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal());
 
     if let Err(e) = server.await {
         tracing::error!(error = %e, "server error");
@@ -107,7 +110,8 @@ async fn shutdown_signal() {
     #[cfg(unix)]
     let terminate = async {
         use tokio::signal::unix::{signal, SignalKind};
-        let mut sigterm = signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
         sigterm.recv().await;
     };
 

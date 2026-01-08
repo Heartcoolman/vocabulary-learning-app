@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
 use crate::response::json_error;
-use crate::services::{weekly_report, insight_generator};
+use crate::services::{insight_generator, weekly_report};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -95,13 +95,41 @@ struct UserSegment {
 }
 
 const USER_SEGMENTS: &[UserSegment] = &[
-    UserSegment { id: "new_users", name: "新用户", description: "注册7天内的用户" },
-    UserSegment { id: "active_learners", name: "活跃学习者", description: "每日都有学习记录的用户" },
-    UserSegment { id: "at_risk", name: "流失风险用户", description: "最近3天没有活动的用户" },
-    UserSegment { id: "high_performers", name: "高绩效用户", description: "正确率超过80%的用户" },
-    UserSegment { id: "struggling", name: "困难用户", description: "正确率低于50%的用户" },
-    UserSegment { id: "casual", name: "休闲用户", description: "每周只学习1-2天的用户" },
-    UserSegment { id: "all", name: "全部用户", description: "所有有学习记录的用户" },
+    UserSegment {
+        id: "new_users",
+        name: "新用户",
+        description: "注册7天内的用户",
+    },
+    UserSegment {
+        id: "active_learners",
+        name: "活跃学习者",
+        description: "每日都有学习记录的用户",
+    },
+    UserSegment {
+        id: "at_risk",
+        name: "流失风险用户",
+        description: "最近3天没有活动的用户",
+    },
+    UserSegment {
+        id: "high_performers",
+        name: "高绩效用户",
+        description: "正确率超过80%的用户",
+    },
+    UserSegment {
+        id: "struggling",
+        name: "困难用户",
+        description: "正确率低于50%的用户",
+    },
+    UserSegment {
+        id: "casual",
+        name: "休闲用户",
+        description: "每周只学习1-2天的用户",
+    },
+    UserSegment {
+        id: "all",
+        name: "全部用户",
+        description: "所有有学习记录的用户",
+    },
 ];
 
 pub fn router() -> Router<AppState> {
@@ -141,7 +169,12 @@ async fn analyze_alert(
     let confidence = calculate_confidence(&severity);
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match crate::db::operations::insert_alert_root_cause_analysis(
@@ -152,7 +185,9 @@ async fn analyze_alert(
         &serde_json::to_value(&suggested_fixes).unwrap_or_default(),
         &related_metrics,
         confidence,
-    ).await {
+    )
+    .await
+    {
         Ok(id) => {
             let analysis = AlertAnalysis {
                 id,
@@ -168,11 +203,20 @@ async fn analyze_alert(
                 resolved_at: None,
                 resolved_by: None,
             };
-            Json(SuccessResponse { success: true, data: analysis }).into_response()
+            Json(SuccessResponse {
+                success: true,
+                data: analysis,
+            })
+            .into_response()
         }
         Err(e) => {
             tracing::error!(error = %e, "Failed to insert alert root cause analysis");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "存储分析失败").into_response()
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "存储分析失败",
+            )
+            .into_response()
         }
     }
 }
@@ -200,13 +244,11 @@ fn generate_suggested_fixes(severity: &str) -> Vec<SuggestedFix> {
                 estimated_impact: "可恢复到稳定状态".to_string(),
             },
         ],
-        _ => vec![
-            SuggestedFix {
-                action: "记录问题并安排后续处理".to_string(),
-                priority: "low".to_string(),
-                estimated_impact: "不影响正常运行".to_string(),
-            },
-        ],
+        _ => vec![SuggestedFix {
+            action: "记录问题并安排后续处理".to_string(),
+            priority: "low".to_string(),
+            estimated_impact: "不影响正常运行".to_string(),
+        }],
     }
 }
 
@@ -219,9 +261,17 @@ fn calculate_confidence(severity: &str) -> f64 {
     }
 }
 
-async fn get_analyses(State(state): State<AppState>, Query(query): Query<PaginationQuery>) -> Response {
+async fn get_analyses(
+    State(state): State<AppState>,
+    Query(query): Query<PaginationQuery>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let pool = proxy.pool();
@@ -248,7 +298,10 @@ async fn get_analyses(State(state): State<AppState>, Query(query): Query<Paginat
     .await
     .unwrap_or_default();
 
-    let analyses: Vec<AlertAnalysis> = rows.into_iter().map(|row| map_alert_analysis(&row)).collect();
+    let analyses: Vec<AlertAnalysis> = rows
+        .into_iter()
+        .map(|row| map_alert_analysis(&row))
+        .collect();
 
     Json(SuccessResponse {
         success: true,
@@ -259,7 +312,12 @@ async fn get_analyses(State(state): State<AppState>, Query(query): Query<Paginat
 
 async fn get_analysis(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let pool = proxy.pool();
@@ -281,11 +339,13 @@ async fn get_analysis(State(state): State<AppState>, Path(id): Path<String>) -> 
         Some(r) => Json(SuccessResponse {
             success: true,
             data: Some(map_alert_analysis(&r)),
-        }).into_response(),
+        })
+        .into_response(),
         None => Json(SuccessResponse {
             success: true,
             data: Option::<AlertAnalysis>::None,
-        }).into_response(),
+        })
+        .into_response(),
     }
 }
 
@@ -295,7 +355,12 @@ async fn update_analysis_status(
     Json(payload): Json<UpdateAlertStatusRequest>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     if payload.status == "resolved" {
@@ -304,9 +369,16 @@ async fn update_analysis_status(
             &id,
             "admin",
             payload.resolution.as_deref().unwrap_or(""),
-        ).await {
+        )
+        .await
+        {
             tracing::error!(error = %e, "Failed to update alert analysis status");
-            return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DB_ERROR", "更新状态失败").into_response();
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "DB_ERROR",
+                "更新状态失败",
+            )
+            .into_response();
         }
     } else {
         let pool = proxy.pool();
@@ -331,7 +403,12 @@ async fn update_analysis_status(
 
 async fn get_alert_stats(State(state): State<AppState>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let pool = proxy.pool();
@@ -379,7 +456,8 @@ async fn get_alert_stats(State(state): State<AppState>) -> Response {
                 avg_confidence: r.try_get("avg_confidence").unwrap_or(0.0),
                 by_severity,
             },
-        }).into_response(),
+        })
+        .into_response(),
         Err(_) => Json(SuccessResponse {
             success: true,
             data: AlertStats {
@@ -390,15 +468,21 @@ async fn get_alert_stats(State(state): State<AppState>) -> Response {
                 avg_confidence: 0.0,
                 by_severity,
             },
-        }).into_response(),
+        })
+        .into_response(),
     }
 }
 
 fn map_alert_analysis(row: &sqlx::postgres::PgRow) -> AlertAnalysis {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     let resolved_at: Option<chrono::NaiveDateTime> = row.try_get("resolvedAt").ok();
-    let suggested_fixes_json: serde_json::Value = row.try_get("suggestedFixes").unwrap_or(serde_json::json!([]));
-    let suggested_fixes: Vec<SuggestedFix> = serde_json::from_value(suggested_fixes_json).unwrap_or_default();
+    let suggested_fixes_json: serde_json::Value = row
+        .try_get("suggestedFixes")
+        .unwrap_or(serde_json::json!([]));
+    let suggested_fixes: Vec<SuggestedFix> =
+        serde_json::from_value(suggested_fixes_json).unwrap_or_default();
 
     AlertAnalysis {
         id: row.try_get("id").unwrap_or_default(),
@@ -406,7 +490,9 @@ fn map_alert_analysis(row: &sqlx::postgres::PgRow) -> AlertAnalysis {
         severity: row.try_get("severity").unwrap_or_default(),
         root_cause: row.try_get("rootCause").unwrap_or_default(),
         suggested_fixes,
-        related_metrics: row.try_get("relatedMetrics").unwrap_or(serde_json::json!({})),
+        related_metrics: row
+            .try_get("relatedMetrics")
+            .unwrap_or(serde_json::json!({})),
         confidence: row.try_get("confidence").unwrap_or(0.0),
         status: row.try_get("status").unwrap_or_default(),
         created_at: crate::auth::format_naive_datetime_iso_millis(created_at),
@@ -418,35 +504,67 @@ fn map_alert_analysis(row: &sqlx::postgres::PgRow) -> AlertAnalysis {
 
 async fn generate_weekly_report(State(state): State<AppState>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match weekly_report::generate_report(&proxy).await {
-        Ok(report) => Json(SuccessResponse { success: true, data: report }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "GENERATE_FAILED", &e).into_response(),
+        Ok(report) => Json(SuccessResponse {
+            success: true,
+            data: report,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "GENERATE_FAILED", &e).into_response()
+        }
     }
 }
 
-async fn get_weekly_reports(State(state): State<AppState>, Query(query): Query<PaginationQuery>) -> Response {
+async fn get_weekly_reports(
+    State(state): State<AppState>,
+    Query(query): Query<PaginationQuery>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
     let limit = query.limit.unwrap_or(10);
     let offset = query.offset.unwrap_or(0);
 
     match weekly_report::get_reports(&proxy, limit, offset).await {
-        Ok((reports, total)) => Json(SuccessResponse { success: true, data: serde_json::json!({ "reports": reports, "total": total }) }).into_response(),
+        Ok((reports, total)) => Json(SuccessResponse {
+            success: true,
+            data: serde_json::json!({ "reports": reports, "total": total }),
+        })
+        .into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
 }
 
 async fn get_latest_weekly_report(State(state): State<AppState>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match weekly_report::get_latest_report(&proxy).await {
-        Ok(Some(report)) => Json(SuccessResponse { success: true, data: report }).into_response(),
+        Ok(Some(report)) => Json(SuccessResponse {
+            success: true,
+            data: report,
+        })
+        .into_response(),
         Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "没有周报记录").into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
@@ -454,11 +572,20 @@ async fn get_latest_weekly_report(State(state): State<AppState>) -> Response {
 
 async fn get_weekly_report(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match weekly_report::get_report_by_id(&proxy, &id).await {
-        Ok(Some(report)) => Json(SuccessResponse { success: true, data: report }).into_response(),
+        Ok(Some(report)) => Json(SuccessResponse {
+            success: true,
+            data: report,
+        })
+        .into_response(),
         Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "报告不存在").into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
@@ -477,14 +604,26 @@ struct InsightsQuery {
     status: Option<String>,
 }
 
-async fn get_health_trend(State(state): State<AppState>, Query(query): Query<HealthTrendQuery>) -> Response {
+async fn get_health_trend(
+    State(state): State<AppState>,
+    Query(query): Query<HealthTrendQuery>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
     let weeks = query.weeks.unwrap_or(12);
 
     match weekly_report::get_health_trend(&proxy, weeks).await {
-        Ok(trend) => Json(SuccessResponse { success: true, data: trend }).into_response(),
+        Ok(trend) => Json(SuccessResponse {
+            success: true,
+            data: trend,
+        })
+        .into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
 }
@@ -494,36 +633,68 @@ async fn generate_insight(
     Json(payload): Json<insight_generator::GenerateInsightRequest>,
 ) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match insight_generator::generate_insights(&proxy, payload).await {
-        Ok(insights) => Json(SuccessResponse { success: true, data: insights }).into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "GENERATE_FAILED", &e).into_response(),
+        Ok(insights) => Json(SuccessResponse {
+            success: true,
+            data: insights,
+        })
+        .into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "GENERATE_FAILED", &e).into_response()
+        }
     }
 }
 
-async fn get_insights(State(state): State<AppState>, Query(query): Query<InsightsQuery>) -> Response {
+async fn get_insights(
+    State(state): State<AppState>,
+    Query(query): Query<InsightsQuery>,
+) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     let limit = query.limit.unwrap_or(10).max(1).min(100);
     let offset = query.offset.unwrap_or(0).max(0);
 
     match insight_generator::get_insights(&proxy, limit, offset, query.status.as_deref()).await {
-        Ok(result) => Json(SuccessResponse { success: true, data: result }).into_response(),
+        Ok(result) => Json(SuccessResponse {
+            success: true,
+            data: result,
+        })
+        .into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
 }
 
 async fn get_insight(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_UNAVAILABLE", "数据库不可用").into_response();
+        return json_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "DB_UNAVAILABLE",
+            "数据库不可用",
+        )
+        .into_response();
     };
 
     match insight_generator::get_insight_by_id(&proxy, &id).await {
-        Ok(Some(insight)) => Json(SuccessResponse { success: true, data: insight }).into_response(),
+        Ok(Some(insight)) => Json(SuccessResponse {
+            success: true,
+            data: insight,
+        })
+        .into_response(),
         Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "洞察不存在").into_response(),
         Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_FAILED", &e).into_response(),
     }
@@ -533,7 +704,8 @@ async fn get_segments() -> Response {
     Json(SuccessResponse {
         success: true,
         data: USER_SEGMENTS,
-    }).into_response()
+    })
+    .into_response()
 }
 
 async fn reload_amas_config(State(state): State<AppState>) -> Response {
@@ -547,18 +719,30 @@ async fn reload_amas_config(State(state): State<AppState>) -> Response {
                     "message": "AMAS config reloaded successfully",
                     "feature_flags": config.feature_flags,
                 }),
-            }).into_response()
+            })
+            .into_response()
         }
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "RELOAD_FAILED", &e).into_response(),
+        Err(e) => {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, "RELOAD_FAILED", &e).into_response()
+        }
     }
 }
 
 async fn get_amas_config(State(state): State<AppState>) -> Response {
     let engine = state.amas_engine();
     let config = engine.get_config().await;
-    Json(SuccessResponse { success: true, data: config }).into_response()
+    Json(SuccessResponse {
+        success: true,
+        data: config,
+    })
+    .into_response()
 }
 
 fn not_implemented() -> Response {
-    json_error(StatusCode::NOT_IMPLEMENTED, "NOT_IMPLEMENTED", "功能尚未实现").into_response()
+    json_error(
+        StatusCode::NOT_IMPLEMENTED,
+        "NOT_IMPLEMENTED",
+        "功能尚未实现",
+    )
+    .into_response()
 }

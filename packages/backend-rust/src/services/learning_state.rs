@@ -16,7 +16,9 @@ pub enum WordState {
 }
 
 impl Default for WordState {
-    fn default() -> Self { Self::New }
+    fn default() -> Self {
+        Self::New
+    }
 }
 
 impl WordState {
@@ -193,16 +195,38 @@ pub async fn get_word_state(
 fn parse_word_learning_state(row: &sqlx::postgres::PgRow) -> Result<WordLearningState, String> {
     Ok(WordLearningState {
         id: row.try_get("id").map_err(|e| format!("解析失败: {e}"))?,
-        user_id: row.try_get("userId").map_err(|e| format!("解析失败: {e}"))?,
-        word_id: row.try_get("wordId").map_err(|e| format!("解析失败: {e}"))?,
-        state: WordState::from_str(row.try_get::<String, _>("state").unwrap_or_default().as_str()),
+        user_id: row
+            .try_get("userId")
+            .map_err(|e| format!("解析失败: {e}"))?,
+        word_id: row
+            .try_get("wordId")
+            .map_err(|e| format!("解析失败: {e}"))?,
+        state: WordState::from_str(
+            row.try_get::<String, _>("state")
+                .unwrap_or_default()
+                .as_str(),
+        ),
         mastery_level: row.try_get("masteryLevel").unwrap_or(0),
         ease_factor: row.try_get("easeFactor").unwrap_or(2.5),
         review_count: row.try_get("reviewCount").unwrap_or(0),
-        last_review_date: row.try_get::<Option<DateTime<Utc>>, _>("lastReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-        next_review_date: row.try_get::<Option<DateTime<Utc>>, _>("nextReviewDate").ok().flatten().map(|d| d.timestamp_millis()),
-        created_at: row.try_get::<DateTime<Utc>, _>("createdAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-        updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        last_review_date: row
+            .try_get::<Option<DateTime<Utc>>, _>("lastReviewDate")
+            .ok()
+            .flatten()
+            .map(|d| d.timestamp_millis()),
+        next_review_date: row
+            .try_get::<Option<DateTime<Utc>>, _>("nextReviewDate")
+            .ok()
+            .flatten()
+            .map(|d| d.timestamp_millis()),
+        created_at: row
+            .try_get::<DateTime<Utc>, _>("createdAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updatedAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
         stability: row.try_get("stability").unwrap_or(1.0),
         difficulty: row.try_get("difficulty").unwrap_or(0.3),
         desired_retention: row.try_get("desiredRetention").unwrap_or(0.9),
@@ -258,7 +282,9 @@ pub async fn get_due_words(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter().map(|row| parse_word_learning_state(row)).collect()
+    rows.iter()
+        .map(|row| parse_word_learning_state(row))
+        .collect()
 }
 
 pub async fn get_words_by_state(
@@ -282,7 +308,9 @@ pub async fn get_words_by_state(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    rows.iter().map(|row| parse_word_learning_state(row)).collect()
+    rows.iter()
+        .map(|row| parse_word_learning_state(row))
+        .collect()
 }
 
 pub async fn get_word_score(
@@ -313,7 +341,10 @@ pub async fn get_word_score(
         correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
         average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
         recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
-        updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updatedAt")
+            .map(|d| d.timestamp_millis())
+            .unwrap_or_else(|_| Utc::now().timestamp_millis()),
     }))
 }
 
@@ -336,19 +367,25 @@ pub async fn get_low_score_words(
     .await
     .map_err(|e| format!("查询失败: {e}"))?;
 
-    Ok(rows.iter().map(|row| WordScore {
-        id: row.try_get("id").unwrap_or_default(),
-        user_id: row.try_get("userId").unwrap_or_default(),
-        word_id: row.try_get("wordId").unwrap_or_default(),
-        total_score: row.try_get("totalScore").unwrap_or(0.0),
-        accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
-        speed_score: row.try_get("speedScore").unwrap_or(0.0),
-        total_attempts: row.try_get("totalAttempts").unwrap_or(0),
-        correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
-        average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
-        recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
-        updated_at: row.try_get::<DateTime<Utc>, _>("updatedAt").map(|d| d.timestamp_millis()).unwrap_or_else(|_| Utc::now().timestamp_millis()),
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| WordScore {
+            id: row.try_get("id").unwrap_or_default(),
+            user_id: row.try_get("userId").unwrap_or_default(),
+            word_id: row.try_get("wordId").unwrap_or_default(),
+            total_score: row.try_get("totalScore").unwrap_or(0.0),
+            accuracy_score: row.try_get("accuracyScore").unwrap_or(0.0),
+            speed_score: row.try_get("speedScore").unwrap_or(0.0),
+            total_attempts: row.try_get("totalAttempts").unwrap_or(0),
+            correct_attempts: row.try_get("correctAttempts").unwrap_or(0),
+            average_response_time: row.try_get("averageResponseTime").unwrap_or(0.0),
+            recent_accuracy: row.try_get("recentAccuracy").unwrap_or(0.0),
+            updated_at: row
+                .try_get::<DateTime<Utc>, _>("updatedAt")
+                .map(|d| d.timestamp_millis())
+                .unwrap_or_else(|_| Utc::now().timestamp_millis()),
+        })
+        .collect())
 }
 
 pub async fn get_score_stats(pool: &PgPool, user_id: &str) -> Result<ScoreStats, String> {
@@ -383,15 +420,24 @@ pub async fn get_complete_word_state(
     let score = get_word_score(pool, user_id, word_id).await?;
 
     let mastery = if include_mastery {
-        learning_state.as_ref().map(|ls| compute_mastery_evaluation(ls, score.as_ref()))
+        learning_state
+            .as_ref()
+            .map(|ls| compute_mastery_evaluation(ls, score.as_ref()))
     } else {
         None
     };
 
-    Ok(CompleteWordState { learning_state, score, mastery })
+    Ok(CompleteWordState {
+        learning_state,
+        score,
+        mastery,
+    })
 }
 
-fn compute_mastery_evaluation(state: &WordLearningState, score: Option<&WordScore>) -> MasteryEvaluation {
+fn compute_mastery_evaluation(
+    state: &WordLearningState,
+    score: Option<&WordScore>,
+) -> MasteryEvaluation {
     let base_score = score.map(|s| s.total_score).unwrap_or(50.0);
     let mastery_factor = (state.mastery_level as f64 / 10.0).min(1.0);
     let review_factor = (state.review_count as f64 / 20.0).min(1.0);
@@ -406,11 +452,17 @@ fn compute_mastery_evaluation(state: &WordLearningState, score: Option<&WordScor
         stability,
         confidence: mastery_factor,
         is_mastered: state.state == WordState::Mastered || combined_score >= 80.0,
-        needs_review: state.next_review_date.map(|d| d <= Utc::now().timestamp_millis()).unwrap_or(false),
+        needs_review: state
+            .next_review_date
+            .map(|d| d <= Utc::now().timestamp_millis())
+            .unwrap_or(false),
     }
 }
 
-pub async fn get_user_learning_stats(pool: &PgPool, user_id: &str) -> Result<UserLearningStats, String> {
+pub async fn get_user_learning_stats(
+    pool: &PgPool,
+    user_id: &str,
+) -> Result<UserLearningStats, String> {
     let state_stats = get_user_stats(pool, user_id).await?;
     let score_stats = get_score_stats(pool, user_id).await?;
 
@@ -424,7 +476,11 @@ pub async fn get_user_learning_stats(pool: &PgPool, user_id: &str) -> Result<Use
         need_review_count: state_stats.reviewing_words,
     };
 
-    Ok(UserLearningStats { state_stats, score_stats, mastery_stats })
+    Ok(UserLearningStats {
+        state_stats,
+        score_stats,
+        mastery_stats,
+    })
 }
 
 // ========== Write Operations ==========
@@ -440,8 +496,12 @@ pub async fn upsert_word_state(
     let id = uuid::Uuid::new_v4().to_string();
 
     let state_str: Option<&str> = data.state.map(|s| s.as_str());
-    let last_review: Option<DateTime<Utc>> = data.last_review_date.and_then(DateTime::from_timestamp_millis);
-    let next_review: Option<DateTime<Utc>> = data.next_review_date.and_then(DateTime::from_timestamp_millis);
+    let last_review: Option<DateTime<Utc>> = data
+        .last_review_date
+        .and_then(DateTime::from_timestamp_millis);
+    let next_review: Option<DateTime<Utc>> = data
+        .next_review_date
+        .and_then(DateTime::from_timestamp_millis);
 
     sqlx::query(
         r#"INSERT INTO "word_learning_states" (
@@ -517,9 +577,13 @@ fn calculate_speed_score(response_time: i64) -> f64 {
     let max_time = 10000.0;
     let min_time = 500.0;
     let rt = response_time as f64;
-    if rt <= min_time { 1.0 }
-    else if rt >= max_time { 0.0 }
-    else { 1.0 - (rt - min_time) / (max_time - min_time) }
+    if rt <= min_time {
+        1.0
+    } else if rt >= max_time {
+        0.0
+    } else {
+        1.0 - (rt - min_time) / (max_time - min_time)
+    }
 }
 
 pub async fn record_review(
@@ -566,21 +630,28 @@ pub async fn get_memory_trace(
            FROM "word_review_traces" WHERE "userId" = $1 AND "wordId" = $2
            ORDER BY "timestamp" DESC LIMIT $3"#,
     )
-    .bind(user_id).bind(word_id).bind(limit)
-    .fetch_all(pool).await.map_err(|e| format!("查询失败: {e}"))?;
+    .bind(user_id)
+    .bind(word_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询失败: {e}"))?;
 
     let now = Utc::now().timestamp_millis();
-    Ok(rows.iter().map(|row| {
-        let ts: DateTime<Utc> = row.try_get("timestamp").unwrap_or(Utc::now());
-        let ts_ms = ts.timestamp_millis();
-        ReviewTraceRecord {
-            id: row.try_get("id").unwrap_or_default(),
-            timestamp: ts_ms,
-            is_correct: row.try_get("isCorrect").unwrap_or(false),
-            response_time: row.try_get("responseTime").unwrap_or(0),
-            seconds_ago: ((now - ts_ms) / 1000) as i64,
-        }
-    }).collect())
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let ts: DateTime<Utc> = row.try_get("timestamp").unwrap_or(Utc::now());
+            let ts_ms = ts.timestamp_millis();
+            ReviewTraceRecord {
+                id: row.try_get("id").unwrap_or_default(),
+                timestamp: ts_ms,
+                is_correct: row.try_get("isCorrect").unwrap_or(false),
+                response_time: row.try_get("responseTime").unwrap_or(0),
+                seconds_ago: ((now - ts_ms) / 1000) as i64,
+            }
+        })
+        .collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

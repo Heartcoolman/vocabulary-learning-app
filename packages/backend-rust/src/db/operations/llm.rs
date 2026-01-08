@@ -154,7 +154,11 @@ pub async fn update_word_content_variant_status(
     approved_by: Option<&str>,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
-    let approved_at = if status == "approved" { Some(now) } else { None };
+    let approved_at = if status == "approved" {
+        Some(now)
+    } else {
+        None
+    };
     sqlx::query(
         r#"
         UPDATE "word_content_variants" SET

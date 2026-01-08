@@ -65,9 +65,17 @@ impl AppError {
             return Self::conflict(message);
         }
 
-        if ["无权", "令牌", "密码错误", "邮箱或密码", "尚未注册", "认证", "会话"]
-            .iter()
-            .any(|needle| message.contains(needle))
+        if [
+            "无权",
+            "令牌",
+            "密码错误",
+            "邮箱或密码",
+            "尚未注册",
+            "认证",
+            "会话",
+        ]
+        .iter()
+        .any(|needle| message.contains(needle))
         {
             return Self::unauthorized(message);
         }

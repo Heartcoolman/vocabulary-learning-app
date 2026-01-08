@@ -109,13 +109,19 @@ struct WordBookDetailData {
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_wordbooks).post(create_wordbook))
-        .route("/{id}", get(get_wordbook).put(update_wordbook).delete(delete_wordbook))
+        .route(
+            "/{id}",
+            get(get_wordbook)
+                .put(update_wordbook)
+                .delete(delete_wordbook),
+        )
         .route("/{id}/words/batch", post(batch_add_words))
 }
 
 async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQuery>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
 
     let page = query.page.unwrap_or(1).max(1);
@@ -134,22 +140,48 @@ async fn list_wordbooks(State(state): State<AppState>, Query(query): Query<ListQ
     match rows {
         Ok(rows) => {
             let wordbooks: Vec<WordBook> = rows.iter().map(|r| parse_wordbook_pg(r)).collect();
-            (StatusCode::OK, Json(SuccessResponse { success: true, data: wordbooks })).into_response()
+            (
+                StatusCode::OK,
+                Json(SuccessResponse {
+                    success: true,
+                    data: wordbooks,
+                }),
+            )
+                .into_response()
         }
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_ERROR",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
-async fn create_wordbook(State(state): State<AppState>, Json(input): Json<CreateWordBookInput>) -> Response {
+async fn create_wordbook(
+    State(state): State<AppState>,
+    Json(input): Json<CreateWordBookInput>,
+) -> Response {
     if input.name.trim().is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "词书名称不能为空").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "词书名称不能为空",
+        )
+        .into_response();
     }
     if input.name.len() > 100 {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "词书名称不能超过100个字符").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "词书名称不能超过100个字符",
+        )
+        .into_response();
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now();
@@ -167,7 +199,12 @@ async fn create_wordbook(State(state): State<AppState>, Json(input): Json<Create
     .await;
 
     if let Err(e) = result {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "WRITE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
     let wordbook = WordBook {
@@ -183,12 +220,20 @@ async fn create_wordbook(State(state): State<AppState>, Json(input): Json<Create
         updated_at: now_str,
     };
 
-    (StatusCode::CREATED, Json(SuccessResponse { success: true, data: wordbook })).into_response()
+    (
+        StatusCode::CREATED,
+        Json(SuccessResponse {
+            success: true,
+            data: wordbook,
+        }),
+    )
+        .into_response()
 }
 
 async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
 
     let wb_row = sqlx::query(
@@ -214,28 +259,52 @@ async fn get_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> 
 
             let words: Vec<Word> = word_rows.iter().map(|r| parse_word_pg(r)).collect();
 
-            (StatusCode::OK, Json(SuccessResponse {
-                success: true,
-                data: WordBookDetailData { wordbook, words },
-            })).into_response()
+            (
+                StatusCode::OK,
+                Json(SuccessResponse {
+                    success: true,
+                    data: WordBookDetailData { wordbook, words },
+                }),
+            )
+                .into_response()
         }
         Ok(None) => json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "QUERY_ERROR",
+            &e.to_string(),
+        )
+        .into_response(),
     }
 }
 
-async fn update_wordbook(State(state): State<AppState>, Path(id): Path<String>, Json(input): Json<UpdateWordBookInput>) -> Response {
+async fn update_wordbook(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(input): Json<UpdateWordBookInput>,
+) -> Response {
     if let Some(ref name) = input.name {
         if name.trim().is_empty() {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "词书名称不能为空").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "词书名称不能为空",
+            )
+            .into_response();
         }
         if name.len() > 100 {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "词书名称不能超过100个字符").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "词书名称不能超过100个字符",
+            )
+            .into_response();
         }
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
 
     let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
@@ -247,11 +316,21 @@ async fn update_wordbook(State(state): State<AppState>, Path(id): Path<String>, 
         Ok(Some(row)) => {
             let wb_type: String = row.try_get("type").unwrap_or_default();
             if wb_type != "SYSTEM" {
-                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能修改系统词书").into_response();
+                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能修改系统词书")
+                    .into_response();
             }
         }
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response()
+        }
+        Err(e) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                &e.to_string(),
+            )
+            .into_response()
+        }
     }
 
     let mut sets = vec![r#""updatedAt" = NOW()"#.to_string()];
@@ -270,7 +349,10 @@ async fn update_wordbook(State(state): State<AppState>, Path(id): Path<String>, 
         bind_idx += 1;
     }
 
-    let sql = format!(r#"UPDATE "word_books" SET {} WHERE "id" = ${bind_idx}"#, sets.join(", "));
+    let sql = format!(
+        r#"UPDATE "word_books" SET {} WHERE "id" = ${bind_idx}"#,
+        sets.join(", ")
+    );
     let mut q = sqlx::query(&sql);
 
     if let Some(ref n) = input.name {
@@ -285,15 +367,25 @@ async fn update_wordbook(State(state): State<AppState>, Path(id): Path<String>, 
     q = q.bind(&id);
 
     if let Err(e) = q.execute(proxy.pool()).await {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "WRITE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "WRITE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
-    (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "更新成功" }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "success": true, "message": "更新成功" })),
+    )
+        .into_response()
 }
 
 async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
 
     let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
@@ -305,11 +397,21 @@ async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) 
         Ok(Some(row)) => {
             let wb_type: String = row.try_get("type").unwrap_or_default();
             if wb_type != "SYSTEM" {
-                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能删除系统词书").into_response();
+                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能删除系统词书")
+                    .into_response();
             }
         }
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response()
+        }
+        Err(e) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                &e.to_string(),
+            )
+            .into_response()
+        }
     }
 
     if let Err(e) = sqlx::query(r#"DELETE FROM "word_books" WHERE "id" = $1"#)
@@ -317,28 +419,57 @@ async fn delete_wordbook(State(state): State<AppState>, Path(id): Path<String>) 
         .execute(proxy.pool())
         .await
     {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR, "DELETE_ERROR", &e.to_string()).into_response();
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "DELETE_ERROR",
+            &e.to_string(),
+        )
+        .into_response();
     }
 
-    (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "删除成功" }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "success": true, "message": "删除成功" })),
+    )
+        .into_response()
 }
 
-async fn batch_add_words(State(state): State<AppState>, Path(id): Path<String>, Json(input): Json<BatchAddWordsInput>) -> Response {
+async fn batch_add_words(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(input): Json<BatchAddWordsInput>,
+) -> Response {
     if input.words.is_empty() {
-        return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "单词列表不能为空").into_response();
+        return json_error(
+            StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "单词列表不能为空",
+        )
+        .into_response();
     }
 
     for w in &input.words {
         if w.spelling.trim().is_empty() {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "单词拼写不能为空").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "单词拼写不能为空",
+            )
+            .into_response();
         }
         if w.meanings.is_empty() {
-            return json_error(StatusCode::BAD_REQUEST, "VALIDATION_ERROR", "单词释义不能为空").into_response();
+            return json_error(
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "单词释义不能为空",
+            )
+            .into_response();
         }
     }
 
     let Some(proxy) = state.db_proxy() else {
-        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用").into_response();
+        return json_error(StatusCode::SERVICE_UNAVAILABLE, "DB_ERROR", "数据库不可用")
+            .into_response();
     };
 
     let existing = sqlx::query(r#"SELECT "id","type"::text FROM "word_books" WHERE "id" = $1"#)
@@ -350,11 +481,25 @@ async fn batch_add_words(State(state): State<AppState>, Path(id): Path<String>, 
         Ok(Some(row)) => {
             let wb_type: String = row.try_get("type").unwrap_or_default();
             if wb_type != "SYSTEM" {
-                return json_error(StatusCode::FORBIDDEN, "FORBIDDEN", "只能向系统词书批量添加单词").into_response();
+                return json_error(
+                    StatusCode::FORBIDDEN,
+                    "FORBIDDEN",
+                    "只能向系统词书批量添加单词",
+                )
+                .into_response();
             }
         }
-        Ok(None) => return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response(),
-        Err(e) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "QUERY_ERROR", &e.to_string()).into_response(),
+        Ok(None) => {
+            return json_error(StatusCode::NOT_FOUND, "NOT_FOUND", "词书不存在").into_response()
+        }
+        Err(e) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QUERY_ERROR",
+                &e.to_string(),
+            )
+            .into_response()
+        }
     }
 
     let _now = chrono::Utc::now();
@@ -385,7 +530,12 @@ async fn batch_add_words(State(state): State<AppState>, Path(id): Path<String>, 
             Ok(_) => imported += 1,
             Err(e) => {
                 failed += 1;
-                errors.push(format!("第{}个单词 '{}': {}", idx + 1, word_input.spelling, e));
+                errors.push(format!(
+                    "第{}个单词 '{}': {}",
+                    idx + 1,
+                    word_input.spelling,
+                    e
+                ));
             }
         }
     }
@@ -398,15 +548,27 @@ async fn batch_add_words(State(state): State<AppState>, Path(id): Path<String>, 
             .await;
     }
 
-    (StatusCode::CREATED, Json(SuccessResponse {
-        success: true,
-        data: BatchAddResult { imported, failed, errors },
-    })).into_response()
+    (
+        StatusCode::CREATED,
+        Json(SuccessResponse {
+            success: true,
+            data: BatchAddResult {
+                imported,
+                failed,
+                errors,
+            },
+        }),
+    )
+        .into_response()
 }
 
 fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-    let updated_at: chrono::NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let updated_at: chrono::NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
 
     WordBook {
         id: row.try_get("id").unwrap_or_default(),
@@ -417,19 +579,33 @@ fn parse_wordbook_pg(row: &sqlx::postgres::PgRow) -> WordBook {
         is_public: row.try_get("isPublic").unwrap_or(true),
         word_count: row.try_get("wordCount").unwrap_or(0),
         cover_image: row.try_get("coverImage").ok(),
-        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(created_at, chrono::Utc).to_rfc3339(),
-        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(updated_at, chrono::Utc).to_rfc3339(),
+        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            created_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
+        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            updated_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
     }
 }
 
 fn parse_word_pg(row: &sqlx::postgres::PgRow) -> Word {
-    let created_at: chrono::NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-    let updated_at: chrono::NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| chrono::Utc::now().naive_utc());
-    let meanings: Vec<String> = row.try_get::<serde_json::Value, _>("meanings")
+    let created_at: chrono::NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let updated_at: chrono::NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| chrono::Utc::now().naive_utc());
+    let meanings: Vec<String> = row
+        .try_get::<serde_json::Value, _>("meanings")
         .ok()
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
-    let examples: Vec<String> = row.try_get::<serde_json::Value, _>("examples")
+    let examples: Vec<String> = row
+        .try_get::<serde_json::Value, _>("examples")
         .ok()
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
@@ -442,7 +618,15 @@ fn parse_word_pg(row: &sqlx::postgres::PgRow) -> Word {
         examples,
         audio_url: row.try_get("audioUrl").ok(),
         word_book_id: row.try_get("wordBookId").unwrap_or_default(),
-        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(created_at, chrono::Utc).to_rfc3339(),
-        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(updated_at, chrono::Utc).to_rfc3339(),
+        created_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            created_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
+        updated_at: chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            updated_at,
+            chrono::Utc,
+        )
+        .to_rfc3339(),
     }
 }

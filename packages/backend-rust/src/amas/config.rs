@@ -32,12 +32,30 @@ pub struct PerceptionConfig {
 impl Default for PerceptionConfig {
     fn default() -> Self {
         Self {
-            rt: NormalizationStat { mean: 3000.0, std_dev: 1500.0 },
-            pause: NormalizationStat { mean: 2.0, std_dev: 2.0 },
-            focus_loss: NormalizationStat { mean: 5000.0, std_dev: 3000.0 },
-            switches: NormalizationStat { mean: 1.0, std_dev: 1.0 },
-            dwell: NormalizationStat { mean: 8000.0, std_dev: 4000.0 },
-            interaction_density: NormalizationStat { mean: 0.5, std_dev: 0.2 },
+            rt: NormalizationStat {
+                mean: 3000.0,
+                std_dev: 1500.0,
+            },
+            pause: NormalizationStat {
+                mean: 2.0,
+                std_dev: 2.0,
+            },
+            focus_loss: NormalizationStat {
+                mean: 5000.0,
+                std_dev: 3000.0,
+            },
+            switches: NormalizationStat {
+                mean: 1.0,
+                std_dev: 1.0,
+            },
+            dwell: NormalizationStat {
+                mean: 8000.0,
+                std_dev: 4000.0,
+            },
+            interaction_density: NormalizationStat {
+                mean: 0.5,
+                std_dev: 0.2,
+            },
             max_response_time: 30000,
             max_pause_count: 10,
             max_switch_count: 5,

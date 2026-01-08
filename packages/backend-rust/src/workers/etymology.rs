@@ -39,7 +39,10 @@ pub async fn run_etymology_analysis(db: Arc<DatabaseProxy>) -> Result<(), super:
         return Ok(());
     }
 
-    info!(count = words_to_analyze.len(), "Processing words for etymology");
+    info!(
+        count = words_to_analyze.len(),
+        "Processing words for etymology"
+    );
 
     let mut success_count = 0;
     let mut error_count = 0;
@@ -74,7 +77,10 @@ struct WordToAnalyze {
     spelling: String,
 }
 
-async fn get_words_without_etymology(pool: &PgPool, limit: i64) -> Result<Vec<WordToAnalyze>, super::WorkerError> {
+async fn get_words_without_etymology(
+    pool: &PgPool,
+    limit: i64,
+) -> Result<Vec<WordToAnalyze>, super::WorkerError> {
     let rows = sqlx::query(
         r#"
         SELECT w."id", w."spelling"
@@ -84,7 +90,7 @@ async fn get_words_without_etymology(pool: &PgPool, limit: i64) -> Result<Vec<Wo
           AND LENGTH(w."spelling") >= 4
         ORDER BY w."frequency" DESC NULLS LAST
         LIMIT $1
-        "#
+        "#,
     )
     .bind(limit)
     .fetch_all(pool)
@@ -154,15 +160,19 @@ Example for "unhappiness":
         content: prompt,
     }];
 
-    let response = llm.chat(&messages).await
+    let response = llm
+        .chat(&messages)
+        .await
         .map_err(|e| super::WorkerError::Custom(format!("LLM error: {}", e)))?;
 
-    let response_content = response.first_content()
+    let response_content = response
+        .first_content()
         .ok_or_else(|| super::WorkerError::Custom("Empty LLM response".to_string()))?;
     let json_str = extract_json_from_response(response_content);
 
-    let parsed: EtymologyLLMResponse = serde_json::from_str(&json_str)
-        .map_err(|e| super::WorkerError::Custom(format!("JSON parse error: {} - response: {}", e, json_str)))?;
+    let parsed: EtymologyLLMResponse = serde_json::from_str(&json_str).map_err(|e| {
+        super::WorkerError::Custom(format!("JSON parse error: {} - response: {}", e, json_str))
+    })?;
 
     if parsed.confidence < 0.5 {
         debug!(word = %word.spelling, confidence = parsed.confidence, "Low confidence etymology, skipping");
@@ -183,7 +193,8 @@ Example for "unhappiness":
             part.meaning.as_deref(),
             part.meaning_zh.as_deref(),
             "latin",
-        ).await?;
+        )
+        .await?;
 
         etymology::link_word_morpheme(
             pool,
@@ -193,7 +204,8 @@ Example for "unhappiness":
             pos as i32,
             parsed.confidence,
             "llm",
-        ).await?;
+        )
+        .await?;
 
         etymology::increment_morpheme_frequency(pool, &morpheme.id).await?;
     }

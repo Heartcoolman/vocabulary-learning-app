@@ -58,12 +58,10 @@ pub async fn get_user_learning_profile(
     proxy: &DatabaseProxy,
     user_id: &str,
 ) -> Result<Option<UserLearningProfile>, sqlx::Error> {
-    let row = sqlx::query(
-        r#"SELECT * FROM "user_learning_profiles" WHERE "userId" = $1 LIMIT 1"#,
-    )
-    .bind(user_id)
-    .fetch_optional(proxy.pool())
-    .await?;
+    let row = sqlx::query(r#"SELECT * FROM "user_learning_profiles" WHERE "userId" = $1 LIMIT 1"#)
+        .bind(user_id)
+        .fetch_optional(proxy.pool())
+        .await?;
     Ok(row.map(|r| map_user_learning_profile(&r)))
 }
 
@@ -146,8 +144,12 @@ pub async fn get_recent_user_state_history(
 }
 
 fn map_user_learning_profile(row: &sqlx::postgres::PgRow) -> UserLearningProfile {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     UserLearningProfile {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
@@ -163,18 +165,23 @@ fn map_user_learning_profile(row: &sqlx::postgres::PgRow) -> UserLearningProfile
 }
 
 fn map_user_state_history(row: &sqlx::postgres::PgRow) -> UserStateHistory {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     UserStateHistory {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
-        state_snapshot: row.try_get("stateSnapshot").unwrap_or(serde_json::Value::Null),
+        state_snapshot: row
+            .try_get("stateSnapshot")
+            .unwrap_or(serde_json::Value::Null),
         trigger_event: row.try_get("triggerEvent").unwrap_or_default(),
         created_at: format_naive_iso(created_at),
     }
 }
 
 fn format_naive_iso(value: NaiveDateTime) -> String {
-    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc).to_rfc3339_opts(SecondsFormat::Millis, true)
+    DateTime::<Utc>::from_naive_utc_and_offset(value, Utc)
+        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 pub async fn upsert_user_interaction_stats(
@@ -266,8 +273,12 @@ pub async fn mark_password_reset_token_used(
 }
 
 fn map_password_reset_token(row: &sqlx::postgres::PgRow) -> PasswordResetToken {
-    let expires_at: NaiveDateTime = row.try_get("expiresAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let expires_at: NaiveDateTime = row
+        .try_get("expiresAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     PasswordResetToken {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),
@@ -282,18 +293,20 @@ pub async fn get_user_interaction_stats(
     proxy: &DatabaseProxy,
     user_id: &str,
 ) -> Result<Option<UserInteractionStats>, sqlx::Error> {
-    let row = sqlx::query(
-        r#"SELECT * FROM "user_interaction_stats" WHERE "userId" = $1 LIMIT 1"#,
-    )
-    .bind(user_id)
-    .fetch_optional(proxy.pool())
-    .await?;
+    let row = sqlx::query(r#"SELECT * FROM "user_interaction_stats" WHERE "userId" = $1 LIMIT 1"#)
+        .bind(user_id)
+        .fetch_optional(proxy.pool())
+        .await?;
     Ok(row.map(|r| map_user_interaction_stats(&r)))
 }
 
 fn map_user_interaction_stats(row: &sqlx::postgres::PgRow) -> UserInteractionStats {
-    let created_at: NaiveDateTime = row.try_get("createdAt").unwrap_or_else(|_| Utc::now().naive_utc());
-    let updated_at: NaiveDateTime = row.try_get("updatedAt").unwrap_or_else(|_| Utc::now().naive_utc());
+    let created_at: NaiveDateTime = row
+        .try_get("createdAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
+    let updated_at: NaiveDateTime = row
+        .try_get("updatedAt")
+        .unwrap_or_else(|_| Utc::now().naive_utc());
     UserInteractionStats {
         id: row.try_get("id").unwrap_or_default(),
         user_id: row.try_get("userId").unwrap_or_default(),

@@ -1,5 +1,5 @@
 use crate::types::{
-    CHOLESKY_RECOMPUTE_INTERVAL, DiagnosticResult, EPSILON, MAX_COVARIANCE, MAX_FEATURE_ABS,
+    DiagnosticResult, CHOLESKY_RECOMPUTE_INTERVAL, EPSILON, MAX_COVARIANCE, MAX_FEATURE_ABS,
     MIN_LAMBDA, MIN_RANK1_DIAG,
 };
 
@@ -221,18 +221,18 @@ mod tests {
         let mut x = vec![1.0, 100.0, -100.0, MAX_FEATURE_ABS + 10.0];
         sanitize_feature_vector(&mut x);
         assert_eq!(x[0], 1.0);
-        assert_eq!(x[1], MAX_FEATURE_ABS);      // 100.0 -> 50.0
-        assert_eq!(x[2], -MAX_FEATURE_ABS);     // -100.0 -> -50.0
-        assert_eq!(x[3], MAX_FEATURE_ABS);      // 60.0 -> 50.0
+        assert_eq!(x[1], MAX_FEATURE_ABS); // 100.0 -> 50.0
+        assert_eq!(x[2], -MAX_FEATURE_ABS); // -100.0 -> -50.0
+        assert_eq!(x[3], MAX_FEATURE_ABS); // 60.0 -> 50.0
     }
 
     #[test]
     fn test_sanitize_feature_vector_boundary_values() {
         let mut x = vec![MAX_FEATURE_ABS, -MAX_FEATURE_ABS, MAX_FEATURE_ABS - 0.001];
         sanitize_feature_vector(&mut x);
-        assert_eq!(x[0], MAX_FEATURE_ABS);           // 边界值保持
-        assert_eq!(x[1], -MAX_FEATURE_ABS);          // 边界值保持
-        assert_eq!(x[2], MAX_FEATURE_ABS - 0.001);   // 略小于边界，保持
+        assert_eq!(x[0], MAX_FEATURE_ABS); // 边界值保持
+        assert_eq!(x[1], -MAX_FEATURE_ABS); // 边界值保持
+        assert_eq!(x[2], MAX_FEATURE_ABS - 0.001); // 略小于边界，保持
     }
 
     #[test]
@@ -247,11 +247,7 @@ mod tests {
     #[test]
     fn test_sanitize_covariance_valid_matrix() {
         // 3x3 有效协方差矩阵
-        let mut a = vec![
-            2.0, 0.5, 0.3,
-            0.5, 2.0, 0.4,
-            0.3, 0.4, 2.0,
-        ];
+        let mut a = vec![2.0, 0.5, 0.3, 0.5, 2.0, 0.4, 0.3, 0.4, 2.0];
         let original = a.clone();
         sanitize_covariance(&mut a, 3, 1.0);
         // 有效矩阵应保持不变（除了对称性强制）
@@ -260,11 +256,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_covariance_nan_on_diagonal() {
-        let mut a = vec![
-            f64::NAN, 0.0, 0.0,
-            0.0, 2.0, 0.0,
-            0.0, 0.0, 2.0,
-        ];
+        let mut a = vec![f64::NAN, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0];
         sanitize_covariance(&mut a, 3, 1.0);
         // NaN 对角线应被替换为 lambda
         assert_eq!(a[0], 1.0); // lambda = 1.0
@@ -273,11 +265,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_covariance_nan_off_diagonal() {
-        let mut a = vec![
-            2.0, f64::NAN, 0.0,
-            0.0, 2.0, 0.0,
-            0.0, 0.0, 2.0,
-        ];
+        let mut a = vec![2.0, f64::NAN, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0];
         sanitize_covariance(&mut a, 3, 1.0);
         // NaN 非对角线应被替换为 0.0，然后对称化
         assert_eq!(a[1], 0.0);
@@ -287,9 +275,15 @@ mod tests {
     #[test]
     fn test_sanitize_covariance_infinity() {
         let mut a = vec![
-            f64::INFINITY, 0.0, 0.0,
-            0.0, 2.0, 0.0,
-            0.0, 0.0, f64::NEG_INFINITY,
+            f64::INFINITY,
+            0.0,
+            0.0,
+            0.0,
+            2.0,
+            0.0,
+            0.0,
+            0.0,
+            f64::NEG_INFINITY,
         ];
         sanitize_covariance(&mut a, 3, 1.0);
         // Infinity 应被替换
@@ -299,11 +293,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_covariance_exceeds_max() {
-        let mut a = vec![
-            2e9, 0.0, 0.0,
-            0.0, 2.0, 0.0,
-            0.0, 0.0, -2e9,
-        ];
+        let mut a = vec![2e9, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, -2e9];
         sanitize_covariance(&mut a, 3, 1.0);
         // 超出 MAX_COVARIANCE 应���限制
         assert!(a[0] <= MAX_COVARIANCE);
@@ -314,11 +304,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_covariance_small_diagonal() {
-        let mut a = vec![
-            0.0001, 0.0, 0.0,
-            0.0, 0.0001, 0.0,
-            0.0, 0.0, 0.0001,
-        ];
+        let mut a = vec![0.0001, 0.0, 0.0, 0.0, 0.0001, 0.0, 0.0, 0.0, 0.0001];
         sanitize_covariance(&mut a, 3, 1.0);
         // 对角线应被提升到 lambda
         assert!(a[0] >= 1.0);
@@ -328,10 +314,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_covariance_lambda_floor() {
-        let mut a = vec![
-            0.0001, 0.0,
-            0.0, 0.0001,
-        ];
+        let mut a = vec![0.0001, 0.0, 0.0, 0.0001];
         // lambda 小于 MIN_LAMBDA 时，使用 MIN_LAMBDA
         sanitize_covariance(&mut a, 2, 0.0001);
         assert!(a[0] >= MIN_LAMBDA);
@@ -341,8 +324,7 @@ mod tests {
     #[test]
     fn test_sanitize_covariance_symmetry_enforcement() {
         let mut a = vec![
-            2.0, 0.6, 0.0,
-            0.4, 2.0, 0.0, // 不对称: a[1]=0.6, a[3]=0.4
+            2.0, 0.6, 0.0, 0.4, 2.0, 0.0, // 不对称: a[1]=0.6, a[3]=0.4
             0.0, 0.0, 2.0,
         ];
         sanitize_covariance(&mut a, 3, 1.0);
@@ -364,12 +346,20 @@ mod tests {
     #[test]
     fn test_needs_full_recompute_periodic() {
         let l = vec![1.0, 0.0, 0.0, 1.0]; // 2x2 单位矩阵
-        // 每隔固定周期强制重算（与 CHOLESKY_RECOMPUTE_INTERVAL 对齐）
+                                          // 每隔固定周期强制重算（与 CHOLESKY_RECOMPUTE_INTERVAL 对齐）
         assert!(needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL, &l, 2));
         assert!(needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL * 2, &l, 2));
         assert!(needs_full_recompute(0, &l, 2)); // 0 也是周期的倍数
-        assert!(!needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL - 1, &l, 2));
-        assert!(!needs_full_recompute(CHOLESKY_RECOMPUTE_INTERVAL + 1, &l, 2));
+        assert!(!needs_full_recompute(
+            CHOLESKY_RECOMPUTE_INTERVAL - 1,
+            &l,
+            2
+        ));
+        assert!(!needs_full_recompute(
+            CHOLESKY_RECOMPUTE_INTERVAL + 1,
+            &l,
+            2
+        ));
     }
 
     #[test]
@@ -399,11 +389,7 @@ mod tests {
 
     #[test]
     fn test_needs_full_recompute_healthy_matrix() {
-        let l = vec![
-            1.0, 0.0, 0.0,
-            0.5, 1.0, 0.0,
-            0.3, 0.2, 1.0,
-        ];
+        let l = vec![1.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.3, 0.2, 1.0];
         assert!(!needs_full_recompute(50, &l, 3)); // 健康矩阵，不需要重算
     }
 
@@ -419,16 +405,8 @@ mod tests {
     #[test]
     fn test_diagnose_model_healthy() {
         let d = 3;
-        let a = vec![
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 0.0, 1.0,
-        ];
-        let l = vec![
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 0.0, 1.0,
-        ];
+        let a = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        let l = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
         let result = diagnose_model(&a, &l, d);
         assert!(result.is_healthy);
         assert!(!result.has_nan);
